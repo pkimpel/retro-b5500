@@ -480,7 +480,7 @@ BEGIN COMMENT OUTERMOST BLOCK;                                          00500000
    STREAM PROCEDURE MOVECHARACTERS(N,SORCE,SK,DEST,DSK);                00515000          
                              VALUE N,      SK,     DSK ;                00516000          
            BEGIN SI_LOC SK; SI_SI+6;                                    00517000          
-                IF SC!"0" THEN BEGIN SI_SORCE; 2(SI_Si+32); SORCE_SI END00518000;         
+                IF SC!"0" THEN BEGIN SI_SORCE; 2(SI_SI+32); SORCE_SI END00518000          
                 SI_LOC DK; SI_SI+6; DI_DEST;                            00519000          
                 IF SC!"0" THEN 2(DI_DI+32);                             00520000          
                 SI_SORCE; SI_SI+SK; DI_DI+DK; DS_N CHR;                 00521000          
@@ -905,7 +905,7 @@ COMMENT              INFO FORMAT                                        01028000
          PROCID         =10#,    COMMENT 012;                           01187000          
          INTRNSICPROCID =11#,    COMMENT 013;                           01188000          
          STRPROCID      =12#,    COMMENT 014;                           01189000          
-         BOOSTPROCID    =13#,    COMMENT 015;                           01190000          
+         BOOSTRPROCID   =13#,    COMMENT 015;                           01190000          
          REALSTRPROCID  =14#,    COMMENT 016;                           01191000          
          ALFASTRPROCID  =15#,    COMMENT 017;                           01192000          
          INTSTRPROCID   =16#,    COMMENT 020;                           01193000          
@@ -1072,7 +1072,7 @@ DEFINE ADES=0#,LDES=2#,PDES=1#,CHAR=3#;                                 01299000
                   CHARACTOR (COLUMN 73). TLCR AND CLCR CONTAIN ADDRESS O01335000F         
                   THE LAST CHARACTER IN THE TAPE AND CARD BUFFERS.  MAXT01336000LCR       
                   IS THE MAXIMUM OF TLCR WHEN THE INPUT IS BLOCKED;     01337000          
-     DEFINE BUFFIZE =   56#;                                            01338000          
+     DEFINE BUFFSIZE =  56#;                                            01338000          
               INTEGER GTIX;                                             01339050          
      ARRAY TEN[0:69];                                                   01340000          
         INTEGER  NOOFARRAYS; COMMENT NOOFARRAYS IS THE SUM OF ARRAYS    01340050          
@@ -1336,7 +1336,7 @@ REAL  P,     COMMENT CONTAINS NUMBER OF FORMALS FOR STREAM PROCS;       01489000
  DEFINE ARRAYMONFILE = [27:11]#;  COMMENT ARRAYMONFILE IS THE DEFINE FOR01526000          
                                  THE ADDRESS OF THE FILE DESCRIPTOR IN  01527000          
                                  THE FIRST WORD OF ADDITIONAL INFO;     01528000          
- DEFINE SVARMONDILE = [37:11]#;  COMMENT MONITORFILE IS THE DEFINE FOR  01529000          
+ DEFINE SVARMONFILE = [37:11]#;  COMMENT MONITORFILE IS THE DEFINE FOR  01529000          
                                 THE ADDRESS OF THE FILE DESCRIPTOR IN   01530000          
                                 INFO FOR MONITORED SIMPLE VARIABLES;    01531000          
  DEFINE NODIMPART = [40:8]#;  COMMENT THE FIRST ADDITIONAL WORD OF INFO 01532000          
@@ -2443,7 +2443,7 @@ FIRSTTIME:                                                              02213500
     IF EXAMIN(FCR)!="$" AND LISTER THEN PRINTCARD;                      02214200          
     PUTSEQNO(INFO[LASTSEQROW,LASTSEQENCE],LCR);                         02214250          
     CARDNUMBER:=CONV(INFO[LASTSEQROW,LASTSEQUENCE-1],5,8);              02214260          
-    TURNONSOPTLIGHT("%",LCR);                                           02214500          
+    TURNONSTOPLIGHT("%",LCR);                                           02214500          
     GO XIT;                                                             02214750          
 COMMENT  WE HAVE JUST INITIALIZED CARD INPUT;                           02215000          
 CARDONLY:                                                               02215250          
@@ -2542,7 +2542,7 @@ COMMENT  DONT FORGET THAT NCR IS NOT WORD MODE, BUT CHAR. MODE POINTER; 02229250
               VOIDING:=FALSE; VOIDTAPE:=FALSE                           02233750          
               END;                                                      02234000          
          END;                                                           02234250          
-    CARDCOUNT:=CARDOCUNT+1;                                             02234500          
+    CARDCOUNT:=CARDCOUNT+1;                                             02234500          
     IF DOLLAR2TOG THEN                                                  02234600          
               BEGIN DOLLAR2TOG:=NORELEASE:=FALSE; GO USETHESWITCH;END;  02234650          
     PUTSEQNO(INFO[LASTSEQROW,LASTSEQUENCE],LCR);                        02234750          
@@ -2628,7 +2628,7 @@ GETEM:                                                             %107-02238560
     IF INSERTMID=0 THEN                                            %107-02238620          
         BEGIN INSERTFID:=INSERTMID; INSERTMID:=0; END;             %107-02238630          
     IF INSERTDEPTH > 1 THEN CLOSE(LF,RELEASE);                     %107-02238640          
-    FILL LF WITH ISNERTMID,INSERTFID;                              %107-02238650          
+    FILL LF WITH INSERTMID,INSERTFID;                              %107-02238650          
     READ(LF[0],10,LBUFF[*])[EEXIT];    % DO THE FOLLOWING SO THAT  %107-02238652          
     INSERTMID:=LF.MFID;                % IF THE OPERATOR IL-ED US  %107-02238654          
     INSERTFID:=LF.FID;                 % WE WILL HAVE THE PROPER NAMES. 02238656          
@@ -3681,7 +3681,7 @@ PROCEDURE EMITC(REPEAT,OPERATOR); VALUE REPEAT,OPERATOR;                04010000
               VALUE ADDRESS,OPERATOR;                                   04029000          
               INTEGER ADDRESS,OPERATOR;                                 04030000          
               BEGIN                                                     04031000          
-                   EMIL(ADDRESS);                                       04032000          
+                   EMITL(ADDRESS);                                      04032000          
                    IF ADDRESS > 1023 THEN EMITO(PRTE);                  04033000          
                    EMITO(OPERATOR) END EMITPAIR;                        04034000          
  COMMENT  EMITUP IS RESPONSIBLE FOR COMPILING THE CODE TO RAISE AN      04035000          
@@ -4072,7 +4072,7 @@ END CHECKDISJOINT;                                                      04617000
                    DI:=LINE; 11(DS:=8 LIT "        "); % BLANK LINE     05019000          
                    SI _LSTSEQ; SI _ SI-8; DS _WDS;                      05020000          
                    DS:=24 LIT "    <<<<<<<<<<<<<<<<<<<<"; % SET FLAG    05021000          
-                   SI _ LSTSEQ; DI _ LSQSEQ; DI _ DI-8; DS _ WDS;       05023000          
+                   SI _ LSTSEQ; DI _ LSTSEQ; DI _ DI-8; DS _ WDS;       05023000          
                    DI_LINE; SI_RMT; SI_SI+7;                            05024000          
                    IF SC="1" THEN                                       05024100          
                    BEGIN SI_LSTSEQ; DS_10 LIT "NEAR LINE ";             05024200          
@@ -4132,7 +4132,7 @@ PROCEDURE ERR(ERRNUM); VALUE ERRNUM; INTEGER ERRNUM;                    05105000
 DEFINE ERROR = ERR#;  COMMENT ERROR IS A SYNONM FOR ERR;                05110000          
 COMMENT CHECKER IS A SMALL PROCEDURE THAT CHECKS TO SEE THAT THE        05111000          
                UPLEVEL ADDRESSING CONVENTIONS ARE OBEYED;               05112000          
-  PROCEDURE CHECKER(ELBATWORD); VALUE ELBATWOD; REAL ELBATWORD;         05113000          
+  PROCEDURE CHECKER(ELBATWORD); VALUE ELBATWORD; REAL ELBATWORD;        05113000          
                BEGIN                                                    05114000          
                     IF MODE>= 2 THEN                                    05115000          
                     IF GTI1 _ ELBATWORD.LVL >=FRSTLEVEL THEN            05116000          
@@ -5721,7 +5721,7 @@ DCR:                                                                    07466250
               EMITO(DEL); EMITO(DEL); EMITO(DEL); GO PARENCHECK;        07467000          
               END;                                                      07467250          
          END;                                                           07467500          
-    IF FLCASS!FILEID AND ELCLASS!SUPERFILEID THEN % DATACOM RELEASE.    07467750          
+    IF FLCLASS!FILEID AND ELCLASS!SUPERFILEID THEN % DATACOM RELEASE.   07467750          
          BEGIN AEXP; GO DCR; END;                                       07468000          
     CHECKER(ELBAT[I]); PASSFILE;                                        07468250          
     IF ELCLASS = COMMA THEN EMITO(DUP);                                 07468500          
@@ -7147,7 +7147,7 @@ PROCEDURE WRITESTMT;                                                    08528000
               LABEL CHKSECOND;  COMMENT I IS NOW POINTING AT THE COMMA  08573000          
                                SEPARATING THE FIRST AND SECOND          08574000          
                                PARAMETERS;                              08575000          
-              LABEL ONEPARFNSH;  COMMENT I IS POINT AT THE RIGHT        08576000          
+              LABEL ONEPARENSH;  COMMENT I IS POINT AT THE RIGHT        08576000          
                                 PARENTHESIS AT THIS POINT AND I HAVE    08577000          
                                 JUST DISCOVERED THAT THIS IS THE ONE    08578000          
                                PARAMETER CASE;                          08579000          
@@ -8285,7 +8285,7 @@ COMMENT WRITE DISK SEGMENT ZERO;                                        09406000
                    "PRT SIZE =",I4,"; TOTAL SEGMENT SIZE =",I6,         09411000          
                  " WORDS; DISK SIZE =",I4," SEGS; NO. PGM. SEGS =",     09412000          
               I4/"ESTIMATED CORE STORAGE REQUIRED =",I6," WORDS.",      09413000          
-              /"ESTIMATED AUXILLARY MEMORY REQUIRED =",I6," WORDS.",    09414000          
+              /"ESTIMATED AUXILIARY MEMORY REQUIRED =",I6," WORDS.",    09414000          
               /"NUMBER OF CARD-IMAGES PROCESSED =",F7.0);               09414100          
 FOMRAT SERR("THERE WERE ",V8," SEQUENCE ERRORS");                       09414101          
               MOVECHARACTERS(4,INFO[LASTSEQROW,LASTSEQUENCE-1],0,GT1,4);09415000          
@@ -8618,7 +8618,7 @@ EL:                  IF FORMATPHRASE THEN GO TO EX END                  10119000
                VALUE ISKIP,COUNT,ASKIP;                                 10237000          
                BEGIN DI _ INFO; DI _ DI+ISKIP;                          10238000          
                      SI _ ACCUM;SI _ SI+ASKIP; SI _ SI+3;               10239000          
-                     DS _ COUTN CHR END PACKINFO;                       10240000          
+                     DS _ COUNT CHR END PACKINFO;                       10240000          
              INTEGER COUNT,SKIPCOUNT;                                   10241000          
                IF (COUNT _ CHAR.[12:6]) + CHARCOUNT > 2047              10242000          
                  THEN BEGIN FLAG(142);  TB1_ TRUE  END                  10243000          
@@ -9409,7 +9409,7 @@ BOOLEAN PROCEDURE SWITCHGEN(BEFORE,PD);                            %113-10954000
                 THEN BEGIN                                              10966000          
                    INFO[0,N] _ ELBAT[I];                                10967000          
                    IF N _ N+1 = 256                                     10968000          
-                     THEN EBGIN ERR(147); GO TO EXIT END;               10969000          
+                     THEN BEGIN ERR(147); GO TO EXIT END;               10969000          
                    IF STEPI = COMMA THEN GO TO LX;                      10970000          
                    EMITO(BFC); L _ BUMPL; N _ N-1;                      10971000          
                    FOR K _ 0 STEP 1 UNTIL N                             10972000          
@@ -9480,7 +9480,7 @@ BOOLEAN PROCEDURE SWITCHGEN(BEFORE,PD);                            %113-10954000
                         BEGIN                                           12032000          
                     IF ELCLASS  !COMMA THEN BEGIN ERR(284);GO EXIT END; 12033000          
                         STEPIT;                                         12034000          
-                        B_ELCLASS=INTID OR ELCLASS=INTARRYID            12034100          
+                        B_ELCLASS=INTID OR ELCLASS=INTARRAYID           12034100          
                                         OR ELCLASS=INTPROCID ;          12034110          
                         IF ELCLASS<=INTID AND ELCLASS>=REALID THEN      12035000          
                         BEGIN  EMITN(ELBAT[I].ADDRESS); STEPIT END      12036000          
@@ -10065,7 +10065,7 @@ END DEFINEPARAM;                                                        12166000
                      THEN IF P2 THEN BEGIN COMMENT OWN ARRAY;           13347000          
                                         EMITL(ADDRSF); EMITN(10);       13347500          
                                      END                                13347510          
-                                ELSE CHECKDISJOIUNT(ADDRSF);            13347520          
+                                ELSE CHECKDISJOINT(ADDRSF);             13347520          
                   END;                                                  13348000          
               IF XREF AND NOT SPECTOG THEN % ERASE PREVIOUS XREF ENTRY. 13348100          
                  XREFPT_XREFPT-REAL(ELBAT[I]!0); % GET RID OF LAST CREF 13348200          
@@ -11738,8 +11738,8 @@ COMMENT  *****     MONITOR FUNCTION M6 GOES BEFORE EMITO(XCH);          15310000
                              P1_0;          GO TO     EXIT;             15331000          
                         END;                                            15332000          
                    EMITO(IF TALL.CLASS = INTARRAYID  THEN               15333000          
-                        IF  P1 = FS TEHN ISD ELSE ISN ELSE              15334000          
-                        IF P1=FS TEHN STD ELSE SND);                    15335000          
+                        IF  P1 = FS THEN ISD ELSE ISN ELSE              15334000          
+                        IF P1=FS THEN STD ELSE SND);                    15335000          
                    P1_0  ;                                              15336000          
                    GO TO EXIT ;                                         15337000          
                  END OF ASSIGNMENT STATEMENT SUBSCRIPTED VARIABLES;     15338000          
@@ -12072,7 +12072,7 @@ IFTOG:   IF STEPI!THENV THEN BEGIN ERR(266); GO EXIT  END;              16217000
            BEGIN   PUT(0&L[24:36:12],GIT(GT1));                         16257000          
               IF GT1>0 THEN                                             16258000          
                    BEGIN                                                16259000          
-                   PUT(-(TAKE(GT1)&(NESTLEVEL-JUMPLEBEL)[11:43:5]),GT1);16260000          
+                   PUT(-(TAKE(GT1)&(NESTLEVEL-JUMPLEVEL)[11:43:5]),GT1);16260000          
                    EMITN(1023);                                         16261000          
                    END                                                  16262000          
               ELSE                                                      16263000          
@@ -12449,7 +12449,7 @@ IF (XREF OR DEFINING.[1:1) AND XLUN > 0 THEN                       %116-17001000
         SI := LOC SEQNO;                                           %116-17050400          
         DS := 8 DEC;                                               %116-17050500          
         FWDTOG (DS := 17 LIT "  --  FORWARD AT ";                  %116-17050600          
-                SI := LOC FWDSFQNO;                                %116-17050700          
+                SI := LOC FWDSEQNO;                                %116-17050700          
                 DS := 8 DEC);                                      %116-17050800          
         LBLTOG (DS := 16 LIT "  --  OCCURS AT ";                   %116-17050900          
                 SI := LOC FWDSEQNO;                                %116-17051000          
