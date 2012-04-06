@@ -553,7 +553,7 @@ VALUE                                                                   00980000
   DI:= LOC Q;                                                           01005000=00524000=
   DI:= DI+5;                                                            01010000=00524000=
   SKIP 3 DB;                                                            01015000=00525000=
-  (IF SB THEN DS:= SET ELSE DS:= RESET;SKIP SB);                        01020000=00525000=
+  9(IF SB THEN DS:= SET ELSE DS:= RESET;SKIP SB);                       01020000=00525000=
   DI:= LOC Q;                                                           01025000=00526000=
   SI:= Q;                                                               01030000=00526000=
   DS:= WDS;                                                             01035000=00526000=
@@ -600,6 +600,10 @@ ELSE                                                                    01220000
   END;                                                                  01240000=00538000=
 IF EXAMIN(RR11+20) = 12 THEN                                            01245000=00539000=
   RR10:= 150;                                                           01250000=00539000=
+                                                                        01254900          
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%01254920          
+  %%  INNER BLOCK OF COMPILER                                         %%01254940          
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%01254960          
   BEGIN                                                                 01255000=01000000=
   INTEGER                                                               01260000=01000700=
     NUMSEQUENCEERRORS;                                                  01265000=01000700=
@@ -1678,7 +1682,7 @@ COMMENT THE CONTENTS OF RELATIVE DISK SEGMENT ZERO OF THE CODE FILE ARE:04950000
   SAVE ARRAY                                                            06605000=01561056=
     CBUF, TBUFF[0:9]; % INPUT BUFFERS.                                  06606000          
   BOOLEAN                                                               06610000=01561060=
-    REMOTEG;                                                            06615000=01561060=
+    REMOTOG;                                                            06615000=01561060=
   ARRAY                                                                 06620000=01561065=
     LIBARRAY[0:24];   % LIBARRAY IS USED TO KEEP INFORMATION AS         06625000=01561065=
                       % TO LAST COMPILED LIBRARY SEQUENCE NUMBERS.      06630000=01561070=
@@ -1979,11 +1983,11 @@ COMMENT THE CONTENTS OF RELATIVE DISK SEGMENT ZERO OF THE CODE FILE ARE:04950000
     DI:= LOC T3;                                                        08090000=01688030=
     DI:= DI+5;                                                          08095000=01688040=
     SKIP 3 DB;                                                          08100000=01688040=
-    (IF SB THEN DS:= 1 SET ELSE DS:= 1 RESET;SKIP 1 SB);                08105000=01688050=
+    15(IF SB THEN DS:= 1 SET ELSE DS:= 1 RESET;SKIP 1 SB);              08105000=01688050=
     SI:= LOC EDOC;                                                      08110000=01688050=
     DI:= LOC T2;                                                        08115000=01688050=
     DS:= 5 CHR;                                                         08120000=01688050=
-    (IF SB THEN DS:= 1 SET ELSE DS:= 1 RESET;SKIP 1 SB);                08125000=01688060=
+    3(IF SB THEN DS:= 1 SET ELSE DS:= 1 RESET;SKIP 1 SB);               08125000=01688060=
     DI:= T3;                                                            08130000=01688060=
     SI:= LOC T2;                                                        08135000=01688060=
     DS:= WDS;                                                           08140000=01688060=
@@ -1992,11 +1996,11 @@ COMMENT THE CONTENTS OF RELATIVE DISK SEGMENT ZERO OF THE CODE FILE ARE:04950000
     SKIP 3 DB;                                                          08155000=01688070=
     SI:= LOC TEDOC;                                                     08160000=01688070=
     SI:= SI+3;                                                          08165000=01688070=
-    (IF SB THEN DS:= 1 SET ELSE DS:= 1 RESET;SKIP 1 SB);                08170000=01688080=
+    15(IF SB THEN DS:= 1 SET ELSE DS:= 1 RESET;SKIP 1 SB);              08170000=01688080=
     SI:= LOC TEDOC;                                                     08175000=01688080=
     DI:= LOC T1;                                                        08180000=01688090=
     DS:= 5 CHR;                                                         08185000=01688090=
-    (IF SB THEN DS:= 1 SET ELSE DS:= 1 RESET;SKIP 1 SB);                08190000=01688090=
+    3(IF SB THEN DS:= 1 SET ELSE DS:= 1 RESET;SKIP 1 SB);               08190000=01688090=
     DI:= T3;                                                            08195000=01688100=
     SI:= LOC T1;                                                        08200000=01688100=
     DS:= WDS                                                            08205000=01688110=
@@ -2200,7 +2204,7 @@ COMMENT  "BLANKET" BLANKS OUT N+1 WORDS IN "THERE";                     09000000
       NED;                                                              09180000=01742600=
     SI:= FCR;                                                           09185000=01742700=
     TALLY:= 0;                                                          09190000=01742800=
-    (36(IF SC ^= 6" " THEN JUMP OUT 2 TO NED;SI:= SI+1));               09195000=01742900=
+    2(36(IF SC ^= 6" " THEN JUMP OUT 2 TO NED;SI:= SI+1));              09195000=01742900=
     TALLY:= 63;                                                         09200000=01743000=
 NED:                                                                    09205000=01743100=
     TALLY:= TALLY+1;                                                    09210000=01743100=
@@ -2249,18 +2253,16 @@ L:  IF SC = 6""" THEN                                                   09400000
       DI:= LCR;                                                         09415000=01767000=
       DS:= 1 LIT 6""";                    % STOPPER FOR SCAN            09420000=01767000=
       NCR:= SI;   % TEMP, STORAGE. SINCE NCR IS "LOCAL" TO GETVOID.     09425000=01768000=
-      8 (IF SC = 6""" THEN JUMP OUT ELSE BEGIN TALLY:= TALLY+1;SI:= SI+ 09430000=01770000=
-          1                                                             09435000=01770000=
-        END);                                                           09440000=01770000=
+      8(IF SC = 6""" THEN JUMP OUT                                      09430000=01770000=
+        ELSE BEGIN TALLY:= TALLY+1;SI:= SI+1 END);                      09435000=01770000=
       END                                                               09445000=01772000=
     ELSE                                                                09450000=01772000=
       BEGIN                                                             09455000=01772000=
       NCR:= SI;   % TEMP. STORAGE, SINCE NCR IS "LOCAL" TO GETVOID.     09460000=01773000=
       DI:= LCR;                                                         09465000=01774000=
       DS:= 1 LIT 6" ";          % STOPPER FOR SCAN                      09470000=01774000=
-      8 (IF SC = 6" " THEN JUMP OUT ELSE BEGIN TALLY:= TALLY+1;SI:= SI+ 09475000=01776000=
-          1                                                             09480000=01776000=
-        END);                                                           09485000=01776000=
+      8(IF SC = 6" " THEN JUMP OUT                                      09475000=01776000=
+        ELSE BEGIN TALLY:= TALLY+1;SI:= SI+1 END);                      09480000=01776000=
       END;                                                              09490000=01777000=
 TRANS:                                                                  09495000=01779000=
     SI:= LOC N;                                                         09500000=01779000=
@@ -2306,7 +2308,7 @@ TRANS:                                                                  09495000
       DI:= LOC DATER;                                                   09685000=01825000=
       SI:= LOC DATE;                                                    09690000=01825000=
       SI:= SI+2;                                                        09695000=01825000=
-      (DS:= 2 CHR;DS:= LIT 6"/");                                       09700000=01826000=
+      2(DS:= 2 CHR;DS:= LIT 6"/");                                      09700000=01826000=
       DS:= 2 CHR;                                                       09705000=01826000=
       END OF DATER;                                                     09710000=01827000=
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%09712000          
@@ -2553,7 +2555,7 @@ COMMENT  LOCAL VARIABLES ARE LOCATED IN REVERSE ORDER FROM THE          10860000
     DI:= LOC TEMP1;                 % WE MAY OVERFLOW INTO TEMP2.       10890000=02001868=
     CNT(IF SC < 6"0" THEN IF SC >= 6"A" THEN IF SC <= 6"F" THEN         10895000=02001870=
                                                      % WORK HARD.       10900000=02001870=
-      BEGINT1:= SI;T2:= DI;DI:= T1;SI:= T2; % FLIP, MAN.                10905000=02001874=
+      BEGIN T1:= SI;T2:= DI;DI:= T1;SI:= T2; % FLIP, MAN.               10905000=02001874=
       DS:= 3 RESET;SI:= T1;DI:= T2;   % FLIP BACK.                      10910000=02001876=
       DS:= 1 ADD;DI:= DI-1;SKIP 2 DB;DS:= 1 SET;SKIP 3 DB;GO AGIN;      10915000=02001882=
       END;                                                              10920000=02001882=
@@ -2800,7 +2802,7 @@ A LIBRARY CALL IF TRUE, ELSE WE ARE EXITING.;                           11410000
         GTI1:= MKABS(LIBRARY[FILEINX](0))                               12120000=02013528=
       ELSE                                                              12125000=02013528=
         GTI1:= (NCR+2).[14:15];                                         12130000=02013528=
-      LIBARRAY[LIBINDEX+2], NCRLINK:= GTI1.[14:15];                     12135000=02013530=
+      LIBARRAY[LIBINDEX+2].NCRLINK:= GTI1.[14:15];                      12135000=02013530=
                                                     COMMENT GTI1=NCR;   12140000=02013530=
       IF LASTUSED <= 2 OR LASTUSED = 5 THEN                             12145000=02013533=
         LIBARRAY[LIBINDEX+2].LCRLINK:= 0                                12150000=02013534=
@@ -3110,6 +3112,7 @@ COMMENT  MOVE CHARACTERS INTO "ACCUM";                                  13645000
                                                                         13675000=02126500=
 COMMENT  RESET "NCR" TO LOCATION OF NEXT CHARACTER TO BE SCANNED;       13680000=02126500=
       END OF SCAN;                                                      13685000=02127000=
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%13686000          
     LABEL                                                               13690000=02127500=
       L;    %                                                           13695000=02127500=
 L:  SCAN(NCR, COUNT, ACCUM[1], 63-COUNT, RESULT, RESULT, COUNT, 0       13700000=02129000=
@@ -4124,7 +4127,7 @@ LENGTH4:                                                                18275000
           DI:= DI+47;                                                   18705000=02449000=
           SKIP 4 DB;                                                    18710000=02449000=
           DS:= 2 RESET;                                                 18715000=02449000=
-          (DI:= DI+48;DS:= 8 LIT 6"00#01+0#";                           18720000=02451000=
+          2(DI:= DI+48;DS:= 8 LIT 6"00#01+0#";                          18720000=02451000=
           END FIX;                                                      18725000=02451000=
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%18726000          
         IF GT1:= FEJ(TAPE, 0) = 10 THEN                                 18730000=02452000=
@@ -4932,7 +4935,7 @@ COMMENT  SPECIAL HANDLING OF CONSTANTS FOR SAKE OF FOR STATEMENTS;      22470000
       DS:= LIT 6" ";                                                    22665000=02927260=
       SI:= LOC N;                                                       22670000=02927270=
       SI:= SI+6;                                                        22675000=02927270=
-      (DS:= 3 RESET;3(IF SB THEN DS:= SET ELSE DS:= RESET;SKIP SB));    22680000=02927272=
+      4(DS:= 3 RESET;3(IF SB THEN DS:= SET ELSE DS:= RESET;SKIP SB));   22680000=02927272=
       DI:= DI-4;                                                        22685000=02927280=
       DS:= 3 FILL;                                                      22690000=02927280=
       DI:= D;                                                           22695000=02927290=
@@ -5748,7 +5751,7 @@ COMMENT#################################################################23780000
     DS:= 4 CHR;                                                         26740000=04132000=
     DS:= 2 LIT 6"  ";                                                   26745000=04133000=
     SI:= LOC CODE;                                                      26750000=04134000=
-    (DS:= 3 RESET;3(IF SB THEN DS:= SET ELSE DS:= RESET;SKIP 1 SB));    26755000=04136000=
+    16(DS:= 3 RESET;3(IF SB THEN DS:= SET ELSE DS:= RESET;SKIP 1 SB));  26755000=04136000=
     49(DS:= 2 LIT 6"  ");                                               26760000=04137000=
     END;                                                                26765000=04138000=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%26766000          
@@ -6222,7 +6225,7 @@ EXIT:                                                                   28625000
         BEGIN                                                           29105000=05024200=
         SI:= LSTSEQ;                                                    29110000=05024200=
         DS:= 10 LIT 6"NEAR LINE ";                                      29115000=05024200=
-        (IF SC > 6"0" THEN JUMP OUT;SI:= SI+1;TALLY:= TALLY+1);         29120000=05024400=
+        7(IF SC > 6"0" THEN JUMP OUT;SI:= SI+1;TALLY:= TALLY+1);        29120000=05024400=
         RMT:= TALLY;                                                    29125000=05024500=
         DS:= 8 CHR;                                                     29130000=05024500=
         DI:= DI-RMT;                                                    29135000=05024500=
@@ -6560,9 +6563,8 @@ COMMENT  PASSLIST ASSUMES I IS POINTING AT LIST ID;                     30260000
     SI:= SI+4;                                                          30790000=05238500=
     TALLY:= 4;                                                          30795000=05238500=
     3(IF SC = 6"0" THEN % DONT PRINT LEADING ZEROES.                    30800000=05239000=
-      BEGINSI:= SI+1;TALLY:= TALLY+63                                   30805000=05239500=
-      ENDELSE                                                           30810000=05239500=
-    JUMP OUT);                                                          30815000=05239500=
+      BEGIN SI:= SI+1;TALLY:= TALLY+63                                  30805000=05239500=
+      END ELSE JUMP OUT);                                               30810000=05239500=
     COUNT:= TALLY;                                                      30820000=05240000=
     DS:= COUNT CHR;                                                     30825000=05240000=
     DS:= 31 LIT 6") = SEGMENT DESCRIPTOR, TYPE = ";                     30830000=05240500=
@@ -15605,8 +15607,8 @@ COMMENT  DEFINEPARAM GENERATES EVERYTHING (EXCEPT THE ELBAT             75580000
   EXIT:                                                                 75950000=13019000=
       END;                                                              75955000=13019000=
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%75956000          
-    STREAM PROCEDURE                                                    75960000=13020000=
-      ENTERID(IDLOC, FILENO, TYPE, MULFID, FILID, FILID1, N);           75965000=13020000=
+    STREAM PROCEDURE ENTERID                                            75960000=13020000=
+      (IDLOC, FILENO, TYPE, MULFID, FILID, FILID1, N);                  75965000=13020000=
     VALUE                                                               75970000=13021000=
       FILENO,                                                           75975000=13021000=
        TYPE,                                                            75980000=13021000=
@@ -19578,7 +19580,7 @@ ENDOFITALL:                                                             95030000
         OWNTOG(DS:= 4 LIT 6"OWN ");                                     95795000=17048100=
         SI:= TYPE;                                                      95800000=17049300=
         32(IF SC = 6"." THEN JUMP OUT ELSE DS:= CHR);                   95805000=17049400=
-        (DS:= 6 LIT 6"  --  ";DS:= 4 LIT 6"NAME";                       95810000=17049440=
+        PARAMTOG(DS:= 6 LIT 6"  --  ";DS:= 4 LIT 6"NAME";               95810000=17049440=
           VALTOG(DI:= DI-4;DS:= 5 LIT 6"VALUE");DS:= 10 LIT             95815000=17049440=
           6" PARAMETER");                                               95820000=17049440=
         DS:= 26 LIT 6"  --  DECLARED IN SEGMENT ";                      95825000=17049500=
@@ -19594,8 +19596,10 @@ ENDOFITALL:                                                             95030000
         DS:= 4 LIT 6" AT ";                                             95875000=17050300=
         SI:= LOC SEQNO;                                                 95880000=17050400=
         DS:= 8 DEC;                                                     95885000=17050500=
-        (DS:= 17 LIT 6"  --  FORWARD AT ";SI:= LOC FWDSEQNO;DS:= 8 DEC);95890000=17050800=
-        (DS:= 16 LIT 6"  --  OCCURS AT ";SI:= LOC FWDSEQNO;DS:= 8 DEC); 95895000=17051100=
+        FWDTOG(DS:= 17 LIT 6"  --  FORWARD AT ";                        95890000=17050800=
+               SI:= LOC FWDSEQNO;DS:= 8 DEC);                           95892000=17050800=
+        LBLTOG(DS:= 16 LIT 6"  --  OCCURS AT ";                         95895000=17051100=
+               SI:= LOC FWDSEQNO;DS:= 8 DEC);                           95896000=17051100=
         END OF SETUPHEADING;                                            95900000=17051200=
       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%95902000          
       STREAM PROCEDURE ADDASEQNO(SEQNO, N, STARS, D);                   95905000=17051400=
@@ -19611,7 +19615,7 @@ ENDOFITALL:                                                             95030000
         SI:= LOC SEQNO;                                                 95955000=17052100=
         DS:= 8 DEC;                                                     95960000=17052200=
         DS:= LIT 6" ";                                                  95965000=17052300=
-        (DI:= DS-1;DS:= LIT 6"*");                                      95970000=17052400=
+        STARS(DI:= DS-1;DS:= LIT 6"*");                                 95970000=17052400=
         END;                                                            95975000=17052500=
       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%95976000          
       STREAM PROCEDURE BLANKET(D);                                      95980000=17052600=
