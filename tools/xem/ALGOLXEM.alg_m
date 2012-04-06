@@ -1,4 +1,4 @@
- $SET OMIT LISTA = LIST                                                 00001000120325PK  
+ $SET OMIT LISTA = LIST                                                 00001000=00000999=
 %#######################################################################00002000=00001000=
 %                                                                       00003000=00001010=
 %               B-5700 ALGOL/TSPOL SYMBOLIC                             00004000=00001020=
@@ -478,16 +478,16 @@ BOOLEAN                                                                 00625000
          TO SAVE SOME STACK SPACE;                                      00640000=00506000=
 REAL                                                                    00645000=00507000=
   RR1,                                                                  00650000=00507000=
-   RR2,                                                                 00655000=00507000=
-   RR3,                                                                 00660000=00507000=
-   RR4,                                                                 00665000=00507000=
-   RR5,                                                                 00670000=00507000=
-   RR6,                                                                 00675000=00507000=
-   RR7,                                                                 00680000=00507000=
-   RR8,                                                                 00685000=00507000=
-   RR9,                                                                 00690000=00507000=
-   RR10,                                                                00695000=00507000=
-   RR11;                                                                00700000=00507000=
+  RR2,                                                                  00655000=00507000=
+  RR3,                                                                  00660000=00507000=
+  RR4,                                                                  00665000=00507000=
+  RR5,                                                                  00670000=00507000=
+  RR6,                                                                  00675000=00507000=
+  RR7,                                                                  00680000=00507000=
+  RR8,                                                                  00685000=00507000=
+  RR9,                                                                  00690000=00507000=
+  RR10,                                                                 00695000=00507000=
+  RR11;                                                                 00700000=00507000=
     COMMENT SOME OF THE RRI ARE USED TO PASS FILE INFORMATION TO        00705000=00508000=
          THE MAIN BLOCK;                                                00710000=00509000=
                                                                         00715000=00510000=
@@ -496,17 +496,17 @@ REAL                                                                    00645000
 REAL STREAM PROCEDURE EXAMIN(NCR);                                      00730000=00511000=
 VALUE                                                                   00735000=00511000=
   NCR;                                                                  00740000=00511000=
-  BEGIN                                                                 00745000=00512000=
-  SI:= NCR;                                                             00750000=00512000=
-  DI:= LOC EXAMIN;                                                      00755000=00512000=
-  DI:= DI+7;                                                            00760000=00512000=
-  DS:= CHR                                                              00765000=00512000=
+  BEGIN COMMENT RETURNS THE CHARACTER AT ABS CHARACTER ADDRESS NCR;     00745000=00512000=
+  SI:= NCR;        % POINT SI TO ADDRESS CONTAINED IN NCR               00750000=00512000=
+  DI:= LOC EXAMIN; % POINT DI TO PROCEDURE RESULT CELL                  00755000=00512000=
+  DI:= DI+7;       % MOVE DI TO LAST CHAR OF PROCEDURE RESULT CELL      00760000=00512000=
+  DS:= CHR         % MOVE & RETURN CHAR AT ADDRESS IN NCR               00765000=00512000=
   END;                                                                  00770000=00512000=
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00775000=00512100=
 REAL STREAM PROCEDURE EXAMINELAST(AC, CT);                              00780000=00512100=
 VALUE                                                                   00785000=00512100=
   CT;                                                                   00790000=00512100=
-  BEGIN                                                                 00795000=00512200=
+  BEGIN COMMENT RETURNS THE CHARACTER AT ABS CHARACTER ADDRESS AC+CT;   00795000=00512200=
   SI:= AC;                                                              00800000=00512300=
   SI:= SI+CT;                                                           00805000=00512300=
   DI:= LOC EXAMINELAST;                                                 00810000=00512400=
@@ -516,90 +516,67 @@ VALUE                                                                   00785000
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00826000          
     COMMENT MOVECHARACTERS MOVES N CHARACTERS FROM THE SK-TH CHARACTER  00830000=00513000=
          IN SORCE TO THE DK-TH CHARACTER IN DEST, 0<=N<=63,0<=SK<=127;  00835000=00514000=
-DEFINE                                                                  00840000=00514500=
-  DK            = DSK #;                                                00845000=00514500=
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00846000          
-STREAM PROCEDURE MOVECHARACTERS(N, SORCE, SK, DEST, DSK);               00850000=00515000=
+STREAM PROCEDURE MOVECHARACTERS(N, SORCE, SK, DEST, DK);                00850000=00515000=
 VALUE                                                                   00855000=00516000=
   N,                                                                    00860000=00516000=
    SK,                                                                  00865000=00516000=
-   DSK;                                                                 00870000=00516000=
+   DK;                                                                  00870000=00516000=
   BEGIN                                                                 00875000=00517000=
-  SI:= LOC SK;                                                          00880000=00517000=
-  SI:= SI+6;                                                            00885000=00517000=
-  IF SC ^= 6"0" THEN                                                    00890000=00518000=
-    BEGIN                                                               00895000=00518000=
-    SI:= SORCE;                                                         00900000=00518000=
-    2(SI:= SI+32);                                                      00905000=00518000=
-    SORCE:= SI                                                          00910000=00518000=
+  SI:= LOC SK;     % POINT SI TO SK                                     00880000=00517000=
+  SI:= SI+6;       % MOVE SI TO CHAR 6 OF SK                            00885000=00517000=
+  IF SC ^= 6"0" THEN  % IF CHAR 6 IS NOT ALL ZERO BITS (I.E., IF THE    00890000=00518000=
+    BEGIN             % SORCE OFFSET IS >= 64)                          00895000=00518000=
+    SI:= SORCE;    % POINT SI AT SORCE                                  00900000=00518000=
+    2(SI:= SI+32); % ADVANCE SI BY 2*32 = 64 CHARACTERS                 00905000=00518000=
+    SORCE:= SI     % STORE UPDATED SORCE ADDRESS IN STACK CELL          00910000=00518000=
     END;                                                                00915000=00518000=
-  SI:= LOC DK;                                                          00920000=00519000=
+  SI:= LOC DK;     % NOW DO THE SAME THING FOR THE DEST OFFSET...       00920000=00519000=
   SI:= SI+6;                                                            00925000=00519000=
   DI:= DEST;                                                            00930000=00519000=
-  IF SC ^= 6"0" THEN                                                    00935000=00520000=
-    2(DI:= DI+32);                                                      00940000=00520000=
-  SI:= SORCE;                                                           00945000=00521000=
-  SI:= SI+SK;                                                           00950000=00521000=
-  DI:= DI+DK;                                                           00955000=00521000=
-  DS:= N CHR;                                                           00960000=00521000=
+  IF SC ^= 6"0" THEN  % IF DEST OFFSET >= 64                            00935000=00520000=
+    2(DI:= DI+32);    % ADVANCE DI BY 64 CHARACTERS                     00940000=00520000=
+  SI:= SORCE;      % RESTORE SI FROM SAVED ADDRESS IN STACK CELL        00945000=00521000=
+  SI:= SI+SK;      % ADVANCE SI BY SK MOD 64                            00950000=00521000=
+  DI:= DI+DK;      % ADVANCE DI BY SK MOD 64                            00955000=00521000=
+  DS:= N CHR;      % TRANSFER N MOD 64 CHARACTERS                       00960000=00521000=
   END MOVECHARACTERS;                                                   00965000=00522000=
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00970000=00523000=
 INTEGER STREAM PROCEDURE GETF(Q);                                       00975000=00523000=
 VALUE                                                                   00980000=00523000=
   Q;                                                                    00985000=00523000=
   BEGIN                                                                 00990000=00524000=
-  SI:= LOC GETF;                                                        00995000=00524000=
-  SI:= SI-7;                                                            01000000=00524000=
-  DI:= LOC Q;                                                           01005000=00524000=
-  DI:= DI+5;                                                            01010000=00524000=
-  SKIP 3 DB;                                                            01015000=00525000=
-  9(IF SB THEN DS:= SET ELSE DS:= RESET;SKIP SB);                       01020000=00525000=
-  DI:= LOC Q;                                                           01025000=00526000=
-  SI:= Q;                                                               01030000=00526000=
-  DS:= WDS;                                                             01035000=00526000=
-  SI:= Q;                                                               01040000=00526000=
-  GETF:= SI                                                             01045000=00527000=
+  SI:= LOC GETF;   % POINT SI TO RETURN VALUE CELL                      00995000=00524000=
+  SI:= SI-7;       % MOVE SI TO BIT 6 OF MSCW                           01000000=00524000=
+  DI:= LOC Q;      % POINT DI TO Q                                      01005000=00524000=
+  DI:= DI+5;       % MOVE DI TO BIT 30 OF Q                             01010000=00524000=
+  SKIP 3 DB;       % MOVE DI TO BIT 33 OF Q [START OF ADDR FIELD]       01015000=00525000=
+  9(IF SB THEN DS:= SET ELSE DS:= RESET;SKIP SB); MOVE rR FROM MSCW TO Q01020000=00525000=
+  DI:= LOC Q;      % POINT DI TO Q                                      01025000=00526000=
+  SI:= Q;          % LOAD SI FROM VALUE OF Q (R+Q = R+3 FROM ONLY CALL) 01030000=00526000=
+  DS:= WDS;        % COPY FPB DESCRIPTOR FROM M[R+3] TO Q               01035000=00526000=
+  SI:= Q;          % LOAD SI WITH ADDR OF FPB                           01040000=00526000=
+  GETF:= SI        % RETURN FPB MEMORY ADDRESS AS RESULT                01045000=00527000=
   END GETF;                                                             01050000=00527000=
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%01055000=00528000=
  COMMENT START SETTING UP FILE PARAMETERS;                              01060000=00528000=
-IF EXAMIN(RR11:= GETF(3)+6"Y08") ^= 12 THEN                             01065000=00529000=
-  RR1:= 5                                                               01070000=00529000=
-ELSE                                                                    01075000=00529000=
+           % 6"Y08" = 3"700010" => CHAR 7 OF WORD 8 OF FPB              01061000          
+           % FPB HAS 5-WORD ENTRIES, SO WORD 8 IS WORD 3 OF 2ND FILE    01062000          
+           % FIRST FILE IS "CODE", SECOND FILE IS "CARD"                01063000          
+           % CHAR 7 OF WORD 3 IS FILE TYPE: 12 => "DISK SERIAL"         01064000          
+IF EXAMIN(RR11:= GETF(3)+6"Y08") ^= 12 THEN % IF "CARD" IS NOT TYPE DISK01065000=00529000=
+  RR1:= 5          % BUFFERS=5, UNBLOCKED                               01070000=00529000=
+ELSE       % FILE "CARD" IS TYPE "DISK SERIAL"                          01075000=00529000=
   BEGIN                                                                 01080000=00530000=
-  RR1:= 2;                                                              01085000=00530000=
-  RR2:= 150                                                             01090000=00530000=
+  RR1:= 2;         % BUFFERS=2                                          01085000=00530000=
+  RR2:= 150        % BLOCKSIZE=150 WORDS                                01090000=00530000=
   END;                                                                  01095000=00530000=
-IF EXAMIN(RR11+5) ^= 12 THEN                                            01100000=00531000=
-  RR3:= 4                                                               01105000=00531000=
-ELSE                                                                    01110000=00531000=
+IF EXAMIN(RR11+5) ^= 12 THEN           % IF FILE "LINE" IS NOT TYPE DISK01100000=00531000=
+  RR3:= 4          % BLOCKSIZE=4 WORDS (FOR DATACOM?)                   01105000=00531000=
+ELSE       % FILE "LINE" IS TYPE "DISK SERIAL"                          01110000=00531000=
   BEGIN                                                                 01115000=00532000=
-  RR3:= 2;                                                              01120000=00532000=
-  RR4:= 150                                                             01125000=00532000=
+  RR3:= 2;         % BUFFERS=5                                          01120000=00532000=
+  RR4:= 150        % BLOCKSIZE=150 WORDS                                01125000=00532000=
   END;                                                                  01130000=00532000=
-IF EXAMIN(RR11+10) = 12 THEN                                            01135000=00533000=
-  BEGIN                                                                 01140000=00534000=
-  RR5:= 2;                                                              01145000=00534000=
-  RR6:= 10;                                                             01150000=00534000=
-  RR7:= 150                                                             01155000=00534000=
-  END                                                                   01160000=00535000=
-ELSE                                                                    01165000=00535000=
-  BEGIN                                                                 01170000=00535000=
-  RR5:= 1;                                                              01175000=00535000=
-  RR6:= 56;                                                             01180000=00535000=
-  RR7:= 10                                                              01185000=00535000=
-  END;                                                                  01190000=00535000=
-IF EXAMIN(RR11+15) = 12 THEN                                            01195000=00536000=
-  BEGIN                                                                 01200000=00537000=
-  RR8:= 10;                                                             01205000=00537000=
-  RR9:= 150                                                             01210000=00537000=
-  END                                                                   01215000=00538000=
-ELSE                                                                    01220000=00538000=
-  BEGIN                                                                 01225000=00538000=
-  RR8:= 56;                                                             01230000=00538000=
-  RR9:= 10                                                              01235000=00538000=
-  END;                                                                  01240000=00538000=
-IF EXAMIN(RR11+20) = 12 THEN                                            01245000=00539000=
-  RR10:= 150;                                                           01250000=00539000=
                                                                         01254900          
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%01254920          
   %%  INNER BLOCK OF COMPILER                                         %%01254940          
@@ -621,9 +598,9 @@ IF EXAMIN(RR11+20) = 12 THEN                                            01245000
                        % EVALUATING AN ARRAY BOUND                      01325000=01000850=
   INTEGER                                                               01330000=01000860=
     NEWINX,                                                             01335000=01000860=
-     ADDVALUE,                                                          01340000=01000860=
-     BASENUM,                                                           01345000=01000860=
-     TOTALNO;                                                           01350000=01000860=
+    ADDVALUE,                                                           01340000=01000860=
+    BASENUM,                                                            01345000=01000860=
+    TOTALNO;                                                            01350000=01000860=
     COMMENT  ADDVALUE IS INCREMENT VALUE FOR RESEQUENCING               01355000=01000870=
               BASENUM IS STARTING VALUE                                 01360000=01000880=
               TOTALNO IS BASENUM + ADDVALUE CALCULATED FOR EACH         01365000=01000890=
@@ -705,10 +682,6 @@ COMMENT  SEQTOG INDICATES RESEQUENCING IS TO BE DONE;                   01690000
     NOHEADING;        % TRUE IF DATIME HAS NOT BEEN CALLED.             01745000=01001480=
   BOOLEAN                                                               01750000=01001490=
     NEWBASE;          % NEW BASENUM FOUND ON A NEW $-CARD.              01755000=01001490=
-  BOOLEAN                                                               01760000=01001500=
-    LASTCRDPATCH;     % NORMALLY FALSE, SET TO TRUE WHEN THE            01765000=01001500=
-                      % LAST CARD FROM SYMBOLIC LIBRARY READ            01770000=01001510=
-                      % IS PATCHED FROM THE CARD READER.                01775000=01001520=
   INTEGER                                                               01780000=01001530=
     XMODE;            % TELLS DOLLARCARD HOW TO SET OPTIONS.            01785000=01001530=
   BOOLEAN                                                               01790000=01001540=
@@ -1257,18 +1230,14 @@ COMMENT              INFO FORMAT                                        02675000
     COMMENT LASTELCLASS IS SET TO PREV ELCLASS BY NEXTENT;              04500000=01329200=
   INTEGER                                                               04505000=01330000=
     FCR,                                                                04510000=01330000=
-     NCR,                                                               04515000=01330000=
-     LCR,                                                               04520000=01330000=
-     TLCR,                                                              04525000=01330000=
-     CLCR;                                                              04530000=01330000=
-  INTEGER                                                               04535000=01331000=
-    MAXTCLR;                                                            04540000=01331000=
+    NCR,                                                                04515000=01330000=
+    LCR,                                                                04520000=01330000=
+    CLCR;                                                               04530000=01330000=
     COMMENT FCR CONTAINS ABSOLUTE ADDRESS OF THE FIRST CHARACTOR OF     04545000=01332000=
               THE CARD IMAGE CURRENTLY BEING SCANNED. NCR THE ADDRESS   04550000=01333000=
               OF THE NEXT CHARACTOR TO BE SCANNED, AND LCR THE LAST     04555000=01334000=
-              CHARACTOR (COLUMN 73). TLCR AND CLCR CONTAIN ADDRESS OF   04560000=01335000=
-              THE LAST CHARACTER IN THE TAPE AND CARD BUFFERS.  MAXTLCR 04565000=01336000=
-              IS THE MAXIMUM OF TLCR WHEN THE INPUT IS BLOCKED;         04570000=01337000=
+              CHARACTOR (COLUMN 73). CLCR CONTAIN ADDRESS OF            04560000=01335000=
+              THE LAST CHARACTER IN THE CARD BUFFERS;                   04565000=01336000=
   DEFINE                                                                04575000=01338000=
     BUFFSIZE      = 56 #;                                               04580000=01338000=
   INTEGER                                                               04585000=01339050=
@@ -1288,7 +1257,7 @@ COMMENT              INFO FORMAT                                        02675000
              COMMENT SAVES FRACTIONAL PART EXPONENT WHEN CONV NUM;      04655000=01340500=
   INTEGER                                                               04660000=01341000=
     IDLOC,                                                              04665000=01341000=
-     IDLOCTEMP;                                                         04670000=01341000=
+    IDLOCTEMP;                                                          04670000=01341000=
   ARRAY                                                                 04675000=01342000=
     PDPRT[0:31, 0:63];                                                  04680000=01342000=
    COMMENT PDPRT CONTAINS INFORMATION FOR USE AT THE END OF COMPILATION 04685000=01343000=
@@ -1369,8 +1338,8 @@ COMMENT THE CONTENTS OF RELATIVE DISK SEGMENT ZERO OF THE CODE FILE ARE:04950000
              COMMENT THIS IS THE CURRENT SEGMENT NUMBER;                05060000=01370000=
   ARRAY                                                                 05065000=01371000=
     EDOC[0:7, 0:127],                                                   05070000=01371000=
-     COP[0:63],                                                         05075000=01371000=
-     WOP[0:127],                                                        05080000=01371000=
+    COP[0:63],                                                          05075000=01371000=
+    WOP[0:127],                                                         05080000=01371000=
     POP[0:10];                                                          05085000=01371000=
     COMMENT  THE EMIT ROUTINES PLACE EACH SYLLABLE INTO THE EDOC ARRAY  05090000=01372000=
               AS SPECIFIED BY "L".                                      05095000=01373000=
@@ -1388,10 +1357,10 @@ COMMENT THE CONTENTS OF RELATIVE DISK SEGMENT ZERO OF THE CODE FILE ARE:04950000
               DURING AN ARRAY DECLARATION ;                             05155000=01383000=
   REAL                                                                  05160000=01384000=
     GT1,                                                                05165000=01384000=
-     GT2,                                                               05170000=01384000=
-     GT3,                                                               05175000=01384000=
-     GT4,                                                               05180000=01384000=
-     GT5;                                                               05185000=01384000=
+    GT2,                                                                05170000=01384000=
+    GT3,                                                                05175000=01384000=
+    GT4,                                                                05180000=01384000=
+    GT5;                                                                05185000=01384000=
   INTEGER                                                               05190000=01384500=
     GTI1;                                                               05195000=01384500=
     COMMENT THESE VARIABLES ARE USED FOR TEMPORARY STORAGE;             05200000=01385000=
@@ -1421,9 +1390,9 @@ COMMENT THE CONTENTS OF RELATIVE DISK SEGMENT ZERO OF THE CODE FILE ARE:04950000
               OTHERWISE IT IS TRUE;                                     05320000=01401000=
   INTEGER                                                               05325000=01402000=
     LEVEL,                                                              05330000=01402000=
-     FRSTLEVEL,                                                         05335000=01402000=
-     SUBLEVEL,                                                          05340000=01402000=
-     MODE;                                                              05345000=01402000=
+    FRSTLEVEL,                                                          05335000=01402000=
+    SUBLEVEL,                                                           05340000=01402000=
+    MODE;                                                               05345000=01402000=
     COMMENT THESE VARIABLES ARE MAINTAINED BY THE BLOCK ROUTINE TO KEEP 05350000=01403000=
               TRACK OF LEVELS OF DEFINITION.  LEVEL GIVES THE DEPTH OF  05355000=01404000=
               NESTING IN DEFINITION. WHERE EACH BLOCK AND EACH PROCEDURE05360000=01405000=
@@ -1559,9 +1528,9 @@ COMMENT THE CONTENTS OF RELATIVE DISK SEGMENT ZERO OF THE CODE FILE ARE:04950000
     NEXTTEXT;          % NEDEX OF NEXT DEFINE TEXT                      06010000=01481400=
   REAL                                                                  06015000=01482000=
     JOINFO,            COMMENT POINTS TO PSEUDO LABEL FOR JUMP OUTS;    06020000=01482000=
-     LPRT,    COMMENT SHOWS LOCATION OF THE LAST LABEL IN THE PRT ;     06025000=01483000=
-     NESTLEVEL,        COMMENT  COUNTS NESTING FOR GO TO AND JUMP OUTS; 06030000=01484000=
-     JUMPLEVEL;                                                         06035000=01485000=
+    LPRT,     COMMENT SHOWS LOCATION OF THE LAST LABEL IN THE PRT ;     06025000=01483000=
+    NESTLEVEL,         COMMENT  COUNTS NESTING FOR GO TO AND JUMP OUTS; 06030000=01484000=
+    JUMPLEVEL;                                                          06035000=01485000=
                        COMMENT NUMBER OF LEVELS TO BE JUMPED OUT;       06040000=01485000=
                                                                         06045000=01486000=
    COMMENT THE REALS ABOVE ARE FOR STREAM STATEMENT;                    06050000=01486000=
@@ -1570,8 +1539,7 @@ COMMENT THE CONTENTS OF RELATIVE DISK SEGMENT ZERO OF THE CODE FILE ARE:04950000
    COMMENT MACRO IS FILLED WITH SYLLABLES FOR STREAM STATEMENT;         06065000=01488000=
   REAL                                                                  06070000=01489000=
     P,       COMMENT CONTAINS NUMBER OF FORMALS FOR STREAM PROCS;       06075000=01489000=
-     Z;                                                                 06080000=01490000=
-              COMMENT CONTAINS 1ST WORD OF INFO FOR STREAM FUNCTIONS;   06085000=01490000=
+    Z;       COMMENT CONTAINS 1ST WORD OF INFO FOR STREAM FUNCTIONS;    06080000=01490000=
   SAVE ALPHA ARRAY                                                      06090000=01491000=
     DEFINEARRAY[0:34];                                                  06092000          
    COMMENT   THESE VARIABLES ARE USED TO CONTROL ACTION OF THE DEFINE.  06095000=01492000=
@@ -1587,62 +1555,54 @@ COMMENT THE CONTENTS OF RELATIVE DISK SEGMENT ZERO OF THE CODE FILE ARE:04950000
              FOR ERROR CONTROL ONLY;                                    06145000=01501000=
   INTEGER                                                               06150000=01502000=
     DIALA,                                                              06155000=01502000=
-     DIALB;                                                             06160000=01502000=
+    DIALB;                                                              06160000=01502000=
    COMMENT THESE VARIABLES GIVE THE LAST VALUE TO WHICH A AND B WERE    06165000=01503000=
              DIALED.  THIS GIVES SOME LOCAL OPTIMIZATION.  EMITD        06170000=01504000=
              WORRIES ABOUT THIS.  OTHER ROUTINES CAUSE A LOSS OF MEMORY 06175000=01505000=
              BY SETTING DIALA AND DIALB TO ZERO;                        06180000=01506000=
   BOOLEAN                                                               06185000=01522000=
-    RRB1;                                                               06190000=01522000=
-               COMMENT RRB1---RRBN ARE BOOLEAN VARIABLES THAT SERVE THE 06195000=01522000=
+    RRB1;      COMMENT RRB1---RRBN ARE BOOLEAN VARIABLES THAT SERVE THE 06190000=01522000=
               SAME FUNCTION AS RR1---RRN FOR REAL VARIABLES.  SEE       06200000=01523000=
               COMMENT AT RR1;                                           06205000=01524000=
   BOOLEAN                                                               06210000=01525000=
-    RRB2;                                                               06215000=01525000=
-                         COMMENT SEE COMMENT AT RRB1 DECLARATION;       06220000=01525000=
+    RRB2;                COMMENT SEE COMMENT AT RRB1 DECLARATION;       06215000=01525000=
   DEFINE                                                                06225000=01526000=
-    ARRAYMONFILE  = [20:11] #;                                          06230000=01526000=
-                                 COMMENT ARRAYMONFILE IS THE DEFINE FOR 06235000=01526000=
+    ARRAYMONFILE  = [20:11] #;  COMMENT ARRAYMONFILE IS THE DEFINE FOR  06230000=01526000=
                                 THE ADDRESS OF THE FILE DESCRIPTOR IN   06240000=01527000=
                                 THE FIRST WORD OF ADDITIONAL INFO;      06245000=01528000=
   DEFINE                                                                06250000=01529000=
-    SVARMONFILE   = [10:11] #;                                          06255000=01529000=
-                                COMMENT MONITORFILE IS THE DEFINE FOR   06260000=01529000=
+    SVARMONFILE   = [10:11] #; COMMENT MONITORFILE IS THE DEFINE FOR    06255000=01529000=
                                THE ADDRESS OF THE FILE DESCRIPTOR IN    06265000=01530000=
                                INFO FOR MONITORED SIMPLE VARIABLES;     06270000=01531000=
   DEFINE                                                                06275000=01532000=
-    NODIMPART     = [7:8] #;                                            06280000=01532000=
-                             COMMENT THE FIRST ADDITIONAL WORD OF INFO  06285000=01532000=
+    NODIMPART     = [7:8] #;COMMENT THE FIRST ADDITIONAL WORD OF INFO   06280000=01532000=
                             FOR ARRAYS CONTAINS THE NUMBER OF DIMENSIONS06290000=01533000=
                             IN NODIMPART;                               06295000=01534000=
   DEFINE                                                                06300000=01535000=
-    LABLMONFILE   = [34:11] #;                                          06305000=01535000=
-                                COMMENT LABLMONFILE DESIGNATES THE BIT  06310000=01535000=
+    LABLMONFILE   = [34:11] #; COMMENT LABLMONFILE DESIGNATES THE BIT   06305000=01535000=
                                POSITION IN THE FIRST WORD OF ADDITIONAL 06315000=01536000=
                                INFO THAT CONTAINS THE MONITOR FILE      06320000=01537000=
                                ADDRESS FOR LABELS;                      06325000=01538000=
   DEFINE                                                                06330000=01539000=
-    SWITMONFILE   = [34:11] #;                                          06335000=01539000=
-                                COMMENT SWITMONFILE DESIGNATES THE BIT  06340000=01539000=
+    SWITMONFILE   = [34:11] #; COMMENT SWITMONFILE DESIGNATES THE BIT   06335000=01539000=
                                POSITION IN THE FIRST WORD OF ADDITIONAL 06345000=01540000=
                                INFO THAT CONTAINS THE MONITOR FILE      06350000=01541000=
                                ADDRESS FOR LABELS;                      06355000=01542000=
   DEFINE                                                                06360000=01543000=
-    FUNCMONFILE   = [20:11] #;                                          06365000=01543000=
-                                COMMENT FUNCMONFILE DESIGNATES THE BIT  06370000=01543000=
+    FUNCMONFILE   = [20:11] #; COMMENT FUNCMONFILE DESIGNATES THE BIT   06365000=01543000=
                                POSITION IN THE FIRST WORD OF ADDITIONAL 06375000=01544000=
                                INFO THAT CONTAINS THE MONITOR FILE      06380000=01545000=
                                ADDRESS FOR LABELS;                      06385000=01546000=
   DEFINE                                                                06390000=01547000=
     DUMPEE        = [45:11] #;                                          06395000=01547000=
-                          COMMENT THE DUMPEE FIELD IN THE FIRST         06400000=01547000=
+                         COMMENT THE DUMPEE FIELD IN THE FIRST          06400000=01547000=
                          ADDITIONAL WORD OF INFO FOR LABELS CONTAINS    06405000=01548000=
                          THE ADDRESS OF THE COUNTER THAT IS INCREMENTED 06410000=01549000=
                          EACH TIME THE LABEL IS PASSED IF THAT LABEL    06415000=01550000=
                          APPEARS IN A DUMP DECLARATION;                 06420000=01551000=
   DEFINE                                                                06425000=01552000=
     DUMPOR        = [23:11] #;                                          06430000=01552000=
-                           COMMENT THE DUMPOR FIELD IN THE FIRST        06435000=01552000=
+                         COMMENT THE DUMPOR FIELD IN THE FIRST          06435000=01552000=
                          ADDITIONAL WORD OF INFO FOR LABELS CONTAINS    06440000=01553000=
                          THE ADDRESS OF THE ROUTINE THAT IS GENERATED   06445000=01554000=
                          FROM THE DUMP DECLARATION THAT IN TURN CALLS   06450000=01555000=
@@ -1660,142 +1620,14 @@ COMMENT THE CONTENTS OF RELATIVE DISK SEGMENT ZERO OF THE CODE FILE ARE:04950000
                   COMMENT PRINT OUTPUT BUILT IN LIN;                    06505000=01559010=
   INTEGER                                                               06510000=01559020=
     DA;                                                                 06515000=01559020=
-  SAVE FILE OUT                                                         06520000=01560000=
-    NEWTAPE DISK SERIAL[20:2400](RR5, RR6, RR7, SAVE 1);                06522000          
-  FILE                                                                  06525000=01561000=
-    IN TAPE 6"OCRDIMG"(2, RR8, RR9);                                    06530000=01561000=
-  SAVE FILE OUT                                                         06535000=01561005=
-    PNCH DISK SERIAL[20:2400](2, 10, RR10, SAVE 1);                     06536000          
-  COMMENT THE FOLLOWING ARE DECLARATIONS FOR THE SYMBOLIC LIBRARIES;    06540000=01561010=
-  FILE                                                                  06545000=01561020=
-    IN CASTA DISK SERIAL 6"CASTA"6"LIBRARY"(1, BUFFSIZE);               06550000=01561020=
-  FILE                                                                  06555000=01561030=
-    IN CASTB(1, BUFFSIZE);                                              06560000=01561030=
-  FILE                                                                  06565000=01561040=
-    IN CASTC(1, BUFFSIZE);                                              06570000=01561040=
-  SWITCH FILE                                                           06575000=01561050=
-    LIBRARY:= CASTA,                                                    06580000=01561050=
-     CASTB,                                                             06585000=01561050=
-     CASTC;                                                             06590000=01561050=
-  FILE                                                                  06595000=01561055=
-    OUT REMOTE 19(2, 10);                                               06600000=01561055=
   SAVE ARRAY                                                            06605000=01561056=
-    CBUF, TBUFF[0:9]; % INPUT BUFFERS.                                  06606000          
+    CBUF[0:9]; % INPUT BUFFERS.                                         06606000          
   BOOLEAN                                                               06610000=01561060=
     REMOTOG;                                                            06615000=01561060=
-  ARRAY                                                                 06620000=01561065=
-    LIBARRAY[0:24];   % LIBARRAY IS USED TO KEEP INFORMATION AS         06625000=01561065=
-                      % TO LAST COMPILED LIBRARY SEQUENCE NUMBERS.      06630000=01561070=
-                      % EACH ENTRY CONSISTS OF THREE WORDS CONTAINING:  06635000=01561080=
   FILE                                                                  06640000=01561085=
     DSK1 DISK SERIAL[20:816](2, 10, 30);                                06645000=01561085=
   FILE                                                                  06650000=01561087=
     DSK2 DISK SERIAL[20:450](2, 30, 30);                                06655000=01561087=
-  DEFINE                                                                06660000=01561090=
-    LSTUSD        = [38:3] #,                                           06665000=01561090=
-    FILEINDEX     = [35:4] #,                                           06670000=01561090=
-    STOPPOINT     = [31:16] #,                                          06675000=01561100=
-    NEXTENTRY     = [15:16] #;                                          06680000=01561100=
-                                 COMMENT SECOND WORD IS THE $$ SEQ NO;  06685000=01561100=
-  DEFINE                                                                06690000=01561110=
-    NCRLINK       = [29:15] #,                                          06695000=01561110=
-    LCRLINK       = [14:15] #;                                          06700000=01561110=
-  INTEGER                                                               06705000=01561120=
-    LIBINDEX,                                                           06710000=01561120=
-     LTLCR,                                                             06715000=01561120=
-     MAXLTLCR,                                                          06720000=01561120=
-     FILEINX,                                                           06725000=01561120=
-     SEQSUM;                                                            06730000=01561120=
-                        COMMENT LIBINDEX IS A INDEX INTO LIBRARRAY      06735000=01561130=
-                        INDICATING LAST ENTRY MADE IN THE ARRAY.        06740000=01561140=
-                        LTLCR AND MAXLTLCR CORRESPOND TO TLCR AND       06745000=01561150=
-                        MAXTLCR USED IN READACARD, FILEINX IS THE       06750000=01561160=
-                        LIBRARY SWITCH FILE INDEX.  SEQSUM IS THE       06755000=01561170=
-                        SUM OF BASE SEQUENCE NUMBERS AT THIS POINT.     06760000=01561180=
-                        FINISHPT IS THE LAST RECORD NUMBER TO COMPILE;  06765000=01561190=
-  REAL                                                                  06770000=01561200=
-    RECOUNT,                                                            06775000=01561200=
-     FINISHPT;                                                          06780000=01561200=
-  BOOLEAN                                                               06785000=01561202=
-    FIRSTIMEX;                                                          06790000=01561202=
-                            COMMENT USED TO INDICATE WHEN               06795000=01561202=
-          PROCESSING FIRST CARDIMAGE OF A NESTED CALL;                  06800000=01561204=
-  BOOLEAN                                                               06805000=01561206=
-    CARDCALL;                                                           06810000=01561206=
-                           COMMENT TRUE IF NESTED CALL CAME FROM THE    06815000=01561206=
-                           CARD READER ELSE FALSE;                      06820000=01561208=
-               COMMENT RECOUNT IS THE LIBRARY RECORD COUNT;             06825000=01561210=
-  BOOLEAN                                                               06830000=01561215=
-    NORELEASE;                                                          06835000=01561215=
-                            COMMENT  NORELEASE ALLOWS PRINTING          06840000=01561215=
-              OF CURRENT BUFFER WHEN COMMING OUT OF LIBRARIES;          06845000=01561217=
-  DEFINE                                                                06850000=01561220=
-    NOROWS        = 3 #;                                                06855000=01561220=
-                        COMMENT THIS IS THE MAXIMUM NUMBER OF DIRECTORY 06860000=01561220=
-                        BLOCKS PER LIBRARY TAPE;                        06865000=01561230=
-  ARRAY                                                                 06870000=01561240=
-    DIRECTORY[0:3*NOROWS-1,  0:55];                                     06875000=01561240=
-                                         COMMENT THIS IS THE ACTUAL     06880000=01561240=
-                        DIRECTORY AND IS MADE UP AS FOLLOWS:            06885000=01561250=
-                   A: 1 CAR- NUMBER OF DIRECTORY BLOCKS.                06890000=01561260=
-                   B: 1 CHR - NUMBER OF CHARACTERS IN THE LIBRARY       06895000=01561270=
-                             IDENTIFIER NAME.                           06900000=01561280=
-                   C N CHR - ACTUAL ALPHA OF THE LIBRARY IDENTIFIER.    06905000=01561290=
-                   D: 3 CHR - STARTING RECORD NUMBER FOR THE ACTUAL     06910000=01561300=
-                             ENTRIES.                                   06915000=01561310=
-                      ITEMS B,C,D ARE THE REPEATED FOR EACH IDENTIFIER. 06920000=01561320=
-                      LIBRARY DIRECTORY ENTRIES ARE NOT SPLIT ACROSS    06925000=01561330=
-                        DIRECTORY BLOCKS.                               06930000=01561340=
-                      ITEM B WHEN 0 INDICATES THE END OF THE DIRECTORY  06935000=01561350=
-                        AND THE ITEM D WILL FOLLOW INDICATING THE       06940000=01561360=
-                        LAST SEQUENCE NUMBER + 1 PUT ON THE LIBRARY.    06945000=01561370=
-                      ITEM B WHEN  INDICATS LAST DIRECTORY ITEM IN THIS 06950000=01561380=
-                        BLOCK.                                          06955000=01561390=
-              IN ORDER TO CHANGE:                                       06960000=01561400=
-                   NUMBER OF LIBRARY TAPES - ADD FILE DECLARATIONS AT   06965000=01561410=
-                                            01561020 - 01561050.        06970000=01561420=
-                                       - CHANGE "3" AT                  06975000=01561430=
-                   NUMBER OF LIBRARY ENTRIES PER TAPE - CHANGE NOROWS   06980000=01561440=
-                                            AT        ;                 06985000=01561450=
-  DEFINE                                                                06990000=01561510=
-    INSERTMAX     = 20 #,                                               06995000=01561510=
-                     % CHANGE THIS IF YOU NEED MORE LEVELS OF INCLUDES  07000000=01561510=
-    INSERTCOP     = INSERTINFO[INSERTDEPTH, 4] #,                       07005000=01561520=
-                                            % = 1 IF COPY TO NEWTAPE    07010000=01561520=
-    INSERTMID     = INSERTINFO[INSERTDEPTH, 0] #,                       07015000=01561530=
-                                            % MFID OF THE LIBRARY FILE  07020000=01561530=
-    INSERTFID     = INSERTINFO[INSERTDEPTH, 1] #,                       07025000=01561540=
-                                            % FID OF THE LIBRARY FILE   07030000=01561540=
-    INSERTINX     = INSERTINFO[INSERTDEPTH, 2] #,                       07035000=01561550=
-                                            % POINTER TO THE RECORD     07040000=01561550=
-    INSERTSEQ     = INSERTINFO[INSERTDEPTH, 3] #;                       07045000=01561560=
-                                            % LAST SEQUENCE TO BE INCLUD07050000=01561560=
-  INTEGER                                                               07055000=01561570=
-    SAVECARD,                                                           07060000=01561570=
-     INSERTDEPTH;                                                       07065000=01561570=
-  ARRAY                                                                 07070000=01561580=
-    INSERTINFO[0:INSERTMAX, 0:4];                                       07075000=01561580=
-  FILE                                                                  07080000=01561590=
-    LIBRARYFIL DISK RANDOM(2, 10, 30);                                  07085000=01561590=
-  DEFINE                                                                07090000=01561600=
-    LF            = LIBRARYFIL #;                                       07095000=01561600=
-  SAVE ARRAY                                                            07100000=01561610=
-    LBUFF[0:9]; % INPUT BUFFER                                          07102000          
-  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%07105000=01561620=
-  REAL STREAM PROCEDURE CMPD(A, B);                                     07110000=01561620=
-    BEGIN                                                               07115000=01561630=
-    SI:= A;                                                             07120000=01561640=
-    DI:= B;                                                             07125000=01561640=
-    IF 8 SC >= DC THEN                                                  07130000=01561650=
-      BEGIN                                                             07135000=01561660=
-      SI:= SI-8;                                                        07140000=01561670=
-      DI = DI-8;                                                        07145000=01561670=
-      TALLY:= 2;                                                        07150000=01561670=
-      IF 8 SC = DC THEN                                                 07155000=01561680=
-        TALLY:= 1;                                                      07160000=01561680=
-      END;                                                              07165000=01561690=
-    CMPD:= TALLY;                                                       07170000=01561700=
-    END CMPD;                                                           07175000=01561710=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%07176000          
   REAL                                                                  07180000=01562000=
     C;                                                                  07185000=01562000=
@@ -1972,25 +1804,26 @@ COMMENT THE CONTENTS OF RELATIVE DISK SEGMENT ZERO OF THE CODE FILE ARE:04950000
     F;                                                                  08040000=01688000=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%08042000          
   STREAM PROCEDURE MOVECODE(EDOC,  TEDOC);                              08045000=01688010=
-    BEGIN                                                               08050000=01688020=
+    BEGIN          % SWAPS THE EDOC AND TEDOC ARRAYS.                   08050000=01688020=
     LOCAL T1, T2, T3;                                                   08055000=01688020=
-    SI:= EDOC;                                                          08060000=01688030=
-    T1:= SI;                                                            08065000=01688030=
-    SI:= TEDOC;                                                         08070000=01688030=
-    T2:= SI;                                                            08075000=01688030=
-    SI:= LOC EDOC;                                                      08080000=01688030=
-    SI:= SI+3;                                                          08085000=01688030=
-    DI:= LOC T3;                                                        08090000=01688030=
-    DI:= DI+5;                                                          08095000=01688040=
-    SKIP 3 DB;                                                          08100000=01688040=
+    SI:= EDOC;     % POINT SI TO EDOC DOPE VECTOR                       08060000=01688030=
+    T1:= SI;       % SAVE ADDR EDOC DOPE VECTOR IN T1                   08065000=01688030=
+    SI:= TEDOC;    % POINT SI TO TEDOC DOPE VECTOR                      08070000=01688030=
+    T2:= SI;       % SAVE ADDR TEDOC DOPE VECTOR IN T2                  08075000=01688030=
+    SI:= LOC EDOC; % POINT SI TO EDOC PARAM CELL                        08080000=01688030=
+    SI:= SI+3;     % MOVE SI 3 CHAR TO BIT 18                           08085000=01688030=
+    DI:= LOC T3;   % POINT DI TO T3 STACK CELL                          08090000=01688030=
+    DI:= DI+5;     % MOVE DI 5 CHAR TO BIT 30 IN T3                     08095000=01688040=
+    SKIP 3 DB;     % MOVE DI TO BIT 33 [START OF DESCR ADDR FIELD]      08100000=01688040=
     15(IF SB THEN DS:= 1 SET ELSE DS:= 1 RESET;SKIP 1 SB);              08105000=01688050=
-    SI:= LOC EDOC;                                                      08110000=01688050=
-    DI:= LOC T2;                                                        08115000=01688050=
-    DS:= 5 CHR;                                                         08120000=01688050=
-    3(IF SB THEN DS:= 1 SET ELSE DS:= 1 RESET;SKIP 1 SB);               08125000=01688060=
-    DI:= T3;                                                            08130000=01688060=
-    SI:= LOC T2;                                                        08135000=01688060=
-    DS:= WDS;                                                           08140000=01688060=
+                   % MOVE 15 BITS FROM EDOC STACK CELL TO T3 STACK CELL 08106000          
+    SI:= LOC EDOC; % POINT SI TO EDOC PARAM CELL                        08110000=01688050=
+    DI:= LOC T2;   % POINT DI TO T2 STACK CELL                          08115000=01688050=
+    DS:= 5 CHR;    % MOVE 5 CHAR (30 BITS) FROM EDOC DESC TO T2         08120000=01688050=
+    3(IF SB THEN DS:= 1 SET ELSE DS:= 1 RESET;SKIP 1 SB); % MOVE 3 MORE 08125000=01688060=
+    DI:= T3;       % POINT DI TO ADDR IN T3                             08130000=01688060=
+    SI:= LOC T2;   % POINT SI TO T2 STACK CELL                          08135000=01688060=
+    DS:= WDS;      % MOVE T2 TO ADDRESS IN T3                           08140000=01688060=
     DI:= LOC T3;                                                        08145000=01688070=
     DI:= DI+5;                                                          08150000=01688070=
     SKIP 3 DB;                                                          08155000=01688070=
@@ -2212,78 +2045,15 @@ NED:                                                                    09205000
     END NONBLANK;                                                       09220000=01743300=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%09222000          
   INTEGER                                                               09225000=01750000=
-    FAULTLEVEL;                                                         09230000=01750000=
-                     COMMENT THIS IS FOR THE RUN0TIME ERROR KLUDGE--    09235000=01750000=
+    FAULTLEVEL;      COMMENT THIS IS FOR THE RUN0TIME ERROR KLUDGE--    09230000=01750000=
                    GIVES THE LOWEST LEVEL AT WHICH THERE IS AN ACTIVE   09240000=01751000=
                    FAULT DECL OR LABEL USED IN A FAULT STATEMENT;       09245000=01752000=
   BOOLEAN                                                               09250000=01753000=
-    FAULTOG;                                                            09255000=01753000=
-                  COMMENT FAULTSTMT USES THIS TO TELL DEXP TO  WORRY    09260000=01753000=
+    FAULTOG;      COMMENT FAULTSTMT USES THIS TO TELL DEXP TO  WORRY    09255000=01753000=
                    ABOUT FAULTLEVEL;                                    09265000=01754000=
   INTEGER                                                               09270000=01755000=
-    SFILENO;                                                            09275000=01755000=
-                   COMMENT FILENO OF FIRST SORT FILE;                   09280000=01755000=
-  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%09282000          
-  STREAM PROCEDURE GETVOID(VP, NCR, VR, LCR, SEQ);                      09285000=01756000=
-  VALUE                                                                 09290000=01756000=
-    NCR;                                                                09295000=01756000=
-    BEGIN                                                               09300000=01757000=
-    LABEL                                                               09305000=01758000=
-      L,                                                                09310000=01758000=
-       TRANS;                                                           09315000=01758000=
-    LOCAL N;                                                            09320000=01759000=
-    SI:= SEQ;                                                           09325000=01759100=
-    DI:= LCR;                                                           09330000=01759100=
-    DI:= DI-1;                                                          09335000=01759100=
-    DS:= LIT 6"%";                          % PUT "%" IN CC 72.         09340000=01759100=
-    DS:= WDS;% RESTORE SEQ. NO. FOR $VOID(T) CARDS.                     09345000=01759200=
-    SI:= LCR;                                                           09350000=01760000=
-    DI:= LOC N;                                                         09355000=01760000=
-    DS:= CHR;                    % SAVE COL. 73                         09360000=01760000=
-    SI:= NCR;                                                           09365000=01761000=
-    DI:= VP;                                                            09370000=01761000=
-    DS:= 8 LIT 6"0";                                                    09375000=01761000=
-    2(34(IF SC = 6" " THEN SI:= SI+1 ELSE JUMP OUT 2 TO L));            09380000=01762000=
-    SI:= LCR;                                                           09385000=01763000=
-    TALLY:= 8;                                                          09390000=01763000=
-    GO TRANS;                   % NO VOID RANGE FOUND, USE 73-80.       09395000=01763000=
-L:  IF SC = 6""" THEN                                                   09400000=01765000=
-      BEGIN                                                             09405000=01766000=
-      SI:= SI+1;                                                        09410000=01767000=
-      DI:= LCR;                                                         09415000=01767000=
-      DS:= 1 LIT 6""";                    % STOPPER FOR SCAN            09420000=01767000=
-      NCR:= SI;   % TEMP, STORAGE. SINCE NCR IS "LOCAL" TO GETVOID.     09425000=01768000=
-      8(IF SC = 6""" THEN JUMP OUT                                      09430000=01770000=
-        ELSE BEGIN TALLY:= TALLY+1;SI:= SI+1 END);                      09435000=01770000=
-      END                                                               09445000=01772000=
-    ELSE                                                                09450000=01772000=
-      BEGIN                                                             09455000=01772000=
-      NCR:= SI;   % TEMP. STORAGE, SINCE NCR IS "LOCAL" TO GETVOID.     09460000=01773000=
-      DI:= LCR;                                                         09465000=01774000=
-      DS:= 1 LIT 6" ";          % STOPPER FOR SCAN                      09470000=01774000=
-      8(IF SC = 6" " THEN JUMP OUT                                      09475000=01776000=
-        ELSE BEGIN TALLY:= TALLY+1;SI:= SI+1 END);                      09480000=01776000=
-      END;                                                              09490000=01777000=
-TRANS:                                                                  09495000=01779000=
-    SI:= LOC N;                                                         09500000=01779000=
-    DI:= LCR;                                                           09505000=01779000=
-    DS:= CHR;                    % RESTORE COLUMN 73                    09510000=01779000=
-    SI:= NCR;                                                           09515000=01780000=
-    DI:= VP;                                                            09520000=01780000=
-    DI:= DI+8;                 % RESTORE POINTERS.                      09525000=01780000=
-    N:= TALLY;                                                          09530000=01781000=
-    DI:= DI-N;                                                          09535000=01781000=
-    DS:= N CHR;                                                         09540000=01781000=
-    DI:= DI-8;                                                          09545000=01782000=
-    VP:= DI;          % I.E., "LOC VP":=DI.                             09550000=01782000=
-    DI:= VR;                                                            09555000=01783000=
-    SI:= LOC VP;                                                        09560000=01783000=
-    DS:= WDS;                    % ADDRESS OF VOID RANGE.               09565000=01783000=
-    END OF GETVOID;                                                     09570000=01784000=
+    SFILENO;       COMMENT FILENO OF FIRST SORT FILE;                   09275000=01755000=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%09572000          
-  REAL                                                                  09575000=01785000=
-    VOIDCR,                                                             09580000=01785000=
-     VOIDPLACE;                                                         09585000=01785000=
   BOOLEAN                                                               09590000=01786000=
     SORTMERGETOG;                                                       09595000=01786000=
   FORMAT                                                                09600000=01800000=
@@ -2325,9 +2095,6 @@ TRANS:                                                                  09495000
            Q:=MIN MOD 10+(MIN DIV 10)*64,                               09735600=01834000=
            IF H <= 12 THEN "PM." ELSE "AM.",                            09735700=01835000=
            N1.[41:6],N1,N2.[41:6],N2);                                  09740000=01835550=
-    IF MERGETOG THEN     % INDICATE NAME OF SOURCE FILE.                09745000=01835600=
-      WRITE(LINE,  < X40, "SOURCE FILE: ",  A1,  A6, "/",  A1,  A6, //>,09750000=01837000=
-        (N1:= TAPE.MFID).[41:6],  N1, (N2:= TAPE.FID).[41:6],  N2);     09755000=01837000=
     NOHEADING:= FALSE;                                                  09760000=01837000=
     END OF DATIME;                                                      09765000=01837000=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%09770000=01837000=
@@ -2339,109 +2106,6 @@ TRANS:                                                                  09495000
                                                                         09800000=02000000=
  COMMENT  THIS SECTION CONTAINS ALL CODE PERTAINENT TO READING CARDS    09805000=02000000=
               AND SCANNING THEM;                                        09810000=02001000=
-  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%09815000=02001020=
-  BOOLEAN  STREAM PROCEDURE LOOK(ACC1, DIR, ROW, STRTPOS, STOPOS);      09820000=02001020=
-  VALUE                                                                 09825000=02001030=
-    ROW;                                                                09830000=02001030=
-    BEGIN                                                               09835000=02001040=
-                  COMMENT LOOK DOES THE ACTUAL DIRECTORY SEARCH.  IT    09840000=02001040=
-                 REPORTS TRUE IF THE ITEM WAS NOT FOUND IN THE DIRECTORY09845000=02001050=
-                 ;                                                      09850000=02001060=
-    LOCAL DPPOS, TEMP, LGTH;                                            09855000=02001070=
-    LABEL                                                               09860000=02001080=
-      LOOP,                                                             09865000=02001080=
-       EXIT;                                                            09870000=02001080=
-    SI:= DIR;                                                           09875000=02001090=
-    ROW(SI:= SI+8);                                                     09880000=02001090=
-    DPPOS:= SI;                                                         09885000=02001090=
-    DI:= LOC TEMP;                                                      09890000=02001100=
-    DS:= WDS;                                                           09895000=02001100=
-    SI:= TEMP;                                                          09900000=02001100=
-    SI:= SI+8;                                                          09905000=02001110=
-LOOP:                                                                   09910000=02001120=
-    DI:= LOC LGTH;                                                      09915000=02001120=
-    DI:= DI+7;                                                          09920000=02001120=
-    DS:= CHR;                                                           09925000=02001120=
-    DI:= ACC1;                                                          09930000=02001130=
-    DI:= DI+2;                                                          09935000=02001130=
-    SI:= SI-1;                                                          09940000=02001130=
-    IF SC = DC THEN                                                     09945000=02001150=
-      BEGIN                                                             09950000=02001150=
-                            COMMENT THE LENGTHS ARE EQUAL;              09955000=02001150=
-      IF LGTH SC = DC THEN                                              09960000=02001170=
-        BEGIN                                                           09965000=02001170=
-                                      COMMENT FOUND IT;                 09970000=02001170=
-        DI:= STRTPOS;                                                   09975000=02001180=
-        DS:= 5 LIT 6"0";                                                09980000=02001180=
-        DS:= 3 CHR;                                                     09985000=02001180=
-        IF SC = 6"0" THEN                                               09990000=02001200=
-          BEGIN                                                         09995000=02001200=
-                                                COMMENT WE MAY BE IN THE10000000=02001200=
-                                               WRONG ROW;               10005000=02001210=
-          SI:= SI+1;                                                    10010000=02001220=
-          DI:= LOC LOOK;                                                10015000=02001220=
-          IF 3 SC = DC THEN                                             10020000=02001240=
-            BEGIN                                                       10025000=02001240=
-                                                          COMMENT WE ARE10030000=02001240=
-                                                         IN THE WRONG   10035000=02001250=
-                                                         ROW;           10040000=02001260=
-            SI:= DPPOS;                                                 10045000=02001270=
-            SI:= SI+8;                                                  10050000=02001280=
-            DPPOS:= SI;                                                 10055000=02001290=
-            DI:= LOC TEMP;                                              10060000=02001300=
-            DS:= WDS;                                                   10065000=02001310=
-            SI:= TEMP;                                                  10070000=02001320=
-            END                                                         10075000=02001340=
-          ELSE                                                          10080000=02001340=
-            SI:= SI-4;                                                  10085000=02001340=
-          END;                                                          10090000=02001350=
-        DI:= LOC LGTH;                                                  10095000=02001360=
-        DI:= DI+7;                                                      10100000=02001360=
-        DS:= CHR;                                                       10105000=02001360=
-        SI:= SI+LGTH;                                                   10110000=02001370=
-        DI:= STOPOS;                                                    10115000=02001375=
-        DS:= 5 LIT 6"0";                                                10120000=02001375=
-        DS:= 3 CHR;                                                     10125000=02001380=
-        GO TO EXIT;                                                     10130000=02001380=
-        END;                                                            10135000=02001390=
-      SI:= SI+3;                                                        10140000=02001400=
-      END                                                               10145000=02001420=
-    ELSE                                                                10150000=02001420=
-      BEGIN                                                             10155000=02001420=
-                           COMMENT THE LENGTHS ARE NOT EQUAL;           10160000=02001420=
-      SI:= SI-1;                                                        10165000=02001430=
-      IF SC = 6"0" THEN                                                 10170000=02001450=
-        BEGIN                                                           10175000=02001450=
-                                      COMMENT MAY BE A NEW ROW;         10180000=02001450=
-        SI:= SI+1;                                                      10185000=02001460=
-        DI:= LOC LOOK;                                                  10190000=02001460=
-        IF 3 SC = DC THEN                                               10195000=02001480=
-          BEGIN                                                         10200000=02001480=
-                                               COMMENT CHANGE ROWS;     10205000=02001480=
-          SI:= DPPOS;                                                   10210000=02001490=
-          SI:= SI+8;                                                    10215000=02001490=
-          DPPOS:= SI;                                                   10220000=02001490=
-          DI:= LOC TEMP;                                                10225000=02001500=
-          DS:= WDS;                                                     10230000=02001500=
-          SI:= TEMP;                                                    10235000=02001510=
-          END                                                           10240000=02001530=
-        ELSE                                                            10245000=02001530=
-          BEGIN                                                         10250000=02001530=
-                                               COMMENT IT IS NOT HERE;  10255000=02001530=
-          TALLY:= 1;                                                    10260000=02001540=
-          LOOK:= TALLY;                                                 10265000=02001540=
-          GO TO EXIT;                                                   10270000=02001550=
-          END;                                                          10275000=02001560=
-        GO TO LOOP;                                                     10280000=02001563=
-        END;                                                            10285000=02001565=
-      SI:= SI:= LGTH;                                                   10290000=02001568=
-      SI:= SI+4;                                                        10295000=02001568=
-                                        COMMENT POSITION TO NEXT ID.;   10300000=02001568=
-      END;                                                              10305000=02001570=
-    GO TO LOOP;                                                         10310000=02001580=
-EXIT:                                                                   10315000=02001590=
-    ;                                                                   10320000=02001590=
-    END LOOK;                                                           10325000=02001600=
 %***********************************************************************10330000=02001605=
 %                                                                       10335000=02001610=
 %        MISCELLANEOUS CROSS REFERENCE PROCEDURES                       10340000=02001615=
@@ -2598,314 +2262,6 @@ COMMENT  TURNONSTOPLIGHT TURNS THE LIGHT "RED" ON THE "CORNER".         11050000
     SI:= SI-1;                                                          11105000=02012000=
     DS:= CHR                                                            11110000=02012000=
     END;                                                                11115000=02012000=
-  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%11116000          
-    COMMENT ADDER COMPUTES SEQUENCE NUMBERS FOR LIBRARY FUNCTIONS.      11120000=02013010=
-  IT WILL EITHER ADD THE NUMBER IN SUM TO THE NUMBER IS SEQLOC STORING  11125000=02013020=
-  THE RESULT IN SEQLOC OR SUBTRACT THE NUMBER IN SUM FROM THE           11130000=02013030=
-  NUMBER IN SEQLOC AND STORE THE RESULT IN SEQLOC,DEPENDING ON THE      11135000=02013040=
-  VARIABLE AD;                                                          11140000=02013050=
-  STREAM PROCEDURE ADDER(SUM, SEQLOC, AD, DESCRP);                      11145000=02013060=
-  VALUE                                                                 11150000=02013065=
-    AD,                                                                 11155000=02013065=
-     DESCRP;                                                            11160000=02013065=
-    BEGIN                                                               11165000=02013070=
-    LOCAL HOLD, ZONEP;                                                  11170000=02013073=
-    DI:= LOC ZONEP;                                                     11175000=02013074=
-    SI:= SUM;                                                           11180000=02013074=
-    DS:= 8 ZON;                                                         11185000=02013074=
-                        COMMENT SAVED ZONE PART OF THE SEQ.NO.;         11190000=02013075=
-    DI:= SUM;                                                           11195000=02013076=
-    DI:= DI+7;                                                          11200000=02013076=
-    DS:= 2 RESET;                                                       11205000=02013076=
-                        COMMENT HAVE ZEROED OUT SIGN VALUE OF SEQ.NO.;  11210000=02013077=
-    SI:= LOC DESCRP;                                                    11215000=02013078=
-    SI:= SI+7;                                                          11220000=02013078=
-    IF SC = 6"1" THEN                                                   11225000=02013080=
-      BEGIN                                                             11230000=02013080=
-      DI:= LOC HOLD;                                                    11235000=02013080=
-      SI:= SEQLOC;                                                      11240000=02013080=
-      DS:= WDS;                                                         11245000=02013085=
-      DI:= HOLD;                                                        11250000=02013085=
-      END                                                               11255000=02013090=
-    ELSE                                                                11260000=02013090=
-      DI:= SEQLOC;                                                      11265000=02013090=
-                   COMMENT DI IS NOW POINTING TO THE SEQNUMBER;         11270000=02013091=
-    HOLD:= DI;                                                          11275000=02013095=
-    DI:= DI+7;                                                          11280000=02013095=
-    DS:= 2 RESET;                                                       11285000=02013095=
-    DI:= HOLD;                                                          11290000=02013095=
-    SI:= LOC AD;                                                        11295000=02013100=
-    SI:= SI+7;                                                          11300000=02013110=
-    IF SC = 6"1" THEN                                                   11305000=02013120=
-      BEGIN                                                             11310000=02013120=
-      SI:= SUM;                                                         11315000=02013120=
-      DS:= 8 ADD;                                                       11320000=02013120=
-      END                                                               11325000=02013130=
-    ELSE                                                                11330000=02013130=
-      BEGIN                                                             11335000=02013130=
-      SI:= SUM;                                                         11340000=02013130=
-      DS:= 8 SUB;                                                       11345000=02013130=
-      END;                                                              11350000=02013130=
-    SI:= LOC ZONEP;                                                     11355000=02013135=
-    DI:= HOLD;                                                          11360000=02013135=
-    DS:= 8 ZON;                                                         11365000=02013135=
-    SI:= LOC ZONEP;                                                     11370000=02013136=
-    DI:= SUM;                                                           11375000=02013136=
-    DS:= 8 ZON;                                                         11380000=02013136=
-                        COMMENT MOVE IN ZONE PORTION TO RESULT SEQ.NO.; 11385000=02013137=
-    END ADDER;                                                          11390000=02013140=
-  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%11395000=02013150=
-COMMENT SEARCHLIB IS RESPONSIBLE FOR SEARCHING THE LIBRARY TAPES FOR    11400000=02013150=
-COMPILABLE QUANTITIES. THE PARAMETER INDICATES THAT WE ARE ENTERING     11405000=02013155=
-A LIBRARY CALL IF TRUE, ELSE WE ARE EXITING.;                           11410000=02013160=
-  PROCEDURE SEARCHLIB(DOLLAR);                                          11415000=02013165=
-  VALUE                                                                 11420000=02013165=
-    DOLLAR;                                                             11425000=02013165=
-  BOOLEAN                                                               11430000=02013165=
-    DOLLAR;                                                             11435000=02013165=
-    BEGIN                                                               11440000=02013170=
-    LABEL                                                               11445000=02013175=
-      EXIT,                                                             11450000=02013175=
-       EXITOUT,                                                         11455000=02013175=
-       NOPARTIAL;                                                       11460000=02013175=
-    PROCEDURE FLAGIT(N);                                                11465000=02013176=
-    VALUE                                                               11470000=02013176=
-      N;                                                                11475000=02013176=
-    INTEGER                                                             11480000=02013176=
-      N;                                                                11485000=02013176=
-      BEGIN                                                             11490000=02013177=
-      BOOLEAN                                                           11495000=02013178=
-        TL,                                                             11500000=02013178=
-         TS;                                                            11505000=02013178=
-      TL:= LISTOG;                                                      11510000=02013179=
-      TS:= SINGLTOG;                                                    11515000=02013179=
-      LISTOG:= FALSE;                                                   11520000=02013179=
-      SINGLTOG:= FALSE;                                                 11525000=02013179=
-      Q:= ACCUM[1];                                                     11530000=02013180=
-      FLAG(N);                                                          11535000=02013180=
-      LISTOG:= TL;                                                      11540000=02013181=
-      SINGLTOG:= TS;                                                    11545000=02013181=
-      END FLAGIT;                                                       11550000=02013183=
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%11555000=02013183=
-    IF DOLLAR THEN                                                      11560000=02013184=
-      BEGIN                                                             11565000=02013190=
-            COMMENT WE ARE ON A DOUBLE DOLLAR CARD;                     11570000=02013190=
-      RESULT:= COUNT:= ACCUM[1]:= 0;                                    11575000=02013195=
-      SCANNER;                                                          11580000=02013195=
-      RESULT:= COUNT:= ACCUM[1]:= 0;                                    11585000=02013200=
-      SCANNER;                                                          11590000=02013200=
-      IF ACCUM[1] > 6"1+0000" AND ACCUM[1] < 6"1D0000" THEN             11595000=02013205=
-        FILEINX:= ACCUM[1].[26:3]                                       11600000=02013210=
-      ELSE                                                              11605000=02013210=
-        BEGIN                                                           11610000=02013210=
-     COMMENT ERROR 500 - ILLEGAL LIBRARY NAME;                          11615000=02013219=
-        FLAGIT(500);                                                    11620000=02013222=
-        GO EXIT;                                                        11625000=02013222=
-        END;                                                            11630000=02013225=
-      FILEINX:= FILEINX-1;                                              11635000=02013230=
-      IF DIRECTORY[GT1:= 3*FILEINX, 0] = 0 THEN                         11640000=02013235=
-        BEGIN                                                           11645000=02013240=
-               COMMENT MUST READ DIRECTORY;                             11650000=02013240=
-        GT3:= MKABS(LIBRARY[FILEINX](0));                               11655000=02013245=
-        MOVE(56, LIBRARY[FILEINX](0), DIRECTORY[GT1, 0]);               11660000=02013250=
-        GT2:= DIRECTORY[GT1, 0];                                        11665000=02013255=
-        DIRECTORY[FILEINX*3, 0]:= -2;                                   11670000=02013255=
-        WHILE GT2:= GT2-1 > 0 DO                                        11675000=02013260=
-          BEGIN                                                         11680000=02013265=
-          READ(LIBRARY[FILEINX]);                                       11685000=02013270=
-          MOVE(56, LIBRARY[FILEINX](0), DIRECTORY[GT1:= GT1+1, 0]);     11690000=02013275=
-          END;                                                          11695000=02013280=
-        END;                                                            11700000=02013285=
-      RESULT:= ACCUM[1]:= COUNT:= 0;                                    11705000=02013290=
-      SCANNER;                                                          11710000=02013290=
-                                            COMMENT GET THE PROD.ID.;   11715000=02013290=
-      IF LOOK(ACCUM[1], DIRECTORY, 3*FILEINX, GT1, GT2) THEN            11720000=02013295=
-        BEGIN                                                           11725000=02013300=
-                  COMMENT ERROR 501 - ITEM NOT IN DIRECTORY;            11730000=02013300=
-        FLAGIT(501);                                                    11735000=02013305=
-        GO EXIT;                                                        11740000=02013305=
-        END;                                                            11745000=02013310=
-      WHILE LCR.[14:15]-NCR.[14:15] ^= 1 OR NCR.[17:3] ^= 7 DO          11750000=02013315=
-        BEGIN                                                           11755000=02013315=
-        IF EXAMIN(NCR) = 6"[" THEN                                      11760000=02013317=
-          GO TO EXITOUT;                                                11765000=02013317=
-        RESULT:= 5;                                                     11770000=02013318=
-        SCANNER;                                                        11775000=02013318=
-        END;                                                            11780000=02013319=
-      GO TO NOPARTIAL;                                                  11785000=02013320=
-  EXITOUT:                                                              11790000=02013325=
-        BEGIN                                                           11795000=02013325=
-                   COMMENT WE HAVE A PARTIAL LIBRARY OPERATION;         11800000=02013325=
-        RESULT:= ACCUM[1]:= COUNT:= 0;                                  11805000=02013330=
-        SCANNER;                                                        11810000=02013330=
-                                                COMMENT SPACE PAST "[" ;11815000=02013330=
-        RESULT:= ACCUM[1]:= COUNT:= 0;                                  11820000=02013335=
-        SCANNER;                                                        11825000=02013335=
-                                                COMMENT GET START POINT;11830000=02013335=
-        IF RESULT ^= 3 THEN                                             11835000=02013340=
-          BEGIN                                                         11840000=02013345=
-                    COMMENT ERROR 502 - IMPROPER START POINT;           11845000=02013345=
-          FLAGIT(502);                                                  11850000=02013350=
-          GO EXIT;                                                      11855000=02013350=
-          END;                                                          11860000=02013355=
-        GT1:= GT1+CONV(ACCUM[1], 0, ACCUM[1].[35:6])-1;                 11865000=02013360=
-        RESULT:= ACCUM[1]:= COUNT:= 0;                                  11870000=02013365=
-        SCANNER;                                                        11875000=02013365=
-        IF RESULT ^= 2 THEN                                             11880000=02013370=
-          BEGIN                                                         11885000=02013375=
-                    COMMENT ERROR 503 - NO SEPARATOR;                   11890000=02013375=
-          FLAGIT(503);                                                  11895000=02013380=
-          GO EXIT;                                                      11900000=02013380=
-          END;                                                          11905000=02013385=
-        RESULT:= ACCUM[1]:= COUNT:= 0;                                  11910000=02013390=
-        SCANNER;                                                        11915000=02013390=
-                                                COMMENT GET LENGTH;     11920000=02013390=
-        IF RESULT ^= 3 THEN                                             11925000=02013395=
-          BEGIN                                                         11930000=02013400=
-                    COMMENT ERROR 504 - IMPROPER LENGTH;                11935000=02013400=
-          FLAGIT(504);                                                  11940000=02013405=
-          GO EXIT;                                                      11945000=02013405=
-          END;                                                          11950000=02013410=
-        GT2:= GT1+CONV(ACCUM[1], 0, ACCUM[1].[35:6]);                   11955000=02013415=
-        RESULT:= ACCUM[1]:= COUNT:= 0;                                  11960000=02013420=
-        SCANNER;                                                        11965000=02013420=
-        IF ACCUM[1] ^= 6"1]0000" THEN                                   11970000=02013425=
-          BEGIN                                                         11975000=02013430=
-                    COMMENT ERROR 505 - NO RIGHT BRACKET;               11980000=02013430=
-          FLAGIT(505);                                                  11985000=02013435=
-          GO EXIT;                                                      11990000=02013435=
-          END;                                                          11995000=02013440=
-        WHILE LCR.[14:15]-NCR.[14:15] ^= 1 OR NCR.[17:3] ^= 7 DO        12000000=02013446=
-          BEGIN                                                         12005000=02013446=
-          RESULT:= 5;                                                   12010000=02013446=
-          SCANNER                                                       12015000=02013446=
-          END;                                                          12020000=02013446=
-        END;                                                            12025000=02013450=
-  NOPARTIAL:    COMMENT NOW SET UP THE LINKS;                           12030000=02013475=
-                                                                        12035000=02013480=
-      LIBARRAY[LIBINDEX].LSTUSD:= LASTUSED;                             12040000=02013480=
-      LIBARRAY[LIBINDEX].FILEINDEX:= FILEINX;                           12045000=02013490=
-      LIBARRAY[LIBINDEX].STOPPOINT:= FINISHPT;                          12050000=02013495=
-      LIBARRAY[LIBINDEX].NEXTENTRY:= RECOUNT-1;                         12055000=02013497=
-      FINISHPT:= GT2;                                                   12060000=02013500=
-      IF LIBINDEX > 0 THEN                                              12065000=02013505=
-        DIRECTORY[(LIBARRAY[LIBINDEX-3].FILEINDEX)*3, 0]:= RECOUNT-1;   12070000=02013510=
-      RECOUNT:= GT1;                                                    12075000=02013515=
-      IF EXAMIN(LCR) ^= 6"%" THEN                                       12080000=02013516=
-        PUTSEQNO(INFO[LASTSEQROW, LASTSEQUENCE], LCR);                  12085000=02013517=
-      MOVE(1, INFO[LASTSEQROW, LASTSEQUENCE], LIBARRAY[LIBINDEX+1]);    12090000=02013520=
-      MOVE(1, INFO[LASTSEQROW, LASTSEQUENCE], SEQSUM);                  12095000=02013525=
-      IF LASTUSED <= 2 OR LASTUSED = 5 THEN                             12100000=02013526=
-        GTI1:= 0                                                        12105000=02013527=
-      ELSE                                                              12110000=02013527=
-      IF MAXLTLCR.[14:15]-NCR.[14:15] < 11 THEN                         12115000=02013527=
-        GTI1:= MKABS(LIBRARY[FILEINX](0))                               12120000=02013528=
-      ELSE                                                              12125000=02013528=
-        GTI1:= (NCR+2).[14:15];                                         12130000=02013528=
-      LIBARRAY[LIBINDEX+2].NCRLINK:= GTI1.[14:15];                      12135000=02013530=
-                                                    COMMENT GTI1=NCR;   12140000=02013530=
-      IF LASTUSED <= 2 OR LASTUSED = 5 THEN                             12145000=02013533=
-        LIBARRAY[LIBINDEX+2].LCRLINK:= 0                                12150000=02013534=
-      ELSE                                                              12155000=02013534=
-        LIBARRAY[LIBINDEX+2].LCRLINK:= GTI1.[14:15]+10;                 12160000=02013535=
-      IF LIBINDEX > 0 THEN                                              12165000=02013536=
-        IF CARDCALL THEN                                                12170000=02013536=
-          BEGIN                                                         12175000=02013536=
-          LASTUSED:= 5;                                                 12180000=02013537=
-          LIBARRAY[LIBINDEX].NEXTENTRY:= LIBARRAY[LIBINDEX].NEXTENTRY-1;12185000=02013538=
-          END                                                           12190000=02013539=
-        ELSE                                                            12195000=02013539=
-          BEGIN                                                         12200000=02013539=
-          LASTUSED:= 6;                                                 12205000=02013540=
-          FIRSTIMEX:= TRUE;                                             12210000=02013540=
-          END                                                           12215000=02013541=
-      ELSE                                                              12220000=02013541=
-        BEGIN                                                           12225000=02013541=
-        IF LASTUSED = 3 THEN                                            12230000=02013541=
-          FIRSTIMEX:= TRUE;                                             12235000=02013541=
-        LASTUSED:= 5;                                                   12240000=02013541=
-        END;                                                            12245000=02013541=
-      LIBINDEX:= LIBINDEX+3;                                            12250000=02013542=
-      END                                                               12255000=02013555=
-    ELSE                                                                12260000=02013555=
-      BEGIN                                                             12265000=02013555=
-            COMMENT WE DID NOT COME FROM DOUBLE DOLLAR SO UNLINK;       12270000=02013555=
-      LIBINDEX:= LIBINDEX-3;                                            12275000=02013560=
-      RECOUNT:= RECOUNT-1;                                              12280000=02013563=
-      LASTUSED:= LIBARRAY[LIBINDEX].LSTUSD;                             12285000=02013565=
-      IF LASTUSED = 1 THEN                                              12290000=02013566=
-        MEDIUM:= 6"C ";                                                 12295000=02013566=
-      IF LIBINDEX > 0 THEN                                              12300000=02013567=
-        BEGIN                                                           12305000=02013567=
-        GTI1:= LIBARRAY[LIBINDEX].NEXTENTRY;                            12310000=02013567=
-        DIRECTORY[FILEINX*3, 0]:= RECOUNT;                              12315000=02013568=
-        RECOUNT:= GTI1+2;                                               12320000=02013568=
-        END                                                             12325000=02013570=
-      ELSE                                                              12330000=02013570=
-        DIRECTORY[FILEINX*3, 0]:= RECOUNT;                              12335000=02013570=
-      IF LIBINDEX > 0 THEN                                              12340000=02013575=
-        FILEINX:= LIBARRAY[LIBINDEX-3].FILEINDEX;                       12345000=02013580=
-      FINISHPT:= LIBARRAY[LIBINDEX].STOPPOINT;                          12350000=02013600=
-      IF LIBINDEX ^= 0 THEN                                             12355000=02013610=
-        MOVE(1, LIBARRAY[LIBINDEX-3+1], SEQSUM);                        12360000=02013615=
-      IF LASTUSED <= 2 OR LASTUSED = 5 THEN                             12365000=02013617=
-        LCR:= MKABS(CBUFF[0])                                           12370000=02013617=
-      ELSE                                                              12375000=02013617=
-        NCR:= LIBARRAY[LIBINDEX+2].NCRLINK;                             12380000=02013620=
-      IF LASTUSED <= 2 OR LASTUSED = 5 THEN                             12385000=02013621=
-        LCR:= MKABS(CBUFF[9])                                           12390000=02013621=
-      ELSE                                                              12395000=02013621=
-        LCR:= LIBARRAY[LIBINDEX+2].LCRLINK;                             12400000=02013625=
-      NORELEASE:= TRUE;                                                 12405000=02013627=
-      IF LASTUSED = 6 THEN                                              12410000=02013628=
-        FIRSTIMEX:= TRUE;                                               12415000=02013628=
-      END OF UNLINK;                                                    12420000=02013630=
-    IF LIBINDEX = 0 THEN                                                12425000=02013635=
-      BEGIN                                                             12430000=02013640=
-               COMMENT GOING BACK TO OUTSIDE WORLD;                     12435000=02013640=
-      SEQSUM:= 0;                                                       12440000=02013645=
-      END                                                               12445000=02013660=
-    ELSE                                                                12450000=02013660=
-      BEGIN                                                             12455000=02013660=
-      GT1:= (GTI1:= (DIRECTORY[FILEINX*3, 0]+3)/5)*5+1;                 12460000=02013665=
-      GT2:= (GTI1:= (RECOUNT-3)/5)*5+1;                                 12465000=02013670=
-      GT3:= (GT2-GT1) DIV 5;                                            12470000=02013675=
-      SPACE(LIBRARY[FILEINX], GT3);                                     12475000=02013680=
-      READ(LIBRARY[FILEINX]);                                           12480000=02013685=
-      MOVE(1, LIBRARY[FILEINX](0), GTI1);                               12485000=02013697=
-      IF GTI1 ^= GT2 AND GTI1 ^= 0 THEN                                 12490000=02013699=
-        BEGIN                                                           12495000=02013701=
-                    COMMENT ERROR 507 MEANS TAPE POSITIONING ERROR;     12500000=02013701=
-        FLAG(507);                                                      12505000=02013702=
-        GO TO EXIT;                                                     12510000=02013702=
-        END;                                                            12515000=02013703=
-      LTLCR:= MKABS(LIBRARY[FILEINX](10))+                              12520000=02013705=
-        (GTI1:= (((RECOUNT-1) MOD 5)*11));                              12525000=02013705=
-      MAXLTLCR:= MKABS(LIBRARY[FILEINX](0))+54;                         12530000=02013710=
-      ADDER(SEQSUM, LTLCR, TRUE, TRUE);                                 12535000=02013713=
-      IF LASTUSED = 6 THEN                                              12540000=02013714=
-        BEGIN                                                           12545000=02013714=
-        NCR:= LCR:= MKABS(LIBRARY[FILEINX](0));                         12550000=02013715=
-        PUTSEQNO(GT1, LCR);                                             12555000=02013716=
-        TURNONSTOPLIGHT(6"%", LCR);                                     12560000=02013717=
-        END;                                                            12565000=02013718=
-      END;                                                              12570000=02013718=
-EXIT:                                                                   12575000=02013720=
-    END SEARCHLIB;                                                      12580000=02013720=
-  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%12585000=02013720=
-    COMMENT WRITNEW TRANSFERS THE CARD IMAGE TO THE NEWTAPE BUFFER      12590000=02014000=
-              AND REPORTS IF THE CARD MIGHT BE CONTROL CARD;            12595000=02015000=
-  BOOLEAN STREAM PROCEDURE WRITNEW(NEW, FCR);                           12600000=02016000=
-  VALUE                                                                 12610000=02016000=
-    FCR;                                                                12615000=02016000=
-    BEGIN                                                               12620000=02017000=
-    SI:= FCR;                                                           12625000=02017000=
-    IF SC ^= 6"$" THEN                                                  12630000=02017000=
-      TALLY:= 1;                                                        12635000=02017000=
-    DI:= NEW;                                                           12640000=02018000=
-    DS:= 10 WDS;                                                        12645000=02018000=
-    WRITNEW:= TALLY                                                     12650000=02019000=
-    END WRITNEW;                                                        12655000=02019000=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%12660000=02061000=
 COMMENT  EQUAL COMPARES COUNT CHARACTERS LOCATED AT A AND B FOR         12665000=02061000=
          EQUALITY.  THIS ROUTINE IS USED IN THE LOOK-UP OF ALPHA        12670000=02061500=
@@ -2933,10 +2289,10 @@ COMMENT  EQUAL COMPARES COUNT CHARACTERS LOCATED AT A AND B FOR         12665000
   PROCEDURE SCANNER;                                                    12780000=02066000=
     BEGIN                                                               12785000=02066500=
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%12790000=02067000=
-COMMENT  "SCAN" IS THE STREAM PROCEDURE WHICH DOES THE ACTUAL SCANNING. 12795000=02067000=
+COMMENT  "SCNN" IS THE STREAM PROCEDURE WHICH DOES THE ACTUAL SCANNING. 12795000=02067000=
          IT IS DRIVEN BY A SMALL WORD MODE PROCEDURE CALLED "SCANNER".  12800000=02067500=
-         WHICH CHECKS FOR A QUANTITY BEING BROKEN ACROSS A CARD. "SCAN" 12805000=02068000=
-         IS CONTROLLED BY A VARIABLE CALLED "RESULT". "SCAN" ALSO       12810000=02068500=
+         WHICH CHECKS FOR A QUANTITY BEING BROKEN ACROSS A CARD. "SCNN" 12805000=02068000=
+         IS CONTROLLED BY A VARIABLE CALLED "RESULT". "SCNN" ALSO       12810000=02068500=
          INFORMS THE WORLD OF ITS ACTION BY MEANS OF THE SAME VARIABLE. 12815000=02069000=
          HENCE THE VARIABLE "RESULT" IS PASSED BY BOTH NAME AND VALUE.  12820000=02069500=
          THE MEANING OF "RESULT" AS INPUT IS:                           12825000=02070000=
@@ -2963,11 +2319,11 @@ COMMENT  "SCAN" IS THE STREAM PROCEDURE WHICH DOES THE ACTUAL SCANNING. 12795000
               1      AN IDENTIFIER WAS BUILT.                           12930000=02080500=
               2      A SPECIAL CHARACTER WAS OBTAINED.                  12935000=02081000=
               3      A NUMBER (INTEGER) WAS BUILT.                      12940000=02081500=
-         "SCAN" PUTS ALL STUFF SCANNED (EXCEPT FOR COMMENTS AND         12945000=02082000=
+         "SCNN" PUTS ALL STUFF SCANNED (EXCEPT FOR COMMENTS AND         12945000=02082000=
          DISCARDED BLANKS) INTO "ACCUM" (CALLED "ACCUMULATOR"           12950000=02082500=
          FOR THE REST OF THIS DISCUSSION).                              12955000=02083000=
          "COUNT" IS THE VARIABLE THAT GIVES THE NUMBER OF CHARACTERS    12960000=02083500=
-         "SCAN" HAS PUT INTO THE "ACCUMULATOR".  SINCE "SCAN" NEEDS     12965000=02084000=
+         "SCNN" HAS PUT INTO THE "ACCUMULATOR".  SINCE "SCNN" NEEDS     12965000=02084000=
          THE VALUE SO THAT IT CAN PUT MORE CHARACTERS INTO THE "ACCUM-  12970000=02084500=
          ULATOR" AND NEEDS TO UPDATE "COUNT" FOR THE OUTSIDE WORLD.     12975000=02085000=
          "COUNT" IS PASSED BY BOTH NAME AND VALUE.  IT IS ALSO          12980000=02085500=
@@ -2975,10 +2331,10 @@ COMMENT  "SCAN" IS THE STREAM PROCEDURE WHICH DOES THE ACTUAL SCANNING. 12795000
          "NCR" (NEXT CHARACTER TO BE SCANNED) IS ALSO PASSED BY         12990000=02086500=
          NAME AND VALUE SO THAT IT MAY BE UPDATED.                      12995000=02087000=
          "ST1" AND "ST2" ARE TEMPORARY STORAGES WHICH ARE EXPLICITLY    13000000=02087500=
-         PASSED TO "SCAN" IN ORDER TO OBTAIN THE MOST USEFULL STACK     13005000=02088000=
+         PASSED TO "SCNN" IN ORDER TO OBTAIN THE MOST USEFULL STACK     13005000=02088000=
          ARRANGEMENT.                                                   13010000=02088500=
          ;                                                              13015000=02089000=
-    STREAM PROCEDURE SCAN(NCR, COUNTV, ACCUM, COMCOUNT,  RESULT,        13020000=02090000=
+    STREAM PROCEDURE SCNN(NCR, COUNTV, ACCUM, COMCOUNT,  RESULT,        13020000=02090000=
       RESULTV, COUNT, ST2, NCRV, ST1);                                  13025000=02090000=
     VALUE                                                               13030000=02090500=
       COUNTV,                                                           13035000=02090500=
@@ -3074,7 +2430,6 @@ COMMENT  CHARACTERS BETWEEN % AND SEMICOLON ARE HANDLED BY WORD-        13405000
         END                                                             13485000=02115500=
       ELSE                                                              13490000=02115500=
         GO EXIT;                                                        13495000=02115500=
-                                                                        13500000=02116000=
 COMMENT  IF WE ARRIVE AT ERROR WE HAVE MORE THAN 63 CHARACTERS          13505000=02116000=
          IN AN IDENTIFIER OR NUMBER;                                    13510000=02116500=
   NUMBERS:                                                              13515000=02117500=
@@ -3091,42 +2446,31 @@ COMMENT  IF WE ARRIVE AT ERROR WE HAVE MORE THAN 63 CHARACTERS          13505000
       DI:= COUNT;                                                       13570000=02121500=
       SI:= LOC ST2;                                                     13575000=02121500=
       DS:= WDS;                                                         13580000=02121500=
-                                                                        13585000=02122000=
 COMMENT  THIS CODE UPDATED "COUNT';                                     13590000=02122000=
       DI:= ACCUM;                                                       13595000=02122500=
       SI:= SI-3;                                                        13600000=02122500=
       DS:= 3 CHR;                                                       13605000=02122500=
-                                                                        13610000=02123000=
 COMMENT  THIS CODE PLACES "COUNT" IN "ACCUM" AS WELL;                   13615000=02123000=
       DI:= DI+COUNTV;   % POSITION "DI" PAST CHARACTERS ALREADY         13620000=02123500=
                         % IN THE "ACCUMULATOR", IF ANY.                 13625000=02124000=
       SI:= NCRV;                                                        13630000=02124500=
       DS:= ST1 CHR;                                                     13635000=02124500=
-                                                                        13640000=02125000=
 COMMENT  MOVE CHARACTERS INTO "ACCUM";                                  13645000=02125000=
   FINIS:                                                                13650000=02126000=
       DI:= NCR;                                                         13655000=02126000=
       ST1:= SI;                                                         13660000=02126000=
       SI:= LOC ST1;                                                     13665000=02126000=
       DS:= WDS;                                                         13670000=02126000=
-                                                                        13675000=02126500=
 COMMENT  RESET "NCR" TO LOCATION OF NEXT CHARACTER TO BE SCANNED;       13680000=02126500=
-      END OF SCAN;                                                      13685000=02127000=
+      END OF SCNN;                                                      13685000=02127000=
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%13686000          
     LABEL                                                               13690000=02127500=
       L;    %                                                           13695000=02127500=
-L:  SCAN(NCR, COUNT, ACCUM[1], 63-COUNT, RESULT, RESULT, COUNT, 0       13700000=02129000=
+L:  SCNN(NCR, COUNT, ACCUM[1], 63-COUNT, RESULT, RESULT, COUNT, 0       13700000=02129000=
       , NCR, 0);                                                        13705000=02129000=
     IF NCR = LCR THEN                                                   13710000=02129500=
       BEGIN                                                             13715000=02130000=
       READACARD;                                                        13720000=02130500=
-      IF LIBINDEX ^= 0 THEN                                             13725000=02131500=
-        IF RECOUNT = FINISHPT THEN                                      13730000=02132000=
-          BEGIN                                                         13735000=02132500=
-          SEARCHLIB(FALSE);                                             13740000=02133000=
-          READACARD;                                                    13745000=02133500=
-          NORELEASE:= FALSE;                                            13750000=02134000=
-          END;                                                          13755000=02134500=
       GO TO L;    % GO DIRECTLY TO L, DO NOT PASS GO.                   13760000=02135500=
                   % DO NOT COLLECT $200.                                13765000=02136000=
       END;                                                              13770000=02136500=
@@ -3137,14 +2481,6 @@ L:  SCAN(NCR, COUNT, ACCUM[1], 63-COUNT, RESULT, RESULT, COUNT, 0       13700000
                       WRITE(LINE, 15, LIN[*])                           13795000=02181250=
                     ELSE                                                13800000=02181250=
                       WRITE(LINE[DBL], 15, LIN[*]) #,                   13805000=02181500=
-    MAKCAST       =   BEGIN                                             13810000=02181500=
-                      CARDCALL:=                                        13815000=02181750=
-                        IF LASTUSED = 5 THEN                            13820000=02181750=
-                          TRUE                                          13825000=02181750=
-                        ELSE                                            13830000=02181750=
-                          FALSE;                                        13835000=02181750=
-                      SEARCHLIB(TRUE);                                  13840000=02182000=
-                      END #,                                            13845000=02182500=
     PRINTCARD     =   BEGIN                                             13850000=02182500=
                       EDITLINE(LIN, FCR, L.[11:10], SGNO, L.[2:2],      13855000=02182760=
                         MEDIUM, OMITTING);                              13860000=02182760=
@@ -3238,10 +2574,6 @@ COMMENT  COMPARE COMPARES SEQUENCE NUMBERS OF TAPE AND CARD. IF         14085000
         GTI1:= TOTALNO:= TOTALNO+ADDVALUE;                              14295000=02193000=
       CHANGESEQ(GTI1, LCR);                                             14300000=02193250=
       END;                                                              14305000=02193500=
-    IF NEWTOG THEN                                                      14310000=02193750=
-      IF INSERTDEPTH > 0 AND INSERTCOP = 1 OR INSERTDEPTH = 0 THEN      14315000=02193800=
-        IF WRITNEW(LIN, FCR) THEN                                       14320000=02194000=
-          WRITF(NEWTAPE, 10, LIN[*]);                                   14325000=02194000=
     IF OMITTING THEN                                                    14330000=02194250=
       IF NOT LISTATOG THEN                                              14335000=02194250=
         GO AWAY;                                                        14340000=02194250=
@@ -3277,96 +2609,12 @@ AWAY:                                                                   14390000
     END BEGINPRINT;                                                     14490000=02196610=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%14495000=02196610=
   PROCEDURE READACARD;                                                  14500000=02196750=
-                                                                        14505000=02197000=
 COMMENT  READACARD READS CARDS FROM EITHER THE CARD READER OR THE       14510000=02197000=
          TAPE MERGING AS REQUESTED AND CREATING A NEW TAPE AND          14515000=02197250=
          LISTING IF REQUESTED.  READACARD ALSO INSERTS A PERCENT        14520000=02197500=
          SIGN AS AN END OF CARD SENTINEL IN COLUMN 73 AND SETS          14525000=02197750=
          FCR,NCR,LCR,TLCR, AND CLCR;                                    14530000=02198000=
     BEGIN                                                               14535000=02198250=
-    PROCEDURE READTAPE(LCR, MAXLCR, LIB);                               14540000=02198500=
-    VALUE                                                               14545000=02198500=
-      LIB;                                                              14550000=02198500=
-    BOOLEAN                                                             14555000=02198500=
-      LIB;                                                              14560000=02198500=
-    REAL                                                                14565000=02198750=
-      LCR,                                                              14570000=02198750=
-       MAXLCR;                                                          14575000=02198750=
-      BEGIN                                                             14580000=02198755=
-      LABEL                                                             14585000=02198760=
-        ENDREADTAPE,                                                    14590000=02198760=
-         EOFT;                                                          14595000=02198760=
-      IF LIB THEN                                                       14600000=02199000=
-        BEGIN                                                           14605000=02199250=
-        RECOUNT:= RECOUNT+1;                                            14610000=02199500=
-        IF LCR:= LCR+11 > MAXLCR THEN                                   14615000=02199750=
-          BEGIN                                                         14620000=02200000=
-          READ(LIBRARY, FILEINX);                                       14625000=02200250=
-          MAXLCR:= 46+LCR:= MKABS(LIBRARY[FILEINX](0))+10;              14630000=02200500=
-          END;                                                          14635000=02200750=
-        ADDER(SEQSUM, LCR, TRUE, TRUE);                                 14640000=02201000=
-        END                                                             14645000=02201500=
-      ELSE                                                              14650000=02201500=
-        BEGIN                                                           14655000=02201500=
-        READ(TAPE, 10, TBUFF[*])[EOFT];                                 14660000=02201750=
-        MAXLCR:= LCR:= MKABS(TBUFF[9]);                                 14665000=02202000=
-        GO TO ENDREADTAPE;                                              14670000=02202010=
-    EOFT:                                                               14675000=02202030=
-        DEFINEARRAY[25]:= 6"ND;END."&6"E"[46:4:5];                      14680000=02202030=
-        DEFINEARRAY[34]:= 6"9999"&6"9999"[46:22:23];                    14685000=02202040=
-        TLCR:= MKABS(DEFINEARRAY[34]);                                  14690000=02202050=
-        PUTSEQNO(DEFINEARRAY[33], TLCR-8);                              14695000=02202060=
-        TURNONSTOPLIGHT(6"%", TLCR-8);                                  14700000=02202070=
-    ENDREADTAPE:                                                        14705000=02202090=
-        END;                                                            14710000=02202090=
-      END READTAPE;                                                     14715000=02202250=
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%14720000=02202250=
-    PROCEDURE SEQCOMPARE(TLCR, CLCR, LIB);                              14725000=02202500=
-    VALUE                                                               14730000=02202500=
-      LIB;                                                              14735000=02202500=
-    BOOLEAN                                                             14740000=02202500=
-      LIB;                                                              14745000=02202500=
-    REAL                                                                14750000=02202750=
-      TLCR,                                                             14755000=02202750=
-       CLCR;                                                            14760000=02202750=
-      BEGIN                                                             14765000=02203000=
-      MEDIUM:= 6"C ";  % CARD READER.                                   14770000=02203250=
-      IF GT1:= COMPARE(TLCR, CLCR) = 0 THEN% TAPE HAS LOW SEQUENCE NUMB 14775000=02203500=
-        BEGIN                                                           14780000=02203750=
-        LCR:= TLCR;                                                     14785000=02204000=
-        LASTUSED:=                                                      14790000=02204000=
-          IF LIB THEN                                                   14795000=02204000=
-            6                                                           14800000=02204000=
-          ELSE                                                          14805000=02204000=
-            3;                                                          14810000=02204000=
-        MEDIUM:=                                                        14815000=02204250=
-          IF LIB THEN                                                   14820000=02204250=
-            6"CA"+FILEINX                                               14825000=02204250=
-          ELSE                                                          14830000=02204250=
-            6"T ";                                       %CA,CB,CC,OR T.14835000=02204250=
-        END                                                             14840000=02204750=
-      ELSE                                                              14845000=02204750=
-        BEGIN                                                           14850000=02204750=
-        IF GT1 ^= 1 THEN      % TAPE AND CARD HAVE SAME SEQ             14855000=02205000=
-          BEGIN                                                         14860000=02205250=
-          MEDIUM:= 6"P ";        % CARD PATCHES TAPE.                   14865000=02205500=
-          IF LIB THEN                                                   14870000=02207750=
-            IF FINISHPT-RECOUNT = 1 THEN                                14875000=02207750=
-              LASTCRDPATCH:= TRUE                                       14880000=02208000=
-            ELSE                                                        14885000=02208000=
-              READTAPE(LTLCR, MAXLTLCR, TRUE)                           14890000=02208250=
-          ELSE                                                          14895000=02208250=
-            READTAPE(TLCR, MAXTLCR, FALSE);                             14900000=02208500=
-          END;                                                          14905000=02208750=
-        LCR:= CLCR;                                                     14910000=02209000=
-        LASTUSED:=                                                      14915000=02209250=
-          IF LIB THEN                                                   14920000=02209250=
-            5                                                           14925000=02209250=
-          ELSE                                                          14930000=02209250=
-            2;                                                          14935000=02209250=
-        END;                                                            14940000=02209500=
-      END OF SEQCOMPARE;                                                14945000=02209750=
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%14950000=02209750=
     LABEL                                                               14955000=02210000=
       CARDONLY,                                                         14960000=02210000=
        CARDLAST,                                                        14965000=02210000=
@@ -3415,14 +2663,10 @@ FIRSTTIME:                                                              15130000
                                                                         15180000=02215000=
 COMMENT  WE HAVE JUST INITIALIZED CARD INPUT;                           15185000=02215000=
 CARDONLY:                                                               15190000=02215500=
-    IF NORELEASE THEN                                                   15195000=02215500=
-      GO TO EXIT;                                                       15200000=02215500=
     READ(CARD, 10, CBUFF[*]);                                           15205000=02215500=
     LCR:= MKABS(CBUFF[9]);                                              15210000=02215750=
     GO EXIT;                                                            15215000=02215750=
 CARDLAST:                                                               15220000=02216250=
-    IF NORELEASE THEN                                                   15225000=02216250=
-      GO TO EXIT;                                                       15230000=02216250=
     READ(CARD, 10, CBUFF[*])[EOF];                                      15235000=02216250=
     CLCR:= MKABS(CBUFF[9]);                                             15240000=02216500=
     GO COMPAR;                                                          15245000=02216750=
@@ -3434,65 +2678,28 @@ EOF:                                                                    15250000
     TURNONSTOPLIGHT(6"%", CLCR-8);                                      15275000=02218250=
 %                                                                       15280000=02218400=
     GO COMPAR;                                                          15285000=02218500=
-                                                                        15290000=02218750=
 COMMENT  THIS RELEASES THE PREVIOUS CARD FROM THE CARD READER AND       15295000=02218750=
          SETS UP CLCR;                                                  15300000=02219000=
 TAPELAST:                                                               15305000=02219500=
-    READTAPE(TLCR, MAXTLCR, FALSE);                                     15310000=02219500=
+    MYSELF.STATUS:= VALUE(TERMINATED);                                  15310000=02219500=
     GO TO COMPAR;                                                       15315000=02219500=
-                                                                        15320000=02219750=
 COMMENT  THIS RELEASES THE PREVIOUS CARD FROM TAPE AND SETS UP TLCR;    15325000=02219750=
 LIBCLAST:                                                               15330000=02220250=
-    IF FIRSTIMEX THEN                                                   15335000=02220250=
-      BEGIN                                                             15340000=02220500=
-      FIRSTIMEX:= FALSE;                                                15345000=02220500=
-      GO COMPAR                                                         15350000=02220500=
-      END;                                                              15355000=02220500=
-    READ(CARD, 10, CBUFF[*])[EOF];                                      15360000=02220750=
-    CLCR:= MKABS(CBUFF[9]);                                             15365000=02221000=
-    IF LASTCRDPATCH THEN                                                15370000=02221250=
-      BEGIN                                                             15375000=02221500=
-      LASTCRDPATCH:= FALSE;                                             15380000=02221750=
-      RECOUNT:= RECOUNT+1;                                              15385000=02222000=
-      GO TO XIT                                                         15390000=02222500=
-      END;                                                              15395000=02222500=
+    MYSELF.STATUS:= VALUE(TERMINATED);                                  15335000=02220250=
     GO TO COMPAR;                                                       15400000=02222750=
 LIBTLAST:                                                               15405000=02223250=
-    IF FIRSTIMEX THEN                                                   15410000=02223250=
-      BEGIN                                                             15415000=02223500=
-      FIRSTIMEX:= FALSE;                                                15420000=02223500=
-      GO TO COMPAR                                                      15425000=02223500=
-      END;                                                              15430000=02223500=
-    READTAPE(LTLCR, MAXLTLCR, TRUE);                                    15435000=02223750=
-    IF RECOUNT = FINISHPT THEN                                          15440000=02224000=
-      GO TO XIT;                                                        15445000=02224000=
+    MYSELF.STATUS:= VALUE(TERMINATED);                                  15410000=02223250=
     GO COMPAR;                                                          15450000=02224010=
 COPYLIB:                                                                15455000=02224030=
-    READ(LF[INSERTINX:= INSERTINX+1], 10, LBUFF[*])[COPYEOF];           15460000=02224030=
-    READ SEEK(LF[INSERTINX+1]);                                         15465000=02224032=
-    IF (CMPD(INSERTSEQ, LBUFF[9]) = 0) THEN                             15470000=02224040=
-      GO COPYEOF;                                                       15475000=02224040=
-    LCR:= MKABS(LBUFF[9]);                                              15480000=02224050=
+    MYSELF.STATUS:= VALUE(TERMINATED);                                  15460000=02224030=
     GO TO EXIT;                                                         15485000=02224060=
 COPYEOF:                                                                15490000=02224080=
-    CLOSE(LF, RELEASE);                                                 15495000=02224080=
-    IF ((INSERTDEPTH:= INSERTDEPTH-1) = 0) THEN                         15500000=02224090=
-      BEGIN                                                             15505000=02224100=
-      LASTUSED:= SAVECARD;                                              15510000=02224100=
-      MEDIUM:= MEDIUM.[23:12];                                          15515000=02224100=
-      GO USETHESWITCH;                                                  15520000=02224102=
-      END;                                                              15525000=02224104=
-    FILL LF WITH INSERTMID, INSERTFID;                                  15530000=02224110=
+    MYSELF.STATUS:= VALUE(TERMINATED);                                  15495000=02224080=
     GO COPYLIB;                                                         15535000=02224120=
 COMPAR:                                                                 15540000=02224500=
-    IF LASTUSED = 2 OR LASTUSED = 3 THEN                                15545000=02224500=
-      SEQCOMPARE(TLCR, CLCR, FALSE)                                     15550000=02224750=
-    ELSE                                                                15555000=02224750=
-      SEQCOMPARE(LTLCR, CLCR, TRUE);                                    15560000=02224750=
+    ;                                                                   15545000=02224500=
 EXIT:                                                                   15565000=02225250=
-    NCR:= FCR:= LCR-9;                                                  15570000=02225250=
-                                                                        15575000=02225500=
-COMMENT  SETS UP NCR AND FCR;                                           15580000=02225500=
+    NCR:= FCR:= LCR-9;                 COMMENT  SETS UP NCR AND FCR;    15570000=02225250=
     IF CHECKTOG AND EXAMIN(FCR) ^= 6"$" THEN %$=CARDS DON"T COUNT.      15585000=02225750=
       IF COMPARE(MKABS(INFO[LASTSEQROW, LASTSEQUENCE]), LCR) = 1 THEN   15590000=02226000=
         IF SEQERRTOG THEN                                               15595000=02226250=
@@ -3515,11 +2722,8 @@ COMMENT  SETS UP NCR AND FCR;                                           15580000
       BEGIN                                                             15680000=02228500=
       IF LISTPTOG OR PRINTDOLLARTOG THEN                                15685000=02228750=
         PRINTCARD;                                                      15690000=02228750=
-      IF EXAMIN(NCR:= NCR+32768) = 6"$" THEN                            15695000=02229000=
-        MAKCAST                                                         15700000=02229000=
-      ELSE                                                              15705000=02229000=
-        DOLLARCARD;                                                     15710000=02229000=
-      NORELEASE:= FALSE;                                                15715000=02229100=
+      NCR:= NCR+32768;                                                  15695000=02229000=
+      DOLLARCARD;                                                       15700000=02229000=
                                                                         15720000=02229250=
 COMMENT  DONT FORGET THAT NCR IS NOT WORD MODE, BUT CHAR. MODE POINTER; 15725000=02229250=
       GO USETHESWITCH;                                                  15730000=02229500=
@@ -3528,29 +2732,13 @@ COMMENT  DONT FORGET THAT NCR IS NOT WORD MODE, BUT CHAR. MODE POINTER; 15725000
       IF DOLLAR2TOG:= EXAMIN(FCR+32768) = 6"$" THEN                     15745000=02230100=
         BEGIN                                                           15750000=02230250=
         OUTPUTSOURCE;                                                   15755000=02230500=
-        IF EXAMIN(NCR:= NCR+65536) = 6"$" THEN                          15760000=02230750=
-          MAKCAST                                                       15765000=02230750=
-        ELSE                                                            15770000=02230750=
-          DOLLARCARD;                                                   15775000=02231000=
+        NCR:= NCR+65536;                                                15760000=02230750=
+        DOLLARCARD;                                                     15765000=02230750=
         END;                                                            15780000=02231250=
-    IF VOIDING OR VOIDTAPE THEN                                         15785000=02231500=
-      BEGIN                                                             15790000=02231750=
-      IF COMPARE(LCR, VOIDCR) = 0 THEN                                  15795000=02232000=
-        BEGIN                                                           15800000=02232250=
-        IF VOIDTAPE AND LASTUSED = 3 OR NOT VOIDTAPE THEN               15805000=02232500=
-          GO USETHESWITCH;                                              15810000=02232750=
-        END                                                             15815000=02233250=
-      ELSE                                                              15820000=02233250=
-        BEGIN                                                           15825000=02233250=
-        VOIDCR:= VOIDPLACE:= 0;                                         15830000=02233500=
-        VOIDING:= FALSE;                                                15835000=02233750=
-        VOIDTAPE:= FALSE                                                15840000=02234000=
-        END;                                                            15845000=02234000=
-      END;                                                              15850000=02234250=
     CARDCOUNT:= CARDCOUNT+1;                                            15855000=02234500=
     IF DOLLAR2TOG THEN                                                  15860000=02234600=
       BEGIN                                                             15865000=02234650=
-      DOLLAR2TOG:= NORELEASE:= FALSE;                                   15870000=02234650=
+      DOLLAR2TOG:= FALSE;                                               15870000=02234650=
       GO USETHESWITCH;                                                  15875000=02234650=
       END;                                                              15880000=02234650=
     PUTSEQNO(INFO[LASTSEQROW, LASTSEQUENCE], LCR);                      15885000=02234750=
@@ -3576,159 +2764,6 @@ COMMENT  DONT FORGET THAT NCR IS NOT WORD MODE, BUT CHAR. MODE POINTER; 15725000
         END;                                                            15985000=02237500=
 XIT:                                                                    15990000=02238000=
     END READACARD;                                                      15995000=02238000=
-  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%16000000=02238000=
-  PROCEDURE INCLUDECARD;                                                16005000=02238100=
-    BEGIN                                                               16010000=02238110=
-    REAL                                                                16015000=02238112=
-      V;                                                                16020000=02238112=
-    LABEL                                                               16025000=02238120=
-      EEXIT,                                                            16030000=02238120=
-       AGAIN,                                                           16035000=02238120=
-       GETEM,                                                           16040000=02238120=
-       EOF,                                                             16045000=02238120=
-       EXIT,                                                            16050000=02238120=
-       DONTSCAN;                                                        16055000=02238120=
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%16060000=02238130=
-    REAL STREAM PROCEDURE SCNN(A, B);                                   16065000=02238130=
-    VALUE                                                               16070000=02238130=
-      B;                                                                16075000=02238130=
-      BEGIN                                                             16080000=02238140=
-      SI:= A;                                                           16085000=02238150=
-      DI:= LOC SCNN;                                                    16090000=02238150=
-      DS:= 8 LIT 6"0       ";                                           16095000=02238150=
-      DI:= DI-7;                                                        16100000=02238160=
-      SI:= SI+3;                                                        16105000=02238160=
-      DS:= B CHR;                                                       16110000=02238160=
-      END;                                                              16115000=02238170=
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%16116000          
-    STREAM PROCEDURE MVE(A, B, C, D);                                   16120000=02238180=
-    VALUE                                                               16125000=02238180=
-      B,                                                                16130000=02238180=
-       C;                                                               16135000=02238180=
-      BEGIN                                                             16140000=02238190=
-      SI:= A;                                                           16145000=02238200=
-      SI:= SI+3;                                                        16150000=02238200=
-      DI:= D;                                                           16155000=02238200=
-      C(DS:= LIT 6"0");                                                 16160000=02238200=
-      DS:= B CHR;                                                       16165000=02238200=
-      END;                                                              16170000=02238210=
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%16172000          
-    STREAM PROCEDURE MVEWD(A, B);                                       16175000=02238212=
-    VALUE                                                               16180000=02238212=
-      A;                                                                16185000=02238212=
-      BEGIN                                                             16190000=02238214=
-      SI:= A;                                                           16195000=02238214=
-      DI:= B;                                                           16200000=02238214=
-      DS:= 10 WDS;                                                      16205000=02238214=
-      END;                                                              16210000=02238214=
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%16212000          
-    DEFINE                                                              16215000=02238220=
-      SKAN          =   BEGIN                                           16220000=02238220=
-                        COUNT:= RESULT:= ACCUM[0]:= 0;                  16225000=02238230=
-                        SCANNER;                                        16230000=02238240=
-                        V:= SCNN(ACCUM[1], MIN(COUNT, 7));              16235000=02238250=
-                        END #;                                          16240000=02238260=
-    DEFINE                                                              16245000=02238270=
-      ERR(ERR1)     =   BEGIN                                           16250000=02238270=
-                        FLAG(ERR1);                                     16255000=02238270=
-                        GO TO EEXIT;                                    16260000=02238270=
-                        END #;                                          16265000=02238270=
-    IF ((INSERTDEPTH:= INSERTDEPTH+1) > INSERTMAX) THEN                 16270000=02238280=
-      ERR(612);                                                         16275000=02238280=
-    INSERTMID:= INSERTFID:= INSERTINX:= INSERTCOP:= 0;                  16280000=02238290=
-    INSERTSEQ:= 6"9999"&6"9999"[46:23];                                 16285000=02238300=
-AGAIN:                                                                  16290000=02238340=
-    SKAN;                                                               16295000=02238340=
-DONTSCAN:                                                               16300000=02238350=
-    IF V = 6"%      " THEN                                              16305000=02238350=
-      GO GETEM;                                                         16310000=02238350=
-    IF V = 6"/      " THEN                                              16315000=02238360=
-      GO AGAIN;                                                         16320000=02238360=
-    IF RESULT = 3 THEN % SEQ RANGE                                      16325000=02238370=
-      BEGIN                                                             16330000=02238380=
-      MVE(ACCUM[1], COUNT:= MIN(COUNT, 8), 8-COUNT, INSERTINX);         16335000=02238385=
-      SKAN;                                                             16340000=02238390=
-      IF V = 6"-      " THEN                                            16345000=02238400=
-        BEGIN                                                           16350000=02238410=
-        SKAN;                                                           16355000=02238420=
-        IF RESULT ^= 3 THEN                                             16360000=02238430=
-          ERR(614);                                                     16365000=02238430=
-        MVE(ACCUM[1], COUNT:= MIN(COUNT, 8), 8-COUNT, INSERTSEQ);       16370000=02238440=
-        END                                                             16375000=02238450=
-      ELSE                                                              16380000=02238450=
-        GO TO DONTSCAN;                                                 16385000=02238450=
-      GO AGAIN;                                                         16390000=02238460=
-      END;   % SEQ RANGE                                                16395000=02238470=
-    IF V = 6"+      " THEN % WE HAVE COPY FORM                          16400000=02238480=
-      BEGIN                                                             16405000=02238490=
-      SKAN;                                                             16410000=02238500=
-      IF V = 6"COPY   " THEN                                            16415000=02238510=
-        IF EXAMIN(LCR-9) = 6"$" THEN                                    16420000=02238512=
-          INSERTCOP:= INSERTINFO[INSERTDEPTH-1, 4]                      16425000=02238520=
-        ELSE                                                            16430000=02238520=
-          ERR(617)                                                      16435000=02238522=
-      ELSE                                                              16440000=02238522=
-        ERR(616);                                                       16445000=02238522=
-      GO AGAIN;                                                         16450000=02238530=
-      END;                                                              16455000=02238540=
-    IF INSERTMID = 0 THEN                                               16460000=02238550=
-      INSERTMID:= V                                                     16465000=02238552=
-    ELSE                                                                16470000=02238552=
-    IF INSERTFID = 0 THEN                                               16475000=02238552=
-      INSERTFID:= V                                                     16480000=02238552=
-    ELSE                                                                16485000=02238552=
-      ERR(616);                                                         16490000=02238552=
-    GO AGAIN;                                                           16495000=02238555=
-GETEM:                                                                  16500000=02238570=
-    IF NOT BOOLEAN(INSERTCOP) AND NEWTOG THEN                           16505000=02238570=
-      IF EXAMIN(FCR) = 6"$" THEN % ONLY IF "$" IS IN COLUMN ONE         16510000=02238572=
-        IF BOOLEAN(INSERTINFO[INSERTDEPTH-1, 4]) THEN                   16515000=02238574=
-                                                 % ONLY IF LAST HAD COPY16520000=02238574=
-          BEGIN                                                         16525000=02238580=
-          MVEWD(FCR, LBUFF[0]);                                         16530000=02238580=
-          PUTSEQNO(LBUFF[9], MKABS(INFO[LASTSEQROW, LASTSEQUENCE]));    16535000=02238582=
-          WRITE(NEWTAPE, 10, LBUFF[*]);                                 16540000=02238590=
-          END;                                                          16545000=02238600=
-    IF INSERTMID = 0 THEN                                               16550000=02238602=
-      ERR(613);                                                         16555000=02238602=
-    IF INSERTFID = 0 THEN                                               16560000=02238610=
-      INSERTFID:= TIME(-1);                                             16565000=02238610=
-    IF INSERTFID = 0 THEN                                               16570000=02238620=
-      BEGIN                                                             16575000=02238630=
-      INSERTFID:= INSERTMID;                                            16580000=02238630=
-      INSERTMID:= 0;                                                    16585000=02238630=
-      END;                                                              16590000=02238630=
-    IF INSERTDEPTH > 1 THEN                                             16595000=02238640=
-      CLOSE(LF, RELEASE);                                               16600000=02238640=
-    FILL LF WITH INSERTMID, INSERTFID;                                  16605000=02238650=
-    READ(LF[0], 10, LBUFF[*])[EEXIT];  % DO THE FOLLOWING SO THAT       16610000=02238652=
-    INSERTMID:= LF.MFID;               % IF THE OPERATOR IL-ED US       16615000=02238654=
-    INSERTFID:= LF.FID;                % WE WILL HAVE THE PROPER NAMES. 16620000=02238656=
-    V:= -1;                                                             16625000=02238658=
-    IF INSERTINX > 0 THEN                                               16630000=02238660=
-      BEGIN                                                             16635000=02238670=
-      DO                                                                16640000=02238680=
-        READ(LF[V:= V+1], 10, LBUFF[*])[EEXIT]                          16645000=02238690=
-      UNTIL CMPD(INSERTINX, LBUFF[9]) <= 1;                             16650000=02238690=
-      V:= V-1;                                                          16655000=02238700=
-      END;                                                              16660000=02238702=
-    INSERTINX:= V;                                                      16665000=02238704=
-    IF INSERTDEPTH = 1 THEN                                             16670000=02238710=
-      BEGIN                                                             16675000=02238720=
-      SAVECARD:= LASTUSED;                                              16680000=02238720=
-      LASTUSED:= 7;                                                     16685000=02238720=
-      MEDIUM:= 6"L "&MEDIUM[23:12];                                     16690000=02238720=
-      END;                                                              16695000=02238730=
-    GO TO EXIT;                                                         16700000=02238760=
-EEXIT:                                                                  16705000=02238780=
-    IF ((INSERTDEPTH:= INSERTDEPTH-1) > 0) THEN                         16710000=02238780=
-      BEGIN                                                             16715000=02238790=
-      CLOSE(LF, RELEASE);                                               16720000=02238800=
-      FILL LF WITH INSERTMID, INSERTFID;                                16725000=02238810=
-      END;                                                              16730000=02238820=
-EXIT:                                                                   16735000=02238832=
-    Q:= 6"1%0000";                                                      16740000=02238832=
-    END;                                                                16745000=02238840=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%16750000=02238840=
   REAL PROCEDURE CONVERT;                                               16755000=02248000=
     BEGIN                                                               16760000=02249000=
@@ -3749,16 +2784,6 @@ EXIT:                                                                   16735000
         T:= T*100000000+CONV(ACCUM[1], N, 8);                           16835000=02259000=
     CONVERT:= T;                                                        16840000=02260000=
     END;                                                                16845000=02261000=
-  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%16850000=02261000=
-  REAL STREAM PROCEDURE FETCH(F);                                       16855000=02262000=
-  VALUE                                                                 16865000=02262000=
-    F;                                                                  16870000=02262000=
-    BEGIN                                                               16875000=02263000=
-    SI:= F;                                                             16880000=02263000=
-    SI:= SI-8;                                                          16885000=02263000=
-    DI:= LOC FETCH;                                                     16890000=02263000=
-    DS:= WDS                                                            16895000=02263000=
-    END FETCH;                                                          16900000=02263000=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%16902000          
   PROCEDURE DUMPINFO;                                                   16905000=02264000=
     BEGIN                                                               16910000=02264050=
@@ -4016,9 +3041,7 @@ LENGTH3:                                                                18105000
       END;                                                              18155000=02385000=
     IF Q = 6"3NEW00" THEN                                               18160000=02386000=
       BEGIN                                                             18165000=02387000=
-      SWITCHIT(NEWBIT);                                                 18170000=02388000=
-      IF Q = 6"4TAPE0" THEN                                             18175000=02389000=
-        GO SKANAGAIN;                                                   18180000=02389000=
+      FLAG(601);                       % NEWTAPE IS DISABLED.           18170000=02388000=
       GO AGAIN;                                                         18185000=02390000=
       END;                                                              18190000=02391000=
     IF Q = 6"3SEQ00" THEN                                               18195000=02392000=
@@ -4045,17 +3068,7 @@ LENGTH4:                                                                18275000
       END;                                                              18300000=02405000=
     IF Q = 6"4VOID0" THEN                                               18305000=02406000=
       BEGIN                                                             18310000=02407000=
-      IF XMODE = 0 THEN                                                 18315000=02408000=
-        BEGIN                                                           18320000=02409000=
-        GETVOID(VOIDPLACE, NCR, VOIDCR, LCR,                            18325000=02411000=
-          INFO[LASTSEQROW, LASTSEQUENCE]);                              18330000=02411000=
-        XMODE:= 1;                                                      18335000=02412000=
-        SWITCHIT(VOIDBIT);                                              18340000=02412000=
-        GO EXIT;                                                        18345000=02413000=
-        END;                                                            18350000=02414000=
-      SWITCHIT(VOIDBIT);                                                18355000=02415000=
-      VOIDPLACE:= 6"9999"&6"9999"[46:23];%2 B COMPATIBLE W/B-5700 VOIDS 18360000=02416000=
-      VOIDCR:= MKABS(VOIDPLACE);   % AND FAKE OUT READACARD.            18365000=02417000=
+      FLAG(601);                       % VOID IS DISABLED.              18315000=02408000=
       GO AGAIN;                                                         18370000=02418000=
       END;                                                              18375000=02419000=
     IF Q = 6"4XREF0" THEN                                               18380000=02419100=
@@ -4077,14 +3090,7 @@ LENGTH4:                                                                18275000
       END;                                                              18460000=02421000=
     IF Q = 6"4CARD0" THEN                                               18465000=02422000=
       BEGIN                                                             18470000=02423000=
-      Q:= 6"4TAPE0";  % FAKE OUT SWITCHIT.                              18475000=02424000=
-      SWITCHIT(MERGEBIT);                                               18480000=02425000=
-      IF XMODE ^= 2 THEN                                                18485000=02425500=
-        MERGETOG:= NOT MERGETOG;                                        18490000=02425500=
-      OPTIONS[2*MERGEBIT-1]:=                  % CARD IS                18495000=02426000=
-          REAL(SETTING & (MERGETOG)[0:1]);     % INVERSE OF MERGE.      18500000=02427000=
-      IF MERGETOG THEN                                                  18505000=02428000=
-        GO MERGEOPTION;                                                 18510000=02428000=
+      FLAG(601);                       % MERGE MODE IS DISABLED.        18475000=02424000=
   CARDOPTION:                                                           18515000=02430000=
       IF LASTUSED < 5 THEN                                              18520000=02430000=
         LASTUSED:= 1;                                                   18525000=02430000=
@@ -4092,53 +3098,13 @@ LENGTH4:                                                                18275000
       END;                                                              18535000=02432000=
     IF Q = 6"4TAPE0" THEN                                               18540000=02433000=
       BEGIN                                                             18545000=02434000=
-      SWITCHIT(MERGEBIT);                                               18550000=02435000=
+      FLAG(601);                       % MERGE MODE IS DISABLED.        18550000=02435000=
       IF NOT MERGETOG THEN                                              18555000=02436000=
         GO CARDOPTION;                                                  18560000=02436000=
   MERGEOPTION:                                                          18565000=02437500=
       IF LASTUSED ^= 1 THEN                                             18570000=02437500=
         GO TO AGAIN;                                                    18575000=02437500=
       LASTUSED:= 2;   % NEXT CARD IS READ FROM READER.                  18580000=02438000=
-      IF MAXTLCR = 0 THEN                                               18585000=02439000=
-        BEGIN                                                           18590000=02440000=
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%18592000          
-        INTEGER STREAM PROCEDURE FEJ(F, T);                             18595000=02441000=
-        VALUE                                                           18605000=02441000=
-          T;                                                            18610000=02441000=
-          BEGIN                                                         18615000=02442000=
-          SI:= F;                                                       18620000=02443000=
-          DI:= LOC T;                                                   18625000=02443000=
-          DS:= WDS;                                                     18630000=02443000=
-          SI:= T;                                                       18635000=02444000=
-          SI:= SI-16;                                                   18640000=02444000=
-          DI:= LOC FEJ;                                                 18645000=02444000=
-          DS:= WDS;                                                     18650000=02444000=
-          END FEJ;                                                      18655000=02445000=
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%18656000          
-        STREAM PROCEDURE FIX(F, T);                                     18660000=02446000=
-        VALUE                                                           18665000=02446000=
-          T;                                                            18670000=02446000=
-          BEGIN                                                         18675000=02447000=
-          SI:= F;                                                       18680000=02448000=
-          SI:= SI-24;                                                   18685000=02448000=
-          DI:= LOC T;                                                   18690000=02448000=
-          DS:= WDS;                                                     18695000=02448000=
-          DI:= T;                                                       18700000=02449000=
-          DI:= DI+47;                                                   18705000=02449000=
-          SKIP 4 DB;                                                    18710000=02449000=
-          DS:= 2 RESET;                                                 18715000=02449000=
-          2(DI:= DI+48;DS:= 8 LIT 6"00#01+0#";                          18720000=02451000=
-          END FIX;                                                      18725000=02451000=
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%18726000          
-        IF GT1:= FEJ(TAPE, 0) = 10 THEN                                 18730000=02452000=
-          BEGIN                                                         18735000=02453000=
-          REWIND(TAPE);                                                 18740000=02454000=
-          FIX(TAPE, 0);                                                 18745000=02454000=
-          END;                                                          18750000=02455000=
-        MAXTLCR:= GT1+TLCR:= 9+MKABS(TBUFF[0]);                         18755000=02456000=
-        READ(TAPE, 10, TBUFF[*]);   % INITIALIZE TAPE INPUT.            18760000=02457000=
-        LASTUSED:= 2;                                                   18765000=02458000=
-        END;                                                            18770000=02459000=
       GO AGAIN;                                                         18775000=02460000=
       END;                                                              18780000=02461000=
     IF Q = 6"4PAGE0" THEN                                               18785000=02462000=
@@ -4181,17 +3147,7 @@ LENGTH5:                                                                18920000
       END;                                                              18970000=02480000=
     IF Q = 6"5VOIDT" THEN                                               18975000=02481000=
       BEGIN                                                             18980000=02482000=
-      IF XMODE = 0 THEN                                                 18985000=02483000=
-        BEGIN                                                           18990000=02484000=
-        GETVOID(VOIDPLACE, NCR, VOIDCR, LCR,                            18995000=02486000=
-          INFO[LASTSEQROW, LASTSEQUENCE]);                              19000000=02486000=
-        XMODE:= 1;                                                      19005000=02487000=
-        SWITCHIT(VOIDBIT);                                              19010000=02487000=
-        GO EXIT;                                                        19015000=02488000=
-        END;                                                            19020000=02489000=
-      SWITCHIT(VOIDTBIT);                                               19025000=02490000=
-      VOIDPLACE:= 6"9999"&6"9999"[46:23];%2 B COMPATIBLE W/B-5700 VOIDS 19030000=02491000=
-      VOIDCR:= MKABS(VOIDPLACE);   % AND FAKE OUT READACARD.            19035000=02492000=
+      FLAG(601);                       % VOIDT IS DISABLED.             18985000=02483000=
       GO AGAIN;                                                         19040000=02493000=
       END;                                                              19045000=02494000=
     IF Q = 6"5CHECK" THEN                                               19050000=02495000=
@@ -4212,7 +3168,7 @@ LENGTH5:                                                                18920000
       END;                                                              19125000=02504000=
     IF Q = 6"5PUNCH" THEN                                               19130000=02505000=
       BEGIN                                                             19135000=02506000=
-      SWITCHIT(PUNCHBIT);                                               19140000=02506000=
+      ERR(601);                        % PUNCH IS DISABLED.             19140000=02506000=
       GO AGAIN;                                                         19145000=02506000=
       END;                                                              19150000=02506000=
     IF Q = 6"5PURGE" THEN                                               19155000=02507000=
@@ -4308,7 +3264,7 @@ LENGTH6:                                                                19235000
 LENGTH7:                                                                19605000=02570000=
     IF Q = 6"7INCLU" THEN                                               19610000=02570000=
       BEGIN                                                             19615000=02571000=
-      INCLUDECARD;                                                      19620000=02571000=
+      ERR(601);                        % INCLUDE IS DISABLED            19620000=02571000=
       GO EXIT;                                                          19625000=02571000=
       END;                                                              19630000=02571000=
 %   IF Q = "7INCLN" THEN                                                19635000=02572000=
@@ -4420,8 +3376,7 @@ COMMENT  TABLE IS THE ROUTINE THAT MOST CODE IN THE COMPILER            19895000
        COMPOST,                                                         20165000=02639000=
        DOLLAR,                                                          20170000=02639000=
        RTPAREN,                                                         20175000=02640000=
-       CROSSHATCH,                                                      20180000=02640000=
-       DBLDOLLAR;                                                       20185000=02640000=
+       CROSSHATCH;                                                      20180000=02640000=
     SWITCH                                                              20190000=02641000=
       SPECIALSWITCH:= PERCENT,                                          20195000=02641000=
        DOLLAR,                                                          20200000=02641000=
@@ -4430,8 +3385,7 @@ COMMENT  TABLE IS THE ROUTINE THAT MOST CODE IN THE COMPILER            19895000
        COLON,                                                           20215000=02641000=
        QUOTE,                                                           20220000=02642000=
        RTPAREN,                                                         20225000=02642000=
-       CROSSHATCH,                                                      20230000=02642000=
-       DBLDOLLAR;                                                       20235000=02642000=
+       CROSSHATCH;                                                      20230000=02642000=
     SWITCH                                                              20240000=02643000=
       RESULTSWITCH:= IDENT,                                             20245000=02643000=
        SPECIALCHAR,                                                     20250000=02643000=
@@ -4564,20 +3518,11 @@ COMMENT  CROSSHATCH HANDLES TWO SITUATIONS:                             20675000
   DOLLAR:                                                               20815000=02729000=
          COMMENT THIS CODE HANDLES CONTROL CARDS;                       20820000=02729000=
                                                                         20825000=02730000=
-      IF GT1:= EXAMIN(NCR) = 6"$" THEN                                  20830000=02730000=
-        GO DBLDOLLAR                                                    20835000=02730000=
-      ELSE                                                              20840000=02730000=
-        DOLLARCARD;                                                     20845000=02730000=
+      GT1:= EXAMIN(NCR) = 6"$";                                         20830000=02730000=
+      DOLLARCARD;                                                       20845000=02730000=
   PERCENT:                                                              20850000=02731000=
       IF NCR ^= FCR THEN                                                20855000=02731000=
         READACARD;                                                      20860000=02731000=
-      IF LIBINDEX ^= 0 THEN                                             20865000=02732000=
-        IF RECOUNT = FINISHPT THEN                                      20870000=02733000=
-          BEGIN                                                         20875000=02734000=
-          SEARCHLIB(FALSE);                                             20880000=02735000=
-          READACARD;                                                    20885000=02735000=
-          NORELEASE:= FALSE                                             20890000=02736000=
-          END;                                                          20895000=02736000=
       GO SCANAGAIN;                                                     20900000=02737000=
                                                                         20905000=02738000=
 COMMENT  MOST PERCENT SIGNS ACTING AS END OF CARD SENTINELS GET TO      20910000=02738000=
@@ -4860,9 +3805,6 @@ COMMENT  SETUP FOR DEFINED IDS - SEE DEFINEGEN FOR MORE DETAILS;        22220000
       TURNONSTOPLIGHT(6"%", LCR);                                       22295000=02905000=
       DEFINEINDEX:= DEFINEINDEX+3;                                      22300000=02905000=
       GO PERCENT;                                                       22305000=02906000=
-  DBLDOLLAR:                                                            22310000=02908000=
-      MAKCAST;                                                          22315000=02908000=
-      GO SCANAGAIN;                                                     22320000=02908000=
   COMPLETE:                                                             22325000=02910000=
       ELBAT[NXTELBT]:= T;                                               22330000=02910000=
       IF NOT DEFINING THEN                                              22335000=02910100=
@@ -6269,22 +5211,7 @@ EXIT:                                                                   28625000
         WRITE(LINE);                                                    29320000=05046000=
         WRITELINE;                                                      29325000=05046000=
         END;                                                            29330000=05046000=
-      ERRORTOG:= FALSE;                                                 29335000=05047000=
-                                   COMMENT INHIBIT MESSAGES;            29340000=05047000=
-      IF PUNCHTOG THEN                                                  29345000=05048000=
-        BEGIN                                                           29350000=05049000=
-        STREAM PROCEDURE PUNCH(FL, ST);                                 29355000=05050000=
-        VALUE                                                           29360000=05051000=
-          ST;                                                           29365000=05051000=
-          BEGIN                                                         29370000=05052000=
-          DI:= FL;                                                      29375000=05053000=
-          SI:= ST;                                                      29380000=05054000=
-          DS:= 9 WDS                                                    29385000=05056000=
-          END PUNCH;                                                    29390000=05056000=
-        PUNCH(PNCH(0), FCR);                                            29395000=05057000=
-        MOVE(1, INFO[LASTSEQROW, LASTSEQUENCE], PNCH(9));               29400000=05058000=
-        WRITE(PNCH)                                                     29405000=05060000=
-        END                                                             29410000=05101000=
+      ERRORTOG:= FALSE;            COMMENT INHIBIT MESSAGES;            29335000=05047000=
       END                                                               29415000=05101000=
     END FLAG;                                                           29420000=05101000=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%29425000=05101000=
@@ -8499,7 +7426,6 @@ ANOTHER:                                                                40310000
       FCR:= (LCR:= MKABS(CBUFF[9]))-9;                                  40455000=07025010=
       IF LISTER THEN                                                    40460000=07025020=
         PRINTCARD;                                                      40465000=07025020=
-      FCR:= (LCR:= MKABS(TBUFF[9]))-9                                   40470000=07025030=
       END;                                                              40475000=07025030=
     IF ELCLASS = PERIOD THEN                                            40480000=07026000=
       BEGIN                                                             40485000=07027000=
@@ -13310,19 +12236,8 @@ FILL INFO[2,*] WITH 3"0030000120000000", 6"2LB000", % THESE ENTRIES ARE 63760000
     EMIT0(MKS);                                                         64500000=09272000=
     GT1:= PROGDESCBLDR(3, 0, 0);                                        64505000=09273000=
     GT1:= GETSPACE(TRUE, -5);          % SEG.#2 DESCR.                  64510000=09274000=
-    INSERTCOP:= 1;                                                      64515000=09274100=
     ERRORTOG:= TRUE;                                                    64520000=09275000=
     BLOCK(FALSE);                                                       64525000=09275000=
-         COMMENT THIS CODE WILL PUT AN EXTRA CARD ON OCRDIMG TAPE       64530000=09275100=
-            THUS AVOIDING E.O.F. NO LABEL CONDITION WHEN PATCHING       64535000=09275200=
-           THE END. CARD OFF AN INPUT TAPE;                             64540000=09275250=
-    IF NEWTOG THEN                                                      64545000=09275300=
-      BEGIN                                                             64550000=09275350=
-      FILL LIBARRAY[*] WITH 6"END;END.", 6"        ", 6"LAST CAR",      64555000=09275400=
-        6"D ON OCR", 6"DING TAPE", 6"E      ", 6"        ", 6"        ",64560000=09275400=
-        6"        ", 6"999999999";                                      64565000=09275450=
-      WRITE(NEWTAPE, 10, LIBARRAY[*])                                   64570000=09275550=
-      END;                                                              64575000=09275550=
     COMMENT THE FOLLOWING CODE SEARCHES THROUGH INFO TO DETERMINE       64580000=09277000=
             WHICH INTRINSICS HAVE BEEN USED.IF AN INTRINSIC HAS BEEN    64585000=09278000=
             USED THEN A PRT ADDRESS WILL HAVE BEEN ASSIGNED AND         64590000=09279000=
@@ -13475,8 +12390,6 @@ COMMENT WRITE DISK SEGMENT ZERO;                                        65285000
       IF SAVETIME >= 0 AND ERRORCOUNT = 0 THEN                          65325000=09407050=
         LOCK(CODE, SAVE);                                               65330000=09407100=
       CLOSE(CARD, RELEASE);    % RELEASE PRIMARY INPUT FILE.            65335000=09407200=
-      CLOSE(TAPE, RELEASE);    % RELEASE SECONDARY INPUT FILE.          65340000=09407300=
-      LOCK(NEWTAPE, **);    % CLOSE WITH CRUNCH.                        65345000=09407400=
       IF LISTER OR NOT NOHEADING THEN                                   65350000=09408000=
         BEGIN                                                           65355000=09409000=
         FORMAT PAN("NUMBER OF ERRORS DETECTED =",I4,".  COMPILAT"       65360000=09409200=
@@ -14014,11 +12927,11 @@ EXIT:                                                                   67690000
               NOTICED.  HERE A SETUP IS PERFORMED SO THAT THE SCANNER   68015000=10206000=
               WILL SCAN INFO.  SINCE INFO (UNLIKE I/O BUFFERS) IS NOT   68020000=10207000=
               A SAVE ARRAY, WE CAN NOT DIRECTLY SCAN INFO.  INSTEAD WE  68025000=10208000=
-              FOOL READACARD SO TAHT THE ALPHA IS FETCHED FRO INFO AND  68030000=10209000=
+              FOOL READACARD SO THAT THE ALPHA IS FETCHED FROM INFO AND 68030000=10209000=
               PLACED INTO A SMALL SAVE ARRAY (DEFINEARRAY) INSTEAD OF   68035000=10210000=
               BEING FETCHED FROM AN I/O DEVICE.  NATURALLY WE MUST HAVE 68040000=10211000=
               NESTING WHICH IS OBTAINED BY USING DEFINEARRAY AS A SMALL 68045000=10212000=
-              STACK.  THE QUANTITIES SAVE ARE LCR,NCR, AND LASTUSED.    68050000=10213000=
+              STACK.  THE QUANTITIES SAVED ARE LCR,NCR, AND LASTUSED.   68050000=10213000=
               LASTUSED DOUBLES AS A DEVICE FOR DIRECTING THE FLOW OF    68055000=10214000=
               INFORMATION FROM I/O GEAR AND FROM INFO DURING ANALYSIS OF68060000=10215000=
               DEFINES.  THIS STACKING IS DONE HERE BY THE TABLE ROUTINE.68065000=10216000=
