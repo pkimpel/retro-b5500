@@ -1854,7 +1854,7 @@ PROCEDURE CROSSREFDUMP(INDEX);                                     %116-02001740
   VALUE INDEX;                                                     %116-02001745          
   REAL INDEX;                                                      %116-02001750          
 BEGIN                                                              %116-02001755          
-  STREAM PROCEDURE MOVEREFINFO(S,D,N);                             %116-02001760          
+  STREAM PROCEDURE MOVEXREFINFO(S,D,N);                            %116-02001760          
     VALUE N;                                                       %116-02001765          
   BEGIN                                                            %116-02001770          
     SI := D; DI := D; DS := 8 LIT " "; DS := 7 WDS; % BLANK RECORD %116-02001775          
@@ -1878,7 +1878,7 @@ END OF CROSSREFDUMP;                                               %116-02001830
 COMMENT  OCTIZE REFORMATS ACCUM FOR OCTAL CONSTANTS;                    02001836          
 BOOLEAN STREAM PROCEDURE OCTIZE(S,D,SKP,CNT); VALUE SKP,CNT;            02001838          
     BEGIN                                                               02001840          
-    SI:=S; SI:=SI+3; DI:=D; SK(DS:=3 RESET); % RIGHT JUSTIFY.           02001842          
+    SI:=S; SI:=SI+3; DI:=D; SKP(DS:=3 RESET); % RIGHT JUSTIFY.          02001842          
     CNT(IF SC}"8"THEN TALLY:=1 ELSE IF SC<"0"THEN TALLY:=1; SKIP 3 SB;  02001844          
         3(IF SB THEN DS:=SET ELSE DS:=RESET; SKIP SB));                 02001846          
 %                                                                       02001848          
@@ -2298,7 +2298,7 @@ DEFINE WRITELINE = IF SINGLTOG THEN WRITE(LINE,15,LIN[*])               02181000
                             SGNO,L.[45:2],MEDIUM,OMITTING);        %114-02182760          
                    IF NOHEADING THEN DATIME; WRITELINE;                 02183000          
                    END #;                                               02183250          
-STREAM PROCEDURE EDITLINE(LINE,NGR,R,S,L,SYMBOL,OMIT);             %114-02183500          
+STREAM PROCEDURE EDITLINE(LINE,NCR,R,S,L,SYMBOL,OMIT);             %114-02183500          
    VALUE NCR,R,S,L,SYMBOL,OMIT;                                    %114-02183750          
     BEGIN                                                               02184000          
     DI := LINE; DS := 16 LIT " ";                                       02184250          
@@ -2345,7 +2345,7 @@ PROCEDURE OUTPUTSOURCE;                                                 02190500
          END;                                                           02193500          
     IF NEWTOG THEN                                                      02193750          
     IF INSERTDEPTH > 0 AND INSERTCOP=1 OR INSERTDEPTH=0 THEN      %107- 02193800          
-      IF WRITNEW(LIN,FCR) THEN WRITF(NEWTAPE,10,LIN[*]);                02194000          
+      IF WRITNEW(LIN,FCR) THEN WRITE(NEWTAPE,10,LIN[*]);                02194000          
     IF OMITTING THEN IF NOT LISTATOG THEN GO AWAY;                      02194250          
     GO SW[LASTUSED];                                                    02194500          
 LCARD:                                                                  02194750          
@@ -3399,7 +3399,7 @@ COMMENT  SPECIAL HANDLING OF CONSTANTS FOR SAKE OF FOR STATEMENTS;      02922000
          END;                                                           02925000          
     STOPDEFINE:=FALSE;  COMMENT ALLOW DEFINE;                           02926000          
     END TABLE ;                                                         02927000          
-INTEGER PROCEDURE MOVEANDBLOCK(FROM,SIZE,NAME)                     %106-02927100          
+INTEGER PROCEDURE MOVEANDBLOCK(FROM,SIZE,NAME);                    %106-02927100          
    VALUE SIZE,NAME; REAL SIZE,NAME; ARRAY FROM [0,0];              %106-02927110          
    BEGIN                                                           %106-02927120          
    INTEGER NSEGS,I,J,K;                                            %106-02927130          
@@ -3786,7 +3786,7 @@ PROCEDURE EMITC(REPEAT,OPERATOR); VALUE REPEAT,OPERATOR;                04010000
               OCTAL, NAMELY :                                           04127000          
                    1. 4 CHARACTERS FOR THE L REGISTER.                  04128000          
                    2.16 CHARACTERS FOR THE WORD BEING EMITTED.   ;      04129000          
- STREAM  PROCEDURE DEBUGWORD( SFQ,CODE,FEIL); VALUE SEQ,CODE ;          04130000          
+ STREAM  PROCEDURE DEBUGWORD( SEQ,CODE,FEIL); VALUE SEQ,CODE ;          04130000          
                    BEGIN                                                04131000          
                      DI~FEIL; SI~ LOC SEQ; SI~ SI+4; DS ~ 4 CHR;        04132000          
                      DS ~ 2 LIT"  ";                                    04133000          
@@ -3913,7 +3913,7 @@ PROCEDURE EMITC(REPEAT,OPERATOR); VALUE REPEAT,OPERATOR;                04010000
  STREAM PROCEDURE PACK(WORD,POSITION,SYLLABLE);                         04270000          
               VALUE POSITION,SYLLABLE;                                  04271000          
               BEGIN                                                     04272000          
-              DI~WORD ; DI ~ DI+POSITION ; DI ~ DI~POSITION;            04273000          
+              DI~WORD ; DI ~ DI+POSITION ; DI ~ DI+POSITION;            04273000          
               SI~LOC SYLLABLE ; SI~SI+6;                                04274000          
               DS~2 CHR ;                                                04275000          
               END  PACK ;                                               04276000          
@@ -4363,7 +4363,7 @@ BOOLEAN PROCEDURE RANGE(LOWER,UPPER);                                   05297000
          BEGIN                                                          05308000          
            INTEGER STREAM PROCEDURE GETSYL(W,S); VALUE S;               05309000          
               BEGIN DI ~ LOC GETSYL; DI ~ DI+6;                         05310000          
-                    SI ~ W; SI ~ SI+S; SI + SI+S; DS ~ 2 CHR END;       05311000          
+                    SI ~ W; SI ~ SI+S; SI ~ SI+S; DS ~ 2 CHR END;       05311000          
               GET ~ GETSYL(EDOC[L.[36:3],L.[39:7]],L.[46:2]) END GET;   05312000          
  COMMENT  CALL SWITCH PERFORMS THE FINAL MESS OF GETTING A PROPER DE-   05313000          
               SCRIPTOR TO THE TOP OF THE STACK;                         05314000          
@@ -4375,7 +4375,7 @@ REAL STREAM PROCEDURE GETALPHA(INFOINDEX,SIZE);                         05317000
          FORMATS THE ID WORD THAT IS PASSED TO PRINTI.  THE FIRST       05320000          
          CHARACTER CONTAINS THE SIZE.   THE NEXT CHARACTER CONTAINS THE 05321000          
          ALPHA LEFT JUSTIFIED WITH TRAILING ZEROS;                      05322000          
-         DI~LOC GETALPHA;     DS~8 LIT"0       ";   D~DI-7;             05323000          
+         DI~LOC GETALPHA;     DS~8 LIT"0       ";   DI~DI-7;            05323000          
          SI~INFOINDEX;        SI~SI+3;              DS~SIZE CHR;        05324000          
     END GETALPHA;                                                       05325000          
 PROCEDURE WRITEPRT(PORS,N,GS); VALUE PORS,N,GS; INTEGER PORS,N,GS;      05325010          
@@ -7609,7 +7609,7 @@ PROCEDURE EXPLICITFORMAT;                                               08860050
               EMITN(GNAT(SORTA));                                       08911100          
          IF NOT COMMACHECK THEN GO QUIT;                                08912000          
          EMIT(0); EMITL(REAL(TRUE AND NOT OPTOG)); EMIT(0);             08913000          
-         FILE~BUMPL; IF NOT HVCHECK(ELBAT[I]) THEN GO QUIT;             08914000          
+         FILER~BUMPL; IF NOT HVCHECK(ELBAT[I]) THEN GO QUIT;            08914000          
          EMITPAIR(ELBAT[I].ADDRESS,LOD); IF NOT COMMACHECK THEN GO QUIT;08915000          
          IF NOT EQLESCHECK(ELBAT[I]) THEN GO QUIT;                      08916000          
          EMITPAIR(ELBAT[I].ADDRESS,LOD); IF NOT COMMACHECK THEN GO QUIT;08917000          
@@ -8385,7 +8385,7 @@ END END  END PROGRAM;                                                   09420000
  PROCEDURE WHIPOUT(W); VALUE W; REAL W;                                 10068000          
               BEGIN                                                     10069000          
                                                                         10070000          
-              MOVE(1,W,EDOC(F.[38:3],F.[41:7]]);                        10071000          
+              MOVE(1,W,EDOC[F.[38:3],F.[41:7]]);                        10071000          
                     IF DEBUGTOG                                         10072000          
                       THEN BEGIN                                        10073000          
                         DEBUGWORD(B2D(F),W,LIN);                        10074000          
@@ -8675,7 +8675,7 @@ STREAMTOG~TRUE;                                                         10260100
                    IF RESULT = 1 THEN IF J ! 0 THEN                     10264600          
                    FOR N ~ 1 STEP 1 UNTIL J DO                          10264650          
                    BEGIN                                                10264700          
-                        IF EQUAL(ACCUM[1].[12:6]+3, ACCUM[1].           10264750          
+                        IF EQUAL(ACCUM[1].[12:6]+3, ACCUM[1],           10264750          
                              DEFINFO[(N-1)|10]) THEN                    10264760          
                         BEGIN                                           10264800          
                              DEFINEPARAM(DINFO+1, N);                   10264810          
@@ -9656,7 +9656,7 @@ END DEFINEPARAM;                                                        12166000
      SI~LOC FILENO; SI~SI+6;                                            13024000          
      DS~ 2 CHR; SI~LOC TYPE;                                            13025000          
      SI~ SI+7; DS~ CHR;                                                 13026000          
-     SI~ LOC MULFID;SI+SI+1;                                            13027000          
+     SI~ LOC MULFID;SI~SI+1;                                            13027000          
      DS~ 7 CHR;                                                         13028000          
      SI~ LOC FILID;SI~SI+1;                                             13029000          
      DS~ 7 CHR;                                                         13030000          
@@ -10390,7 +10390,7 @@ PROCEDURE SEGMENT(SIZE,NO,NOO);                                    %106-13634000
           END;                                                     %106-13651000          
      LDICT[NO.[38:3],NO.[41:7]] :=                                 %106-13652000          
           IF BUILDLINE THEN                                        %106-13653000          
-               MOVENADBLOCK(ENIL,ENILPTR+1,4) & SIZE[18:33:15]     %106-13654000          
+               MOVEANDBLOCK(ENIL,ENILPTR+1,4) & SIZE[18:33:15]     %106-13654000          
           ELSE -1;                                                 %106-13655000          
      END OF SEGMENT;                                               %106-13656000          
                                                                         13697000          
@@ -12429,7 +12429,7 @@ IF (XREF OR DEFINING.[1:1) AND XLUN > 0 THEN                       %116-17001000
      STREAM PROCEDURE SETUPHEADING(S,D,SEG,SEQNO,FWDTOG,LBLTOG,    %116-17047200          
                                    FWDSEQNO,TYPE,OWNTOG,PARAMTOG,  %116-17047300          
                                    VALTOG);                        %116-17047350          
-       VALUE SEQG,SEQNO,FWDTOG,LBLTOG,FWDSEQNO,OWNTOG,PARAMTOG,    %116-17047400          
+       VALUE SEG,SEQNO,FWDTOG,LBLTOG,FWDSEQNO,OWNTOG,PARAMTOG,     %116-17047400          
          VALTOG;                                                   %116-17047450          
      BEGIN                                                         %116-17047500          
        SI := S;                                                    %116-17047700          
@@ -12468,11 +12468,11 @@ IF (XREF OR DEFINING.[1:1) AND XLUN > 0 THEN                       %116-17001000
         DI := D;                                                   %116-17051700          
         DI := DI + 8;                                              %116-17051800          
         N (DI := DI + 10);                                         %116-17051900          
-        STARS(DO := DI - 1; DS := LIT "*");                        %116-17052000          
+        STARS(DI := DI - 1; DS := LIT "*");                        %116-17052000          
         SI := LOC SEQNO;                                           %116-17052100          
         DS := 8 DEC;                                               %116-17052200          
         DS := LIT " ";                                             %116-17052300          
-        STARS (DI := DS - 1; DS := LIT "*");                       %116-17052400          
+        STARS (DI := DI - 1; DS := LIT "*");                       %116-17052400          
       END;                                                         %116-17052500          
       STREAM PROCEDURE BLANKET(D);                                 %116-17052600          
       BEGIN                                                        %116-17052700          
