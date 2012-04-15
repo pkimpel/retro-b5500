@@ -559,7 +559,7 @@ COMMENT  IF A NEW COMPILER-DEFINED OPTION IS ADDED, CHANGE USEROPINX    01001180
 DEFINE   CHECKTOG       = OPTIONWORD.[CHECKBIT:1] #,                    01001210          
          DEBUGTOG       = OPTIONWORD.[DEBUGBIT:1] #,                    01001220          
          DECKTOG        = OPTIONWORD.[DECKBIT:1] #,                     01001230          
-         FORMATTOG      = OPTIONWORD.[FORMATBIT:1] #,                   01001240          
+         FORMATOG       = OPTIONWORD.[FORMATBIT:1] #,                   01001240          
          INTOG          = OPTIONWORD.[INTBIT:1] #,                      01001250          
          LISTATOG       = OPTIONWORD.[LISTABIT:1] #,                    01001260          
          LISTOG         = OPTIONWORD.[LISTBIT:1] #,                     01001270          
@@ -895,7 +895,7 @@ COMMENT              INFO FORMAT                                        01028000
  DEFINE  UNKNOWNID      =00#,    COMMENT 000;                           01177000          
          STLABID        =01#,    COMMENT 001;                           01178000          
          LOCLID         =02#,    COMMENT 002;                           01179000          
-         DEFINEID       =03#,    COMMENT 003;                           01180000          
+         DEFINEDID      =03#,    COMMENT 003;                           01180000          
          LISTID         =04#,    COMMENT 004;                           01181000          
          FRMTID         =05#,    COMMENT 005;                           01182000          
          SUPERFRMTID    =06#,    COMMENT 006;                           01183000          
@@ -918,7 +918,7 @@ COMMENT              INFO FORMAT                                        01028000
          ALFAID         =23#,    COMMENT 027;                           01200000          
          INTID          =24#,    COMMENT 030;                           01201000          
          BOOARRAYID     =25#,    COMMENT 031;                           01202000          
-         REALARAYID     =26#,    COMMENT 032;                           01203000          
+         REALARRAYID    =26#,    COMMENT 032;                           01203000          
          ALFARRAYID     =27#,    COMMENT 033;                           01204000          
          INTARRAYID     =28#,    COMMENT 034;                           01205000          
          LABELID        =29#,    COMMENT 035;                           01206000          
@@ -1051,7 +1051,7 @@ ARRAY FILEATTRIBUTES[0:30] ;                                            01303500
  ALPHA Q;                                                               01316000          
     COMMENT Q CONTAINS ACCUM[1] FOR THE LAST IDENTIFIER OR RESERVED     01317000          
               WORD SCANNED;                                             01318000          
- ARRAY ELBAT[0:76]; INTEGER I,NEXTELBT;                                 01319000          
+ ARRAY ELBAT[0:76]; INTEGER I,NXTELBT;                                  01319000          
     COMMENT ELBAT IS AN ARRAY HOLDING ELBAT WORDS FOR RECENTLY SCANNED  01320000          
               QUANTITIES.  THE TABLE ROUTINE MAINTAINS THIS ARRAY.      01321000          
               (ELBAT IS TABLE SPELLED BACKWARDS.)  THE TABLE ROUTINE    01322000          
@@ -1475,7 +1475,7 @@ REAL STREAM PROCEDURE CMPD(A,B);                                   %107-01561620
          INTERPTI     =469#,                                            01579000          
          SORTI        =473#,                                            01579100          
          DIALER       =559#,                                            01579200          
-         FILEATTINT   =563#,                                            01579300          
+         FILATTINT    =563#,                                            01579300          
          POWERALL     =567#,                                            01579350          
          SPECIALMATH  =570#,                                            01579355          
          SORTA        =673#;                                       %117-01580000          
@@ -1527,7 +1527,7 @@ INTEGER MAXSAVE;                                                        01598000
       OLDNINFOO,   COMMENT REMEMBERS OLD VALUE OF GLOBALNINFOO;    %118-01620400          
       FIRSTX,      COMMENT RELATIVE ADD OF FIRST EXECUTABLE CODE        01621000          
                            IN BLOCK,INITIALIZED TO 4095 EACH TIME;      01622000          
-      SAVEL,       COMMENT SAVE LOCATION FOR FIXUPS IN BLOCK;           01623000          
+      SAVEL;       COMMENT SAVE LOCATION FOR FIXUPS IN BLOCK;           01623000          
 INTEGER NCII;      COMMENT THIS CONTAINS THE COUNT OF CONSTANTS         01624000          
                            ENTERED IN INFO AT ANY GIVEN TIME;           01625000          
  REAL FILETHING;  COMMENT HOLDS LINKS FOR STREAM RELEASES ;             01625100          
@@ -2442,7 +2442,7 @@ FIRSTTIME:                                                              02213500
     FCR:=NCR:=(LCR:=MKABS(CBUFF[9]))-9;                                 02214000          
     MEDIUM:="C ";                                                       02214100          
     IF EXAMIN(FCR)!"$" AND LISTER THEN PRINTCARD;                       02214200          
-    PUTSEQNO(INFO[LASTSEQROW,LASTSEQENCE],LCR);                         02214250          
+    PUTSEQNO(INFO[LASTSEQROW,LASTSEQUENCE],LCR);                        02214250          
     CARDNUMBER:=CONV(INFO[LASTSEQROW,LASTSEQUENCE-1],5,8);              02214260          
     TURNONSTOPLIGHT("%",LCR);                                           02214500          
     GO XIT;                                                             02214750          
@@ -2656,7 +2656,7 @@ EXIT:                                                              %107-02238830
     END;                                                           %107-02238840          
 REAL PROCEDURE CONVERT;                                                 02248000          
               BEGIN   REAL  T;  INTEGER  N;                             02249000          
-              TL0~0;   THI~                                             02250000          
+              TLO~0;   THI~                                             02250000          
                    T~ CONV(ACCUM[1],TCOUNT,N~(COUNT-TCOUNT)MOD 8);      02251000          
                    FOR N~ TCOUNT+N STEP 8 UNTIL COUNT- 1 DO             02252000          
               IF DPTOG THEN                                             02253000          
@@ -2743,7 +2743,7 @@ BOOLEAN PROCEDURE FINDOPTION(BIT); VALUE BIT; INTEGER BIT;              02307000
     LABEL FOUND;                                                        02309000          
     REAL ID;                                                            02310000          
     OPINX:=2|BIT-4;                                                     02311000          
-    WHILE ID:=OPTIONS[OPINX:=OPINX+2] ! D0                              02312000          
+    WHILE ID:=OPTIONS[OPINX:=OPINX+2]!0 DO                              02312000          
          IF Q=ID THEN GO FOUND;                                         02313000          
     OPTIONS[OPINX]:=Q; % NEW USER-DEFINED OPTION.                       02314000          
 FOUND:                                                             %103-02315000          
@@ -2771,7 +2771,7 @@ XMODE1:  % NOT FIRST OPTION AND NOT BEING SET, RESET, OR POPPED.        02333000
          IF XBIT<USEROPINX THEN OPTIONWORD:=OPTIONWORD & TRUE[XBIT:1];  02335000          
          GO ALONG;                                                      02336000          
 XMODE2:  % RESET.                                                       02337000          
-         OPTIONS[OPINX+1]:=REAL(FALSE & SETTINGS[1:2:46]);              02338000          
+         OPTIONS[OPINX+1]:=REAL(FALSE & SETTING[1:2:46]);               02338000          
          IF XBIT<USEROPINX THEN OPTIONWORD:=OPTIONWORD & FALSE[XBIT:1]; 02339000          
          GO ALONG;                                                      02340000          
 XMODE3:  % SET.                                                         02341000          
@@ -2794,8 +2794,8 @@ ALONG:                                                                  02358000
     INTEGER SRESULT,SCOUNT;                                             02365100          
 INTEGER SAVEINX;                                                   %108-02365200          
     DOLLARTOG:=TRUE;                                                    02366000          
-    MOVE(10,ACCUM[0],DEFINEARRY[0]); % SAVE INFORMATION FOR             02366100          
-    SCOUNT:=COUNT; SRESULT:=RESULT;  % "TABLE" TO RESUME SCAN.          02366200          
+    MOVE(10,ACCUM[0],DEFINEARRAY[0]); % SAVE INFORMATION FOR            02366100          
+    SCOUNT:=COUNT; SRESULT:=RESULT;   % "TABLE" TO RESUME SCAN.         02366200          
     XMODE:=0;                                                           02367000          
     PUTSEQNO(INFO[LASTSEQROW,LASTSEQUENCE],LCR);                        02368000          
     TURNONSTOPLIGHT("%",LCR);                                           02369000          
@@ -2803,7 +2803,7 @@ SKANAGAIN:                                                              02370000
     SKAN;                                                               02371000          
 AGAIN:                                                                  02372000          
     GO OPTIONLENGTH[MIN(COUNT,10)];                                     02373000          
-LENGTH:                                                                 02374000          
+LENGTH1:                                                                02374000          
     IF Q = "1%0000" THEN GO EXIT;                                       02375000          
     IF Q = "1$0000" THEN                                                02376000          
          BEGIN SWITCHIT(PRINTDOLLARBIT); GO AGAIN END;                  02377000          
@@ -2976,7 +2976,7 @@ LENGTH6:                                                                02518000
          END;                                                           02528000          
     IF Q = "6DEBUG" THEN                                                02529000          
          BEGIN                                                          02530000          
-         SWITCHIT(DEBUGIT);                                             02531000          
+         SWITCHIT(DEBUGBIT);                                            02531000          
          IF DEBUGTOG THEN                                               02533000          
               IF WOP[0]=0 THEN                                          02534000          
                    BEGIN                                                02535000          
@@ -3221,7 +3221,7 @@ IPART:   TCOUNT:=FSAVE:=0; C:=CONVERT;                                  02758000
                    RESULT:=5; SCANNER;                                  02766000          
                    IF COUNT > SIZ:=48 DIV C THEN % > 1 WORD LONG.       02767000          
                         BEGIN  ERR(520); GO SCANAGAIN  END;             02768000          
-                   END UNTIL EXMAIN(NCR)=""";                           02769000          
+                   END UNTIL EXAMIN(NCR)=""";                           02769000          
               Q:=ACCUM[1]; RESULT:=5; SCANNER; COUNT:=COUNT-1;          02770000          
               IF C=3 THEN % OCTAL STRING.                               02771000          
                 IF OCTIZE(ACCUM[1],ACCUM[4],16-COUNT,COUNT) THEN        02772000          
@@ -3345,7 +3345,7 @@ ROSE:    GT1:=T.LINKR;                                                  02875000
          IF NOT EQUAL(COUNT-5,ACCUM[2],INFO[GT1,GT2+2])THEN GO ROSE;    02881000          
 COMPOST: T:=T&GT1[35:43:5]&GT2[40:40:8];                                02882000          
          IF GT1 !1 AND NOT MACROID THEN % NOT RESERVED WORD        %116-02882100          
-           XREFIT(T,LINK,CARDNUMBER,NORMALREF); % BUILD XREF ENTRY %116-02882200          
+           XREFIT(T.LINK,CARDNUMBER,NORMALREF); % BUILD XREF ENTRY %116-02882200          
 COMMENT  CHECK HERE FOR COMMENTS AND DEFINED IDS;                       02883000          
          IF NOT ENDTOG THEN                                             02884000          
               BEGIN                                                     02885000          
@@ -3359,7 +3359,7 @@ COMMENT  CHECK HERE FOR COMMENTS AND DEFINED IDS;                       02883000
          IF STOPDEFINE THEN GO COMPLETE;                                02893000          
          IF GT1 ! DEFINEDID THEN GO COMPLETE;                           02894000          
 COMMENT  SETUP FOR DEFINED IDS - SEE DEFINEGEN FOR MORE DETAILS;        02895000          
-         IF BOOLEAN(T,MON) THEN % THIS IS A PARAMETRIC DEFINE           02896000          
+         IF BOOLEAN(T.MON) THEN % THIS IS A PARAMETRIC DEFINE           02896000          
            GT1:=GIT(T:=FIXDEFINEINFO(T)) ELSE GT1:=0;                   02897000          
          IF DEFINEINDEX = 24 THEN                                       02898000          
               BEGIN FLAG(139);GO ARGH END;                              02899000          
@@ -3617,7 +3617,7 @@ INTEGER PROCEDURE GETSPACE(S,L); VALUE S,L;                             03051000
                                  INTEGER L; BOOLEAN S; FORWARD;         03051001          
  PROCEDURE FORSTMT; FORWARD;                                            03052000          
                                                                         03053000          
-PROCEDURE F;  FORWARD;                                                  03054000          
+PROCEDURE E;  FORWARD;                                                  03054000          
 PROCEDURE ENTRY(TYPE); VALUE TYPE; REAL TYPE; FORWARD;                  03055000          
 PROCEDURE FORMATGEN;FORWARD;                                            03056000          
 PROCEDURE EXPLICITFORMAT;  FORWARD;                                     03056100          
@@ -3674,7 +3674,7 @@ PROCEDURE EMITC(REPEAT,OPERATOR); VALUE REPEAT,OPERATOR;                04010000
               SECOND HALF OF THE PRT, THEN IT ALSO EMITS A PRTE;        04021000          
  PROCEDURE EMITN(ADDRESS); VALUE ADDRESS; INTEGER ADDRESS;              04022000          
               BEGIN IF ADDRESS > 1023 THEN EMITO(PRTE);                 04023000          
-                   EMIT(3 & ADDRESS [36:38:10] END EMITN;               04024000          
+                   EMIT(3 & ADDRESS [36:38:10]) END EMITN;              04024000          
  COMMENT EMITPAIR EMITS A LITC ADDRESS FOLLOWED BY OPERATOR.  IF THE    04025000          
               ADDRESS IS FOR THE SECOND HALF OF THE PRT, THEN IT ALSO   04026000          
               EMITS PRTE;                                               04027000          
@@ -3801,7 +3801,7 @@ PROCEDURE EMITC(REPEAT,OPERATOR); VALUE REPEAT,OPERATOR;                04010000
  PROCEDURE  EMITWORD (WORD); VALUE WORD; REAL WORD;                     04142000          
               BEGIN                                                     04143000          
               ADJUST;                                                   04144000          
-              IF L}4092 THEN ERR(200);                                  04145000          
+              IF L}4092 THEN ERR(200)                                   04145000          
                    ELSE BEGIN                                           04146000          
                    MOVE(1,WORD,EDOC[L.[36:3],L.[39:7]]);                04147000          
                    IF DEBUGTOG THEN                                     04148000          
@@ -3881,7 +3881,7 @@ PROCEDURE EMITC(REPEAT,OPERATOR); VALUE REPEAT,OPERATOR;                04010000
                    LINKTOG~FALSE;                                       04222000          
                    INFO[0,255-N+1]~ L-1;                                04223000          
                    END;                                                 04224000          
-     FINSIHED:END  EMITNUM  ;                                           04225000          
+     FINISHED:END  EMITNUM  ;                                           04225000          
     COMMENT   SEARCH PERFORMS A BINARY SEARCH ON THE COP AND WOP        04226000          
               ARRAYS, GIVEN THE OPERATOR BITS SEARCH  YIELDS THE BCD    04227000          
               MNEUMONIC FOR THAT OPERATOR. IF THE OPERATOR CANNOT       04228000          
@@ -3975,9 +3975,9 @@ PROCEDURE EMITC(REPEAT,OPERATOR); VALUE REPEAT,OPERATOR;                04010000
               IF  T! 0 THEN                                             04312000          
               BEGIN                                                     04313000          
               IF DIALA! A THEN                                          04314000          
-               EMIT((DIALA~A) DIV 6)|512 + ( A~ A MOD 6)| 64 + DIA);    04315000          
+               EMIT(((DIALA~A) DIV 6)|512 + ( A~ A MOD 6)| 64 + DIA);   04315000          
               IF DIALB!B  THEN                                          04316000          
-               EMIT((DIALB~B) DIV 6)|512 + ( B~ B MOD 6)| 64 + DIB);    04317000          
+               EMIT(((DIALB~B) DIV 6)|512 + ( B~ B MOD 6)| 64 + DIB);   04317000          
                EMIT(TRB+64|T);                                          04318000          
               DIALA~DIALB~0;                                            04319000          
     COMMENT    THE PRECEEDING STATEMENT CAN BE REMOVED FOR OPTIMIZING   04320000          
@@ -4002,7 +4002,7 @@ PROCEDURE EMITC(REPEAT,OPERATOR); VALUE REPEAT,OPERATOR;                04010000
                    END;                                                 04526000          
               IF B = 0 THEN                                             04526100          
                    BEGIN EMIT21(E,FALSE); GO TO EXIT END;               04526200          
-              IF STACK ! 0 THEN GO TO IS;                               04527000          
+              IF STACKCT ! 0 THEN GO TO IS;                             04527000          
               IF B = 15 THEN                                            04528000          
                    BEGIN IF A = 33 THEN                                 04529000          
                              BEGIN EMIT21(E,FALSE);                     04530000          
@@ -4026,7 +4026,7 @@ PROCEDURE EMITC(REPEAT,OPERATOR); VALUE REPEAT,OPERATOR;                04010000
     IS:       IF (S ~ (48-A-B) MOD 6)+B { 39 THEN                       04548000          
                    BEGIN EMIT21(E,FALSE);                               04549000          
                         EMIT(T2~(T1~A DIV 6)|512+(A MOD 6)|64+DIA);     04550000          
-                        EMIT((A+B-1) DIV 6 -T1+1)|512+64|S+37);         04551000          
+                        EMIT(((A+B-1) DIV 6 -T1+1)|512+64|S+37);        04551000          
                         GO TO EXIT;                                     04552000          
                    END;                                                 04553000          
               EMIT(0);                                                  04554000          
@@ -4053,7 +4053,7 @@ BEGIN                                                                   04610000
 END CHECKDISJOINT;                                                      04617000          
  COMMENT THIS SECTION CONTAINS MISCELLANEOUS SERVICE ROUTINES;          05000000          
  COMMENT STEPI AND STEPIT ARE SHORT CALLS ON TABLE;                     05001000          
- PROCEDURE STEPIT; ELCASS ~ TABLE(I~I+1);                               05002000          
+ PROCEDURE STEPIT; ELCLASS ~ TABLE(I~I+1);                              05002000          
  INTEGER PROCEDURE STEPI; STEPI~ELCLASS~TABLE(I~I+1);                   05003000          
  COMMENT TAKE FETCHS A WORD FROM INFO;                                  05004000          
  REAL PROCEDURE TAKE(INDEX); VALUE INDEX; INTEGER INDEX;                05005000          
@@ -4216,7 +4216,7 @@ PROCEDURE PASSLIST;                                                     05187520
 COMMENT  PASSLIST ASSUMES I IS POINTING AT LIST ID;                     05187550          
     CHECKER(ELBAT[I]);                                                  05187560          
     LISTADDRESS:=ELBAT[I].ADDRESS;                                      05187570          
-    IF FLCLASS = SUPERLISTID THEN % SUBSCRIPTED LIST ID.                05187580          
+    IF ELCLASS = SUPERLISTID THEN % SUBSCRIPTED LIST ID.                05187580          
          BEGIN                                                          05187590          
          BANA;  EMITN(LISTADDRESS);  EMITO(LOD);                        05187600          
          END                                                            05187610          
@@ -4359,7 +4359,7 @@ BOOLEAN PROCEDURE RANGE(LOWER,UPPER);                                   05297000
        RANGE~ELCLASS } LOWER AND ELCLASS { UPPER;                       05304000          
  COMMENT GET OBTAINS A SYLLABLE FROM EDOC. THE ARRAY INTO WHICH CODE IS 05305000          
               EMITTED;                                                  05306000          
- INTEGER PROCEDURE GET(L); VALUE L; REAL;                               05307000          
+ INTEGER PROCEDURE GET(L); VALUE L; REAL L;                             05307000          
          BEGIN                                                          05308000          
            INTEGER STREAM PROCEDURE GETSYL(W,S); VALUE S;               05309000          
               BEGIN DI ~ LOC GETSYL; DI ~ DI+6;                         05310000          
@@ -4487,7 +4487,7 @@ INTEGER PROCEDURE GETSPACE(PERMANENT,L); VALUE PERMANENT,L;             05331000
  BOOLEAN PROCEDURE HVCHECK(ELBW); VALUE ELBW; REAL ELBW;                05389000          
          IF ELBW.CLASS!PROCID THEN ERR(356) ELSE                        05390000          
          IF BOOLEAN(ELBW.FORMAL) THEN HVCHECK~TRUE  ELSE                05390100          
-         IF TAKE(GT1~GIT(ELBW)!1 THEN ERR(357) ELSE                     05391000          
+         IF TAKE(GT1~GIT(ELBW))!1 THEN ERR(357) ELSE                    05391000          
          IF ARRAYCHECK(TAKE(GT1+1)) THEN ERR(358) ELSE                  05392000          
               HVCHECK~TRUE;                                             05393000          
     COMMENT   OUTPROCHECK CHECKS SORT/MERGE OUTPUT PROCEDURE;           05394000          
@@ -4586,7 +4586,7 @@ L3:                IF TABLE(I+1)=COMMA THEN                             06062135
                              CHECKER(T3~ELBAT[I]);  STEPIT;  STEPIT ;   06062150          
                              AEXP;  EMITV(T3.ADDRESS);  GO L1 ;         06062155          
                              END ;                                      06062160          
-L2:                AEPX;  IF ELCLASS!COMMA THEN ERRX(80);  STEPIT ;     06062165          
+L2:                AEXP;  IF ELCLASS!COMMA THEN ERRX(80);  STEPIT ;     06062165          
                    AEXP;  IF T2<24 THEN EMITO(XCH) ;                    06062170          
                    END                                                  06062175          
               ELSE BEGIN                                                06062180          
@@ -4912,7 +4912,7 @@ L1:           IF T2<23 THEN BEGIN IF ELCLASS!COMMA THEN ERRX(80) END    06062210
     REAL A;                                                             06282400          
     BOOLEAN SIGNA,CONSTANA,SIMPLE,MANY,SIGN;                            06282600          
     DEFINE FORMALNAME = [9:2]=2#;                                       06282800          
-    PROCEDURE PLUG(C,A,S); VALUE C,A,S; BOOLEAN  C,S: REAL A;           06283000          
+    PROCEDURE PLUG(C,A,S); VALUE C,A,S; BOOLEAN  C,S; REAL A;           06283000          
          BEGIN                                                          06283200          
          IF C THEN EMITNUM(A)                                           06283400          
     ELSE      BEGIN CHECKER(A);  EMITV(A.ADDRESS) END;                  06283600          
@@ -4944,10 +4944,10 @@ COMMENT  SET UP CODE FOR RELATIONAL OPERATOR TO BE                      06284600
               IF ELCLASS=RELOP THEN EMITPAIR(JUNK,SND);                 06288800          
               END;                                                      06289000          
          STACKCT:=1;  EMIT(OPERATOR);                                   06289200          
-         IF MANY THEN EMITO(LND);                                       06289400          
+         IF MANY THEN EMITO(LND)                                        06289400          
     ELSE      BEGIN EMIT(0);  L:=L-1 END;                               06289600          
          MANY:=TRUE;                                                    06289800          
-         END UNTIL ELCASS!RELOP                                         06290000          
+         END UNTIL ELCLASS!RELOP                                        06290000          
     END RELATION;                                                       06290200          
  COMMENT IFEXP COMPILES CONDITIONAL EXPRESSIONS.  IT REPORTS THE TYPE   06292000          
               OF EXPRESSIONS AS EXPRSS REPORTS;                         06293000          
@@ -4960,7 +4960,7 @@ COMMENT  SET UP CODE FOR RELATIONAL OPERATOR TO BE                      06284600
                    IFEXP ~ TYPE ~ EXPRSS; COMMENT COMPILE 1ST EXPRSS;   06299000          
                    STACKCT ~ 0;                                      %A 06299500          
                    ELSEBRANCH ~ BUMPL;                                  06300000          
-                   EMITB(BFC,THEBRANCH,L);                              06301000          
+                   EMITB(BFC,THENBRANCH,L);                             06301000          
                    IF ELCLASS ! ELSEV THEN ERR(155) ELSE BEGIN          06302000          
                    STEPIT;                                              06303000          
                    IF TYPE = ATYPE THEN AEXP ELSE                       06304000          
@@ -5115,7 +5115,7 @@ COMMENT  SET UP CODE FOR RELATIONAL OPERATOR TO BE                      06284600
                    EMIT(TLEVEL); END                                    06369000          
                   ELSE BEGIN                                            06370000          
                    EMITN(512);                                          06371000          
-                   EMITV(513); COMENT PICK UP BLOCKCTR AT ENTRY         06372000          
+                   EMITV(513); COMMENT PICK UP BLOCKCTR AT ENTRY        06372000          
                                       FROM F+1;                         06373000          
                    IF TLEVEL ~ TLEVEL - SUBLEVEL -1 ! 0                 06374000          
                      THEN BEGIN                                         06375000          
@@ -5197,7 +5197,7 @@ PROCEDURE COMPOUNDTAIL;                                                 07006000
               BEGIN LABEL ANOTHER;                                      07007000          
                 I ~ I-1; BEGINCTR ~ BEGINCTR+1;                         07008000          
   ANOTHER:      ERRORTOG ~ TRUE;   COMMENT  ALLOW ERROR MESSAGES;       07009000          
-                STEPTIT;                                                07010000          
+                STEPIT;                                                 07010000          
                 IF STREAMTOG THEN STREAMSTMT ELSE STMT;                 07011000          
                 IF ELCLASS = SEMICOLON THEN GO TO ANOTHER;              07012000          
                 IF ELCLASS ! ENDV                                       07013000          
@@ -5275,9 +5275,9 @@ FCR:= (LCR:=MKABS(TBUFF[9]))-9  END;                               %104-07025030
               IF FBIT THEN BEGIN VBIT ~ FALSE; SCLASS ~ LOCLID END      07081000          
     COMMENT   IF PROCEDURE IS FORMAL ALL CALLS ARE BY NAME AND NO CHECK 07082000          
               IS MADE FOR CORRESPONDENCE OF ACTUAL AND FORMAL PARA      07083000          
-              METERS  SETTING SCLASS TO LOCID HELPS TO COMPRESS CHECK;  07084000          
+              METERS  SETTING SCLASS TO LOCID HELPS TO COMPRESS CHECK   07084000          
                 ELSE BEGIN                                              07085000          
-                   VBIT ~ BOOLEAN(GT1~ TAKE(INDEX+PCTR)).V0;            07086000          
+                   VBIT ~ BOOLEAN(GT1~ TAKE(INDEX+PCTR)).VO;            07086000          
                    IF SCLASS ~GT1.CLASS { INTARRAYID AND                07087000          
                                  SCLASS } BOOSTRPROCID                  07088000          
                      THEN IF GT1 ~ (SCLASS - BOOSTRPROCID) MOD 4 ! 0    07089000          
@@ -5290,7 +5290,7 @@ FCR:= (LCR:=MKABS(TBUFF[9]))-9  END;                               %104-07025030
               IF T1 ! RTPAREN THEN                                      07096000          
     COMMENT   THE ACTUAL PARAMETER HAS MORE THAN ONE LOGICAL QUANTITY - 07097000          
               HENCE A DIFFERENT ANALYSIS IS REQUIRED;                   07098000          
-         BEGIN IF ACLASS { IDMAX OR ACLESS = SUPERLISTID THEN           07099000          
+         BEGIN IF ACLASS { IDMAX OR ACLASS = SUPERLISTID THEN           07099000          
                         CHECKER(WHOLE);                                 07099500          
                    IF ACLASS < BOOARRAYID OR ACLASS > INTARRAYID        07100000          
                     THEN BEGIN                                          07101000          
@@ -5343,7 +5343,7 @@ FCR:= (LCR:=MKABS(TBUFF[9]))-9  END;                               %104-07025030
                           THEN BEGIN ERR(121); GO TO CERR END           07118000          
     COMMENT   AN INDEXED FILE MAY BE PASSED BY NAME ONLY AND ONLY TO A  07119000          
          STREAM PROCEDURE THE STREAM PROCEDURE MAY NOT DO A             07120000          
-              RELEASE ON THIS DESCRIPTOR;                               07121000          
+              RELEASE ON THIS DESCRIPTOR                                07121000          
                         ELSE GO TO COMMON END ;                         07122000          
               IF ACLASS = SUPERLISTID THEN BEGIN BANA;                  07122500          
                    EMITV(WHOLE.ADDRESS);                                07122510          
@@ -5519,7 +5519,7 @@ FCR:= (LCR:=MKABS(TBUFF[9]))-9  END;                               %104-07025030
              TB1 ~ TRUE;                                                07287000          
              FOR T2 ~ 1 STEP 1 UNTIL T1                                 07288000          
                DO BEGIN                                                 07289000          
-                  IF BOOLEAN(T3~TAKE(WHOLE+T2)).V0                      07290000          
+                  IF BOOLEAN(T3~TAKE(WHOLE+T2)).VO                      07290000          
                     THEN                                                07291000          
                      IF T4 ~ T3.CLASS < BOOARRAYID OR T4 > INTARRAYID   07292000          
                       THEN BEGIN                                        07293000          
@@ -5713,7 +5713,7 @@ PROCEDURE RELSESTMT;                                                    07461250
          REL:=TRUE;AEXP; REL:=FALSE;                                    07464750          
          IF TABLE(I-2) = FACTOP THEN                                    07465000          
          BEGIN STACKCT:=STACKCT-1;                                      07465250          
-              EMITPAIR(38,COM); EMIT0(DEL); GO PARENCHECK;              07465500          
+              EMITPAIR(38,COM); EMITO(DEL); GO PARENCHECK;              07465500          
               END                                                       07465750          
         ELSE  BEGIN % DATACOM RELEASE.                                  07466000          
 DCR:                                                                    07466250          
@@ -5722,7 +5722,7 @@ DCR:                                                                    07466250
               EMITO(DEL); EMITO(DEL); EMITO(DEL); GO PARENCHECK;        07467000          
               END;                                                      07467250          
          END;                                                           07467500          
-    IF FLCLASS!FILEID AND ELCLASS!SUPERFILEID THEN % DATACOM RELEASE.   07467750          
+    IF ELCLASS!FILEID AND ELCLASS!SUPERFILEID THEN % DATACOM RELEASE.   07467750          
          BEGIN AEXP; GO DCR; END;                                       07468000          
     CHECKER(ELBAT[I]); PASSFILE;                                        07468250          
     IF ELCLASS = COMMA THEN EMITO(DUP);                                 07468500          
@@ -5769,15 +5769,15 @@ EXIT:                                                                   07472000
               LABEL GOMCP,EXIT;                                         07504000          
               IF STEPI = TOV THEN STEPIT;                               07505000          
               IF ELCLASS = LABELID THEN TB1 ~ TRUE                      07506000          
-              ELSE IF ELCLASS = SWITCHID THEN TB1 ~ FALSE ELSE GO GOCMP;07507000          
-              IF NOT LOCAL(ELBAT[I]) THEN GO GOCMP;                     07508000          
+              ELSE IF ELCLASS = SWITCHID THEN TB1 ~ FALSE ELSE GO GOMCP;07507000          
+              IF NOT LOCAL(ELBAT[I]) THEN GO GOMCP;                     07508000          
               IF TB1 THEN BEGIN GOGEN(ELBAT[I],BFW); STEPIT;            07509000          
               CONSTANTCLEAN; GO EXIT END;                               07510000          
               ELBW ~ ELBAT[I];                                          07511000          
               IF ELBW < 0                                               07512000          
               THEN BEGIN COMMENT THIS IS A MONITORED SWITCH;            07513000          
                         EMITO(MKS);     PASSALPHA(ELBW);EMITPAIR(GNAT(  07514000          
-                        CHARI),LOD);    PASSMONFILE(TAKE(GIT(ELBW)),    07515000          
+                        CHARI),LOD);    PASSMONFILE(TAKE(GIT(ELBW)).    07515000          
                        SWITMONFILE);                               %109-07516000          
                        EMITNUM(0&CARDNUMBER[1:4:44]);              %109-07516100          
                        EMITV(GNAT(                                 %109-07516200          
@@ -5846,7 +5846,7 @@ EXIT:                                                                   07472000
               T1 ~ BUMPL; STMT;                                         07577000          
               IF ELCLASS ! ELSEV THEN                                   07578000          
                 BEGIN DIALA ~ DIALB ~ 0; EMITB(BFC,T1,L); GO EXIT END;  07579000          
-              STEPTIT;                                                  07580000          
+              STEPIT;                                                   07580000          
               IF SIMPGO                                                 07581000          
                 THEN BEGIN                                              07582000          
                    T2 ~ L; L ~T1-2;GOGEN(ELBAT[I],BFC); L ~ T2;         07583000          
@@ -6066,7 +6066,7 @@ PROCEDURE FILLSTMT;                                                     07653500
                         END REPEAT PART;                                07668000          
                    IF (BOO:=ELCLASS=ADOP) THEN STEPIT;                  07668500          
                    IF ELCLASS!LITNO AND ELCLASS!NONLITNO THEN           07669000          
-                     IF ELCASS!STRING AND(ELCASS!STRNGCON OR BOO) THEN  07669500          
+                     IF ELCLASS!STRING AND(ELCLASS!STRNGCON OR BOO) THEN07669500          
                         BEGIN ERROR(302); GO GOOFUP END; % WHATISIT.    07670000          
                    IF BOO THEN C:=C&ELBAT[I-1][1:21:1];                 07670500          
                    IF ELCLASS=STRING THEN                               07671000          
@@ -6165,12 +6165,12 @@ LVAR,                                                                   07722000
               IF ELCLASS = 0 THEN                                       07728500          
                    BEGIN UNKNOWNSTMT; GO TO EXIT END;                   07729000          
               IF ELCLASS=FAULTID THEN BEGIN FAULTSTMT; GO EXIT END;     07729100          
-              IF ELCLASS=FILEDID OR ECLASS=SUPERFILEID THEN             07729190          
+              IF ELCLASS=FILEID OR ELCLASS=SUPERFILEID THEN             07729190          
                    BEGIN GT1~FILEATTRIBUTEHANDLER(FS); GO EXIT END ;    07729200          
               FLAG(145);                                                07729500          
 LERR:         ERR(144); GO TO EXIT;                                     07730000          
 LDEC:         FLAG(146);                                                07731000          
-              IF TABLE(I-2) = ENV AND MODE > 0                          07732000          
+              IF TABLE(I-2) = ENDV AND MODE > 0                         07732000          
                 THEN BEGIN I ~ I-2; ELCLASS ~ ENDV; GO TO EXIT END;     07733000          
               I ~ I-1; ERRORTOG ~ TRUE; BLOCK(FALSE);                   07734000          
               ELCLASS ~ TABLE(I~I-1); GO TO EXIT;                       07735000          
@@ -6197,7 +6197,7 @@ LGO:          GOSTMT; GO TO EXIT;                                       07752000
 LRELSE:       RELSESTMT; GO TO EXIT;                                    07753000          
 LBEG:         IF STEPI = DECLARATORS                                    07754000          
                 THEN BEGIN I ~ I-1; BLOCK(FALSE) END                    07755000          
-                ELSE COMPOUNDTIAL;                                      07756000          
+                ELSE COMPOUNDTAIL;                                      07756000          
 EXIT:    END STMT;                                                      07757000          
 PROCEDURE CMPLXSTMT; FORWARD ;                                          07777777          
  PROCEDURE UNKNOWNSTMT;                                                 07800000          
@@ -6258,7 +6258,7 @@ PROCEDURE CMPLXSTMT; FORWARD ;                                          07777777
               IF Q="4SEEK0" THEN                                        07843000          
               BEGIN IF STEPI!LEFTPAREN THEN                             07844000          
                    BEGIN ERR(105); GO TO XXX; END;                      07845000          
-                   IF STEPI!FILEID AND  ELCLASS!SUPERFILED THEN         07846000          
+                   IF STEPI!FILEID AND  ELCLASS!SUPERFILEID THEN        07846000          
                    GO TO E ELSE                                         07847000          
                    BEGIN EMITL(0); EMITL(0); PASSFILE;                  07848000          
                         IF ELCLASS!LEFTPAREN THEN                       07849000          
@@ -6447,7 +6447,7 @@ PROCEDURE KLUDGE(T);  VALUE T;  INTEGER T;                              07930000
                    BACKFIX ~ L;                                         08097000          
                    IF FORMALV THEN CALL(DESC) END                       08098000          
                ELSE BACKFIX ~ V + REAL(SIMPLEV)-1;                      08099000          
-              DIALA + DIALB ~ 0;                                        08100000          
+              DIALA ~ DIALB ~ 0;                                        08100000          
               AEXP; DIALA ~ DIALB ~ 0;                                  08101000          
     COMMENT   PICK UP FIRST ARITHMETIC EXPRESSION;                      08102000          
               IF  ELCLASS = STEPV                                       08103000          
@@ -6455,7 +6455,7 @@ PROCEDURE KLUDGE(T);  VALUE T;  INTEGER T;                              07930000
     COMMENT   HERE WE HAVE A STEP ELEMENT;                              08105000          
                    BACKFIX ~ BUMPL;                                     08106000          
     COMMENT   LEAVE ROOM FOR FORWARD JUMP;                              08107000          
-                   IF FORMALV THEN CALL(DESC); CALL(OPOC);              08108000          
+                   IF FORMALV THEN CALL(DESC); CALL(OPDC);              08108000          
     COMMENT   FETCH INDEX;                                              08109000          
                    IF I > 70 THEN BEGIN NXTELBT ~ 1; I ~ 0 END          08110000          
                        ELSE REGO ~ I;                                   08111000          
@@ -6541,7 +6541,7 @@ PROCEDURE KLUDGE(T);  VALUE T;  INTEGER T;                              07930000
                         RETURNSTORE  ~ BUMPL; ADJUST; CONSTANTCLEAN;    08190000          
                         STMTSTART ~ L;                                  08191000          
               STEPIT;                                                   08192000          
-              T1 ~ (((4096 | RETURNSTORE+STMTSTART)|2+                  08193000          
+              T1 ~ ((((4096 | RETURNSTORE+STMTSTART)|2+                 08193000          
                    REAL(CONSTANB))|2+                                   08194000          
                    REAL(CONSTANC))|2+                                   08195000          
                    REAL(SIGNB))|2+                                      08196000          
@@ -6746,7 +6746,7 @@ PROCEDURE READSTMT;                                                     08290000
             BOOLEAN MAYI;  COMMENT TRUE IF "FILE" IS ARRAY ROW;         08385700          
             INTEGER HOLD;  COMMENT L MAY GET CUT BACK TO HERE;          08385800          
             IF STEPI = LEFTPAREN                                        08386000          
-            THEN REVERSETOG~SEEKTOG~FALSE;                              08387000          
+            THEN REVERSETOG~SEEKTOG~FALSE                               08387000          
             ELSE BEGIN COMMENT THIS HAD BETTER SAY REVERSE;             08388000          
                       REVERSETOG~ACCUM[1]="7REVER";                     08389000          
                       LOCKTOG~ELCLASS=LOCKV;                            08390000          
@@ -6755,7 +6755,7 @@ PROCEDURE READSTMT;                                                     08290000
                                                ELSE BEGIN ERR(420);     08392000          
                                                           GO TO EXIT;   08393000          
                                                     END;                08394000          
-                      IF CHECK(LEFTPAREN,421);                          08395000          
+                      IF CHECK(LEFTPAREN,421)                           08395000          
                       THEN GO TO EXIT;                                  08396000          
                        COMMENT ERROR 421 MEANS MISSING LEFT             08397000          
                       PARENTHESIS IN READ REVERSE STATEMENT;            08398000          
@@ -6765,7 +6765,7 @@ PROCEDURE READSTMT;                                                     08290000
                       BEGIN VARIABLE(FL);                               08401020          
                            IF TABLE(I-2) ! FACTOP THEN                  08401030          
                                 BEGIN ERR(422); GO TO EXIT END;         08401040          
-                           WAYI ~ TRUE;  HOLD ~ L;                      08401045          
+                           MAYI ~ TRUE;  HOLD ~ L;                      08401045          
                            EMIT(11); EMIT(4); EMITO(280);               08401050          
                            EMITPAIR(GNAT(POWERSOFTEN),LOD);             08401060          
                            EMITO(XCH); EMITL(0); EMITL(1);              08401070          
@@ -7143,7 +7143,7 @@ PROCEDURE WRITESTMT;                                                    08528000
                  -   -   -   -   -   -   -   -   -   -   -   -   -   -  08567000          
               (CHARI,POWERSOFTEN,FILE,CHANNEL SKIP,LINE SKIP,0,N,ARRAY  08568000          
                ROW DESCRIPTOR)                                          08569000          
-                **  **  **  **  **  **  **  **  **  **  **  **  **  **  08570000          
+                **  **  **  **  **  **  **  **  **  **  **  **  **  **; 08570000          
               LABEL EXIT;  COMMENT EXIT APPEARS AFTER THE LAST          08571000          
                           EXECUTABLE STATEMENT IN WRITESTMT;            08572000          
               LABEL CHKSECOND;  COMMENT I IS NOW POINTING AT THE COMMA  08573000          
@@ -7667,7 +7667,7 @@ PROCEDURE EXPLICITFORMAT;                                               08860050
               END;                                                      08971000          
          IF NOT COMMACHECK THEN GO QUIT;                                08972000          
 %   INPUT OPTION.                                                       08972500          
-         IF ELCLASS=FILEID OR ELCLASS=SUPEFILEID THEN                   08973000          
+         IF ELCLASS=FILEID OR ELCLASS=SUPERFILEID THEN                  08973000          
               BEGIN EMITPAIR(0,XCH); PASSFILE; I~I-1 END ELSE           08974000          
               IF NOT(INPRO~INPROCHECK(ELBAT[I])) THEN GO QUIT ELSE      08975000          
               BEGIN EMITPAIR(ELBAT[I].ADDRESS,LOD); EMITO(XCH);         08976000          
@@ -8128,7 +8128,7 @@ NEXTTEXT~26 ;                                                           09251300
                                IT IS CHANGED BEFORE COMPILATION IS      09269000          
                                COMPLETE TO LOOK LIKE A WORD MODE        09270000          
                                PROGRAM DESCRIPTOR;                      09271000          
-             EMITL(0);EMIT0(MKS);                                       09272000          
+             EMITL(0);EMITO(MKS);                                       09272000          
              GT1~PROGDESCBLDR(3,0,0);                                   09273000          
              GT1 := GETSPACE(TRUE,-5); % SEG.#2 DESCR.                  09274000          
                INSERTCOP:=1;                                       %107-09274100          
@@ -9314,7 +9314,7 @@ PROCEDURE DMUP;                                                         10681000
               THEN GO TO EXIT;                                          10877000          
                COMMENT ERROR 414 MEANS ILLEGAL DUMP LIST ELEMENT.  THIS 10878000          
               CODE HANDLES LABELS;                                      10879000          
-              PUT(TAKEFRST & (LABELCTR[LABELCTRINX~LABELCTRINX+1]-      10880000          
+              PUT(TAKEFRST & (LABELCTR[LABELCTRINX~LABELCTRINX+1]~      10880000          
                   IF DUMPETEMP~TAKEFRST.DUMPEE = 0                      10881000          
                   THEN GETSPACE(FALSE,-7) % LABEL DESCRIPTOR.           10882000          
                   ELSE DUMPETEMP)[DUMPE],GIT(ELBATWORD));               10883000          
@@ -9590,7 +9590,7 @@ REAL PROCEDURE FIXDEFINEINFO(T); VALUE T; REAL T;                       12101000
              MACROID~TRUE;                                              12107000          
              P ~ GIT(FIXDEFINEINFO ~ T);                                12108000          
              STOPDEFINE~TRUE;                                           12111000          
-             FL~TABLE(NXTELBT);                                         12112000          
+             EL~TABLE(NXTELBT);                                         12112000          
              NXTELBT~NXTELBT-1;                                         12113000          
              IF EL!LEFTPAREN AND EL!LFTBRKET THEN                       12114000          
                   FLAG(175) % [ OR ( EXPECTED.                          12115000          
@@ -9973,7 +9973,7 @@ DEFINE SUBOP=48#,                                                       13211000
         XREFDUMP(POINTER); % DUMP XREF INFO                        %116-13283500          
         GT2~TAKE(POINTER+1);                                            13284000          
         GT3~GT2.PURPT;                                                  13285000          
-    STACKHEAD(0&GT2[12:12:36])MOD 125]~TAKE(POINTER).LINK;              13286000          
+    STACKHEAD[(0&GT2[12:12:36])MOD 125]~TAKE(POINTER).LINK;             13286000          
         POINTER~POINTER-GT3                                             13287000          
               END                                                       13288000          
       END ;                                                             13289000          
@@ -10002,7 +10002,7 @@ COMMENT                                                                 13294000
           ACCUM[1].PURPT~NEXTINFO~LASTINFO;                             13309000          
 MOVE(WORDCOUNT,ACCUM,INFO[NEXTINFO.LINKR,NEXTINFO.LINKC]);              13310000          
          IF XREF THEN % MAKE DECLARATION REFERENCE                 %116-13310050          
-          IF (ACCUM[0].CLASS ! DEFINEID OR NOT                     %116-13310075          
+          IF (ACCUM[0].CLASS ! DEFINEDID OR NOT                    %116-13310075          
               BOOLEAN(ACCUM[0].FORMAL)) THEN % NOT DEFINE PARAMETER%116-13310080          
            BEGIN                                                   %116-13310100          
              XREFINFO[NEXTINFO] :=                                 %116-13310200          
@@ -10205,7 +10205,7 @@ TWO:IF STEPI=ADOP THEN                                                  13474000
                       T1~ELBAT[I].ADDRESS; I~I+1                        13476000          
                     END                                                 13477000          
                   ELSE T1~0;IF SPECTOG THEN GO TO BETA2;                13478000          
-   APROGS~L;                                                            13479000          
+   ARPROGS~L;                                                           13479000          
    IF TABLE(I+1)=COLON AND TABLE(I)=LITNO THEN                          13480000          
                                             BEGIN                       13481000          
                                               LLITOG~TRUE;              13482000          
@@ -10240,7 +10240,7 @@ TWO:IF STEPI=ADOP THEN                                                  13474000
    IF ELCLASS~TABLE(I~I+2)=LITNO THEN                                   13511000          
                                    BEGIN                                13512000          
                                      IF T~TABLE(I~I+1)=COMMA OR         13513000          
-                                        T~RTBRKET                       13514000          
+                                        T=RTBRKET                       13514000          
                                       THEN                              13515000          
                                         BEGIN                           13516000          
                                            EMITL(T4~ELBAT[I-1].ADDRESS);13517000          
@@ -10326,7 +10326,7 @@ START: ARRAYFLAG ~ FALSE END;                                           13588000
         INFO[NEXTINFO.LINKR,NEXTINFO.LINKC]~X;                          13593000          
         NEXTINFO~NEXTINFO+1                                             13594000          
   END ;                                                                 13595000          
- PROCEDURE JUMPCHX;                                                     13596000          
+ PROCEDURE JUMPCHKX;                                                    13596000          
 COMMENT THIS PROCEDURE IS CALLED AT THE START OF ANY EXECUTABLE CODE    13597000          
         WHICH THE BLOCK MIGHT EMIT.IT DETERMINES WHETHER ANY JUMPS      13598000          
         ARROUND NONEXECUTABLE CODE MAY BE WAITING AND WHETHER IT        13599000          
@@ -10601,7 +10601,7 @@ BOOLEAN GOTSTORAGE;                                                     14025000
            COMMENT LOCAL TO BLOCK TO SAVE WHERE A PROCEDURE IS EMTERED  14027000          
            IN INFO;                                                     14028000          
 REAL MAXSTACKO,LASTINFOT,RELAD,LO,TSUBLEVEL,STACKCTRO;                  14029000          
-INTEGER SNGOO,LOD,SAVELO,PRTIO,NINFOO;                                  14030000          
+INTEGER SGNOO,LOLD,SAVELO,PRTIO,NINFOO;                                 14030000          
   INTEGER NCIIO;                                                        14031000          
    INTEGER PROAD ;                                                      14032000          
      INTEGER NTEXTO;                                                    14032500          
@@ -10813,7 +10813,7 @@ SWITCHDEC:                                                              14200000
                    END                                                  14215000          
               ELSE                                                      14216000          
      ENTRY(SWITCHID); STOPGSP~STOPENTRY~FALSE;IF SPECTOG THEN GO TO     14217000          
-     START:                                                             14218000          
+     START;                                                             14218000          
      IF ELCLASS=ASSIGNOP                                                14219000          
        THEN                                                             14220000          
          BEGIN                                                          14221000          
@@ -10972,7 +10972,7 @@ PROCEDUREDEC:                                                           14270000
         IF G~GTA1[J~J-1]=0 THEN TYPEV~STRPROCID                         14281000          
                            ELSE                                         14282000          
                             BEGIN                                       14283000          
-                             IF TYPEV~PROCID +G>INSTRPROCID OR          14284000          
+                             IF TYPEV~PROCID +G>INTSTRPROCID OR         14284000          
                                 TYPEV <BOOSTRPROCID                     14285000          
                               THEN FLAG(004);                           14286000          
                          IF NOT SPECTOG THEN                            14287000          
@@ -10984,7 +10984,7 @@ PROCEDUREDEC:                                                           14270000
                ELSE                                                     14293000          
               IF (TYPEV:=REALSTRPROCID+G)=INTSTRPROCID THEN             14294000          
               BEGIN NEXTSAVE:=TRUE;  TYPEV:=PROCID END ELSE             14294100          
-              IF TYPEV<BOOPROCID OR TYPEV>INTRPROCID THEN FLAG(005)     14295000          
+              IF TYPEV<BOOPROCID OR TYPEV>INTPROCID THEN FLAG(005)      14295000          
               ELSE BEGIN IF (NEXTSAVE:=GTA1[J-1]=SAVEV) THEN J:=J-1;    14295100          
                    IF NOT SPECTOG THEN FUNCTOG:=TRUE;  CHKSOB           14296000          
                        END;                                             14297000          
@@ -11019,7 +11019,7 @@ IF G ~ TAKE(LINKF+1) } 0 THEN FLAG(006) ELSE PUT(-G,LINKF+1) ;          14310000
              PJ ~ 0;                                                    14323200          
           IF STREAMTOG THEN STREAMWORDS;                                14324000          
       IF ELCLASS=SEMICOLON THEN GO TO START1;                           14325000          
-     IF ECLASS!LEFTPAREN THEN FLAG(007);                                14326000          
+     IF ELCLASS!LEFTPAREN THEN FLAG(007);                               14326000          
 COMMENT: THE FOLLOWING 8  STATEMENTS FOOL THE SCANNER AND BLOCK,PUTTING 14327000          
          FORMAL PARAMETER ENTRIES IN THE ZERO ROW OF INFO;              14328000          
         RR1~NEXTINFO;                                                   14329000          
@@ -11104,7 +11104,7 @@ HF:                                                                     14382000
                                       END                               14405000          
                              ELSE                                       14406000          
                                BEGIN                                    14407000          
-                                        I+I+1;                          14408000          
+                                        I~I+1;                          14408000          
                                  ENTRY(LOCLID)                          14409000          
                                END                                      14410000          
                          END;                                           14411000          
@@ -11457,7 +11457,7 @@ COMMENT  211  VARIABLE-FUNCTION IDENTIFIER USED OUTSIDE OF ITS SCOPE*;  15082000
               TALL ~ TALL & (ELCLASS+4) [2:41:7] & 514 [16:37:11];      15083000          
                  END                                                    15084000          
               ELSE  CHECKER(TALL);                                      15085000          
-              REMEMBERSEQNO := CARDNUMBER                          %116-15085100          
+              REMEMBERSEQNO := CARDNUMBER;                         %116-15085100          
               IF TALL.CLASS { INTID  THEN                               15086000          
          BEGIN                                                          15087000          
               LABEL  L1, EXIT ;                                         15088000          
@@ -11634,8 +11634,8 @@ COMMENT  ****  MONITOR  FUNCTION M1  GOES  HERE ;                       15238000
                                   .NODIMPART)+INC;                      15245000          
                                   DO IF BOOLEAN(LWRBND~TAKE(INC~INC+1)).15246000          
                                        OPBIT                            15247000          
-                                    THEN EMITL(LWRBND,SPMONADR)         15248000          
-                                    ELSE EMITV(LWRBND,SPMONADR)         15249000          
+                                    THEN EMITL(LWRBND.SPMONADR)         15248000          
+                                    ELSE EMITV(LWRBND.SPMONADR)         15249000          
                                   UNTIL INC } TESTVARB                  15250000          
                              END;                                       15251000          
                    END;                                                 15252000          
@@ -11679,7 +11679,7 @@ COMMENT  *****  MONITOR FUNCTION M2 GOES HERE  ;                        15268000
                         STEPIT;                                         15274000          
                         GO TO EXIT;                                     15275000          
                    END OF ROW DESIGNATOR PORTION  ;                     15276000          
-              AEXP:                                                     15277000          
+              AEXP;                                                     15277000          
 COMMENT  *****     MONITOR FUNCTION M3 GOES HERE  ;                     15278000          
               IF TALL < 0 THEN EMITPAIR(JUNK,ISN);                      15279000          
               J ~ J + 1;                                                15280000          
@@ -11818,7 +11818,7 @@ COMMENT THIS SECTION GENERATES CODE FOR STREAM PROCEDURES;              16000000
          TAN  =  30#,  COMMENT   7.5.3.7  TEST FOR ALPHAMERIC         ; 16014000          
          BIT  =  31#,  COMMENT   7.5.3.8  TEST BIT                    ; 16015000          
           JFC =  37#,  COMMENT   7.5.5.3  JUMP FORWARD CONDITIONAL    ; 16016000          
-         SFD  =  06#,  COMMENT   7.5.7.8  SET DESTINATION ADDRESS     ; 16017000          
+         SED  =  06#,  COMMENT   7.5.7.8  SET DESTINATION ADDRESS     ; 16017000          
          RSA  =  43#,  COMMENT   7.5.7.4  RECALL SOURCE ADDRESS       ; 16018000          
          TRP  =  60#,  COMMENT   7.5.2.2  TRANSFER PROGRAM CHARACTERS ; 16019000          
          BSS  =   3#,  COMMENT   7.5.6.6  SKIP SOURCE BIT             ; 16020000          
@@ -12011,7 +12011,7 @@ PROCEDURE LABELS;                                                       16156000
          IF STEPI ! SCV THEN BEGIN ERR(263);GO TO EXIT END;             16206000          
 IFSC:                                                                   16207000          
          IF STEPI!RELOP THEN BEGIN ERR(264);GO EXIT END;                16208000          
-         IF STEPI=DCV THEN EMITC(ADDR,ELBAT[I-1],COMPARECODE)           16209000          
+         IF STEPI=DCV THEN EMITC(ADDR,ELBAT[I-1].COMPARECODE)           16209000          
     ELSE IF ELCLASS=STRNGCON THEN                                       16210000          
               BEGIN                                                     16211000          
               IF ACCUM[1].[12:6]!1 OR ELBAT[I-3].CLASS!IFV THEN         16211100          
@@ -12084,7 +12084,7 @@ IFTOG:   IF STEPI!THENV THEN BEGIN ERR(266); GO EXIT  END;              16217000
               ELSE                                                      16263000          
                    BEGIN                                                16264000          
                    IF GT1.LEVEL ! NESTLEVEL-JUMPLEVEL THEN FLAG(257);   16265000          
-                   EMIT(GT2,LASTGT);                                    16266000          
+                   EMIT(GT2.LASTGT);                                    16266000          
               END;                                                      16267000          
            END;                                                         16268000          
          JUMPLEVEL~0 ;                                                  16269000          
@@ -12138,7 +12138,7 @@ PROCEDURE INDEXS;                                                       16311000
          IF TCLASS = LOCLID THEN                                        16317000          
               BEGIN                                                     16318000          
               XMARK(ASSIGNREF);                                    %116-16318500          
-              IF SIV>STEPI OR ELCASS>TALLYV THEN GO TO L;               16319000          
+              IF SIV>STEPI OR ELCLASS>TALLYV THEN GO TO L;              16319000          
               INDEX ~ 32 + ELCLASS-SIV;                                 16320000          
               ADDR ~ ELBAT[I-2].ADDRESS;                                16321000          
               GO TO GENERATE;                                           16322000          
@@ -12325,7 +12325,7 @@ PROCEDURE JUMPS;                                                        16431000
                                                                         16496000          
  TIME1 ~ TIME(1); PROGRAM;                                              17000000          
      ENDOFITALL:                                                        17000100          
-IF (XREF OR DEFINING.[1:1) AND XLUN > 0 THEN                       %116-17001000          
+IF (XREF OR DEFINING.[1:1]) AND XLUN > 0 THEN                      %116-17001000          
      BEGIN DEFINE LSS= <#,GTR=>#,NEQ = !#,LEQ={#;                  %DFB 17002000          
      DEFINE XREFINFO[INDEX] = INFO[((INDEX).CF DIV 2).[33:7],      %116-17002005          
                                    ((INDEX).CF DIV 2).LINKC]#,     %116-17002006          
