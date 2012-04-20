@@ -1,0 +1,207 @@
+ $ SET LINEINFO                                                         00000100          
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00001000          
+%%  CODEDUMP55                                                        %%00001100          
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00001200          
+%                                                                       00001300          
+%   MCP E-MODE PROGRAM TO DUMP A B-5500 CODE FILE IN OCTAL AND TO       00001400          
+%   INTERPRET SEGMENT 0 AND THE SEGMENT DICTIONARY.                     00001500          
+%                                                                       00001600          
+%   TO USE, EQUATE FILE CODE TO THE B5500 CODE FILE. OUTPUT IS TO THE   00001700          
+%   PRINTER FILE LINE.                                                  00001800          
+%                                                                       00049900          
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00050000          
+% 2012-04-19  P.KIMPEL                                                  00050010          
+%   ORIGINAL VERSION.                                                   00050011          
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00099000          
+BEGIN                                                                   00100000          
+DEFINE                                                                  00100100          
+  SECTORSIZE =          30 #,                                           00100200          
+  UNITSOF(V,U) =        (((V)+(U-1)) DIV (U)) #,                        00100300          
+  INCREMENTSOF(V,U) =   (UNITSOF(V,U)*U) #;                             00100400          
+                                                                        00110000          
+INTEGER                                                                 00120100          
+  CODERECSIZE,                                                          00120200          
+  PRTSIZE,                                                              00120300          
+  SEGDICTSIZE;                                                          00120400          
+                                                                        00130000          
+REAL                                                                    00130100          
+  T7;                                                                   00130200          
+                                                                        00150000          
+ARRAY                                                                   00150100          
+  A[0:29],                                                              00150200          
+  PRT[0:29],                                                            00150300          
+  SEGDICT[0:29],                                                        00150400          
+  SEGZERO[0:29];                                                        00150500          
+                                                                        00170000          
+FILE                                                                    00170100          
+  CODE (KIND=DISK, DEPENDENTSPECS, DEPENDENTINTMODE),                   00170200          
+  LINE (KIND=PRINTER, MAXRECSIZE=132, FRAMESIZE=8, FILEUSE=IO);         00170300          
+                                                                        00300000          
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00300100          
+PROCEDURE DUMPSECTOR(SECTOR, BUF, BUFX);                                00300200          
+  VALUE SECTOR, BUFX;                                                   00300300          
+  INTEGER SECTOR, BUFX;                                                 00300400          
+  ARRAY BUF[0];                                                         00300500          
+  BEGIN                                                                 00300600          
+  INTEGER                                                               00300700          
+    ENDX,                                                               00300800          
+    X,                                                                  00300900          
+    Y;                                                                  00301000          
+                                                                        00301100          
+  ENDX:= BUFX+SECTORSIZE-1;                                             00301200          
+  WRITE(LINE, <X3,K5,X2,5(K4,X1,6(K16,X1),/,X10)>,                      00301300          
+      SECTOR, FOR X:= BUFX STEP 6 UNTIL ENDX DO [                       00301400          
+          X, FOR Y:=0 STEP 1 UNTIL 5 DO BUF[X+Y]]);                     00301500          
+  END DUMPSECTOR;                                                       00301600          
+                                                                        00810000          
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00810100          
+PROCEDURE DUMPPRT(PRTLOC, PRTSIZE, PRT);                                00810200          
+  VALUE PRTLOC, PRTSIZE;                                                00810300          
+  INTEGER PRTLOC, PRTSIZE;                                              00810400          
+  ARRAY PRT[0];                                                         00810500          
+  BEGIN                                                                 00810600          
+  INTEGER                                                               00810700          
+    BUFX,                                                               00810800          
+    SECTOR;                                                             00810900          
+                                                                        00811000          
+  WRITE(LINE, <"PRT:">);                                                00811100          
+  SECTOR:= PRTLOC;                                                      00811200          
+  IF SIZE(PRT) < PRTSIZE THEN                                           00811300          
+    RESIZE(PRT, INCREMENTSOF(PRTSIZE, SECTORSIZE));                     00811400          
+                                                                        00811500          
+  WHILE BUFX < PRTSIZE DO                                               00811600          
+    BEGIN                                                               00811700          
+    READ(CODE[SECTOR], CODERECSIZE, PRT[BUFX]);                         00811800          
+    DUMPSECTOR(SECTOR, PRT, BUFX);                                      00811900          
+    BUFX:=*+SECTORSIZE;                                                 00812000          
+    SECTOR:= *+1;                                                       00812100          
+    END WHILE;                                                          00812200          
+  END DUMPPRT;                                                          00812300          
+                                                                        00820000          
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00820100          
+PROCEDURE DUMPSEGDICT(DICTLOC, DICTSIZE, DICT, PRT);                    00820200          
+  VALUE DICTLOC, DICTSIZE;                                              00820300          
+  INTEGER DICTLOC, DICTSIZE;                                            00820400          
+  ARRAY DICT, PRT[0];                                                   00820500          
+  BEGIN                                                                 00820600          
+  INTEGER                                                               00820700          
+    BUFX,                                                               00820800          
+    PRTX,                                                               00820900          
+    SECTOR,                                                             00821000          
+    SECTOREND,                                                          00821050          
+    SEGSECTORS;                                                         00821100          
+  REAL                                                                  00821200          
+    P,                                                                  00821300          
+    W;                                                                  00821400          
+                                                                        00821500          
+  WRITE(LINE, <"SEGMENT DICTIONARY:">);                                 00821600          
+  SECTOR:= DICTLOC;                                                     00821700          
+  IF SIZE(DICT) < DICTSIZE THEN                                         00821800          
+    RESIZE(DICT, INCREMENTSOF(DICTSIZE, SECTORSIZE));                   00821900          
+                                                                        00822000          
+  WHILE BUFX < DICTSIZE DO                                              00822100          
+    BEGIN                                                               00822200          
+    READ(CODE[SECTOR], CODERECSIZE, DICT[BUFX]);                        00822300          
+    BUFX:= *+SECTORSIZE;                                                00822400          
+    END WHILE;                                                          00822500          
+                                                                        00822600          
+  FOR BUFX:= 0 STEP 1 WHILE BUFX < DICTSIZE DO                          00822700          
+    BEGIN                                                               00822800          
+    W:= DICT[BUFX];                                                     00822900          
+    IF W IS 0 THEN                                                      00823000          
+      WRITE(LINE, <K4,X2,"(ZERO)">, BUFX)                               00823100          
+    ELSE                                                                00823200          
+      BEGIN                                                             00823300          
+      SECTOR:= W.[14:15];                                               00823400          
+      SEGSECTORS:= UNITSOF(W.[29:15], SECTORSIZE);                      00823500          
+      SECTOREND:= SECTOR+SEGSECTORS-1;                                  00823600          
+      PRTX:= W.[39:10];                                                 00823700          
+      WRITE(LINE, <K4,X2,K16," TYPE=",I1," INTR=",I1," PRT-LNK=",K3,    00823800          
+          " SIZE=",K5," ADDR=",K5>,                                     00823900          
+          BUFX, W, W.[46:1]+1, W.[45:1], PRTX, W.[29:15], SECTOR);      00824000          
+                                                                        00824100          
+      IF PRTX > 0 THEN                                                  00824200          
+        BEGIN                                                           00824300          
+        DO BEGIN                                                        00824400          
+          P:= PRT[PRTX];                                                00824500          
+          WRITE(LINE, <X6,"PRT ",K4," STOP=",I1," LINK=",K4,            00824600          
+              " SEG DICT=",K5," OFFSET=",K5>,                           00824700          
+              PRTX, P.[41:1], P.[40:11], P.[29:15], P.[14:15]);         00824800          
+          PRTX:= P.[40:11];                                             00824900          
+          END                                                           00825000          
+        UNTIL BOOLEAN(P.[41:1]);        % PRT STOPPER BIT               00825100          
+        END;                                                            00825200          
+                                                                        00825300          
+      IF BOOLEAN(W.[45:1]) THEN                                         00825400          
+        WRITE(LINE)                     % AN INTRINSICS SEGMENT         00825500          
+      ELSE                                                              00825600          
+        BEGIN                                                           00825700          
+        WRITE(LINE);                                                    00825800          
+        FOR SECTOR:= SECTOR STEP 1 WHILE SECTOR<=SECTOREND DO           00825900          
+          BEGIN                                                         00826000          
+          READ(CODE[SECTOR], CODERECSIZE, A);                           00826100          
+          DUMPSECTOR(SECTOR, A, 0);                                     00826200          
+          END FOR;                                                      00826300          
+        END;                                                            00826400          
+      END;                                                              00826500          
+    END FOR;                                                            00826600          
+                                                                        00826700          
+  WRITE(LINE);                                                          00826800          
+  END DUMPSEGDICT;                                                      00826900          
+                                                                        00840000          
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00840100          
+PROCEDURE DUMPFPB(FPBLOC, FPBSIZE, BUF);                                00840200          
+  VALUE FPBLOC, FPBSIZE;                                                00840300          
+  INTEGER FPBLOC, FPBSIZE;                                              00840400          
+  ARRAY BUF[0];                                                         00840500          
+  BEGIN                                                                 00840600          
+  INTEGER                                                               00840700          
+    BUFX,                                                               00840800          
+    SECTOR;                                                             00840900          
+                                                                        00841000          
+  WRITE(LINE, <"FPB:">);                                                00841100          
+  SECTOR:= FPBLOC;                                                      00841200          
+                                                                        00841300          
+  WHILE BUFX < FPBSIZE DO                                               00841400          
+    BEGIN                                                               00841500          
+    READ(CODE[SECTOR], CODERECSIZE, BUF);                               00841600          
+    DUMPSECTOR(SECTOR, BUF, 0);                                         00841700          
+    BUFX:=*+SECTORSIZE;                                                 00841800          
+    SECTOR:= *+1;                                                       00841900          
+    END WHILE;                                                          00842000          
+  END DUMPFPB;                                                          00842100          
+                                                                        00900000          
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00900100          
+%% OUTER BLOCK                                                          00900200          
+                                                                        00900300          
+OPEN(CODE);                                                             00900400          
+CODERECSIZE:= CODE.MAXRECSIZE;                                          00900500          
+REPLACE POINTER(A,8) BY " " FOR 132;                                    00900600          
+REPLACE POINTER(A,8) BY "CODEDUMP55: ", CODE.LTITLE;                    00900700          
+REPLACE POINTER(A[17],8)-5 BY "  ",                                     00900800          
+    (T7:= TIME(7)).[47:12] FOR 4 DIGITS, "-",                           00900900          
+    T7.[35:6] FOR 2 DIGITS, "-",                                        00901000          
+    T7.[29:6] FOR 2 DIGITS, "  ",                                       00901100          
+    T7.[23:6] FOR 2 DIGITS, ":",                                        00901200          
+    T7.[17:6] FOR 2 DIGITS;                                             00901300          
+WRITE(LINE[SPACE 2], 132, A);                                           00901400          
+                                                                        00910000          
+READ(CODE[0], CODERECSIZE, SEGZERO);                                    00910100          
+                                                                        00910200          
+WRITE(LINE, <"SEGMENT DICTIONARY AT SECTOR ",I6," FOR ",I6,/,           00910300          
+             "PRT AT SECTOR                ",I6," FOR ",I6,/,           00910400          
+             "FPB AT SECTOR                ",I6," FOR ",I6,/,           00910500          
+             "STARTING SEGMENT NUMBER      ",I6,/,                      00910600          
+             "NUMBER OF FILES              ",I6,/,                      00910700          
+             "CORE ESTIMATE                ",I6,/>,                     00910800          
+    SEGZERO[0], SEGZERO[1], SEGZERO[2], SEGZERO[3],                     00910900          
+    SEGZERO[4], SEGZERO[5], SEGZERO[6],                                 00911000          
+    SEGZERO[7].[14:15], SEGZERO[7].[29:15]*64);                         00911100          
+                                                                        00911200          
+SEGDICTSIZE:= SEGZERO[1];                                               00911300          
+PRTSIZE:= SEGZERO[3];                                                   00911400          
+DUMPPRT(SEGZERO[2], PRTSIZE, PRT);                                      00911500          
+DUMPFPB(SEGZERO[4], SEGZERO[5], A);                                     00911600          
+DUMPSEGDICT(SEGZERO[0], SEGDICTSIZE, SEGDICT, PRT);                     00911700          
+                                                                        00999800          
+END.                                                                    00999900          
