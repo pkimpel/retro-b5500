@@ -285,7 +285,6 @@ TRYAGAIN:     BEGIN SLEEP([M[PRTLOC]],0&TRUE [MAYBEWORKEDON]);%    %156-00050000
               GO TO POLISH(MEMORY[PRTLOC]);%                            00055000        
          GO TO START; % PLACE DESC.IN PRT FOR MCP TO AUXMEM TRANSFER    00055100        
          END ESPBIT;%                                                   00056000        
-$ PAGE                                                                  00057000        
 LABEL FINDIT;                                                           00057100        
 REAL    RESULT=12 ,RESULT2=13 ,RESULT3=14 ,RESULT4=15 ;%                00058000        
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00060000        
@@ -979,3 +978,143 @@ SAVE PROCEDURE RESULT;                                                  00646900
 BEGIN                                                                   00647000        
     GO TO P([18]);                     % TIMER IS A LOOP ON INTERRUPTS  00648000        
 END;                                                                    00649000        
+                                                                        00649999        
+SAVE PROCEDURE PUNT(I);  VALUE I;  REAL I;                              00650000        
+         BEGIN REAL T=-3;                                               00650250        
+              REAL TMB, RSLT=RESULT;                                    00650500        
+              LABEL HA,HB;                                              00650750        
+              I:=IF I=0 THEN T ELSE PUNTER INX I;                       00651000        
+              STREAM(Q:=P(0,RDF): I,                                    00651800        
+                   A:=18, D:=I:=PUNTER INX 0);                          00652000        
+              BEGIN DS:= 16 LIT"-SYSTEM HANG, F=");                %104-00652400        
+                   SI:=LOC Q; SI:=SI+3;                                 00652600        
+                   5(DS:=3 RESET;                                       00652800        
+                     3(IF SB THEN DS:=SET ELSE DS:=RESET; SKIP SB));    00653000        
+                   DSD:=2 LIT": "; SI:=1;                               00653200        
+                   63(IF SC!"~" THEN DS:=CHR); DS:=LIT"~";              00653400        
+                   DI:=A; DS:=8 LIT"29290+JI";   % INI,INI,4,BBW        00653600        
+                   SI:=A; DS:=44 WDS;                                   00653800        
+                   DI:=A; DI:=DI+8;              % IOBUSY-              00654000        
+                        DS:=4 LIT"002(";         %    0,RTN             00654200        
+                   DI:=DI+28;                    % IOCOMPLETE-LOD R,RTN 00654400        
+                   DS:=32 LIT"0 +A+:2(OU+A+:2(0Y+A+:2(0!+A+:2(";        00654600        
+              END;                                                      00654800        
+              P(HP2);                                                   00655000        
+    HA:       TMB:=I&60[3:42:6];                                        00655200        
+              P([TMB],IIO);                                             00655400        
+    HB:       DO IF (TMB:=P(MKS,RSLT)) = 0 THEN  % IO BUSY              00655600        
+                BEGIN P(MKS,RSLT,DEL); GO HA END                        00655800        
+              UNTIL TMB.[3:6]=60;                                       00656000        
+              IF TMB.[CF]<I THEN GO TO HB;                              00656200        
+              IF TMB.[FF]!0 THEN GO TO HA;                              00656400        
+ $ SET OMIT = NOT AUTODUMP                                              00656500        
+              IF NOT HALTSET AND PUNTER[DUMPADR]=@501 THEN              00656600        
+              BEGIN                                                     00656800        
+                   STREAM(S:=[PUNTER[DUMPCRD]], D:=@20);                00657000        
+                   BEGIN SI:=S; DS:=19 WDS; END;                        00657200        
+                   GO TO P(0,STS,0,STF,[M[@20]]);                       00657400        
+              END;                                                      00657600        
+ $ POP OMIT                                                             00657700        
+              DO UNTIL FALSE;                                           00657800        
+         END;                                                           00662000        
+ $ SET OMIT = DATACOM                                                   00689990        
+    $ RESET SEPTICTANK                                                  00690000        
+ $ POP OMIT                                                             00699990        
+ $ SET OMIT = NOT DATACOM                                               00699999        
+ $ SET OMIT = NOT(DFX)                                                  00999999        
+SAVE PROCEDURE STARTIO(U);  VALUE U;  REAL U;  FORWARD;                 01165000        
+SAVE PROCEDURE COMPLEXSNOOZE(PRI,CODE); VALUE PRI; REAL PRI,CODE;       01240000        
+     BEGIN SNOOZE(PRI,1,P(.CODF,LOD)); END;                             01240100        
+DEFINE COMPLEXSLEEP(COMPLEXSLEEP1)=COMPLEXSNOOZE(PRYOR[P1MIX],          01240200        
+          COMPLEXSLEEP1)#;                                              01240300        
+PROCEDURE USASITAPE(AREA,TYPE,FROM,U,DIR);               %RHR           01250100        
+         VALUE AREA,FROM,U,DIR; REAL AREA,TYPE,FROM,U,DIR;              01250200        
+BEGIN REAL PIN,Y;                                                       01250300        
+      ARRAY ULAB[*];                                                    01250400        
+      LABEL EXIT,ERROR,VOL,BAD,WAIT,TIP,ETIP;                           01250500        
+    SUBROUTINE LABELSPACE;                                              01250600        
+         BEGIN ULAB:=[M[SPACE(11)]]&10[8:38:10];                        01250700        
+               MOVE(10,ULAB.[CF]-1,ULAB,[CF]);                          01250800        
+         END LABELSPACE;                                                01250900        
+    SUBROUTINE VOL1FILL;                                                01251000        
+         BEGIN STREAM(AREA,ULAB);                                       01251100        
+               BEGIN DS:=8 LIT " LABEL  "; DI:=DI+1; SI:=AREA;          01251200        
+               SI!SI+11;IF SC=" " THEN DS~7LIT"0" ELSE DS~7CHR;         01251300        
+               DI~DI+37; %MID                                           01251310        
+               SI:=AREA; SI:=SI+5; DS:=5 CHR; %PHYSICAL TAPE NO.        01251400        
+               END;                                                     01251500        
+         END VOL1FILL;                                                  01251600        
+    SUBROUTINE HDR1CHK;                                                 01251700        
+         BEGIN STREAM(Y:=0:AREA,X:=0);                                  01251800        
+               BEGIN DI:=LOC X; DS:=4 LIT "HDR1";                       01251900        
+                     SI:=AREA; DI:=LOC X;                               01252000        
+                     IF 4 SC=DC THEN TALLY:=1;                          01252100        
+                     Y:=TALLY;                                          01252200        
+               END;                                                     01252300        
+               Y:=P;                                                    01252350        
+         END HDR1CHK;                                                   01252400        
+    SUBROUTINE HDR1FILL;                                                01252500        
+         BEGIN STREAM(AREA,ULAB);                                       01252600        
+               BEGIN SI:=AREA; SI:=SI+4;                                01252700        
+                     DI:=DI+17; DS:=7 CHR; %FID                         01252800        
+                     SI:=SI+17; DS:=3 CHR; %REEL                        01252900        
+                     SI:=SI+11; DS:=5 CHR; %C-DATE                      01253000        
+                     SI:=SI-8; DS:=2 CHR; %CYCLE                        01253100        
+                     SI:=SI+7; DS:=5 CHR; %P-DATE                       01253200        
+                     DI:=DI+1; SI:=SI+2;                                01253300        
+                     DS:=5 CHR; %BLOCK COUNT                            01253400        
+                     DS:=7 CHR; %RECORD COUNT                           01253500        
+               END;                                                     01253600        
+         END HDR1FILL;                                                  01253700        
+    SUBROUTINE HARDFILL;                                                01253800        
+         BEGIN RTN:=PRNTABLE[U].[30:18];                                01253900        
+               STREAM(PTN,AREA,ULAB);                                   01254000        
+               BEGIN SI:=LOC PIN; DI:=DI+53;                            01254100        
+                     DS:=5 DEC; DI:=ULAB; %PHYSICAL TAPE NO.            01254200        
+                     DS:=8 LIT " LABEL  ";                              01254300        
+               END;                                                     01254600        
+               ULAB[1]:=MULTITABLE[U];                                  01254650        
+         END HARDFILL;                                                  01254700        
+    LABELSPACE;                                                         01254800        
+    IF FROM=1 THEN                                                      01254900        
+         BEGIN VOL1FILL;                                                01255000        
+               P(WAITIO(@140000005,@377,U);DEL);                        01255100        
+               P(WAITIO(AREA INX @120540000000,@377,U),DEL);            01255200        
+               HDR1CHK;                                                 01255300        
+               IF Y THEN HDR1FILL ELSE GO TO ERROR;                     01255400        
+               P(WAITIO(@340000005,@55,U),DEL);                         01255450        
+               P(WAITIO(@340000005,@55,U),DEL);                         01255500        
+               GO TO WAIT;                                              01255600        
+         END;                                                           01255700        
+    IF FROM =2 THEN                                                     01255800        
+         BEGIN IF TYPE=1 THEN                                           01255900        
+              BEGIN VOL1FILL;                                           01256000        
+    VOL:            P(WAITIO(AREA INX @120540000000,@377,U),DEL);       01256100        
+                    HDR1CHK;                                            01256200        
+                    IF Y THEN HDR1FILL ELSE GO TO ERROR;                01256300        
+                    P(WAITIO(@340000005,@377,U),DEL);                   01256400        
+                    GO TO WAIT;                                         01256500        
+              END;                                                      01256600        
+               IF TYPE=2 THEN                                           01256700        
+              BEGIN HDR1FILL;                                           01256800        
+                    HARDFILL;                                           01256900        
+                    GO TO EXIT;                                         01257000        
+              END;                                                      01257100        
+         END;                                                           01257200        
+    IF FROM=3 OR FROM=4 THEN                                            01257300        
+         BEGIN IF TYPE=1 THEN                                           01257400        
+              BEGIN VOL1FILL;                                           01257500        
+                    GO TO VOL;                                          01257600        
+              END;                                                      01257700        
+              IF TYPE=2 OR TYPE=4 THEN                                  01257800        
+              BEGIN HDR1FILL;                                           01257900        
+                    HARDFILL;                                           01258000        
+                    GO TO EXIT;                                         01258100        
+              END;                                                      01258200        
+              IF TYPE=3 OR TYPE=5 THEN                                  01258300        
+              BEGIN IF DIR=0 THEN                                       01258400        
+                   BEGIN P(WAITIO(@340000005,@377,U),DEL);              01258500        
+                         P(WAITIO(@340000005,@377,U),DEL);              01258600        
+                         P(WAITIO(AREA INX @120540000000,@377,U),DEL);  01258700        
+                   END ELSE                                             01258800        
+                         P(WAITIO(AREA INX @120740000000,@377,U),DEL);  01258900        
