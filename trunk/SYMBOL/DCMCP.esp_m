@@ -856,3 +856,126 @@ DEFINE LOCKDIRECTORY =                                                  00421100
 BOOLEAN OKSEGZEROWRITE;                                            %20A-00422100        
  $ SET OMIT = NOT SHAREDISK                                             00422490        
 REAL LOGFREE,IOMASK,SAVEWORD;                                           00425000        
+REAL CORE;                                                              00426000        
+    COMMENT                                                             00426100        
+       CORE.[4:14] = MULTIPROCESSING FACTOR (|100)                      00426200        
+       CORE.[18:15] = SUM OF CORE ESTIMATES FOR ALL JOBS                00426300        
+                           NOW ACTIVE IN THE MIX (DIV 64)               00426400        
+       CORE.[33:15] = ACMOUNT OF CORE MEMORY INITIALLY AVAILABLE FOR    00426500        
+                            PROCESSING NORMAL STATE JOBS (DIV 64)       00426600        
+ PROCEDURE SELECTRUN(F); VALUE F; REAL F; FORWARD;                      00426700        
+DEFINE SELECTION = INDEPENDENTRUNNER(P(.SELECTRUN),0,160)#;             00426800        
+PROCEDURE CONTROLCARD(A);VALUE A;REAL A; FORWARD;%                      00427000        
+REAL  PROCEDURE  DIRECTORYSEARCH(A,B,C);VALUE A,B,C;%                   00428000        
+             REAL  A,B,C; FORWARD;%                                     00429000        
+ DEFINE HEADERUNLOCK=HU#,                                               00430000        
+        HU(HU1,HU2,HU3)=                                                00430100        
+         P(MKS,HU3,HU1,HU2,9,DIRECTORYSEARC,DEL)#;                      00430200        
+REAL DIRECTORYSEARC=DIRECTORYSEARCH;                                    00430225        
+   %%HEADERUNLOCK CAN BE USED TO WRITE IN THE DIRECTORY A CHANGED       00430250        
+   %%  HEADER, TURN OFF THE INTERLOCK BIT AND DO THE FORGETSPACE        00430275        
+   %%  IT MAY BE CALLED ONLY AFTER A DIRECTORYSEARCH(A,B,4)             00430300        
+   %% THE PARAMETERS PASSED MUST BE (A,B,DS):                           00430400        
+   %%  WHERE A,B ARE THE SAME AS PASSED TO THE DIRECTORYSEARCH          00430500        
+   %%   AND DS IS THE RESULT OF THAT DIRECTORYSEARCH                    00430600        
+REAL OLDIDLETIME;                                                       00430900        
+ PROCEDURE ARTN(A,N); VALUE A,N; ARRAY A[*]; INTEGER N; FORWARD;%       00431000        
+ SAVE PROCEDURE DISKIO(L,C,S,D); VALUE C,S,D; REAL L; INTEGER C,S,D;%   00432000        
+         FORWARD;%                                                      00433000        
+ARRAY MESSAGETABLE[*];                                                  00435000        
+DEFINE MESSAGETABLESIZE = 5#; % NUMBER OF MESSAGETABLE ENTRIES          00436000        
+DEFINE                                                                  00437000        
+      OPTIONSZ = (MESSAGETABLE[0].[8:10])#,                             00438000        
+      TERMSGSZ = (MESSAGETABLE[1].[8:10])#,                             00439000        
+      KEYMSGSZ = (MESSAGETABLE[2].[8:10])#,                             00440000        
+      CCTABLSZ = (MESSAGETABLE[3].[8:10])#,                             00441000        
+ $ SET OMIT = PACKETS                                                   00449999        
+ $ SET OMIT = NOT(PACKETS)                                              00451499        
+DEFINE                                                                  00451500        
+     SPOUT(SPOUT1)=SPOUTER(SPOUT1,0,1)#,                                00451600        
+     SPOUTIT(SPOUTIT1.SPOUTIT2)=SPOUTER(SPOUTIT1,0,SPOUTIT2)#;          00451700        
+PROCEDURE SPOUTER(MESSAGE,UNITNO,TYPE);                                 00451800        
+     VALUE MESSAGE,UNITNO,TYPE;                                         00451900        
+     REAL MESSAGE,UNITNO,TYP;                                           00452000        
+     FORWARD;                                                           00452100        
+DEFINE                                                                  00452200        
+     FILEMESS=FMS#,                                                     00452300        
+     FMS(FMS1,FMS2,FMS3,FMS4,FMS5,FMS6,FMS7)=                           00452400        
+     FILEMESSAGE(FMS1,FMS2,FMS3,FMS4,FMS5,FMS6,FMS7,1)#;                00452500        
+PROCEDURE FILEMESSAGE(1,K,M,F,R,D,C,TYPE);                              00452600        
+     VALUE I,K,M,F,R,D,C,TYPE;                                          00452700        
+     REAL I,K,M,F,R,D,C,TYPE;                                           00452800        
+     FORWARD;                                                           00452900        
+ $ POP OMIT                                                             00452901        
+PROCEDURE LBMESS(FN,SN,I1,I2,F,UNITNO,X);                               00454000        
+     VALUE FN,SN,I1,I2,F,UNITNO,X;                                      00454100        
+     REAL  FN,SN,I1,I2,E,UNITNO,X;                                      00454200        
+     FORWARD;                                                           00454300        
+ PROCEDURE TERMINATE(MIX); VALUE MIX; REAL MIX; FORWARD;                00463100        
+ SAVE PROCEDURE TERMNALMESSAGE(N); VALUE N; REAL N; FORWARD;            00463200        
+BOOLEAN PROCEDURE SYSTEMFILE(A,B);VALUE A,B; REAL A,B; FORWARD;         00463300        
+PROCEDURE ENTERSYSFILE(N); VALUE N; REAL N; FORWARD;                    00464000        
+ PROCEDURE COM5;   FORWARD;%                                            00469000        
+ $ SET OMIT = NOT(STATISTICS)                                           00469099        
+ PROCEDURE ASR;    FORWARD;%                                            00474000        
+ PROCEDURE COM11;  FORWARD;%                                            00475000        
+ PROCEDURE COM13;  FORWARD;%                                            00476000        
+PROCEDURE COMMUNICATE0; FORWARD;                                        00478000        
+PROCEDURE COMMUNICATE1; FORWARD;                                        00478500        
+ PROCEDURE LIBRARYZERO; FORWARD;                                        00479500        
+PROCEDURE LIBRARYCOPY; FORWARD;                                         00480000        
+PROCEDURE FORMTIME(W,T); VALUE W,T; REAL W,T; FORWARD;                  00480010        
+ $ SET OMIT = NOT(DUMP OR DEBUGGING)                                    00480099        
+PROCEDURE DUMPCORE(B); VALUE B; REAL B; FORWARD;                        00480199        
+ $ POP OMIT                                                             00480200        
+ PROCEDURE COM19;  FORWARD;%                                            00483000        
+ PROCEDURE COM23; FORWARD;%                                             00487000        
+PROCEDURE INTRINSICTAABLEBUILDER(FH);                                   00489000        
+     VALUE FH; REAL FH; FORWARD;                                        00490000        
+PROCEDURE MESSAGETABLEBUILDER; FORWARD;                                 00491000        
+ $ SET OMIT = AUXMEM                                                    00492000        
+DEFINE INVLDAUXIO = 11#,                                                00492100        
+       LQOVFLOW   = 13#,                                                00492200        
+ $ SET OMIT = NOT (AUXMEM AND SHAREDISK)                                00492300        
+ARRAY PUNTER[*];                                                        00493000        
+DEFINE PUNTSIZE = 11                                                    00493100        
+ $ SET OMIT = NOT SHAREDISK                                             00493200        
+                  + 2                  % INVLD AUXMEM IO                00493320        
+ $ SET OMIT = NOT AUTODUMP                                              00493400        
+                  + 19                 % DUMP CARD                      00493500        
+ $ POP OMIT OMIT OMIT                                                   00493600        
+                  #;                                                    00493700        
+ $ SET OMIT = NOT AUTODUMP                                              00644000        
+ $ SET OMIT = NOT (SHAREDISK EQV AUXMEM) OR OMIT                        00644100        
+DEFINE DUMPCRD = 13#,                                                   00644200        
+       DUMPADR = 26#;                                                   00644300        
+ $ POP OMIT                                                             00644350        
+ $ SET OMIT = (SHAREDISK OR NOT AUXMEM) OR OMIT                         00644400        
+ $ SET OMIT = NOT SHAREDISK OR AUXMEM OR OMIT                           00644750        
+    COMMENT   THIS IS THE CODE ON THE DUMP CARD (ALL NUMBERS ARE OCTAL):00645000        
+              :20: 20,20,NOP,NOP       TELLS ANALYZER ALL I/O RES ARE OK00645010        
+              :21: STD,5,BFW           BRANCH TO 23                     00645020        
+              :22: INI,0,LFU           TIMER - LOOP UNTIL INTERRUPTED   00645030        
+              :23: 10,LOD,21,STD       SAVE M[8], RESTORED BY 2ND CARD  00645040        
+              :24: 25,IIO,2,LBU        START I/O THEN WAIT AT TIMER     00645050        
+              :25: 0140000007700035    I/O DESC FOR 77 SEG WRITE FROM 3500645060        
+              :26: 0140000047400157    I/O DESC FOR 74 SEG READ OF CODE 00645070        
+              :27: OPDC 14,DIA 26,10,BFW    I/O 1 - PICK UP RES DESC.   00645080        
+              :30: OPDC 15,DIA 26,6,BFW     I/O 2 - DIAL TO ERR FIELD.  00645090        
+              :31: OPDC 16,DIA 26,2,BFW     I/O 3 - BRANCH INTO I/O 4   00645100        
+              :32: OPDC 17,DIA 26,          I/O 4                       00645110        
+                   DESC 24,CBD 7       BRANCH TO 24 FOR RETRY IF ERRORS 00645120        
+              :33: DESC 37,BFW         GO TO 37 1ST TIME, SEE 41 FOR 2ND00645130        
+              :34: INI,0,LFU           DATACOM - LOOP UNTIL INTERRUPTED 00645140        
+              :35: 0000000000000501    DISK ADDRESS FOR WRITE           00645150        
+              :36: INI,0,LFU           FREEADDRESS - LOOP ON INTERRUPT  00645160        
+              :37: 200,157,SND,240     STORE DISK ADDR FOR READ. SET 24000645170        
+                                       TO OPERAND FOR DESC AT 41        00645180        
+              :40: STD,OPDC 26,25,STD  PUT I/O DESC INTO 25             00645190        
+              :41: DESC 240,37,STD,NOP SET 37 FOR BRANCH TO 240 FROM 33 00645200        
+              :42: 16,LBU              BRANCH TO 24 TO START THE READ;  00645210        
+ $ POP OMIT                                                             00645900        
+SAVE PROCEDURE RESULT;                                                  00646900        
+BEGIN                                                                   00647000        
+    GO TO P([18]);                     % TIMER IS A LOOP ON INTERRUPTS  00648000        
+END;                                                                    00649000        
