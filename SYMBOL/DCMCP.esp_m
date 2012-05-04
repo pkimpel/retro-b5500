@@ -1,0 +1,858 @@
+%B 5 7 0 0   M C P  M A R K     XVI.0.178                  05/09/77%179-00001000        
+%                                                                       00002000        
+  COMMENT: * TITLE: B5500/B5700 MARK XVI SYSTEM RELEASE            *    00002010        
+           * FILE ID: SYMBOL/MCP   TAPE ID: SYMBOL1/FILE000        *    00002011        
+           * THIS MATERIAL IS PROPRIETARY TO BURROUGHS CORPORATION *    00002012        
+           * AND IS NOT TO BE REPRODUCED, USED, OR DISCLOSED       *    00002013        
+           * EXCEPT IN ACCORDANCE WITH PROGRAM LICENSE OR UPON     *    00002014        
+           * WRITTEN AUTHORIZATION OF THE PATENT DIVISION OF       *    00002015        
+           * BURROUGHS CORPORATION, DETROIT, MICHIGAN 48232        *    00002016        
+           *                                                       *    00002017        
+           * COPYRIGHT (C)  1965, 1971, 1972, 1973, 1974           *    00002018        
+           *       BURROUGHS CORPORATION                           *    00002019        
+           *  AA759915   AA320206   AA393180   AA332366   AA465080 *    00002020        
+           *  AA495655   AA496565                                  *;   00002021        
+ $ SET OMIT = NOT(DEBUGGING)                                            00002100        
+BEGIN                                                                   00003000        
+DEFINE MIXMAX=  9#;          COMMENT:  MIXMAX MAY NOT BE LARGER THAN 29;00004000        
+DEFINE JOBNUMAX=40#;         COMMENT:  JOBNUMAX SHOULD BE ABOUT         00005000        
+                                            2|MIXMAX+30;                00005001        
+DEFINE   MARKLEVEL=          % MARK LEVEL IN ALPHA                      00005010        
+                    "XVI.0"                                             00005020        
+      #, PATCHLEVEL=         % PATCH RELEASE LEVEL IN ALPHA             00005030        
+                    "178"                                          %179-00005040        
+      #, LOCALEVEL=          % LOCAL LEVEL IN ALPHA                     00005050        
+                    " "                                                 00005060        
+      #;                                                                00005070        
+DEFINE   MCPTYPE        = 63 #,                                         00005100        
+         DCINTYPE       = 63 #,                                         00005120        
+         TSSINTYPE      = 61 #;                                         00005140        
+COMMENT THE ESPOL COMPILER APPROPRIATELY TYPES THE MCP &                00005160        
+    INTRINSICS FILE HEADERS SO THAT A VALIDITY CHECK MAY BE MADE        00005180        
+    DURING INITIALIZATION AND AT CI AND CM TIME.  HEADER[4].[36:6]      00005185        
+    IS THE FIELD USED TO CONTAIN THE TYPE;                              00005190        
+DEFINE ESAD = [1:15]#,                                                  00005200        
+       UNUM = [16:5]#,                                                  00005210        
+       BYBY(BYBY1,BYBY2)=                                               00005220        
+              BEGIN STREAM(A:=TYPEDSPACE(10,SPOUTMSGAREAV) : );%   %167-00005230        
+                   BEGIN DI:= A; DS:=BYBY2 LIT BYBY1; END;              00005240        
+                   PUNT(0);                                             00005250        
+              END#;                                                     00005260        
+ DEFINE RESERVEDISKSIZE=2000#;                                          00005300        
+    COMMENT TRACESIZE IS THE SIZE OF THE CORE AREA USED TO STORE TRACE  00005500        
+                    INFORMATION BEFORE IT IS WRITTEN ON DISK.           00005600        
+            TRACAREASTART IS THE ABSOLUTE DISK ADDRESS OF THE TRACE     00005700        
+                    AREA ON DISK.                                       00005800        
+            TRACAREASIZE IS THE SIZE (IN DISK SEGMENTS) OF THE TRACE    00005900        
+                    AREA ON DISK;                                       00005950        
+DEFINE TRACESIZE=30#,TRACAREASTART=10000#,TRACAREASIZE=480#;            00006000        
+DEFINE HANG=DO UNTIL FALSE#;                                            00006100        
+DEFINE LEFTARROW = "~"#;                                                00006150        
+ $ SET OMIT = NOT(SAVERESULTS)                                          00006200        
+ REAL JUNK=5;%                                                          00007000        
+    DEFINE PSEUDOMAX   = 31 #,     % MAX NO OF PSEUD-RDRS 0-ORIGIN      00007050        
+           PSEUDOMAX1  = 32 #,     % MAX NO OF PSEUD-RDRS 1-ORIGIN      00007055        
+           PSEUDOMAXT  = 63 #;     % # ENTRIES IN TINU TABLE -2         00007060        
+COMMENT TO REDEFINE MAX NO. OF PSEUDO RDRS,SIZE AND INITIALIZATION      00007061        
+         OF TINU[*] AT 00241900 MUST ALSO BE MODIFIED ACCORDINGLY;      00007062        
+    COMMENT : PSEUDOMAX  MUST BE }0 AND { 31                            00007065        
+              PSEUDOMAX1 MUST BE } 0 AND { 32                           00007070        
+              PSEUDOMAXT MUST BE } 31 AND { 63;%                        00007075        
+COMMENT TO ADJUST THE PRIORITY, CORE ESTIMATE, AND STACK SIZE           00007200        
+        OF LIBMAIN/DISK, SEE SEQUENCE NUMBER 45075470;                  00007210        
+ LABEL GOGOGO,NORMALERROR,P2BUSY,TIMER,EXTERNAL,INQUEST,                00008000        
+       PROCSWIT,P2FAKE,KEYBOARDREQUEST,RETURN,COMINIT,MEMORYPARITY  %WE 00009000        
+       ;                                                                00010000        
+DEFINE GETUSERDISK(GETUSERDISK1)=PETUSERDISK(GETUSERDISK1,0)#;%         00012001        
+ $ SET OMIT = NOT(DUMP OR DEBUGGING)                                    00012159        
+     DEFINE DUMPNOW(DUMPNOW1) =                                         00012160        
+         DUMPCORE(DUMPNOW1&(GETSPACE(22,0,0) + 3)[15:33:15])#;%         00012165        
+ $ POP OMIT                                                             00012166        
+    INTEGER RRRMECH=@201;%                                              00013000        
+DEFINE SPACE(SPACE1) =(GETSPACE(SPACE1,0,0) + 2)#;                      00013500        
+DEFINE MCP=M[1]#; %PRIVILEDGED USERCODE STORED IN M[1]                  00013600        
+DEFINE % KEYIN TABLE DEFINE VALUES FOR "REPLY"                          00013700        
+   VAX = 01#,                                                           00013710        
+   VIL = 02#,                                                           00013720        
+   VUL = 03#,                                                           00013730        
+   VQT = 04#,                                                           00013740        
+   VOU = 05#,                                                           00013750        
+   VWY = 06#,                                                           00013760        
+   VRM = 12#,                                                           00013770        
+   VOK = 22#,                                                           00013780        
+   VFM = 23#,                                                           00013790        
+   VFR = 24#,                                                           00013800        
+   VOF = 25#,                                                           00013810        
+   VCC = 21#,                                                           00013820        
+   VIF = 32#;                                                           00013830        
+DEFINE                                                                  00013850        
+ $ SET OMIT = AUXMEM                                                    00013860        
+       SPACESTACKSIZE = 80#;                                            00013880        
+ $ SET OMIT = NOT(AUXMEM)                                               00013900        
+SAVE INTEGER PROCEDURE GETSPACE(SIZE,TYPE,SAVEF);%                      00014000        
+                       VALUE SIZE,TYPE,SAVEF;%                          00015000        
+                       INTEGER SIZE,TYPE;%                              00016000        
+                       BOOLEAN SAVEF;            FORWARD;%              00017000        
+DEFINE                                                             %167-00017005        
+   TYPEDSPACE(TYPEDSPACE1,TYPEDSPACE2) =                                00017010        
+       (GETSPACE(TYPEDSPACE1,TYPEDSPACE2,0)+2)# %                       00017015        
+  ,ARRAYDESC(ARRAYDESC1,ARRAYDESC2) =                                   00017020        
+       ([M[GETSPACE(ARRAYDESC1,ARRAYDESC2,0)+2]] & ARRAYDESC1 [SIZE])# %00017025        
+  ,SAVEARRAYDESC(SAVEARRAYDESC1,SAVEARRAYDESC2) =                       00017030        
+       ([M[GETSPACE(SAVEARRAYDESC1,SAVEARRAYDESC2,1)+2]]                00017035        
+                                             & SAVEARRAYDESC1 [SIZE])# %00017040        
+  ;                                                                     00017045        
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00017100        
+%**********************************************************************%00017110        
+%*                                                                    *%00017120        
+%*   MEMORY AREA TYPES STORED IN 3:6 FIELD OF FIRST MEMORY            *%00017130        
+%*   LINK OF ALL MEMORY AREAS                                         *%00017140        
+%*                                                                    *%00017150        
+%**********************************************************************%00017160        
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00017170        
+DEFINE                                                             %167-00017180        
+      UNKNOWNAREAV     =  0# %                                     %167-00017190        
+     ,CODEAREAV        =  1# %                                     %167-00017200        
+     ,DATAAREAV        =  2# %                                     %167-00017210        
+     ,IOBUFFERAREAV    =  3# %                                     %167-00017220        
+     ,ALGOLFIBAREAV    =  4# %                                     %167-00017230        
+     ,INQUIRYBUFFAREAV =  5# %                                     %167-00017240        
+     ,COBOLFIBAREAV    =  6# %                                     %167-00017250        
+     ,TYPE7INTAREAV    =  7# %                                     %167-00017260        
+     ,DISKHEADERAREAV  =  8# %                                     %167-00017270        
+     ,MAINTBUFFAREAV   =  9# %                                     %167-00017280        
+     ,LBLEQNAREAV      = 10# %                                     %167-00017290        
+     ,SEGZEROAREAV     = 11# %                                     %167-00017300        
+     ,STACKAREAV       = 12# %                                     %167-00017310        
+     ,TYPE13INTAREAV   = 13# %                                     %167-00017320        
+     ,SCRATCHDIRAREAV  = 14# %                                     %167-00017330        
+     ,OPSETAREAV       = 15# %                                     %167-00017340        
+     ,DIRTOPAREAV      = 16# %                                     %167-00017350        
+     ,SPOUTMSGAREAV    = 17# %                                     %167-00017360        
+     ,UVROWAREAV       = 18# %                                     %167-00017370        
+     ,JARROWAREAV      = 19# %                                     %167-00017380        
+     ,CIDROWAREAV      = 20# %                                     %167-00017390        
+     ,INQINPUTAREAV    = 21# %                                     %167-00017400        
+     ,INTARRAYAREAV    = 22# %                                     %167-00017410        
+     ,RJEINPUTAREAV    = 23# %                                     %167-00017420        
+     ,DCQUEUEAREAV     = 24# %                                     %167-00017430        
+     ,DALOCROWAREAV    = 25# %                                     %167-00017440        
+     ,SHEETAREAV       = 26# %                                     %167-00017450        
+     ,STAWORDAREAV     = 27# %                                     %167-00017460        
+     ,KEYINBUFAREAV    = 28# %                                     %167-00017470        
+     ,FSAREAV          = 29# %                                     %167-00017480        
+     ,DC19QUEUEAREAV   = 30# %                                     %167-00017490        
+     ,AVTABLEAREAV     = 31# %                                     %167-00017500        
+     ,TRACETABLEAREAV  = 32# %                                     %167-00017510        
+     ,SEGDICTAREAV     = 33# %                                     %167-00017520        
+     ,STACKPRTAREAV    = 34# %                                     %167-00017530        
+     ,MCPTABLEAREAV    = 35# %                                     %167-00017540        
+     ,IRSTACKAREAV     = 36# %                                     %167-00017550        
+     ,FPBAREAV         = 37# %                                     %167-00017560        
+     ,CONTROLCARDAREAV = 38# %                                     %167-00017562        
+     ,LABELAREAV       = 39# %                                     %167-00017564        
+     ,MDUMPAREAV       = 40# %                                     %167-00017566        
+     ,ESPDISKAREAV     = 41# %                                     %167-00017568        
+     ,LOGAREAV         = 42# %                                     %167-00017570        
+     ,CANDEINPUTAREAV  = 43# % TSS MCP ONLY                        %167-00017572        
+     ,OBJOBINPUTAREAV  = 44# % TSS MCP ONLY                        %167-00017574        
+     ,TYPE45           = 45# %                                     %167-00017576        
+     ,TYPE46           = 46# %                                     %167-00017578        
+     ,TYPE47           = 47# %                                     %167-00017580        
+     ,TYPE48           = 48# %                                     %167-00017582        
+     ;                                                             %167-00017600        
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00017700        
+%**********************************************************************%00017710        
+%*                                                                    *%00017720        
+%*                    M E M O R Y   L I N K S                         *%00017730        
+%*                                                                    *%00017740        
+%**********************************************************************%00017750        
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00017760        
+%                                                                  %167-00017762        
+%     FIELDS OF MEMORY LINK 0 OF ALL AREAS                         %167-00017764        
+%                                                                  %167-00017766        
+FIELD                                                              %167-00017770        
+     AREAAVAILF    = 01:01 % = 0 FOR IN-USE AREA, = 1 FOR AVAIL. AREA   00017780        
+    ,AREASAVEF     = 02:01 % = 1 FOR IN-USE SAVE AREA, = 0 FOR OLAY AREA00017790        
+    ,AREATYPEF     = 03:06 % TYPE OF AREA (SEE ABOVE)              %167-00017800        
+    ,AREAMIXF      = 09:06 % MIX INDEX OF OWNER OF AREA            %167-00017810        
+    ,AREABACKLINKF = 18:15 % ADDRESS OF PREVIOUS AREA              %167-00017820        
+    ,AREAFWDLINKF  = 33:15 % ADDRESS OF NEXT AREA                  %167-00017830        
+    ;                                                              %167-00017840        
+SAVE REAL PROCEDURE WAITIO(IOD,MASK,U);%                                00018000        
+                    VALUE IOD,MASK,U; REAL IOD,MASK,U; FORWARD;%        00019000        
+SAVE PROCEDURE DISKWAIT(CORE,SIZE,DISK);                                00019100        
+     VALUE CORE,SIZE,DISK;                                              00019200        
+     REAL CORE,SIZE,DISK;                                               00019300        
+     FORWARD;                                                           00019400        
+PROCEDURE ERRORFIXER(TYPE); VALUE TYPE; REAL TYPE; FORWARD;             00019500        
+SAVE PROCEDURE SNOOZE(PRYR,ADDRESS,MASK);  VALUE PRYR,ADDRESS,MASK;     00020000        
+    REAL PRYR; NAME ADDRESS; ARRAY MASK[*]; FORWARD;                    00021000        
+DEFINE SLEEP(SLEEP1,SLEEP2)=SNOOZE(PRYOR[P1MIX],SLEEP1,SLEEP2)#;        00021500        
+ARRAY PRYOR[*];                                                         00021600        
+REAL P1MIX,P2MIX;  % SEE 00105000                                       00021700        
+ARRAY SLATE[*];%                                                        00022000        
+REAL NSLATE,LSLATE;%                                                    00023000        
+     DEFINE SLATESIZE=16#,SLATEND=SLATESIZE-1#;%SIZE MUST BE TWO POWER  00023100        
+REAL NT1=@160,NT2=@161,NT3=@162,NT4=@163,NT5=@164,NT6=@165,NT7=@166;    00024000        
+REAL CLOCK = @170; % CLOCK.[9:33] CONTAINS THE NUMBER OF TIME INTERVAL  00024005        
+                   % INTERRUPTS PROCESSED SINCE HALT LOAD. CLOCK.[42:6] 00024006        
+                   % ALWAYS EQUALS ZERO.                           %156-00024007        
+COMMENT NT1 THRU NT7 ARE USED BY THE MCP FOR TEMPORARY STORAGE.         00024010        
+        ALL PROCESSES THAT USE THESE VARIABLES ASSUME THAT IF CONTROL   00024020        
+        IS LOST. THERI CONTENT MAY HAVE BEEN CHANGED BY THE TIME        00024030        
+        THAT CONTROL IS REGAINED.                                       00024040        
+END COMMENT;                                                            00024050        
+ARRAY TSKA = NT3[*];                                                    00024060        
+REAL MCPBASE;                                                           00024100        
+COMMENT MCPBASE CONTAINS THE DISK ADDRESS (OCTAL) OF THE BEGINNING      00024200        
+        OF THE MCP THAT IS CURRENTLY IN USE. THIS ADDRESS IS PASSED TO  00024210        
+        THE MCP BY THE LOADER ROUTINE AT EACH HALT/LOAD IN M[0].[18:30].00024220        
+        WHEN THE ESPBIT ROUTINE IS CALCULATING THE DISK ADDRESS         00024230        
+        OF AN MCP SEGMENT, IT ADDS MCPBASE TO THE ADDRESS THAT          00024240        
+        IS CONTAINED IN THE PRT CELL FOR THAT SEGMENT.                  00024250        
+END COMMENT;                                                            00024260        
+LABEL NOTHINGTODO,INITIATE,START,STACKOVERFLOW,IOBUSY;                  00024270        
+ $ SET OMIT = NOT(AUXMEM OR MONITOR)                                    00024299        
+ $ SET OMIT = NOT MONITOR                                               00024590        
+DEFINE MCPNAMESEG = (DIRECTORYTOP-7)#;                                  00024610        
+COMMENT MCPNAMESEG CURRENTLY CONTAINS THE FOLLOWING:                    00024620        
+WORD[ 0]-WORD[15] - FILE IDS OF THE AUXDATA FILES FOR MCP & INTRINCS.   00024630        
+WORD[16]-WORD[19] - CONTAIN THE WORD "AUXMEM " AS A MARKER.             00024640        
+WORD[20]-WORD[27] - FILE IDS OF THE MCP"S AT HALT/LOAD.                 00024650        
+WORD[28] - USED BY DISKSQUASH FOR COMM. BETWEEN SHAREDISK SYSTEMS.      00024660        
+;                                                                       00024670        
+ $ SET OMIT = NOT(NEWLOGGING)                                           00024999        
+ $ SET OMIT = NEWLOGGING                                                00025299        
+DEFINE STARTLOG(STARTLOG1)=                                             00025300        
+          PROCTIME[STARTLOG1]~(*P(DUP))-CLOCK-P(RTR)#,                  00025400        
+       STOPLOG(STOPLOG1,STOPLOG2)=                                      00025500        
+          PROCTIME[STOPLOG1] !(*P(DUP))+CLOCK+P(RTR)#;                  00025600        
+ $ POP OMIT                                                             00025601        
+SAVE PROCEDURE ESPBIT; COMMENT PRESENCE BIT ROUTNE FOR ESP SEGMENTS ;%  00025900        
+         BEGIN INTEGER PRTLOC,SYLLABLE,LOC,SIZE;%                       00026000        
+               FIELD MAYBEWORKEDON = [7:1]; %                      %156-00027000        
+               ARRAY MYSELF=ESPBIT[*];%                                 00028000        
+               REAL RCW=+0,DISKREAD;%                                   00029000        
+               LABEL MAKEPRESENT, TRYAGAIN;                        %156-00030000        
+ $ SET OMIT = NOT(NEWLOGGING)                                           00030099        
+              PRTLOC~(RCW INX 0)&RCW[30:10:2];%                         00031000        
+              STREAM(RLST~[SYLLABLE],CL~PRTLOC);%                       00032000        
+                   BEGIN SI~CL; SI~SI-2; DI~RSLT; DI~DI+6; DS~2 CHR END;00033000        
+              PRTLOC ~ IF SYLLABLE THEN NT4%                            00034000        
+                                ELSE SYLLABLE.[36:10];%                 00035000        
+              SYLLABLE := @104;   % THIS IS THE CODE WE WILL PASS TO    00035500        
+                                  % GETSPACE THE FIRST TIME. IT REQUESTS00035510        
+                                  % OVERLAY MEMORY FOR THE MCP AND THAT 00035520        
+                                  % WE WANT TO BE RETURNED TO ON A NO   00035530        
+                                  % MEM.                           %156-00035540        
+              IF MEMORY[PRTLOC].MAYBEWORKEDON THEN%                     00036000        
+ MAKEPRESENT: BEGIN MEMORY[PRTLOC].MAYBEWORKEDON~FALSE;%                00037000        
+                    SIZE~MEMORY[PRTLOC].[8:10];%                        00038000        
+%                                                                  %156-00039000        
+%                   NOW WE WILL ATTEMPT TO GET SPACE FOR THIS MCP PROC. 00039005        
+%                   IF WE FAIL WE WILL WAIT FOR A SECOND AND THEN TRY   00039010        
+%                   AGAIN. THIS ENSURES THAT IF WE GET DS-ED WHILE %156-00039015        
+%                   SLEEPING WAITING FOR MEMORY WE WILL NOT LEAVE THE   00039020        
+%                   TOGGLE LOCKED UP FOR THIS PROCEDURE.           %156-00039025        
+%                                                                  %156-00039030        
+                    IF (LOC:=GETSPACE(SIZE,1,SYLLABLE))=0 THEN % NO MEM 00039035        
+                      BEGIN                                        %156-00039040        
+                        MEMORY[PRTLOC].MAYBEWORKEDON := TRUE; % UNLOCK I00039045        
+                        SYLLABLE.[46:1] := TRUE; % DONT PRINT NO MEM    00039050        
+                        SLEEP([CLOCK],NOT CLOCK); % WAIT FOR ONE SECOND.00039055        
+                        GO TO TRYAGAIN;                            %156-00039060        
+                      END;                                         %156-00039065        
+ $ SET OMIT = NOT(AUXMEM)                                               00039099        
+                    DISKREAD~(LOC+1)&SIZE[8:38:10]&@14[21:42:6]       %E00040000        
+                             &((SIZE+29) DIV 30)[27:42:6];%             00041000        
+                   STREAM(L:=LOC+1.N:=M[PRTLOC].[18:15]+MCPBASE,D:=0);  00042000        
+                     BEGIN SI~LOC N; DI~L; DS~8 DEC END;%               00043000        
+                   SYLLABLE~WAITIO(DISKREAD,0,18);%                     00044000        
+ $ SET OMIT = NOT(AUXMEM)                                               00044099        
+                    MEMORY[LOC]~MEMORY[LOC]&0[2:47:1]&0[9:42:6];%       00045000        
+                    MEMORY[LOC+1]~PRTLOC&SIZE[18:33:15];%               00046000        
+                    M[PRTLOC] := M[PRTLOC] & TRUE [MAYBEWORKEDON] %%156-00047000        
+                                   &(LOC+2)[33:33:15];%                 00048000        
+ $ SET OMIT = NOT MONITOR                                               00048099        
+              END ELSE%                                                 00049000        
+TRYAGAIN:     BEGIN SLEEP([M[PRTLOC]],0&TRUE [MAYBEWORKEDON]);%    %156-00050000        
+                    IF (MEMORY[PRTLOC] INX 0)=(MYSELF INX 0) THEN%      00051000        
+                        GO TO MAKEPRESENT;%                             00052000        
+              END;%                                                     00053000        
+ $ SET OMIT = NOT(NEWLOGGING)                                           00053099        
+                   POLISH(0,RDF,0,XCH,FCX,STS);%                        00054000        
+              GO TO POLISH(MEMORY[PRTLOC]);%                            00055000        
+         GO TO START; % PLACE DESC.IN PRT FOR MCP TO AUXMEM TRANSFER    00055100        
+         END ESPBIT;%                                                   00056000        
+$ PAGE                                                                  00057000        
+LABEL FINDIT;                                                           00057100        
+REAL    RESULT=12 ,RESULT2=13 ,RESULT3=14 ,RESULT4=15 ;%                00058000        
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00060000        
+%**********************************************************************%00060010        
+%*                                                                    *%00060020        
+%*    M I S C E L L A N E O U S   F I E L D   D E F I N I T I O N S   *%00060030        
+%*                                                                    *%00060040        
+%**********************************************************************%00060050        
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00060060        
+                                                                   %167-00060070        
+  FIELD                                                            %167-00060080        
+    FF          = 18:15 %                                          %167-00060090        
+   ,CF          = 33:15 %                                          %167-00060100        
+   ,CTF         = FF    %                                          %167-00060110        
+   ,CTC         = CF    %                                          %167-00060120        
+   ,MSFF        = 16:01 %                                          %167-00060130        
+   ;                    %                                          %167-00060999        
+%                       %                                          %167-00061000        
+%            FIELDS OF AIT ENTRY                                   %167-00061010        
+%                                                                  %167-00061020        
+  FIELD                                                            %167-00061030        
+    FILEBIT     = 01:01 %                                          %167-00061040        
+   ,OWNBIT      = 02:01 %                                          %167-00061045        
+   ,DIMENSIONS  = 03:05 %                                          %167-00061050        
+   ,BLKCNTR     = 08:10 %                                          %167-00061060        
+   ,MOM         = 18:15 %                                          %167-00061070        
+   ;                                                               %167-00061999        
+%                                                                  %167-00062000        
+%           FIELDS OF DATA DESCRIPTOR                              %167-00062010        
+%                                                                  %167-00062020        
+  FIELD                                                            %167-00062030        
+%   FLAGBITF    = 00:00 %                                          %167-00062040        
+%   DATABITF    = 01:01 % ALWAYS OFF FOR A DATA DESCRIPTOR         %167-00062050        
+    PBITF       = 02:01 % ON IF DESCRIPTOR POINTS TO AREA OF CORE  %167-00062060        
+   ,SIZE        = 08:10 % SIZE OF ARRAY ROW IF ARRAY DESC.         %167-00062070        
+                        % 0 FOR INDEXED DATA DESC, OR NAME DESC.   %167-00062080        
+%  ,MOMADDRESSF = 18:15 % ADDRESS OF MOTHER DESCRIPTOR.            %167-00062090        
+%  ,ADDRESSF    =33:15  % IF PBIT IS ON THEN THIS FIELD CONTAINS AN%167-00062100        
+                        % ACTUAL CORE ADDRESS. IF THE PBIT IS OFF THEN  00062110        
+                        % IF THE VALUE OF THIS FIELD IS GREATER THAN    00062120        
+                        % OR EQUAL TO 512 THEN THE FIELD CONTAINS A%167-00062130        
+                        % DALOC ADDRESS WHICH CAN BE USED TO LOCATE THE 00062140        
+                        % DATA IN THE OVERLAY DISK AREA ASSIGNED TO THE 00062150        
+                        % THE PROGRAM. IF THE VALUE OF THE FIELD IS LESS00062160        
+                        % THAN 512 THEN THIS FIELD CONTAINS A CODE %167-00062170        
+                        % INDICATING THE STATUS OF THE AREA.       %167-00062180        
+                        %        0    NEVER ACCESSED OVERLAY AREA. %167-00062190        
+                        %        1    NEVER ACCESSED SAVE AREA.    %167-00062200        
+                        %        2    NEVER ACCESSED OVERALY AREA WHICH 00062210        
+                        %               WHICH IS ASSIGNED TO AUXMEM.    00062220        
+                        %        5    INDICATES OVERLAY IS CURRENTLY IN 00062230        
+                        %               PROCESS FOR THIS AREA.     %167-00062240        
+                        %        6    INDICATES OLAY HAD IRRECOVERABLE  00062250        
+                        %               ERROR WHEN OVERLAYING THIS AREA.00062260        
+                        %               THE NEXT ACCESS TO THE AREA WILL00062270        
+                        %               CAUSE THE PROGRAM TO BE TERMI-  00062280        
+                        %               NATED.                     %167-00062290        
+   ;                                                               %167-00062999        
+%                                                                  %167-00067000        
+%           MISCELLANEOUS DEFINES                                  %167-00067010        
+%                                                                  %167-00067020        
+  DEFINE                                                           %167-00067030        
+    CURBLKCNTR  =       16 # %                                     %167-00067040        
+   ,AITINDEX    =        6 # %                                     %167-00067050        
+   ,FTF         = 18:18:15 # %                                     %167-00067060        
+   ,FTC         = 33:18:15 # %                                     %167-00067070        
+   ,DELTA       =       11 # %                                     %167-00067080        
+   ,TSX         =       22 # %                                     %167-00067090        
+   ,SFINTX      =       27 # %                                     %167-00067100        
+   ,INTRPTX     =       28 # %                                     %167-00067110        
+   ;                                                               %167-00067999        
+ INTEGER AVAIL;%                                                        00069000        
+              COMMENT AVAIL CONTAINS THE ADDRESS OF THE STOPPER%        00070000        
+                      FOR AVAILABLE STORAGE LINKS ITS VALUE IS%         00071000        
+                      THE HIGHEST AVAILABLE ADDRESS-1;%                 00072000        
+ DEFINE MSTART = M[0].[CF]#;                                            00073000        
+              COMMENT MSTART CONTAINS THE ADDRESS OF THE%               00074000        
+                      FIRST AREA OF STORAGE AFTER END OF%               00075000        
+                      ESP PROGRAM;%                                     00076000        
+ DEFINE MEND   = M[0].[FF]#;                                            00077000        
+              COMMENT THIS POINTS TO LAST STORAGE LINK IN%              00078000        
+                      MEMORY;%                                          00079000        
+ARRAY TAR[*]; %CONTAINS TOGLE BITS SET BY EACH JOB                      00079100        
+DEFINE LOCKTOG(LOCKTOG1)= BEGIN TOGLE:=TOGLE AND NOT LOCKTOG1;          00079200        
+                 TAR[P1MIX]:=TAR[P1MIX] OR LOCKTOG1; END#;              00079300        
+DEFINE UNLOCKTOG(UNLOCKTOG1)= BEGIN TOGLE:=TOGLE OR UNLOCKTOG1;         00079400        
+                 TAR[P1MIX]:=TAR[P1MIX] AND NOT UNLOCKTOG1; END#;       00079500        
+ REAL TOGLE;                                                            00080000        
+ DEFINE HP2TOG        = TOGLE.[47:1]#, HP2MASK       =   @1#            00080100        
+       ,STATUSBIT     = TOGLE.[46:1]#, STATUSMASK    =   @2#            00080200        
+       ,SHEETFREE     = TOGLE.[45:1]#, SHEETMASK     =   @4#            00080300        
+       ,STACKUSE      = TOGLE.[44:1]#, STACKMASK     =  @10#            00080400        
+       ,STOREDY       = TOGLE.[43:1]#, STOREMASK     =  @20#            00080500        
+       ,USERDISKREADY= TOGLE.[42:1]#, USERDISKMASK=  @40#               00080600        
+       ,HOLDFREE      = TOGLE.[41:1]#, HOLDMASK      = @100#            00080700        
+       ,NSECONDREADY  = TOGLE.[40:1]#, NSECONDMASK   = @200#            00080800        
+       ,ABORTABLE     = TOGLE.[39;1]#, ABORTMASK     = @400#            00080900        
+       ,BUMPTUTIME    = TOGLE.[38:1]#, BUMPTUMASK    =@1000#            00080950        
+       ,KEYBOARDREADY = TOGLE.[37:1]#, KEYBOARDMASK  =@2000#            00081000        
+       ,NOBACKTALK    = TOGLE.[36:1]#, NOBACKTALKMASK=@4000#            00081100        
+       ,QTRDY        = TOGLE.[35:1]#, QTRDYMASK     =@10000#            00081200        
+       ,INTFREE       = TOGLE.[34:1]#, FREEMASK     =@20000#            00081300        
+       ,SPOEDNULLOG  = TOGLE.[33:1]#                                    00081400        
+       ,REMOTELOGFREE = TOGLE.[32:1]#, REMOTELOGMASK = @100000#         00081500        
+       ,EGGSELECTSTOPPED = TOGLE.[31:1]#                                00081600        
+       ,STARTOG       = TOGLE.[30:1]#                                   00081610        
+       ,NINETEENNOTREADING=TOGLE.[29:1]#, NINETEENMASK=@1000000#        00081620        
+      ,SMWSTOPPED=TOGLE.[28:1]#, SMWSTOPPEDMASK=@2000000#               00081630        
+      ,DCWAITING=TOGLE.[27:1]#                                          00081640        
+      ,DCQPTSTOPPED=TOGLE.[26:1]#                                       00081650        
+      ,INQUPTSTOPPED=TOGLE.[25:1]#                                      00081660        
+      ,MCPFREE=TOGLE.[24:1]#, MCPMASK=@40000000#                        00081670        
+              % USED TO PROTECT DISK SEGMENT ZERO                       00081675        
+       ,SCRATCHDIRECTORYREADY = TOGLE.[23:1]#,                          00081680        
+                           SCRATCHDIRECTORYMASK = @100000000            00081690        
+              % USED TO PROTECT THE SCRATCHDIRECTORY                    00081695        
+      ,FINDINGADDRESS=TOGLE.[22:1]#                                     00081700        
+              % SET TRUE WHENEVER THE INDEPENDENT RUNNING ROUTINE       00081705        
+              % "FINDFREEADDRESS" IS STARTED SO THAT ONLY ONE COPY      00081706        
+              % WILL BE RUN AT ONE TIME.                                00081707        
+       ,CDFREE=TOGLE.[21:1]#,CDMASK=@400000000#                         00081710        
+              % SET TRUE WHEN CONTROL DECK QUEUE IS FREE                00081711        
+      ,NOMEM=TOGLE.[15:6]# %GETSPACES HANGING                           00081950        
+     ,BREAKTOG=TOGLE.[14:1]# %BREAKOUT TOG                              00081960        
+     ,BREAKMASK=@100000000000#                                          00081970        
+       ,SEPTICTANKING = TOGLE.[13:1]#                                   00081972        
+       ,DIRECTORYTOG = TOGLE.[12:1]#                                    00081974        
+       ,DIRECTORYMASK = @400000000000#                                  00081976        
+       ,NOMEMTOG      = TOGLE.[11:1]#  % ON IF NOMEM SINCE LAST NSECOND 00081980        
+       ,MEMNO         = [9:3]#         % 9:2 = COUNTER FOR NSECOND      00081982        
+                                                                        00081999        
+     STREAM PROCEDURE MOVE(N)"WORDS FROM"(HERE)"TO"(THERE);%            00082000        
+                      VALUE N,HERE,THERE;%                              00083000        
+       COMMENT     WILL MOVE 0 TO 4095 WORDS;%                          00084000        
+              BEGIN LOCAL NDIV64;%                                      00085000        
+                    SI~LOC N; DI~LOC NDIV64; SI~SI+6; DI~DI+7; DS~1 CHR;00086000        
+                    SI~HERE; DI~THERE;%                                 00087000        
+                    NDIV64(DS~32 WDS; DS~32 WDS); DS~N WDS;%            00088000        
+              END MOVE;%                                                00089000        
+$ PAGE                                                                  00089050        
+ PROCEDURE STOPM(B); VALUE B; BOOLEAN B; FORWARD;                       00089100        
+ LABEL DIFFCOM;                                                         00089200        
+ SAVE PROCEDURE FORGETSPACE(LOC);%                                      00090000        
+                      VALUE LOC;%                                       00091000        
+                      REAL LOC;%                                        00092000        
+FORWARD;%                                                               00093000        
+ ARRAY BED[*];                                             %  4MIXMAX+4 00094000        
+         COMMENT ENTRIES IN THE BED HAVE TWO WORDS.%                    00095000        
+              THE FIRST WORD HAS THE FOLLOWING FORMAT;%                 00096000        
+                    0- 2 = 5%                                           00097000        
+                    3- 7 = MIXINDEX%                                    00098000        
+                    8-17 = 0%                                           00099000        
+                   18-32 = F REGISTER SETTING%                          00100000        
+                   33-47 = ADDRESS OF WORD TO BE TESTED.%               00101000        
+              THE SECOND WORD IS A MASK IF BIT 0 IF OFF.%               00102000        
+              THE SECOND WORD IS AN ACCIDENTAL ENTRY DESCRIPTOR IF BIT 000103000        
+              IS ON;%                                                   00104000        
+COMMENT P1MIX,P2MIX NOW DECLARED AT 00021700;                           00105000        
+         COMMENT P1MIX IS THE MIX INDEX FOR THE JOB BEING CURRENTLY%    00106000        
+              PROCESSED.  P1MIX = 0 MEANS NO JOB IS CURRENTLY BEING%    00107000        
+              PROCESSED.  P2MIX IS THE MIX INDEX FOR THE JOB BEING%     00108000        
+              CURRENTLY PROCESSED ON PROCESSOR 2.  IF PROCESSOR IS IDLE 00109000        
+              THEN P2MIX = 0.  IF THERE IS NO PROCESSOR 2 THEN P2MIX=-1;00110000        
+REAL DATE=@167;                                                         00111000        
+         COMMENT DATE CONTAINS TODAYS DATE;%                            00112000        
+REAL XCLOCK=@171;                                                       00114000        
+REAL READY=@172;                                                        00121000        
+         COMMENT READY CONTAINS THE CONTENTS OF THE READY REGISTER ON%  00122000        
+              THE LAST READ;%                                           00123000        
+         COMMENT STATUSBIT IS FALSE IF THE STATUS ROUTINE IS RUNNING AND00125000        
+              TRUE OTHERWISE.  THIS PREVENTS TWO COPIES OF STATUS FROM% 00126000        
+              RUNNING TOGETHER;%                                        00127000        
+    ARRAY PRT[*,*];%                                                    00128000        
+         COMMENT PRT[1,*] CONTAINS A DATA DESCRIPTOR WITH PROPER SIZE%  00129000        
+              FIELD POINTING AT PRT FOR JOB WITH MIX INDEX = 1;%        00130000        
+ ARRAY PRTROW=PRT[*];                                      %  MIXMAX+1% 00131000        
+         COMMENT PRTROW IS DOPE VECTORS FOR PRT;%                       00132000        
+         ARRAY  JAR[*,*];%                                              00133000        
+         % JAR HOLDS INFO OF JOBS IN PROCESS (SEE DEFINES AT 20544000)  00134000        
+ DEFINE                                                                 00134010        
+   LIBMAINCODE=1#, LDCNTRLCODE=3#, PRNPBTCODE=5#,                       00134020        
+   SYSJOBF=[6:3]#, SSYSJOBF=[5:3]#;                                     00134030        
+   % SEE 20556700 RE SYSJOBF (SYSTEM JOB FIELD)                         00134040        
+   % SEE 20515000 RE SSYSJOBF (SHEET SYSTEM JOB FIELD)                  00134050        
+ $ SET OMIT = NOT(WORKSET)                                              00134100        
+ARRAY STQUE[*]; % QUEUE FOR "STOPPED" JOBS, 16 LONG                     00134110        
+DEFINE STQUEUEMAX = 15#;                                                00134115        
+ARRAY OLAYTIME[*]; % USED FOR STORAGE OF OLAY OVERHEAD TIME             00134120        
+PROCEDURE WORKSET(N); VALUE N; RAEL N; FORWARD;                         00134125        
+ARRAY WKSETDATA[*];                                                     00134130        
+% ARRAY USED FOR STORAGE OF WORKSET INFORMATON                          00134140        
+DEFINE  WKSETCLOCK     =  WKSETDATA[0]#,                                00134150        
+                          % TIME AT WHICH WORKSET ROUTINE HAS STARTED   00134160        
+                          % TO RUN                                      00134170        
+        WKSETRUNNING   =  WKSETDATA[1].[47:1]#,                         00134180        
+                          % TOGGLE TO INDICATE THAT WORKSET IS RUNNING  00134190        
+        WKSETNOSELECT  =  WKSETDATA[1].[46:1]#,                         00134200        
+                          % TOGGLE TO PREVENT SELECTRUN FROM PLACING    00134210        
+                          % ADDITIONAL JOBS IN THE MIX                  00134220        
+        WKSETMONITOR   =  WKSETDATA[1].[45:1]#,                         00134230        
+                          % TOGGLE USED TO "MONITOR" WORKSETDATA        00134240        
+        WKSETMAXOLAY   =  WKSETDATA[2]#,                                00134250        
+                          % MAX. FRACTION OF PROCESS TIME TO COMPUTE    00134260        
+                          % MAXIMUM ALLOWABLE OLAY TIME                 00134270        
+        WKSETOLERANCE  =  WKSETDATA[3]#,                                00134280        
+                          % FRACTION USED TO CMOPARE JOB STATISTICS     00134290        
+                          % (ALLOWABLE VARIANCE TO COMPUTE MAX.VALUES)  00134300        
+        WKSETINSTRUCT  =  WKSETDATA[4]#,                                00134310        
+                          % INSTRUCTIONS FOR COMPARING JOB STATISTICS   00134320        
+                          % FRACTION OF TOTAL SYSTEM CORE WHICH MUST    00134330        
+                          % BE KEPT AVAILABLE                           00134340        
+        WKSETCYCLETIME =  WKSETDATA[5]#,                                00134350        
+                          % CYCLE TIME (64THS OF A SECOND) FOR WHICH    00134360        
+                          % THE WORKSET ROUTINE IS RUN, QUEUED AT       00134370        
+                          % "TIME" IN THE OUTER BLOCK                   00134380        
+        WKSETSTOPJOBS  =  WKSETDATA[6]#,                                00134390        
+                          % BIT INDEX (TWO(MIX)) FOR JOBS WHICH HAVE    00134400        
+                          % BEEN "ST-ED" BY THE WORKSET ROUTINE         00134410        
+        STFIRST        =  WKSETDATA[7].[CF]#,                           00134420        
+                          % INDEX TO FIRST ENTRY IN THE "STQUE"         00134430        
+        STNEXT         =  WKSETDATA[7].[FF]#,                           00134440        
+                          % INDEX T NEXT AVAILABLE SLOT IN "STQUE"      00134450        
+        WKSETSWITCHTIME=  WKSETDATA[8]#,                                00134460        
+                          % TIME OF LAST "JOB" OR "EOJ" EVENT           00134470        
+        WKSETDATASIZE  =  9#; % SIZE OF THE WKSETDATA ARRAY             00134480        
+ $ POP OMIT % WORKSET                                                   00134490        
+ ARRAY INTRNSC[*];  REAL INTSIZE;%  RE-ENTRANT INTRINSICS ON USER DISK  00135000        
+    ARRAY INTABLE[*,*], INTABLEROW=INTABLE[*];%                         00135100        
+ $ SET OMIT = NOT(AUXMEM)                                               00135199        
+ ARRAY SHEET[*];                                           %  5%        00136000        
+ ARRAY JARROW=JAR[*];                                      %  MIXMAX+1% 00138000        
+ DEFINE TABCNT[TABCNT1] = JARROW[TABCNT1].[FF]#;                        00138100        
+         COMMENT TABCNT IS THE NUMBER OF PROCESSES WHICH HAVE CHECKED   00138110        
+              JARROW AND ARE CURRENTLY ACCESSING MIX TABLES. IT ASSURES 00138120        
+              THAT THE TABLES DONT VANISH BENEATH THOSE PROCESSES;      00138130        
+         COMMENT ENTRIES IN THE SLATE HAVE TWO WORDS.  EACH ENTRY%      00140000        
+              DESCRIBES AN INDEPENDENT ROUTINE WHICH NEEDS TO BE STARTED00141000        
+              RUNNING.  NOTHING TO DO STARTS THESE ROUTINES.%           00142000        
+              THE FIRST WORD OF AN ENTRY IS A PARAMETER TO THE ROUTINE. 00143000        
+              THE SECOND WORD OF AN ENTRY IS THE PRT ADDRESS OF THE%    00144000        
+              ROUTINE.%                                                 00145000        
+              NSLATE AND LSLATE ARE POINTERS T THE SLATE.%              00146000        
+              NSLATE POINTS AT LAST ENTRY WHICH WAS STARTED.%           00147000        
+              LSLATE POINTS AT LAST ENTRY PLACED IN THE SLATE;%         00148000        
+    REAL JOBNUM;%                                                       00149000        
+         COMMENT JOBNUM POINTS AT LAST ENTRY IN BED;%                   00150000        
+         COMMENT STACKUSE IS TRUE IF THE INDEPEDENT STACK IS NOT IN USE.00152000        
+              OTHERWISE FALSE;%                                         00153000        
+    BOOLEAN NOPROCESSOTOG;%                                             00154000        
+         COMMENT   NOPROCESSTOG IS TRUE IF NORMAL STATE PROCESSING IS%  00155000        
+              ALLOWED, OTHERWISE IT IS FALSE.  IT IS USED BY OVERLAY AND00156000        
+              OTHERS TO PREVENT CONFUSION;%                             00157000        
+REAL SOFTI; % NUMBER OF JOBS IN MIX HAVING SOFTWARE INTERRUPTS DECLARED 00157100        
+REAL WITCHINGHOUR,WORDOFEASE;                                           00157500        
+         COMMENT THESE USED TO BE CONSTANTS IN THE OUTER BLOCK BUT WERE 00157600        
+              MOVED HERE SO EVERYONE COULD USE THEM. THEY CONTAIN:      00157700        
+                   WITCHINGHOUR   5184000                               00157800        
+                   WORDOFEASE     @2525252525252525                     00157900        
+         ;                                                              00158000        
+ DEFINE NDX=3#;    % NUMBER OF ENTRIES PER JOB IN NFO ARRAY             00158100        
+ ARRAY NFO[*];                                             %MIXMAX|NDX  00158200        
+    COMMENT NFO CONTAINS THE FOLLOWING FOR EACH ACTIVE MIX INDEX;       00158300        
+    %    NFO[(MIX-1)|NDX]        = FILE PARAMETER BLOCK DATA DESCRIPTOR 00158400        
+    %    NFO[(MIX-1)|NDX+1]      = SEGMENT DICTIONARY NAME DESCRIPTOR   00158500        
+    %    NFO[(MIX-1)|NDX+2].[CF] = LOCATION OF BOTTOM OF STACK (B-WORD) 00158600        
+    %    NFO[(MIX-1)|NDX+2].[FF] = ESTIMATED CORE REQUIREMENTS          00158700        
+    %    NFO[(MIX-1)|NDX+2].[1:17] = CLOCK TIME AT BOJ                  00158800        
+ ARRAY ESTACK[*];                                          %  128%      00159000        
+ ARRAY PROCTIME[*];                                        %  MIXMAX+1% 00161000        
+         COMMENT PROCTIME[I] CONTAINS PROCESSOR TIME FOR JOB WITH%      00162000        
+              MIX INDEX = I;%                                           00163000        
+ ARRAY IOTIME[*];                                          %  MIXMAX+1% 00164000        
+         COMMENT IOTIME[I] CONTAINS I-O TIME FOR JOB WITH MIX INDEX =1; 00165000        
+ $ SET OMIT = NOT(NEWLOGGING)                                           00165009        
+DEFINE EUIOHOLDER=DIRECTORYTOP-5#,                                      00165800        
+       EUTAPER=.98#,                                                    00165810        
+       DISKAVAILTABLEMAX=130#;                                          00165820        
+INTEGER NEUP;  ARRAY EUIO[*];  ARRAY PEUIO[*];                          00166000        
+ $ SET OMIT = NOT(SHAREDISK )                                           00166002        
+ $ SET OMIT = SHAREDISK                                                 00166005        
+ARRAY AVTABLE[*] ;                                                      00166006        
+ $ POP OMIT                                                             00166007        
+       COMMENT NEUP.[CF] CONTAINS THE NUMBER OF EUS ON DKA.             00166010        
+              NEUP.NEUF CONTAINS THE TOTAL NUMBER OF EUS ON THE SYSTEM. 00166025        
+              EUIO AND PEUIO CONTAIN THE I-O TIME USED BY A GIVEN EU.   00166030        
+              THIS INFORMATION IS USED BY GETUSERDISK IN AN ATTEMPT TO  00166040        
+              MINIMIZE EU CONFLICT;                                     00166050        
+    DEFINE MIXF = [3:5]#;%                                              00168000        
+ ARRAY CHANIO[*];                                                       00169000        
+ ARRAY CHANNEL[*];                                         %  5%        00170000        
+         COMMENT CHANNEL[I] CONTAINS LOGICAL UNIT OF LAST DESCRIPTOR%   00171000        
+              SENT OUT ON CHANNEL I;%                                   00172000        
+ ARRAY FINALQUE[*];                                        %  32%       00173000        
+ ARRAY LOCATQUE[*];                                        %  32%       00174000        
+         COMMENT IOQUE,FINALQUE, AND LOCATQUE TOGETHER WITH UNIT FORM%  00175000        
+              THE I-O QUEUE.  AN I-O REQUEST FOR LOGICAL UNIT U REQUIRES00176000        
+              THREE WORDS OF SPACE IN THE I-O QUEUE.  IF THE REQUEST%   00177000        
+              OCCUPIES POSITION S IN THE I-O QUEUE, THEN IOQUE[S] )%    00178000        
+              I-O DESCRIPTOR FOR THIS REQUEST, FINAL[S] = I-O DESCRIPTOR00179000        
+              SKELETON TO BE USED AT I-O COMPLETE TIME TO REBUILD%      00180000        
+              I-O DESCRIPTOR, LOCATQUE[S] = LOCATION OF I-O DESCRIPTOR% 00181000        
+              AT TIME OF REQUEST.  LOCATQUE[S] CONTAINS SOME ADDITIONAL 00182000        
+              INFORMATION.  IN PARTICULAR:%                             00183000        
+                    0- 2 = 5%                                           00184000        
+                    3- 7 = MIX INDEX OF REQUESTER%                      00185000        
+                       8 = I/O IS READ LOCK WHICH HAD ERROR (SHAREDISK).00185100        
+                       9 = OLAY I/O (IOFINISH PLACES RESULT ON ERROR).  00185500        
+                      10 = NO MEM MESSAGE.                              00186000        
+                      11 = ERROR RECOVERY IN PROCESS ON THIS I-O        00186100        
+                   12-17 = LOGICAL UNIT NUMBER%                         00187000        
+                   18-32 = INDEX OF NEXT REQUEST TO BE DONE ON THIS UNIT00188000        
+                           OR @77777 IF NO NEXT REQUEST%                00189000        
+                   33-47 = ORIGINAL LOCATION OF I-O DESCRIPTOR.%        00190000        
+              UNIT[U] CONTAINS INFORMATION ABOUT LOGICAL UNIT U.%       00191000        
+                    1- 4 = TYPE OF I/O DEVICE%                          00192000        
+                    5-12 = ERROR FIELD OF LAST I/O DONE ON THIS UNIT%   00193000        
+                      13 = UNIT NOT READY BIT%                          00194000        
+                      14 = ERROR BIT (ON IF ERROR)%                     00195000        
+                      15 = WAIT BIT (ON IF UNIT IS WAITING FOR A CHANNEL00196000        
+                   16-17 = PROCESS BITS (USUALLY BOTH ON IF UNIT IS IN% 00197000        
+                             PROCESS OR BOTH OFF.  WITH PRINTERS THE%   00198000        
+                             I-O FINISH SETS OFF 16 AND THE PRINTER%    00199000        
+                             FINISH SETS OFF 17)%                       00200000        
+                   18-32 = INDEX OF FIRST I-O REQUEST FOR WHICH SERVICE 00201000        
+                             IS NOT COMPLETE%                           00202000        
+                   33-47 = INDEX OF LAST UNSERVICED I-O REQUEST.%       00203000        
+              THE SPACES NOT USED IN THE I-O QUEUE ARE LINKED TOGETHER% 00204000        
+              THROUGH IOQUE.  THE FIRST AVAILABLE IS IN IOQUEAVAIL;%    00205000        
+     REAL IOQUESLOTS,IOQUEAVAIL;                                        00205500        
+     ARRAY IOQUE[*];                                                    00206000        
+     DEFINE RETURNIOSPACE(RETURNIOSPACE1) =                             00206500        
+            BEGIN IOQUESLOTS:=IOQUESLOTS+1;                             00207000        
+                 IOQUE[RETURNIOSPACE1]:=IOQUEAVAIL;                     00207500        
+                 IOQUEAVAIL:=RETURNIOSPACE1;                            00208000        
+            END#;                                                       00208500        
+ ARRAY UNIT[*];                                                         00209000        
+     COMMENT UNIT NOW FILLED IN INITIALIZE;                             00210000        
+ ARRAY TINU[*];                                                         00241700        
+     COMMENT TINU NOW FILLED IN INITIALIZE;                             00241800        
+ ARRAY WAITQUE[*];                                         %  8%        00278000        
+    REAL NEXTWAIT,FIRSTWAIT;%                                           00279000        
+         COMMENT WAITQUE IS A QUEUE OF UNITS FOR WHICH THERE ARE%       00280000        
+              REQUESTS BUT NO CHANNEL IS AVAILABLE.  NEXTWAIT AND%      00281000        
+              FIRSTWAIT ARE POINTERS AT THE WAITQUE.  NEXTWAIT IS THE%  00282000        
+              NEXT AVAILABLE SLOT IN WAITQUE AND FIRSTWAIT POINTS AT%   00283000        
+              NEXT UNIT TO BE USED WHEN A CHANNEL IS AVAILABLE;%        00284000        
+ ARRAY LABELTABLE[*];                                      %  32%       00285000        
+ ARRAY MULTITABLE[*];                                      %  32%       00286000        
+ ARRAY RDCTABLE[*];                                        %  32%       00287000        
+ ARRAY PRNTABLE[*];%                                                    00288000        
+ ARRAY REPLY[*];%                                                       00289000        
+COMMENT LABELTABLE, MULTITABLE, AND RDCTABLE CONTAIN LABEL INFORMATION% 00290000        
+        BY LOGICAL UNIT NUMBER AS FOLLOWS:%                             00291000        
+        LABELTABLE[I] CONTAINS THE FILE ID FOR LOGICAL UNIT I.%         00292000        
+        MULTITABLE[I] CONTAINS THE CORRESPONDING MULTI-FILE ID.%        00293000        
+        RDCTABLE[I] CONTAINS THE CORRESPONDING REEL NUMBER (IN [14:10]),00294000        
+        CREATION DATE (IN [24:17]), AND CYCLE (IN [41:7]);%             00295000        
+ $ SET OMIT = NOT(SHAREDISK)                                            00295999        
+REAL OPTION;%                                                           00297000        
+REAL ILL,INQCT;                                                         00299000        
+REAL PINGO;                                                             00301000        
+ REAL READQ,RRNCOUNT;  DEFINE PUT=SET#;                                 00301100        
+ $ SET OMIT = NOT(DATACOM )                                             00301200        
+ ARRAY TRANSACTION[*];                                     %  32%       00304000        
+ DEFINE ETRLNG = 5#;    % LENGTH OF ENTRY IN FILE BLOCK%                00305000        
+SAVE REAL PROCEDURE TWO(N); VALUE N; INTEGER N;                         00306000        
+              BEGIN REAL T=+1;                                          00307000        
+                   STREAM(N:=N:=47-N,T:=[T]);                           00308000        
+                   BEGIN SKIP N DB; DS:=SET; END;                       00308500        
+              END TWO;                                                  00309000        
+    REAL SYLLABLE;%                                                     00310000        
+ $ SET OMIT = NOT(SHAREDISK)                                            00310099        
+ $ SET OMIT = SHAREDISK                                                 00310199        
+DEFINE SYSNO=0#, SYSMAX=1#;                                             00310200        
+ $ POP OMIT                                                             00310201        
+         COMMENT ANALYSIS PLACES THE SYLLABLE THAT CAUSED THE INTERRUPT 00311000        
+              IN SYLLABLE.  THIS IS USED BY PRESENCE BIT, FLAG BIT, AND 00312000        
+              VARIOIUS ERRORS;%                                         00313000        
+PROCEDURE FORGETUSERDISK(A,L);VALUE A,L;REAL A,L;FORWARD;%              00316000        
+REAL PROCEDURE PETUSERDISK(N,T);VALUE N,T;REAL N,T;FORWARD ;            00316100        
+ $ SET OMIT = NOT DEBUGGING                                             00316999        
+ $ SET OMIT = NOT DEBUGGING                                             00330999        
+ ARRAY DALOC[*,*], DALOCROW[*];                                         00333000        
+ $ SET OMIT = NOT(BREAKOUT)                                             00333099        
+ REAL OLAYMASK;%   FOR LOCKING OUT GETMOREOLAYDISK BY MIX INDEX         00336000        
+PROCEDURE USERDISKSPECIALCASE(Q,R,U,J);VALUE Q,J;REAL Q,R,J;            00336100        
+          ARRAY U[*]; FORWARD ;                                         00336110        
+ DEFINE BASE=30268#,%                                                   00338000        
+         CHUNKSIZE=500#;%                                               00339000        
+ REAL LEFTOFF;    COMMENT POINTER TO CYCLE FOR OLAY;%                   00341000        
+ SAVE PROCEDURE DISKRTN(SEGNO, SIZE);                                   00363000        
+    VALUE     SEGNO, SIZE;                                              00363100        
+    INTEGER   SEGNO, SIZE;                                              00363200        
+         FORWARD;                                                       00363300        
+PROCEDURE FORGETSPDISK(SEG);VALUE SEG;REAL SEG;FORWARD;                 00364000        
+SAVE INTEGER PROCEDURE DISKSPACE(NWORDS,P1MIX,AUX);%                    00365000        
+    VALUE NWORDS,P1MIX,AUX;                                             00366000        
+    INTEGER NWORDS,P1MIX;REAL AUX;                                      00367000        
+              FORWARD;                                                  00368000        
+ PROCEDURE STATUS;%                                                     00369000        
+         FORWARD;%                                                      00370000        
+PROCEDURE INTERRUPT(TYPE);VALUE TYPE;REAL TYPE; FORWARD;                00370500        
+REAL PROCEDURE FINDOUTPUT(MID,FID,TYPE,FORMS,REEL,CDATE,CYCLE,KIND);%   00371000        
+            VALUE MID,FID,TYPE,FORMS,REEL,CDATE,CYCLE,KIND;%            00372000        
+            REAL MID,FID,TYPE,FORMS,REEL,CDATE,CYCLE,KIND; FORWARD;%    00373000        
+REAL PROCEDURE FINDINPUT(MID,FID,REEL,CDATE,CYCLE,COBOL,UL,OF,MODE,FN); 00374000        
+            VALUE MID,FID,REEL,CDATE,CYCLE,COBOL,UL,OF,MODE,FN);%       00375000        
+            REAL  MID,FID,FEEL,CDATE,CYCLE,COBOL,UL,OF,MODE,FN; FORWARD;00376000        
+PROCEDURE STARTIMING(FN,U); VALUE FN,U; REAL FN,U; FORWARD;%            00377000        
+ PROCEDURE FILEOPEN(X,A); VALUE X,A; INTEGER X,A; FORWARD;              00379000        
+ SAVE PROCEDURE SAVEOPEN(A); VALUE A; REAL A;                           00379100        
+         BEGIN FILEOPEN(2,A) END;                                       00379200        
+PROCEDURE MIXPRINT(Q); VALUE Q REAL Q; FORWARD;                         00379400        
+% TYPES <JOB SPECIFIERS> FOR EACH ACTIVE MIX INDEX                      00379500        
+PROCEDURE JOBMESS(MIX,Q,A,B,C,D); VALUE MIX,Q,A,B,C,D;                  00379600        
+    REAL MIX,Q,A,B,C,D; FORWARD;                                        00379700        
+PROCEDURE SETNOTINUSE(U,RWL); VALUE U,RWL; REAL U,RWL; FORWARD;         00380000        
+DEFINE STOPTIMING=STARTTIMING#;                                         00382000        
+PROCEDURE FILLBUFFERS(CURRENT,FINAL,COBOL,NR);                          00385000        
+    VALUE CURRENT,FINAL,COBOL,NR;  REAL CURRENT,FINAL,COBOL,NR;         00385500        
+    FORWARD;                                                            00386000        
+DEFINE GETBUFFERS=FILLBUFFERS#;                                         00387000        
+ PROCEDURE REALFILECLOSE(A); VALUE A; REAL A; FORWARD;                  00389000        
+ SAVE PROCEDURE FILECLOSE(A); VALUE A; REAL A;                          00389100        
+          BEGN REALFILECLOSE(A) END;                                    00389200        
+REAL PROCEDURE DISKADDRESS(MID,FID,FPB3,A,H,IO);                 % (SHM)00390000        
+    VALUE MID,FID,FPB3,A,H,IO;                                   % (SHM)00390100        
+    REAL MID,FID,FPB3,A,IO;  ARRAY H[*];                         % (SHM)00390200        
+      FORWARD;%                                                         00391000        
+PROCEDURE BLASTQ(U); VALUE U; REAL U; FORWARD;%                         00392000        
+REAL PROCEDURE FILEHEADER(MID,FID,NROWS,SIZE,BLEN,RLEN,S);%             00393000        
+                  VALUE   MID,FID,NROWS,SIZE,BLEN,RLEN,S;%              00394000        
+                  REAL    MID,FID;%                                     00395000        
+                  INTEGER         NROWS,SIZE,BLEN,RLEN,S; FORWARD;%     00396000        
+PROCEDURE PURGEIT(U); VALUE U; INTEGER U; FORWARD;%                     00397000        
+REAL ESPTAB,ESPCOUNT;                                                   00399000        
+REAL DIRDSK=@177;                                                       00400500        
+REAL ESPDISKBOTTOM; % LOWEST ADDRESS OF ESPDISK                         00401000        
+REAL ESPDISKTOP; % HIGHEST ADDRESS OF ESPDISK                           00401100        
+ REAL  MESSAGEHOLDER;%                                                  00402000        
+    DEFINE USEDRA = OPTION.[47:1]#,%                                    00403000        
+         USEDRB = OPTION.[46:1]#,%                                      00404000        
+         BOJMESS     =OPTION.[45:1]#,%                                  00405000        
+         EOJMESS     =OPTION.[44:1]#,%                                  00406000        
+         OPNMESS     =OPTION.[43:1]#,%                                  00407000        
+         TERMGO    =OPTION.[42:1]#,%                                    00408000        
+              GIVEDATE = OPTION.[41:1]#,%                               00409000        
+              GIVETIME = OPTION.[40:1]#,%                               00410000        
+              SAMEBREAKTAPE=OPTION.[39:1]#,  % NOT CURRENTLY USED, 3/73 00411000        
+              AUTOPRINT=OPTION.[38:1]#,                                 00412000        
+              CLEARWRS=OPTION.[37:1]#,                                  00413000        
+              NOTIFYOP=OPTION.[36:1]#,%                                 00414000        
+              DISCONDC = OPTION.[36:1]#,                                00414100        
+              COPNMESS=OPTION.[35:1]#,%                                 00415000        
+              CLOSEMESS=OPTION.[34:1]#,%                                00416000        
+              ERRORMSG=OPTION.[33:1]#,                                  00416050        
+              RETMSG=OPTION.[32:1]#,                                    00416100        
+              LIBMSG=OPTION.[31:1]#,                                    00416200        
+              SCHEDMSG=OPTION.[30:1]#,                                  00416300        
+              SECMSG=OPTION.[29:1]#,                                    00416400        
+              DSKTOG=OPTION.[28:1]#,                                    00416500        
+              RELTOG=OPTION.[27:1]#,                                    00416520        
+              PBDREL=OPTION.[26:1]#,                                    00416550        
+              CHECKLINK = OPTION.[25:1]#,                               00416560        
+              DISKMSG=OPTION.[24:1]#,                                   00416570        
+         LIBERR =(OPTION.[22:1] OR (SPOUTUNIT.[CF]=0))#, % FROM SPO%589-00416590        
+              USEPRD=OPTION.[21:1]#,%                                %DS00416600        
+              SVPBT =OPTION.[20:1]#,%                                   00416610        
+              RSTOG=OPTION.[19:1]#,                                     00416620        
+              AUTOUNLD=OPTION.[18:1]#,                                  00416630        
+      AUTORN = OPTION.[17:1]#,                                     %902-00416710        
+              CODEOLAY=OPTION.[16:1]#,                                  00416730        
+              COREST=OPTION.[15:1]#,                                    00416740        
+              DATAOLAY=OPTION.[14:1]#,                                  00416750        
+              HALTSET=OPTION.[13:1]#,                                   00416751        
+              STOPTEST= OPTION.[8:1]#,                                  00416760        
+              PUNCHLCK=OPTION.[7:1]#,                                   00416770        
+              CDONLY=OPTION.[6:1]#,                                     00416780        
+              PRTONLY=OPTION.[5:1]#,                                    00416790        
+              SEPARATE=OPTION.[4:1]#,                                   00416800        
+         MOD3IOS=OPTION.[2:1]#,                                         00416990        
+              AUTOMESS = OPTION.[1:1]#,                                 00416992        
+              AUTODS = OPTION.[1:1]#,  % ACTS FOR OPERATOR         %747-00416995        
+         XXXXXX= OPTION.[0:1]#;%                                        00417000        
+DEFINE BOJBIT = 45[18:42:6]#,                                           00417010        
+       EOJBIT = 44[18:42:6]#,                                           00417020        
+       OPNBIT = 43[18:42:6]#,                                           00417030        
+       COPNBIT = 35[18:42:6]#,                                          00417040        
+       CLOSEBIT=34[18:42:6]#,                                           00417050        
+       ERRRBIT = 33[18:42:6]#,                                          00417052        
+       LIBBIT = 31[18:42:6]#,                                           00417060        
+       SCHEDBIT=30[18:42:6]#,                                           00417070        
+       SECBIT = 29[18:42:6]#,                                           00417075        
+       RSBIT  = 19[18:42:6]#,                                           00417080        
+       NEVERBIT=62[18:42:6]#,                                           00417090        
+       ALWAYSBIT=63[18:42:6]#;                                          00417100        
+REAL USERDISKBOTTOM;                                                    00418000        
+    % DISK ADDRESS OF USER DISK AVAILABLE TABLE                         00418010        
+REAL DIRECTORYTOP;                                                      00418050        
+    % DISK ADDRESS OF DIRECTORYTOP SEGMENT--STORED IN M[1]              00418060        
+    %BY MCP LOADER AND STORED IN MCP PRT(DIRECTORYTOP)                  00418070        
+REAL DISKBOTTOM;                                                        00418100        
+    % DISK ADDRESS OF TOP FO BYPASS DIRECTORY, USED IN SCRAMBLE.        00418200        
+ $ SET OMIT = NOT(SHAREDISK)                                            00418799        
+ $ SET OMIT = SHAREDISK                                                 00418849        
+REAL HOLDER,NEXTSLOT,BYPASS;                                            00418850        
+ $ SET OMIT = NOT STATISTICS OR OMIT                                    00418859        
+DEFINE HOLDMAX = 30#;        % MAXIMUM NUMBER OF ENTRIES IN HOLDLIST    00418900        
+COMMENT THE HOLDLIST CONTAINS A ONE WORD ENTRY FOR EACH PROCESS         00418910        
+        THAT IS WAITING TO USE A FILE THAT IS ALREADY IN USE.           00418915        
+             HOLDLIST[I].[FF]=THE CORE ADDRESS OF THE WORD THAT THE     00418920        
+                  WAITING PROCESS IS SLEEPING ON.                       00418925        
+             HOLDLIST[I].[CF]=THE DISK ADDRESS OF THE FILE HEADER       00418930        
+                  THAT IS BEING WAITED FOR.                             00418935        
+             HOLDLIST[I].[10:8]=MIX INDEX OF THE PROCESS THAT MADE THE  00418937        
+                  ENTRY. (TSSMCP ONLY)                                  00418938        
+             HOLDLIST[I].[2:2]=THE SYSTEM NUMBER (SYSNO) OF THE SYSTEM  00418940        
+                  THAT MADE THE ENTRY (SHAREDISK ONLY).                 00418945        
+             HOLDLIST[I].[1:1] IS SET BY A SYSTEM TO NOTIFY ANOTHER     00418950        
+                 SYSTEM TO AWAKEN THE PROCESS THAT MADE THE ENTRY.      00418955        
+                 THE NSECOND ROUTINE EXAMINES THE HOLDLIST IN           00418960        
+                 ORDER TO CHECK FOR THIS CONDITION (SHAREDISK ONLY).    00418965        
+        DIRECTORYSEARCH, NSECOND, AND CLEANOUT ARE THE PROCEDURES       00418970        
+        THAT MANIPULATE THE HOLDLIST.                                   00418975        
+                                                                        00418980        
+        THE WORDS ASSOCIATED WITH DIRECTORY HANDLING ARE:               00418985        
+             HOLDER.[CF] = DISK ADDRESS OF HOLDLIST.                    00418990        
+                   .[FF] = NUMBER OF ENTRIES IN HOLDLIST.               00418995        
+             NEXTSLOT    = DISK ADDRESS OF FIRST HEADER IN QUEUE OF     00419000        
+                           EMPTY SLOTS IN DIRECTORY (NEXTSLOT QUEUE).   00419005        
+             BYPASS.[CF] = LOWEST ADDRESS OF THE BYPASS DIRECTORY.      00419010        
+                   .[FF] = HIGHEST ADDRESS OF THE MAIN DIRECTORY.       00419015        
+        ON SHAREDISK, HOLDER, NEXTSLOT AND BYPASS ARE KEPT IN THE FIRST 00419020        
+        THREE WORDS OF THE DISK SEGMENT LOCATED AT DIRECTORYTOP+2. A    00419025        
+        READ LOCK MUST BE DONE BEFORE ACCESSING THE HOLDLIST OR NEXTSLOT00419030        
+        QUEUE OR EXPANDING EITHER THE MAIN OR BYPASS DIRECTORIES.       00419035        
+END COMMENT;                                                            00419040        
+INTEGER RESTARTING;   %PASSLEVEL CONTROL   (RS)                         00419100        
+ $ SET OMIT = NOT(BREAKOUT)                                             00419104        
+DEFINE SCRAMBLE(SCRAMBLE1,SCRAMBLE2)=(-2|                               00419110        
+     ((SCRAMBLE1.[6:18]+SCRAMBLE1.[24:24]) MOD MODULUS|MODULUS+         00419120        
+      (SCRAMBLE2.[6:18]+SCRAMBLE2.[24:24]) MOD MODULUS) +               00419130        
+       DISKBOTTOM)#,                                                    00419140        
+      MODULUS=13#,  DIRMOD=169#;                                        00419150        
+COMMENT                                                                 00419210        
+         THE RELATIONSHIP BETWEEN MODULUS AND DIRMOD IS:                00419220        
+         DIRMOD := MODULUS | MODULUS, WHERE MODULUS IS A LOW            00419230        
+         ODD PRIME. (THE RECOMMENDED VALUE OF MODULUS IS 13).           00419240        
+         FOR SYSTEMS WITH ONLY 4 MEMORY MODS, MODULUS MUST BE           00419250        
+         SET TO A SMALLER VALUE SO THAT DIRECTORYBUILDER WILL           00419260        
+         NOT GET A NO-MEM, MAKING IT IMPOSSIBLE TO HALT/LOAD.           00419270        
+         IT IS SUGGESTED THAT MODULUS BE SET TO 11, DIRMOD TO 121       00419280        
+         FOR A SYSTEM WITH 4 MODS. IT MAY BE NECESSARY TO SET IT        00419290        
+         SMALLER, DEPENDING UPON DISK CONFIGURATION;                    00419300        
+ARRAY FS[*,*]; ARRAY FSROW=FS[*];                                       00419400        
+ ARRAY USERDISK[*];                                                     00419900        
+ $ SET OMIT = NOT DEBUGGING                                        %763-00419999        
+ $ SET OMIT = SHAREDISK                                                 00421099        
+DEFINE LOCKDIRECTORY =                                                  00421100        
+            BEGIN IF NOT DIRECTORYTOG THEN SLEEP([TOGLE].DIRECTORYMASK);00421200        
+                   LOCKTOG(DIRECTORYMASK);                              00421300        
+              END#,                                                     00421400        
+       UNLOCKDIRECTORY =                                                00421500        
+              BEGIN                                                     00421600        
+                   UNLOCKTOG(DIRECTORYMASK);                            00421700        
+              END#;                                                     00421800        
+ $ POP OMIT                                                             00421801        
+BOOLEAN OKSEGZEROWRITE;                                            %20A-00422100        
+ $ SET OMIT = NOT SHAREDISK                                             00422490        
+REAL LOGFREE,IOMASK,SAVEWORD;                                           00425000        
