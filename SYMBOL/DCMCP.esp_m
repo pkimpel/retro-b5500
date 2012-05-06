@@ -1261,3 +1261,118 @@ PROCEDURE UNHOOQUE(MIX);%                                               02053000
                                   IF (X~T.[13:5])=0 OR X=16 THEN        02081000        
                                     GO DELINKIT;                        02082000        
                                   IF X=4 THEN%                          02087000        
+                                  BEGIN%                                02088000        
+                                       IF LOCATQUE[S].[FF]=@77777 THEN% 02089000        
+                                       BEGIN%                           02090000        
+                                            I~FIRSTWAIT;%               02091000        
+                                            WHILE WAITQUE[I]!U%         02092000        
+                                            DO I ~ I+1 AND 32;%         02093000        
+                                            WAITQUE[I]~%                02094000        
+                                            WAITQUE[NEXTWAIT~NEXTWAIT%  02095000        
+                                                 +31 AND 31];%          02096000        
+                                            UNIT[U]~T&@77777[13:28:20]; 02097000        
+                                       END ELSE                         02097200        
+    DELINKIT:                            UNIT[U]:=T&LOCATQUE[S][FTF];   02097400        
+ $ SET OMIT = NOT DFX                                                   02097590        
+                                       RETURNIOSPACE(S);                02100000        
+                                  END ELSE                              02100400        
+                                  PROCE~((U!23 AND U!24) OR X=3)        02101000        
+                                         AND X!25 OR PROCE;             02101100        
+                             END%                                       02102000        
+                        END$                                            02103000        
+                   END       ;%                                         02104000        
+              IF PROCE THEN%                                            02105000        
+                   BEGIN%                                               02106000        
+                        SLEEP([CLOCK],NOT CLOCK); PROCE~0; GO TO DOLP;  02107000        
+                   END;%                                                02108000        
+    END UNHOOQUE;%                                                      02109000        
+DEFINE PSF-3:4#,                                                        02110050        
+TERMSET(TERMSET1)=(PRTROW[TERMSET1].[6:1]=1)#,                          02110100        
+NOTERMSET(NOTERMSET1)=(PRTROW[NOTERMSET1].[6:1] NEQ 1)#,                02110200        
+TERMGOING(TERMGOING1)=(PRTROW[TERMGOING1].[PSF]=3)#,                    02110250        
+BREAKSET(BREAKSET1)=(PRTROW[BREAKSET1].[PSF]=4)#,                  %139-02110260        
+STOPSET(STOPSET1)=(PRTROW[STOPSET1].[PSF]=2)#;                          02110300        
+REAL PROCEDURE GETESPDISK;FORWARD;%                                     02111000        
+PROCEDURE CHANGEMCP(KTR); VALUE KTR; REAL KTR; FORWARD;                 02111100        
+PROCEDURE CHANGEINTRINSICFILE(KTR); VALUE KTR; REAL KTR; FORWARD;       02111200        
+ $ SET OMIT = NOT(DEBUGGING)                                            02111299        
+REAL PROCEDURE ANALYSIS; FORWARD;                                       02111400        
+PROCEDURE SHORTCOMMUNICATE; FORWARD;                                    02111500        
+PROCEDURE CONTINUITYBIT; FORWARD;                                       02111600        
+REAL CCTBLWORD;                                                         02112000        
+DEFINE CCCOUNT   = CCTBLWORD.[FF]#,                                     02112100        
+       CCTBLADDR = CCTBLWORD.[CF]#;                                     02112200        
+REAL READERA,READERB;                                                   02112500        
+ $ SET OMIT = NOT(PACKETS)                                              02113079        
+ARRAY PSEUDO[*]; %PSEUDOMAX;                                            02113080        
+ARRAY PSEUDOMIX[*], NYLONZIPPER[*]; %MIXMAX                             02113085        
+DEFINE PACKETPAGE[PACKETPAGE1]=PSEUDO[PACKETPAGE1].[22:26]#;            02113086        
+DEFINE PACKETREC[PACKETREC1]=PSEUDO[PACKETREC1].[18:3]#;                02113087        
+DEFINE PACKETPBD[PACKETPBD1]=PSEUDO[PACKETPBD1].[8:10]#;                02113088        
+DEFINE PACKETACT[PACKETACT1]=PSEUDO[PACKETACT1].[2:6]#;                 02113089        
+DEFINE PACKETERR[PACKETERR1]=PSEUDO[PACKETERR1].[1:1]#;                 02113090        
+DEFINE PAGESIZE=300#;        % SAME AS PBDROWSZ AT 08699100        %732-02113091        
+DEFINE PAGEFULL=(PAGESIZE DIV 3)|5-40#; % ALLOW FOR 8 INFO RECORDS      02113092        
+ $ POP OMIT                                                             02113099        
+ PROCEDURE MESSAGEWRITER;%                                              02114000        
+         BEGIN REAL RWC=+0, MSCW=-2;                                    02115000        
+              REAL T=+1;%                                               02116000        
+              LABEL L;%                                                 02117000        
+              P(0);                                                     02118000        
+ $ SET OMIT = NOT(DCSPO AND DATACOM )                                   02119009        
+ $ SET OMIT = DCSPO                                                     02119019        
+L:                                                                      02119020        
+ $ POP OMIT                                                             02119021        
+              P(WAITIO(MESSAGEHOLDER INX 1,0,0,25));                    02120000        
+              P(DEL);%                                                  02121000        
+                NUMESS ~ NUMESS-1;%                                     02122000        
+              T ~ M[MESSAGEHOLDER].[18:15];                             02123000        
+                   FORGETSPACE(MESSAGEHOLDER INX 1);                    02124500        
+              IF T ! 0 THEN%                                            02125000        
+                   BEGIN MESSAGEHOLDER.[33:15] ~ T;%                    02126000        
+                        GO TO L%                                        02127000        
+                   END;%                                                02128000        
+              MESSAGEHOLDER ~ 0;%                                       02129000        
+              KILL([MSCW]);                                             02130000        
+         END;%                                                          02131000        
+ $ SET OMIT = NOT(DCSPO AND DATACOM  )                                  02131005        
+ $ SET OMIT = PACKETS                                                   02131999        
+ $ SET OMIT = NOT(PACKETS)                                              02132299        
+PROCEDURE SPOUTER(MESSAGE,UNITNO,TYPE);                                 02132300        
+     VALUE MESSAGE,UNITNO,TYPE;                                         02132400        
+     REAL MESSAGE,UNITNO,TYPE;                                          02132500        
+ $ POP OMIT                                                             02132501        
+        BEGIN REAL MKSCW=MESSAGE-1;                                     02133000        
+              INTEGER MIX;                                              02133010        
+ $ SET OMIT = NOT(DATACOM AND DCSPO )                                   02133011        
+ $ SET OMIT = (DATACOM AND DCSPO)                                  %950-02133122        
+         INTEGER LFT;                                              %950-02133123        
+ $ POP OMIT                                                        %950-02133124        
+ $ SET OMIT = NOT(PACKETS)                                              02133129        
+              DEFINE PACKETFREE=PSEUDO[UNITNO].[21:1]#,                 02133130        
+                     PACKETMASK=#400000000#;                            02133140        
+              REAL PSD,PWS,X,Z,BB;                                      02133150        
+              INTEGER NT1,R,S,T; ARRAY BUF[*];                          02133200        
+ $ SET OMIT = NOT(DATACOM AND DCSPO) OR OMIT                       %203-02133279        
+                      R:=UNITNO.[CF]; UNITNO:=0;                        02133300        
+              IF R=0 THEN IF P1MIX!0 THEN R:=PSEUDOMIX[P1MIX];          02133350        
+              IF R>31 AND R<64 THEN UNITNO:=R;                          02133380        
+ $ POP OMIT                                                             02133381        
+ $ SET OMIT = NOT(DATACOM AND DCSPO)                                    02133499        
+              MESSAGE ~ P(.MESSAGE,LOD).[33:15]-1;%                     02134000        
+              MIX ~ M[MESSAGE-1].[9:6];                                 02134005        
+ $ SET OMIT = NOT(DATACOM AND DCSPO )                                   02134008        
+ $ SET OMIT = NOT(PACKETS)                                              02134889        
+              IF TYPE THEN                                              02134890        
+ $ POP OMIT                                                             02134891        
+ $ SET OMIT = NOT(DATACOM AND DCSPO )                                   02134899        
+              BEGIN                                                     02134906        
+              IF MESSGEHOLDER = 0 THEN%                                 02135000        
+                   BEGIN MESSAGEHOLDER ~ MESSAGE;%                      02136000        
+                        INDEPENDENTRUNNER(P(.MESSAGEWRITER),0,64);      02137000        
+                   END%                                                 02138000        
+              ELSE M[MESSAGEHOLDER.[18:15]].[18:15] ~ MESSAGE;          02139000        
+              M[MESSAGE]~0&MIX[4:43:5];                                 02140000        
+              MESSAGEHOLDER.[18:15] ~ MESSAGE;%                         02141000        
+              END;                                                      02141020        
+              M[MESSAGE-1].[9:6] ~ 0;%                                  02142000        
