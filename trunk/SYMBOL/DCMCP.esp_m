@@ -1118,3 +1118,146 @@ BEGIN REAL PIN,Y;                                                       01250300
                          P(WAITIO(AREA INX @120540000000,@377,U),DEL);  01258700        
                    END ELSE                                             01258800        
                          P(WAITIO(AREA INX @120740000000,@377,U),DEL);  01258900        
+                   HDR1CHK;                                             01259000        
+                   IF Y THEN HDR1FILL ELSE GO TO ERROR;                 01259100        
+                   HARDFILL;                                            01259200        
+                   GO TO WAIT;                                          01259300        
+              END;                                                      01259400        
+              IF TYPE=6 THEN                                            01259500        
+                   BEGIN HDR1FILL;                                      01259600        
+                         HARDFILL;                                      01259700        
+                         STREAM(ULAB);                                  01259800        
+                         BEGIN DI:=ULAB; DI:=DI+39;                     01259900        
+                               DS:=1 LIT "1";                           01260000        
+                         END;                                           01260100        
+                         GO TO EXIT;                                    01260200        
+                   END;                                                 01260300        
+         END;                                                           01260400        
+    WAIT:     PTN:=0;                                                   01260425        
+    TIP:      IF((TWO(U) AND P(RRR)) !0) THEN                           01260450        
+              GO TO EXIT ELSE SLEEP([CLOCK], NOT CLOCK);                01260455        
+              PTN:=PTN+1;                                               01260460        
+              IF(PTN>120)THEN GO TO EXIT ELSE GO TO TIP;                01260465        
+    ERROR:    P(WAITIO(@4200000000,@377,U),DEL);                        01260500        
+              STREAM(T:=TINU[U],ULAB);                                  01260600        
+                   BEGIN SI:=LOC T; SI:=SI+5;                           01260700        
+                         DS:=LIT "#"; DS:=3 CHR;                        01260800        
+                         DS:=22 LIT " INVALID USASI.  RW/L~";           01260900        
+                    END;                                                01261000        
+              SPOUT(ULAB.[CF]); LABELTABLE[U]:=@314;;                   01261100        
+              TYPE~0; PTN~0;                                            01261150        
+    ETIP:     IF((TWO(U) AND P(RRR)) !0) THEN                           01261160        
+              GO TO BAD ELSE SLEEP([CLOCK], NOT CLOCK);                 01261170        
+              PTN:=PTN+1;                                               01261180        
+              IF(PTN>120) THEN GO TO BAD ELSE GO TO ETIP;               01261200        
+    EXIT:     MOVE(10,ULAB.[CF],AREA.[CF]);                             01261300        
+              FORGETSPACE(ULAB.[CF]);                                   01261400        
+    BAD:                                                                01261450        
+END USASITAPE;                                  %RHR                    01261500        
+SAVE PROCEDURE SNOOZE(NEWPRI,ADDRESS,MASK);                             02000000        
+         VALUE NEWPRI, ADDRESS, MASK;                                   02001000        
+         REAL NEWPRI;                                                   02002000        
+         NAME ADDRESS;                                                  02002500        
+         ARRAY MASK[*];                                                 02003000        
+         BEGIN                                                          02004000        
+              REAL TRYHERE=NT1;                                         02004500        
+ $ SET OMIT = NOT(NEWLOGGING)                                           02004599        
+              LABEL BEDENTER;                                           02004900        
+              IF (JOBNUM:=JOBNUM+2) GEQ JOBNUMAX THEN PUNT(9);          02005000        
+         PRYOR[P1MIX].[FF]~ NEWPRI~ NEWPRI+1;                           02006000        
+              FOR TRYHERE~JOBNUM STEP -2 UNTIL 2 DO                     02007100        
+                   BEGIN                                                02007200        
+         IF PRYOR[(BED[TRYHERE]~BED[TRYHERE-2]).[3:5]].[FF]             02007300        
+                   < NEWPRI THEN GO TO BEDENTER;                        02007400        
+                   BED[TRYHERE+1] ~ BED[TRYHERE-1];                     02007500        
+                   END;                                                 02007600        
+              BEDENTER:                                                 02008000        
+              BED[TRYHERE] ~ P(ADDRESS & P1MIX[3:43:5], RDF);           02008100        
+              BED[TRYHERE+1] ~ MASK;                                    02008200        
+              STOPLOG(P1MIX,1);                                         02008300        
+              GO TO NOTHINGTODO;                                        02008400        
+         END SLEEP;                                                     02009000        
+SAVE PROCEDURE INDEPENDENTRUNNER(ROUTINE,PARAMETER,SSZ);                02012000        
+         VALUE ROUTNE,PARAMETER,SSZ;                                    02013000        
+         ARRAY PARAMETER[*];                                            02014000        
+         REAL ROUTINE,SSZ;                                              02015000        
+         BEGIN LSLATE:= LSLATE+2 AND SLATEEND;%                         02016000        
+         IF NSLATE=LSLATE THEN PUNT(7);                                 02017000        
+              SLATE[LSLATE] ~ PARAMETER;%                               02018000        
+              SLATE[LSLATE+1]:=ROUTINE&SSZ[CTF];                        02019000        
+         END;                                                           02020000        
+REAL KEYBOARDCOUNTER;                                                   02020500        
+ REAL PROCEDURE KEYIN(B); VALUE B; BOOLEAN B;  FORWARD;%                02021000        
+ $ SET OMIT = NOT(DCSPO AND DATACOM )                                   02021099        
+ BOOLEAN PROCEDURE WHYSLEEP(MASK); VALUE MASK; REAL MASK; FORWARD;%     02022000        
+ LABEL P1PROCESS,P2PROCESS;%                                            02023000        
+ REAL ONEOHONE = @101,ONEOHTWO = @102;%                                 02024000        
+ SAVE PROCEDURE RUN(MIX); VALUE MIX; REAL MIX;                          02025000        
+         BEGIN P1MIX ~ MIX;%                                            02026000        
+ $ SET OMIT = NEWLOGGING                                                02026999        
+              STARTLOG(MIX);                                            02027000        
+ $ POP OMIT                                                             02027001        
+              STACKUSE ~ TRUE;%                                         02028000        
+              GO TO EXTERNAL;%                                          02029000        
+         END;%                                                          02030000        
+ REAL NUMESS;%                                                          02031000        
+ SAVE PROCEDURE SAVEMIX(MIX); VALUE MIX; REAL MIX;%                     02032000        
+         BEGIN INDEPENDENTRUNNER(P(.RUN),MIX,0);                        02033000        
+ $ SET OMIT = NEWLOGGING                                                02033999        
+              STOPLOG(MIX,0);                                           02034000        
+ $ POP OMIT                                                             02034001        
+         END;%                                                          02035000        
+ SAVE PROCEDURE HALT;%                                                  02036000        
+         BEGIN NOPROCESSTOG ~ NOPROCESSTOG+1;%                          02037000        
+              IF P2MIX > 0 THEN%                                        02038000        
+                   BEGIN P(HP2);%                                       02039000        
+ $ SET OMIT = NOT(NEWLOGGING)                                           02039099        
+                        SNOOZE(-1,1,1);                                 02040000        
+                        IF P2MIX > 0 THEN%                              02041000        
+                             BEGIN SAVEMIX(P2MIX);%                     02042000        
+                                  P2MIX~0; TOGLE~TOGLE AND NOT HP2MASK; 02043000        
+                             END;%                                      02044000        
+                   END;%                                                02045000        
+         END;%                                                          02046000        
+ SAVE PROCEDURE KILL(A); VALUE A; ARRAY A[*];%                          02047000        
+         BEGIN P(64,STS);%                                              02048000        
+              FORGETSPACE(A);%                                          02049000        
+              GO TO NOTHINGTODO;%                                       02050000        
+         END;%                                                          02051000        
+REAL PBCOUNT;                                                           02052200        
+BOOLEAN PROCEDURE OLAY(LOC); VALUE LOC; REAL LOC; FORWARD;              02052500        
+PROCEDURE SEEKNAME(A,B,C,D,E,N,XLST); VALUE A,B;                        02052700        
+    REAL A,B,C,D,E,N; ARRAY XLST[*]; FORWARD;                           02052800        
+PROCEDURE UNHOOQUE(MIX);%                                               02053000        
+              VALUE MMIX;%                                              02054000        
+              INTEGER MIX;%                                             02055000        
+    BEGIN%                                                              02056000        
+         REAL U,S,SN,T,X,I,PROCE;%                                      02057000        
+         NAME OLDQ=X;                                                   02057500        
+         LABEL DOLP,DELINKIT;                                           02058000        
+              FOR U~0 STEP 1 UNTIL 31 DO%                               02059000        
+                   BEGIN%                                               02060000        
+                        IF(S~UNIT[U].[FF])!@77777 THEN                  02061000        
+                        BEGIN%                                          02062000        
+                             WHILE (SN~LOCATQUE[S].[FF])!@77777 DO%     02063000        
+                             BEGIN IF (T~NFLAG(LOCATQUE[SN])).[3:5] =%  02064000        
+                                       MIX THEN%                        02065000        
+                                  IF LOCATQUE[SN].[11:1] THEN S~SN ELSE 02065100        
+                                  BEGIN%                                02066000        
+                                       LOCATQUE[S]~LOCATQUE[S]&T[FTF];% 02067000        
+                                       RETURNIOSPACE(SN);               02068000        
+                                  END                          ELSE%    02070000        
+                                  S~SN;%                                02071000        
+                             END%                                       02072000        
+                        END                                             02072100        
+                   END;                                                 02072200        
+ $ SET OMIT = NOT DFX;                                                  02072490        
+    DOLP:     FOR U~0 STEP 1 UNTIL 31 DO%                               02075000        
+                   BEGIN%                                               02076000        
+                        IF (S~(T~UNIT[U]).[FF])!@77777 THEN             02077000        
+                        BEGIN%                                          02078000        
+                             IF LOCATQUE[S].[3:5]=MIX THEN%             02079000        
+                             BEGIN%                                     02080000        
+                                  IF (X~T.[13:5])=0 OR X=16 THEN        02081000        
+                                    GO DELINKIT;                        02082000        
+                                  IF X=4 THEN%                          02087000        
