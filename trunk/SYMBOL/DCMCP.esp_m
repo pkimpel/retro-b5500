@@ -1376,3 +1376,118 @@ PROCEDURE SPOUTER(MESSAGE,UNITNO,TYPE);                                 02132300
               MESSAGEHOLDER.[18:15] ~ MESSAGE;%                         02141000        
               END;                                                      02141020        
               M[MESSAGE-1].[9:6] ~ 0;%                                  02142000        
+              M[MESSAGE-1].[AREATYPEF] := SPOUTMSGAREAV;%          %167-02142100        
+              IF P(MKSCW.[33:15],DUP)  = 0 THEN%                        02143000        
+              BEGIN        ;                                            02143050        
+              STREAM(N~9:X~MESSAGE+1);                                  02144500        
+                   BEGIN SI ~ X;%                                       02145000        
+              L:        IF SC ! "~" THEN%                               02146000        
+                             BEGIN IF SC= " " THEN%                     02147000        
+                                  BB:  BEGIN SI~ SI+1;                  02148000        
+                                            IF SC=" " THEN GO BB;       02149000        
+                                            IF SC = ALPHA THEN%         02150000        
+                                                 BEGIN SI ~ SI-1;%      02151000        
+                                                      DS ~ CHR;%        02152000        
+                                                 END ELSE GO TO L;%     02154000        
+                                       END;%                            02155000        
+                                  IF SC = @14 THEN%                     02156000        
+                                       BEGIN DS ~ CHR;%                 02157000        
+                                       Q:   IF SC = @14 THEN%           02158000        
+                                                 BEGIN SI ~ SI+1;%      02159000        
+                                                      GO TO Q;          02160000        
+                                                 END;%                  02162000        
+                                            GO TO L;%                   02163000        
+                                       END;%                            02164000        
+                                  DS ~ CHR;%                            02165000        
+                                  GO TO L;%                             02167000        
+                             END;%                                      02168000        
+                        DS ~ CHR;%                                      02169000        
+                        N ~ DI;                                         02171000        
+                   END;%                                                02172000        
+              NT1~P;NT1~((NT1.[33:15]-(MESSAGE+1))|8+NT1.[30:3])|6;     02173000        
+              END ELSE        NT1 ~ P | 6;                              02173050        
+ $ SET OMIT = NOT(PACKETS)                                              02173069        
+              IF UNITNO!0 THEN IF PACKETPAGE[UNITNO-32]>1 THEN          02173075        
+              BEGIN UNITNO:=UNITNO-32;                                  02173080        
+              IF NOT PACKETFREE THEN SLEEP([PSEUDO[UNITNO]],PACKETMASK);02173085        
+              IF (PSD:=PACKETPAGE[UNITNO])>1 THEN                       02173087        
+              BEGIN % JUST TO BE SURE                                   02173088        
+              PACKETFREE:=FALSE;                                        02173090        
+              Z:=IF (PSW:=PACKETREC[UNITNO]) THEN 60 ELSE 30;           02173095        
+              S:=((Y:=IF NT1>725 THEN 120 ELSE NT1 DIV 6)+7) DIV 8;     02173100        
+              BUG:=[M[T:=SPACE(Z+S)]]&Z[8:38:10];                       02173110        
+              M[BUF-2].[9:6]:=0;                                        02173120        
+              STREAM(N:=S,AA:=MESSAGE+1,BUF:=BUF INX Z);                02173150        
+              BEGIN SI:=AA; DS:=N WDS END;                              02173160        
+              DISKWAIT(-T,Z,PSD+PSW DIV 2);                             02173210        
+              R:=(PSW|18) MOD 30;                                       02173220        
+              IF (BB:=BUF[R+17].[CF]) GEQ PAGEFULL THEN                 02173230        
+                   BEGIN STREAM(BUF:=[BUF[R]]);                         02173240        
+                         BEGIN DS:=12LIT" ";                            02173245        
+                         DS:=28LIT"ALL FURTHER MESSAGES LOST   ";       02173250        
+                         2(DI:=DI+48); DS:=6LIT":|5908";                02173255        
+                         END;                                           02173260        
+                         PACKETPAGE[UNITNO]:=1; % TO MARK OVERFLOW      02173265        
+                   END                                                  02173270        
+              ELSE BEGIN P(@1540005000100000&(RB+1)[CTC]); % PBDSTOPPER 02173275        
+                   IF PSW=0 THEN                                        02173280        
+                   BEGIN P(BUF[29],XCH);                                02173282        
+                        P([BUF[29]],STD);                               02173284        
+                        DISKWAIT(T,30,PSD+5);                           02173286        
+                        P([BUF[29]],STD);                               02173288        
+                   END ELSE                                             02173290        
+                   P([BUF[R-1]],STD);                                   02173292        
+                   BUF[R+17]:=@1540000104000000&BB[CTC]&                02173294        
+                              (S+2+(M[BUF INX Z].[1:5]!">"))[8:38:10];  02173296        
+                   FORMTIME([LFT],XCLOCK~P(RTR));                  %154-02173297        
+                   STREAM(N:=S-1,CL:=S|8-Y,AA:=BUF INX Z,BB := LFT,%154-02173300        
+                            BUF:=[BUF[R]]);                             02173301        
+                   BEGIN DS := 7 LIT " "; SI := LOC BB; DS := 8 CHR;    02173305        
+                         DS := 9 LIT " "; SI := AA;                %154-02173306        
+                   IF SC!">" THEN DS:=8 CHR ELSE                        02173310        
+                   BEGIN DI:=DI-8; 8(IF SC!">" THEN DS:=CHR ELSE        02173315        
+                         BEGIN DI:=DI+1; SI:=SI+1; END);                02173320        
+                   END; N(DS:= 8 CHR); DI:=DI-CL; AA:=DI;               02173325        
+                   SI:=AA; SI:=SI-1;                                    02173330        
+                   IF SC="~" THEN BEGIN DI:=DI-1; DS:=LIT" "; END;      02173335        
+                   CL(DS:=LIT" ");                                      02173340        
+                   END;END;                                             02173345        
+              DISKWAIT(T,Z,PSD+PSW DIV 2);                              02173350        
+              IF PACKETPAGE[UNITNO]>1 THEN                              02173360        
+              IF PSW=0 THEN                                             02173362        
+              BEGIN PACKETPAGE[UNITNO]:=PSD+3;                          02173364        
+                    PACKETREC[UNITNO]:=4;                               02173366        
+              END ELSE                                                  02173368        
+              PACKETREC[UNITNO]:=PSW-1;                                 02173370        
+              PACKETFREE:=TRUE;                                         02173375        
+              FORGETSPACE(BUF);                                         02173380        
+              END; % JUST TO BE SURE                                    02173383        
+              END;                                                      02173385        
+              IF NOT TYPE THEN BEGIN FORGETSPACE(MESSAGE+1); P(XIT);    02173389        
+                                END;                                    02173390        
+ $ POP OMIT                                                             02173391        
+              IOTIME[P1MIX] ~ *P(DUP)+NT1;%                             02174000        
+ $ SET OMIT = NOT(DCSPO AND DATACOM )                                   02174005        
+ $ SET OMIT = DCSPO                                                     02175002        
+              IF (NUMESS~ NUMESS+1)>0 THEN                              02175003        
+ $ POP OMIT                                                             02175004        
+                   BEGIN                                                02175010        
+ $ SET OMIT = NOT(DATACOM AND DCSPO )                                   02175020        
+                   SLEEP([NUMESS],-0);%                                 02176000        
+                   END;                                                 02176100        
+         END;%                                                          02177000        
+ PROCEDURE ENDOFDECK(R,TUSTA);VALUE R,TUSTA; REAL R,TUSTA;  FORWARD;    02177100        
+PROCEDURE PBIO(A,B); VALUE A; REAL A,B; FORWARD;                        02178500        
+REAL TERMINALCLOCK;                                                     02179000        
+ PROCEDURE TERMINATE(MIX); VALUE MIX; REAL MIX;%                        02180000        
+         BEGIN IF MIX LEQ 0 THEN BYBY("MCP DS-ED~",10);                 02181000        
+         IF JARROW[MIX] NEQ 0 THEN                                      02182000        
+         BEGIN                                                          02183000        
+         IF NOTERMSET(MIX) THEN                                         02184000        
+              BEGIN                                                     02185000        
+                   TERMINALCLOCK:=CLOCK+P(RTR);                         02185900        
+                   PRTROW[MIX].[FF]:=MIX.[FF];                          02186000        
+                   PRTROW[MIX].[PSF]:=1;                                02186050        
+              END;                                                      02186100        
+         END;                                                           02186300        
+         END;%                                                          02187000        
