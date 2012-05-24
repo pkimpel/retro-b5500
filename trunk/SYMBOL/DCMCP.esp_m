@@ -1491,3 +1491,89 @@ REAL TERMINALCLOCK;                                                     02179000
               END;                                                      02186100        
          END;                                                           02186300        
          END;%                                                          02187000        
+ REAL PROCEDURE PLACEFINDER(S, A, L);                                   02187100        
+         VALUE S, A;                                                    02187200        
+         REAL  S, A, L;                                                 02187300        
+         FORWARD;                                                       02187400        
+ARRAY CIDROW[*],CIDTABLE=CIDROW[*,*];                                   02187500        
+ PROCEDURE TERMINALMESSAGA(N); VALUE N; REAL N;                         02188000        
+         BEGIN LABEL FOUND,DOIT,OWT,TOIT;                               02189000        
+              REAL A,T,S,ADR;%                                          02190000        
+              NAME B;%                                                  02191000        
+              ARRAY FIB[*];                                             02191500        
+              REAL BLEN,NBUF;                                           02191600        
+    REAL MIXER,TOPIO,LUN,L;%                                            02192000        
+              INTEGER I=S; LABEL QZ;%                                   02193000        
+    LABEL STT;%                                                         02194000        
+    SUBROUTINE SLAPITOFF;%                                              02195000        
+         IF LUN GEQ 32 THEN                                             02195100        
+ $ SET OMIT = PACKETS                                                   02195199        
+         ELSE                                                           02195300        
+         BEGIN SLEEP([TOGGLE],STATUSMASK);                              02196000        
+              READY ~ NOT (I ~ TWO(LUN)) AND READY;%                    02197000        
+              RRRMECH ~ NOT I AND RRRMECH OR I AND SAVEWORD;%           02198000        
+              LABELTABLE[LUN] ~ @114;%                                  02199000        
+              MULTITABLE[LUN] ~ RDCTABLE[LUN] ~ 0;%                     02200000        
+         END;%                                                          02201000        
+    LABEL LB,LBI;%                                                      02202000        
+ $ SET OMIT = NOT(NEWLOGGING)                                           02202049        
+              NOMEM:=NOMEM-TAR[P1MIX].[20:1]; %IF THIS JOB HAD A NOMEM  02202100        
+              TAR[P1MIX].[20:1]:=0;           %CONDITION - CLEAR IT     02202200        
+              UNLOCKTOG(TAR[P1MIX]);                                    02202500        
+              REPLY[P1MIX]~0;%                                          02203000        
+              PRTROW[P1MIX].[PSF]:=3; % IN PROCESS OF DSING             02205000        
+              PRYOR[P1MIX]~-1;                                          02205100        
+              A ~ IF N < 0 THEN ABS(N) ELSE SPACE(10);%                 02206000        
+              IF N=32 THEN JAR[P1MIX,6].[1;1]~1; % MEM PAR         %949-02206100        
+              B ~ PRT[P1MIX,4];%                                        02207000        
+              IF P(M[L~PRT[P1MIX,8].[CF]],TOP,XCH,DEL)THEN           %TR02208000        
+               S~ADR~0 ELSE                                          %TR02209000        
+           DO BEGIN IF P(M[L],TOP,XCH,0,INX,,ADR,~) THEN% OVERLAID RCWTR02210000        
+                   BEGIN IF NOT M[L].[33:1] THEN%NOT TYPE 13 INT        02211000        
+                         BEGIN S~ADR; %SEGNO IN RCW                     02211010        
+                     T~0;ADR~M[M[L].MOM].[CF]; % AND THE MSCW        %TR02212000        
+                         END ELSE S~-1;                                 02212100        
+                   END ELSE % ITS PRESENT: WDVE GOT TO WORK          %TR02213000        
+                   BEGIN T~0;                                           02214000        
+                         WHILE (S:=M[T].[CF]) LSS ADR DO                02215000        
+                         IF S>T THEN T:=S ELSE PUNT(3);                 02215500        
+                         S~IF M[T].[AREATYPEF]=CODEAREV THEN%      %167-02216000        
+                              M[T+1].[CF] ELSE 0;%                 %167-02216010        
+         T~T+2;    END;                                              %TR02216100        
+                   IF PRT[P1MIX,8].[CF]!L OR M[L-1].MSFF%STACK IS MARKED02216200        
+                   THEN DO L~M[L].MOM UNTIL NOT M[L].MSFF;%GET LAST MSCW02216300        
+                   L~M[L].MOM;%POINT L TO NEXT RCW,JUST IN CASE.     %TR02216400        
+         END UNTIL (IF S!0 THEN  IF S=(-1) THEN 0 ELSE                  02216500        
+                                (B[0]<S OR NOT B[S].PBIT)               02216510        
+                   ELSE (P(M[T-2].[3:12],DUP)!@700  AND P(XCH)!@1500)); 02216600        
+      FOUND:  ADR ~ ADR-T;%                                             02217000        
+              T:=PLACEFINDER(S,ADR,S);                                  02217100        
+              IF N GTR 0 THEN                                           02217200        
+              BEGIN                                                     02217300        
+              B ~ [M[SPACE(TERMMSGSZ)]];                                02218000        
+              DISKWAIT(-(B INX 0),TERMSGSZ,MESSAGETABLE[1].[22:26]);    02219000        
+              END ELSE N:=0;                                            02220000        
+              STREAM(Z:=N!0,X:=T,T:=6,J:=JAR[P1MIX,0]],                 02221000        
+                   P1MIX,INDX~PRT[P1MIX,8] INX NOT 2 INX 0,             02222000        
+                   DSZE~IF P(M[P(DUP)+1],TOP) THEN P ELSE P.[8:10],     02222200        
+                   TOG~(N=7), Q~[B[N]], A);                             02223000        
+                   BEGIN CI ~ CI+Z; GO TO L1;%                          02224000        
+                        DS:=LIT "-"; SI:=Q;                             02225000        
+              L:        SI:=SI+1;                                       02226000        
+                        IF SC = "8" THEN SI:=SI+1 ELSE                  02227000        
+                        BEGIN A:=DI; DI:=LOC T;                         02228000        
+                             DS:=OCT; DI:=A;                            02229000        
+                        END;                                            02230000        
+                        DS:=T CHR;                                      02231000        
+                        IF TOGGLE THEN GO TO L;                         02232000        
+                        DS ~ LIT " "; GO TO L2;%                        02234000        
+              L1:       SI ~ A;%                                        02235000        
+                        IF SC ! "~" THEN%                               02236000        
+                             BEGIN SI ~ SI+1; A ~ SI;%                  02237000        
+                                  GO TO L1;%                            02238000        
+                             END;%                                      02239000        
+                        DI ~ A;%                                        02240000        
+              L2:%                                                      02241000        
+                        SI ~ J; SI ~ SI+1; DS ~ 7 CHR; DS ~ LIT "/";%   02242000        
+                        SI ~ SI+1; DS ~ 7 CHR; DS ~ LIT "=";%           02243000        
+                   SI!LOC P1MIX; DS~2DEC; A~DI;                         02244000        
