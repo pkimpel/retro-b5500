@@ -1576,4 +1576,102 @@ ARRAY CIDROW[*],CIDTABLE=CIDROW[*,*];                                   02187500
               L2:%                                                      02241000        
                         SI ~ J; SI ~ SI+1; DS ~ 7 CHR; DS ~ LIT "/";%   02242000        
                         SI ~ SI+1; DS ~ 7 CHR; DS ~ LIT "=";%           02243000        
-                   SI!LOC P1MIX; DS~2DEC; A~DI;                         02244000        
+                   SI~LOC P1MIX; DS~2DEC; A~DI;                         02244000        
+                   DI~DI-2; DS~FILL; DS~A;                              02244500        
+                   SI:=X; DS:=20 CHR; A:=DI;                            02245000        
+                        TOG(DI~A;  DS~2 LIT ". ";  A~DI;  SI~INDX;      02251010        
+                             SKIP SB;  IF SB THEN BEGIN DI~INDX;        02251020        
+                             SKIP DB;  DS~RESET;  DI~A;  TOG~TALLY;     02251030        
+                             DS~12 LIT "EFF INX IS -";  END;            02251040        
+                             A~DI;  DI~INDX;  DI~LOC Q;  DS~8 DEC;      02251050        
+                             SI~LOC Q;  7(IF SC>"0" THEN JUMP OUT;      02251060        
+                                  TALY~TALY+1;  SI~SI+1);  DI~A;        02251070        
+                             T~TALLY;  DS~8 CHR;  DI~DI-T;              02251080        
+                             T(DS~LIT " ");  DI~DI-T;  A~DI);           02251090        
+                        TOG(SI~LOC DSZE;  DI~LOC Q;  DS~4 DEC;          02251100        
+                             DI~A;  DS~5 LIT " GEQ ";  SI~LOC Q;        02251110        
+                             TALLY~0;  3(IF SC>"0" THEN JUMP OUT);      02251120        
+                                  TALLY~TALLY+1;  SI~SI+1);             02251130        
+                        T~TALLY;  DS~4 CHR;  DI~DI-T;                   02251140        
+                             T(DS~LIT " ");  DI~DI-T;  A~DI);           02251150        
+                        DI ~ A; DS ~ LIT "~";%                          02252000        
+                   END;%                                                02253000        
+              IF N!0 THEN FORGETSPACE(B);                               02253050        
+              S~A;                                                      02254000        
+              STREAM(B~S,A~A~SPACE(17));%                               02255000        
+              BEGIN 17(DS~8 LIT"#"); SI~B;DI~A;DI~DI+8;DS~2 LIT" ";%    02255100        
+                   17(8(IF SC!"~" THEN DS~CHR ELSE JUMP OUT 2 TO L1)) ; 02255200        
+                   L1: DS~2 LIT" ";%                                    02255500        
+              END;%                                                     02256000        
+              SPOUT(S);                                                 02256500        
+              IF NOT TERMGO THEN BEGIN HALT;%                           02257000        
+                   COMPLEXSLEEP(-100=NUMESS);%                          02258000        
+                   DO UNTIL KEYIN(0)=1;                                 02258100        
+                   NOPROCESSTOG ~ NOPROCESSTOG-1; END;%                 02258200        
+              JAR[P1MIX,1] ~-JAR[P1MIX,1];%                             02259000        
+              UNHOOQUE(P1MIX);%                                         02260000        
+              MIXER~ @300+P1MIX;%                                       02261000        
+              IF N=35 THEN                       % ES-ED                02261050        
+              IF JAR[P1MIX,9].SYSJOBF = PRNPBTCODE THEN                 02261100        
+              IF (L:=PRT[P1MIX,@25]) !0 THEN                            02261200        
+              BEGIN                                                %675-02261250        
+                    IF (LUN~L.[41:5])<16 THEN SLAPITOFF;           %675-02261300        
+                    LUN~L.[46:2]+19; % LPA, LPB, OR CPA            %675-02261350        
+                    SLAPITOFF;                                     %675-02261400        
+              END; % PRNPBT/DISK ES-ED: TO CLEAR UNITS.                 02261750        
+         STT: T~MSTART;%                                                02262000        
+              WHILE(L~T.[CF])!0 DO%                                     02263000        
+                   IF (T~M[L]).[3:12]=MIXER AND T>0%                    02264000        
+                        THEN%                                           02265000        
+    BEGIN LUN ~ (TOPIO ~ NFLAG(M[L+2])).[12:6];                         02266000        
+         IF LUN }32 THEN                                                02266100        
+              BEGIN                                                     02266200        
+                   FILECLOSE(TOP10 INX 0);                              02266300        
+                   GO TO STT;                                           02266400        
+              END;                                                      02266500        
+         IF UNIT[LUN].[13:5] = @20                                      02267000        
+              THEN BEGIN%                                               02268000        
+         QZ:%                                                           02269000        
+                   SLAPITOFF;                                           02270000        
+                   UNIT[LUN].[13:5]:=@20;% MARK IT NOT READY ANYWAYS    02270500        
+                   FORGETSPACE(L INX 2);%                               02271000        
+                   GO TO STT;%                                          02272000        
+                   END ELSE                                             02273000        
+         BEGIN T ~ 0;                                                   02274000        
+              FIB ~ M[TOPIO INX NOT 2];                                 02275000        
+              ADR ~ NBUF ~ FIB[13].[1:9]-1;                             02275100        
+         IF P(M[TOPIO].[3:5],DUP)=22 OR P(XCH)=26 THEN                  02275150        
+              BEGIN  FOR S ~ 1 STEP 1 UNTIL ADR DO                      02275200        
+              TOIT:  IF NOT M[TOPIO INX S].[19:1] THEN                  02275250        
+              DOIT:  IF LUN{18 THEN                                     02275300        
+                        BEGIN  M[TOPIO INX S].[20:1] ~ 0;               02275350        
+                               M[M[TOPIO INX S] INX 17] ~ M[TOPIO INX S]02275400        
+                                       & FIB[5] [FTC];                  02275450        
+                               FIB[5] ~ P(DUP,LOD,0,1,CFX,+);           02275500        
+                               IF NOT PRTROW[P1MIX].[17:1] THEN         02275550        
+                                  IF FIB[14].[CF]=FIB[14].[FF] THEN     02275600        
+                                  BEGIN  PBIO(TOPIO INX S,FIB[14]);     02275650        
+                                         SLEEP([M[TOPIO INX S]],IOMASK);02275700        
+                                  END ELSE                              02275750        
+                                  BEGIN  STREAM(C~M[TOPIO INX S],       02275800        
+                                                 Z~FIB[14].[FF]);       02275850        
+                                         BEGIN SI ~ C; DS ~ 18 WDS; END;02275900        
+                                         FIB[14].[FF] ~ P(DUP).[FF]-18; 02275950        
+                                  END;                                  02276000        
+                        END ELSE                                        02276050        
+                        BEGIN  IF WAITIO(M[TOPIO INX S],@357,LUN).[45:1]02276100        
+                                  THEN GO OWT;                          02276150        
+                               FIB[6] ~ *P(DUP)+1;                      02276200        
+                        END;                                            02276250        
+                     IF ADR<0 THEN                                      02276260        
+                        BEGIN  IF ADR THEN F[17] ~ BLEN; GO OWT;        02276270        
+                        END;                                            02276280        
+                     S ~ 0;                                             02276290        
+                     IF FIB[17] < (BLEN~FIB[18].[3:15]) THEN            02276300        
+                        BEGIN  IF NOT FIB[13] THEN                      02276350        
+                                  FIB[17] ~ *P(DUP)-(FIB[5].[46:2]=3);  02276360        
+                               M[TOPIO] ~ FLAG(FIB[16]);                02276370        
+                               STREAM(N~FIB[17],D~M[TOPIO].[CF]);       02276400        
+                               BEGIN  N(DS ~ 8 LIT " "); END;           02276450        
+                               ADR ~ -1; GO DOIT;                       02276500        
+                        END ELSE ADR ~ -2;                              02276550        
