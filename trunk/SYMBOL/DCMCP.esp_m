@@ -1528,7 +1528,7 @@ ARRAY CIDROW[*],CIDTABLE=CIDROW[*,*];                                   02187500
               B ~ PRT[P1MIX,4];%                                        02207000        
               IF P(M[L~PRT[P1MIX,8].[CF]],TOP,XCH,DEL)THEN           %TR02208000        
                S~ADR~0 ELSE                                          %TR02209000        
-           DO BEGIN IF P(M[L],TOP,XCH,0,INX,,ADR,~) THEN% OVERLAID RCWTR02210000        
+           DO BEGIN IF P(M[L],TOP,XCH,0,INX,.ADR,~) THEN% OVERLAID RCWTR02210000        
                    BEGIN IF NOT M[L].[33:1] THEN%NOT TYPE 13 INT        02211000        
                          BEGIN S~ADR; %SEGNO IN RCW                     02211010        
                      T~0;ADR~M[M[L].MOM].[CF]; % AND THE MSCW        %TR02212000        
@@ -1758,3 +1758,141 @@ ARRAY CIDROW[*],CIDTABLE=CIDROW[*,*];                                   02187500
                    M[T]:=-FLAG(0);M[T-1]:=-FLAG(0&(PRT)[6:33:9]);       02328200        
               P(.COM5); GO TO DIFFCOM;                                  02329000        
          END;%                                                          02330000        
+ SAVE PROCEDURE TERMINALMESSAGE(N); VALUE N; REAL N;                    02330100        
+         BEGIN NT1 ~ N;                                                 02330200        
+              P(0,STF);                                                 02330300        
+              TERMINALMESSAGE(NT1);                                     02330400        
+         END;                                                           02330500        
+ $ SET OMIT = NOT(DEBUGGING OR CHECKLINK)                               02330599        
+ARRAY UNITCODE[*];                                                      02347100        
+INTEGER PSEUDOCOPY;% USED BY STARTADECK TO EXERCISE SOME CONTROL   %541-02347110        
+%                    OVER THE NO. OF "COPIES" OF CONTROLCARD       %541-02347120        
+%                    SERVICING PSEUDO-READERS.                     %541-02347130        
+ BOOLEAN PROCEDURE READEMFROMDISK(H,IB);                                02347150        
+         VALUE H,IB; ARRAY H[*],IB[*]; FORWARD;                         02347160        
+ $ SET OMIT = NOT(PACKETS)                                              02347199        
+PROCEDURE DRAINO(UNIT,BUMP,ERROR);                                      02347200        
+    VALUE UNIT,BUMP,ERROR; REAL UNIT; BOOLEAN BUMP,ERROR;               02347210        
+         BEGIN REAL T;                                                  02347220        
+    LABEL NEXT;                                                         02347222        
+         UNIT~UNIT-32;                                                  02347230        
+         IF BUMP THEN                                                   02347240        
+         PACKETACK[UNIT]:=PACKETACT[UNIT]-1;                            02347250        
+         IF ERROR THEN PACKETERR[UNIT]:=TRUE;                           02347260        
+         IF PACKETACT[UNIT]=0 THEN                                      02347280        
+         IF LABELTABLE[UNIT+32]}0 THEN                                  02347290        
+         IF CIDTAABLE[UNIT,3]<CIDTABLE[UNIT,7] THEN                     02347300        
+         BEGIN                                                          02347310        
+         LABELTABLE[UNIT+32]~-@14;                                      02347315        
+         T~SPACE(13)+2; M[T-4].[9:6]~0;                                 02347320        
+         M[T INX 10]~UNITCODE[UNIT+9];                                  02347325        
+    NEXT:     DO UNTIL READEMFROMDISK(CIDROW[UNIT],                     02347330        
+              [M[T]]&10[8:38:10]);                                      02347335        
+         IF PACKETERR[UNIT] THEN BEGIN;                                 02347340        
+         STREAM(E~"END": Q~@14,D~T);                                    02347350        
+         BEGIN SI~LOC Q; SI~SI+7; IF SC!DC THEN DI~DI+1;                02347360        
+              Q~DI; S1~Q;                                               02347370        
+         L:   IF SC=" " THEN BEGIN SI~SI+1; GO TO L END;                02347380        
+              DI~LOC E; DI~DI+5; IF 3 SC!DC THEN TALLY+1;               02347390        
+              E~TALLY; END;                                             02347400        
+         IF P THEN GO TO NEXT; END;                                     02347410        
+         INDEPENDENTRUNNER(P(.CONTROLCARD),T&(UNIT+32)[2:42:6]          02347430        
+                         &ERROR[1:1:1],192);                            02347435        
+         PSEUDOCOPY~PSEUDOCOPY+1;%                                 %541-02347437        
+         END ELSE                                                       02347440        
+         ENDOFDECK(UNIT,(UNIT+32)&ERROR[1:1:1]);                        02347450        
+         END DRAINO;                                                    02347460        
+ $ POP OMIT                                                             02347461        
+REAL PROCEDURE UNITIN(TINU,WHAT); VALUE WHAT; REAL WHAT;                02348000        
+    ARRAY TINU[*];                                                      02348500        
+    BEGIN REAL HOLD; INTEGER T;%                                        02349000        
+         STREAM(A~0:WHAT);%                                             02350000        
+         BEGIN SI ~ WHAT;%                                              02351000        
+         L:   IF SC = " " THEN                                          02352000        
+              BEGIN SI ~ SI + 1; GO TO L; END;%                         02353000        
+              DI ~ LOC A; DI ~ DI + 5; DS ~ 3 CHR;%                     02353500        
+         END STREAM;%                                                   02354000        
+         HOLD ~ POLISH;%                                                02355000        
+ $ SET OMIT = NOT(SHAREDISK)                                            02355999        
+ $ SET OMIT = SHAREDISK                                                 02356499        
+         FOR I~0 STEP 1 UNTIL 64 DO                                     02356500        
+ $ POP OMIT                                                             02356501        
+         IF TINU[I].[30:18]=HOLD.[30:18] THEN                           02357000        
+         BEGIN                                                          02357500        
+              HOLD~I;                                                   02357600        
+              I~70;                                                     02357700        
+         END;                                                           02357800        
+         UNIT~IF I<70 THEN 69 ELSE HOLD;                                02358000        
+    END UNITIN;                                                         02359000        
+ PROCEDURE IDLETIME;%                                                   02360000        
+         BEGIN REAL C,N;%                                               02361000        
+              INTEGER T;%                                               02362000        
+              HALT;%                                                    02363000        
+              C ~ ((P2MIX}0)+1)|(CLOCK+P(RTR));%                        02364000        
+              FOR T ~ 1 STEP 1 UNTIL MIXMAX DO%                         02365000        
+                   IF JAR[T,*] ! 0 THEN%                                02366000        
+                        BEGIN N ~ N+1;%                                 02367000        
+                              C ~ -JAR[T,3]-PROCTIME[T]+C;              02368000        
+                        END;%                                           02369000        
+              IF N ! 0 THEN%                                            02370000        
+                   T ~ (C-OLDIDLETIME)/N);%                             02371000        
+              OLDIDLETIME ~ C;%                                         02372000        
+              FOR N ~ 1 STEP 1 UNTIL MIXMAX DO%                         02373000        
+                   IF JAR[N,*] ! 0 THEN%                                02374000        
+                        JAR[N,7] ~ *P(DUP)+T;%                          02375000        
+              NOPROCESSTOG ~ NOPROCESSTOG-1;%                           02376000        
+         END;%                                                          02377000        
+DEFINE ENTERUSERFILE(ENTERUSEFILE1,ENTERUSERFILE2,ENTERUSERFILE3)=      02378000        
+ P(EUF(ENTERUSERFILE1,ENTERUSERFILE2,ENTERUSERFILE3),DEL);%             02378500        
+REAL PROCEDURE FUF(A,B,L); VALUE A,B,L; REAL A,B,L; FORWARD;            02379000        
+ INTEGER PROCEDURE CALCULATEPURGE(PURGE);%                              02380000        
+         VALUE PURGE; REAL PURGE;%                                      02381000        
+         BEGIN REAL Y,D;%                                               02382000        
+              REAL J;%                                                  02383000        
+              REAL C=+1;;%                                              02384000        
+              STREAM(A~[DATE],B~[Y]);%                                  02385000        
+                   BEGIN S1~A; SI~SI+3; DS ~ 2 OCT; DS ~ 3 OCT END;%    02386000        
+              J ~ (D ~ ( Y+3) DIV 4|1461+(Y+3) MOD 4 | 365 +D+PURGE-%   02387000        
+                   1) DIV 1461;%                                        02388000        
+              IF (Y ~ (D ~ D MOD 1461) DIV 365) = 4 THEN%               02389000        
+                   BEGIN Y ~ 3; D ~ 365 END ELSE D ~ D MOD 365;%        02390000        
+              CALCULATEPURGE ~ (4|J+Y-3)|1000+D+1;%                     02391000        
+              STREAM(C~[C]); BEGIN SI~C; DS ~ 8 DEC END;%               02392000        
+         END;%                                                          02393000        
+PROCEDURE CHANGEDATE(BUFF); VALUE BUFF; REAL BUFF; FORWARD;             02393100        
+DEFINE MIDNIGHT =  BEGIN XCLCK:=XCLOCK-WITCHINGHOUR;                    02393200        
+                        DATE:=CALCULATEPURGE(1);                        02393225        
+                        CHANGEDATE(SPACE(10));                          02393250        
+                   END#;                                                02393300        
+REAL PROCEDURE TAPELABEL(M,F,R,C,P); VALUE M,F,R,C,P;                %AI02393400        
+    REAL M,F,R,C,P; FORWARD;                                         %AI02393500        
+ $ SET OMIT = NOT (DUMP OR DEBUGGING OR BREAKOUT)                       02393790        
+ REAL MFMASK;                                                           02393800        
+ $ POP OMIT                                                             02393810        
+ $ SET OMIT = NOT DEBUGGING                                        %763-02393999        
+ $ SET OMIT = NOT (DEUBGGING OR DUMP)                              %763-02394051        
+PROCEDURE DUMPCODE(BUFF);                                            %AI02394100        
+         VALUE BUFF; REAL BUFF;                                      %AI02394110        
+         BEGIN REAL B,S,N,TM,TA,U,D;                                 %AI02394120        
+              INTEGER I; REAL MASK,PARITY;                              02394125        
+              ARRAY TP[*]; ARRAY TL[*];                              %AI02394130        
+              LABEL X,L1,ERR;                                           02394135        
+              SUBROUTINE CHECK;                                         02394162        
+              BEGIN                                                     02394164        
+                   IF P(XCH)=@20 THEN                                   02394166        
+                   BEGIN                                                02394168        
+                       STREAM(B~BUFF~BUFF.[15:15]-1);                   02394170        
+                            DS~32LIT"-DPMT ABORTED, TRY ANOTHER TAPE~"; 02394172        
+                       P(WAITIO(@4740000020,@377,U),DEL); % SPACEBACK   02394174        
+                       PARITY~1;                                        02394176        
+                       GO ERR;                                          02394178        
+                   END;                                                 02394180        
+              END;                                                      02394182        
+                   FOR U~0 STEP 1 UNTIL 15 DO                           02394185        
+                   IF (MULTITABLE[U] EQV "MEMORY ")=NOT 0 THEN          02394190        
+                   IF (LABELTABLE[U].[5:25]="1DUMP") THEN GO L1;        02394195        
+                   FOR U~0 STEP 1 UNTIL 15 DO IF LABELTABLE[U]=0     %AI02394200        
+                        AND PRNTABLE[U].[1:1] THEN TO GO TO L1;      %AI02394210        
+                   BUFF:=BUFF.[15:15]-1;                             %AI02394215        
+                   STREAM(BUFF);                                     %AI02394220        
+                        DS:=17LIT"#NO MEMDUMP TAPE~";                   02394230        
