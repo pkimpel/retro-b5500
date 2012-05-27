@@ -1675,3 +1675,86 @@ ARRAY CIDROW[*],CIDTABLE=CIDROW[*,*];                                   02187500
                                BEGIN  N(DS ~ 8 LIT " "); END;           02276450        
                                ADR ~ -1; GO DOIT;                       02276500        
                         END ELSE ADR ~ -2;                              02276550        
+                     GO TOIT;                                           02276600        
+              END ELSE                                                  02276700        
+    OWT: FOR NT1 ~ 0 STEP 1 UNTIL NBUF DO                               02276750        
+                   M[TOPIO INX N[1] ! *P(DUP) OR IOMASK;%               02277000        
+        IF LUN{22 AND LUN}20 OR (LUN{18 AND % LP OR CP BK-UP            02278000        
+        (P(M[TOPIO].[3:5],DUP)=22 OR P(XCH)=10))                        02278100        
+              THEN                                                      02278500        
+         BEGIN IF LUN { 18 THEN % UNIT IS BACKUP                        02279000        
+              BEGIN S~17;%                                              02280000        
+                   STREAM(A,D~L+4);                                     02281000        
+                   BEGIN SI~A; DS~17 WDS END;%                          02282000        
+                   NT4~M[TOPIO INX NOT 2] INX 0;%                       02283000        
+                   NT1~M[NT4+14];%                                      02284000        
+                   NT2~NT1.[FF]; NT1~NT1.[CF];%                         02285000        
+                   IF M[TOPIO].[3:5]=22 THEN % NOT CP BK-UP             02285100        
+                   IF NT1=NT2-72 THEN%                                  02286000        
+                   BEGIN NT1~M[NT4+5].[FF];%                            02287000        
+                        M[NT4+5].[FF]~NT1+1;%                           02287100        
+                        M[NT2+17]~ @154000400200000 &NT1[CTC];%         02287110        
+                        M[NT4+14].[FF]~NT2-18;%                         02287120        
+                   END ELSE%                                            02287130        
+                        IF M[NT2+35].[27:6]=0 THEN M[NT2+35].[28:1]~1;  02287140        
+                   FIB[17] ~ -1;                                        02287200        
+                   M[TOPIO] ~ FLAG(FIB[16]&0[20:47:1]&S[8:38:10]);      02287210        
+              END ELSE %                                                02287230        
+              BEGIN T~(A INX @540000000000000)&17[8:38:10];        %150-02287240        
+                    IF SEPARATE THEN T~T&(LUN!22)[32:47:1]         %150-02287245        
+                    ELSE T~T&(LUN!22)[28:47:1];                         02287250        
+          IF LUN!22 THEN %IF PUNCH FILE, IGNORE                         02287254        
+                   IF WAITIO(@4002000000,@357,LUN).[45:1] THEN TO QZ;   02287255        
+                   T~WAITIO(T,@357,LUN);%                               02287260        
+                   IF T.[45:1] THEN TO GO QZ;%                          02287270        
+              END;                                                      02287280        
+         END ELSE%                                                      02290000        
+              IF LUN=23 OR LUN=24 THEN%                                 02291000        
+              BEGIN ADR~L+4;%                                           02292000        
+                   LB:  IF(T~UNIT[LUN]).[13:5]=25 THEN%                 02293000        
+              BEGIN ADR ~ IOQUE[S~T.[FF]].[33:15];%                     02294000        
+                   STREAM (A~"END":ADR); BEGIN SI ~ ADR;%               02295000        
+         L:SI ~ SI +1; IF SC = " " THEN TO TO L;%                       02296000        
+ $ SET OMIT = PACKETS                                                   02296999        
+ $ SET OMIT = NOT(PACKETS)                                              02297009        
+         DI:=LOC A;DI:=DI+5; IF 3SC=DC THEN TALLY:=0 ELSE               02297010        
+         BEGIN DI~LOC A; DS~4 LIT "PACK"; DI~LOC A;                     02297100        
+         SI~SI-3; IF 4SC=DC THEN TALLY~0 ELSE                           02297200        
+                   TALLY:=1 END; A:=                                    02297300        
+ $ POP OMIT                                                             02297301        
+       TALLY END;  IF P THEN BEGIN%                                     02298000        
+                                            RETURNIOSPACE(S);           02300000        
+                                            UNIT[LUN]~@7777777777%      02301000        
+                             END                                        02302000        
+              ELSE BEGIN M[TOPIO]~M[TOPIO]OR@2004000000; T~0;%          02303000        
+              M[M[TOPIO]]~"END.   "&@14[1:43:5]; END;%                  02304000        
+              END;                                                      02305000        
+                        IF T!0 THEN%                                    02306000        
+                             BEGIN%                                     02307000        
+                             LBI:T~WAITIO(@40000000+ADR,@367,LUN);%     02308000        
+              IF T.[45:1] THEN GO TO QZ;%                               02309000        
+                                  IF T.[42:1] THEN GO TO LB ELSE%       02310000        
+                                       GO TO LBI%                       02311000        
+              END            END;%                                      02312000        
+               IF T=0 THEN                                              02313000        
+                   IF FIB[5].[42:1]                                     02313500        
+                       THEN FORGETSPACE(L INX 2)                        02313600        
+                       ELSE FILECLOSE(TOPIO INX 0);                     02314000        
+              GO TO SIT                                                 02315000        
+    END; END;                                                           02316000        
+              FORGETSPACE(A);%                                          02317000        
+              T~MSTART;MIXER~@400+P1MIX;%                               02318000        
+              WHILE(L~T.[CF])!0 DO%                                     02319000        
+                   IF(T~M[L]).[3:12]=MIXER AND T>0 THEN%                02320000        
+                        IF M[M[L+4].[CF]+5].[41:1] THEN FILECLOSE(L+7); 02321000        
+              T~MSART;MIXER~@600+P1MIX;%                                02322000        
+              WHILE(L~T.[CF])!0 DO%                                     02323000        
+                   IF(T~M[L]).[3:12]=MIXER AND T>0 THEN%                02324000        
+                   IF M[L+7].[41:1] THEN FILECLOSE(M[L+1] INX 3);%      02325000        
+              FOR LUN ~ 0 STEP 1 UNTIL 31 DO%                           02326000        
+                   IF RDCTABLE[LUN].[6:6] = P1MIX THEN%                 02327000        
+                        SLAPITOFF;%                                     02328000        
+                   PRT[P1MIX,8]:=T:=NFO[(P1MIX-1)|NDX+2]INX 2;          02328100        
+                   M[T]:=-FLAG(0);M[T-1]:=-FLAG(0&(PRT)[6:33:9]);       02328200        
+              P(.COM5); GO TO DIFFCOM;                                  02329000        
+         END;%                                                          02330000        
