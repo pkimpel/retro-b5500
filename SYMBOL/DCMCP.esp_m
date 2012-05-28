@@ -1039,7 +1039,7 @@ BEGIN REAL PIN,Y;                                                       01250300
     SUBROUTINE VOL1FILL;                                                01251000        
          BEGIN STREAM(AREA,ULAB);                                       01251100        
                BEGIN DS:=8 LIT " LABEL  "; DI:=DI+1; SI:=AREA;          01251200        
-               SI!SI+11;IF SC=" " THEN DS~7LIT"0" ELSE DS~7CHR;         01251300        
+               SI~SI+11;IF SC=" " THEN DS~7LIT"0" ELSE DS~7CHR;         01251300        
                DI~DI+37; %MID                                           01251310        
                SI:=AREA; SI:=SI+5; DS:=5 CHR; %PHYSICAL TAPE NO.        01251400        
                END;                                                     01251500        
@@ -1870,29 +1870,161 @@ REAL PROCEDURE TAPELABEL(M,F,R,C,P); VALUE M,F,R,C,P;                %AI02393400
  REAL MFMASK;                                                           02393800        
  $ POP OMIT                                                             02393810        
  $ SET OMIT = NOT DEBUGGING                                        %763-02393999        
- $ SET OMIT = NOT (DEUBGGING OR DUMP)                              %763-02394051        
-PROCEDURE DUMPCODE(BUFF);                                            %AI02394100        
-         VALUE BUFF; REAL BUFF;                                      %AI02394110        
-         BEGIN REAL B,S,N,TM,TA,U,D;                                 %AI02394120        
-              INTEGER I; REAL MASK,PARITY;                              02394125        
-              ARRAY TP[*]; ARRAY TL[*];                              %AI02394130        
-              LABEL X,L1,ERR;                                           02394135        
-              SUBROUTINE CHECK;                                         02394162        
-              BEGIN                                                     02394164        
-                   IF P(XCH)=@20 THEN                                   02394166        
-                   BEGIN                                                02394168        
-                       STREAM(B~BUFF~BUFF.[15:15]-1);                   02394170        
-                            DS~32LIT"-DPMT ABORTED, TRY ANOTHER TAPE~"; 02394172        
-                       P(WAITIO(@4740000020,@377,U),DEL); % SPACEBACK   02394174        
-                       PARITY~1;                                        02394176        
-                       GO ERR;                                          02394178        
-                   END;                                                 02394180        
-              END;                                                      02394182        
-                   FOR U~0 STEP 1 UNTIL 15 DO                           02394185        
-                   IF (MULTITABLE[U] EQV "MEMORY ")=NOT 0 THEN          02394190        
-                   IF (LABELTABLE[U].[5:25]="1DUMP") THEN GO L1;        02394195        
-                   FOR U~0 STEP 1 UNTIL 15 DO IF LABELTABLE[U]=0     %AI02394200        
-                        AND PRNTABLE[U].[1:1] THEN TO GO TO L1;      %AI02394210        
-                   BUFF:=BUFF.[15:15]-1;                             %AI02394215        
-                   STREAM(BUFF);                                     %AI02394220        
-                        DS:=17LIT"#NO MEMDUMP TAPE~";                   02394230        
+ $ SET OMIT = NOT (DEUBGGING OR DUMP)                              %763-02434051        
+PROCEDURE DUMPCODE(BUFF);                                            %AI02434100        
+         VALUE BUFF; REAL BUFF;                                      %AI02434110        
+         BEGIN REAL B,S,N,TM,TA,U,D;                                 %AI02434120        
+              INTEGER I; REAL MASK,PARITY;                              02434125        
+              ARRAY TP[*]; ARRAY TL[*];                              %AI02434130        
+              LABEL X,L1,ERR;                                           02434135        
+              SUBROUTINE CHECK;                                         02434162        
+              BEGIN                                                     02434164        
+                   IF P(XCH)=@20 THEN                                   02434166        
+                   BEGIN                                                02434168        
+                       STREAM(B~BUFF~BUFF.[15:15]-1);                   02434170        
+                            DS~32LIT"-DPMT ABORTED, TRY ANOTHER TAPE~"; 02434172        
+                       P(WAITIO(@4740000020,@377,U),DEL); % SPACEBACK   02434174        
+                       PARITY~1;                                        02434176        
+                       GO ERR;                                          02434178        
+                   END;                                                 02434180        
+              END;                                                      02434182        
+                   FOR U~0 STEP 1 UNTIL 15 DO                           02434185        
+                   IF (MULTITABLE[U] EQV "MEMORY ")=NOT 0 THEN          02434190        
+                   IF (LABELTABLE[U].[5:25]="1DUMP") THEN GO L1;        02434195        
+                   FOR U~0 STEP 1 UNTIL 15 DO IF LABELTABLE[U]=0     %AI02434200        
+                        AND PRNTABLE[U].[1:1] THEN TO GO TO L1;      %AI02434210        
+                   BUFF:=BUFF.[15:15]-1;                             %AI02434215        
+                   STREAM(BUFF);                                     %AI02434220        
+                        DS:=17LIT"#NO MEMDUMP TAPE~";                   02434230        
+                   GO TO X;                                          %AI02434240        
+         L1:       MULTITABLE[U]:="MEMORY ";                         %AI02434250        
+                   LABELTABLE[U].[1:29]:=@1024644447;                %AI02434260        
+                   STREAM(A:="001",B:=[LABELTABLE[U]]);              %AI02434270        
+                   BEGIN SI := LOC A; SI := SI + 5;                  %AI02434280        
+                         DI:=DI+5; DS:=3ADD;                         %AI02434290        
+                   END;                                              %AI02434300        
+                   RRRMECH := TWO(U) OR RRRMECH;                     %AI02434310        
+                   B~(SPACE(20))&20[8:38:10]&5[21:45:3];                02434320        
+                   STREAM(LTT~BUFF.[33:15]<100,BUFF~BUFF.[33:15],B);    02434330        
+                   BEGIN                                             %AI02434340        
+                        DS:=8LIT" "; SI:=B; DS:=19WDS;               %AI02434350        
+                        DI ~ B;                                         02434360        
+                        LTT(SI ~ LOC BUFF; DS ~ 2 DEC; JUMP OUT 1 TO L);02434365        
+                        SI ~ BUFF;                                      02434367        
+                        20(8(IF SC!"~" THEN DS~CHR ELSE JUMP OUT 2   %AI02434370        
+                             TO L));     L:                          %AI02434380        
+                   END;                                                 02434390        
+                   LABELTABLE[U].[1:5]:=@20;                         %AI02434400        
+                   TL:=[M[TAPELABEL("MEMORY ",LABELTABLE[U].[6:42],  %AI02434410        
+                        1,1,100]]710[8:28:10]&5[21:45:3];               02434420        
+                   STREAM(A~PRNTABLE[U],[30:18],TL);                    02434424        
+                        BEGIN SI~LOC A; DI~DI+53; DS~5 DEC END;      %AI02434426        
+                   TP:=[M[TA:=TYPEDSPACE(513,MDUMPAREAV)]]&513[8:38:10]&02434430        
+                        5[21:45:3];%                               %167-02434435        
+                   TM:=0&@1737[1:37:11];                             %AI02434440        
+                   MASK~@40 & @20[CTF];                              %AI02434445        
+                   S:=0;                                             %AI02434470        
+                   HALT; SLEEP([TOGLE],STOREMASK);                   %AI02434480        
+                   LOCKTOG(STOREMASK);                                  02434490        
+                   WHILE (S:=M[S]).[33:15] NEQ 0 DO                  %AI02434500        
+                        IF M[S].[1:17]=@1000 THEN                    %AI02434510        
+                             D:=OLAY(S.[33:15]);                     %AI02434520        
+                   UNLOCKTOG(STOREMASK);                                02434530        
+                   P(WAITIO(TL,MASK,U),DEL);                            02434532        
+                   P(WAITIO([TM],MASK,U),DEL);                          02434534        
+                   S:=0;                                             %AI02434540        
+                   DO BEGIN                                          %AI02434550        
+                        N:=S.[33:3];                                 %AI02434560        
+                        IF(MEMASK AND TWO(N))NEQ 0 THEN S:=-S           02434570        
+                                         ELSE MOVE(512,S,TA+1);      %AI02434580        
+                        TP[0] := S;                                  %AI02434590        
+                        P(WAITIO(TP,MASK,U)); CHECK;                    02434600        
+                        IF S LSS 0 THEN S := 3584 - S;               %AI02434610        
+                      END UNTIL (S:=S+512).[18:15];                  %AI02434620        
+                   P(WAITIO(B,MASK,U)); CHECK;                          02434630        
+                   LABELTABLE[U].[1:5]~@01;                          %AI02434690        
+                   BUFF:=BUFF.[15:15-1;                              %AI02434695        
+                   STREAM(U~TINU[U],L~LABELTABLE[U],BUFF);           %AI02434700        
+                   BEGIN                                             %AI02434710        
+                        SI:=LOC U; SI := SI + 5;                     %AI02434720        
+                        DS:=1LIT" "; DS:=3CHR;                       %AI02434730        
+                        SI~LOC L; SI~SI+1; DS~ 1 LIT " "; DS~7 CHR;  %AI02434735        
+                        DS:=7LIT" DP-ED~";                           %AI02434740        
+                   END;                                              %AI02434750        
+         ERR:      P(WAITIO([TM],MASK,U),DEL);                          02434760        
+                   P(WAITIO(TL,MASK,U),DEL);                            02434770        
+                   IF PARITY HEN SETNOTINUSE(U,1) ELSE                  02434780        
+                   BEGIN                                                02434790        
+                        P(WAITIO([TM],MASK,U),DEL);                     02434800        
+                        P(WAITIO(@4740000020,@377,U),DEL);              02434810        
+                   END;                                                 02434820        
+                   FORGETSPACE(TP);                                     02434830        
+                   FORGETSPACE(TL);                                     02434840        
+                   FORGETSPACE(B);                                      02434850        
+                   NOPROCESSTOG!NOPROCESSTOG-1;                         02434860        
+         X:        SPOUT(BUFF);                                         02434870        
+         END DUMPCORE;                                                  02434880        
+ $ POP OMIT                                                             02434890        
+ $ SET OMIT = NOT(DEBUGGING)                                            02434999        
+ $ SET OMIT = NOT(DATACOM AND DCSPO )                                   02522099        
+ PROCEDURE NAMEIO(A,KTR);%                                              02603000        
+    REAL A,KTR;%                                                        02604000        
+    BEGIN;%                                                             02605000        
+         STREAM(A~[A]:KTR);%                                            02606000        
+         BEGIN DI ~ A; DS ~ 8 LIT "0       ";%                          02607000        
+              DI ~ DI-7; SI ~ KTR;%                                     02608000        
+         L:   IF SC = " " THEN%                                         02609000        
+                   BEGIN SI ~ SI+1; GO TO L END;%                       02610000        
+              IF SC = """ THEN%                                         02611000        
+                   BEGIN SI ~ SI+1;%                                    02612000        
+                        7(IF SC = "~" THEN JUMP OUT TO EXIT;%           02613000        
+                             DS ~ CHR;%                                 02614000        
+                             IF SC = """ THEN JUMP OUT TO LQ;);%        02615000        
+         LS:            IF SC ! """ THEN IF SC ! LEFTARROW THEN    %152-02615100        
+                           BEGIN SI := SI + 1; GO TO LS; END;      %152-02615200        
+                        IF SC = LEFTARROW THEN GO TO EXIT;         %152-02615300        
+         LQ:            SI ~ SI+1;%                                     02616000        
+                        GO TO EXIT;%                                    02617000        
+                   END;%                                                02618000        
+              IF SC = ALPHA THEN%                                       02619000        
+                   BEGIN 7(DS ~ CHR;%                                   02620000        
+                        IF SC = ALPHA THEN GO TO LA;%                   02621000        
+                        JUMP OUT TO EXIT;%                              02622000        
+         LA:            );%                                             02623000        
+         LE: IF SC = ALPHA THEN  %                                      02623500        
+                   BEGIN SI~SI+1; GO TO LE; END;  %                     02623501        
+                        GO TO FIXIT;%                                   02624000        
+                   END;%                                                02625000        
+              IF SC = "~" THEN%                                         02626000        
+                   BEGIN DS ~ CHR; SI ~ SI-1; GO TO EXIT END;%          02627000        
+              IF SC = "=" THEN%                                         02628000        
+                    BEGIN DS~2 LIT"~~"; SI~SI+1; GO TO EXIT END;        02629000        
+              DS ~ CHR;%                                                02630000        
+         EXIT:A ! SI;%                                                  02631000        
+         END;%                                                          02632000        
+         KTR ~ P(XCH);%                                                 02633000        
+    END;%                                                               02634000        
+REAL PROCEDURE TAPELABEL(MULFID,FID,REELNO,CYCLE,PURGE);%               02635000        
+              VALUE MULFID,FID,REELNO,CYCLE,PURGE;%                     02636000        
+              REAL MULFID,FID,REELNO,CYCLE,PURGE;%                      02637000        
+    BEGIN     REAL LBL;%                                                02638000        
+              LBL:=TYPEDSPACE(10,LABELAREAV);%                     %167-02639000        
+              STREAM(%                                                  02640000        
+               DATE, MULFID,FID,REELNO,CYCLE,PU~CALCULATEPURGE(PURGE),% 02641000        
+                     LBL);%                                             02642000        
+                   BEGIN%                                               02643000        
+                        DS~8 LIT" LABEL  ";%                            02644000        
+                        SI~LOC MULFID;%                                 02645000        
+                        DS~WDS;%                                        02646000        
+                        DS~WDS;%                                        02647000        
+                        DS~3 DEC;%                                      02648000        
+                        SI ~ LOC DATE; SI ~ SI+3;%                      02649000        
+                        DS ~ 5 CHR;%                                    02650000        
+                        SI~LOC CYCLE;%                                  02651000        
+                        DS~ 2 DEC;                                      02652000        
+                        SI~LOC PU; SI~SI+3;%                            02653000        
+                        DS~5 CHR; DS~1 LIT"0";%                         02654000        
+                        5(DS~8 LIT"00000000")%                          02655000        
+                   END;%                                                02656000        
+              TAPELABEL~LBL;%                                           02657000        
+    END;%                                                               02658000        
