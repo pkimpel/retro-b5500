@@ -2028,3 +2028,66 @@ REAL PROCEDURE TAPELABEL(MULFID,FID,REELNO,CYCLE,PURGE);%               02635000
                    END;%                                                02656000        
               TAPELABEL~LBL;%                                           02657000        
     END;%                                                               02658000        
+REAL PROCEDURE LABELASCRATCH(LBL); VALUE LBL; REAL LB;%                 02659000        
+         BEGIN%                                                         02660000        
+              REAL LUN,TM,REEL,T;                                       02661000        
+              LBL ~ P(.LBL,LOD).]CF] & 10[8:38:1]; &                    02662000        
+                     (IF P(.LBL,LOC).[7:1] THEN 1 ELSE 5)[21:45:3];     02662050        
+              STREAM(L~LBL+3,R~[REEL]);                                 02662100        
+              BEGIN SI~L; DSD~3 OCT END;                                02662200        
+              LUN~FINDOUTPUT(M[LBL+1],M[LBL+2],REEL,0,0,2,0,TM);        02663000        
+              IF LUN}0 THEN                                             02663100        
+              BEGIN;                                                    02663200        
+              STREAM(A~PRNTABLE[LUN].[30:18]],T~[T],L~LBL+6);           02664000        
+              BEGIN DI~DI+5; SI~LOC A; DS~5DEC; SI~SI-8; DI~T;          02664100        
+                    DS~8DEC; DI~DI-7; DS~6FILL;               END;      02665000        
+              RDCTABLE[LUN].[8:6]~P1MIX;                                02665100        
+              M[LBL+1].[1:5]:=0;                                   %148-02665110        
+              MULTITABLE[LUN]~M[LBL+1];                                 02665150        
+              RRRMECH~TWO(LUN) OR RRRMECH;                              02665200        
+              P(WAITIO(LBL,0,LUN),DEL);                                 02666000        
+              TM~0&"}~"[1:37:11];%                                      02667000        
+              P(WAITIO([TM],0,LUN),DEL);%                               02668000        
+ $ SET OMIT = PACKETS                                                   02668099        
+              FILEMESSAGE(" OUT"&TINU[LUN][6:30:18],T,                  02668500        
+                          M[LBL+1],M[LBL+2],REEL,0,0,OPNMESS);          02668600        
+              END;                                                      02668800        
+              LABELASCRATCH~LUN%                                        02669000        
+         END LABELASCRATCH;%                                            02670000        
+PROCEDURE NSECOND;FORWARD;%                                             02692000        
+ DEFINE  CHECKSTACKSPACE = IF P(PRT[P1MIX,*] INX 0)-P(0,RDS)<128    %WF 02693000        
+              THEN BEGIN P(64,STS);  GO TO STACKOVERFLOW;  END#;    %WF 02694000        
+ARRAY USERCODE[*];                                                      02695000        
+REAL PROCEDURE SECURITYCHECK(M,F,U,H);                                  02696000        
+VALUE M,F,U; REAL M,F,U,H; FORWARD;                                     02696100        
+PROCEDURE MAKEPRESENT(C); VALUE C; REAL C; FORWARD;                     02696200        
+PROCEDURE SIGNOFF(V,F,W);VALUE V,F,W;ARRAY V[*],F[*];REAL W;FORWARD;    02696300        
+SAVE PROCEDURE IOREQUEST(F,I,L); VALUE F,I,L; ARRAY F,L[*]; REAL I;     02696500        
+FORWARD;                                                                02696600        
+BOOLEAN PROCEDURE MTXIN(I,UMB); REAL U,B; INTEGER I; FORWARD;           02696700        
+ $ SET OMIT = NOT(BREAKOUT AND AUXMEM)                                  02697299        
+DEFINE CODEADDRESS(CODEADDRESS1,CODEADDRESS2)=                          02697710        
+            ACTUALOVERLAYADDRESS(1,CODEADDRESS1,CODEADDRESS2)#,         02697720        
+       DATAADDRESS(DATAADDRESS1,DATAADDRESS2)=                          02697730        
+            ACTUALOVERLAYADDRESS(0,DATAADDRESS1,DATAADDRESS2)#;         02697740        
+SAVE INTEGER PROCEDURE ACTUALOVERLAYADDRESS(TYPE,MIX,LOC);              02697750        
+     VALUE TYPE,MIX,LOC); INTEGER TYPE,MIX,LOC; FORWARD;                02697770        
+ $ SET OMIT = NOT(BREAKOUT)                                             02700000        
+ $ SET OMIT = NOT(DATACOM AND DCSPO )                                   03500099        
+ SAVE PROCEDURE INITIATEIO(IODESC,MIX,U);%                              04000000        
+         VALUE IODESC,MIX,U;%                                           04001000        
+         REAL MIX,U;%                                                   04002000        
+         REAL IODESC;%                                                  04003000        
+         BEGIN REAL C=+1;LABEL EXIT;                                    04004000        
+ $ SET OMIT = NOT(STATISTICS)                                           04004099        
+              IF (P(IODESC.[3:5]                                   %204-04004110        
+ $SET OMIT = DKBNODFX                                              %204-04004119        
+                      ,DUP)= @14 OR P(XCH                          %204-04004120        
+ $ POP OMIT                                                        %204-04004121        
+                      ) = @6) AND                                  %204-04004130        
+                  NOT IODESC.[24:1] AND                            %204-04004140        
+                  (((P(M[IODESC.[CF]],DUP) EQV 0)=NOT 0) OR        %204-04004150        
+                   ((P(XCH) EQV 32)=NOT 0)) AND                    %204-04004155        
+                  NOT OKSEGZEROWRITE THEN                          %204-04004160        
+                      BYBY("SEGMENT ZERO OVERWRITE~",23);          %204-04004170        
+         P(TIO);                                                        04004200        
