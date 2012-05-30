@@ -2091,3 +2091,129 @@ SAVE INTEGER PROCEDURE ACTUALOVERLAYADDRESS(TYPE,MIX,LOC);              02697750
                   NOT OKSEGZEROWRITE THEN                          %204-04004160        
                       BYBY("SEGMENT ZERO OVERWRITE~",23);          %204-04004170        
          P(TIO);                                                        04004200        
+         CHANNEL[P(DUP)]*U;                                             04005000        
+         P([IODESC],TIO);                                               04006000        
+         CNANIO[C]~CLOCK+P(RTR);                                        04007000        
+ $ SET OMIT = NOT(STATISTICS AND AUXMEM)                                04007099        
+         IF U < 16 THEN                                                 04008000        
+              BEGIN                                                     04008100        
+              IF IODESC.[22:1] THEN%                                    04009000        
+                   BEGIN TRANSACTION[U] ! IF IODESC.[18:1] THEN 0%      04010000        
+                             ELSE TRANSACTION[U]-1;%                    04011000        
+                        GO TO EXIT;%                                    04012000        
+                   END;                                                 04013000        
+ $ SET OMIT = NOT(STATISTICS)                                           04013009        
+              END                                                       04013100        
+                 ELSE                                                   04013200        
+         IF (U OR 1)=19 THEN                                            04013300        
+         BEGIN                                                          04014000        
+              FUIO[C]~CLOCK+P(RTR);                                     04014002        
+ $ SET OMIT = NOT(STATISTICS)                                           04014009        
+         END;                                                           04014100        
+ $ RESET OMIT                                                           04014105        
+         TRANSACTION[U] := P(DUP,LOD)+1;                                04014500        
+    EXIT:END;%                                                          04015000        
+ SAVE PROCEDURE QUEUEUP(U); VALUE U; REAL U;%                           04016000        
+    BEGIN IF U=30 THEN                                                  04016100        
+         WAITQUE[FIRSTWAIT:=(FIRSTWAIT+31) AND 31]:=U ELSE              04016200        
+         BEGIN WAITQUE[NEXTWAIT] ~ U;%                                  04017000        
+              NEXTWAIT ~ NEXTWAIT+1 AND 31;%                            04018000        
+         END;%                                                          04019000        
+    END;                                                                04019100        
+ $ SET OMIT = NOT(DFX)                                                  04019499        
+ SAVE PROCEDURE STARTIO(U); VALUE U; REAL U;                            04020000        
+    BEGIN REAL T=NT1,R=NT2, S=NT3;%                                     04021000        
+ $ SET OMIT = NOT(DFX)                                                  04021099        
+              IF (T ~ UNIT[U]).[13:5] = 0 THEN%                         04022000        
+              IF (S ~ T.[18:15]) < @1777 THEN%                          04023000        
+ $ SET OMIT = NOT(DFX)                                                  04023099        
+                   BEGIN IF P(TIO) ! 0 THEN%                            04024000        
+                             BEGIN INITIATEIO(IOQUE[S],LOCATQUE[X].[3:5]04025000        
+                                       ,U);%                            04026000        
+                                  P(3);%                                04027000        
+                             END%                                       04028000        
+                        ELSE BEGIN QUEUEUP(U);%                         04029000        
+                                  P(4);%                                04030000        
+                             END;%                                      04031000        
+                        P(T&P(XCH)[15:45:3],UNIT[U],~);%                04032000        
+ $ SET OMIT = DFX                                                       04032999        
+                   END;%                                                04033000        
+ $ POP OMIT                                                             04033001        
+ $ SET OMIT = NOT(DFX)                                                  04033049        
+    END;%                                                               04034000        
+ SAVE PROCEDURE PRINTERFINISHED(U); VALUE U; REAL U;%                   04035000        
+         BEGIN                                                          04036000        
+ $ SET OMIT = NOT(NEWLOGGING)                                           04036099        
+              IF NOT UNIT[U].[16:1] THEN UNIT[U].[17:1] ~ 0;            04036200        
+              STARTIO(U);%                                              04037000        
+              GO TO EXTERNAL;%                                          04038000        
+         END;%                                                          04039000        
+ SAVE PROCEDURE IOREQUEST(FINAL,IODESC,LOCATION);%                      04040000        
+         VALUE FINAL,IODESC,LOCATION;%                                  04041000        
+         ARRAY FINAL,LOCATION[*];%                                      04042000        
+         REAL IODESC;%                                                  04043000        
+         BEGIN REAL U=NT1,T=NT2,S=NT3,R=+1;%                            04044000        
+ $ SET OMIT = NOT(DFX)                                                  04044099        
+              IF IOQUESLOTS LEQ                                         04045000        
+                (U:=IF LOCATION.[9:1] OR P1MIX=0 THEN 0 ELSE 7) THEN    04045100        
+                   SLEEP([IOQUESLOTS],@77-U);                           04045200        
+              IOQUEAVAIL ~ IOQUE[S:=IOQUEAVAIL];                        04046000        
+ $ SET OMIT = NOT(STATISTICS)                                           04047009        
+ $ SET OMIT = NOT(DFX)                                                  04047099        
+ $ SET OMIT = NOT(DKBNODFX AND NOT DFX)                                 04048701        
+ $ SET OMIT = DFX                                                       04048799        
+              IF (T ~ UNIT[U ~ LOCATION.[12:6]]).[13:5] = 0 THEN        04048800        
+ $ POP OMIT                                                             04048801        
+                   BEGIN IF P(TIO) ! 0 THEN%                            04049000        
+                        BEGIN INITIATEIO(IODESC,P1MIX,U);%              04050000        
+                             P(3);%                                     04051000        
+                        END ELSE BEGIN QUEUEUP(U);%                     04052000        
+                             P(4);%                                     04053000        
+                        END;%                                           04054000        
+                        T ~ T&P(XCH)[15:45:3]&S[18:33:15];%             04055000        
+                   END ELSE%                                            04056000        
+                        IF T.[18:6] = @77 THEN%                         04057000        
+                              T.[18:15] ~ S ELSE%                       04058000        
+                        LOCATQUE[P(T.[33:15],DUP)]~LOCATQUE[R]&%        04059000        
+                             S[18:33:15];%                              04060000        
+ $ SET OMIT = NOT(DFX)                                                  04060099        
+              IOQUESLOTS:=IOQUESLOTS-1;                                 04060500        
+              LOCATQUE[S] ~ LOCATION&P1MIX[3:43:5] OR @7777700000;%     04061000        
+ $ SET OMIT = DFX                                                       04061999        
+              UNIT[U] ~ T&S[33:33:15];%                                 04062000        
+ $ POP OMIT                                                             04062001        
+              IOQUE[S] ~ IODESC;%                                       04063000        
+              FINALQUE[S] ~ FINAL;%                                     04064000        
+         END;%                                                          04065000        
+ SAVE PROCEDURE FINISHOFFIO(U); VALUE U; REAL U;%                       04067000        
+    BEGIN REAL T=NT1, FIN=NT3, V=NT4, IOD=NT6;                          04068000        
+              LABEL ON,OFF,C0,C1,C2,C3,C4,C5,C6,C7;%                    04069000        
+              SWITCH CSW ~ C0,C1,C2,C3,C4,C5,C6,C7;%                    04070000        
+              IF FIN > 0 THEN%                                          04071000        
+              IF FIN.[25:1] THEN%                                       04072000        
+                   BEGIN T ~ FIN.[3:5];%                                04073000        
+                        FIN ~ FIN&IOD[3:3:5]&0[25:25:1];%               04074000        
+                        GO TO CSW[T];%                                  04075000        
+                   END ELSE GO ON ELSE GO ON;%                          04076000        
+         C0:  GO TO C0;%                                                04077000        
+         C1:  FIN.[8:10] ~ V;%                                          04078000        
+              GO TO C2;%                                                04079000        
+         C3:  FIN.[8:10] ~ V;%                                          04080000        
+         C4:  FIN ~ NOT V INX 1 INX FIN;%                               04081000        
+              GO TO C5;%                                                04082000        
+         C6:  STREAM(A~0:IOD);%                                         04083000        
+                   BEGIN DI ~ LOC A; SI ~ IOD; SI ~ SI+4; DS~4 OCT END; 04084000        
+              T ~ P DIV 8-1;%                                           04085000        
+         OFF: FIN.[8:10] ~ T;%                                          04086000        
+              GO TO C2;%                                                04087000        
+         C7:  STREAM(A~0:IOD);%                                         04088000        
+                   BEGIN DI ~ LOC A; SI ~ IOD; DS ~ 4 OCT END;%         04089000        
+              T ~ P DIV 8-1;%                                           04090000        
+              FIN ~ (NOT T INX 1 INX FIN)&T[8:38:10];%                  04091000        
+              GO TO C5;%                                                04092000        
+         ON:  IF U < 16 THEN%                                           04093000        
+              IF IOD.[22:1] THEN%                                       04094000        
+         C5:       M[IOD INX 1] ~ M[NOT V INX IOD INX 1] ~ V%           04095000        
+              ELSE%                                                     04096000        
+         C2:  M[IOD INX NOT 0] ~ V;%                                    04097000        
+         END;%                                                          04098000        
