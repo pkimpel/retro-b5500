@@ -2217,3 +2217,47 @@ SAVE INTEGER PROCEDURE ACTUALOVERLAYADDRESS(TYPE,MIX,LOC);              02697750
               ELSE%                                                     04096000        
          C2:  M[IOD INX NOT 0] ~ V;%                                    04097000        
          END;%                                                          04098000        
+ PROCEDURE PROGRAMRELEASE;%                                             04099000        
+         BEGIN NAME T; REAL FSX=JUNK;                                   04100000        
+              ARRAY R=-4[*];%                                           04101000        
+              REAL IOD=NT1;%                                            04102000        
+              ARRAY LOCN[*];%                                           04103000        
+              REAL S;                                                   04103050        
+              CHECKSTACKSPACE;%                                     %WF 04103100        
+    LOCN~M[S~(IF(IOD~NFLAG(M[P(T~[M[PRT[P1MIX,9]]],DUP,PRL)]))          04104000        
+                                  .[22:1] THEN 2 ELSE NOT 1) INX IOD);  04105000        
+                    IF IOD.[3:5]= 6 THEN                                04105100        
+              BEGIN; STREAM(S:=M[PRT[P1MIX,8]] INX P(DUP,0,XCH,DIA 10,  04105200        
+                        DIB 30,TRB 2),D~@600005);                       04105300        
+                   BEGIN SI~S; DS~2 CHR END;                            04105400        
+ $ SET OMIT = NOT(STATISTICS)                                           04105409        
+           IF JUNK.[36:12]!45 AND RELTOG                                04105500        
+             OR M[IOD].[3:6] = 0 AND M[IOD]  LSS (DIRDSK | DSKTOG) THEN 04105510        
+    IF (USERCODE[P1MIX] EQV MCP) ! NOT 0 THEN %                         04105550        
+                   BEGIN TERMINATE(P1MIX); TERMINALMESSAGE(30) END;     04105600        
+                   IF(FS[P1MIX,(FSX~P(*(NOT 2 INX LOCN),4,COC).[13:11]  04105650        
+                                    DIV 5).[40:4]]                      04105700        
+                        AND TWO(IOD.[24:1]&FSX[43:44:4]))!0 THEN        04105750        
+                   BEGIN T[0]:=T[0]&1[19:47:1]&0[26:40:7];              04105800        
+                        M[(*((NOT 2)INX LOCN))INX 5 ]:= NABS(*P(DUP));  04105850        
+                        GO TO RETURN;                                   04105890        
+                   END;                                                 04105900        
+                   IF NOT IOD.[24:1] THEN M[S].[11:1]~1;                04105950        
+              END DISK BUSINESS;                                        04105990        
+               IF IOD.[3:5]=30 THEN GO RETURN; % SPO               %846-04105998        
+              IOREQUEST(R,IOD,LOCN);%                                   04106000        
+              T[0].[19:1] ~ 0;                                          04107000        
+              IF (NT1~P(*(NOT 2 INX LOCN),13,COC).[10:9]-1)!0 THEN%     04108000        
+                   STREAM(NT1,C~T[0],T);                                04109000        
+                        BEGIN SI ~ T; SI ~ SI+8; DS ~ NT1 WDS;%         04110000        
+                             SI ~ LOC C; DS ~ WDS;%                     04111000        
+                        END;%                                           04112000        
+              GO TO RETURN;%                                            04113000        
+         END;%                                                          04114000        
+ SAVE PROCEDURE NEWIO;%                                                 04115000        
+         BEGIN REAL S=NT3,U=NT4;%                                       04116000        
+              S ~ UNIT[U~WAITQUE[FIRSTWAIT]].[18:15];%                  04117000        
+              INITIATEIO(IOQUE[S],LOCATQUE[S].[3:5],U);%                04118000        
+              FIRSTWAIT ~ FIRSTWAIT+1 AND 31;%                          04119000        
+              UNIT[U].[13:5] ~ 3;%                                      04120000        
+         END;%                                                          04121000        
