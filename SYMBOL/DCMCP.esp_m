@@ -2261,3 +2261,80 @@ SAVE INTEGER PROCEDURE ACTUALOVERLAYADDRESS(TYPE,MIX,LOC);              02697750
               FIRSTWAIT ~ FIRSTWAIT+1 AND 31;%                          04119000        
               UNIT[U].[13:5] ~ 3;%                                      04120000        
          END;%                                                          04121000        
+REAL MDELTA = @11;%                                                     04121050        
+REAL MLOG   = @12;%                                                     04121100        
+REAL MROW   = @13;%                                                     04121150        
+REAL LOGSIZE        = @43;%                                             04121170        
+REAL LOGHOLDER      = @56;%                                             04121200        
+REAL NUMAINTMESS    = @57;%                                             04121250        
+REAL LOGENTRY       = @63;%                                             04121300        
+REAL NXDISK         = @76;%                                             04121350        
+ARRAY MAINTLOGARRAY = @77[*];%                                          04121400        
+PROCEDURE DISKORAUXERROR(R); VALUE R; REAL R; FORWARD;                  04121410        
+ PROCEDURE ACTUALIOERR(R);  VALUE R;  REAL R;  FORWARD;                 04121425        
+PROCEDURE LINKUP(TYPE,KEY); VALUE TYPE,KEY; REAL TYPE,KEY; FORWARD;%    04121450        
+PROCEDURE CHECKJOBORFILEMESS(MIX,FIB,U);%                               04121500        
+          VALUE MIX,FIB,U; REAL MIX,FIB,U; FORWARD;%                    04121550        
+PROCEDURE LOGOUTMAINT(B); VALUE B; REAL B; FORWARD;%                    04121600        
+PROCEDURE MAINTLOGGER(B); VALUE B; REAL B; FORWARD;%                    04121650        
+DEFINE                                                                  04121700        
+       LOGVERSION=(                   % VERSION NUMBER ON NEXT CARD     04121710        
+                   2                                                    04121720        
+                  &                   % CURRENT ENTRIES ON NEXT CARD    04121730        
+                           21                                           04121740        
+                       [30:42:6])#,                                     04121750        
+       TAPEBUFFERSIZE = 200#;                                           04121850        
+ARRAY MAINTBUFFER[*];                                                   04121950        
+ SAVE PROCEDURE IOFINISH(C,R);  VALUE R,C;  REAL R,C;                   04122000        
+    BEGIN BOOLEAN STOP;                                                 04123000        
+         COMMENT                                                        04123010        
+              WHEN E!0, STOP TAKES THE FOLLOWING VALUES:                04123020        
+              0    DISK ERROR (OTHER THAN NOT READY ON A DFX SYSTEM).   04123030        
+              1    ANY ERROR OTHER THAN THOSE LISTED FOR 0, 2 OR 3.     04123040        
+              2    LOCKED ADDRESS (SHAREDISK).                          04123050        
+              3    ANY ERROR OCCURRING WHEN UNIT[U].[5:8]!0 (A RETRY).  04123060        
+              WHEN E=0, STOP TAKES THESE VALUES:                        04123070        
+              -2   IO FOR WHICH COMPLETE SHOULD NOT BE SET (DATACOM OR  04123080        
+                   DISK WRITE BEFORE READ WITH UNIT OR EU SWITCH).      04123090        
+              1    PRINTER IO.                                          04123100        
+              0    NORMAL IO.                                           04123110        
+         END COMMENT;                                                   04123120        
+         REAL TIM=STOP+1, U=TIM+1;                                      04123500        
+         LABEL TEST,NOWAIT,PROC,NEW,QUP,INCR;                           04124000        
+         LABEL ERRORS,DISKERR,DS,X,SW,LP,DK,DX,DX1,DC,OK,L1;       %111-04125000        
+         REAL T=NT1,S=NT2,S1=NT3,V=NT4,E=NT5,I=NT7;%                    04126000        
+         NAME LOCN=E;  REAL IOD=NT6, FIN=S1;                            04127000        
+         SWITCH TYPE := OK,LP,OK,OK,DK,OK,OK,OK,OK,OK,DC;          %111-04128000        
+                                                                        04128010        
+ $ SET OMIT = NOT(DFX)                                                  04128099        
+ $ SET OMIT = NOT(NEWLOGGING)                                           04128799        
+         P(CHANIO[C]);                                 % INITIALIZES TIM04128900        
+         S:=(T:=UNIT[P(CHANNEL[C],DUP)]).[18:15];      % INITIALIZES U  04129000        
+ $ SET OMIT = NOT SEPTICTANK                                            04129490        
+%                                                                  %111-04129520        
+% CHECK FOR A PARTIAL WORD BINARY READ WITH NO PARITY ERRORS. THIS IS   04129530        
+% ILLEGAL AND IS MARKED AS BEING A PARITY ERROR.                   %111-04129540        
+%                                                                  %111-04129550        
+         IF U LEQ 15 THEN % TAPE I/O                               %111-04129560        
+           IF (R.[18:12] AND @4462) = @0440 THEN % BIN READ-NO PAR %111-04129570        
+             IF R.[15:3] ! ((8-R.[22:1]) AND 7) THEN % PART WD XFER%111-04129580        
+               R.[28:1] := MOD3IOS; % MARK AS PARITY ERROR IF MOD III I/04129590        
+    ERRORS:                                                             04129900        
+         IF (E ~ R.[26:7])+(V ~ T.[5:8] ) ! 0 THEN%                     04130000        
+              BEGIN IF(S1 ~ FINALQUE[S]) < 0 THEN%                      04131000        
+                   IF (E ~ S1.[25:8] AND E) = 0 THEN%                   04132000        
+                        IF V = 0 THEN                                   04133000        
+                             GO TO SW;                                  04133100        
+                   IF (U AND @774) ! 16 THEN                            04134000        
+                        BEGIN                                           04134050        
+                        RDCTABLE[U]:=(*P(DUP))& (C-1)[1:46:2]& R[3:3:5];04134060        
+                        IF U=30 THEN                                    04134300        
+                             BEGIN                                      04134400        
+                             IF (R.[28:5] AND @25 ! 0 THEN              04134500        
+                                  BEGIN                                 04134600        
+                                  IF ( NOT R.[32:1] AND R.[28:1]) THEN  04134700        
+                                       GO TO DC;                        04134800        
+                                  GO TO X;                              04134900        
+                                  END                                   04134950        
+                             ELSE GO TO DC;                             04134955        
+                             END ELSE GO TO X;                          04134960        
