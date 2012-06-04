@@ -2571,3 +2571,105 @@ PROCEDURE DISKORAUXERROR(R); VALUE R; REAL R;                           04256000
            TERMNATE = +17,                                              04260000        
            OLAYIO  = +18,                                               04260200        
            DSKADRS = +19;                                               04260400        
+                                                                        04260600        
+   NAME    LOCN    = +16;                                               04260800        
+                                                                        04261000        
+   LABEL DSIT, START, QUIT, RETRY, KILLL, KILLER;                       04261200        
+ $ SET OMIT = NOT(PACKETS)                                              04261299        
+   DEFINE UNITNO = PSEUDOMIX[MIX]#;                                     04261300        
+ $ POP OMIT                                                             04261301        
+                                                                        04261400        
+ $ SET OMIT = NOT(AUXMEM)                                               04261600        
+                                                                        04271200        
+   SUBROUTINE DISKMESSAGE;                                              04271400        
+      BEGIN                                                             04271600        
+      STREAM(MSG, MK, A:=TINU[U], MIX, B:=DSKADRS,                      04271800        
+             S:=IOQUE[S].[27:6], R, KEY1:=KEY1:=SPACE(10));             04272000        
+         BEGIN                                                          04272200        
+         SI:= LOC MK; SI:=SI+7; DS:= CHR;                               04272400        
+         SI:=SI+5; DS:=3CHR; DS:=LIT" ";                                04272600        
+         CI:=CI+MSG;                                                    04272800        
+         GO L0; GO L1; GO L2; GO L3; GO L4; GO L5; GO L6; GO L7;        04273000        
+     L0: DS:= 9LIT"NOT READY";    GO TO MX;                             04273200        
+     L1: DS:= 4LIT"BUSY";         GO TO MX;                             04273400        
+     L2: DS:= 8LIT"I/O MEM ";                                           04273600        
+     L3: DS:= 6LIT"PARITY";       GO TO MX;                             04273800        
+     L4: DS:=12LIT"I/O INV ADDR"; GO TO MX;                             04274000        
+     L5: DS:= 3LIT"EU ";          GO TO L0;                             04274200        
+     L6: DS:=13LIT"INV DISK ADDR";GO TO MX;                             04274400        
+     L7: DS:=10LIT"WRITE LOCK";                                         04274600        
+     MX: DS:= 6LIT", MIX="; DS:=2DEC;                                   04274800        
+         MSG:=DI; DI:=DI-2; DS:=FILL; DI:=MSG;                          04275000        
+         DS:=5LIT", DA="; DS:=8CHR;                                     04275200        
+         DS:=7LIT", SEGS="; DS:=2DEC;                                   04275400        
+         DS:=4LIT", R=";                                                04275600        
+         16(DS:=3RESET; 3(IF SB THEN DS:=SET ELSE DS:=RESET; SKIP SB)); 04275800        
+         SI:=SI-5; DS:=5LIT", IO=";                                     04276000        
+         IF SB THEN DS:=2LIT"4,"; SKIP SB;                              04276200        
+         IF SB THEN DS:=2LIT"3,"; SKIP SB;                              04276400        
+         IF SB THEN DS:=2LIT"2,"; SKIP SB;                              04276600        
+         IF SB THEN DS:=2LIT"1,";                                       04276800        
+         DI:=DI-1; DS:=LIT"~";                                          04277000        
+         END STREAM STATEMENT;                                          04277200        
+      END SUBROUTINE DISKMESSAGE;                                       04277400        
+                                                                        04277600        
+SUBROUTINE DETAILRECORDENTRY;                                           04277800        
+   BEGIN                                                                04278000        
+   KEY2 := TYPEDSPACE(6,MAINTBUFFAREAV);%                          %167-04278200        
+   M[KEY2] := 0 & RDCTABLE[U][18:1:2];                                  04278400        
+   IF MIX NEQ 0 THEN                                                    04278600        
+      BEGIN                                                             04278800        
+      M[KEY2] := (*P(DUP)) & MIX[20:43:5] &                             04279000        
+      (IF FINALQUE[S] LSS 0 THEN 0 ELSE                                 04279200        
+      (M[M[LOCATQUE[S] INX NOT 2] INX 4].[13:11] DIV ETRLNG)+1)[9:39:9];04279400        
+      END;                                                              04279600        
+   M[KEY2+1] := TRANSACTION[U];                                         04279800        
+   IF NOT DISC THEN                                                     04280000        
+      BEGIN                                                             04280200        
+      STREAM(S:=IOD.[FF], D:=KEY2+2);                                   04280400        
+         BEGIN                                                          04280600        
+         SI:=LOC S; DS:=8DEC;                                           04280800        
+         END;                                                           04281000        
+      END                                                               04281200        
+   ELSE M[KEY2+2] := DSKADRS;                                           04281400        
+   M[KEY2+3] := IOQUE[S];                                               04281600        
+   M[KEY2+4] := R & RDCTABLE[U][3:5:5];                                 04281800        
+   M[KEY2+5] := IF FINALQUE[S] LSS 0 THEN 0 ELSE LOCATQUE[S] INX NOT 2; 04282000        
+   END DETAILRECORDENTRY;                                               04282200        
+                                                                        04282400        
+   SUBROUTINE FINISHDETAIL;                                             04282600        
+      BEGIN                                                             04282800        
+      IF MIX NEQ 0 THEN CHECKJOBORFILEMESS(MIX,M[KEY2+5],U);            04283000        
+      LINKUP(4+DISK,KEY2);                                              04283200        
+      END;                                                              04283400        
+                                                                        04283600        
+   P(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);          04283800        
+                                                                        04284000        
+   DISC:=(U:=LOCATQUE[S:=R.[3:5]].[12:6]).[46:1];                       04284200        
+   MIX:=LOCATQUE[S].[3:5];                                              04284400        
+   IF (OLAYIO := ((FINALQUE[S] LSS 0) AND (LOCATQUE[S].[9:1]))) THEN    04284600        
+      BEGIN                                                             04284800        
+      STREAM(S:=0&FINALQUE[S][CTC]&FINALQUE[S][21:8:12], D:=[DSKADRS]); 04285000        
+         BEGIN                                                          04285200        
+         SI:=LOC S; DS:=8DEC; % DISK ADDRESS IN FINALQUE FOR OLAY I/O   04285400        
+         END;                                                           04285600        
+      END ELSE DSKADRS := M[IOQUE[S]];                                  04285800        
+   MK:="*"; MSG:=(-1);                                                  04286000        
+   R:=R&IOQUE[S][3:3:5]; % RESTORE HARDWARE UNIT TYPE                   04286200        
+   IOD := IOQUE[S];                                                     04286400        
+   IF DISC THEN                                                         04286600        
+      BEGIN                                                             04286800        
+      IF R.[30:1] THEN % DISK NOT READY                                 04287000        
+         BEGIN                                                          04287200        
+ $ SET OMIT = NOT(DFX)                                                  04287400        
+         UNIT[U]:=(*P(DUP))&@77777[5:20:28];                            04295400        
+         MSG:=0; MK:="#"; % NOT READY                                   04295600        
+         DISKMESSAGE;                                                   04295800        
+         DETAILRECORDENTRY;                                             04296000        
+         READY   := NOT TWO(U) AND READY;                               04296200        
+         RRRMECH := NOT TWO(U) AND RRRMECH;                             04296400        
+         UNIT[U].[5:10] := 2;                                           04296600        
+         GO TO KILLL;                                                   04298800        
+         END; % IF NOT READY                                            04299000        
+      LOCATQUE[S].[FF] := NOT 0;                                        04299200        
+   IF R.[26:7] NEQ 1 AND NOT OLAYIO THEN % NOT BUSY OR SPECIAL I/O      04299600        
