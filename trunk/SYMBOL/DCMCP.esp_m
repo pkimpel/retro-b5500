@@ -2338,3 +2338,236 @@ ARRAY MAINTBUFFER[*];                                                   04121950
                                   END                                   04134950        
                              ELSE GO TO DC;                             04134955        
                              END ELSE GO TO X;                          04134960        
+                        END;                                            04134990        
+                   IF E = 0 THEN                                        04135000        
+                        BEGIN     % RECOVERED MASS STORAGE %            04137000        
+                        MAINTBUFFER[NXDISK:=NXDISK+4 AND 15]            04137100        
+                           := -0 & U[2:46:2] & LOCATQUE[S][4:3:5] &     04137110        
+                               (LOIGENTRY:=LOGENTRY+1)[CTF] &           04137120        
+                               RDCTABLE[U]{18:1:2];                     04137130        
+                        IF FINALQUE[S] GTR 0 THEN                       04137140        
+                        BEGIN                                           04137150        
+                        MAINTBUFFER[XNDISK]:=(*P(DUP)) &                04137160        
+                                 ((M[M[S1:=LOCATQUE[S] INX NOT 2] INX 4]04137170        
+                                     .[13:11] DIV ETRLNG)+1)[9:39:9];   04137180        
+                        M[S1].[7:1] := 1;                               04137190        
+                        END;                                            04137200        
+                        P(MAINTBUFFER[NXDISK+2]:=IOQUE[S]);             04137202        
+ $ SET OMIT = NOT(AUXMEM)                                               04137203        
+                        P(NFLAG(M[P]));                                 04137212        
+                        P(P&V[1:44:4],[MAINTBUFFER[NXDISK+1]],STD);     04137215        
+                        MAINTBUFFER[NXDISK+3]:=MAINTBUFFER[U];          04137220        
+                        IF (LOGHOLDER INX 0) = 0 THEN                   04137230        
+                        BEGIN                                           04137240        
+                          LOGHOLDER.[CF]:=[MAINTBUFFER[NXDISK]];        04137250        
+                          INDEPENDENTRUNNER(P(.MAINTLOGGER),0,100);     04137260        
+                        END ELSE M[LOGHOLDER.[FF]].[CF]:=               04137270        
+                                 [MAINTBUFFER[NXDISK]];                 04137275        
+                        LOGHOLDER.[FF]:=[MAINTBUFFER[NXDISK]];          04137280        
+                        NUMAINTMESS:= NUMAINTMESS+1;                    04137290        
+                        T.[5:8] ~ 0;                                    04142000        
+                        GO TO SW;                                       04142500        
+                        END;%                                           04143000        
+                   IF V = 0 THEN%                                       04144000        
+ $ SET OMIT = NOT(SHAREDISK)                                            04144099        
+                        BEGIN % ORIGINAL ERROR ON MASS STORAGE%         04145000        
+                             TINU[U].[18:2] ~ P(DUP).[18:12]+1;%        04146000        
+                            MAINTBUFFER[U]:=R&TWO(C)[18:43:4];          04146100        
+                             RDCTABLE[U]:=(*P(DUP))&(C-1)[1:46:2];      04146200        
+                             V:=129;                                    04147000        
+ $ SET OMIT = NOT(SHAREDISK)                                            04147399        
+                        END%                                            04148000        
+                   ELSE BEGIN % RECURRENT ERROR ON MASS STORAGE%        04149000        
+                            P(MAINTBUFFER[U]:=P(DUP,LOD) OR             04150100        
+                                  R&TWO(C)[18:43:4]);                   04150200        
+                             IF (V ~ V+1) > 137 THEN%                   04151000        
+                             BEGIN R:=P;                                04151200        
+                                IF LOCATQUE[S].[9:1] THEN % OLAY I/O    04151220        
+                                   M[LOCATQUE[S]:=R OR IOMASK;          04151230        
+ $ SET OMIT = NOT(AUXMEM)                                               04151235        
+    DISKERR:                                                            04151300        
+ $ SET OMIT = NOT(DFX)                                                  04151399        
+                                  T.[5:10]:=0;                          04151400        
+                                  GO TO DX;                             04152600        
+                             END;                                       04152800        
+                             P(DEL);                                    04152900        
+                        END;%                                           04153000        
+                   UNIT[U] ~ T&V[5:40:8];%                              04154000        
+    DS:%                                                                04155000        
+                   CHANNEL[P(TIO)] ~ U;%                                04156000        
+                   P([IOQUE[S]],IIO);%                                  04157000        
+                   GO TO EXTERNAL ;%                                    04158000        
+    X:             STOP ~ (V!0)|2+1;%                                   04159000        
+                   T.[5:13] ~ 32|E+8;%                                  04160000        
+                   GO TO TEST;                                          04161000        
+              END;                                                      04161500        
+    SW:: GO TO TYPE[T.[1:4]];%                                          04162000        
+    LP:                                                                 04163000        
+              IF STOP := (T := T&0[16:16:1]).[17:1] THEN                04164000        
+    TEST:          IF FIRSTWAIT = NEXTWAIT THEN GO TO INCR ELSE%        04165000        
+                        GO TO NEW ELSE GO TO NOWAIT;%                   04166000        
+    DK:                                                                 04167900        
+         IF NOT (I:=IOQUE[S]).[24:1] THEN                               04168000        
+         IF FINALQUE[S].[24:1] THEN%                                    04169000        
+ $ SET OMIT = DFX                                                       04169090        
+         BEGIN                                                          04169100        
+ $ SET OMIT = NOT DKBNODFX OR OMIT                                      04169190        
+ $ SET OMIT = DKBNODFX OR OMIT                                          04170750        
+              M[IOQUE[S]:=I&1[24:47:1]]:=*(P(DUP) INX P(0,LNG,XCH));    04170800        
+ $ POP OMIT                                                             04170900        
+              GO TO DS;                                                 04171000        
+         END ELSE GO TO OK ELSE GO TO OK;                               04171200        
+ $ POP OMIT                                                             04171250        
+ $ SET OMIT = NOT DFX                                                   04171350        
+    DC:                                                                 04174000        
+ $ SET OMIT = NOT(DATACOM )                                             04174999        
+                                                                        04176000        
+ $ SET OMIT = DFX                                                       04176899        
+    DX:  DX1:                                                           04176900        
+ $ POP OMIT                                                             04176901        
+    OK:  IF FIRSTWAIT = NEXTWAIT THEN                                   04177000        
+    NOWAIT:   IF (S1 := LOCATQUE[S].[18:15]) LSS @1777 THEN             04178000        
+                        INITIATEIO(IOQUE[S1],LOCATQUE[S1].[3:5],U)%     04180000        
+                   ELSE                                                 04181000        
+    PROC:               T := T&0[16:16:2]                               04182000        
+              ELSE                                                      04183000        
+              BEGIN%                                                    04187000        
+    NEW:           NEWIO;%                                              04188000        
+                   IF STOP THEN GO TO INCR;%                            04189000        
+    QUP:           IF LOCATQUE[S].[FF] GTR @1777 THEN GO TO PROC;       04190000        
+                   QUEUEUP(U);%                                         04191000        
+                   T ~ T&4[13:43:5];%                                   04192000        
+              END;%                                                     04193000        
+    INCR:                                                               04194000        
+         IF (TIM~CLOCK+P(RTR)-TIM) LSS THEN THEN TIM~0;                 04194050        
+         IOD:=IOQUE[S];                                                 04194100        
+         IF (U OR 1 )=19 THEN                                           04194200        
+         BEGIN                                                          04194300        
+              IF (JUNK:=M[IOD].[5:7])>9 THEN                            04194400        
+                JUNK:=NEUP.[CF]+(JUNK AND @17);                         04194500        
+              IF JUNK<NEUP.[FF] THEN                                    04194550        
+                PEUIO[JUNK]:=P(DUP,LOD)+CLOCK+P(RTR)-EUIO[C];           04194600        
+         END;                                                           04194650        
+         I~(S1~LOCATQUE[S]).[3:5]; % FIND MIX INDEX                     04194700        
+ $ SET OMIT = NOT(NEWLOGGING)                                           04194799        
+         IOTIME[I]~(*P(DUP))+TIM;                                       04195000        
+         IF P(.S1,LOD).[10:1] THEN FORGETSPACE(IOD);  % NO MEM MESSAGE  04195100        
+         IF F!0 THEN                                                    04196200        
+              IF STOP THEN                                              04196400        
+                   P(T)                                                 04196600        
+              ELSE GO TO L1                                             04196800        
+         ELSE BEGIN                                                     04197000        
+                   RETURNIOSPACE(S);                                    04199000        
+    L1:            P(T&P(.L1,LOD)[FTF]);                                04201000        
+              END;                                                      04202000        
+         P([UNIT[U]],STD);                                              04203000        
+         FIN ~ FINALQUE[S] AND NOT MEMORY;%                             04205000        
+         IF (U OR 1) NEQ 17 THEN                                        04205012        
+         IF IOD.[24:1] THEN%                                            04206000        
+              BEGIN V ~ ABS(IOD.[33:15]-R.[33:15]);%                    04207000        
+                   IF IOD.[8:10] < V THEN%                              04208000        
+                   IF IOD.[23:1] THEN%                                  04209000        
+                        V ~ IOD.[8:10];%                                04210000        
+                   IF U < 16 THEN%                                      04211000        
+                   IF IOD.[21:2] = 0 THEN%                              04212000        
+                        BEGIN; STREAM(A!0:B~M[S1.[33:15]+V-1]);%        04213000        
+                                  BEGIN SI ~ LOC B;%                    04214000        
+                                       IF SC = "~" THEN TALLY ~ 1;%     04215000        
+                                       A ~ TALLTY;%                     04216000        
+                                  END;%                                 04217000        
+                             V ~ -P+V;%                                 04218000        
+                        END;%                                           04219000        
+              IF U ! 30 THEN % NOT DCA                                  04219100        
+              FINISHOFFIO(U);%                                          04220000        
+              END;%                                                     04221000        
+         IF E ! 0 THEN%                                                 04222000        
+ $ SET OMIT = NOT(SHAREDISK)                                            04222499        
+              BEGIN IF STOP LEQ 1 THEN                                  04223000        
+                   BEGIN                                                04223500        
+                        INDEPENDENTRUNNER(                              04224000        
+                           P(.DISKORAUXERROR)+((U AND @774) NEQ 16),    04224010        
+                              R&S[3:43:5],240);                         04224100        
+                           LOCATQUE[S].[11:1]:=1;                       04224500        
+                   END                                                  04224750        
+                   ELSE IF FIN < 0 THEN P(LOCATQUE[S],R,XCH,~);%        04225000        
+              END%                                                      04226000        
+ $ SET OMIT = NOT(SHAREDISK)                                            04226499        
+         ELSE BEGIN%                                                    04227000        
+              IF FIN < 0 THEN P(R OR IOMASK,LOCATQUE[S],~)%             04228000        
+              ELSE                                                      04229000        
+ $ SET OMIT = NOT (DATACOM OR DFX OR DKBNODFX)                          04229099        
+                   BEGIN                                                04229200        
+                   LOCN ~ [M[LOCATQUE[S]]];%                            04230000        
+                   IOD ~ IOD.[33:15];%                                  04231000        
+                   WHILE LOCN[0].[33:15] ! IOD DO%                      04232000        
+                        LOCN ~ 1 INX LOCN;%                             04233000        
+                   LOCN[0] ~ M OR FIN;%                                 04234000        
+              END  END;%                                                04235000        
+         IF P1MIX = 0 THEN GO TO NOTHINGTODO;%                          04236000        
+         IF I = P1MIX THEN GO TO RETURN;%                               04237000        
+         GO TO INITIATE;%                                               04238000        
+    END IOCOMPLETE;%                                                    04239000        
+ SAVE REAL PROCEDURE WAITIO(IOD,MASK,U);%                               04240000        
+         VALUE MASK,U,IOD;%                                             04241000        
+         REAL MASK,U,IOD;%                                              04242000        
+         BEGIN%                                                         04243000        
+              REAL T;                                                   04243100        
+              DEFINE OCTADE= DS~3 RESET;3(IF SB THEN DS!SET ELSE        04243200        
+                   DS~RESET;SKIP SB)#;                                  04243300        
+              IOD ~ NFLAG(P(.IOD,LOC))&TINU[U][3:3:5];%                 04244000        
+              MASK ~ NOT MASK;%                                         04245000        
+                IOREQUEST(NABS(IOD)&MASK[25:40:8],IOD,                  04246000        
+                   [IOD]&U[12:42:6]);%                                  04247000        
+              IOD ~ IOD&0[25:25:8]&0[19:19:1];%                         04248000        
+              SLEEP([IOD],IOMASK);%                                     04249000        
+              IF ((WAITIO~IOD.[26:7]) AND MASK AND MAKS.[18:15])!0 THEN 04250000        
+              BEGIN                                                     04251000        
+                   T~SPACE(12);                                         04251100        
+                   STREAM(IOD~IOD.[26:7],MASK~(NOT MASK).[41:7],        04251200        
+                        Z~[TINU[U]],T~T);                               04251300        
+                   BEGIN DS~20 LIT" UNEXP I-O ERROR ON ";SI~Z;          04251400        
+                        SI~SI+5;DS~3 CHR;DS~8 LIT":RESULT=";            04251500        
+                        SI~LOC IOD;SI~SI+6;SKIP 3 SB;3(OCTADE);         04251600        
+                        DS~6 LIT",MASK=" ;SI~SI+6;SKIP 3 SB;            04251700        
+                        3(OCTADE);DS~2 LIT".~";                         04251800        
+                   END;                                                 04251900        
+                   IF P1MIX = 0 THEN BEGIN P(T); PUNT(0) END;           04252000        
+                   IF NOTERMSET(P1MIX) THEN                             04252100        
+                   BEGIN                                                04252200        
+                        TERMINATE(P1MIX&19[18:33:15]);                  04252300        
+                        IF JAR[P1MIX,9].SYSJOBF THEN %SYSTEM JOB        04252500        
+                        BEGIN                                           04252600        
+                             SPOUT(T);                                  04252700        
+                             BLASTQ(U);                                 04252800        
+                        END ELSE                                        04252900        
+                        TERMINALMESSAGE(-T);                            04253000        
+                   END;                                                 04253100        
+              END;                                                      04253200        
+         END;                                                           04253300        
+REAL PROCEDURE TAPEPARITYRETRY(R,U,KEY);%                               04254000        
+    VALUE R,U,KEY; REAL R,U,KEY; FORWARD;                               04255000        
+REAL PROCEDURE WRITEPARITYREELSWITCH(OIOD,RC);                          04255100        
+VALUE OIOD,REC; REAL OIOD,RC;         FORWARD;                          04255200        
+PROCEDURE DISKORAUXERROR(R); VALUE R; REAL R;                           04256000        
+                                                                        04256200        
+   BEGIN                                                                04256400        
+   REAL    MSCW    = -2,                                                04256600        
+           U       = +1,                                                04256800        
+           S       = +2,                                                04257000        
+           E       = +3,                                                04257200        
+           T       = +4,                                                04257400        
+           MK      = +5,       CELL  = MK,                              04257600        
+           IOD     = +6,                                                04257800        
+           MIX     = +7,                                                04258000        
+           FIN     = +8,       PARITY= FIN,                             04258200        
+           KEY1    = +9,                                                04258400        
+           KEY2    = +10,                                               04258600        
+           DISC    = +11,                                               04258800        
+           MASK    = +12,                                               04259000        
+           AREA    = +13,      U1    = AREA,                            04259200        
+           RLST    = +14,      MSG   = RSLT,                            04259400        
+           PRTMAX  = +15,      T1    = PRTMAX,                          04259600        
+           DISKCELL= +16,      T2    = DISKCELL,                        04259800        
+           TERMNATE = +17,                                              04260000        
+           OLAYIO  = +18,                                               04260200        
+           DSKADRS = +19;                                               04260400        

@@ -2,7 +2,7 @@
 * retro-b5500/emulator Register.js
 ************************************************************************
 * Copyright (c) 2012, Nigel Williams and Paul Kimpel.
-* Licensed under the MIT Licensed, see http://www.opensource.org/licenses/mit-license.php
+* Licensed under the MIT License, see http://www.opensource.org/licenses/mit-license.php
 ************************************************************************
 * JavaScript object definition for the generalized Register prototype.
 * Maximum register width is 52 bits, since Javascript stores numbers
