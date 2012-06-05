@@ -2673,3 +2673,104 @@ SUBROUTINE DETAILRECORDENTRY;                                           04277800
          END; % IF NOT READY                                            04299000        
       LOCATQUE[S].[FF] := NOT 0;                                        04299200        
    IF R.[26:7] NEQ 1 AND NOT OLAYIO THEN % NOT BUSY OR SPECIAL I/O      04299600        
+      BEGIN                                                             04299800        
+      PARITY := (IOD.[24:1] AND (R.[26.7]=16)); % PARITY CONDITION      04300000        
+      IF FINALQUE[S] GTR 0 THEN % OBJECT JOB ERROR                      04300200        
+         BEGIN                                                          04300400        
+         IF PARITY THEN GO TO START; % RECOVERABLE ERROR                04300500        
+DSIT:    TERMINATE(MIX&20[CTF]);                                        04300600        
+         END % OBJECT ERROR                                             04301000        
+      ELSE                                                              04301200        
+         BEGIN % MCP I/O                                                04301400        
+         IF MIX NEQ 0 THEN                                              04301600        
+               BEGIN                                                    04302000        
+               IF JAR[MIX,9].SYSJOBF THEN % "SYSTEM" JOB                04302200        
+                     IF PARITY THEN GO TO START;                        04302600        
+               % DONT DS LIBMAIN/DISK ON PARITY ERROR                   04302800        
+               GO TO DSIT;                                              04303000        
+               END; % NON-ZERO MIX                                      04303200        
+         END; % MCP I/O                                                 04303400        
+      END; % NOT BUSY OR SPECIAL I/O                                    04303600        
+                                                                        04303800        
+START:                                                                  04304000        
+                                                                        04304200        
+      TRANSACTION[U] := TRANSACTION[U]-1;                               04304400        
+      MASK := IF (FIN := FINALQUE[S]) LSS 0 THEN FIN.[25:8] ELSE @377;  04304600        
+      IF (E := R.[25:8] AND MASK) = 0 THEN % ERRORS ARE ACCEPTABLE      04304800        
+         BEGIN % FIX UP IOQUE                                           04305000        
+QUIT:                                                                   04305200        
+         IF MSG NEQ (-1) AND DISC THEN DISKMESSAGE;                     04305400        
+         DETAILRECORDENTRY;                                             04305600        
+ $ SET OMIT = NOT(AUXMEM);                                              04305800        
+         RETURNIOSPACE(S);                                              04309200        
+                                                                        04309400        
+         FIN:=FINALQUE[S] AND NOT MEMORY;                               04309600        
+         IF (T1:=FIN) LSS 0 THEN % MCP I/O                              04309800        
+            BEGIN                                                       04310000        
+            IF NOT OLAYIO THEN % I/O FINISH PLACES RESULT DESC. FOR OLAY04310200        
+               M[LOCATQUE[S]]:=R&E[25:40:8]&IOD[3:3:5] OR IOMASK;       04310400        
+            END % IF MCP I/O                                            04310600        
+         ELSE                                                           04310800        
+            BEGIN                                                       04311000        
+            IF E NEQ 0 THEN % ERRORS                                    04311200        
+               BEGIN                                                    04311400        
+               P(.T1,PRL);                                              04311600        
+               T1 := T1&E[25:40:8];                                     04311800        
+               END                                                      04312000        
+            ELSE P(.T1,IOR);                                            04312200        
+            LOCN := [M[LOCATQUE[S]]];                                   04312400        
+            IOD := IOD.[33:15];                                         04312600        
+            WHILE LOCN[0].[33:15] NEQ IOD DO LOCN := 1 INX LOCN;        04312800        
+            LOCN[0] := P(.T1,LOD);                                      04313000        
+            END;                                                        04313200        
+         GO TO KILLL;                                                   04313600        
+         END;                                                           04313800        
+      IF E THEN % BUSY                                                  04314000        
+         BEGIN                                                          04314200        
+         MSG:=1; % BUSY                                                 04314400        
+RETRY:                                                                  04314600        
+ $ SET OMIT = NOT(AUXMEM)                                               04314790        
+         DISKMESSAGE;                                                   04314820        
+         DETAILRECORDENTRY;                                             04315000        
+ $ SET OMIT = NOT(AUXMEM)                                               04315190        
+         T1:=(IF DISC THEN IOQUE[S]&6[3:43:5] ELSE IOQUE[S];            04315400        
+         RETURNIOSPACE(S);                                              04315600        
+                                                                        04315800        
+         P1MIX:=MIX;                                                    04316000        
+         IF NOT OLAYIO THEN % RETRIES ARE OK                            04316400        
+            IOREQUEST(FINALQUE[S], T1,                                  04316600        
+                      (IF DISC THEN LOCATQUE[S]&@22[12:42:6] ELSE       04316800        
+                       LOCATQUE[S]));                                   04317000        
+            P1MIX:=0;                                                   04317200        
+            GO TO KILLER;                                               04317400        
+            END; % IF BUSY                                              04317600        
+      IF E.[46:1] THEN % I/O MEMORY PARITY                              04317800        
+         BEGIN                                                          04318000        
+         MSG:=2;                                                        04318200        
+         E:=@1537;                                                      04318400        
+         GO TO QUIT;                                                    04318600        
+         END;                                                           04318800        
+      IF E.[41:1] THEN % INVALID ADDRESS                                04319000        
+         BEGIN                                                          04319200        
+         MSG:=4;                                                        04319400        
+         E:=@1537;                                                      04319600        
+         GO TO QUIT;                                                    04319800        
+         END;                                                           04320000        
+ $ SET OMIT = NOT(SHAREDISK)                                            04320200        
+      IF NOT E.[43:1] THEN % NOT PARITY,CHECK DISK ADDRESS              04325400        
+         BEGIN                                                          04325600        
+         STREAM(DA:=MASK:=DSKADRS : EU:=MASK.[6:6], A:=0,               04325800        
+         EUA:=[MULTITABLE[16+2|MAXK.[5:1]]]);                           04326000        
+            BEGIN                                                       04326200        
+            SI:=LOC DA;                                                 04326400        
+            IF SC GTR "1" THEN GO TO BAD;                               04326600        
+            IF SC LSS "0" THEN GO TO BAD;                               04326800        
+ $ SET OMIT = SHAREDISK                                                 04327000        
+            7(                                                          04327200        
+ $ POP OMIT                                                             04327400        
+ $ SET OMIT = NOT(SHAREDISK)                                            04327600        
+            IF SC LSS "0" THEN JUMP OUT TO BAD; SI:=SI+1;               04328200        
+            IF SC GTR "9" THEN JUMP OUT TO BAD);                        04328400        
+ $ SET OMIT = SHAREDISK                                                 04328600        
+            SI:=SI-5;                                                   04328800        
+ $ POP OMIT                                                             04329000        
