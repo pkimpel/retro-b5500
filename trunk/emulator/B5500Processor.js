@@ -239,50 +239,52 @@ B5500Processor.prototype.run() {
                     case 0x09:          // XX11: control state and communication ops
                         switch (opcode >>> 6) {
                             case 0x01:  // 0111: PRL=Program Release
-                                 break;
+                                break;
 
                             case 0x10:  // 1011: COM=Communicate
-                                 this.adjustAFull();
-                                 this.M = 0x09;         // address @11
-                                 this.access(0x0C);     // [M] = A
-                                 this.AROF = 0;
-                                 break;
+                                this.adjustAFull();
+                                this.M = 0x09;         // address @11
+                                this.access(0x0C);     // [M] = A
+                                this.AROF = 0;
+                                break;
 
                             case 0x02:  // 0211: ITI=Interrogate Interrupt
-                                 break;
+                                break;
 
                             case 0x04:  // 0411: RTR=Read Timer
-                                 adjustAEmpty();
-                                 this.A = cc.CCI03F << 6 | cc.TM;
-                                 break;
+                                if (!this.NCSF) {      // control-state only
+                                    adjustAEmpty();
+                                    this.A = cc.CCI03F << 6 | cc.TM;
+                                }
+                                break;
 
                             case 0x11:  // 2111: IOR=I/O Release
-                                 break;
+                                break;
 
                             case 0x12:  // 2211: HP2=Halt Processor 2
-                                 break;
+                                break;
 
                             case 0x14:  // 2411: ZPI=Conditional Halt
-                                 break;
+                                break;
 
                             case 0x18:  // 3011: SFI=Store for Interrupt
-                                 this.storeForInterrupt();
-                                 break;
+                                this.storeForInterrupt();
+                                break;
 
                             case 0x1C:  // 3411: SFT=Store for Test
-                                 break;
+                                break;
 
                             case 0x21:  // 4111: IP1=Initiate Processor 1
-                                 break;
+                                break;
 
                             case 0x22:  // 4211: IP2=Initiate Processor 2
-                                 break;
+                                break;
 
                             case 0x24:  // 4411: IIO=Initiate I/O
-                                 break;
+                                break;
 
                             case 0x29:  // 5111: IFT=Initiate For Test
-                                 break;
+                                break;
 
                             default:
                                 break;  // Anything else is a no-op
