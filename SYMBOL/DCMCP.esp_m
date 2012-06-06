@@ -2774,3 +2774,146 @@ RETRY:                                                                  04314600
  $ SET OMIT = SHAREDISK                                                 04328600        
             SI:=SI-5;                                                   04328800        
  $ POP OMIT                                                             04329000        
+ $ SET OMIT = NOT(SHAREDISK)                                            04329200        
+            DI:=LOC DA; DS:=2 OCT;                                      04329800        
+            SI:=EUA; SI:=SI+14; SKIP EU SB;                             04330000        
+            DI:=LOC A; DI:=DI+7; SKIP 2 DB;                             04330200        
+            IF SB THEN SKIP DB;                                         04330400        
+            SI:=LOC DA; SI:=SI+6;                                       04330600        
+            IF SC NEQ "0" THEN GO TO BAD; SI:=SI+1;                     04330800        
+            4(IF SB THEN DS:=SET ELSE DS:=RESET; SKIP SB);              04331000        
+            SI:=LOC A; SI:=SI+7; IF SC GTR "4" THEN GO TO BAD;          04331200        
+            IF SC LSS "0" THEN GO BAD;                                  04331400        
+            SI:=EUA; SI:=SI+EU; SKIP SB; SKIP A SB;                     04331600        
+            IF SB THEN GO TO OK;                                        04331800        
+BAD:        TALLY:=1;                                                   04332000        
+OK:         DA:=TALLY;                                                  04332200        
+            END;                                                        04332400        
+         IF (MASK:=P) OR E.[42:1] THEN % BAD ADDRESS OR EU NOT READY    04332600        
+            BEGIN                                                       04332800        
+            MSG:=5+MASK; % 5=EU NOT READY, 6=INVALID DISK ADDRESS       04333000        
+            IF NOT MASK THEN MK:="#";                                   04333200        
+            IF (MIX NEQ 0) OR OLAYIO THEN                               04333400        
+               BEGIN                                                    04333600        
+               E:=@1537; GO TO QUIT;                                    04333800        
+               END;                                                     04334000        
+            DISKMESSAGE;                                                04334200        
+            DETAILRECORDENTRY;                                          04334400        
+            GO TO KILLER; % LET IT HANG                                 04334600        
+            END                                                         04334800        
+         ELSE                                                           04335000        
+            BEGIN % MUST BE E.[44:1], MEM.PAR.                          04335200        
+            MSG:=2; E:=@1537; GO TO QUIT;                               04335400        
+            END;                                                        04335600        
+         END; % IF NOT PARITY                                           04335800        
+      IF IOQUE[S].[24:1] THEN % DISK PARITY ON READ                     04336000        
+         BEGIN                                                          04336200        
+         MSG:=3; % PARITY                                               04336400        
+         E:=@20;                                                        04336600        
+         GO TO QUIT;                                                    04336800        
+         END;                                                           04337000        
+      MSG:=7; % WRITE LOCK                                              04337200        
+      E:=@1537;                                                         04337400        
+      GO TO QUIT;                                                       04337600        
+      END; % IF DISK                                                    04337800        
+                                                                        04338000        
+ $ SET OMIT = NOT(AUXMEM)                                               04338200        
+KILLL:                                                                  04351600        
+   LOCATQUE[S].[11:1]:=0;                                               04351800        
+KILLER:                                                                 04352000        
+   IF KEY1 NEQ 0 THEN SPOUTER(KEY1,UNITNO,35);                          04352200        
+   IF KEY2 NEQ 0 THEN FINISHDETAIL;                                     04352400        
+   IF TERMINATE THEN TERMINATE(MIX&20[CTF]);                            04352600        
+   KILL([MSCW]);                                                        04352800        
+   END PROCEDURE DISKORAUXERROR;                                        04353000        
+PROCEDURE ACTUALIOERR(R);  VALUE R;  REAL R;                            04353200        
+   BEGIN                                                                04353400        
+   REAL     MSCW     = -2,                                              04353600        
+            E        = +1,                                              04353800        
+            T        = +2,                                              04354000        
+            S        = +3,                                              04354200        
+            F        = +4,                                              04354400        
+            U        = +5,                                              04354600        
+            T1       = +6,                                              04354800        
+            T2       = +7,                                              04355000        
+            T3       = +8,                                              04355200        
+            KEY      = +9,                                              04355400        
+            FIN      = NT3,                                             04355600        
+            IOD      = NT6,                                             04355800        
+            MASK     = +10,                                             04356000        
+            DISC     = +11,                                             04356200        
+            TYPE     = +12,                                             04356400        
+            MIX      = +13;                                             04356500        
+                                                                        04356600        
+   NAME     LOCN = T3;                                                  04356800        
+ $ SET OMIT = NOT(PACKETS)                                              04356899        
+   DEFINE UNITNO = PSEUDOMIX[MIX]#;                                     04356900        
+ $ POP OMIT                                                             04356901        
+                                                                        04357000        
+   LABEL L1, L2, D17, D19, D22, START, NOTREADYMESS, NTRDY,             04357200        
+         EOF, REALEOF, TAPERETRY, SIX, SEVEN, FIX, LEAVE,               04357400        
+         REWINDING, NOCODE, CLEAR, KILLL, KILLER;                       04357600        
+   LABEL READER, PRINTER, TAPE, DRUM, DISK, SPO, PUNCH,                 04357800        
+         PAPERPUNCH, PAPER, DATACOM;                                    04358000        
+                                                                        04358200        
+   SWITCH W := READER,PRINTER,TAPE,DRUM,DISK,SPO,PUNCH,NOCODE,          04358400        
+               PAPERPUNCH,PAPER,DATACOM;                                04358600        
+                                                                        04358800        
+   SUBROUTINE MAKEMESS;                                                 04359000        
+      BEGIN                                                             04359200        
+      STREAM(S1:=F.[43:5], S2:=F.[38:5], A:=TINU[U],                    04359400        
+             MX~MIX, KEY~KEY~SPACE(10));                                04359600        
+         BEGIN                                                          04359800        
+         SI:=LOC A; SI:=SI+5;                                           04360000        
+         DS:=LIT"*"; DS:=3 CHR; DS:=LIT" ";                             04360200        
+         CI:=CI+S1; GO TO LL;                                           04360400        
+         GO L1; GO L2; GO L3; GO L4; GO L5; GO L6; GO LL; GO LL;        04360600        
+         DS:=19 LIT"BLANK TAPE ON WRITE";   GO TO MXX;                  04360800        
+  L1:    DS:= 4 LIT"BUSY";                  GO TO MXX;                  04361000        
+  L2:    DS:= 8 LIT"I/O MEM ";                                          04361200        
+  L3:    DS:= 6 LIT"PARITY";                GO TO MXX;                  04361400        
+  L4:    DS:=12 LIT"I/O INV ADDR";          GO TO MXX;                  04361600        
+  L5:    DS:= 9 LIT"I/O ERROR";             GO TO MXX;                  04361800        
+  L6:    DS:=10 LIT"WRITE LOCK";            GO TO MXX;                  04362000        
+  LL:    GO TO PS;                                                      04362200        
+  MXX:   GO TO MIXIT;                                                   04362400        
+  PS:    DI:=DI-5; DS:=LIT"#"; DI:=DI+4;                                04362600        
+         CI:=CI+S2; GO TO LL0; GO TO LL1; GO TO LL2;                    04362800        
+  NR:    DS:= 9 LIT"NOT READY";             GO TO MIXIT;                04363000        
+  LL0:   DS:= 5 LIT"PRINT";                 GO TO CHK;                  04363200        
+  LL1:   DS:= 4 LIT"READ";                  GO TO CHK;                  04363400        
+  LL2:   DS:= 5 LIT"PUNCH";                                             04363600        
+  CHK:   DS:= 5 LIT"CHECK";                                             04363800        
+  MIXIT: DS:= 6 LIT", MIX="; DS:=2 DEC; DS:=LIT"~";                     04364000        
+         DI:= DI-3; DS:=FILL;                                           04364200        
+         END;                                                           04364400        
+      END OF MAKEMESS;                                                  04364600        
+                                                                        04364800        
+SUBROUTINE DETAILRECORDENTRY;                                           04365000        
+   BEGIN                                                                04365200        
+   KEY := TYPEDSPACE(ABS(T2),MAINTBUFFAREAV);%                     %167-04365400        
+   M[KEY] := (ABS(T2) DIV 5 -1) & RDCTABLE[U][18:1:2];                  04365600        
+   IF MIX NEQ 0 THEN                                                    04365800        
+      BEGIN                                                             04366000        
+      M[KEY] ~ (*P(DUP)) & MIX[20:43:5] &                               04366200        
+      (IF FINALQUE[S] LSS 0 THEN 0 ELSE                                 04366400        
+      (M[M[LOCATQUE[S] INX NOT 2] INX 4].[13:11] DIV ETRLNG)+1)[9:39:9];04366600        
+      CHECKJOBORFILEMESS(MIX,                                           04366800        
+      (IF FINALQUE[S] LSS 0 THEN 0 ELSE LOCATQUE[S] INX NOT 2),         04367000        
+      U);                                                               04367200        
+      END;                                                              04367400        
+   M[KEY+1] := TRANSACTION[U];                                          04367600        
+   M[KEY+2]:=IF TYPE=2 THENRDCTABLE[U] & U[3:43:5] ELSE 0;              04367800        
+   M[KEY+3] := IOQUE[S];                                                04368000        
+   M[KEY+4] := R & RDCTABLE[U][3:3:5];                                  04368200        
+   IF TYPE=2 THEN                                                       04368400        
+      BEGIN                                                             04368600        
+      M[KEY+5] := MULTITABLE[U];                                        04368800        
+      M[KEY+6] := LABELTABLE[U];                                        04369000        
+      M[KEY+7] := PRNTABLE[U];                                          04369200        
+      M[KEY+8] := 0;                                                    04369400        
+      M[KEY+9] := 16;                                                   04369600        
+      END;                                                              04369800        
+   IF T2  GTR  0 THEN LINKUP(TYPE+1,KEY);                               04370000        
+   END DETAILRECORDENTRY;                                               04370200        
+                                                                        04370400        
