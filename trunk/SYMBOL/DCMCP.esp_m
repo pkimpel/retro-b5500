@@ -2917,3 +2917,103 @@ SUBROUTINE DETAILRECORDENTRY;                                           04365000
    IF T2  GTR  0 THEN LINKUP(TYPE+1,KEY);                               04370000        
    END DETAILRECORDENTRY;                                               04370200        
                                                                         04370400        
+   DEFINE MAKEMLOG(MAKEMLOG1) =                                         04370600        
+      BEGIN                                                             04370800        
+      T2:=MAKEMLOG1; DETAILRECORDENTRY;                                 04371000        
+      END#;                                                             04371200        
+                                                                        04371400        
+   P(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);                            04371600        
+                                                                        04371800        
+ $ SET OMIT = DATACOM                                                   04371900        
+%  THIS CODE WAS PLACED HERE FROM OUTER BLOCK TO AVOID CAUSING          04371910        
+   IF R=0     %  OVERFLOW OF INTERRUPT STACK                            04371920        
+     THEN BEGIN STREAM(B:=T:=SPACE(10));                                04371930        
+                DS:=42LIT"#DATACOM/INQUIRY INTERRUPT IGNORED BY MCP~";  04371940        
+                SPOUT(T);                                               04371950        
+                GO KILLER;                                              04371955        
+          END;                                                          04371960        
+ $ POP OMIT                                                             04371970        
+   U:=LOCATQUE[S:=R.[3:5]].[12:6];                                      04372000        
+   MIX~LOCATQUE[S].[3:5];                                               04372050        
+   R:=R&IOQUE[S][3:43:5];    % RESTORE UNIT DESIGNATE                   04372100        
+START:                                                                  04372200        
+   T:=UNIT[U]&0[13:13:2];                                               04372400        
+   TRANSACTION[U] := TRANSACTION[U]-1;                                  04372600        
+   TYPE := T.[1:4];                                                     04372800        
+   MASK:=IF (T2:=FINALQUE[S]) LSS 0 THEN T2.[25:8] ELSE @377;           04373000        
+   IF (E:=T.[5:8] AND MASK) = 0 THEN            % ACCEPTABLE            04373200        
+      BEGIN                                                             04373400        
+      F:=1; % RETAIN ERROR FIELD                                        04373600        
+      GO TO FIX;                                                        04373800        
+      END;                                                              04374000        
+   IF E THEN                                     % BUSY                 04374200        
+      BEGIN                                                             04374400        
+      T3:=1 & (U=30)[43:47:1]; % BUSY/INCOMPLETE MASK                   04374600        
+      IF U LSS 16 AND TRANSACTION[U] LEQ 0 THEN                         04374800        
+         BEGIN                                                          04375000        
+         P(0); % DONT SPOUT MESSAGE                                     04375200        
+         GO TO REWINDING;                                               04375400        
+         END;                                                           04375600        
+      IF U NEQ 25 THEN % NOT SPO                                        04375800        
+         BEGIN                                                          04376000        
+         F:=1; % BUSY                                                   04376200        
+         MAKEMESS;                                                      04376400        
+         SPOUTER(KEY,UNITNO,35);                                        04376600        
+         END;                                                           04376800        
+      MAKEMEMLOG(IF TYPE=2 THEN 10 ELSE 5);                             04377000        
+L1:      DO BEGIN                                                       04377200        
+         SLEEP([CLOCK],NOT CLOCK);                                      04377400        
+         UNIT[U]:=(*P(DUP))&P(T,XCH)[CTC];                              04377600        
+         STARTIO(U);                                                    04377800        
+         SLEEP([UNIT[U]],@100000000000);                                04378000        
+         TRANSACTION[U] := TRANSACTION[U]-1;                            04378200        
+         END UNTIL (UNIT[U].[5:8] AND T3) = 0;                          04378400        
+      TRANSACTION[U] := TRANSACTION[U]+1;                               04378600        
+      IF (UNIT[U].[5:8] AND MASK) = 0 THEN GO TO CLEAR;                 04378800        
+      GO TO START;                                                      04379000        
+      END;                                                              04379200        
+                                                                        04379400        
+   IF E.[45:1] THEN                               % NOT READY           04379600        
+      BEGIN                                                             04379800        
+      IF E.[43:1] THEN                                                  04380000        
+         BEGIN                                                          04380200        
+         IF TYPE=0 THEN GO TO READER;  % READ CHECK                     04380400        
+         IF TYPE=1 THEN GO TO PRINTER; % PRINT CHECK                    04380600        
+         IF TYPE=6 THEN GO TO PUNCH;   % PUNCH CHECK                    04380800        
+         END;                                                           04381000        
+      IF U NEQ 25 THEN % NOT SPO.                                       04381200        
+         BEGIN                                                          04381400        
+NOTREADYMESS:                                                           04381600        
+         F:=96; % NOT READY                                             04381800        
+         MAKEMLOG(IF TYPE=2 THEN 10 ELSE 5);                            04382000        
+         MAKEMESS;                                                      04382200        
+         P(1); % SPOUT MESSAGE                                          04382400        
+REWINDING:                                                              04382600        
+         READY := NOT TWO(U) AND READY;                                 04382800        
+NTRDY:                                                                  04383000        
+         RRRMECH:=NOT TWO(U) AND RRRMECH;                               04383200        
+         IF P THEN SPOUTER(KEY,UNITNO,35);                              04383400        
+         END;                                                           04383600        
+      UNIT[U].[5:10] := 2;                                              04383800        
+    RRRMECH ~ NOT TWO(U) AND RRRMECH; % LET STATUS FIND IT         %115-04383900        
+      GO TO KILLL;                                                      04385400        
+      END;                                                              04385600        
+D17:                                                                    04385800        
+   IF E.[46:1] THEN                               % I/O MEMORY PARITY   04386000        
+      BEGIN                                                             04386200        
+      F:=2; % I/O MEM PARITY                                            04386400        
+L2:   MAKEMESS;                                                         04386600        
+      SPOUTER(KEY,UNITNO,35);                                           04386800        
+      MAKEMLOG(IF TYPE=2 THEN 10 ELSE 5);                               04387000        
+      P(@1537); % ACCEPT EOF/EOT/EOP                                    04387200        
+      GO TO SIX;                                                        04387400        
+      END;                                                              04387600        
+   IF E.[41:1] AND TYPE NEQ 2 THEN               % I/O INVALID ADDRESS  04387800        
+      BEGIN % [41:1] FOR TAPE = BACKUP DRIVE                            04388000        
+D22:  F:=4; % I/O INVALID ADDRESS                                       04388200        
+      GO TO L2;                                                         04388400        
+      END;                                                              04388600        
+                                                                        04388800        
+   GO TO W[TYPE];                                                       04389000        
+                                                                        04389200        
+D19:  E := 1023; GO TO D17;                                             04389400        
