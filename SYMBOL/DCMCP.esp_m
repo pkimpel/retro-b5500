@@ -3017,3 +3017,105 @@ D22:  F:=4; % I/O INVALID ADDRESS                                       04388200
    GO TO W[TYPE];                                                       04389000        
                                                                         04389200        
 D19:  E := 1023; GO TO D17;                                             04389400        
+                                                                        04389600        
+SPO:                                                                    04389800        
+   IF E.[43:1] THEN GO TO L1; % ERROR BUTTON                            04390000        
+   GO TO D19;                                                           04390200        
+                                                                        04390400        
+PRINTER:                                                                04390600        
+   IF E.[42:1] THEN % END OF PAGE                                       04390800        
+      BEGIN                                                             04391000        
+      IF IOQUE[S].[27:6]=0 THEN GO TO FIX; % NOT SPACING                04391200        
+      COMMENT IGNORE EOP IF NO SPACE OR SKIP;                           04391400        
+           IF RDCTABLE[U] OR MULTITABLE[U]="FULLPAGE"              %724-04391550        
+           THEN IF IOQUE[S].[28:1] THEN IOQUE[S].[FF]~@40013 %DBL-CH 11 04391560        
+           ELSE IOQUE[S].[FF]~@40012  % DBL     SINGLE - SKIP TO CH 10  04391570        
+           ELSE % SKIP TO CHAN 1 ON EOP IF NOT 66 LINES            %724-04391580        
+      IOQUE[S].[18:15] := @4000; % INHIBIT DATA XFER, SKIP TO CHANNEL   04391600        
+      GO TO CLEAR;                                                      04391800        
+      END;                                                              04392000        
+   IF E.[43:1] THEN                                                     04392200        
+      BEGIN                                                             04392400        
+      E:=0; % PRINT CHECK                                               04392600        
+      MAKEMESS;                                                         04392800        
+      SPOUTER(KEY,UNITNO,35);                                           04393000        
+      IF E.[45:1] THEN GO TO NOTREADYMESS; % PRINTER NOT READY          04393200        
+      MAKEMLOG(IF TYPE=2 THEN 10 ELSE 5);                               04393400        
+      P(0); % CLEAR ERROR FIELD                                         04393600        
+      TINU[U].[18:12] := P(DUP).[18:12]+1;                              04393800        
+      GO TO SIX;                                                        04394000        
+      END;                                                              04394200        
+   GO TO D19; % PARITY                                                  04394400        
+                                                                        04394600        
+READER:                                                                 04394800        
+   IF E.[43:1] THEN % READ CHECK                                        04395000        
+      BEGIN                                                             04395200        
+      TINU[U].[18:12] := P(DUP).[18:12]+1;                              04395400        
+      F:=32; % READ CHECK                                               04395600        
+      MAKEMLOG(5);                                                      04395800        
+      MAKEMESS;                                                         04396000        
+      P(1); % SPOUT MESSAGE                                             04396200        
+      GO TO NTRDY;                                                      04396400        
+      END;                                                              04396600        
+   IF E.[42:1] THEN % EOF CARD READER-TREAT AS NOT READY                04396800        
+      BEGIN                                                             04397000        
+      UNIT[U].[5:8] := 4; % ERROR FIELD=NOT READY                       04397200        
+      R.[25:8] := 4;      % RESLT.DESC.=NOT READY                       04397400        
+      TRANSACTION[U] := TRANSACTION[U]+1;                               04397600        
+      GO TO START;                                                      04397800        
+      END;                                                              04398000        
+   COMMENT MUST BE D19 - USUALLY INVALID CHARACTOR;                     04398200        
+   STREAM(A:=0 : B:=IOQUE[S]);                                          04398400        
+      BEGIN                                                             04398600        
+      DI := A; SI := B; DI := DI+8;                                     04398800        
+      IF SC = @14 THEN A := DI;                                         04399000        
+      2(40(DI:=DI+8; SI:= SI+1;                                         04399200        
+      IF SC = @14 THEN JUMP OUT 2 TO L);                                04399400        
+      DI := DI-8; SI := SI-1;);                                         04399600        
+      DI := A;                                                          04399800        
+L:    A := DI;                                                          04400000        
+      END;                                                              04400200        
+   IF (T1 := P) = 0 THEN GO TO D19; % NOT INVALID CHARACTER             04400400        
+   IF T1  NEQ  1 THEN               % NOT IN COLUMN 1                   04400600        
+      BEGIN                                                             04400800        
+      STREAM(a:=TINU[U],T1,KEY:=KEY:=SPACE(10));                        04401000        
+         BEGIN                                                          04401200        
+         DS := LIT "#"; SI := LOC A; SI := SI+5;                        04401400        
+         DS := 3 CHR;                                                   04401600        
+         DS := 16 LIT " INV CHR IN COL ";                               04401800        
+         DS := 2 DEC; DS := LIT "~";                                    04402000        
+         END;                                                           04402200        
+      P(1); % SPOUT MESSAGE                                             04402400        
+      GO TO NTRDY;                                                      04402600        
+      END;                                                              04402800        
+   E := @40;                                                            04403000        
+   F := @3100001;                                                       04403200        
+   GO TO LEAVE;                                                         04403400        
+                                                                        04403600        
+PUNCH:                                                                  04403800        
+   IF E.[43:1] THEN                                                     04404000        
+      BEGIN                                                             04404200        
+      F:=64; % PUNCH CHECK                                              04404400        
+      MAKEMESS;                                                         04404600        
+      SPOUTER(KEY,UNITNO,35);                                           04404800        
+      % NEW PUNCH DOES NOT GO NOT-READY ON PUNCH CHECK                  04405000        
+      IF E.[45:1] THEN GO TO NOTREADYMESS; % NOT READY                  04405200        
+      MAKEMLOG(5);                                                      04405400        
+      TINU[U].[18:12]:=P(DUP).[18:12]+1;                                04405600        
+      F:=0; % ZERO ERROR FIELD                                          04405800        
+      GO TO CLEAR;                                                      04406000        
+      END;                                                              04406200        
+   GO TO D19; % PARITY                                                  04406400        
+                                                                        04406600        
+PAPERPUNCH:                                                             04406800        
+   IF R.[27:1] THEN % EOR                                               04407000        
+      BEGIN                                                             04407200        
+      P(@40);                                                           04407400        
+      GO TO SIX;                                                        04407600        
+      END;                                                              04407800        
+   GO TO D19; % PARITY                                                  04408000        
+                                                                        04408200        
+PAPER:                                                                  04408400        
+   IF R.[27:2] NEQ 0 THEN GO TO EOF; % BOT/EOT                          04408600        
+   IF E.[44:1] THEN % PARITY                                            04408800        
+      BEGIN                                                             04409000        
