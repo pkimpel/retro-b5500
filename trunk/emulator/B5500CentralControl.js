@@ -14,6 +14,27 @@
 function B5500CentralControl() {
     /* Constructor for the Central Control module object */
 
+    /* Global system modules */
+
+    this.PA = null;                 // Processor A (PA)
+    this.PB = null;                 // Processor B (PB)
+    this.IO1 = null;                // I/O unit 1
+    this.IO2 = null;                // I/O unit 2
+    this.IO3 = null;                // I/O unit 3
+    this.IO4 = null;                // I/O unit 4
+
+    this.P1 = null;                 // Reference for Processor 1 (control) [PA or PB]
+    this.P1 = null;                 // Reference for Processor 2 (slave)   [PA or PB]
+
+    this.AddressSpace = [];         // Array of memory module address spaces (8 x 32KB each)
+    this.Memory = [];               // Array of memory module words as Float64s (8 x 4KW each)
+
+    // This memory instantiation should be done in configuration, but here's the idea...
+    this.AddressSpace[0] = new ArrayBuffer(32768);
+    this.Memory[0] = new Float64Array(this.AddressSpace[0]);
+
+    /* Central Control registers and flip flops */
+
     this.IAR = 0;                   // Interrupt address register
     this.TM = 0;                    // Real-time clock (6 bits, 60 ticks per second)
 
@@ -32,6 +53,14 @@ function B5500CentralControl() {
     this.CCI15F = 0;                // Disk file #1 read check finished
     this.CCI16F = 0;                // Disk file #2 read check finished
 
+    this.MCYF = 0;                  // Memory cycle FFs (one bit per M0..M7)
+    this.PAXF = 0;                  // PA memory exchange select (M0..M7)
+    this.PBXF = 0;                  // PB memory exchange select (M0..M7)
+    this.I1XF = 0;                  // I/O unit 1 exchange select (M0..M7)
+    this.I2XF = 0;                  // I/O unit 2 exchange select (M0..M7)
+    this.I3XF = 0;                  // I/O unit 3 exchange select (M0..M7)
+    this.I4XF = 0;                  // I/O unit 4 exchange select (M0..M7)
+
     this.AD1F = 0;                  // I/O unit 1 busy
     this.AD2F = 0;                  // I/O unit 2 busy
     this.AD3F = 0;                  // I/O unit 3 busy
@@ -49,17 +78,90 @@ function B5500CentralControl() {
 }
 
 /**************************************/
-B5500CentralControl.prototype.fetch(addr) {
-    /* Called by all modules to fetch a word from memory. /*
+B5500CentralControl.prototype.fetch(r) {
+    /* Called by requestor module "r" to fetch a word from memory. */
+    var acer = r.accessor;
+    var addr = acer.addr;
+    var modNr = addr >>> 12;
+    var modAddr = addr & 0x0FFF;
+    var modMask = 1 << modNr;
 
-    // TO BE PROVIDED
+    this.MCYF |= modMask;               // !! need to figure out when to turn this off for display purposes
+                                        //    (odd/even addresses? fetch vs. store?)
+    switch (r) {
+    case PA:
+        this.PAXF = modMask;
+        break;
+    case PB:
+        this.PBXF = modMask;
+        break;
+    case IO1:
+        this.I1XF = modMask;
+        break;
+    case IO2:
+        this.I2XF = modMask;
+        break;
+    case IO3:
+        this.I3XF = modMask;
+        break;
+    case IO4;
+        this.I4XF = modMask;
+        break;
+    }
+
+    // For now, we assume memory parity can never happen
+    if (acer.MAIL || !this.Memory[modNr]) {
+        // acer.MPED = 0;
+        acer.MAED = 1;
+        acer.word = 0;
+    } else (
+        // acer.MPED = 0;
+        acer.MPED = 0;
+        acer.word = this.Memory[memMod][modAddr];
+    }
 }
 
 /**************************************/
-B5500CentralControl.prototype.store(addr, word) {
-    /* Called by all modules to fetch a word from memory. /*
+B5500CentralControl.prototype.store(r, addr, word) {
+    /* Called by requestor module "r" to store a word into memory. */
+    var acer = r.accessor
+    var addr = acer.addr;
+    var modNr = addr >>> 12;
+    var modAddr = addr & 0x0FFF;
+    var modMask = 1 << modNr;
 
-    // TO BE PROVIDED
+    this.MCYF |= modMask;               // !! need to figure out when to turn this off for display purposes
+                                        //    (odd/even addresses? fetch vs. store?)
+    switch (r) {
+    case PA:
+        this.PAXF = modMask;
+        break;
+    case PB:
+        this.PBXF = modMask;
+        break;
+    case IO1:
+        this.I1XF = modMask;
+        break;
+    case IO2:
+        this.I2XF = modMask;
+        break;
+    case IO3:
+        this.I3XF = modMask;
+        break;
+    case IO4;
+        this.I4XF = modMask;
+        break;
+    }
+
+    // For now, we assume memory parity can never happen
+    if (acer.MAIL || !this.Memory[modNr]) {
+        // acer.MPED = 0;
+        acer.MAED = 1;
+    } else (
+        // acer.MPED = 0;
+        acer.MAED = 0;
+        this.Memory[memMod][modAddr] = acer.word;
+    }
 }
 
 /**************************************/
