@@ -40,7 +40,7 @@ function B5500Processor() {
     this.P = 0;                         // Current program instruction word register
     this.PROF = 0;                      // P contents valid
     this.Q = 0;                         // Misc. FFs (bits 1-9 only: Q07F=hardware-induced interrupt, Q09F=enable parallel adder for R-relative addressing)
-    this.R = 0;                         // PRT base address (high-order 9 bits only)
+    this.R = 0;                         // PRT base address (low-order 6 bits are always zero)
     this.S = 0;                         // Top-of-stack memory address (DI.w in CM)
     this.SALF = 0;                      // Program/subroutine state FF (1=subroutine)
     this.T = 0;                         // Current program syllable register
@@ -53,66 +53,93 @@ function B5500Processor() {
     this.Y = 0;                         // Serial character register for A
     this.Z = 0;                         // Serial character register for B
 
-    this.cycleLimit = 0;                // Count-down cycle limit for this.run()
-    this.isP1 = true;                   // Control processor flag
+    this.cycleCount = 0;                // Current cycle count for this.run()
+    this.cycleLimit = 0;                // Cycle limit for this.run()
+
+    this.accessor = {                   // Memory access control block
+        addr: 0,                           // Memory address
+        word: 0,                           // 48-bit data word
+        MAIL: 0,                           // Truthy if attempt to access @000-@777 in normal state
+        MPED: 0,                           // Truthy if memory parity error
+        MAED: 0};                          // Truthy if memory address/inhibit error
 }
 
 /**************************************/
 B5500Processor.prototype.access(eValue) {
-    /* Access memory based on the E register */
-    var addr;
+    /* Access memory based on the E register. If the processor is in normal
+    state, it cannot access the first 512 words of memory => invalid address */
 
-    /****************************************************************
-    HOW TO HANDLE INVALID ADDRESS INTERRUPTS DETECTED BY CENTRAL CONTROL?
-    ****************************************************************/
-
-    this.E = eValue;
+    this.E = eValue;                    // Just to show the world what's happening
+    this.accessor.MAIL = (addr < 0x0200 && this.NCSF);
     switch (eValue) {
-        case 0x02:                      // A = [S]
-            this.A = cc.fetch(this.S);
-            this.AROF = 1;
-            break;
-        case 0x03:                      // B = [S]
-            this.B = cc.fetch(this.S);
-            this.BROF = 1;
-            break;
-        case 0x04:                      // A = [M]
-            this.A = cc.fetch(this.M);
-            this.AROF = 1;
-            break;
-        case 0x05:                      // B = [M]
-            this.B = cc.fetch(this.M);
-            this.BROF = 1;
-            break;
-        case 0x06:                      // M = [M].[18:15]
-            this.M = (cc.fetch(this.M) >>> 15) & 0x7FFF;
-            break;
-        case 0x0A:                      // [S] = A
-            cc.store(this.S, this.A);
-            break;
-        case 0x0B:                      // [S] = B
-            cc.store(this.S, this.B);
-            break;
-        case 0x0C:                      // [M] = A
-            cc.store(this.M, this.A);
-            break;
-        case 0x0D:                      // [M] = B
-            cc.store(this.M, this.B);
-        case 0x30:                      // P = [C]
-            this.P = cc.fetch(this.C);
-            this.PROF = 1;
-            break;
-        default:
-            throw "Invalid E register value: " + eReg.toString(2);
-            break;
+    case 0x02:                          // A = [S]
+        this.accessor.addr = this.S;
+        cc.fetch(this);
+        this.A = this.accessor.word;
+        this.AROF = 1;
+        break;
+    case 0x03:                          // B = [S]
+        this.accessor.addr = this.S;
+        cc.fetch(this);
+        this.B = this.accessor.word;
+        this.BROF = 1;
+        break;
+    case 0x04:                          // A = [M]
+        this.accessor.addr = this.M;
+        cc.fetch(this);
+        this.A = this.accessor.word;
+        this.AROF = 1;
+        break;
+    case 0x05:                          // B = [M]
+        this.accessor.addr = this.M;
+        cc.fetch(this);
+        this.B = this.accessor.word;
+        this.BROF = 1;
+        break;
+    case 0x06:                          // M = [M].[18:15]
+        this.accessor.addr = this.M;
+        cc.fetch(this);
+        this.M = (this.accessor.word >>> 15) & 0x7FFF;
+        break;
+    case 0x0A:                          // [S] = A
+        this.accessor.addr = this.S;
+        this.accessor.word = this.A;
+        cc.store(this);
+        break;
+    case 0x0B:                          // [S] = B
+        this.accessor.addr = this.S;
+        this.accessor.word = this.B;
+        cc.store(this);
+        break;
+    case 0x0C:                          // [M] = A
+        this.accessor.addr = this.M;
+        this.accessor.word = this.A;
+        cc.store(this);
+        break;
+    case 0x0D:                          // [M] = B
+        this.accessor.addr = this.M;
+        this.accessor.word = this.B;
+        cc.store(this);
+        break;
+    case 0x30:                          // P = [C]
+        this.accessor.addr = this.C;
+        cc.fetch(this);
+        this.P = this.accessor.word;
+        this.PROF = 1;
+        break;
+    default:
+        throw "Invalid E register value: " + eReg.toString(2);
+        break;
     }
-    this.cycleLimit -= 6;               // assume 6 us memory cycle time
 
-    if (addr < 0x0200 && this.NCSF) {   // normal-state cannot address @000-@777 [?? first 512 or 1024 words ??]
-        this.I |= 0x0500;               // set I02F & I04F
+    this.cycleCount += 6;               // assume 6 us memory cycle time
+    if (this.accessor.MPED) {
+        this.I |= 0x01;                 // set I01F - memory parity error
         cc.signalInterrupt();
-    } else {
-        cc.store(addr, word);
+    }
+    if (this.accessor.MAED) {
+        this.I |= 0x02;                 // set I02F - memory address/inhibit error
+        cc.signalInterrupt();
     }
 }
 
@@ -123,8 +150,13 @@ B5500Processor.prototype.adjustAEmpty() {
 
     if (this.AROF} {
         if (this.BROF) {
-            this.S++;
-            this.access(0x0B);          // [S] = B
+            if (this.S < this.R || !this.NCSF) {
+                this.S++;
+                this.access(0x0B);      // [S] = B
+            } else {
+                this.I |= 0x04;         // set I03F: stack overflow
+                cc.signalInterrupt();
+            }
         }
         this.B = this.A;
         this.AROF = 0;
@@ -157,8 +189,13 @@ B5500Processor.prototype.adjustBEmpty() {
     contents of B into memory, as necessary. */
 
     if (this.BROF) {
-        this.S++;
-        this.access(0x0B);              // [S] = B
+        if (this.S < this.R || !this.NCSF) {
+            this.S++;
+            this.access(0x0B);          // [S] = B
+        } else {
+            this.I |= 0x04;             // set I03F: stack overflow
+            cc.signalInterrupt();
+        }
     // else we're done -- B is already empty
     }
 }
@@ -176,26 +213,79 @@ B5500Processor.prototype.adjustBFull() {
 }
 
 /**************************************/
-B5500Processor.storeForInterrupt() {
-    /* Implements the 3011=SFI operator */
+B5500Processor.storeForInterrupt(p) {
+    /* Implements the 3011=SFI operator and the parts of SFT that are
+    common to it for the processor referenced as "p" */
+    var forced = p.Q & 0x0040;          // Q07F: Hardware-induced SFI syllable
+    var forTest = p.T & 0x0100;         // T09F: SFT instead of SFI syllable
+    var saveAROF = p.AROF;
+    var saveBROF = p.BROF;
 
-    if (this.CWMF) {
-        if (this.BROF) {
-            this.access(0x0B);          // [S] = B, save B if valid
-        }
-        if (this.AROF) {
-            this.access(0x0A);          // [S] = A, save A if valid
-        }
-        this.B = ((((0x30*512 +
-                 (this.R >>> 6))*4 +
-                 this.MSFF)*2 +
-                 this.SALF)*32768 +
-                 this.N)*16 +
-                 this.M;
-        this.S++;
-        this.access(0x0B);
-    } else
+    if (forced) {
+        p.NCSF = 0;                     // switch to control state
+    } else if (forTest) {
+        p.NCSF = 0;
+        p.AROF = p.BROF = 1;            // store TOS registers regardless
     }
+
+    if (p.CWMF) {
+        p.adjustAEmpty();
+        p.adjustBEmpty();
+        p.B = p.X +                     // store CM loop-control word
+              saveAROF * 0x200000000000 +
+              0xC00000000000;
+        p.BROF = 1;
+        p.adjustBEmpty();
+    } else {
+        p.adjustBEmpty();
+        p.adjustAEmpty();
+    }
+    p.B = p.M +                         // store interrupt control word (ICW)
+          p.N * 0x8000 +
+          p.VARF * 0x1000000 +
+          p.SALF * 0x40000000 +
+          p.MSFF * 0x80000000 +
+          (p.R >>> 6) * 0x200000000 +
+          0xC00000000000;
+    p.BROF = 1;
+    p.adjustBEmpty();
+
+    p.B = p.C +                         // store interrupt return control word (IRCW)
+          p.F * 0x8000 +
+          p.K * 0x40000000 +
+          p.G * 0x200000000 +
+          p.L * 0x1000000000 +
+          p.V * 0x4000000000 +
+          p.H * 0x20000000000 +
+          saveBROF * 0x200000000000 +
+          0xC00000000000;
+    p.BROF = 1;
+    p.adjustBEmpty();
+    if (p.CWMF) {
+        p.F = p.S;
+        // !! find correct setting of R from MSCW?
+    }
+
+    p.B = p.S +                         // store the initiate control word (INCW)
+          p.CWMF * 0x8000 +
+          0xC00000000000;
+    if (forTest) {
+        p.B += (p.TM & 0x1F) * 0x10000 +
+               p.Z * 0x400000 +
+               p.Y * 0x10000000 +
+               (p.Q & 0x1FF) * 0x400000000;
+    }
+
+    p.M = p.R + 8                       // store initiate word at R+@10
+    p.access(0x0D);                     // [M] = B
+
+    p.R = 0;
+    p.PROF = 0;
+    p.MSFF = 0;
+    p.SALF = 0;
+    p.CWMF = 0;
+    p.BROF = 0;
+    p.AROF = 0;
 }
 
 /**************************************/
@@ -203,15 +293,33 @@ B5500Processor.prototype.run() {
     /* Instruction execution driver for the B5500 processor. This function is
     an artifact of the emulator design and does not represent any physical
     process or state of the processor. This routine assumes the registers are
-    set up, and in particular a syllable is in T with TROF set. */
+    set up, and in particular a syllable is in T with TROF set. It will run
+    until cycleCount >= cycleLimit or !running */
     var opcode;
+    var running = true;
 
     /* HOW TO ENTER, EXIT, AND RESUME CHARACTER MODE? */
 
-    this.cycleLimit = 5000;             // max CPU cycles to run
     do {
+        this.Q = 0;
+        this.Y = 0;
+        this.Z = 0;
         opcode = this.T;
-        switch (opcode & 3) {
+        if (this.CWMF) {
+            /***********************************************************
+            *  Character Mode Syllables                                *
+            ***********************************************************/
+            this.M = 0;
+            this.N = 0;
+            this.X = 0;
+            switch (opcode & 0x3F) {
+            ...
+            }
+        } else {
+            /***********************************************************
+            *  Word Mode Syllables                                     *
+            ***********************************************************/
+            switch (opcode & 3) {
             case 0:                     // LITC: Literal Call
                 this.adjustAEmpty();
                 this.A = opcode >>> 2;
@@ -230,137 +338,136 @@ B5500Processor.prototype.run() {
 
             case 1:                     // all other word-mode operators
                 switch (opcode & 0x3F) {
-                    case 0x01:          // XX01: single-precision numerics
+                case 0x01:              // XX01: single-precision numerics
+                    break;
+
+                case 0x05:              // XX05: double-precision numerics
+                    break;
+
+                case 0x09:              // XX11: control state and communication ops
+                    switch (opcode >>> 6) {
+                    case 0x01:          // 0111: PRL=Program Release
                         break;
 
-                    case 0x05:          // XX05: double-precision numerics
+                    case 0x10:          // 1011: COM=Communicate
+                        this.adjustAFull();
+                        this.M = 0x09;         // address = @11
+                        this.access(0x0C);     // [M] = A
+                        this.AROF = 0;
+                        this.I = (this.I & 0x0F) | 0x40;    // set I07
+                        cc.signalInterrupt();
                         break;
 
-                    case 0x09:          // XX11: control state and communication ops
-                        switch (opcode >>> 6) {
-                            case 0x01:  // 0111: PRL=Program Release
-                                break;
-
-                            case 0x10:  // 1011: COM=Communicate
-                                this.adjustAFull();
-                                this.M = 0x09;         // address @11
-                                this.access(0x0C);     // [M] = A
-                                this.AROF = 0;
-                                break;
-
-                            case 0x02:  // 0211: ITI=Interrogate Interrupt
-                                break;
-
-                            case 0x04:  // 0411: RTR=Read Timer
-                                if (!this.NCSF) {      // control-state only
-                                    adjustAEmpty();
-                                    this.A = cc.CCI03F << 6 | cc.TM;
-                                }
-                                break;
-
-                            case 0x11:  // 2111: IOR=I/O Release
-                                break;
-
-                            case 0x12:  // 2211: HP2=Halt Processor 2
-                                break;
-
-                            case 0x14:  // 2411: ZPI=Conditional Halt
-                                break;
-
-                            case 0x18:  // 3011: SFI=Store for Interrupt
-                                this.storeForInterrupt();
-                                break;
-
-                            case 0x1C:  // 3411: SFT=Store for Test
-                                break;
-
-                            case 0x21:  // 4111: IP1=Initiate Processor 1
-                                break;
-
-                            case 0x22:  // 4211: IP2=Initiate Processor 2
-                                break;
-
-                            case 0x24:  // 4411: IIO=Initiate I/O
-                                break;
-
-                            case 0x29:  // 5111: IFT=Initiate For Test
-                                break;
-
-                            default:
-                                break;  // Anything else is a no-op
-                        } / end switch for XX11 ops
+                    case 0x02:          // 0211: ITI=Interrogate Interrupt
                         break;
 
-                    case 0x0D:          // XX15: logical (bitmask) ops
-                        break;
-
-                    case 0x11:          // XX21: load & store ops
-                        break;
-
-                    case 0x15:          // XX25: comparison & misc. stack ops
-                        break;
-
-                    case 0x19:          // XX31: branch, sign-bit, interrogate ops
-                        break;
-
-                    case 0x1D:          // XX35: exit & return ops
-                        break;
-
-                    case 0x21:          // XX41: index, mark stack, etc.
-                        break;
-
-                    case 0x25:          // XX45: ISO=Variable Field Isolate op
-                        break;
-
-                    case 0x29:          // XX51: delete & conditional branch ops
-                        break;
-
-                    case 0x2D:          // XX55: NOOP & DIA=Dial A ops
-                        if (opcode & 0xFC0) {
-                            this.G = opcode >>> 9;
-                            this.H = (opcode >>> 6) & 7;
-                        // else 0055=NOOP
+                    case 0x04:          // 0411: RTR=Read Timer
+                        if (!this.NCSF) {      // control-state only
+                            adjustAEmpty();
+                            this.A = cc.CCI03F << 6 | cc.TM;
                         }
                         break;
 
-                    case 0x31:          // XX61: XRT & DIB=Dial B ops
-                        if (opcode & 0xFC0) {
-                            this.K = opcode >>> 9;
-                            this.V = (opcode >>> 6) & 7;
-                        } else {        // 0061=XRT: temporarily set full PRT addressing mode
-                            this.VARF = this.SALF;
-                            this.SALF = 0;
-                        }
+                    case 0x11:          // 2111: IOR=I/O Release
                         break;
 
-                    case 0x35:          // XX65: TRB=Transfer Bits op
+                    case 0x12:          // 2211: HP2=Halt Processor 2
                         break;
 
-                    case 0x39:          // XX71: FCL=Compare Field Low op
+                    case 0x14:          // 2411: ZPI=Conditional Halt
                         break;
 
-                    case 0x3D:          // XX75: FCE=Compare Field Equal op
+                    case 0x18:          // 3011: SFI=Store for Interrupt
+                        this.storeForInterrupt(this);
                         break;
 
-                    default:
-                        break;          // should never get here, but in any case it'd be a no-op
-                } // end switch for word-mode operators
+                    case 0x1C:          // 3411: SFT=Store for Test
+                        this.storeForInterrupt(this);
+
+                        break;
+
+                    case 0x21:          // 4111: IP1=Initiate Processor 1
+                        break;
+
+                    case 0x22:          // 4211: IP2=Initiate Processor 2
+                        break;
+
+                    case 0x24:          // 4411: IIO=Initiate I/O
+                        break;
+
+                    case 0x29:          // 5111: IFT=Initiate For Test
+                        break;
+
+                    default:            // Anything else is a no-op
+                        break;
+                    } // end switch for XX11 ops
+                    break;
+
+                case 0x0D:              // XX15: logical (bitmask) ops
+                    break;
+
+                case 0x11:              // XX21: load & store ops
+                    break;
+
+                case 0x15:              // XX25: comparison & misc. stack ops
+                    break;
+
+                case 0x19:              // XX31: branch, sign-bit, interrogate ops
+                    break;
+
+                case 0x1D:              // XX35: exit & return ops
+                    break;
+
+                case 0x21:              // XX41: index, mark stack, etc.
+                    break;
+
+                case 0x25:              // XX45: ISO=Variable Field Isolate op
+                    break;
+
+                case 0x29:              // XX51: delete & conditional branch ops
+                    break;
+
+                case 0x2D:              // XX55: NOOP & DIA=Dial A ops
+                    if (opcode & 0xFC0) {
+                        this.G = opcode >>> 9;
+                        this.H = (opcode >>> 6) & 7;
+                    // else 0055=NOOP
+                    }
+                    break;
+
+                case 0x31:              // XX61: XRT & DIB=Dial B ops
+                    if (opcode & 0xFC0) {
+                        this.K = opcode >>> 9;
+                        this.V = (opcode >>> 6) & 7;
+                    } else {            // 0061=XRT: temporarily set full PRT addressing mode
+                        this.VARF = this.SALF;
+                        this.SALF = 0;
+                    }
+                    break;
+
+                case 0x35:              // XX65: TRB=Transfer Bits op
+                    break;
+
+                case 0x39:              // XX71: FCL=Compare Field Low op
+                    break;
+
+                case 0x3D:              // XX75: FCE=Compare Field Equal op
+                    break;
+
+                default:
+                    break;              // anything else is a no-op
+                } // end switch for non-LITC/OPDC/DESC operators
                 break;
+            } // end switch for word-mode operators
         } // end switch for main opcode dispatch
 
-        // SECL: Syllable Execution Complete Level
-        this.Q = 0;
-        this.Y = 0;
-        this.Z = 0;
-        if (this.CWMF) {
-            this.M = 0;
-            this.N = 0;
-            this.X = 0;
-        }
+        /***************************************************************
+        *   SECL: Syllable Execution Complete Level                    *
+        ***************************************************************/
         if (cc.IAR && this.NCSF) {      // there's an interrupt and we're in normal state
             this.T = 0x0609;            // inject 3011=SFI into T
-            this.Q |= 0x40              // set Q07F=hardware-induced SFI
-            this.Q &= ~(0x100);         // reset Q09F=adder mode for R-relative addressing
+            this.Q |= 0x40              // set Q07F to indicate hardware-induced SFI
+            this.Q &= ~(0x100);         // reset Q09F: adder mode for R-relative addressing
         } else {
             if (this.L < 3) {
                 this.T = (this.P >>> (36-this.L*12)) & 0x0FFF;
@@ -372,5 +479,5 @@ B5500Processor.prototype.run() {
                 this.access(0x30);      // P = [C]
             }
         }
-    } while (--this.Limit > 0);
+    } while (++this.cycleCount < this.cycleLimit && running);
 }
