@@ -3119,3 +3119,104 @@ PAPER:                                                                  04408400
    IF R.[27:2] NEQ 0 THEN GO TO EOF; % BOT/EOT                          04408600        
    IF E.[44:1] THEN % PARITY                                            04408800        
       BEGIN                                                             04409000        
+      P(@20);                                                           04409200        
+      GO TO SIX;                                                        04409400        
+      END;                                                              04409600        
+   GO TO NOCODE;                                                        04409800        
+                                                                        04410000        
+DATACOM:                                                                04410200        
+   IF(T3:=1&E[43:43:1])=@21 THEN GO TO L1;                              04410400        
+NOCODE:                                                                 04410600        
+   F := 5; % I/O ERROR                                                  04410800        
+   GO TO L2;                                                            04411000        
+                                                                        04411200        
+DRUM: % DRUM NOW HANDLED IN DISKORAUXERROR                              04411400        
+DISK: % DISK NOW HANDLED IN DISKORAUXERROR                              04411600        
+   DO UNTIL FALSE;                                                      04411800        
+                                                                        04412000        
+TAPE:                                                                   04412200        
+   TRANSACTION[U] := TRANSACTION[U]+1;                                  04412400        
+   IF E.[44:1] THEN                                                     04412600        
+      IF R.[2:1] THEN % MOD III DESCRIPTOR                              04412800        
+         BEGIN % COULD BE MEM.PAR.,BLANK TAPE,BOT,EOT                   04413000        
+         IF R.[11:1] THEN GO TO D19; % MEMORY PARITY                    04413200        
+         OPTION:=OPTION OR M; % MEANS MOD3IOS:=TRUE                     04413400        
+         IF R.[24:1] THEN % READING                                     04413600        
+            BEGIN                                                       04413800        
+            IF R.[13:1] THEN R.[27:1]:=1; BOT, SET EOF                  04414000        
+            IF R.[14:1] THEN % EOT                                      04414200        
+               IF (E AND @367)=0 THEN % PARITY                          04414400        
+                  IF R.[27:1]=0 THEN % NOT EOF                          04414600        
+                     GO TO FIX; % FINISH I/O                            04414800        
+            END;                                                        04415000        
+         ELSE                                                           04415200        
+            BEGIN % WRITING                                             04415400        
+            IF R.[2:1] THEN % BLANK TAPE ON WRITE                       04415600        
+               BEGIN                                                    04415800        
+               F:=9; % BLANK TAPE ON WRITE                              04416000        
+               MAKEMESS;                                                04416200        
+               SPOUTER(KEY,UNITNO,35);                                  04416400        
+               MAKEMLOG(10);                                            04416600        
+               P(16);                                                   04416800        
+               GO TO SIX;                                               04417000        
+               END;                                                     04417200        
+            IF R.[14:1] THEN R.[27:1]:=1 ELSE GO FIX; % EOT,SET EOF BIT 04417400        
+            END;                                                        04417600        
+         END % MOD III DESCRIPTOR                                       04417800        
+      ELSE GO TO D19;    % PARITY                                       04418000        
+   IF R.[24:1] THEN                                                     04418200        
+      BEGIN                                                             04418400        
+      IF E.[41:1] THEN GO TO D22; % INVALID ADDRESS                     04418600        
+      IF R.[27:1] THEN % EOT                                            04418800        
+EOF:     IF MASK.[42;1] THEN % EOF OK                                   04419000        
+            BEGIN                                                       04419200        
+REALEOF:    F:=1&(IF R.[24:1] THEN @31 ELSE 0)[CTF];                    04419400        
+            T.[5:8] := @40;                                             04419600        
+            GO TO FIX;                                                  04419800        
+            END                                                         04420000        
+         ELSE                                                           04420200        
+            BEGIN % EOF NOT ACCEPTABLE                                  04420400        
+            P(@40);                                                     04420600        
+            GO TO SIX;                                                  04420800        
+            END;                                                        04421000        
+TAPERETRY:                                                              04421200        
+      MAKEMLOG(-TAPEBUFFERSIZE);                                        04421400        
+      IF (T:=TAPEPARITYRETRY(R,U,KEY)).[5:8]=32 AND                     04421600        
+      LOCATQUE[S].[3:5] NEQ 0 THEN GO TO REALEOF;                       04421800        
+      U~IOQUE[T.[FF]].[3:4];                                            04421900        
+      P(T.[5:8]);                                                       04422000        
+      GO TO SIX;                                                        04422200        
+      END;                                                              04422400        
+   IF E.[41:1] THEN % WRITE RING                                        04422600        
+      IF E.[43:1] THEN % PARITY,WRITE RING                              04422800        
+         BEGIN                                                          04423000        
+         F:=6; % WRITE LOCK                                             04423200        
+         GO TO L2;                                                      04423400        
+         END                                                            04423600        
+      ELSE GO TO D22; % INVALID ADDRESS                                 04423800        
+   IF E.[43:1] THEN GO TO TAPERETRY; % PARITY,WRITE RING ONLY           04424000        
+   P(@40);                                                              04424200        
+SIX:                                                                    04424400        
+   T   := T&P(XCH)[5:40:8];                                             04424600        
+   F   := 1;                                                            04424800        
+FIX:                                                                    04425000        
+   E   := T.[5:8]|F;                                                    04425200        
+   FIN := S;                                                            04425400        
+   IOD := IOQUE[S];                                                     04425600        
+SEVEN:                                                                  04425800        
+   RETURNIOSPACE(S);                                                    04426000        
+                                                                        04426200        
+   T.[FF]:=S:=LOCATUE[S].[FF];                                          04426600        
+   IF F = @3100001 THEN                                                 04426800        
+      IF S NEQ @77777 THEN GO TO SEVEN;                                 04427000        
+   S:=FIN;                                                              04427200        
+   IF FALSE THEN                                                        04427400        
+LEAVE:                                                                  04427600        
+   IOD := IOQUE[S];                                                     04427800        
+   FIN := FINALQUE[S] AND NOT MEMORY;                                   04428000        
+   IF IOD.[24:1] THEN                                                   04428200        
+      BEGIN                                                             04428400        
+      NT4 := M[IOD INX ( IF IOD.[22:1] THEN 1 ELSE NOT 0)];             04428600        
+      FINISHOFFIO(U);                                                   04428800        
+      END;                                                              04429000        
+   IF ( T1:= FIN) LSS 0 THEN                                            04429200        

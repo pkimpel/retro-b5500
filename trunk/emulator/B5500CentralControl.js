@@ -133,22 +133,22 @@ B5500CentralControl.prototype.store(r, addr, word) {
     this.MCYF |= modMask;               // !! need to figure out when to turn this off for display purposes
                                         //    (odd/even addresses? fetch vs. store?)
     switch (r) {
-    case PA:
+    case this.PA:
         this.PAXF = modMask;
         break;
-    case PB:
+    case this.PB:
         this.PBXF = modMask;
         break;
-    case IO1:
+    case this.IO1:
         this.I1XF = modMask;
         break;
-    case IO2:
+    case this.IO2:
         this.I2XF = modMask;
         break;
-    case IO3:
+    case this.IO3:
         this.I3XF = modMask;
         break;
-    case IO4;
+    case this.IO4:
         this.I4XF = modMask;
         break;
     }
@@ -168,9 +168,137 @@ B5500CentralControl.prototype.store(r, addr, word) {
 B5500CentralControl.prototype.signalInterrupt() {
     /* Called by all modules to signal that an interrupt has occurred and
     to invoke the interrupt prioritization mechanism. This will result in
-    an updated vector address in the IAR. /*
+    an updated vector address in the IAR. Can also be called to reprioritize
+    any remaining interrupts after an interrupt is handled. If no interrupt
+    condition exists, this.IAR is set to zero. */
+    var p1 = this.P1;
+    var p2 = this.P2;
 
-    // TO BE PROVIDED
+    this.IAR = p1.I & 0x01      ? 0x30  // @60: P1 memory parity error
+             : p1.I & 0x02      ? 0x31  // @61: P1 invalid address error
+             : this.CCI03F      ? 0x12  // @22: Time interval
+             : this.CCI04F      ? 0x13  // @23: I/O busy
+             : this.CCI05F      ? 0x14  // @24: Keyboard request
+             : this.CCI08F      ? 0x17  // @27: I/O 1 finished
+             : this.CCI09F      ? 0x18  // @30: I/O 2 finished
+             : this.CCI10F      ? 0x19  // @31: I/O 3 finished
+             : this.CCI11F      ? 0x1A  // @32: I/O 4 finished
+             : this.CCI06F      ? 0x15  // @25: Printer 1 finished
+             : this.CCI07F      ? 0x16  // @26: Printer 2 finished
+             : this.CCI12F      ? 0x1B  // @33: P2 busy
+             : this.CCI13F      ? 0x1C  // @34: Inquiry request
+             : this.CCI14F      ? 0x1D  // @35: Special interrupt 1
+             : this.CCI15F      ? 0x1E  // @36: Disk file 1 read check finished
+             : this.CCI16F      ? 0x1F  // @37: Disk file 2 read check finished
+             : p1.I & 0x04      ? 0x32  // @62: P1 stack overflow
+             : p1.I & 0xF0      ? (p1.I >>> 4) + 0x30   // @64-75: P1 syllable-dependent
+             : p2.I & 0x01      ? 0x20  // @40: P2 memory parity error
+             : p2.I & 0x02      ? 0x21  // @41: P2 invalid address error
+             : p2.I & 0x04      ? 0x22  // @42: P2 stack overflow
+             : p2.I & 0xF0      ? (p2.I >>> 4) + 0x20   // @44-55: P2 syllable-dependent
+             : 0;                       // no interrupt set
+}
+
+/**************************************/
+B5500CentralControl.prototype.clearInterrupt();
+    /* Resets an interrupt based on the current setting of this.IAR, then
+    reprioritizes any remaining interrupts, leaving the new vector address
+    in this.IAR. */
+    var p1 = this.P1;
+    var p2 = this.P2;
+
+    switch (this.IAR) {
+    case 0x12:                          // @22: Time interval
+        this.CCI03F = 0;
+        break;
+    case 0x13:                          // @23: I/O busy
+        this.CCI04F = 0;
+        break;
+    case 0x14:                          // @24: Keyboard request
+        this.CCI05F = 0;
+        break;
+    case 0x15:                          // @25: Printer 1 finished
+        this.CCI06F = 0;
+        break;
+    case 0x16:                          // @26: Printer 2 finished
+        this.CCI07F = 0;
+        break;
+    case 0x17:                          // @27: I/O 1 finished
+        this.CCI08F = 0;
+        break;
+    case 0x18:                          // @30: I/O 2 finished
+        this.CCI09F = 0;
+        break;
+    case 0x19:                          // @31: I/O 3 finished
+        this.CCI10F = 0;
+        break;
+    case 0x1A:                          // @32: I/O 4 finished
+        this.CCI11F = 0;
+        break;
+    case 0x1B:                          // @33: P2 busy
+        this.CCI12F = 0;
+        break;
+    case 0x1C:                          // @34: Inquiry request
+        this.CCI13F = 0;
+        break;
+    case 0x1D:                          // @35: Special interrupt 1
+        this.CCI14F = 0;
+        break;
+    case 0x1E:                          // @36: Disk file 1 read check finished
+        this.CCI15F = 0;
+        break;
+    case 0x1F:                          // @37: Disk file 2 read check finished
+        this.CCI16F = 0;
+        break;
+
+    case 0x20:                          // @40: P2 memory parity error
+        p2.I &= 0xFE;
+        break;
+    case 0x21:                          // @41: P2 invalid address error
+        p2.I &= 0xFD;
+        break;
+    case 0x22:                          // @42: P2 stack overflow
+        p2.I &= 0xFB;
+        break;
+    case 0x24:                          // @44-55: P2 syllable-dependent
+    case 0x25:
+    case 0x26:
+    case 0x27:
+    case 0x28:
+    case 0x29:
+    case 0x2A:
+    case 0x2B:
+    case 0x2C:
+    case 0x2D:
+        p2.I &= 0x0F;
+        break;
+
+    case 0x30:                          // @60: P1 memory parity error
+        p1.I &= 0xFE;
+        break;
+    case 0x31:                          // @61: P1 invalid address error
+        p1.I &= 0xFD;
+        break;
+    case 0x32:                          // @62: P1 stack overflow
+        p1.I &= 0x0B;
+        break;
+    case 0x34:                          // @64-75: P1 syllable-dependent
+    case 0x35:
+    case 0x36:
+    case 0x37:
+    case 0x38:
+    case 0x39:
+    case 0x3A:
+    case 0x3B:
+    case 0x3C:
+    case 0x3D:
+        p1.I &= 0x0F;
+        break;
+
+    default:                            // no interrupt vector was set
+        break;
+    }
+    this.signalInterrupt();
 }
 
 /**************************************/
