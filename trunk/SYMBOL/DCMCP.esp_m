@@ -2960,7 +2960,7 @@ START:                                                                  04372200
          MAKEMESS;                                                      04376400        
          SPOUTER(KEY,UNITNO,35);                                        04376600        
          END;                                                           04376800        
-      MAKEMEMLOG(IF TYPE=2 THEN 10 ELSE 5);                             04377000        
+      MAKEMLOG(IF TYPE=2 THEN 10 ELSE 5);                               04377000        
 L1:      DO BEGIN                                                       04377200        
          SLEEP([CLOCK],NOT CLOCK);                                      04377400        
          UNIT[U]:=(*P(DUP))&P(T,XCH)[CTC];                              04377600        
@@ -3220,3 +3220,49 @@ LEAVE:                                                                  04427600
       FINISHOFFIO(U);                                                   04428800        
       END;                                                              04429000        
    IF ( T1:= FIN) LSS 0 THEN                                            04429200        
+   P(R&E[25:40:8]&IOD[3:3:5] OR IOMASK,LOCATQUE[S],~);                  04429400        
+   ELSE                                                                 04429600        
+      BEGIN                                                             04429800        
+      IF E NEQ 0 THEN                                                   04430000        
+         BEGIN                                                          04430200        
+         P(.T1,PRL);                                                    04430400        
+         T1 := T1&E25:40:8];                                            04430600        
+         END                                                            04430800        
+      ELSE P(.T,IOR);                                                   04431000        
+      LOCN := [M[LOCATQUE[S]];                                          04431200        
+      IOD := IOD.[33:15];                                               04431400        
+      WHILE LOCN[0].[33:15] NEQ IOD DO LOCN := 1 INX LOCN;              04431600        
+      LOCN[0] := P(.T1,LOD);                                            04431800        
+      END;                                                              04432000        
+   UNIT[U] := T;                                                        04432200        
+CLEAR:                                                                  04432400        
+   UNIT[U] := (*P(DUP))&F[5:20:13];                                     04432600        
+   STARTIO(U);                                                          04432800        
+KILLL:                                                                  04433000        
+   LOCATQUE[S].[11:1]:=0;                                               04433200        
+KILLER:                                                                 04433400        
+KILL([MSCW]);                                                           04433600        
+   END;                                                                 04433800        
+ $ SET OMIT = NOT DEBUGGING                                             04544999        
+REAL PROCEDURE TAPEPARITYRETRY(R,U,KEY);%                               04548000        
+   VALUE R,U,KEY;%                                                      04549000        
+   REAL R,U,KEY;%                                                       04550000        
+    BEGIN REAL T1,T2,T3; INTEGER I= T1;%                                04551000        
+         REAL RESULT,IOD,OIOD,SPACEMASK,SPACEIOD,M,N,W,MODE;%           04552000        
+         REAL J,K;%                                                     04553000        
+         REAL ERASEIOD=SPACEMASK;%                                      04554000        
+    REAL Z,Y,MIX,BSIZE;                                                 04554100        
+         LABEL XIO,GIVEUP;                                              04554200        
+         LABEL RP,LX;                                                   04554300        
+         REAL SIZE,T4,LIMIT;                                            04554500        
+         REAL PTR,BUFFER,BUFFERSIZE,%                                   04554600        
+              PATTERN,PATTERN1,PATTERN2,PATTERNWORD;% DON"T CHANGE ORDER04554700        
+         BOOLEAN TESTING,SPACING,FLAGGER;                               04554800        
+ $ SET OMIT = NOT(PACKETS)                                              04554899        
+         DEFINE UNITNO = PSEUDOMIX[MIX]#;                               04554900        
+ $ POP OMIT                                                             04554901        
+         LABEL XXIT,EXIT,ENDIT,XEXIT;                                   04555000        
+    SUBROUTINE RECORDRETRY;%                                            04555050        
+    BEGIN%                                                              04555100        
+       IF PTR-KEY = TAPEBUFFERSIZE-1 THEN%                              04555150        
+       BEGIN%                                                           04555200        
