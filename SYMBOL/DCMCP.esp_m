@@ -3264,5 +3264,204 @@ REAL PROCEDURE TAPEPARITYRETRY(R,U,KEY);%                               04548000
          LABEL XXIT,EXIT,ENDIT,XEXIT;                                   04555000        
     SUBROUTINE RECORDRETRY;%                                            04555050        
     BEGIN%                                                              04555100        
-       IF PTR-KEY = TAPEBUFFERSIZE-1 THEN%                              04555150        
-       BEGIN%                                                           04555200        
+      IF PTR-KEY = TAPEBUFFERSIZE-1 THEN%                               04555150        
+      BEGIN%                                                            04555200        
+        T4 := TYPEDSPACE(TAPEBUFFERSIZE,MAINTBUFFAREAV);%          %167-04555250        
+        MOVE(10,KEY,T4);%                                               04555300        
+        MEMORY[KEY+8]:= TAPEBUFFERSIZE-10;%                             04555350        
+        MEMORY[KEY+9]:= 1023;%                                          04555400        
+        LINKUP(3,KEY);%                                                 04555450        
+        KEY:= T4; PTR:= KEY+9;%                                         04555500        
+      END;%                                                             04555550        
+      MEMORY[PTR:=PTR+1]:= IOD;%                                        04555600        
+      MEMORY[PTR:=PTR+1]:= RESULT & RDCTABLE[U][19:1:2];%               04555650        
+    END RECORDRETRY;%                                                   04555700        
+    SUBROUTINE DOIONOW;%                                                04556000        
+    BEGIN FOR Y~1 STEP 1 UNTIL 18 DO                                    04556100        
+         BEGIN IF R.[24:1]THEN                                          04557000        
+              BEGIN % WAIT 1/15 SEC BETWEEN READ RETRIES                04557100        
+                   WHILE T4>CLOCK+P(RTR) DO SLEEP(1,1);                 04557200        
+                   T4~CLOCK+P(RTR+4);                                   04557300        
+              END;                                                      04557400        
+              IF IOQUESLOTS=0 THENSLEEP([IOQUESLOTS],83);               04558000        
+              IOQUESLOTS:=IOQUESLOTS-1;                                 04558500        
+              IOQUEAVAIL:=IOQUE[T1:=IOQUEAVAIL];                        04559000        
+              IOQUE[T1]~ IOD;%                                          04560000        
+              LOCATQUE[T1]~LOCATQUE[T2 ~(T3~UNIT[U]).[18:15]]&RESULT]%  04561000        
+                   [33:33:15]&T2[18:33:15];%                            04562000        
+              UNIT[U] ~ T3&T1[18:33:15]&64[5:35:13];%                   04563000        
+              STARTIO(U);%                                              04564000        
+              FINALQUE[T1] ~ NABS(IOD)&  0 [25:40:8] OR IOMASK;%        04565000        
+              RESULT ~ 0;%                                              04566000        
+              SLEEP([UNIT[U]],@100000000000);%                          04567000        
+              IF RESULT.[30:1] THEN % NOT READY                         04567010        
+                 BEGIN                                                  04567020        
+                 MODE := (-16);                                         04567030        
+                 GO TO EXIT;                                            04567040        
+                 END;                                                   04567050        
+              IF RESULT.[29:1] AND RESULT.[2:1] THEN                    04567100        
+              BEGIN                                                     04567150        
+                   IF RESULT.[12:1] THEN   %  BLANK TAPE                04567200        
+                   IF IOD.[24:1] THEN      %  READ                      04567250        
+                        TRANSACTION[U]~TRANSACTION[U]-1&IOD[1:22:1] ELSE04567300        
+                   BEGIN;   %   WRITE                                   04567310        
+                        STREAM(A~TINU[U],T~T2~SPACE(3));                04567320        
+                        BEGIN SI~LOC A; SI~SI+5; DS~3 CHR;              04567400        
+                             DS!21 LIT" BLANK TAPE ON WRITE~";          04567500        
+                        END;                                            04567550        
+                        SPOUTER(T2,UNITNO,35);                          04567600        
+                        GO TO XXIT;                                     04567700        
+                   END;                                                 04567750        
+                   IF RESULT.[11:1] THEN   %  MEM PARITY                04567770        
+                   BEGIN;                                               04567780        
+                        STREAM(A~TINU[U],T~T2~SPACE(3));                04567790        
+                        BEGIN SI~LOC A; SI~SI+5; DS~3 CHR;              04567800        
+                             DS~13 LIT" I/O MEM PAR~";                  04567810        
+                        END;                                            04567820        
+                        SPOUTER(T2,UNITNO,35);                          04567830        
+XXIT:                  MODE := 16;                                      04567840        
+                       IF TESTING THEN GO XIO;                          04567845        
+                       RECORDRETRY;                                     04567850        
+                       GO TO EXIT;                                      04567855        
+                   END;                                                 04567860        
+                   IF RESULT.[13:21]!0 THEN Y~18;                       04567870        
+              END ELSE GO TO XIO;                                       04567900        
+         END;%                                                          04568000        
+         RESULT.[27:1]~1; MODE~32;                                      04568100        
+XIO: IF NOT SPACING THEN RECORDRETRY;                                   04568200        
+     END DOIONOW;%                                                      04568250        
+    SUBROUTINE SPACEBACK;                                               04568300        
+    BEGIN                                                               04568310        
+         IF TRANSACTION[U]=1 THEN                                       04568320        
+         BEGIN                                                          04568330        
+              IOD:=@4200000000&IOD[3:3:5];                              04568340        
+              DOIONOW;                                                  04568350        
+              I:=TWO(U);                                                04568360        
+              T2:=CLOCK+P(RTR)+600;                                     04568364        
+              COMPLEXSLEEP((P(RRR) AND I)!0 OR T2<CLOCK+P(RTR));        04568366        
+              IF (P(RRR) AND I)=0 THEN           % TIME OUT => NOT READY04568370        
+              BEGIN MODE:=16;                                           04568372        
+                   GO TO EXIT;                                          04568374        
+              END;                                                      04568376        
+         END ELSE                                                       04568380        
+         BEGIN                                                          04568390        
+              M:=W;                                                     04568400        
+              IOD:=SPACEIOD;                                            04568410        
+              J:=0;                                                     04568420        
+              SPACING:= TRUE;%                                          04568425        
+              DO BEGIN                                                  04568430        
+                   DOIONOW;                                             04568440        
+                   TRANSACTION[U]:=(*P(DUP))+1);                        04568450        
+                   J:=J+1;                                              04568460        
+              END UNTIL ((M:=RESULT.[CF]-SPACEIOD.[CF]+M) LSS 0         04568470        
+                   OR RESULT.[27:1] AND J GTR 1;                        04568480        
+              IF NOT TESTING THEN SPACING:= FALSE;                      04568485        
+              TRANSACTION[U]:=(*P(DUP))-2;                              04568490        
+              IOD:=SPACEIOD&0[22:47:1];                                 04568500        
+              DOIONOW;                                                  04568510        
+              IF N=0 THEN BSIZE:=RESULT.[CF]-IOD.[CF] ELSE              04568520        
+              IF BSIZE!RESULT.[CF]-IOD.[CF] THEN                        04568530        
+              BEGIN                                                     04568540        
+                   STREAM(A:=TINU[U],D:=T2:=SPACE(10));                 04568550        
+                   BEGIN SI:=LOC A;SI:=SI+5;DS:=3 CHR;                  04568560        
+                        DS:=13 LIT" ERASE ERROR~";                      04568570        
+                   END;                                                 04568580        
+                   SPOUTER(T2,UNITNO,35);                               04568590        
+                   FLAGGER ~ 1;                                         04568595        
+                   GO GIVEUP;                                           04568600        
+              END;                                                      04568610        
+         END;                                                           04568620        
+    END; % OF SPACEBACK                                                 04568630        
+    TINU[U].[18:12] ~ P(DUP).[18:12]~1;%                                04569000        
+    MIX ~ LOCATQUE[UNIT[U].[FF]].[3:5];                                 04569100        
+    FLAGGER ~ FINALQUE[UNIT[U].[FF]] < 0; % NOT OBJECT JOB              04569200        
+    OIOD ~ NFLAG(IOQUE[UNIT[U].[18:15]]);%                              04570000        
+    PTR:= KEY+9;                                                        04570100        
+    IF R.[24:1] THEN%                                                   04571000        
+    BEGIN COMMENT READ RETRY;%                                          04572000        
+         SPACEMASK ~ OIOD.[21:2]|@1111 EQV NOT @0123;%                  04573000        
+         SPACEIOD ~ OIOD&1[8:38:10]&1[23:47:1];%                        04574000        
+         FOR M ~ 1 STEP 1 UNTIL 3 DO%                                   04575000        
+              BEGIN SPACEIOD ~ SPACEIOD&SPACEMASK[21:46:2];%            04576000        
+                   FOR N ~ 1 STEP 1 UNTIL 5 DO%                         04577000        
+                        BEGIN IOD ~ SPACEIOD;%                          04578000        
+                             IF N!1 OR M!1 THEN DOIONOW ELSE            04579000        
+                             IF NOT(R.[29:1]AND R.[2:1] AND R.[12:1])   04579100        
+                                THEN DOIONOW;                           04579200        
+                             IF RESULT.[28:1] THEN%                     04580000        
+                                  BEGIN MODE ~ 0;%                      04581000        
+                                       IOD ~ OIOD;%                     04582000        
+                                  END%                                  04583000        
+                             ELSE BEGIN MODE ~ 8;%                      04584000        
+                                       IOD ~ OIOD&SPACEMASK[21:43:2];%  04585000        
+                                  END;%                                 04586000        
+                             DOIONOW;%                                  04587000        
+                             IF NOT RESULT.[28:1] THEN GO TO EXIT;%     04588000        
+                             IF MOD3IOS THEN IF OIOD.[23:1] THEN        04588010        
+                             BEGIN Z~IOD~OIOD&SPACEMAKS[21:40:2]        04588020        
+                                    &(OIOD.[33:15]+(OIOD.[8:10]-1)      04588030        
+       &OIOD[1:22:1]])[33:33:15];                                       04588040        
+                                   DOIONOW; MODE~0;                     04588050        
+                                   IF RESULT.[28:1] THEN                04588060        
+                                   BEGIN IOD~OIOD; DOIONOW;             04588070        
+                                         IF NOT RESULT.[28:1] THEN      04588080        
+                                            GO TO EXIT;                 04588090        
+                                         IOD~Z&SPACEMASK[21:46:2];      04588100        
+                                         DOIONOW; MODE~8;               04588110        
+                                         IF RESULT.[28:1] THEN          04588120        
+                                         BEGIN IOD~OIOD&SPACEMASK       04588130        
+                                                   [21:43:2];           04588140        
+                             RP:               DOIONOW;                 04588150        
+                                               IF RESULT.[28:1] THEN    04588160        
+                                                  GO TO LX;             04588170        
+                                               GO TO EXIT;              04588180        
+                                         END;                           04588190        
+                                   END;                                 04588200        
+                                   Z~ABS(IOD.[33:15]-RESULT.[33:15]);   04588210        
+                                   IF IOD.[21:2]=0 THEN                 04588220        
+                                      Z~Z-(RESULT.[15:3]=0);            04588230        
+                                   IF IOD.[8:10]<Z THEN                 04588240        
+                                   BEGIN IOD~OIOD; MODE~0; GO TO RP END;04588250        
+                                   IF IOD.[22;1] THEN                   04588260        
+                                   STREAM(Z,Y~Z DIV 64,                 04588270        
+                                          S~RESULT.[33:15]+1,           04588280        
+                                          SK~(RESULT.[15:3]+1).[45:3],  04588290        
+                                          GM~(IF IOD.[2:1] THEN 0       04588300        
+                                                           ELSE "~"),   04588310        
+                                          D~OIOD.[33:15]);              04588320        
+                                   BEGIN SI~S; SI~SI+SK;                04588330        
+                                         Y(16(DS~32 CHR));              04588340        
+                                         Z(DS~8 CHR);                   04588350        
+                                         SK(DS~LIT "0");                04588360        
+                                         DI~DI-SK; SI~LOC GM;           04588370        
+                                         SI~SI+7; DS~CHR;               04588380        
+                                   END ELSE                             04588390        
+                                   STREAM(Z,Y~Z DIV 64,                 04588400        
+                                          S~RESULT.[33:15]-1,           04588410        
+                                          SK~(RESULT.[15:3]+7).[45:3],  04588420        
+                                          FL~(IF IOD.[21:1] THEN 0      04588430        
+                                                            ELSE @14),  04588440        
+                                          FK~(8-RESULT.[15:3]).[45:3],  04588450        
+                                          D~OIOD.[33:15]);              04588460        
+                                   BEGIN SI~S; SI~SI+SK; DI~DI+7;       04588470        
+                                         Y(16(32(DS~CHR); SI~SI-2;      04588480        
+                                                 DI~DI-2)));            04588490        
+                                         Z(8(DS~CHR; SI~SI-2; DI~DI-2));04588500        
+                                         SI~LOC FL; SI~SI+7;            04588510        
+                                         FK(DS~CHR; SI~SI-1; DI~DI-2);  04588520        
+                                   END;                                 04588530        
+                                   IOD~@140000005&OIOD[22:22:1]         04588540        
+                                                 &OIOD[3:3:5];          04588550        
+                                   DOIONOW; GO TO EXIT;                 04588560        
+                   LX:       END;                                       04588570        
+                        END;%                                           04589000        
+                   N ~ IF TRANSACTION[U] < 15 THEN%                     04590000        
+                             TRANSACTION[U] ELSE 15;%                   04591000        
+                   IOD ~ SPACEIOD&SPACEMASK[21:40:2];%                  04592000        
+                   SPACING:= TRUE;                                      04592100        
+                   FOR W ~ 1 STEP 1 UNTIL N DO%                         04593000        
+                        BEGIN DOIONOW;%                                 04594000        
+                             IF RESULT.[27:1] THEN N~0;%                04595000        
+                        END;%                                           04596000        
+                   IOD ~ SPACEIOD&SPACEMASK[21:37:2];%                  04597000        
+                   FOR N ~ 3 STEP 1 UNTIL W DO DOIONOW;%                04598000        

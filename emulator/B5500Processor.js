@@ -329,9 +329,13 @@ B5500Processor.storeForInterrupt = function(forTest) {
             this.T = 0;                 // idle the processor
             this.TROF = 0;
             this.PROF = 0;
+            this.busy = false;
             cc.HP2F = 1;
             cc.P2BF = 0;
-            this.busy = false;
+            if (cc.P2.scheduler) {
+                cancelTimeout(cc.P2.scheduler);	 
+                cc.P2.scheduler = null;
+            }
         }
         this.CWMF = 0;
     } else if (forTest) {
@@ -349,9 +353,13 @@ B5500Processor.storeForInterrupt = function(forTest) {
             this.T = 0;                 // idle the processor
             this.TROF = 0;
             this.PROF = 0;
+            this.busy = false;
             cc.HP2F = 1;
             cc.P2BF = 0;
-            this.busy = false;
+            if (cc.P2.scheduler) {
+                cancelTimeout(cc.P2.scheduler);
+                cc.P2.scheduler = null;
+            }
         }
     }
 }
@@ -780,10 +788,6 @@ B5500Processor.prototype.run = function() {
                             cc.HP2F = 1;
                             // We know P2 is not currently running on this thread, so save its registers
                             cc.P2.storeForInterrupt(false);
-                            cc.P2BF = 0;
-                            if (cc.P2.scheduler) {
-                                cancelTimeout(cc.P2.scheduler);
-                            }
                         }
                         break;
 
@@ -1013,7 +1017,7 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x29:              // XX51: delete & conditional branch ops
-                    if (variant == 0) { // 0065=DEL: delete TOS
+                    if (variant == 0) { // 0051=DEL: delete TOS
                        if (this.AROF) {
                            this.AROF = 0;
                        } else if (this.BROF) {
