@@ -3465,3 +3465,103 @@ XIO: IF NOT SPACING THEN RECORDRETRY;                                   04568200
                         END;%                                           04596000        
                    IOD ~ SPACEIOD&SPACEMASK[21:37:2];%                  04597000        
                    FOR N ~ 3 STEP 1 UNTIL W DO DOIONOW;%                04598000        
+                   IOD ~ OIOD;%                                         04599000        
+                   MODE ~ 0;%                                           04600000        
+                   SPACING:= FALSE;                                     04600100        
+                   DOIONOW;%                                            04601000        
+                   IF NOT RESULT.[28:1] THEN GO TO EXIT;%               04602000        
+              END;%                                                     04603000        
+         MODE ~ 16;%                                                    04604000        
+    END ELSE BEGIN COMMENT WRITE RETRY;%                                04605000        
+         LIMIT ~ @15000;                                                04605500        
+         ERASEIOD ~ (SPACEIOD ~ OIOD&0[8:38:10]&7[22:45:3]&[T2]%        04606000        
+                   [33:33:15])&@112[18:47:7];%                          04607000        
+         W ~ R.[33:15]-OIOD.[33:15]+2;%                                 04608000        
+         WHILE TRUE DO                                                  04609000        
+              BEGIN                                                     04610000        
+                   SPACEBACK;                                           04611000        
+                   IF MIX!0 THEN IF TERMSET(MIX) THEN GO XEXIT;         04626000        
+                   IF (N~N+W+128) GTR LIMIT THEN GO GIVEUP;             04627000        
+                   IOD ~ ERASEIOD&N[9:39:9];%                           04628000        
+                   SPACING:= TRUE;%                                     04628100        
+                   FOR J ~ 0 STEP 512 UNTIL N DO%                       04629000        
+                        BEGIN TRANSACTION[U] ~ TRANSACTION[U]-1;%       04630000        
+                             DOIONOW;%                                  04631000        
+                             IOD ~ ERASEIOD&1[8:47:1];%                 04632000        
+                   IF RESULT.[27:1] THEN                                04633000        
+                   BEGIN                                                04633100        
+                        IF NOT R.[27:1] THEN LIMIT~J+3000;              04633200        
+                        R.[27:1]~1;                                     04633300        
+                   END;                                                 04633400        
+                        END;%                                           04634000        
+                   SPACING:= FALSE;%                                    04634100        
+                   IOD:= IOD & N[CTC];%                                 04634200        
+                   RECORDRETRY;%                                        04634300        
+                   IOD ~ OIOD;%                                         04635000        
+                   DOIONOW;%                                            04636000        
+                   IF RESULT.[27:1] THEN R.[27:1] ~ 1;%                 04637000        
+                   IF NOT RESULT.[28:1] THEN%                           04638000        
+                   BEGIN                                                04638100        
+                        SIZE~RESULT.[CF]-OIOD.[CF];                     04638200        
+                        SPACEBACK;                                      04638300        
+                        IOD~SPACEIOD&0[22:47:1];                        04638650        
+                        DOIONOW;                                        04638700        
+                        IF NOT(RESULT.[28:1] OR (OIOD.[2:1] AND         04638800        
+                             (RESULT.[CF]-SPACEIOD.[CF]!SIZE))) THEN    04638900        
+                        BEGIN                                           04639000        
+                             MODE~0&R[42:27:1];                         04639100        
+                             GO TO EXIT;                                04639200        
+                        END;                                            04640000        
+                   END;                                                 04641000        
+              END;%                                                     04642000        
+GIVEUP:                                                                 04642900        
+         STREAM(A~TINU[U], T~T2~SPACE(6));                              04644000        
+              BEGIN SI ~ LOC A; SI ~ SI+5; DS ~ 3 CHR;%                 04645000        
+                   DS ~ 11 LIT " WR PARITY~";%                          04646000        
+              END;%                                                     04647000        
+         IF MIX!0 THEN IF (NOT OIOD).[21:1] THEN % ALPHA TAPE           04647050        
+         BEGIN STREAM(T~0: S~OIOD.[CF], QM~@14);                        04647100        
+              BEGIN SI ~ S; DI ~ LOC QM; DI ~ DI+7;                     04647150        
+ST:                IF SC="~" THEN GO F;                                 04647200        
+                   IF SC=DC THEN GO L;                                  04647250        
+                   DI ~ DI-1;                                           04647300        
+                   GO ST;                                               04647350        
+L:                 TALLY~1; T~TALLY;                                    04647400        
+F:            END;                                                      04647450        
+              IF P THEN                                                 04647500        
+              BEGIN STREAM(T2);                                         04647550        
+                   BEGIN DI ~ DI+13;                                    04647600        
+                        DS ~ 29LIT", TRIED TO WRITE INVALID CHR~";      04647650        
+                   END;                                                 04647700        
+                   FLAGGER ~ 1;                                         04647750        
+         END; END;                                                      04647800        
+         SPOUTER(T2,UNITNO,25);                                         04648000        
+         IF MIX!0 AND NOT FLAGGER THEN                                  04648050        
+         BEGIN                                                          04648100        
+              TAPEPARITYRETRY ~ Y ~ WRITEPARITYREELSWITCH(OIOD,0);      04648150        
+              MODE ~ Y.[5:8];                                           04648200        
+              R.[27:1] ~ 0;                                             04648250        
+              GO ENDIT;                                                 04648300        
+         END;                                                           04648350        
+XEXIT:                                                                  04648400        
+         MODE ~ 16;%                                                    04649000        
+     END;%                                                              04650000        
+EXIT: TAPEPARITYRETRY:= UNIT[U] & MODE[5:40:8];                         04651000        
+ENDIT:                                                                  04651010        
+      MEMORY[KEY+8] := PTR-KEY-9;                                       04651050        
+       MEMORY[KEY+9]:=ABS(MODE);                                        04651100        
+      MEMORY[KEY] := P(DUP,LOD) & ((PTR-KEY) DIV 5)[39:39:9];           04651200        
+      IF (MODE!16) OR (R.[24:1]) THEN LINKUP(3,KEY) ELSE                04651300        
+      BEGIN                                                             04651400        
+        BUFFER:= OIOD INX 0;                                            04651500        
+        BUFFERSIZE:= OIOD.[8:10];                                       04651600        
+        IF NOT OIOD.[21:1] THEN % ALPHA WRITE - CHECK Q-MARKS           04651700        
+        BEGIN                                                           04651800        
+          STREAM(T:=0:                                                  04651900        
+                 TEMP:=0, SVSI:=0,                                      04652000        
+                 BUFFSTART:=BUFFER,                                     04652100        
+                 BUFFEND:=BUFFER+BUFFERSIZE);                           04652200        
+          BEGIN                                                         04652300        
+            SI:=BUFFEND; DI:=LOC TEMP; DS:= CHR;                        04652400        
+            DI:=BUFFEND; DS:=LIT"-"; DI:=DI-1; DS:=RESET; %Q-MARK       04652500        
+            SI:=BUFFSTART;                                              04652600        
