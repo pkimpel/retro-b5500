@@ -42,6 +42,8 @@ function B5500CentralControl() {
     this.loadTimer = null;              // Reference to the load setTimeout id.
 
     this.clear();                       // Create and initialize the Central Control state
+
+    this.tock.that = this;              // Establish context for when tock() is called from setTimeout().
 }
 
 /**************************************/
@@ -97,8 +99,8 @@ B5500CentralControl.prototype.clear = function() {
     if (this.PB) {
         this.PB.clear();
     }
-    this.P1 = (this.PB1L ? PB : PA);
-    this.P2 = (this.PB1L ? PA : PB);
+    this.P1 = (this.PB1L ? this.PB : this.PA);
+    this.P2 = (this.PB1L ? this.PA : this.PB);
     if (!this.P2) {
         this.P2BF = 1;                  // mark non-existent P2 as busy
     }
@@ -214,7 +216,7 @@ B5500CentralControl.prototype.fetch = function(r) {
     case IO3:
         this.I3XF = modMask;
         break;
-    case IO4;
+    case IO4:
         this.I4XF = modMask;
         break;
     }
@@ -224,7 +226,7 @@ B5500CentralControl.prototype.fetch = function(r) {
         acer.MPED = 0;
         acer.MAED = 1;
         // no .word value is returned in this case
-    } else (
+    } else {
         acer.MPED = 0;
         acer.MAED = 0;
         acer.word = this.Memory[memMod][modAddr];
@@ -267,7 +269,7 @@ B5500CentralControl.prototype.store = function(r, addr, word) {
     if (acer.MAIL || !this.Memory[modNr]) {
         acer.MPED = 0;
         acer.MAED = 1;
-    } else (
+    } else {
         acer.MPED = 0;
         acer.MAED = 0;
         this.Memory[memMod][modAddr] = acer.word;
@@ -310,7 +312,7 @@ B5500CentralControl.prototype.signalInterrupt = function() {
 }
 
 /**************************************/
-B5500CentralControl.prototype.clearInterrupt = function();
+B5500CentralControl.prototype.clearInterrupt = function() {
     /* Resets an interrupt based on the current setting of this.IAR, then
     reprioritizes any remaining interrupts, leaving the new vector address
     in this.IAR. */
@@ -412,23 +414,21 @@ B5500CentralControl.prototype.clearInterrupt = function();
 }
 
 /**************************************/
-B5500CentralControl.prototype.tock = function() {
+B5500CentralControl.prototype.tock = function tock() {
     /* Handles the 1/60th second real-time clock tick */
+    var that = tock.that;               // capture the current closure context
     var thisTime = new Date().getTime();
 
-    if (this.TM < 63) {
-        this.TM++;
+    if (that.TM < 63) {
+        that.TM++;
     } else {
-        this.TM = 0;
-        this.CCI03F = 1;                // set timer interrupt
-        this.signalInterrupt();
+        that.TM = 0;
+        that.CCI03F = 1;                // set timer interrupt
+        // for now // that.signalInterrupt();
     }
-    this.nextTimeStamp += this.rtcTick;
-    if (this.nextTimeStamp < thisTime) {
-        this.timer = setTimeout(this.tock, 0);          // try to catch up
-    } else {
-        this.timer = setTimeout(this.tock, this.nextTimeStamp-thisTime);
-    }
+    that.nextTimeStamp += that.rtcTick;
+    that.timer = setTimeout(function() {that.tock()},
+        (that.nextTimeStamp < thisTime ? 0 : that.nextTimeStamp-thisTime));
 }
 
 /**************************************/
@@ -530,7 +530,7 @@ B5500CentralControl.prototype.loadComplete = function() {
 
     if (!this.CCI08F) {
         this.loadTimer = setTimeout(this.loadComplete, 10);
-    else {
+    } else {
         this.loadTimer = null
         this.LOFF = 0;
         this.P1.C = 0x10;               // execute from address @20
