@@ -3565,3 +3565,107 @@ ENDIT:                                                                  04651010
             SI:=BUFFEND; DI:=LOC TEMP; DS:= CHR;                        04652400        
             DI:=BUFFEND; DS:=LIT"-"; DI:=DI-1; DS:=RESET; %Q-MARK       04652500        
             SI:=BUFFSTART;                                              04652600        
+            IF SC > 9 THEN                                              04652700        
+            BEGIN                                                       04652800        
+          L1: SI:=SI+1; IF SC>9 THEN GO L1;                             04652900        
+            END;                                                        04653000        
+          L2: SI:=SI+1; IF SC{9 THEN GO L2;                             04653100        
+            SVSI:=SI;                                                   04653200        
+            SI:=LOC SVSI; SI:=SI+5;                                     04653300        
+            DI:=LOC BUFFEND; DI:=DI+5;                                  04653400        
+            IF 3 SC!DC THEN TALLY:=1;                                   04653500        
+            SI:=BUFFEND; SI:=LOC TEMP; DS:= CHR;                        04653600        
+            T:=TALLY;                                                   04653700        
+          END;                                                          04653800        
+          I:=POLISH;                                                    04653900        
+          MEMORY[KEY+2]:= P(DUP,LOD) & 1[1:47:1];                       04654000        
+        END;                                                            04654100        
+      IF STOPTEST OR FLAGGER THEN LINKUP(3,KEY) ELSE                    04654200        
+      BEGIN                                                             04654300        
+        MEMORY[KEY] := NABS(P(DUP,LOD));                                04654400        
+        LINKUP(3,KEY);                                                  04654500        
+        TESTING:= SPACING:= TRUE; N:=0;                                 04654600        
+        BUFFERSIZE:= BUFFERSIZE-1;                                      04654700        
+        OIOD:= OIOD & 1[18:42:6];                                       04654800        
+        PTR:= KEY+8;                                                    04654900        
+        STREAM(MOD2IOS:=NOT(MOD3IOS+62), D:=[PATTERN]);                 04655000        
+        BEGIN                                                           04655100        
+          DS:=13 LIT"01248+|~<(.G{";                                    04655200        
+          MOD2IOS(DI:=DI-6; DS:=LIT"""; DI:=DI+5);                      04655300        
+          DS:= LIT"""; DS:= LIT""";                                     04655400        
+          DS:=3 LIT"]$(";                                               04655500        
+        END;                                                            04655600        
+        SLEEP([MEMORY[KEY]],@1000000000000000);                         04655700        
+        MEMORY[PTR]:= 0; MOVE(191,PTR,PTR+1);                           04655800        
+        FOR K:=0 STEP 1 UNTIL 15 DO                                     04655900        
+        BEGIN                                                           04656000        
+          STREAM(A:=[PATTERN],                                          04656100        
+                 K:=K+(K=15), M:=4+4|(K<14), N:=1+(K>13),               04656200        
+                 SIZEDIV64:=BUFFERSIZE.[36:6], BUFFERSIZE,              04656300        
+                 BUFFER);                                               04656400        
+          BEGIN                                                         04656500        
+            SI:=A; SI:=SI+K;                                            04656600        
+            M(DS:=N CHR; SI:=SI-N);                                     04656700        
+            SI:=BUFFER;                                                 04656800        
+            SIZEDIV64(DS:=32 WDS; DS:=32 WDS); DS:=BUFFERSIZE WDS;      04656900        
+            DI:=A; DI:=DI+24; DS:=WDS;                                  04657000        
+          END;                                                          04657100        
+          IOD:= OIOD:= OIOD & ((K<7) OR (K>13))[21:47:1];               04657200        
+          DOIONOW;                                                      04657300        
+          MEMORY[PTR]:= RESULT & RDCTABLE[U][19:1:2];                   04657400        
+          SPACEBACK;                                                    04657500        
+          STREAM(SIZEDIV64:=BUFFERSIZE.[36:6],BUFFERSIZE,               04657600        
+                 BUFFER);                                               04657700        
+          BEGIN                                                         04657800        
+            DS:=8 LIT" "; SI:=BUFFER;                                   04657900        
+            SIZEDIV64(DS:=32 WDS; DS:=32 WDS); DS:=BUFFERSIZE WDS;      04658000        
+          END;                                                          04658100        
+          IOD:= OIOD & 1[24:47:1];                                      04658200        
+          DOIONOW;                                                      04658300        
+          MEMORY[PTR+1]:= RESULT & RDCTABLE[U][19:1:2];                 04658400        
+          STREAM(A:=[PATTERN] INX 3,                                    04658500        
+                 CHERR:=0, WRDERR:=0, WRDCNT:=0,                        04658600        
+                 LOOP:=0, FORSEVEN:=1, LEAPFROG:=0,                     04658700        
+                 WDSLEFT:=I:=(J:=IF (SIZE:=ABS(BUFFER-(RESULT INX 0)))  04658800        
+                   LEQ BUFFERSIZE THEN SIZE ELSE BUFFERSIZE+1) MOD 63,  04658900        
+                 V:=IF J<64 THEN J ELSE 63,                             04659000        
+                 N:=IF J<64 THEN 1 ELSE J DIV 63,                       04659100        
+                 RECYCLE:= IF J<64 THEN 0 ELSE IF I=0 THEN 0 ELSE 1,    04659200        
+                 TEMP:=0, SVDI:=0,                                      04659300        
+                 BITLOCN:=PTR+3, WRDLOCN:=PTR+5,                        04659400        
+                 BUFFER);                                               04659500        
+          BEGIN;                                                        04659600        
+            LEAPFROG:= CI; TALLY:=0;  % USED ONLY FOR LEAPFROG RETURN   04659700        
+            N(V(SI:=A; IF 8 SC!DC THEN                                  04659800        
+                BEGIN                                                   04659900        
+                  SI:=WRDERR; SI:=SI+8; WRDERR:=SI;                     04660000        
+         FORSEVEN(SVDI:=DI; DI:=BITLOCN; LOOP(DI:=DI+2);                04660100        
+                  SI:=LOC WRDCNT; SI:=SI+6; DS:=2 CHR;                  04660200        
+                  DI:=WRDLOCN; LOOP(DI:=DI+8);                          04660300        
+                  SI:=WVDI; SI:=SI-8; DS:= WDS;                         04660400        
+                  TALLY:=LOOP; TALLY:=TALLY+1; LOOP:=TALLY;             04660500        
+                  SI:=LOC LOOP; SI:=SI+7;                               04660600        
+                  IF SC="7" THEN                                        04660700        
+                  BEGIN TALLY:=0; FORSEVEN:=TALLY; END;                 04660800        
+                  DI:=SVDI);                                            04660900        
+                  SI:=A; DI:=DI-8; TALLY:=0;                            04661000        
+                  8(IF SC!DC THEN TALLY:=TALLY+1);                      04661100        
+                  TEMP:=TALLY;                                          04661200        
+                  SI:=CHRERR; TEMP(SI:=SI+8); CHRERR:=SI;               04661300        
+                END;                                                    04661400        
+                SI:=WRDCNT; SI:=SI+8; WRDCNT:=SI;                       04661500        
+                ));                                                     04661600        
+         RECYCLE(TALLY:=1; N:=TALLY;                                    04661700        
+                 TALLY:=WDSLEFT; V:=TALLY;                              04661800        
+                 TALLY:=0; RECYCLE:=TALLY;                              04661900        
+                 JUMP OUT TO TADPOLE);                                  04662000        
+            GO TO FROG;                                                 04662100        
+TADPOLE:    CI:=LEAPFROG;                                               04662200        
+FROG:       DI:=BITLOCN; DI:=DI-5;                                      04662300        
+            SI:=LOC CHRERR; SI:=SI+5; DS:=3 CHR;                        04662400        
+            SI:=LOC WRDERR; SI:=SI+6; DS:=2 CHR;                        04662500        
+          END;                                                          04662600        
+          IF MEMORY[PTR].[27:1] THEN SPACEBACK;                         04662700        
+          PTR:=PTR+12;                                                  04662800        
+        END;                                                            04662900        
+        MEMORY[KEY]:= P(DUP,LOD) & 0[1:1:2] & 39[39:39:9];              04663000        
