@@ -1,0 +1,67 @@
+<html>
+<head>
+    <title>B5500 Panel Prototype tests</title>
+
+<style>
+TD {
+    font-size:          4px;
+    width:              16px;
+    height:             16px;
+    border-radius:      8px}
+</style>
+
+<script src="B5500CentralControl.js"></script>
+
+<script>
+var displayRefreshPeriod = 50;          // milliseconds
+var nextRefresh = 0;
+var refreshTimer = null;
+
+var cc = new B5500CentralControl();
+
+var updateDisplay = function() {
+    /* Schedules itself to update the display on a periodic basis. */
+    var bits;
+    var thisTime = new Date().getTime();
+
+    // Schedule ourself for the next period
+    nextRefresh += displayRefreshPeriod;
+    if (nextRefresh < thisTime) {
+        refreshTimer = setTimeout(updateDisplay, 0);          // try to catch up
+    } else {
+        refreshTimer = setTimeout(updateDisplay, nextRefresh-thisTime);
+    }
+
+    bits = cc.TM;
+    document.getElementById("CCTM1").style.backgroundColor = (bits & 1 ? "#FF8000" : "#808080");
+    document.getElementById("CCTM2").style.backgroundColor = ((bits >>>= 1) & 1 ? "#FF8000" : "#808080");
+    document.getElementById("CCTM3").style.backgroundColor = ((bits >>>= 1) & 1 ? "#FF8000" : "#808080");
+    document.getElementById("CCTM4").style.backgroundColor = ((bits >>>= 1) & 1 ? "#FF8000" : "#808080");
+    document.getElementById("CCTM5").style.backgroundColor = ((bits >>>= 1) & 1 ? "#FF8000" : "#808080");
+    document.getElementById("CCTM6").style.backgroundColor = ((bits >>>= 1) & 1 ? "#FF8000" : "#808080");
+    document.getElementById("CCI03F").style.backgroundColor = (cc.CCI03F ? "#FF8000" : "#808080");
+};
+
+window.onload = function() {
+    cc.tock();
+    nextRefresh = new Date().getTime();
+    updateDisplay();
+};
+</script>
+
+</head>
+
+<body>
+<table cellspacing=4 cellpadding=0 border=0>
+<tr>
+    <td id=CCI03F>&nbsp;
+    <td id=CCTM6>&nbsp;
+    <td id=CCTM5>&nbsp;
+    <td id=CCTM4>&nbsp;
+    <td id=CCTM3>&nbsp;
+    <td id=CCTM2>&nbsp;
+    <td id=CCTM1>&nbsp;
+</table>
+
+</body>
+</html>
