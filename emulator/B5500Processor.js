@@ -25,6 +25,8 @@ function B5500Processor() {
         MAED: 0};                          // Truthy if memory address/inhibit error
 
     this.clear();                       // Create and initialize the processor state
+
+    this.schedule.that = this;          // Establish context for when called from setTimeout()
 }
 
 /**************************************/
@@ -333,7 +335,7 @@ B5500Processor.storeForInterrupt = function(forTest) {
             cc.HP2F = 1;
             cc.P2BF = 0;
             if (cc.P2.scheduler) {
-                cancelTimeout(cc.P2.scheduler);	 
+                cancelTimeout(cc.P2.scheduler);
                 cc.P2.scheduler = null;
             }
         }
@@ -1154,7 +1156,7 @@ B5500Processor.prototype.run = function() {
 }
 
 /**************************************/
-B5500Processor.prototype.schedule = function() {
+B5500Processor.prototype.schedule = function schedule() {
     /* Schedules the processor run time and attempts to throttle performance
     to approximate that of a real B5500. Well, at least we hope this will run
     fast enough that the performance will need to be throttled. It establishes
@@ -1166,18 +1168,19 @@ B5500Processor.prototype.schedule = function() {
     throttling the performance and allowing other modules a chance at the
     Javascript execution thread. */
     var delayTime;
+    var that = schedule.that;
 
-    this.scheduler = null;
-    this.cycleLimit = this.timeSlice;
-    this.cycleCount = 0;
+    that.scheduler = null;
+    that.cycleLimit = that.timeSlice;
+    that.cycleCount = 0;
 
-    this.run();
+    that.run();
 
-    this.totalCycles += this.cycleCount
-    this.procTime += this.cycleCount;
-    if (this.busy) {
-        delayTime = this.procTime/1000 - new Date().getTime();
-        this.scheduleSlack += delayTime;
-        this.scheduler = setTimeout(this.schedule, (delayTime < 0 ? 0 : delayTime));
+    that.totalCycles += that.cycleCount
+    that.procTime += that.cycleCount;
+    if (that.busy) {
+        delayTime = that.procTime/1000 - new Date().getTime();
+        that.scheduleSlack += delayTime;
+        that.scheduler = setTimeout(that.schedule, (delayTime < 0 ? 0 : delayTime));
     }
 }
