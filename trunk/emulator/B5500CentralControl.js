@@ -43,7 +43,8 @@ function B5500CentralControl() {
 
     this.clear();                       // Create and initialize the Central Control state
 
-    this.tock.that = this;              // Establish context for when tock() is called from setTimeout().
+    this.tock.that = this;              // Establish contexts for when called from setTimeout().
+    this.loadComplete.that = this;
 }
 
 /**************************************/
@@ -524,23 +525,24 @@ B5500CentralControl.prototype.load = function() {
 }
 
 /**************************************/
-B5500CentralControl.prototype.loadComplete = function() {
+B5500CentralControl.prototype.loadComplete = function loadComplete() {
     /* Monitors an initial load I/O operation for complete status.
     When complete, initiates P1 */
+    var that = loadComplete.that;       // capture the current closure context
 
-    if (!this.CCI08F) {
-        this.loadTimer = setTimeout(this.loadComplete, 10);
+    if (!that.CCI08F) {
+        that.loadTimer = setTimeout(that.loadComplete, 10);
     } else {
-        this.loadTimer = null
-        this.LOFF = 0;
-        this.P1.C = 0x10;               // execute from address @20
-        this.P1.L = 0;
-        this.P1.access(0x30);           // P = [C]
-        this.P1.T = Math.floor(this.P / 0x1000000000) % 0x1000;
-        this.P1.TROF = 1;
+        that.loadTimer = null
+        that.LOFF = 0;
+        that.P1.C = 0x10;               // execute from address @20
+        that.P1.L = 0;
+        that.P1.access(0x30);           // P = [C]
+        that.P1.T = Math.floor(that.P / 0x1000000000) % 0x1000;
+        that.P1.TROF = 1;
 
         // Now start scheduling P1 on the Javascript thread
-        this.P1.procTime = new Date().getTime()*1000;
-        this.P1.scheduler = setTimeout(this.P1.schedule, 0);
+        that.P1.procTime = new Date().getTime()*1000;
+        that.P1.scheduler = setTimeout(that.P1.schedule, 0);
     }
 }
