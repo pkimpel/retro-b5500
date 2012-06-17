@@ -3804,3 +3804,110 @@ BEGIN                                                                   04668400
                END ELSE                                                 04673350        
                GO XIO;                                                  04673400        
           END;                                                          04673450        
+          RESULT.[27:1] ~ 1; MODE ~ 32;                                 04673500        
+XIO: END DOIONOW;                                                       04673550        
+     %                                                                  04673600        
+     U ~ SAVEU ~ OIOD.[3:4];                                            04673650        
+     % SAVE OFF ORIGINAL UNIT FOR DS-ING.                               04673700        
+     OLDU ~ UNIT[U];                                                    04673750        
+     % SAVE OFF ORIGINAL UNIT TABLE ENTRY                               04673800        
+     MIX ~ RDCTABLE[U].[8:6];                                           04673850        
+     MODE ~ 16;                                                         04673900        
+     % SET MODE TO FLAG PARITY, MODE WILL BE SET TO ZERO IF CHANGE OK   04673950        
+     LABELA ~ M[(TOPIOD~PRNTABLE[U].[15:15])-2] & @05000[CTF];          04674000        
+     FIB ~ M[TOPIOD-3];                                                 04674050        
+     PBT ~ FIB[4].[8:4]=7;                                              04674100        
+     FNUM ~ FIB[4].[13.11];                                             04674150        
+     BSIZE ~ IF PBT THEN 90 ELSE FIB[18].[3:15];                        04674200        
+     NUMRECS ~ IF PBT THEN 5 ELSE BSIZE DIV FIB[18].[33:15];            04674225        
+     REEL ~ FIB[13].[28:10]+1;                                          04674250        
+     ALFA ~ (NOT FIB[13]).[24:1];                                       04674300        
+     LABELED ~ (NOT FIB[4]).[2:1];                                      04674350        
+     NUMBUFFS ~ FIB[13].[10:9];                                         04674400        
+     TANK ~ [M[TOPIOD]] & NUMBUFFS[8:38:10];                            04674450        
+     HALT;                                                              04674500        
+     % STOP NORMAL STATE PROCESSING.                                    04674550        
+     IF RC THEN                                                         04674600        
+     IF TANK[0].[24:1] THEN                                             04674650        
+     BEGIN                                                              04674700        
+          STREAM(T~T2~SPACE(5));                                        04674750        
+               DS ~ 40 LIT"#REEL SWITCH NOT POSSIBLE ON INPUT FILE~";   04674800        
+          SPOUTER(T2,UNITNO,1);                                         04674850        
+          GO EXIT;                                                      04674900        
+     END;                                                               04674950        
+     STREAM(A~TINU[U], T~T2~SPACE(5));                                  04675000        
+     BEGIN                                                              04675050        
+          DS ~ 34 LIT"#REEL SWITCH TO BE ATTEMPTED FROM ";              04675100        
+          SI ~ LOC A; SI ~ SI+5; DS ~ 3 CHR; DS ~ LIT"~";               04675150        
+     END;                                                               04675200        
+     SPOUTER(T2,UNITNO,1);                                              04675250        
+     IF PBT THEN                                                        04675300        
+     BEGIN                                                              04675350        
+          LABELA.[8:10] ~ 8; % PRINTER LABELS ARE 15 WORDS              04675400        
+          LABELA[1] ~ MULTITABLE[U].[3:45];                             04675450        
+          LABELA[2] ~ LABELTABLE[U].[3:45];                             04675500        
+     END;                                                               04675550        
+     IF RC THEN GO L1;                                                  04675600        
+     FIRSTREC ~ GETSPACE(BSIZE+4,0,1)+4;                                04675650        
+     SECREC ~ GETSPACE(BSIZE+4,0,1)+4;                                  04675700        
+     % GETSPACE ON TWO BUFFERS FOR BACKWARD READ.                       04675750        
+     IF ALFA THEN                                                       04675800        
+     BEGIN                                                              04675850        
+          IOD ~ @340000000 & OIOD[3:3:5] & [T2][CTC];                   04675900        
+          DOIONOW; DOIONOW;                                             04675950        
+          IOD ~ OIOD & 1[24:47:1] & FIRSTREC[CTC];                      04676000        
+          DOIONOW;                                                      04676050        
+          IF RESULT.[27:2]!0 THEN GO ERROROUT;                          04676100        
+          IOD ~ IOD & SECREC[CTC];                                      04676150        
+          DOIONOW;                                                      04676200        
+          IF RESULT.[27:2]!0 THEN GO ERROROUT;                          04676250        
+          IOD ~ @340000000 & OIOD[3:3:5] & [T2][CTC];                   04676300        
+          DOIONOW; DOIONOW;                                             04676350        
+          GO L1;                                                        04676400        
+     END;                                                               04676450        
+     IOD ~ OIOD & (SECREC+BSIZE-1)[CTC] & 5[22:45:3];                   04676500        
+     DOIONOW;                                                           04676550        
+     % BUILD BACKWARD DESCRIPTOR AND EXECUTE FIRST BACKWARD READ.       04676600        
+     IF RESULT.[27:2]!0 THEN GO ERROROUT;                               04676650        
+     IF (TEMP ~ M[IOD INX 1])!BSIZE THEN                                04676700        
+     % VARIABLE LENGTH BLOCK.                                           04676750        
+     SECRECIO ~ ((IOD INX 1)-TEMP) & TEMP[8:38:10];                     04676800        
+     IOD ~ IOD & (FIRSTREC+BSIZE-1)[CTC];                               04676850        
+     DOIONOW;                                                           04676900        
+     % NEXT BACKWARD READ.                                              04676950        
+     IF RESULT.[27:2]!0 THEN GO ERROROUT;                               04677000        
+     IF (TEMP ~ M[IOD INX 1])!BSIZE THEN                                04677050        
+     % VARIABLE LENGTH BLOCK.                                           04677100        
+     FIRSTRECIO ~ ((IOD INX 1)-TEMP) & TEMP[8:38:10];                   04677150        
+L1:                                                                     04677200        
+     FOR I ~ 0 STEP 1 UNTIL NUMBUFFS-1 DO                               04677250        
+     IF (NOT TANK[I]).[19:1] THEN HOLDCT ~ HOLDCT+1;                    04677300        
+     % SCAN FOR THE NUMBER OF FILLED BUFFERS.                           04677350        
+     FIB[6] ~ FIB[6]-((RC=0)|2)-HOLDCT;                                 04677400        
+     LOGICLRC ~ FIB[7] MOD NUMRECS;                                     04677450        
+     % DETERMINE THE NUMBER OF LOGICAL RECORDS WRITTEN.                 04677500        
+     FIB[7] ~ FIB[6] | NUMRECS;                                         04677550        
+     % LOAD FIB WITH RECORD COUNT FOR TRAILER LABEL.                    04677600        
+     IF HOLDCT=NUMBUFFS THEN                                            04677650        
+     BEGIN                                                              04677700        
+          NOPROCESSTOG ~ NOPROCESSTOG-1;                                04677750        
+          NORMALPROCESS ~ 1;                                            04677800        
+     END;                                                               04677850        
+     % IF THERE ARE NO UNFILLED BUFFERS THEN ALLOW NORMAL STATE         04677900        
+     % PROCESSING TO CONTINUE.                                          04677950        
+     % FLAG THE RELEASE OF NORMAL STATE.                                04678000        
+     % THE CHANCE OF UNFILLED BUFFERS IS VERY REMOTE, BUT JUST IN CASE  04678050        
+     P1MIX ~ MIX;                                                       04678100        
+     % LOAD P1MIX FOR CONSOLE MESSAGES.                                 04678150        
+     TEMP ~ U;                                                          04678200        
+     % SAVE OFF CURRENT UNIT IN CASE DS CALLED AT THIS POINT.           04678250        
+RETRY:                                                                  04678300        
+     IF TERMSET(MIX) THEN                                               04678350        
+     BEGIN                                                              04678400        
+          U ~ (-1);                                                     04678450        
+          GO ERROROUT;                                                  04678500        
+     END;                                                               04678550        
+     TEMP ~ U;                                                          04678600        
+     TM ~ @ 1737000000000000;                                           04678650        
+     % TAPE MARK.                                                       04678700        
+     IOD ~ NFLAG([TM]) & OIOD[3:3:5];                                   04678750        

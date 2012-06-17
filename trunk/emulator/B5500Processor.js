@@ -22,9 +22,9 @@ function B5500Processor() {
         MPED: 0,                           // Truthy if memory parity error
         MAED: 0};                          // Truthy if memory address/inhibit error
 
-    this.clear();                       // Create and initialize the processor state
-
     this.schedule.that = this;          // Establish context for when called from setTimeout()
+
+    this.clear();                       // Create and initialize the processor state
 }
 
 /**************************************/
@@ -61,7 +61,7 @@ B5500Processor.prototype.clear = function() {
     this.P = 0;                         // Current program instruction word register
     this.PROF = 0;                      // P contents valid
     this.Q = 0;                         // Misc. FFs (bits 1-9 only: Q07F=hardware-induced interrupt, Q09F=enable parallel adder for R-relative addressing)
-    this.R = 0;                         // PRT base address (low-order 6 bits are always zero in word mode)
+    this.R = 0;                         // High-order 9 bits of PRT base address (TALLY in char mode)
     this.S = 0;                         // Top-of-stack memory address (DI.w in CM)
     this.SALF = 0;                      // Program/subroutine state FF (1=subroutine)
     this.T = 0;                         // Current program syllable register
@@ -174,12 +174,12 @@ B5500Processor.prototype.adjustAEmpty = function() {
 
     if (this.AROF} {
         if (this.BROF) {
-            if (this.S < this.R || !this.NCSF) {
-                this.S++;
-                this.access(0x0B);      // [S] = B
-            } else {
+            if ((this.S >>> 6) == this.R || !this.NCSF) {
                 this.I |= 0x04;         // set I03F: stack overflow
                 cc.signalInterrupt();
+            } else {
+                this.S++;
+                this.access(0x0B);      // [S] = B
             }
         }
         this.B = this.A;
@@ -213,12 +213,12 @@ B5500Processor.prototype.adjustBEmpty = function() {
     contents of B into memory, as necessary. */
 
     if (this.BROF) {
-        if (this.S < this.R || !this.NCSF) {
-            this.S++;
-            this.access(0x0B);          // [S] = B
-        } else {
+        if ((this.S >>> 6) = this.R || !this.NCSF) {
             this.I |= 0x04;             // set I03F: stack overflow
             cc.signalInterrupt();
+        } else {
+            this.S++;
+            this.access(0x0B);          // [S] = B
         }
     // else we're done -- B is already empty
     }
@@ -278,7 +278,7 @@ B5500Processor.storeForInterrupt = function(forTest) {
           this.VARF * 0x1000000 +
           this.SALF * 0x40000000 +
           this.MSFF * 0x80000000 +
-          (this.CWMF ? this.R : this.R >>> 6) * 0x200000000 +
+          this.R * 0x200000000 +
           0xC00000000000;
     this.access(0x0B);                  // [S] = B
 
@@ -300,7 +300,7 @@ B5500Processor.storeForInterrupt = function(forTest) {
         this.access(0x03);              // B = [S]: get last RCW
         this.S = ((this.B % 0x40000000) >>> 15) & 0x7FFF;
         this.access(0x03);              // B = [S]: get last MSCW
-        this.R = (Math.Floor(this.B / 0x200000000) % 0x200) << 6;
+        this.R = Math.Floor(this.B / 0x200000000) % 0x200;
         this.S = this.F;
     }
 
@@ -317,7 +317,7 @@ B5500Processor.storeForInterrupt = function(forTest) {
         this.MWOF = 0;
    }
 
-    this.M = this.R + 0x08;             // store initiate word at R+@10
+    this.M = (this.R << 6) + 0x08;      // store initiate word at R+@10
     this.access(0x0D);                  // [M] = B
 
     this.M = 0;
@@ -413,8 +413,7 @@ B5500Processor.initiate = function(forTest) {
     this.VARF = Math.floor(this.B / 0x1000000) % 0x02;
     this.SALF = Math.floor(this.B / 0x40000000) % 0x02;
     this.MSFF = Math.floor(this.B / 0x80000000) % 0x02;
-    temp = (Math.floor(this.B / 0x200000000) % 0x200);
-    this.R = (this.CWMF ? temp & 0x3F : temp << 6);
+    this.R = (Math.floor(this.B / 0x200000000) % 0x200);
 
     if (this.CWMF || forTest) {
         this.M = this.B % 0x8000;
@@ -759,7 +758,7 @@ B5500Processor.prototype.run = function() {
                     case 0x10:          // 1011: COM=Communicate
                         if (this.NCSF) {        // no-op in control state
                             this.adjustAFull();
-                            this.M = this.R + 0x09;     // address = R+@11
+                            this.M = (this.R << 6) + 0x09;     // address = R+@11
                             this.access(0x0C);  // [M] = A
                             this.AROF = 0;
                             this.I = (this.I & 0x0F) | 0x40;    // set I07
