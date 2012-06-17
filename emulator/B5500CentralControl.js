@@ -40,10 +40,10 @@ function B5500CentralControl() {
     this.timer = null;                  // Reference to the RTC setTimeout id.
     this.loadTimer = null;              // Reference to the load setTimeout id.
 
-    this.clear();                       // Create and initialize the Central Control state
-
     this.tock.that = this;              // Establish contexts for when called from setTimeout().
     this.loadComplete.that = this;
+
+    this.clear();                       // Create and initialize the Central Control state
 }
 
 /**************************************/

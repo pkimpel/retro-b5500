@@ -19,8 +19,8 @@ function B5500DDLamp(x, y) {
 
     this.state = 0;                     // current lamp state, 0=off
 
-    this.element =                      // visible DOM element
-        document.createElement("div");
+    // visible DOM element
+    this.element = document.createElement("div");
     this.element.className = "ddLamp";
     this.element.style.left = String(x) + "px";
     this.element.style.top = String(y) + "px";
@@ -47,21 +47,47 @@ B5500DDLamp.prototype.set = function(v) {
 /***********************************************************************
 *  Panel Register                                                      *
 ***********************************************************************/
-B5500DDRegister(bits, x, y, rows, deltax, deltay) {
-    /* Constructor for the register objects used within D&D.
+B5500DDRegister(bits, x, y, rows, caption) {
+    /* Constructor for the register objects used within D&D:
+        bits:   number of bits in register
+        x:      horizontal coordinate of upper-left corner [hSpacing increments]
+        y:      vertical coordinate of upper-left corner [vSpacing increments]
+        rows:   number of rows used to display the bit lamps
     */
     var cols = Math.floor((bits+rows-1)/rows);
     var height = rows*this.vSpacing;
     var width = cols*this.hSpacing;
+    var b;
+    var cx = Math.floor((x-0.25)*this.hSpacing);
+    var cy = Math.floor((y-0.25)*this.vSpacing);
+    var lamp;
 
     this.bits = bits;                   // number of bits in the register
-    this.left = x;                      // horizontal offset relative to container
-    this.top = y;                       // vertical offset relative to container
-    this.element =                      // visible DOM element
-        document.createElement("div");
+    this.left = cx;                     // horizontal offset relative to container
+    this.top = cy;                      // vertical offset relative to container
+    this.caption = caption;             // panel caption
+    this.lamps = new Array(bits+1);     // bit lamps
+
+    // visible DOM element
+    this.element = document.createElement("div");
     this.element.className = "ddRegister";
-    this.element.style.left = String(x) + "px";
-    this.element.style.top = String(y) + "px";
+    this.element.style.left = String(cx) + "px";
+    this.element.style.top = String(cy) + "px";
+    this.element.style.width = width;
+    this.element.style.height = height;
+
+    cx = (x+cols)*this.hSpacing;
+    for (b=1; b<=bits; b++) {
+        if ((b-1)%rows == 0) {
+            cy = (y+rows-1)*this.vSpacing;
+            cx -= this.xSpacing;
+        } else {
+            cy -= this.vSpacing;
+        }
+        lamp = new B5500DDLamp(cx, cy);
+        this.lamps[b] = lamp;
+        this.element.appendChild(lamp);
+    }
 }
 
 /**************************************/
@@ -79,12 +105,14 @@ function B5500DistributionAndDisplay() {
 
     /* Global system modules */
 
-    this.nextTimeStamp = 0;             // Next actual Date.getTime() expected
+    this.nextRefresh = 0;               // Next actual Date.getTime() expected
     this.timer = null;                  // Reference to the RTC setTimeout id.
 
-    this.clear();                       // Create and initialize the Central Control state
+    this.panels = {};                   // D&D panel object collection
 
-    this.tock.that = this;              // Establish contexts for when called from setTimeout().
+    this.updateDisplay.that = this;     // Establish contexts for when called from setTimeout().
+
+    this.clear();                       // Create and initialize the Central Control state
 }
 
 /**************************************/
@@ -102,52 +130,38 @@ B5500DistributionAndDisplay.prototype.clear = function() {
 
     this.nextTimeStamp = new Date().getTime() + this.rtcTick;
     this.timer = setTimeout(this.tock, this.rtcTick);
-
-    this.IAR = 0;                       // Interrupt address register
-    this.TM = 0;                        // Real-time clock (6 bits, 60 ticks per second)
-
-    this.CCI03F = 0;                    // Time interval interrupt
-    this.CCI04F = 0;                    // I/O busy interrupt
-    this.CCI05F = 0;                    // Keyboard request interrupt
-    this.CCI06F = 0;                    // Printer 1 finished interrupt
-    this.CCI07F = 0;                    // Printer 2 finished interrupt
-    this.CCI08F = 0;                    // I/O unit 1 finished interrupt (RD in @14)
-    this.CCI09F = 0;                    // I/O unit 2 finished interrupt (RD in @15)
-    this.CCI10F = 0;                    // I/O unit 3 finished interrupt (RD in @16)
-    this.CCI11F = 0;                    // I/O unit 4 finished interrupt (RD in @17)
-    this.CCI12F = 0;                    // P2 busy interrupt
-    this.CCI13F = 0;                    // Remote inquiry request interrupt
-    this.CCI14F = 0;                    // Special interrupt #1 (not used)
-    this.CCI15F = 0;                    // Disk file #1 read check finished
-    this.CCI16F = 0;                    // Disk file #2 read check finished
-
-    this.MCYF = 0;                      // Memory cycle FFs (one bit per M0..M7)
-    this.PAXF = 0;                      // PA memory exchange select (M0..M7)
-    this.PBXF = 0;                      // PB memory exchange select (M0..M7)
-    this.I1XF = 0;                      // I/O unit 1 exchange select (M0..M7)
-    this.I2XF = 0;                      // I/O unit 2 exchange select (M0..M7)
-    this.I3XF = 0;                      // I/O unit 3 exchange select (M0..M7)
-    this.I4XF = 0;                      // I/O unit 4 exchange select (M0..M7)
-
-    this.AD1F = 0;                      // I/O unit 1 busy
-    this.AD2F = 0;                      // I/O unit 2 busy
-    this.AD3F = 0;                      // I/O unit 3 busy
-    this.AD4F = 0;                      // I/O unit 4 busy
-
-    this.LOFF = 0;                      // Load button pressed on console
-    this.CTMF = 0;                      // Commence timing FF
-    this.P2BF = 0;                      // Processor 2 busy FF
-    this.HP2F = 1;                      // Halt processor 2 FF
-
-    if (this.PA) {
-        this.PA.clear();
     }
-    if (this.PB) {
-        this.PB.clear();
+}
+
+/**************************************/
+B5500DistributionAndDisplay.prototype.openProcessorPanel(p, caption) {
+    /* Creates a D&D panel window for a processor */
+    var x;
+    var panel = this.panels[caption];
+
+    if (panel) {
+        win = panel.window;
+    } else {
+        win = window.open("B5500ProcessorPanel.html", "P"+caption,
+                          "resizable=yes,scrollbars=yes");
+        panel = {module:p, window:win, caption:caption};
+        this.panels[caption] = panel;
     }
-    this.P1 = (this.PB1L ? this.PB : this.PA);
-    this.P2 = (this.PB1L ? this.PA : this.PB);
-    if (!this.P2) {
-        this.P2BF = 1;                  // mark non-existent P2 as busy
-    }
+
+    win.appendChild(new B5500DDRegister(39, 1, 1, 3, "X REG"));
+}
+
+/**************************************/
+B5500DistributionAndDisplay.prototype.updateDisplay = function updateDisplay() {
+    /* Schedules itself to update the display on a periodic basis. */
+    var delayTime;
+    var that = updateDisplay.that;
+    var thisTime = new Date().getTime();
+
+    // Schedule ourself for the next refresh period
+    that.nextRefresh += that.refreshPeriod;
+    delayTime = that.nextRefresh - thisTime;
+    that.timer = setTimeout(that.updateDisplay, (delayTime < 0 ? 0 : delayTime);
+
+
 }
