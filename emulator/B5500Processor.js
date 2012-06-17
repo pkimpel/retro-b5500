@@ -14,8 +14,6 @@
 function B5500Processor() {
     /* Constructor for the Processor module object */
 
-    this.timeSlice = 5000;              // Standard run() timeslice, about 5ms (we hope)
-
     this.scheduler = null;              // Reference to current setTimeout id
     this.accessor = {                   // Memory access control block
         addr: 0,                           // Memory address
@@ -28,6 +26,10 @@ function B5500Processor() {
 
     this.schedule.that = this;          // Establish context for when called from setTimeout()
 }
+
+/**************************************/
+
+B5500Processor.prototype.timeSlice = 5000; // Standard run() timeslice, about 5ms (we hope)
 
 /**************************************/
 B5500Processor.prototype.clear = function() {

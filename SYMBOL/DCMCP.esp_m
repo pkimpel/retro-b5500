@@ -3669,3 +3669,138 @@ FROG:       DI:=BITLOCN; DI:=DI-5;                                      04662300
           PTR:=PTR+12;                                                  04662800        
         END;                                                            04662900        
         MEMORY[KEY]:= P(DUP,LOD) & 0[1:1:2] & 39[39:39:9];              04663000        
+        MEMORY[KEY+2]:= P(DUP,LOD) & OPTION[2:2:1];                     04663100        
+        LINKUP(20,KEY);                                                 04663200        
+      END;END;                                                          04663300        
+END TAPEPARITYRETRY;%                                                   04666000        
+REAL PROCEDURE WRITEPARITYREELSWITCH(OIOD,RC);                          04667000        
+VALUE OIOD,RC; REAL OIOD,RC;                                            04667050        
+%                                                                       04667100        
+%    THE PURPOSE OF THIS ROUTINE IS TO ALLOW OBJECT PROGRAMS            04667150        
+%    TO CHANGE MAG TAPE UNITS WHEN ENCOUNTERING A WRITE PARITY          04667200        
+%    ERROR. THIS ROUTINE IS CALLED FROM EITHER TAPEPARITYRETRY          04667250        
+%    IN RESPONSE TO A FATAL WRITE PARITY ERROR OR FROM                  04667300        
+%    REELCHANGER AFTER AN "RC" KEYBOARD REQUEST BY THE OPERATOR.        04667350        
+%                                                                       04667400        
+%    BASICALLY, THIS ROUTINE READS INTO CORE THE LAST TWO               04667450        
+%    SUCESSFULLY WRITTEN BLOCKS ON THE TAPE, CLOSES THE FILE            04667500        
+%    (MARKING THE TAPE AS AN END OF REEL), OBTAINS ANOTHER              04667550        
+%    TAPE UNIT, RE-WRITES THE TWO BLOCKS IN CORE FOLLOWED               04667600        
+%    BY THE BLOCK IN WHICH THE PARITY ERROR OCURRED, AND                04667650        
+%    ALLOWS THE PROGRAM TO CONTINUE WRITING ON THE NEW TAPE.            04667700        
+%                                                                       04667750        
+%    WHEN THIS ROUTINE IS CALLED DUE TO AN OPERATOR "RC"                04667800        
+%    MESSAGE, THERE IS NO FATAL PARITY ERROR AT THIS POINT.             04667850        
+%    SO THE SAVING OF THE LAST TWO RECORDS IS UNNECESSARY               04667900        
+%    AND ONLY THE CLOSING OF THE FILE AND OBTAINING OF A NEW            04667950        
+%    UNIT ARE REQUIRED.                                                 04668000        
+%                                                                       04668050        
+%    THE PARAMETERS ARE USED AS FOLLOWS:                                04668100        
+%       OIOD       THE ORIGINAL I/O DESCRIPTOR ON WHICH                 04668150        
+%                      A FATAL ERROR OCCURRED                           04668200        
+%                                                                       04668250        
+%       RC         1 IF CALLED FROM REELCHANGER, 0 OTHERWISE            04668300        
+%                                                                       04668350        
+BEGIN                                                                   04668400        
+     INTEGER I,LOGICLRC;                                                04668450        
+     REAL BSIZE,FNUM,NUMBUFFS,NUMRECS,REEL);                            04668500        
+     REAL S,Y,U,OLDU,SAVEU,MIX;                                         04668550        
+     REAL TEMP,T1,T2,T3,T4;                                             04668600        
+     REAL IOD,RESULT,MODE,TOPIOD,TM,HOLDCT;                             04668650        
+     REAL FIRSTREC,SECREC,FIRSTRECIO,SECRECIO;                          04668700        
+     BOOLEAN TOGGLES;                                                   04668750        
+     ARRAY FIB[*],FPB[*],LABELA[*],TANK[*];                             04668800        
+%                                                                       04668850        
+%    THE LOCAL VARIABLES ARE USED AS FOLLOWS:                           04668900        
+%    INTEGERS                                                           04668950        
+%       I          TEMPORARY                                            04669000        
+%       LOGICLRC   CONTAINS THE LOGICAL RECORD COUNT                    04669050        
+%    REALS                                                              04669100        
+%       BSIZE      BLOCK SIZE OF FILE                                   04669150        
+%       FNUM       FILE NUMBER WITHIN FPB                               04669200        
+%       NUMBUFFS   TOTAL NUMBER OF BUFFERS DECLARED FOR FILE            04669250        
+%       NUMRECS    RECORDS PER BLOCK (BSIZE DIV RECORD SIZE)            04669275        
+%       REEL       CONTAINS THE CURRENT REEL NUMBER +1                  04669300        
+%       S          INDEX INTO IOQUE OF UNSUCCESSFUL I/O                 04669350        
+%       Y          TEMPORARY                                            04669400        
+%       U          LOGICAL UNIT NUMBER OF TAPE UNIT BEING WRITTEN       04669450        
+%       OLDU       HARDWARE UNIT NUMBER OF TAPE UNIT                    04669500        
+%       SAVEU      LOGICAL UNIT OF ORIGINAL TAPE UNIT WITH ERROR        04669550        
+%       MIX        MIX INDEX OF JOB FOR WHICH RECOVERY IS ATTEMPTED     04669600        
+%       TEMP                                                            04669650        
+%       T1,T2,T3,T4 TEMPORARY                                           04669700        
+%       IOD        HOLDS THE I/O DESCRIPTOR FOR EACH I/O ATTEMPTED      04669750        
+%       RESULT     RECEIVES THE LAST I/O RESULT DESCRIPTOR              04669800        
+%       MODE       USED TO INDICATE A SUCCESSFUL RECOVERY ATTEMPT       04669850        
+%       TOPIOD     LOCATION OF TOP I/O DESCRIPTOR IN TANK               04669900        
+%       TM         TEMPORARY, USED FOR WRITING TAPE MARK                04669950        
+%       HOLDCT     CONTAINS THE NUMBER OF FILLED BUFFERS                04670000        
+%       FIRSTREC                                                        04670050        
+%       SECREC     ADDRESSES OF AREAS TO HOLD LAST TWO BLOCKS           04670100        
+%       FIRSTRECIO                                                      04670150        
+%       SECRECIO   VARIABLE LENGTH BLOCK I/O DESCRIPTORS                04670200        
+%    BOOLEAN                                                            04670250        
+%       TOGGLES    USED TO HOLD VARIOUS BOOLEANS (SEE DEFINES)          04670300        
+%    ARRAYS                                                             04670350        
+%       FIB        FIB ARRAY, USED FOR CLOSEING THE FILE                04670400        
+%       FPB        FPB ARRAY, USED FOR OPENING NEW FILE                 04670450        
+%       LABELA     ARRAY DESCRIPTOR FOR IN-CORE LABEL RECORD            04670500        
+%       TANK       TANK ARRAY, CONTAINING I/O DESCRIPTORS               04670550        
+%                                                                       04670600        
+     LABEL L1,RETRY,PROB,KAPUT,RESETUNITS,ARN,ERROROUT,XIO,EXIT;        04670650        
+     DEFINE ALFA = TOGGLES.[47:1]#,                                     04670700        
+            DSED = TOGGLES.[46:1]#,                                     04670750        
+            LABELED = TOGGLES.[45:1]#,                                  04670800        
+            NORMALPROCESS = TOGGLES.[44:1]#,                            04670850        
+            PBT = TOGGLES.[43:1]#;                                      04670900        
+ $ SET OMIT = NOT(PACKETS)                                              04670950        
+     DEFINE UNITNO = PSEUDOMIX[MIX]#;                                   04671000        
+ $ POP OMIT                                                             04671050        
+     SUBROUTINE DOIONOW;                                                04671100        
+     BEGIN                                                              04671150        
+          % DOIONOW IS COPIED FROM TAPEPARITYRETRY                      04671200        
+          FOR Y ~ 1 STEP 1 UNTIL 18 DO                                  04671250        
+          BEGIN IF IOD.[24:1] THEN                                      04671300        
+               BEGIN % WAIT 1/15 SECOND BETWEEN READ RETRIES            04671350        
+                    WHILE T4 > CLOCK+P(RTR) DO SLEEP(1,1);              04671400        
+                    T4 ~ CLOCK+P(RTR)+4;                                04671450        
+               END;                                                     04671500        
+               IF IOQUESLOTS=0 THEN SLEEP([IOQUESLOTS],63);             04671550        
+               IOQUESLOTS ~ IOQUESLOTS-1;                               04671600        
+               IOQUEAVAIL ~ IOQUE[T1~IOQUEAVAIL];                       04671650        
+               IOQUE[T1] ~ IOD;                                         04671700        
+               IF (T2~(T3~UNIT[U]).[FF])=@77777 THEN T3.[CF]~T1;        04671750        
+               LOCATQUE[T1] ~ [RESULT] & MIX[3:43:5] &                  04671800        
+                             U[12:42:6] & T2[CTF];                      04671850        
+               UNIT[U] ~ T3 & T1[CTF] & 100[5:35:13];                   04671900        
+               STARTIO(U);                                              04671950        
+               FINALQUE[T1] ~ NABS(IOD) & 0[25:40:8] OR IOMASK;         04672000        
+               RESULT ~ 0;                                              04672050        
+               SLEEP([UNIT[U]],@100000000000);                          04672100        
+               IF RESULT.[30:1] THEN GO ERROROUT; % NOT READY           04672150        
+               IF RESULT.[29:1] AND RESLT.[2:1] THEN                    04672200        
+               BEGIN                                                    04672250        
+                    IF RESLT.[12:1] THEN   % BLANK TAPE                 04672300        
+                    IF IOD.[24:1] THEN     % READ                       04672350        
+                    TRANSACTION[U] ~ (*P(DUP))-(1 & IOD[1:22:1]) ELSE   04672400        
+                    BEGIN                  % WRITE                      04672450        
+                         STREAM(A~TINU[U], T~T2~SPACE(3));              04672500        
+                         BEGIN SI~LOC A; SI~SI+5; DS~3 CHR;             04672550        
+                              DS~21 LIT" BLANK TAPE ON WRITE~";         04672600        
+                         END;                                           04672650        
+                         SPOUTER(T2,UNITNO,35);                         04672700        
+                         GO ERROROUT;                                   04672750        
+                    END;                                                04672800        
+                    IF RESULT.[11:1] THEN   %  MEM PARITY               04672850        
+                    BEGIN                                               04672900        
+                         STREAM(A~TINU[U], T~T2~SPACE(3));              04672950        
+                         BEGIN SI~LOC A; SI~SI+5; DS~3 CHR;             04673000        
+                              DS~13 LIT" I/O MEM PAR~";                 04673050        
+                         END;                                           04673100        
+                         SPOUTER(T2,UNITNO,35);                         04673150        
+                         GO ERROROUT;                                   04673200        
+                    END;                                                04673250        
+                    IF RESULT.[13:2]!0 THEN Y ~ 18;                     04673300        
+               END ELSE                                                 04673350        
+               GO XIO;                                                  04673400        
+          END;                                                          04673450        
