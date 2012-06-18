@@ -3911,3 +3911,109 @@ RETRY:                                                                  04678300
      TM ~ @ 1737000000000000;                                           04678650        
      % TAPE MARK.                                                       04678700        
      IOD ~ NFLAG([TM]) & OIOD[3:3:5];                                   04678750        
+     DOIONOW;                                                           04678800        
+     % WRITE TAPE-MARK.                                                 04678850        
+     FIB[13].[28:10] ~ REEL;                                            04678900        
+     IF LABELED THEN                                                    04678950        
+     BEGIN                                                              04679000        
+          STREAM(BC~FIB[6], RC~FIB[7], BKUP~PBT, D~LABELA);             04679050        
+          BEGIN                                                         04679100        
+               DI ~ DI+39; DS ~ LIT"1";                                 04679150        
+               % END OF REEL FLAG.                                      04679200        
+               BKUP(DI ~ DI+12; JUMP OUT TO OWT);                       04679250        
+               SI ~ LOC BC; DS ~ 5 DEC; DS ~ 7 DEC;                     04679300        
+OWT:           DS ~ LIT"1";                                             04679350        
+               % SPECIAL FLAG FOR SORT AND USE PROCEDURES               04679400        
+          END;                                                          04679450        
+          IOD ~ NFLAG(LABELA) & OIOD[3:3:5];                            04679500        
+          IF NOT PBT THEN IF ALFA THEN                                  04679550        
+          IOD.[21:1] ~ 0;                                               04679600        
+          DOIONOW;                                                      04679650        
+          % BUILD I/O DESCRIPTOR AND WRITE THE TRAILER LABEL.           04679700        
+          IOD ~ NFLAG([TM]) & OIOD[3:3:5];                              04679750        
+          DOIONOW;                                                      04679800        
+     END;                                                               04679850        
+     IOD ~ IOD & @42[18:42:6];                                          04679900        
+     % BUILD THE REWIND DESCRIPTOR.                                     04679950        
+     DOIONOW;                                                           04680000        
+     STOPTIMING(FNUM,1023);                                             04680050        
+     FPB ~ PRT[MIX,3];                                                  04680100        
+     LABELTABLE[U] ~ @214; % RW/L                                       04680150        
+     MULTITABLE[U] ~ RDCTABLE[U] ~ PRNTABLE[U] ~ 0;                     04680200        
+     IF LABELED THEN                                                    04680250        
+     BEGIN                                                              04680300        
+          STREAM(R~REEL, BKUP~PBT, D~LABELA);                           04680350        
+          BEGIN                                                         04680400        
+               SI ~ LOC R; DI ~ DI+24; DS ~ 3 DEC;                      04680450        
+               % LOAD REEL NUMBER INTO LABEL.                           04680500        
+               DI ~ DI+12; DS ~ LIT"0";                                 04680550        
+               BKUP(DI ~ DI+12; JUMP OUT TO OWT);                       04680600        
+               DS ~ 12 LIT"0";                                          04680650        
+OWT:           DS ~ LIT "0";                                            04680700        
+               % CLEAN OUT OLD TRAILER LABEL INFO.                      04680750        
+          END;                                                          04680800        
+          IF NOT PBT THEN IF ALFA THEN                                  04680850        
+          LABELA.[7:1] ~ 1;                                             04680900        
+          U ~ LABELASCRATCH(LABELA);                                    04680950        
+          % FIND TAPE FOR LABELED OUTPUT.                               04681000        
+          IF U=(-1) THEN GO ERROROUT;                                   04681050        
+          % OPERATOR DS-ED.                                             04681100        
+     END ELSE                                                           04681150        
+     BEGIN                                                              04681200        
+          U ~ FINDOUTPUT(FPB[FNUM],FPB[FNUM+1],REEL,0,0,2,0,TM);        04681250        
+          % FIND UNLABELED OUTPUT TAPE.                                 04681300        
+          IF U=(-1) THEN GO ERROROUT;                                   04681350        
+          T2 ~ 0;                                                       04681400        
+          STREAM(PRN~PRNTABLE[U].[30:18], D~[T2]);                      04681450        
+          BEGIN SI ~ LOC PRN; DS ~ 8 DEC;                               04681500        
+               DI ~ DI-7; DS ~ 6 FILL;                                  04681550        
+          END;                                                          04681600        
+ $ SET OMIT = PACKETS                                                   04681650        
+          FILEMESSAGE(" OUT" & TINU[U][6:30:18],T2,                     04681800        
+                      FPB[FNUM],FPB[FNUM+1],REEL,0,0,OPNMESS);          04681850        
+     END;                                                               04681900        
+     RDCTABLE[U] ~ (*P(DUP)) & MIX[8:42:6];                             04681950        
+     PRNTABLE[U] ~ (*P(DUP)) & TOPIOD[15:33:15];                        04682000        
+     FPB[FNUM+3].[36:6] ~ U+1;                                          04682050        
+     % LOAD LOGICAL UNIT NUMBER +1 INTO FPB.                            04682100        
+     TEMP ~ OIOD.[3:4];                                                 04682150        
+     % LUN OF OLD UNIT.                                                 04682200        
+     S ~ UNIT[TEMP].[FF];                                               04682250        
+     % SAVE OFF INDEX INTO IOQUE                                        04682300        
+     UNIT[TEMP] ~ (*P(DUP)) & @77777[14:29:19];                         04682350        
+     % CLEAR UNIT TABLE ON OLD UNIT.                                    04682400        
+     UNIT[U] ~ OLDU;                                                    04682450        
+     % LOAD NEW UNIT TABLE ENTRY.                                       04682500        
+     OIOD ~ OIOD & TINU[U][3:3:5];                                      04682550        
+     % LOAD OIOD WITH NEW UNIT NUMBER.                                  04682600        
+     FOR I ~ 0 STEP 1 UNTIL NUMBUFFS-1 DO                               04682650        
+     IF TANK[I].[7:1] THEN                                              04682700        
+     TANK[I] ~ (*P(DUP)) & OIOD[3:3:5];                                 04682750        
+     % LOAD NEW UNIT DESIGNATE INTO I/O DESCRIPTOR TANK.                04682800        
+     TINU[U] ~ (*P(DUP)) & TINU[TEMP][24:24:6];                         04682850        
+     TINU[TEMP] ~ (*P(DUP)) & 0[24:42:6];                               04682900        
+     IF RC THEN GO KAPUT;                                               04682950        
+     IF FIRSTRECIO!0 THEN IOD ~ OIOD&FIRSTRECIO[8:8:10]&FIRSTRECIO[CTC] 04683000        
+     % TEST FOR BLOCK LESS THAN MAX LENGTH--VARIABLE LENGTH--.          04683050        
+     ELSE IOD ~ OIOD & FIRSTREC[CTC];                                   04683100        
+     DOIONOW;                                                           04683150        
+     % WRITE FIRST RECORD                                               04683200        
+     IF RESULT.[28:1] THEN % CHECK FOR WRITE ERROR                      04683250        
+     BEGIN                                                              04683300        
+PROB:                                                                   04683350        
+          FIB[13].[28:10] ~ REEL-1;                                     04683400        
+          % DECREMENT REEL COUNT.                                       04683450        
+          STREAM(A~TINU[U], T~T2~SPACE(6));                             04683500        
+          BEGIN                                                         04683550        
+               DS ~ 23 LIT"#REEL SWITCH FAILED ON ";                    04683600        
+               SI ~ LOC A; SI ~ SI+5; DS ~ 3 CHR;                       04683650        
+               DS ~ 22 LIT", ANOTHER REEL PLEASE~";                     04683700        
+          END;                                                          04683750        
+          SPOUTER(T2,UNITNO,1);                                         04683800        
+          GO RETRY;                                                     04683850        
+     END;                                                               04683900        
+     IF SECRECIO!0 THEN IOD ~ OIOD&SECRECIO[8:8:10]&SECRECIO[CTC]       04683950        
+     % CHECK FOR LESS THAN MAX LENGTH BLOCKS--VARIABLE LENGTH--         04684000        
+     ELSE IOD ~ OIOD & SECREC[CTC];                                     04684050        
+     % STANDARD LENGTH                                                  04684100        
+     DOIONOW;                                                           04684150        

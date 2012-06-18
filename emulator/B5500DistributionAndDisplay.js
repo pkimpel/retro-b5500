@@ -10,96 +10,6 @@
 *   Original version, from thin air.
 ***********************************************************************/
 
-/***********************************************************************
-*  Panel Lamp                                                          *
-************************************************************************
-function B5500DDLamp(x, y) {
-    /* Constructor for the lamp objects used within D&D. x & y are the
-    coordinates of the lamp within its containing element */
-
-    this.state = 0;                     // current lamp state, 0=off
-
-    // visible DOM element
-    this.element = document.createElement("div");
-    this.element.className = "ddLamp";
-    this.element.style.left = String(x) + "px";
-    this.element.style.top = String(y) + "px";
-}
-
-/**************************************/
-
-B5500DDLamp.prototype.onColor = "#FF9900";
-B5500DDLamp.prototype.offColor = "#999999";
-
-/**************************************/
-B5500DDLamp.prototype.set = function(v) {
-    /* Changes the visible state of the lamp according to the low-order
-    bit of "v". */
-    newState = v & 1;
-
-    if (this.state ^ newState) {         // the state has changed
-        this.element.backgroundColor = (v & 1 ? this.onColor : this.offColor);
-        this.state = newState;
-    }
-}
-
-
-/***********************************************************************
-*  Panel Register                                                      *
-***********************************************************************/
-B5500DDRegister(bits, x, y, rows, caption) {
-    /* Constructor for the register objects used within D&D:
-        bits:   number of bits in register
-        x:      horizontal coordinate of upper-left corner [hSpacing increments]
-        y:      vertical coordinate of upper-left corner [vSpacing increments]
-        rows:   number of rows used to display the bit lamps
-    */
-    var cols = Math.floor((bits+rows-1)/rows);
-    var height = rows*this.vSpacing;
-    var width = cols*this.hSpacing;
-    var b;
-    var cx = Math.floor((x-0.25)*this.hSpacing);
-    var cy = Math.floor((y-0.25)*this.vSpacing);
-    var lamp;
-
-    this.bits = bits;                   // number of bits in the register
-    this.left = cx;                     // horizontal offset relative to container
-    this.top = cy;                      // vertical offset relative to container
-    this.caption = caption;             // panel caption
-    this.lamps = new Array(bits+1);     // bit lamps
-
-    // visible DOM element
-    this.element = document.createElement("div");
-    this.element.className = "ddRegister";
-    this.element.style.left = String(cx) + "px";
-    this.element.style.top = String(cy) + "px";
-    this.element.style.width = width;
-    this.element.style.height = height;
-
-    cx = (x+cols)*this.hSpacing;
-    for (b=1; b<=bits; b++) {
-        if ((b-1)%rows == 0) {
-            cy = (y+rows-1)*this.vSpacing;
-            cx -= this.xSpacing;
-        } else {
-            cy -= this.vSpacing;
-        }
-        lamp = new B5500DDLamp(cx, cy);
-        this.lamps[b] = lamp;
-        this.element.appendChild(lamp);
-    }
-}
-
-/**************************************/
-
-B5500DDRegister.prototype.hSpacing = 18; // horizontal lamp spacing, pixels
-B5500DDRegister.prototype.vSpacing = 18; // vertical lamp spacing, pixels
-
-
-
-/***********************************************************************
-*  Distribution And Display Module                                     *
-************************************************************************/
 function B5500DistributionAndDisplay() {
     /* Constructor for the Distribution And Display module object */
 
@@ -128,8 +38,8 @@ B5500DistributionAndDisplay.prototype.clear = function() {
         clearTimeout(this.timer);
     }
 
-    this.nextTimeStamp = new Date().getTime() + this.rtcTick;
-    this.timer = setTimeout(this.tock, this.rtcTick);
+    this.nextTimeStamp = new Date().getTime() + this.refreshPeriod;
+    this.timer = setTimeout(this.tock, this.refreshPeriod);
     }
 }
 
@@ -147,8 +57,6 @@ B5500DistributionAndDisplay.prototype.openProcessorPanel(p, caption) {
         panel = {module:p, window:win, caption:caption};
         this.panels[caption] = panel;
     }
-
-    win.appendChild(new B5500DDRegister(39, 1, 1, 3, "X REG"));
 }
 
 /**************************************/
