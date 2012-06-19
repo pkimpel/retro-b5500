@@ -1075,7 +1075,7 @@ B5500Processor.prototype.run = function() {
                         variant = 48-t2;
                     }
                     if (variant > 0) {
-                        this.B = cc.insert(this.B, t2, variant, cc.isolate(this.A, t1, variant));
+                        this.B = cc.fieldInsert(this.B, t2, variant, cc.fieldIsolate(this.A, t1, variant));
                     }
                     this.AROF = 0;
                     this.cycleCount += variant + this.G + this.K;       // approximate the shift counts
@@ -1092,7 +1092,7 @@ B5500Processor.prototype.run = function() {
                     if (t2+variant > 48) {
                         variant = 48-t2;
                     }
-                    if (variant > 0 && cc.isolate(this.B, t2, variant) < cc.isolate(this.A, t1, variant)) {
+                    if (variant > 0 && cc.fieldIsolate(this.B, t2, variant) < cc.fieldIsolate(this.A, t1, variant)) {
                         this.A = 1;
                     } else {
                         this.A = 0;
@@ -1111,7 +1111,7 @@ B5500Processor.prototype.run = function() {
                     if (t2+variant > 48) {
                         variant = 48-t2;
                     }
-                    if (variant > 0 && cc.isolate(this.B, t2, variant) == cc.isolate(this.A, t1, variant)) {
+                    if (variant > 0 && cc.fieldIsolate(this.B, t2, variant) == cc.fieldIsolate(this.A, t1, variant)) {
                         this.A = 1;
                     } else {
                         this.A = 0;

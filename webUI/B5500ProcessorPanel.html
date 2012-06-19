@@ -1,0 +1,55 @@
+<html>
+<head>
+<title>B5500 Distribution & Display Processor Panel</title>
+<meta name="Author" content="Williams & Kimpel">
+<meta http-equiv="Content-Script-Type" content="text/javascript">
+<meta http-equiv="Content-Style-Type" content="text/css">
+<link id=defaultStyleSheet rel=stylesheet type="text/css" href="B5500DistributionAndDisplay.css">
+
+<script src="B5500DDPanel.js"></script>
+<script src="B5500ProcessorPanel.js"></script>
+
+<script>
+var panel;
+var displayRefreshPeriod = 50;          // milliseconds
+var nextRefresh = 0;
+var refreshTimer = null;
+var totalTime = 0;
+var totalDelay = 0;
+
+var updateDisplay = function updateDisplay() {
+    /* Schedules itself to update the display on a periodic basis. */
+    var that = updateDisplay.that;
+    var thisTime = new Date().getTime();
+    var delta;
+    var meter = document.getElementById("idleMeter");
+
+    panel.X.update(Math.random()*0x8000000000);
+
+    // Schedule ourself for the next period
+    nextRefresh += displayRefreshPeriod;
+    delta = nextRefresh-thisTime;
+    refreshTimer = setTimeout(updateDisplay, (delta < 0 ? 0 : delta));
+    totalTime += displayRefreshPeriod;
+    totalDelay += delta;
+    meter.value = (totalDelay/totalTime*100).toFixed(1) + "%";
+};
+
+window.onload = function() {
+    window.resizeTo(screen.availWidth, screen.availHeight*0.8);
+    window.moveTo(0, 300);
+    document.title = "B5500 Processor A";
+    panel = new B5500ProcessorPanel(window);
+    updateDisplay.that = this;
+    nextRefresh = new Date().getTime();
+    updateDisplay();
+};
+</script>
+</head>
+
+<body class="panelBody">
+<div style="text-align:right">
+    Idle: <input id=idleMeter type=text size=5 style="text-align:right">
+</div>
+</body>
+</html>

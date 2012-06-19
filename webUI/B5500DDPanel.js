@@ -29,19 +29,38 @@ function B5500DDLamp(x, y) {
 
 /**************************************/
 
-B5500DDLamp.prototype.onColor = "#FF9900";
-B5500DDLamp.prototype.offColor = "#999999";
+B5500DDLamp.onColor = "#FFCC33";
+B5500DDLamp.offColor = "#999999";
 
 /**************************************/
 B5500DDLamp.prototype.set = function(v) {
     /* Changes the visible state of the lamp according to the low-order
     bit of "v". */
-    newState = v & 1;
+    var newState = v & 1;
 
     if (this.state ^ newState) {         // the state has changed
-        this.element.backgroundColor = (v & 1 ? this.onColor : this.offColor);
+        this.element.backgroundColor = (newState ? B5500DDLamp.onColor : B5500DDLamp.offColor);
         this.state = newState;
     }
+}
+
+/**************************************/
+B5500DDLamp.prototype.flip = function() {
+    /* Complements the visible state of the lamp */
+    var newState = this.state ^ 1;
+
+    this.element.backgroundColor = (newState ? B5500DDLamp.onColor : B5500DDLamp.offColor);
+    this.state = newState;
+}
+
+/**************************************/
+B5500DDLamp.prototype.setCaption = function(caption) {
+    /* Establishes an optional caption for a single lamp */
+    var e = document.createElement("div");
+
+    e.className = "ddLampCaption";
+    e.appendChild(document.createTextNode(caption));
+    this.element.appendChild(e);
 }
 
 
@@ -56,17 +75,18 @@ function B5500DDRegister(bits, x, y, rows, caption) {
         rows:   number of rows used to display the bit lamps
     */
     var cols = Math.floor((bits+rows-1)/rows);
-    var height = rows*this.vSpacing;
-    var width = cols*this.hSpacing;
+    var height = rows*B5500DDRegister.vSpacing;
+    var width = cols*B5500DDRegister.hSpacing;
     var b;
-    var cx = Math.floor((x-0.25)*this.hSpacing);
-    var cy = Math.floor((y-0.25)*this.vSpacing);
+    var cx = Math.floor((x-0.25)*B5500DDRegister.hSpacing);
+    var cy = Math.floor((y-0.25)*B5500DDRegister.vSpacing);
     var lamp;
 
     this.bits = bits;                   // number of bits in the register
     this.left = cx;                     // horizontal offset relative to container
     this.top = cy;                      // vertical offset relative to container
-    this.caption = caption;             // panel caption
+    this.caption = caption || "";       // panel caption
+    this.lastValue = 0;                 // prior register value
     this.lamps = new Array(bits+1);     // bit lamps
 
     // visible DOM element
@@ -74,25 +94,65 @@ function B5500DDRegister(bits, x, y, rows, caption) {
     this.element.className = "ddRegister";
     this.element.style.left = String(cx) + "px";
     this.element.style.top = String(cy) + "px";
-    this.element.style.width = width;
-    this.element.style.height = height;
+    this.element.style.width = String(width) + "px";
+    this.element.style.height = String(height) + "px";
 
-    cx = Math.floor((cols+0.25)*this.hSpacing);
+    cx = cols*B5500DDRegister.hSpacing + B5500DDRegister.hOffset;
     for (b=1; b<=bits; b++) {
         if ((b-1)%rows == 0) {
-            cy = Math.floor((rows-0.75)*this.vSpacing);
-            cx -= this.hSpacing;
+            cy = (rows-1)*B5500DDRegister.vSpacing + B5500DDRegister.vOffset;
+            cx -= B5500DDRegister.hSpacing;
         } else {
-            cy -= this.vSpacing;
+            cy -= B5500DDRegister.vSpacing;
         }
         lamp = new B5500DDLamp(cx, cy);
         this.lamps[b] = lamp;
         this.element.appendChild(lamp.element);
     }
+
+    this.captionDiv = document.createElement("div");
+    this.captionDiv.className = "ddRegCaption";
+    this.captionDiv.style.left = "2px";
+    this.captionDiv.style.right = "2px";
+    this.captionDiv.style.top = String(-B5500DDRegister.vOffset) + "px";
+    if (caption) {
+        lamp = document.createElement("span");
+        lamp.className = "ddRegSpan";
+        lamp.appendChild(document.createTextNode(caption));
+        this.captionDiv.appendChild(lamp);
+    }
+    this.element.appendChild(this.captionDiv);
+
 }
 
 /**************************************/
 
-B5500DDRegister.prototype.hSpacing = 24; // horizontal lamp spacing, pixels
-B5500DDRegister.prototype.vSpacing = 24; // vertical lamp spacing, pixels
+B5500DDRegister.hSpacing = 24;          // horizontal lamp spacing, pixels
+B5500DDRegister.hOffset = 5;            // horizontal lamp offset within container
+B5500DDRegister.vSpacing = 24;          // vertical lamp spacing, pixels
+B5500DDRegister.vOffset = 5;            // vertical lamp offset within container
 
+/**************************************/
+B5500DDRegister.prototype.update = function(value) {
+    /* Update the register lamps from the value of the parameter */
+    var bitNr = 0;
+    var low = (this.lastValue % 0x1000000) ^ (value % 0x1000000);
+    var high = (Math.floor(this.lastValue / 0x1000000) % 0x1000000) ^ (Math.floor(value / 0x1000000) % 0x1000000);
+
+    while (low) {
+        bitNr++;
+        if (low & 1) {
+            this.lamps[bitNr].flip();
+        }
+        low >>>= 1;
+    }
+    bitNr = 23;
+    while (high) {
+        bitNr++;
+        if (high & 1) {
+            this.lamps[bitNr].flip();
+        }
+        high >>>= 1;
+    }
+    this.lastValue = value;
+}
