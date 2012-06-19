@@ -155,18 +155,18 @@ B5500CentralControl.prototype.bit = function(word, bit) {
 B5500CentralControl.prototype.bitSet = function(word, bit) {
     /* Sets the specified bit in word and returns the updated word */
 
-    return this.insert(word, bit, 1, 1);
+    return this.fieldInsert(word, bit, 1, 1);
 }
 
 /**************************************/
 B5500CentralControl.prototype.bitReset = function(word, bit) {
     /* Resets the specified bit in word and returns the updated word */
 
-    return this.insert(word, bit, 1, 0);
+    return this.fieldInsert(word, bit, 1, 0);
 }
 
 /**************************************/
-B5500CentralControl.prototype.isolate = function(word, start, width) {
+B5500CentralControl.prototype.fieldIsolate = function(word, start, width) {
     /* Extracts a bit field [start:width] from word and returns the field */
     var ue = 48-start;                  // upper power exponent
     var le = ue-width;                  // lower power exponent
@@ -175,8 +175,8 @@ B5500CentralControl.prototype.isolate = function(word, start, width) {
 }
 
 /**************************************/
-B5500CentralControl.prototype.insert = function(word, start, width, value) {
-    /* Inserts a value into word.[start:width] and returns the updated word */
+B5500CentralControl.prototype.fieldInsert = function(word, start, width, value) {
+    /* Inserts a bit field into word.[start:width] and returns the updated word */
     var ue = 48-start;                  // upper power exponent
     var le = ue-width;                  // lower power exponent
     var bpower = 1;                     // bottom portion power of 2
@@ -428,7 +428,7 @@ B5500CentralControl.prototype.tock = function tock() {
     } else {
         that.TM = 0;
         that.CCI03F = 1;                // set timer interrupt
-        // for now // that.signalInterrupt();
+        // inhibit for now // that.signalInterrupt();
     }
     that.nextTimeStamp += that.rtcTick;
     that.timer = setTimeout(function() {that.tock()},
@@ -441,23 +441,24 @@ B5500CentralControl.prototype.initiateP2 = function() {
     memory location @10. If P2 is busy or not present, sets the P2 busy
     interrupt. Otherwise, loads the INCW into P2's A register and initiates
     the processor. */
+    var p2 = this.P2;
 
     if (!this.P2 || this.P2BF) {
         this.CCI12F = 1;                // set P2 busy interrupt
         this.signalInterrupt();
     } else {
-        this.P2.M = 8;                  // Now have P2 pick up the INCW
-        this.P2.access(0x04);           // A = [M]
-        this.P2.AROF = 1;
-        this.P2.T = 0x849;              // inject 4111=IP1 into P2's T register
-        this.P2.TROF = 1;
-        this.P2.NCSF = 0;               // make sure P2 is in control state
+        p2.M = 8;                       // Now have P2 pick up the INCW
+        p2.access(0x04);                // A = [M]
+        p2.AROF = 1;
+        p2.T = 0x849;                   // inject 4111=IP1 into P2's T register
+        p2.TROF = 1;
+        p2.NCSF = 0;                    // make sure P2 is in control state
         this.P2BF = 1;
         this.HP2F = 0;
 
         // Now start scheduling P2 on the Javascript thread
-        this.P2.procTime = new Date().getTime()*1000;
-        this.P2.scheduler = setTimeout(this.P2.schedule, 0);
+        p2.procTime = new Date().getTime()*1000;
+        p2.scheduler = setTimeout(p2.schedule, 0);
     }
 }
 

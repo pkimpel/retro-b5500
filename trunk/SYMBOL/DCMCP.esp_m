@@ -4017,3 +4017,82 @@ PROB:                                                                   04683350
      ELSE IOD ~ OIOD & SECREC[CTC];                                     04684050        
      % STANDARD LENGTH                                                  04684100        
      DOIONOW;                                                           04684150        
+     % WRITE SECOND RECORD.                                             04684200        
+     IF RESULT.[28:1] THEN GO PROB;                                     04684250        
+     IOD ~ OIOD;                                                        04684300        
+     % ORIGINAL BAD IO ON NEW UNIT                                      04684350        
+     DOIONOW;                                                           04684400        
+     IF RESULT.[28:1] THEN GO PROB;                                     04684450        
+KAPUT:                                                                  04684500        
+     IF NOT DSED THEN                                                   04684550        
+     BEGIN                                                              04684600        
+          MODE ~ 0;                                                     04684650        
+          STARTIMING(FNUM,U);                                           04684700        
+     END;                                                               04684750        
+     % CHANGE OVER SUCCESSFUL.                                          04684800        
+     FIB[15].[24:6] ~ U;                                                04684850        
+     % NEW LUN INTO FIB.                                                04684900        
+     OLDU ~ TINU[U].[3:5];                                              04684950        
+     % OLDU LOADED WITH NEW PHYSICAL UNIT NUMBER.                       04685000        
+     IF NOT RC THEN                                                     04685050        
+     BEGIN                                                              04685100        
+RESETUNITS:                                                             04685150        
+          IOQUE[S] ~ (*P(DUP)) & OLDU[3:43:5];                          04685200        
+          FINALQUE[S] ~ (*P(DUP)) & OLDU[3:43:5];                       04685250        
+          LOCATQUE[S] ~ (*P(DUP)) & U[12:42:6];                         04685300        
+          % RESET DESCRIPTORS IN IOQUE.                                 04685350        
+          IF (S ~ LOCATQUE[S].[FF]!@77777 THEN GO RESETUNITS;           04685400        
+     END;                                                               04685450        
+     FIB[16] ~ (*P(DUP)) & OLDU[3:43:5];                                04685500        
+     FIB[19] ~ (*P(DUP)) & OLDU[3:43:5];                                04685550        
+     % CHANGE UNIT FIELD OF DESCRIPTORS IN FIB.                         04685600        
+     FIB[6] ~ ((RC=0)|2)+HOLDCT;                                        04685650        
+     % LOAD NEW BLOCK COUNT INTO FIB                                    04685700        
+     FIB[7] ~ (((RC=0)|2) | NUMRECS)+HOLDCT | NUMRECS+LOGICLRC;         04685750        
+     % LOAD NEW RECORD COUNT                                            04685800        
+     TINU[U].[24:6] ~ 0;                                                04685850        
+     UNIT[U].[5:10] ~ 0;                                                04685900        
+     % RESET ERROR FLAGS.                                               04685950        
+     IF NOT DSED THEN                                                   04686000        
+     BEGIN                                                              04686050        
+          STREAM(A~TINU[U], T~T2~SPACE(4));                             04686100        
+          BEGIN                                                         04686150        
+               DS ~ 26 LIT"#REEL SWITCH COMPLETED ON ";                 04686200        
+               SI ~ LOC A; SI ~ SI+5; DS ~ 3 CHR; DS ~ LIT"~";          04686250        
+          END;                                                          04686300        
+          SPOUTER(T2,UNITNO,1);                                         04686350        
+     END;                                                               04686400        
+     TOPIOD ~ TEMP ~ (IF RC THEN FIB[19] ELSE OIOD).[CF]-2;             04686450        
+     % MUST RESET LUN IN I/O BUFFER FOR PROGRAM RELEASE                 04686500        
+ARN: M[TEMP] ~ (*P(DUP)) & U[12:42:6];                                  04686550        
+     IF M[TEMP].[FF]-2!TOPIOD THEN                                      04686600        
+     BEGIN                                                              04686650        
+          TEMP ~ M[TEMP].[FF]-2;                                        04686700        
+          GO ARN;                                                       04686750        
+     END;                                                               04686800        
+     GO EXIT;                                                           04686850        
+ERROROUT:                                                               04686900        
+     STREAM(T~T2~SPACE(3));                                             04686950        
+          DS ~ 21 LIT"#REEL SWITCH ABORTED~";                           04687000        
+     SPOUTER(T2,UNITNO,1);                                              04687050        
+     IF U < 0 THEN % JOB BEING DS-ED AT MT REQ                          04687100        
+     BEGIN                                                              04687150        
+          U ~ TEMP;                                                     04687200        
+          % SET U TO LAST UNIT.                                         04687250        
+          IF U=SAVEU THEN GO EXIT;                                      04687300        
+          DSED ~ 1;                                                     04687350        
+          GO KAPUT;                                                     04687400        
+          % GO TO KAPUT TO COUNTINUE HOUSE-KEEPING                      04687450        
+     END;                                                               04687500        
+EXIT:                                                                   04687550        
+     P1MIX ~ 0;                                                         04687600        
+     IF FIRSTREC!0 THEN                                                 04687650        
+     BEGIN                                                              04687700        
+          FORGETSPACE(FIRSTREC-2);                                      04687750        
+          FORGETSPACE(SECREC-2);                                        04687800        
+     END;                                                               04687850        
+     IF NOT NORMALPROCESS THEN NOPROCESSTOG ~ NOPROCESSTOG-1;           04687900        
+     % WAS UNABLE TO FREE NORMAL PROCESS DUE TO UNFILLED BUFFERS.       04687950        
+     % THIS SITUATION MAY NEVER OCCUR, BUT JUST IN CASE                 04688000        
+     WRITEPARITYREELSWITCH ~ UNIT[U] & MODE[5:40:8];                    04688050        
+END WRITEPARITYREELSWITCH;                                              04688100        
