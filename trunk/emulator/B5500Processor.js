@@ -29,7 +29,7 @@ function B5500Processor() {
 
 /**************************************/
 
-B5500Processor.prototype.timeSlice = 5000; // Standard run() timeslice, about 5ms (we hope)
+B5500Processor.timeSlice = 5000; // Standard run() timeslice, about 5ms (we hope)
 
 /**************************************/
 B5500Processor.prototype.clear = function() {
@@ -1172,7 +1172,7 @@ B5500Processor.prototype.schedule = function schedule() {
     var that = schedule.that;
 
     that.scheduler = null;
-    that.cycleLimit = that.timeSlice;
+    that.cycleLimit = B5500Processor.timeSlice;
     that.cycleCount = 0;
 
     that.run();

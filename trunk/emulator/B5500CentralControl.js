@@ -49,9 +49,9 @@ function B5500CentralControl() {
 /**************************************/
     /* Global constants */
 
-B5500CentralControl.prototype.rtcTick = 1000/60; // Real-time clock period, milliseconds
+B5500CentralControl.rtcTick = 1000/60; // Real-time clock period, milliseconds
 
-B5500CentralControl.prototype.pow2 = [ // powers of 2 from 0 to 52
+B5500CentralControl.pow2 = [ // powers of 2 from 0 to 52
                        1,               2,                4,                8,
                       16,              32,               64,              128,
                      256,             512,             1024,             2048,
@@ -67,7 +67,7 @@ B5500CentralControl.prototype.pow2 = [ // powers of 2 from 0 to 52
          281474976710656, 562949953421312, 1125899906842624, 2251799813685248,
         4503599627370496];
 
-B5500CentralControl.prototype.mask2 = [ // (2**n)-1 for n from 0 to 52
+B5500CentralControl.mask2 = [ // (2**n)-1 for n from 0 to 52
                        0,               1,                3,                7,
                       15,              31,               63,              127,
                      255,             511,             1023,             2047,
@@ -91,8 +91,8 @@ B5500CentralControl.prototype.clear = function() {
         clearTimeout(this.timer);
     }
 
-    this.nextTimeStamp = new Date().getTime() + this.rtcTick;
-    this.timer = setTimeout(this.tock, this.rtcTick);
+    this.nextTimeStamp = new Date().getTime() + B5500CentralControl.rtcTick;
+    this.timer = setTimeout(this.tock, B5500CentralControl.rtcTick);
 
     this.IAR = 0;                       // Interrupt address register
     this.TM = 0;                        // Real-time clock (6 bits, 60 ticks per second)
@@ -148,7 +148,7 @@ B5500CentralControl.prototype.bit = function(word, bit) {
     /* Extracts and returns the specified bit from the word */
     var e = 47-bit;
 
-    return (e > 0 ? Math.floor(word/this.pow2[e]) : word) % 2;
+    return (e > 0 ? Math.floor(word/B5500CentralControl.pow2[e]) : word) % 2;
 }
 
 /**************************************/
@@ -171,7 +171,7 @@ B5500CentralControl.prototype.fieldIsolate = function(word, start, width) {
     var ue = 48-start;                  // upper power exponent
     var le = ue-width;                  // lower power exponent
 
-    return (le > 0 ? Math.floor(word/this.pow2[le]) : word) % this.pow2[width];
+    return (le > 0 ? Math.floor(word/B5500CentralControl.pow2[le]) : word) % B5500CentralControl.pow2[width];
 }
 
 /**************************************/
@@ -184,13 +184,13 @@ B5500CentralControl.prototype.fieldInsert = function(word, start, width, value) 
     var top = 0;                        // unaffected top portion of word
 
     if (start > 0) {
-        top = word - (word % this.pow2[ue]);
+        top = word - (word % B5500CentralControl.pow2[ue]);
     }
     if (le > 0) {
-        bpower = this.pow2[le];
+        bpower = B5500CentralControl.pow2[le];
         bottom = word % bpower;
     }
-    return (value % this.pow2[width])*bpower + top + bottom;
+    return (value % B5500CentralControl.pow2[width])*bpower + top + bottom;
 }
 
 /**************************************/
@@ -430,7 +430,7 @@ B5500CentralControl.prototype.tock = function tock() {
         that.CCI03F = 1;                // set timer interrupt
         // inhibit for now // that.signalInterrupt();
     }
-    that.nextTimeStamp += that.rtcTick;
+    that.nextTimeStamp += B5500CentralControl.rtcTick;
     that.timer = setTimeout(function() {that.tock()},
         (that.nextTimeStamp < thisTime ? 0 : that.nextTimeStamp-thisTime));
 }

@@ -10,34 +10,60 @@
 <script src="B5500ProcessorPanel.js"></script>
 
 <script>
-var panel;
-var displayRefreshPeriod = 50;          // milliseconds
+var displayRefreshPeriod = 200;          // milliseconds
+var lastRefresh = new Date().getTime();
 var nextRefresh = 0;
+var panel;
 var refreshTimer = null;
-var totalTime = 0;
 var totalDelay = 0;
+var totalTime = 0;
 
 var updateDisplay = function updateDisplay() {
     /* Schedules itself to update the display on a periodic basis. */
-    var that = updateDisplay.that;
     var thisTime = new Date().getTime();
     var delta;
     var meter = document.getElementById("idleMeter");
+    var that = updateDisplay.that;
 
     panel.X.update(Math.random()*0x8000000000);
+    panel.A.update(Math.random()*0x1000000000000);
+    panel.B.update(Math.random()*0x1000000000000);
+    panel.P.update(Math.random()*0x1000000000000);
+    panel.J.update(Math.random()*0x10);
+    panel.Q.update(Math.random()*0x200000);
+    panel.R.update(Math.random()*0x200);
+    panel.AROF.update(thisTime%2);
+    panel.BROF.update(thisTime%4>>1);
+    panel.G.update(Math.random()*0x08);
+    panel.H.update(Math.random()*0x08);
+    panel.Y.update(Math.random()*0x40);
+    panel.Z.update(Math.random()*0x40);
+    panel.M.update(Math.random()*0x8000);
+    panel.K.update(Math.random()*0x08);
+    panel.V.update(Math.random()*0x08);
+    panel.N.update(Math.random()*0x10);
+    panel.S.update(Math.random()*0x8000);
+    panel.PROF.update(thisTime%7);
+    panel.T.update(Math.random()*0x1000);
+    panel.TROF.update(thisTime%8>>2);
+    panel.C.update(Math.random()*0x8000);
+    panel.I.update(Math.random()*0x200);
+    panel.E.update(Math.random()*0x40);
+    panel.TM.update(Math.random()*0x200);
+    panel.F.update(Math.random()*0x8000);
 
     // Schedule ourself for the next period
     nextRefresh += displayRefreshPeriod;
     delta = nextRefresh-thisTime;
-    refreshTimer = setTimeout(updateDisplay, (delta < 0 ? 0 : delta));
-    totalTime += displayRefreshPeriod;
-    totalDelay += delta;
+    refreshTimer = setTimeout(updateDisplay, (delta < 0 ? (delta=0) : delta));
+    totalTime = (totalTime*99 + displayRefreshPeriod)/100;
+    totalDelay = (totalDelay*99 + delta)/100;
     meter.value = (totalDelay/totalTime*100).toFixed(1) + "%";
 };
 
 window.onload = function() {
-    window.resizeTo(screen.availWidth, screen.availHeight*0.8);
-    window.moveTo(0, 300);
+    window.resizeTo(750, 600);
+    window.moveTo(screen.availWidth-750, screen.availHeight-600);
     document.title = "B5500 Processor A";
     panel = new B5500ProcessorPanel(window);
     updateDisplay.that = this;
