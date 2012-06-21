@@ -4096,3 +4096,108 @@ EXIT:                                                                   04687550
      % THIS SITUATION MAY NEVER OCCUR, BUT JUST IN CASE                 04688000        
      WRITEPARITYREELSWITCH ~ UNIT[U] & MODE[5:40:8];                    04688050        
 END WRITEPARITYREELSWITCH;                                              04688100        
+REAL PROCEDURE PLACEFINDER(S, A, L);                                    04700000        
+         VALUE S, A;                                                    04701000        
+         REAL S, A, L;                                                  04702000        
+    BEGIN INTEGER I; ARRAY B[*];                                        04703000        
+         REAL T, W, E, J, AA;                                           04704000        
+         LABEL NULL, FOUND, EXIT;                                       04705000        
+         LABEL SANDA; REAL SS;                                          04705500        
+         W ~ -1;                                                        04706000        
+         B ~ [M[T ~ SPACE(30)]]&30[8:38:10];                            04707000        
+         SS:=S;                                                         04707500        
+         IF S=0 THEN                                                    04708000        
+NULL:    BEGIN STREAM(T); DS:=20 LIT " "; GO EXIT; END;                 04709000        
+         DISKWAIT(-T,30,JAR[P1MIX,10]);                                 04710000        
+         IF (JAR[P1MIX,10]=0) OR (AA~B[0].[FF])=0 THEN                  04711000        
+SANDA:   BEGIN STREAM(S:=SS,A,K:=M[PRT[P1MIX,8]].[10:2],T);             04712000        
+              BEGIN DS~5 LIT ", S =";                                   04713000        
+                   SI~LOC S;  DS~4 DEC;                                 04714000        
+                   DS~5 LIT ", A =";                                    04715000        
+                   DS~4 DEC;                                            04716000        
+                   DS:=LIT ":"; SI:=SI+7; DS:=CHR;                      04716100        
+                   DI~T;  DI~DI+5;  DS~3 FILL;                          04717000        
+                   DI~T;  DI~DI+14;  DS~3 FILL;                         04718000        
+              END STREAM;                                               04719000        
+              GO EXIT;                                                  04720000        
+         END;                                                           04721000        
+         DISKWAIT(-T,30,I:=JAR[P1MIX,AA DIV JAR[P1MIX,8]+10+            04722000        
+              AA MOD JAR[P1MIX,8]+S DIV 30);                            04723000        
+         IF (J~B[S MOD 30])<0 THEN GO TO NULL;                          04725000        
+         AA ~ I ~ JAR[P1MIX,J.[CF] DIV JAR[P1MIX,8]+10]+                04726000        
+              J.[CF] MOD JAR[P1MIX,8];                                  04727000        
+         I~0;  J~J.[FF];                                                04728000        
+         DO BEGIN S~(I+J).[36:11];                                      04729000        
+              IF W!(W:=S DIV 30) THEN DISKWAIT(-T,30,AA+W);             04731000        
+              IF (E ~ B[S-W|30].[38:10])=A THEN GO TO FOUND;            04732000        
+              IF E<A THEN I~S ELSE J~S;                                 04733000        
+         END UNTIL J-I=1;                                               04734000        
+         S~I;                                                           04735000        
+FOUND:   L ~ -B[S MOD 30].[28:10];                                      04736000        
+         IF L=0 THEN GO TO SANDA;                                       04736500        
+         STREAM(L~ABS(L),T);                                            04737000        
+         BEGIN DS:=11 LIT ",NEAR LINE ";                                04738000        
+              SI~LOC L;  DS~8 DEC;                                      04739000        
+              DS:=LIT " "; DI:=DI-9; DS:=7 FILL;                        04740000        
+         END STREAM;                                                    04741000        
+ EXIT:   PLACEFINDER ~ T;                                               04742000        
+    END PLACEFINDER;                                                    04743000        
+ $ SET OMIT = NOT(DATACOM )                                             04999999        
+PROCEDURE LOGOUT(A); VALUE A; REAL A; FORWARD;                     %154-05606900        
+ PROCEDURE FORMTIME(W,T); VALUE W,T; REAL W,T;                     %154-05607000        
+         BEGIN INTEGER S,M;                                        %154-05608000        
+              T~(T+60) DIV 60;                                     %154-05609000        
+              S~T MOD 60;                                          %154-05610000        
+              T~T DIV 60;                                          %154-05611000        
+              M~T MOD 60;                                          %154-05612000        
+              T~T DIV 60;                                          %154-05613000        
+              STREAM(T,M,S,W~[W]);                                 %154-05614000        
+                   BEGIN SI~LOC T;  DS~2 DEC;                      %154-05615000        
+                        2(DS~LIT ":";  DS~2 DEC);                  %154-05616000        
+                        DI~W;  DS~7 FILL;                          %154-05617000        
+                   END;                                            %154-05618000        
+         END;                                                      %154-05619000        
+PROCEDURE LOGSPACE(W,L); % THIS MAY ZIP                                 05700000        
+VALUE W,L; NAME W; INTEGER L;  % FIRST WORD,WORD COUNT                  05701000        
+COMMENT THIS WILL CLOBBER WORDS AROUND THOSE LOGGED;                    05701010        
+BEGIN INTEGER B,I,J,K,N; ARRAY A[*]; LABEL OK; DEFINE Z=LOGFREE#;       05702000        
+    N~L DIV 5;  %NO REMAINDER ALLOWED                                   05702500        
+    A:=[M[B:=SPACE(30)]]&30[8:38:10];                                   05703000        
+    IF Z>0 THEN SLEEP([Z],-0); Z~-Z;                                    05703500        
+ $ SET OMIT = NOT(SHAREDISK)                                            05703699        
+    DISKWAIT(-B,30,Z);                                                  05704000        
+IF (I~A[0])+6+N}(J~A[1]) THEN BEGIN I~0; K~1 END  %WRAP AROUND          05705000        
+ELSE IF I+N+100 GEQ J THEN                                              05706000        
+    BEGIN INDEPENDTRUNNER(P(.LOGOUT),1,128);                            05706100        
+         K:=2;                                                          05706200        
+    END                                                                 05706300        
+ELSE IF I<J DIV 2 AND J DIV 2<I+N  THEN K~3  % HALF FULL                05707000        
+ELSE GO TO OK;                                                          05708000        
+    STREAM(K:=K-1, J:=J:=SPACE(3));                                     05709000        
+    BEGIN CI:=CI+K; GO TO L2; GO TO L1;                                 05710000        
+         DS:=14 LIT"#LOG HALF FULL"; GO TO L3;                          05710500        
+    L1:  DS:=19 LIT" LOG FULL - AUTO LN"; GO TO L3;                     05711000        
+    L2:  DS:=17 LIT"**LOG WRAP AROUND";                                 05711500        
+    L3:  DS:=LIT"~";                                                    05712000        
+    END;                                                                05713000        
+    SPOUT(J);                                                           05714000        
+OK: A[0]~N+I; A[3]~K; A[2]~I~I+1;   %WE NOW PUT THE WORDS IN I          05715000        
+    W[L]~4;     %    END OF LOG                                         05715100        
+    J~(I MOD 6)|5;   %SIZE OF NEIGHBORHOOD (NBD)                        05716000        
+ $ SET OMIT = NOT(SHAREDISK)                                            05716999        
+    IF (I~I DIV 6)!0 THEN DISKWAIT(B,30,Z);   %DUMP RECORD ZERO         05722000        
+    IF J!0 THEN   % GET NBD                                             05723000        
+    BEGIN IF I!0 THEN DISKWAIT(-B,30,Z+I);                              05724000        
+         MOVE(30-J,W INX 0,A INX J)                                     05725000        
+    END                                                                 05726000        
+    ELSE B:=W INX 0;                                                    05727000        
+    DISKWAIT(B,30,Z+I);                                                 05728000        
+    IF (L+J) GEQ 30 THEN                                                05728100        
+    BEGIN K:=L-(J:=30-J)+1;                                             05728120        
+         I:=I+1;                                                        05728140        
+         DO                                                             05728160        
+         BEGIN DISKWAIT(W INX J,IF K>1020 THEN 1020 ELSE K,Z+I);        05728180        
+              J:=J+1020;                                                05728200        
+              I:=I+34;                                                  05728220        
+         END UNTIL (K:=K-1020) LEQ 0;                                   05728240        
+    END;                                                                05728260        

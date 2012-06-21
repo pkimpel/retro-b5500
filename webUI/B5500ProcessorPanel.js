@@ -15,6 +15,7 @@ function B5500ProcessorPanel(win) {
     /* Constructor for the B5500 D&D Processor Panel object. Creates the
     panel UI on window "win" */
     var body = win.document.body;
+    var x;
 
     // Row 1
 
@@ -28,7 +29,7 @@ function B5500ProcessorPanel(win) {
     this.J.lamps[3].setCaption("4");
     this.J.lamps[4].setCaption("8");
     // adjust the weird position of the "8" bit
-    this.J.lamps[4].element.style.top = String(B5500DDRegister.vOffset) + "px";
+    this.J.lamps[4].element.style.top = this.J.yCoord(1);
 
     this.Q = new B5500DDRegister(21, 16, 1, 3, "Q REG");
     body.appendChild(this.Q.element);
@@ -76,6 +77,12 @@ function B5500ProcessorPanel(win) {
 
     this.Z = new B5500DDRegister(6, 22, 5, 6, "Z");
     body.appendChild(this.Z.element);
+
+    // adjust position of the Y & Z numeric bits
+    for (x=1; x<=4; x++) {
+        this.Y.lamps[x].element.style.top = this.Y.yCoord(8-x);
+        this.Z.lamps[x].element.style.top = this.Z.yCoord(8-x);
+    }
 
     this.M = new B5500DDRegister(15, 23, 5, 3, "M REG");
     body.appendChild(this.M.element);

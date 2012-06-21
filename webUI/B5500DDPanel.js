@@ -1,4 +1,4 @@
-/***********************************************************************
+ /***********************************************************************
 * retro-b5500/emulator B5500DDPanel.js
 ************************************************************************
 * Copyright (c) 2012, Nigel Williams and Paul Kimpel.
@@ -39,7 +39,7 @@ B5500DDLamp.prototype.set = function(v) {
     var newState = v & 1;
 
     if (this.state ^ newState) {         // the state has changed
-        this.element.backgroundColor = (newState ? B5500DDLamp.onColor : B5500DDLamp.offColor);
+        this.element.style.backgroundColor = (newState ? B5500DDLamp.onColor : B5500DDLamp.offColor);
         this.state = newState;
     }
 }
@@ -49,7 +49,7 @@ B5500DDLamp.prototype.flip = function() {
     /* Complements the visible state of the lamp */
     var newState = this.state ^ 1;
 
-    this.element.backgroundColor = (newState ? B5500DDLamp.onColor : B5500DDLamp.offColor);
+    this.element.style.backgroundColor = (newState ? B5500DDLamp.onColor : B5500DDLamp.offColor);
     this.state = newState;
 }
 
@@ -133,7 +133,21 @@ B5500DDRegister.vSpacing = 24;          // vertical lamp spacing, pixels
 B5500DDRegister.vOffset = 5;            // vertical lamp offset within container
 
 /**************************************/
-B5500DDRegister.prototype.update = function(value) {
+B5500DDRegister.prototype.xCoord = function(col) {
+    /* Returns the horizontal lamp coordinate in "px" format */
+
+    return String((col-1)*B5500DDRegister.hSpacing + B5500DDRegister.hOffset) + "px";
+}
+
+/**************************************/
+B5500DDRegister.prototype.yCoord = function(row) {
+    /* Returns the vertical lamp coordinate in "px" format */
+
+    return String((row-1)*B5500DDRegister.vSpacing + B5500DDRegister.vOffset) + "px";
+}
+
+/**************************************/
+B5500DDRegister.prototype.YYupdate = function(value) {
     /* Update the register lamps from the value of the parameter */
     var bitNr = 0;
     var low = (this.lastValue % 0x1000000) ^ (value % 0x1000000);
@@ -155,4 +169,34 @@ B5500DDRegister.prototype.update = function(value) {
         high >>>= 1;
     }
     this.lastValue = value;
+}
+
+/**************************************/
+B5500DDRegister.prototype.XXupdate = function(value) {
+    /* Update the register lamps from the value of the parameter */
+    var bitNr = 0;
+    var bit;
+    var mask = value % 0x1000000000000;
+
+    while (mask) {
+        bitNr++;
+        bit = mask % 2;
+        this.lamps[bitNr].set(bit);
+        mask = (mask-bit)/2;
+    }
+}
+
+/**************************************/
+B5500DDRegister.prototype.update = function(value) {
+    /* Update the register lamps from the value of the parameter */
+    var bitNr = 0;
+    var bit;
+    var mask = value % 0x1000000000000;
+
+    while (mask) {
+        bitNr++;
+        bit = mask % 2;
+        this.lamps[bitNr].element.style.backgroundColor = (bit ? B5500DDLamp.onColor : B5500DDLamp.offColor);
+        mask = (mask-bit)/2;
+    }
 }
