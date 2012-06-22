@@ -4201,3 +4201,52 @@ OK: A[0]~N+I; A[3]~K; A[2]~I~I+1;   %WE NOW PUT THE WORDS IN I          05715000
               I:=I+34;                                                  05728220        
          END UNTIL (K:=K-1020) LEQ 0;                                   05728240        
     END;                                                                05728260        
+ $ SET OMIT = NOT(STATISTICS)                                           05728299        
+    FORGETSPACE(A);                                                     05729000        
+ $ SET OMIT = NOT(SHAREDISK )                                           05729199        
+    Z:=-Z;                                                              05729300        
+END OF LOGSPACE;                                                        05730000        
+DEFINE                                                                  05780000        
+      MAXSIZ[1:20]#, TOMAXSIZ=1:28:20#,                                 05780010        
+      SPEED = [23:3]#, TOSPEED= 23:45:3#,                               05780020        
+      EUNP = [21:1]#, TOENUP = 21:47:1#,                                05780025        
+      STARTWRD=[26:12]#, TOSTARTWRD=26:36:12#,                          05780030        
+      NUMENT=[38:10]#, TONUMENT=38:38:10#, NUMENTM=1023#,               05780040        
+      DSIZE=[2:20]#, TODSIZE=2:28:20#,                                  05780100        
+      DENT=[22:26]#, TODEND=22:22:26#,                                  05780200        
+      TOSIZE=8:38:10#, NEUF=[18:15]#,                                   05780300        
+      EUIOFFSET=4 #, % ONE WORD FOR EACH I/O CHANNEL.                   05780310        
+      AVDIFFMIN=15#, AVDIFFMAX=50#, % AVDIFFMAX GTR AVDIFFMIN GTR 14.   05780400        
+      AVTMAX=3900#, % MAX # WORDS ALLOWED FOR AVAILABLE TABLE ON DISK.  05780500        
+                    % IS REFLECTED IN USERDISKBOTTOM & DISKAVAILTABLEMAX05780505        
+      AVSMIN=90# , AVSMAX=300#, % MIN AND MAX # WORDS TO READ IN @ 1 TIM05780600        
+                                % AVSMAX GTR AVSMIN GTR 85              05780605        
+                                % BOTH MUST BE MULTIPLES OF 30          05780610        
+      FIXARRAY(FIXARRAY1,FIXARRAY2,FIXARRAY3)=FIXARRAY1~[M[FIXARRAY2~   05780700        
+      SPACE(FIXARRAY3)]]&FIXARRAY3[TOSIZE]# ;                           05780800        
+ $ SET OMIT = NOT (SHAREDISK )                                          05800000        
+REAL PROCEDURE PETUSERDISK(N,T);  VALUE N,T;  REAL N,T ;                05839400        
+% N IS THE NUMBER OF SEGMENTS REQUESTED, AND T IS THE EU# OR THE SPEED#.05839600        
+% GETUSERDISK WILL RETURN -1, 0, OR THE ABSOLUTE DISK SEGMENT ADDRESS OF05839700        
+% THE RESULTANT AREA. SEE T.[2:1] FOR THE -1, AND N.[2:1] FOR THE 0.    05839800        
+% T>0 => T IS A PREFERRED SPEED#: T=1,2,3,4,..., OR 31.                 05840000        
+% T<0 => -T IS A PREFERRED EU#: T=-1,-2,-3,-4,..., OR -20.              05840100        
+% T=0 => DONT CARE ABOUT SPEED# OR EU#, USE EU WITH LEAST EU I/O.       05840200        
+% T.[2:1]=1 => IF CANT GET PREFERRED SPEED# OR EU#, RETURN -1.          05840300        
+% T.[2:1]=0 => IF CANT GET PREFERRED SPEED# OR EU#, TREAT AS T=0 (ABOVE)05840400        
+% N>0 => MAKE A SCRATCHDIRECTORY ENTRY.                                 05840500        
+% N<0 => DONT MAKE A SCRATCHDIRECTORY ENTRY.                            05840600        
+% N=0 => IMMEDIATELY RETURN WITH A 0.                                   05840700        
+% N.[2:1]=0 => IF CANT FIND ANY USERDISK, AND T.[2:1]=0, NO-USER-DISK.  05840800        
+% N.[2:1]=1 => IF CAND FIND ANY USERDISK, ANT T.[2:1]=0, RETURN 0.      05840900        
+    BEGIN                                                               05841200        
+    INTEGER K=+1, % K IS ALSO "GETUSERDISK"; DONT USE K ABOVE LABEL D.  05841300        
+            Z=K+1, NS=Z+1, I=NS+1,                                      05841350        
+ $ SET OMIT = NOT(SHAREDISK )                                           05841380        
+ $ SET OMIT = SHAREDISK                                                 05841610        
+            R=I+1, AVS=R+1, H=NT6, L=AVS ;                              05841615        
+    REAL M1=NT5 M2=NT4,;  ARRAY UT=J+1[*];  DEFINE U=AVTABLE # ;        05841620        
+ $ POP OMIT                                                             05841621        
+    LABEL A,B,C,D,E,F,G,W ;                                             05841650        
+DEFINE GETUSERDISK=PETUSERDISK#;%***************************************05841700        
+    IF N=0 THEN GO W ;                                                  05842100        
