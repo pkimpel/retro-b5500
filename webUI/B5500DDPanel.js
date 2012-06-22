@@ -29,7 +29,7 @@ function B5500DDLamp(x, y) {
 
 /**************************************/
 
-B5500DDLamp.onColor = "#FFCC33";
+B5500DDLamp.onColor = "#FF9933";
 B5500DDLamp.offColor = "#999999";
 
 /**************************************/
