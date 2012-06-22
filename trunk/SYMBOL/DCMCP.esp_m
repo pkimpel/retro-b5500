@@ -4250,3 +4250,136 @@ REAL PROCEDURE PETUSERDISK(N,T);  VALUE N,T;  REAL N,T ;                05839400
     LABEL A,B,C,D,E,F,G,W ;                                             05841650        
 DEFINE GETUSERDISK=PETUSERDISK#;%***************************************05841700        
     IF N=0 THEN GO W ;                                                  05842100        
+    P(T.[2:1],ABS(N),1,0,0,0,0) ;                                       05842200        
+ $ SET OMIT = NOT(SHAREDISK )                                           05842205        
+A: SLEEP([TOGGLE],USERDISKMASK); LOCKTOG(USERDISKMASK);                 05842300        
+ $ SET OMIT = NOT(SHAREDISK )                                           05842390        
+ $ SET OMIT = SHAREDISK                                                 05842405        
+    M1:=M2:=P(D) ;                                                      05842410        
+ $ POP OMIT                                                             05842411        
+    L:=NEUP.NEUF ;                                                      05842450        
+    IF T LSS 0 THEN IF U[J:=IF -T GTR L THEN L+1 ELSE -T].MAXSIZ GEQ NS 05842475        
+                    THEN GO E ELSE IF Z THEN GO C ;                     05842500        
+B:  IF U[I].MAXSIZ}NS THEN                                              05842700        
+         BEGIN                                                          05842800        
+         P(EUIO[(NT1:=I-1)+EUIOFFSET]+PEUIO[NT1],.NT2,SND,DUP) ;        05842900        
+         IF P LSS M1 THEN BEGIN M1:=NT2; H:=NT1 END ;                   05842930        
+         IF P LSS M2 THEN IF UPI[.SPPED=T THEN BEGIN M2:=NT2;J:=NT1 END;05843000        
+         END;                                                           05843100        
+    IF (I:=I+1) LEQ L THEN GO B ;                                       05843200        
+    IF P(D)!M1 THEN                                                     05843300        
+         BEGIN                                                          05843400        
+         IF M2=M2:=P(D) THEN IF Z AND T!0 THEN                          05843500        
+C:            BEGIN GETUSERDISK~-1; GO G END                            05843600        
+         ELSE J~H ;                                                     05843700        
+         J:=J+1;  GO E ;                                                05843800        
+         END;                                                           05843900        
+    IF Z THEN GO C ;                                                    05843950        
+    IF N.[2:1] THEN GO G ;                                              05844000        
+ $ SET OMIT = NOT(SHAREDISK )                                           05844050        
+ $ SET OMIT = SHAREDISK                                                 05844090        
+    FIXARRAY(UT,R,30);  USERDISKSPECIALCASE(I:=1,R,UT,NS);  GO A ;      05844110        
+ $ POP OMIT                                                             05844111        
+D:::@0777777777777777 ;                                                 05844200        
+ $ SET OMIT = NOT(SHAREDISK )                                           05844290        
+ $ SET OMIT = SHAREDISK                                                 05844915        
+E:  IF (AVS:=(K:=(T:=U[J] AND NUMENTM)+I:=(Z:=U[J].STARTWRD) MOD 30) MOD05844920        
+       30) NEQ 0 THEN AVS:=30-AVS;  AVS:=AVS+K;  P(M2) ;                05844925        
+    FIXARRAY(UT,R,AVS);  DISKWAIT(-R,AVS,Z~Z DIV 30+USERDISKBOTTOM) ;   05844930        
+    M2:=P;  P(K-1);  NT2:=0;  NT3:=K:=U[J].MAXSIZ ;                     05844935        
+ $ POP OMIT                                                             05844936        
+E:  IF (NT1~UT[I].DSIZE)>NT2 THEN IF NT1!K THEN NT2~NT1 ELSE K:=0;      05845000        
+    IF NT1}NS THEN IF NT1<M2 THEN BEGIN M2~NT1; H~I END ;               05845100        
+    IF P(DUP) GTR I:=I+1 THEN GO F ;                                    05845200        
+    UT[H].DSIZE~NS~M2-NS ;                                              05845300        
+    IF M1:=M2=NT3 THEN U[J].MAXSIZ:=IF NT2>NS THEN NT2 ELSE NS ;        05845400        
+    GETUSERDISK~UT[H].DEND-M2;  I:=P ;                                  05845500        
+ $ SET OMIT = NOT(SHAREDISK )                                           05845590        
+    IF N~NS=0 THEN BEGIN MOVE(I-H,[UT[H+1]],[UT[H]]);U[J].NUMENT~T-1END;05845700        
+ $ SET OMIT = NOT(SHAREDISK )                                           05845790        
+ $ SET OMIT = SHAREDISK                                                 05846350        
+    DISKWAIT(R,AVS,Z);                                                  05846360        
+ $ POP OMIT                                                             05846361        
+ $ SET OMIT = NOT(SHAREDISK )                                           05846370        
+ $ SET OMIT = SHAREDISK                                                 05846385        
+    FORGETSPACE(R) ;                                                    05846390        
+G: UNLOCKTOG(USERDISKMASK);                                             05846395        
+ $ POP OMIT                                                             05846396        
+W:  END OF GETUSERDISK ;                                                05846500        
+PROCEDURE FORGETUSERDISK(A,N);  VALUE A,N;  REAL A,N ;                  05846600        
+% A IS THE ABSOLUTE DISK SEGMENT ADDRESS OF AN AREA N SEGMENTS LONG     05846800        
+% WHICH IS TO BE MADE AVAILABLE AGAIN.                                  05846900        
+% N<0 => MAKE A SCRATCHDIRECTORY DELETION.                              05847000        
+% N>0 => DONT MAKE A SCRATCHDIRECTORY DELETION.                         05847100        
+% N=0 => IMMEDIATELY GO AWAY ;                                          05847200        
+    BEGIN                                                               05847400        
+ $ SET OMIT = NOT(SHAREDISK )                                           05847490        
+ $ SET OMIT = SHAREDISK                                                 05847590        
+    INTEGER AVS,F=AVS;  ARRAY UT[*];  DEFINE U=AVTABLE #;               05847600        
+ $ POP OMIT                                                             05847601        
+    REAL E;  INTEGER B,C,D,I,J,R,S,H=NT7,K=NT6,L=NT5,G=NT4,T=NT3,Q=JUNK;05847700        
+    LABEL V,W,X,Y,Z,AZ,BZ,CZ,DZ ;                                       05847800        
+    SUBROUTINE SETSHIFT ;                                               05847900        
+         BEGIN                                                          05848000        
+         S:=P(XCH) ;                                                    05848100        
+ $ SET OMIT = NOT(SHAREDISK )                                           05848190        
+ $ SET OMIT = SHAREDISK                                                 05848250        
+         U[J].STARTWRD:=I+S;  G:=D+S;                                   05848255        
+ $ POP OMIT                                                             05848256        
+         K:=G+C-1;                                                      05848300        
+         END OF SETSHIFT;                                               05848500        
+    IF N=0 OR (J:=A DIV 1000000) GEQ NEUP.NEUF                          05848900        
+       OR A LSS USERDISKBOTTOM+DISKAVAILTABLEMAX THEN GO BZ ;           05849000        
+    SLEEP([TOGLE],USERDISKMASK); LOCKTOG(USERDISKMASK);                 05849300        
+ $ SET OMIT = NOT(SHAREDISK )                                           05849390        
+    IF (D:=U[0].MAXSIZ) NEQ 0 AND N GTR 0 THEN IF (TWO(J) AND D) NEQ 0  05849420        
+    THEN BEGIN USERDISKSPECIALCASE(3,N,U,A); IF NOT P THEN GO DZ END ;  05849460        
+    J:=J+1 ;                                                            05849480        
+V:  D~(I~(E~U[J]).STARTWRD) MOD 30 ;                                    05849500        
+ $ SET OMIT = NOT(SHAREDISK )                                           05849590        
+ $ SET OMIT = SHAREDISK                                                 05850105        
+    AVS:=30-(S:=(C:=E AND NUMENTM)+D) MOD 30+S ;                        05850110        
+    FIXARRAY(UT,R,AVS);  DISKWAIT(-R,AVS,B:=I DIV 30+USERDISKBOTTOM) ;  05850120        
+    K:=S;  L:=D;  S:=I+C ;                                              05850130        
+ $ POP OMIT                                                             05850131        
+    G~I-(NT2:=(P(U[J-1],DUP) AND NUMENTM)+P(XCH).STARTWRD) ;            05850200        
+    S~U[J+1].STARTWRD-S;  H~K~K-1;  IF UT[T~L].DEND}A THEN GO X ;       05850300        
+W:  IF UT[T~(H+L+1)DIV 2].DEND}A THEN IF UT[H~T-1].DEND}A THEN GO W ELSE05850400        
+    ELSE IF UT[T~T+1].DEND<A THEN BEGIN L~T+1; GO W END ;               05850500        
+X:  IF (L:=A+ABS(N)) GEQ H:=P(UT[Q:=T],DUP).DEND-P(XCH).DSIZE THEN GO Z;05850600        
+    IF S=0 THEN                                                         05850700        
+         BEGIN                                                          05850800        
+ $ SET OMIT = NOT(SHAREDISK )                                           05850890        
+ $ SET OMIT = SHAREDISK                                                 05851215        
+         IF G=0 OR D=0 THEN GO Y;  IF P((G+1)DIV 2,DUP)>0 THEN P(DEL,D);05851220        
+ $ POP OMIT                                                             05851221        
+         P(SSN);SETSHIFT;MOVE(C,[UT[G-S]],[UT[G]]);T~Q~T+S;             05851300        
+         END;                                                           05851400        
+    FOR H~K STEP -1 UNTIL T DO UT[H+1]~UT[H];  H~ABS(N);  GO AZ ;       05851500        
+Y: USERDISKSPECIALCASE(2,E,UT,J) ;                                      05851600        
+ $ SET OMIT = NOT(SHAREDISK )                                           05851650        
+    GO V ;                                                              05851675        
+Z:  IF P(UT[Q~Q+1],DUP).DEND=P(XCH).DSIZE{L THEN GO Z ;                 05851700        
+    IF P(UT[NT1:=Q-1].DEND,DUP) LSS L THEN P(DEL,L) ;                   05851800        
+    H:=(L:=P)-(IF A LSS H THEN A ELSE H) ;                              05851850        
+    IF NT1 GTR T THEN MOVE(K-NT1,[UT[Q]],[UT[T+1]]) ;                   05851900        
+AZ: UT[T]~L&H[TODSIZE];  C~(Q~T-Q+1)+C ;                                05852000        
+    IF(S~S-Q)>T~IF AVDIFFMAX>T~C DIV 2 THEN AVDIFFMAX ELSE T THEN IF J=105852100        
+    OR S+G>T+(IF AVDIFFMAX>T~NT2 DIV 2 THEN AVDIFFMAX ELSE T) THEN GO Y 05852200        
+    ELSE BEGIN                                                          05852300        
+         IF (NT1~F-1-K)=0 THEN GO Y;                                    05852350        
+         IF P((S+G) DIV 2,DUP) GTR NT1 THEN P(DEL,NT1);SETSHIFT;        05852400        
+         FOR NT1~K STEP -1 UNTIL G DO UT[NT1]~UT[NT1-S] ;               05852500        
+         END ;                                                          05852600        
+    U[J]~(NT1~U[J])&C[TONUMENT]&(IF E~(NT1~NT1.MAXSIZ)<H THEN H ELSE    05852700        
+         NT1)[TOMAXSIZ] ;                                               05852800        
+ $ SET OMIT = NOT(SHAREDISK )                                           05852890        
+ $ SET OMIT = SHAREDISK                                                 05853420        
+    DISKWAIT(R,AVS,B) ;                                                 05853425        
+ $ POP OMIT                                                             05853426        
+ $ SET OMIT = NOT(SHAREDISK )                                           05853490        
+ $ SET OMIT = SHAREDISK                                                 05853593        
+    FORGETSPACE(R) ;                                                    05853595        
+DZ: UNLOCKTOG(USERDISKMASK);                                            05853600        
+ $ POP OMIT                                                             05853601        
+BZ: END OF FORGETUSERDISK ;                                             05853700        
