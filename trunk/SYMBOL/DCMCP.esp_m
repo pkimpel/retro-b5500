@@ -4383,3 +4383,168 @@ AZ: UT[T]~L&H[TODSIZE];  C~(Q~T-Q+1)+C ;                                05852000
 DZ: UNLOCKTOG(USERDISKMASK);                                            05853600        
  $ POP OMIT                                                             05853601        
 BZ: END OF FORGETUSERDISK ;                                             05853700        
+PROCEDURE DKBUSINESS(BUFF); VALUE BUFF; REAL BUFF;                      05950000        
+BEGIN                                                                   05950200        
+    REAL RCW=+0,                                                        05950400        
+         MSCW=-2,                                                       05950500        
+         MID=RWC+1,                                                     05950600        
+         FID=MID+1,                                                     05950800        
+         TMID=FID+1,                                                    05950900        
+         IFID=TMID+1,                                                   05950950        
+         A=TFID+1,                                                      05951000        
+         B=A+1;                                                         05951200        
+    INTEGER N=B+1;                                                      05951400        
+    ARRAY HD=N+1[*];                                                    05951600        
+    BOOLEAN RDT=HD+1;                                                   05951700        
+    INTEGER C=RDT+1,D=C+1,I=D+1,J=I+1,R=J+1,S=R+1,                      05951800        
+            LA=S+1,SA1=NT2,                                             05951900        
+            H=NT7,K=NT6,L=NT5,G=NT4,T=NT3,Q=JUNK;                       05952000        
+    REAL E=LA+1;                                                        05952200        
+    REAL KTR=B;                                                         05952210        
+    REAL TYPE=C;                                                        05952220        
+    REAL WORD=D;                                                        05952230        
+    REAL HA=J;                                                          05952240        
+    REAL HEADER=R;                                                      05952250        
+    ARRAY HDR=E[*];                                                     05952260        
+    BOOLEAN FILTOG=E+1;                                                 05952270        
+    REAL SEGS=FILTOG+1;                                                 05952300        
+ $ SET OMIT = SHAREDISK                                                 05952399        
+    ARRAY UT=HD[*]; INTEGER AVS=SEGS+1; DEFINE U=AVTABLE#;              05952400        
+    INTEGER SLEEPER=AVS+1;                                              05952500        
+ $ POP OMIT                                                             05952501        
+ $ SET OMIT = NOT(SHAREDISK)                                            05952505        
+    LABEL V,W,X,Y,Z,AZ,BZ,CZ,INUSE,EXIT;                                05952600        
+    LABEL FILEID,XDFILE,CONFLICT,FOUND,MSG,FINIS;                       05952620        
+ $ SET OMIT = NOT(SHAREDISK)                                            05952690        
+    REAL SUBROUTINE DECWORD;                                            05952705        
+    BEGIN                                                               05952710        
+         STREAM(T~0:W~[WORD]);                                          05952715        
+         BEGIN                                                          05952720        
+              SI~W; DI~LOC T; DS~8DEC;                                  05952725        
+         END STREAM;                                                    05952730        
+         DECWORD~P;                                                     05952735        
+    END DECWORD;                                                        05952740        
+    SUBROUTINE SCAN;                                                    05952745        
+    BEGIN                                                               05952750        
+         STREAM(KTR,TYPE~0:T~0,W~[WORD]);                               05952755        
+         BEGIN                                                          05952760        
+              SI~KTR;                                                   05952765        
+L0:           IF SC=" " THEN BEGIN SI~SI+1; GO L0; END;                 05952770        
+              IF SC=""" THEN   % STRING IDENTIFIER                      05952775        
+              BEGIN                                                     05952780        
+                   SI~SI+1; DS~LIT"0";                                  05952785        
+                   IF SC=""" THEN                                       05952790        
+                   BEGIN                                                05952795        
+                        SI~SI+1;                                        05952800        
+                        IF SC=""" THEN DS~CHR ELSE DS~LIT" ";           05952805        
+                        DS~6LIT" ";                                     05952810        
+                   END ELSE                                             05952815        
+                   BEGIN                                                05952820        
+                        7(IF SC!""" THEN DS~CHR ELSE DS~LIT" ");        05952825        
+L1:                     IF SC~""" THEN BEGIN SI~SI+1; GO L1; END;       05952830        
+                        S1~SI+1;                                        05952835        
+                   END;                                                 05952840        
+                   GO T1;                                               05952845        
+              END;                                                      05952850        
+              IF SC=ALPHA THEN IF SC LSS "0" THEN                       05952855        
+              BEGIN            % IDENTIFIER                             05952860        
+ID:                DS~LIT"0";                                           05952865        
+                   7(IF SC=ALPHA THEN DS~CHR ELSE DS~LIT" ");           05952870        
+L2:                IF SC=ALPHA THEN BEGIN SI~SI+1; GO L2; END;          05952875        
+T1:                TALLY~1;                                             05952880        
+                   GO EXT;                                              05952885        
+              END;                                                      05952890        
+              IF SC=ALPHA THEN IF SC LEQ "9" THEN                       05952895        
+              BEGIN            % NUMBER                                 05952900        
+                   SI~SI+1; TALLY~1;                                    05952905        
+                   7(IF SC=ALPHA THEN IF SC LSS "0" THEN                05952910        
+                   BEGIN T~TALLY; SI~SI-T; JUMP OUT TO ID; END          05952915        
+                   ELSE IF SC LEQ "9" THEN                              05952920        
+                   BEGIN SI~SI+1; TALLY~TALLY+1; END);                  05952925        
+                   T~TALLY; SI~SI-T; DS~T OCT;                          05952930        
+                   TALLY~2;                                             05952935        
+                   GO EXT;                                              05952940        
+              END;                                                      05952945        
+              IF SC!"~" THEN TALLY~3 ELSE TALLY~5;                      05952950        
+              DS~7 LIT"0"; DS~CHR;                                      05952955        
+EXT:          TYPE~TALLY;                                               05952960        
+              KTR~SI;                                                   05952965        
+         END STREAM;                                                    05952970        
+         P(.TYPE,STD,.KTR,STD);                                         05952975        
+    END SCAN;                                                           05952980        
+    SUBROUTINE MLOGIT;                                                  05952985        
+    BEGIN                                                               05952990        
+         S~TYPEDSPACE(15,MAINTBUFFAREAV);%                         %167-05952995        
+         STREAM(B:DATE,D~S+1);                                          05953000        
+         BEGIN                                                          05953005        
+              SI~LOC DATE; DS~8 OCT; DI~DI+8;                           05953010        
+              SI~B;                                                     05953015        
+              2(63(IF SC!"~" THEN DS~CHR ELSE JUMP OUT 2 TO LL));       05953020        
+LL:           DS~LIT"~"; DI~DI-1; B~DI;                                 05953025        
+         END STREAM;                                                    05953030        
+         LA~ P INX 0;                                                   05953035        
+         M[S]~ (LA-S) DIV 5;                                            05953040        
+         M[S+2]~IF FILTOG THEN -N ELSE SEGS;                            05953045        
+         LINKUP(18,S);                                                  05953050        
+    END MLOGIT;                                                         05953055        
+    SUBROUTINE ENTERFILE;                                               05953060        
+    BEGIN                                                               05953065        
+         FIXARRAY(HD,B,30);                                             05953070        
+         MOVE(30,HD-1,HD);                                              05953075        
+         HD[0]~@3600036000101;                                          05953080        
+         STREAM(DATE,XCLOCK,H~HD INX 3);                                05953085        
+         BEGIN                                                          05953090        
+              SI~LOC DATE; DS~8OCT;                                     05953095        
+              DI~DI-20; SI~SI+4; DS~4CHR;                               05953100        
+              DI~DI-7; SI~H; SI~SI+5; DS~3CHR;                          05953105        
+              DI~H; DS~2LIT"+#"; SI~SI-3; DS~3CHR;                      05953110        
+         END STREAM;                                                    05953115        
+         HD[4].[42:1]:=1; % MAKE FILE NON-MOVEABLE                      05953117        
+         HD[7]~(HD[8]~N)-(HD[9]~1);                                     05953120        
+         HD[10]~A;                                                      05953125        
+         ENTERUSERFILE(MID,FID.[6:42],B-1);                             05953130        
+         STREAM(MID,FID,N,TMID,TFID,FILTON,                             05953135        
+         B~IF FILTOG THEN B ELSE BUFF);                                 05953140        
+         BEGIN                                                          05953145        
+              SI~LOC N; DI~LOC N; DS~8DEC;                              05953150        
+              DI~LOC N; DS~7FILL; DI~B;                                 05953155        
+              DS~LIT" "; SI~LOC MID; SI~SI+1; DS~7CHR;                  05953160        
+              DS~LIT"/"; SI~SI+1; DS~7CHR;                              05953165        
+              DS~6LIT" SEGS="; DS~8CHR; DS~8LIT" CREATED";              05953170        
+              FILTOG(DS~6LIT" FROM "; DI~SI+1; DS~7CHR;                 05953175        
+              DS~LIT"/"; SI~SI+1; DS~7CHR);                             05953180        
+              DS~LIT"~";                                                05953185        
+         END STREAM;                                                    05953190        
+         IF FILTOG THEN                                                 05953195        
+         BEGIN                                                          05953200        
+              MLOGIT;                                                   05953205        
+              SPOUT(B);                                                 05953210        
+         END ELSE                                                       05953215        
+         FORGETSPACE(B);                                                05953220        
+    END ENTERFILE;                                                      05953225        
+    P(0,0,0,0,0,BUFF,DUP); BUFF~P.[15:15]-1; P(0,0,B LSS 0);            05953250        
+    P(0,0,0,0,0,0,0,0,0,0,0);                                           05953260        
+ $ SET OMIT = NOT(SHAREDISK);                                           05953269        
+    IF B.[CF]=0 THEN% MAKE RESERVE/DISK                                 05953400        
+    BEGIN MID:="RESERVE"; FID:="DISK   ";                               05953600        
+         IF (A:=DIRECTORYSEARCH(-MID,FID,5))!0 THEN                     05953800        
+         BEGIN STREAM(BUFF);                                            05954000        
+              DS:=30LIT" RESERVE/DISK ALREADY PRESENT~";                05954200        
+              GO TO EXIT;                                               05954400        
+         END;                                                           05954600        
+         IF (A~GETUSERDISK((N~RESERVEDISKSIZE)&1[2:47:1]))=0 THEN       05954800        
+         BEGIN STREAM(BUFF);                                            05955000        
+              DS:=32LIT"**NO USER DISK FOR RESERVE/DISK~";              05955200        
+              GO TO EXIT;                                               05955400        
+         END;                                                           05955600        
+         GO TO CZ;                                                      05955800        
+    END;                                                                05956000        
+    IF RDT THEN                                                         05956250        
+    BEGIN P(B); A:=M[BUFF INX 0]; N:=M[BUFF INX 1]; END ELSE            05956300        
+    BEGIN                                                               05956350        
+    SCAN;                                                               05956400        
+    IF TYPE=1 THEN % IDENTIFIER                                         05956450        
+    BEGIN                                                               05956500        
+         TMID~WORD;                                                     05956550        
+         SCAN; IF WORD!"/" THEN GO EXIT;                                05956600        
+FILEID:                                                                 05956650        
