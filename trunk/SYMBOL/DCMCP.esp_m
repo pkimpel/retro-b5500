@@ -4548,3 +4548,513 @@ LL:           DS~LIT"~"; DI~DI-1; B~DI;                                 05953025
          TMID~WORD;                                                     05956550        
          SCAN; IF WORD!"/" THEN GO EXIT;                                05956600        
 FILEID:                                                                 05956650        
+         SCAN; IF NOT TYPE=1 OR TYPE=2) THEN GO EXIT;                   05956700        
+         IF ID~IF TYPE=2 THEN DECWORD ELSE WORD;                        05956750        
+         FILTOG~TRUE;                                                   05956800        
+         SCAN;                                                          05956850        
+    END;                                                                05956900        
+    IF TYPE=2 THEN % NUMBER                                             05956950        
+    BEGIN                                                               05957000        
+         A~WORD;                                                        05957050        
+         SCAN;                                                          05957100        
+         IF TYPE=3 THEN IF WORD="/" THEN                                05957150        
+         BEGIN                                                          05957200        
+              WORD~A;                                                   05957250        
+              A~0;                                                      05957300        
+              TMID~DECWORD;                                             05957350        
+              GO FILEID;                                                05957400        
+         END ELSE SCAN;                                                 05957450        
+         IF TYPE=2 THEN N~WORD;                                         05957500        
+    END;                                                                05957550        
+    END;                                                                05957600        
+    SEGS~N~N+(N=0);                                                     05957650        
+    IF (A!0) THEN                                                       05957700        
+    BEGIN                                                               05957750        
+    STREAM(A,D:=[FID]);                                                 05958600        
+    BEGIN SI:=LOC A; DS:=8 DEC; END;                                    05958800        
+    IF (J:=A DIV 1000000) GEQ NEUP.NEUF OR A LSS DIRECTORYTOP+4 THEN    05959000        
+V:  BEGIN STREAM(FID,BUFF);                                             05959200        
+         BEGIN DS:=22LIT" INVALID DISK ADDRESS ";                       05959400        
+              SI:=LOC FID; DS:=8CHR; DS:=LIT"~";                        05959600        
+              DI:=DI=9; DS:=7 FILL;                                     05959800        
+         END;                                                           05960000        
+         GO TO EXIT;                                                    05960200        
+    END;                                                                05960400        
+    IF WAITIO([FID]INX@100000000,@64,18+FID.[5:1]).[42:1] THEN GO TO V; 05960600        
+    IF (R:=FID.[12:6]) GEQ 2 THEN % CHECK FOR 40 MIL ADDRESS            05960650        
+          IF NOT WAITIO([FID]INX @140000000,@64,18+FID.[5:1]).[43:1]    05960660        
+                   THEN GO TO V ELSE IF R GEQ 4 THEN GO TO V;% INV ADD  05960670        
+    END;                                                                05960675        
+    IF FILTOG THEN GO XDFILE;                                           05960680        
+    IF A=0 THEN GO EXIT;                                                05960685        
+    SLEEP([TOGLE],USERDISKMASK); LOCKTOG(USERDISKMASK);                 05960700        
+ $ SET OMIT = NOT(SHAREDISK)                                            05960705        
+    J~J+1;                                                              05960800        
+BZ: D:=(I:=(E:=U[J]).STARTWRD) MOD 30;                                  05961000        
+ $ SET OMIT = NOT(SHAREDISK)                                            05961005        
+ $ SET OMIT = SHAREDISK                                                 05961199        
+    AVS:=30-(S:=(C:=E AND NUMENTM)+D)MOD 30+S;                          05961200        
+    FIXARRAY(UT,R,AVS); DISKWAIT(-R,AVS,B:=I DIV 30+USERDISKBOTTOM);    05961400        
+    K:=S; I:=D; S:=I+C;                                                 05961600        
+ $ POP OMIT                                                             05961601        
+    G:=I-(NT2:=(P(U[J-1],DUP) AND NUMENTM)+P(XCH).STARTWRD);            05961800        
+    S:=U[J+1].STARTWRD-S; H:=K:=K-1; IF UT[T:=L].DEND GTR A THEN GO X;  05962000        
+W:  IF UT[T+(H+L+1) DIV 2].DEND > A THEN IF UT[H~T-1].DEND > A THEN GO W05962200        
+    ELSE ELSE IF UT[T~T+1].DEND { A THEN BEGIN L~T+1; GO W END;         05962400        
+X:  IF A GEQ L:=(H:=UT[T].DEND)-(Q:=UT[T].DSIZE) THEN                   05962600        
+    IF (LA:=(A+N)) LEQ H THEN GO AZ%AREA AVAILABLE                      05962700        
+    ELSE IF LA LEQ SA1:=(UT[T+1].DEND-UT[T+1].DSIZE) THEN               05962800        
+    N:=LA-A:=H ELSE N:=SA1-A:=H ELSE IF (LA:=A+N) GTR L THEN            05962900        
+    N:=L-A ELSE RDT:=RDT OR @100000;                                    05963000        
+    GO INUSE;                                                           05963100        
+Y:  TMID:=IF RDT THEN "DKTEST " ELSE "BADISK ";                         05963800        
+ $ SET OMIT = NOT(DKBNODFX AND NOT DFX)                                 05963809        
+    STREAM(TMID,FID,N,MID,B,BUFF);                                      05964000        
+    BEGIN DS:=LIT "."; SI:=LOC TMID; SI:=SI+1; DS:=7 CHR;               05964200        
+         DS:=LIT "/"; SI:=SI-1; DS:=7 CHR;                              05964400        
+         DS:=13 LIT " NOT CREATED("; SI:=SI+8; SKIP SB;                 05964500        
+         IF SB THEN ELSE                                                05964600        
+         BEGIN SI:=LOC N; DS:=7 DEC; N:=DI; DI:=DI-7; DS:=7 FILL;       05964800        
+              DI:=N; DS:=5 LIT " SEGS"; SI:=SI+1;                       05964900        
+         END; DS:=11 LIT " IN USE BY "; DS:=7 CHR; DS:=LIT"/";          05965000        
+         SI:=SI+1; DS:=7 CHR;                                           05965200        
+         DS:=2 LIT")~";                                                 05965400        
+    END;                                                                05965600        
+    FORGETSPACE(R);                                                     05966100        
+    GO EXIT;                                                            05966110        
+ INUSE:       % SEARCH THE DIRECTORY TO FIND THE NAME OF THE CONFLICTING05966200        
+              % FILE.  SINCE USERDISK REMAINS LOCKED, DISK ALLOCATION   05966210        
+              % CANNOT CHANGE.  HENCE, THE DIRECTORY NEED NOT BE LOCKED.05966220        
+    FORGETSPACE(R);                                                     05966400        
+    FIXARRAY(UT,R,480);                                                 05966600        
+    FOR J:=DIRECTORYTOP+4 STEP 16 WHILE TRUE DO                         05967000        
+    BEGIN DISKWAIT(-R,480,J);                                           05967200        
+         FOR I:=14 STEP -1 UNTIL 0 DO                                   05967400        
+         BEGIN E:=UT[450+2|I];                                          05967600        
+              IF(E EQV @114)=NOT 0 THEN                                 05967800        
+              BEGIN MID:="SYSTEM "; B:=FID; GO Z; END;                  05967900        
+              IF (E EQV @14) NEQ NOT 0 THEN                             05968000        
+              BEGIN B:=UT[30|I+9] AND 31;                               05968200        
+                   FOR K:=1 SETP 1 UNTIL B DO                           05968400        
+                        IF (C:=UT[30|I+9+K))NEQ 0 THEN                  05968600        
+                        IF A GEQ C THEN IF A LSS                        05968800        
+                        SA1:=(C+D:=UT[30|I+8]) THEN                     05968900        
+                        BEGIN MID:=E&((LA LEQ SA1) AND                  05969000        
+                             (RDT.[18:15]))[1:47:1];                    05969100        
+                             IF A+N GTR SA1 THEN N~SA1-A;               05969150        
+                             B:=UT[451+2|I];                            05969200        
+                             GO TO Z;                                   05969400        
+                        END;                                            05969600        
+              END;                                                      05969800        
+         END;                                                           05970000        
+    END;                                                                05970200        
+Z:                                                                      05970300        
+ $ SET OMIT = NOT SHAREDISK                                             05970390        
+    UNLOCKTOG(USERDISKMASK);                                            05970500        
+    GO TO Y;                                                            05970600        
+AZ: IF A NEQ L AND LA NEQ H THEN                                        05970800        
+    BEGIN IF S=0 THEN                                                   05971000        
+ $ SET OMIT = NOT (SHAREDISK)                                           05971005        
+ $ SET OMIT = SHAREDISK                                                 05971095        
+         BEGIN IF G=0 OR D=0 THEN                                       05971200        
+              BEGIN USERDISKSPECIALCASE(2,E,UT,J); GO TO BZ END;        05971400        
+              S:=IF P((G+1) DIV 2,DUP) > D THEN P(DEL,D) ELSE P;        05971600        
+              U[J].STARTWRD:=I-S; G:=D-S; K:=G+C-1;                     05971800        
+ $ POP OMIT                                                             05971801        
+              MOVE(C,[UT[D]],[UT[G]]); T:=T-S;                          05972000        
+         END;                                                           05972200        
+         FOR G:=K STEP -1 UNTIL T DO UT[G+1]:=UT[G];                    05972400        
+         UT[T]:=A&(A-L)[TODSIZE];                                       05972600        
+         UT[T+1]:=H&(H-LA)[TODSIZE];                                    05972800        
+         C:=C+1;                                                        05973000        
+         K ~ K+1;                                                       05973100        
+    END ELSE                                                            05973200        
+    IF A=L AND LA=H THEN                                                05973400        
+    BEGIN C:=C-1; MOVE(K-T,[UT[T+1]],[UT[T]]); K:=K-1 END               05973600        
+    ELSE UT[T]:=(IF A=L THEN H ELSE A)&(Q-N)[TODSIZE];                  05973800        
+    U[J].NUMENT:=C;                                                     05974000        
+    IF Q=U[J].MAXSIZ THEN                                               05974200        
+    BEGIN Q:=UT[H:=K-C+1].DSIZE;                                        05974400        
+         FOR H:=H STEP 1 UNTIL K DO                                     05974600        
+              IF P(UT[H].DSIZE,DUP) GTR Q THEN Q:=P ELSE P(DEL);        05974800        
+         U[J].MAXSIZ:=Q;                                                05975000        
+    END;                                                                05975200        
+    MID:=IF RDT THEN "DKTEST " ELSE "BADISK ";                          05975400        
+ $ SET OMIT = NOT(DKBNODFX AND NOT DFX)                                 05975404        
+ $ SET OMIT = NOT(SHAREDISK)                                            05975410        
+ $ SET OMIT = SHAREDISK                                                 05975595        
+    DISKWAIT(R,AVS,B);                                                  05975600        
+ $ POP OMIT                                                             05975601        
+    UNLOCKTOG(USERDISKMASK);                                            05975610        
+    FORGETSPACE(R);                                                     05975620        
+CZ: ENTERFILE;                                                          05975630        
+    GO EXIT;                                                            05975640        
+XDFILE:                                                                 05975700        
+    IF (HEADER:=DIRECTORYSEARCH(TMID,NFLAG(-TFID OR M),4)) LSS 64 THEN  05975750        
+    BEGIN                                                               05975800        
+         TYPE:=HEADER;                                                  05975850        
+         GO MSG;                                                        05975900        
+    END;                                                                05975950        
+    HA~HEADER.[FF];                                                     05976000        
+    HDR~[M[HEADER~HEADER INX 0]) & 30[8:38:10];                         05976050        
+    MID~-"BADISK ";                                                     05976100        
+    S~HDR[8]; % SEGMENTS PER ROW                                        05976150        
+    IF A!0 THEN                                                         05976200        
+    BEGIN                                                               05976250        
+         FOR I!HDR[9] STEP -1 UNTIL 1 DO                                05976300        
+         IF (LA~HDR[I+9])!0 THEN                                        05976350        
+         IF A GEQ LA AND A LSS LA+S THEN % FOUND ROW                    05976400        
+         IF A+N LEQ LA+S THEN GO FOUND ELSE GO CONFLICT;                05976450        
+         TYPE~4;                                                        05976500        
+         IF FALSE THEN                                                  05976550        
+         BEGIN                                                          05976600        
+CONFLICT:     TYPE~3;                                                   05976650        
+              SEGS~A+N-LA-S;                                            05976700        
+         END;                                                           05976750        
+         HEADERUNLOCK(TMID,TFID,HEADER&HA[CTF]);                        05976800        
+         GO MSG;                                                        05976850        
+FOUND:                                                                  05976900        
+         HDR[I+9]~0;                                                    05976950        
+         DISKWAIT(HEADER,30,HA);                                        05977000        
+         IF (I~A-LA) GTR 0 THEN FORGETUSERDISK(LA,I);                   05977050        
+         IF (I~LA+S-(LA~A+N)) GTR 0 THEN FORGETUSERDISK(LA,I);          05977100        
+ $ SET OMIT = NOT(DKBNODFX AND NOT DFX)                                 05977124        
+         ENTERFILE;                                                     05977150        
+         GO FINIS;                                                      05977200        
+    END;                                                                05977250        
+    N~S; SEGS~0;                                                        05977300        
+    FOR I~HDR[9] STEP -1 UNTIL 1 DO                                     05977350        
+    IF (A~HDR[I+9])!0 THEN                                              05977400        
+    BEGIN                                                               05977450        
+         HDR[I+9]~0;                                                    05977500        
+         DISKWAIT(HEADER,30,HA);                                        05977550        
+         WORD~A; FID~DECWORD;                                           05977600        
+ $ SET OMIT = NOT(DKBNODFX AND NOT DFX)                                 05977624        
+         ENTERFILE;                                                     05977650        
+         SEGS~SEGS+N;                                                   05977700        
+    END;                                                                05977750        
+FINIS:                                                                  05977800        
+    FORGETSPACE(HEADER);                                                05977850        
+    P(DIRECTORYSEARCH(-TMID,TFID,6),DEL);                               05977900        
+    TYPE~5;                                                             05977950        
+MSG:                                                                    05978000        
+    STREAM(TMID,TFID,SEGS,A,TYPE,BUFF);                                 05978050        
+    BEGIN                                                               05978100        
+         SI~LOC SEGS; DI~LOC SEGS; DS~8DEC; DS~8DEC;                    05978150        
+         DI~LOC SEGS; DS~8FILL; DI~LOC A; DS~8 FILL; DI~BUFF;           05978200        
+         DS~LIT","; SI~LOC TMID; SI~SI+1; DS~7CHR;                      05978250        
+         DS~LIT"/"; SI~SI+1; DS~7CHR;                                   05978300        
+         DS~11 LIT" NOT XD-ED(";                                        05978350        
+         CI~CI+TYPE;                                                    05978400        
+         GO T0; GO T1; GO T2; GO T3; GO T4; GO T5;                      05978450        
+T0:      DS~11 LIT"NOT ON DISK"; GO EXT;                                05978500        
+T3:      DS~8 CHR; DS~6 LIT" SEGS ";                                    05978550        
+T1:      DS~6 LIT"IN USE"; GO EXT;                                      05978600        
+T2:      DS~11 LIT"SYSTEM FILE"; GO EXT;                                05978650        
+T4:      SI~SI+8; DS~8 CHR;                                             05978700        
+         DS~12 LIT" NOT IN FILE"; GO EXT;                               05978750        
+T5:      DI~DI-11;                                                      05978800        
+         DS~6 LIT" SEGS="; DS~8 CHR; DS~7 LIT" XD-ED~";                 05978850        
+         TYPE~DI; DI~BUFF; DS~LIT" "; DI~TYPE; GO EXT;                  05978900        
+EXT:     DS~2 LIT")~";                                                  05978950        
+    END STREAM;                                                         05979000        
+    A~1; N~SEGS; % FOR LOGGING                                          05979050        
+    GO EXIT;                                                            05979100        
+EXIT:                                                                   05979310        
+    IF A!0 THEN                                                         05979320        
+    BEGIN                                                               05979330        
+         B~BUFF;                                                        05979340        
+         MLOGIT;                                                        05979350        
+    END;                                                                05979360        
+      IF RDT THEN M[SLEEPER INX 0] :=1 ELSE SPOUT(BUFF);                05979400        
+    BUFF:=0; IF MSCW NEQ 1 THEN KILL([MSCW]); % CALLED AS IND. RUNNER   05979500        
+END;                                                                    05979600        
+ SAVE PROCEDURE DISKIO(LOCIOD,CORE,SIZE,DISK);%                         06000000        
+         VALUE CORE,SIZE,DISK;%                                         06001000        
+         REAL LOCIOD;%                                                  06002000        
+         INTEGER CORE,SIZE,DISK;%                                       06003000        
+         BEGIN REAL IOD, OLAYIO, FIN;                                   06004000        
+         OLAYIO := SIZE.[3:1];  SIZE.[3:1] := 0;                        06004010        
+              CORE:=CORE; SIZE:=SIZE; DISK:=DISK; % INTEGERIZE     %645-06004100        
+              IF DISK.[1:1] THEN                                        06005000        
+              BEGIN % AUXILIARY MEMORY                                  06006000        
+ $ SET OMIT = NOT(AUXMEM)                                               06006999        
+ $ SET OMIT = AUXMEM                                                    06009200        
+              PUNT(NVLDAUXIO);                                          06009300        
+ $ POP OMIT                                                             06009400        
+              END                                                       06009500        
+              ELSE BEGIN IOD := ABS(CORE) & SIZE[8:38:10]               06010000        
+                               & ((SIZE INX 29) DIV 30 +@1000)[CTF]     06011000        
+                               & CORE[24:1:1] & 3[5:46:2];              06012000        
+ $ SET OMIT = NOT(SHAREDISK)                                            06012499        
+                        STREAM(DISK,D:=CORE.[CF]);                      06013000        
+                             BEGIN SI ~ LOC DISK; DS ~ 8 DEC END;%      06014000        
+                        SIZE ~ 2;%                                      06015000        
+                   END;%                                                06016000        
+              FIN:=IF OLAYIO THEN IOD&DISK[CTC]&DISK[8:21:12] ELSE IOD; 06016100        
+              % ACTUAL DISK ADDRESS IN FINALQUE FOR OLAY I/O-S          06016200        
+              IOREQUEST(NABS(FIN)&@377[25:40:8],IOD,[LOCIOD]&%          06017000        
+                   (SIZE+16)[12:42:6]&OLAYIO[9:47:1]);                  06018000        
+              LOCIOD ~ 0;%                                              06019000        
+         END DISKIO;%                                                   06020000        
+PROCEDURE FORGETESPDISK(SEGMENT); VALUE SEGMENT; REAL SEGMENT; FORWARD; 06020500        
+ REAL PROCEDURE GETESPDISK;%                                            06021000        
+         BEGIN REAL T=NT1;                                              06022000        
+              IF ESPCOUNT=0 THEN                                        06022100        
+              BEGIN                                                     06022200        
+                   STREAM(D:=T:=SPACE(2));                              06022300        
+                        DS~12 LIT " NO ESPDISK~";                       06022400        
+                   SPOUT(T);                                            06022500        
+                   SLEEP([ESPCOUNT],NOT 0);                             06022600        
+              END;                                                      06022700        
+              STREAM(T~0,A~ESPTAB:X~0);                                 06023000        
+              BEGIN SI~A;                                               06024000        
+              L1:  IF SC=""" THEN BEGIN SI~SI+1; GO TO L1 END;          06025000        
+                   A~SI; DI~A;                                          06026000        
+              L2:  IF SB THEN                                           06027000        
+                   BEGIN TALLY~TALLY+1; SKIP SB; SKIP DB; GO TO L2 END; 06028000        
+                   T~TALLY; DS~SET;                                     06029000        
+              END;                                                      06030000        
+              GETESPDISK~((P(DUP).[CF]-ESPTAB)|8                        06031000        
+              +P(XCH).[30:3])|6+P+ESPDISKBOTTOM;                        06032000        
+              ESPCOUNT~ESPCOUNT-1;                                      06033000        
+         END;                                                           06033100        
+ PROCEDURE FORGETESPDISK(SEGMENT); VALUE SEGMENT; REAL SEGMENT;%        06036000        
+         BEGIN REAL S,T;                                                06037000        
+              IF SEGMENT LSS ESPDISKBOTTOM OR                           06037100        
+                   SEGMENT GTR ESPDISKTOP THEN                          06037200        
+                   BYBY("ESPDISK ERROR~",14);                           06037300        
+              T:=(S:=(T:=SEGMENT-ESPDISKBOTTOM) DIV 6)|6-T;             06037700        
+              S~S.[30:15]&S[30:45:3]|ESPTAB;                            06038000        
+              STREAM(T,S); BEGIN SKIP T DB; DS~RESET END;               06038100        
+              ESPCOUNT~ESPCOUNT+1;                                      06038200        
+         END;%                                                          06039000        
+ $ SET OMIT = NOT(DEBUGGING)                                            06045999        
+REAL SCHEDULEIDS; % A BIT IN POSITION X MEANS THAT THERE IS A JOB IN THE06056099        
+                  % SCHEDULE(SHEET) WITH SCHEDULE-ID X.  USED BY COM5,  06056100        
+                  % SELECTRUN AND CCFINISH.                             06056200        
+ $ SET OMIT = NOT(SHAREDISK)                                            06057000        
+ SAVE PROCEDURE DISKWAIT(CORE,SIZE,DISK);                               06061500        
+         VALUE CORE,SIZE,DISK;                                          06062000        
+         REAL CORE,SIZE,DISK;                                           06063000        
+         BEGIN REAL T;                                                  06064000        
+              DISKIO(T,(ABS(CORE)-1)&CORE[1:1:1],SIZE,DISK);            06065000        
+              SLEEP([T],IOMASK);                                        06066000        
+         END;                                                           06067000        
+PROCEDURE DISKSQUASH(BUFF);                                             06068000        
+VALUE BUFF; REAL BUFF;                                                  06068100        
+BEGIN                                                                   06068200        
+REAL RCW=+0, B=+1, E=B+1, F=E+1, R=F+1, HI=R+1, LO=HI+1,                06068300        
+     MSCW=-2,                                                           06068350        
+     CNT=LO+1, USE=CNT+1, TOG=USE+1, IOD=TOG+1;                         06068400        
+REAL T=IOD+1, SUM=T;                                                    06068500        
+REAL A1= T+1, A2=A1+1, A3=A2+1, A4=A3+1, A5=A4+1; % ARRAY VARIABLES     06068600        
+REAL X1=A5+1, X2=X1+1, X3=X2+1, X4=X3+1, X5=X4+1; % SCRATCH VARIABLES   06068700        
+REAL LOCIOD=X4, HICNT=X4, LSTCNT=X5;                                    06068800        
+BOOLEAN CONFLICT=X5+1, PASTWO=CONFLICT+1, EUNOTSQUASHED=PASSTWO+1,      06068900        
+        FILEOK=EUNOTSQUASHED+1, SQALL=FILEOK+1;                         06069000        
+INTEGER C=SQALL+1, D=C+1, I=D+1, S=I+1, EU=S+1, AV=EU+1,                06069100        
+        AVSIZE=AV+1, DISKAV=AVSIZE+1, SQSIZE=DISKAV+1;                  06069200        
+ARRAY UT=SQSIZE+1[*], MV=UT+1[*], DIR=MV+1[*], EUS=DIR+1[*];            06069300        
+REAL PRTADDR=EUS+1, PRTVALUE=PRTADDR+1;                                 06069400        
+ $ SET OMIT = NOT SHAREDISK                                             06069500        
+LABEL SCAN, SPOUTER,CK,OKINUSE,NOTOK,OKBOUNDS,MVEMORE,MVE,              06069900        
+      ENDMVE,AGAIN,OK,NEXT,SQIT,STOPSQ,STOPIT,SDXIT,OUT,FIXMV;          06070000        
+DEFINE                                                                  06070100        
+ $ SET OMIT = SHAREDISK                                                 06070200        
+       U         = AVTABLE#,                                            06070300        
+ $ POP OMIT                                                             06070400        
+       LINK      = [12:10]#,                                            06070500        
+       ASIZE     = [3:19]#,                                             06070600        
+       LOCKED    = [2:1]#,                                              06070700        
+       FACTOR    = 10000#,                                              06070800        
+       MINSIZE   = 10#,                                                 06070900        
+       MAXMVSIZE = 900#,                                                06071000        
+       KEYINMASK = [18:15]#;                                            06071100        
+COMMENT                                                                 06071200        
+       FACTOR:    THE MAXIMUM SEPARATION, IN SEGMENTS, ALLOWED          06071300        
+                  BETWEEN TWO AVAILABLE AREAS WHICH ARE TO BE           06071400        
+                  SQUASHED. IN GENERAL, FACTOR SHOULD NOT BE MADE       06071500        
+                  LARGER THAN THE CAPACITY OFA 20 ML SUBMOD,I.E.,       06071600        
+                  10,000 SEGMENTS.                                      06071700        
+       MINSIZE:   THE MINIMUM SIZE, IN SEGMENTS, ALLOWED FOR AN         06071800        
+                  AVAILABLE AREA TO BE CONSIDERED AS A CANDIDATE        06071900        
+                  FOR SQUASHING. MINSIZE MAY BE MADE AS SMALL AS        06072000        
+                  ONE, BUT AS SQUASH TIME VARIES INVERSLY WITH          06072100        
+                  MINSIZE, SMALLER VALUES WILL INCREASE SQUASH-         06072200        
+                  ING TIME PROPORTIONALLY. MINSIZE LIMITA-              06072300        
+                  TIONS MAY BE OVERRIDEN BY THE LOOKAHEAD               06072400        
+                  FACILITY.                                             06072500        
+       MAXMVSIZE: LIMITS THE NUMBER OF INDIVIDUAL AREAS IN AN           06072600        
+                  IN-USE AREA TO BE AT MOST MAXMVSIZE/3 AREAS           06072700        
+                  FOR SQUASHING TO OCCUR.                               06072800        
+                  NOTE:                                                 06072900        
+                    1) MAXMVSIZE MUST BE LESS THAN 1024,                06073000        
+                    2) MAXMVSIZE MUST BE A MULTIPLE OF 3.        ;      06073100        
+DEFINE CELL     = M[PRTADDR]#,                                          06073200        
+       STOP     = M[PRTADDR]#,                                          06073300        
+       STOPCK   = IF M[PRTADDR] THEN GO STOPSQ#,                        06073400        
+       MOVEABLE = NOT DIR[X3+4].[42:1]#,                                06073500        
+       TEMPDSK  = MV[I+2].[1;1]#;                                       06073600        
+SUBROUTINE SQUASHMESS;                                                  06073700        
+BEGIN                                                                   06073800        
+     IF (X1:=P(XCH))>1 THEN X3:=IF SQSIZE!0 THEN SQSIZE                 06073900        
+     ELSE EUS[EU-1].DSIZE;                                              06074000        
+     STREAM(A:=EU-1,B:=X1,C:=X3,C1:=0,C2:=0,CX:=0,                      06074100        
+            NOSQ:=EUNOTSQUASHED, X2:=X2:=SPACE(10));                    06074200        
+     BEGIN                                                              06074300        
+          C1:=CI; GO TO L0;                                             06074400        
+          SI:=LOC A; DS:=4 LIT" EU"; DS:=2 DEC;                         06074500        
+          A:=DI; DI:=DI-2; DS:=FILL; DS:=A; CI:=CX;                     06074600        
+     L0:  C2:=CI; GO TO L2; DS:=4 LIT"NULL"; CI:=CX;                    06074700        
+     L1:  DS:=7 LIT" SQUASH"; CI:=CX;                                   06074800        
+     L2:  CI:=CI+B;                                                     06074900        
+          GO TO LL0; GO TO LL0; GO TO LL2; TO TO LL2;                   06075000        
+     LL0: CX:=CI; CI:=C1;                                               06075100        
+          N(NOSQ(DS:=LIT" "; CX:=CI; CI:=C2));                          06075200        
+          CX:=CI; GO TO L1;                                             06075300        
+          B(NOSQ(JUMP OUT 2 TO LL1); DS:=2 LIT"ED";                     06075400        
+            JUMP OUT TO LL1);                                           06075500        
+          DS:=3 LIT"ING";                                               06075600        
+     LL1: GO TO EXT;                                                    06075700        
+     LL2: DS:=LIT" "; CX:=C1; CI:=C2;                                   06075800        
+          CX:=CI; GO TO L1;                                             06075900        
+          SI:=B; 2(SI:=SI-8); B:=SI;                                    06076000        
+          B(CX:=CI; CI:=C1);                                            06076100        
+          DS:=2 LIT" ("; SI:=LOC C;                                     06076200        
+          DS:=6 DEC; C:=DI; DI:=DI-6; DS:=5 FILL; DI:=C;                06076300        
+          DS:=19 LIT" SEGMENTS AVAILABLE";                              06076400        
+          B(JUMP OUT TO LL3); DS:=4 LIT" ON ";                          06076500        
+          CX:=CI; CI:=C1;                                               06076600        
+     LL3: DS:=LIT")";                                                   06076700        
+     EXT: DS:=LIT"~";                                                   06076800        
+     END;                                                               06076900        
+     SPOUT(X2);                                                         06077000        
+END PRINTING MESSAGES;                                                  06077100        
+SUBROUTINE SCANMESSAGE;                                                 06077200        
+BEGIN                                                                   06077300        
+     X1:=(X5:=NEUP.[FF])-1; X2:=BUFF.[30:18];                           06077400        
+     FIXARRAY(EUS,A5,X5);                                               06077500        
+     MOVE(X5,A5-1,A5);                                                  06077600        
+     X5:=-1; % WILL BE GEQ ZERO AFTER FIRST PASS THRU SCAN              06077700        
+SCAN:                                                                   06077800        
+     STREAM(A:=0,SIZ:=0,EU1:=-1,EU2:=-1,ERRTOG:=0:NO:=0,                06077900        
+            B:=X5<0,EU:=@2564000000000000,CX:=0,C1:=0,                  06078000        
+            C2:=0,KTR:=X2);                                             06078100        
+     BEGIN                                                              06078200        
+          C1:=CI; GO TO L2;                                             06078300        
+          IF SC<0 THEN                                                  06078400        
+     A0:  BEGIN TALLY:=1; NO:=TALLY; CI:=CX END;                        06078500        
+          IF SC=12 THEN GO TO A0;                                       06078600        
+          DI:=LOC SIZ;                                                  06078700        
+     L1:  IF SC GEQ 0 THEN IF SC<12 THEN                                06078800        
+          BEGIN                                                         06078900        
+               TALLY:=TALLY+1;                                          06079000        
+               SI:=SI+1;                                                06079100        
+               GO TO L1;                                                06079200        
+          END;                                                          06079300        
+          NO:=TALLY;                                                    06079400        
+          SI:=SI-NO;                                                    06079500        
+          DS:=NO OCT;                                                   06079600        
+          TALLY:=0; NO:=TALLY;                                          06079700        
+          CI:=CX;                                                       06079800        
+     L2:  C2:=CI; GO TO STR;                                            06079900        
+          TALLY:=1; DI:=LOC EU;                                         06080000        
+          IF 2 SC=DC THEN % AN EU SPECIFIED                             06080100        
+          BEGIN                                                         06080200        
+               CX:=CI; GO TO L3;                                        06080300        
+               IF SC GEQ 0 THEN IF SC<12 THEN                           06080400        
+               BEGIN                                                    06080500        
+                    SI:=SI+1; DI:=LOC EU1;                              06080600        
+                    IF SC GEQ 0 THEN IF SC<12 THEN                      06080700        
+                    TALLY:=2 ELSE GO TO A1;                             06080800        
+                    SI:=SI-1; NO:=TALLY;                                06080900        
+                    DS:=NO OCT; TALLY:=0;                               06081000        
+               END ELSE GO TO A1;                                       06081100        
+          END;                                                          06081200        
+          NO:=TALLY; CI:=A;                                             06081300        
+          CI:=A;                                                        06081400        
+     L3:  IF SC=" " THEN BEGIN SI:=SI+1; GO TO L3 END; CI:=CX;          06081500        
+     STR: SI:=KTR; CI:=CI+B; GO TO L5; GO TO L4;                        06081600        
+     L4:  IF SC="~" THEN GO TO EXT;                                     06081700        
+          CX:=CI; CI:=C1; % SIZE CHECK                                  06081800        
+          NO(JUMP OUT TO L5);                                           06081900        
+          CX:=CI; GO TO L3;                                             06082000        
+          IF SC!"~" THEN                                                06082100        
+     A1:  GO TO ERR;                                                    06082200        
+          GO EXT;                                                       06082300        
+     L5:  A:=CI; CI:=C2; % EU CHECK                                     06082400        
+          NO(JUMP OUT TO ERR);                                          06082500        
+          IF SC="-" THEN                                                06082600        
+          BEGIN                                                         06082700        
+               SI:=SI+1; CX:=CI; GO TO L3;                              06082800        
+               CX:=CI; CI:=C1; % SIZE CHECK                             06082900        
+               NO(JUMP OUT TO L6); GO TO L7;                            06083000        
+     L6:       TALLY:=EU1; EU2:=TALLY;                                  06083100        
+               A:= CI; CI:=C2; % EU CHECK                               06083200        
+               NO(JUMP OUT TO ERR);                                     06083300        
+          END;                                                          06083400        
+     L7:  A:=TALLY; % ZERO OUT A                                        06083500        
+          IF SC="~" THEN GO TO EXT;                                     06083600        
+          IF SC="," THEN                                                06083700        
+          BEGIN SI:=SI+1; A:=SI; GO EXT END;                            06083800        
+     ERR: TALLY:=1; ERRTOG:=TALLY;                                      06083900        
+     EXT:                                                               06084000        
+     END;                                                               06084100        
+     IF P THEN % ERROR IN INPUT MESSAGE                                 06084200        
+     BEGIN                                                              06084300        
+SPOUTERR:                                                               06084400        
+          SPOUT(P(BUFF.[15:15]-1,DUP)&M[P-1][9:9:9]);                   06084500        
+          FORGETSPACE(A5);                                              06084600        
+          P(XIT);                                                       06084700        
+     END;                                                               06084800        
+     IF (X3:=P) GEQ 0 THEN % AN EU RANGE SPECIFIED.                     06084900        
+     BEGIN                                                              06085000        
+          IF (X4:=P)>X1 OR X3<X1 THEN GO SPOUTERR;                      06085100        
+          FOR I:=X3 STEP 1 UNTIL X4 DO EUS[I]:=1;                       06085200        
+          P(DEL); GO CK;                                                06085300        
+     END;                                                               06085400        
+     X5:=P(XCH); % SIZE OF SQUASH                                       06085500        
+     IF (X4:=P) GEQ 0 THEN IF X4>X1 THEN GO SPOUTERR ELSE               06085600        
+     EUS[X4]:=1&X5[TODSIZE] ELSE IF X5=0 THEN SQALL:=1                  06085700        
+     ELSE SQSIZE:=X5;                                                   06085800        
+CK:  IF (XS:=P)!0 THEN GO SCAN; % NOT FINISHED YET                      06085900        
+END SCANNING INPUT MESSAGE;                                             06086000        
+SUBROUTINE FIXANDWRITEHEADER;                                           06086100        
+BEGIN                                                                   06086200        
+     M[A4+9+X2.[28:5]]:=C;                                              06086300        
+     DISKWAIT(A4,30,X2.[CF]);                                           06086400        
+END WRITING NEW HEADER;                                                 06086500        
+SUBROUTINE BOUNDARYCK;                                                  06086600        
+BEGIN                                                                   06086700        
+     LSTCNT:=0; M[X2-1]:=-1;                                            06086800        
+MVEMORE:                                                                06086900        
+     X3:=HICNT:=0; STOPCK;                                              06087000        
+     FOR I:=CNT SETP -3 UNTIL 0 DO                                      06087100        
+     IF P(MV[I],DUP).DEND>X3 AND P(XCH)>0 THEN                          06087200        
+     BEGIN X3:=MV[I].DEND; HICNT:=I END;                                06087300        
+     IF X3=0 THEN % RE-ORDERING OF MV ARRAY COMPLETE                    06087400        
+     BEGIN                                                              06087500        
+          MV[LSTCNT+2].LINK:=@1777;                                     06087600        
+          GO OKBOUNDS;                                                  06087700        
+     END;                                                               06087800        
+     IF M[A2-1]<0 THEN M[A2-1]:=HICNT ELSE MV[LSTCNT+2].LINK:=HICNT;    06087900        
+     MV[LSTCNT:=HICNT]:=NABS(*P(DUP));                                  06088000        
+     MV[HICNT+1].[2:26]:=HI;                                            06088100        
+     HI:=HI-(X3:=MV[HICNT].DSIZE);                                      06088200        
+     IF X3 LEQ UT[AV+1].ASIZE THEN                                      06088300        
+OK:  BEGIN                                                              06088400        
+          MV[HICNT+2]:=0;                                               06088500        
+          GO MVEMORE;                                                   06088600        
+     END ELSE                                                           06088700        
+     BEGIN % LOOKING FOR TEMPORARY STORAGE                              06088800        
+          FOR I:=S-2 STEP -1 UNTIL D DO                                 06088900        
+          IF X3 LEQ UT[I].ASIZE THEN                                    06089000        
+          IF NOT UT[I].LOCKED THEN      % OK FOR TEMP STORAGE           06089100        
+          BEGIN                                                         06089200        
+               MV[HICNT+2]:=UT[I].DEND&I[2:38:10];                      06089300        
+               GO MVEMORE;                                              06089400        
+          END;                                                          06089500        
+     END;                                                               06089600        
+     IF PASSTWO THEN % NON-PROTECTED FILE TRANSFER                      06089700        
+     BEGIN                                                              06089800        

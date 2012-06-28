@@ -147,8 +147,14 @@ B5500CentralControl.prototype.clear = function() {
 B5500CentralControl.prototype.bit = function(word, bit) {
     /* Extracts and returns the specified bit from the word */
     var e = 47-bit;
+    var p;
 
-    return (e > 0 ? Math.floor(word/B5500CentralControl.pow2[e]) : word) % 2;
+    if (e > 0( {
+        p = B5500CentralControl.pow2[e];
+        return ((word - word%p)/p) % 2;
+    } else {
+        return word % 2;
+    }
 }
 
 /**************************************/
@@ -170,8 +176,14 @@ B5500CentralControl.prototype.fieldIsolate = function(word, start, width) {
     /* Extracts a bit field [start:width] from word and returns the field */
     var ue = 48-start;                  // upper power exponent
     var le = ue-width;                  // lower power exponent
+    var p;
 
-    return (le > 0 ? Math.floor(word/B5500CentralControl.pow2[le]) : word) % B5500CentralControl.pow2[width];
+    if (le > 0) {
+        p = B5500CentralControl.pow2[le];
+        return ((word - word%p)/p) % B5500CentralControl.pow2[width];
+    } else {
+        return word % B5500CentralControl.pow2[width];
+    }
 }
 
 /**************************************/
