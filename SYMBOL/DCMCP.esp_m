@@ -5058,3 +5058,102 @@ OK:  BEGIN                                                              06088400
      END;                                                               06089600        
      IF PASSTWO THEN % NON-PROTECTED FILE TRANSFER                      06089700        
      BEGIN                                                              06089800        
+          DISKWAIT(-A4,30,MV[HICNT+2].[CF]);                            06089900        
+          STREAM(A:=[M[A4+MV[HICNT+2].[FF]]],X2:=X2:=SPACE(6));         06090000        
+          BEGIN                                                         06090100        
+               DS:=27 LIT" #FILE INTEGRITY CONFLICT: "; SI:=A;          06090200        
+               SI:=SI+1; DS:=7 CHR; DS:=LIT"/"; SI:=SI+1;               06090300        
+               DS:=7 CHR; DS:=LIT"~";                                   06090400        
+          END;                                                          06090500        
+          SPOUT(X2); CELL.KEYINMASK:=7;                                 06090600        
+          SLEEP((PRTADR INX M),@77777); STOPCK;                         06090700        
+          IF CELL=2 THEN BEGIN CELL:=0&1[CTF]; GO TO OK END;            06090800        
+     END ELSE CONFLICT:=TRUE;                                           06090900        
+     TOG:=0;                                                            06091000        
+OKBOUNDS:                                                               06091100        
+END BOUNDARY AND CONFLICT CHECKING;                                     06091200        
+BOOLEAN SUBROUTINE INUSEOK;                                             06091300        
+BEGIN                                                                   06091400        
+     UT[AV+1].[1:1]:= NOT PASSTWO; TOG:=1; CNT:=0;                      06091500        
+     FOR X1:=DIRECTORYTOP+4 STEP 16 WHILE TRUE DO                       06091600        
+     BEGIN STOPCK;                                                      06091700        
+          DISKWAIT(-A1,480,X1);                                         06091800        
+          FOR I:=14 STEP -1 UNTIL 0 DO                                  06091900        
+          BEGIN STOPCK;                                                 06092000        
+               IF((E:=DIR[450+P(I,DUP,+)]) EQV @114)=NOT 0 THEN         06092100        
+               GO TO NOTOK;                                             06092200        
+               IF (E EQV @14)! NOT 0 THEN                               06092300        
+               BEGIN FILEOK:=FALSE; % INITIATE STATUS CHECKING          06092400        
+                    B:=DIR[(X3:=30|I)+9].[43:5];                        06092500        
+                    FOR X2:=1 STEP 1 UNTIL B DO                         06092600        
+                    IF (C:=DIR[X3+9+X2])!0 THEN                         06092700        
+                    IF P(C,DUP)<HI AND P(XCH)>LO THEN                   06092800        
+                    IF FILEOK THEN GO FIXMV ELSE    % CHECK STATUS      06092900        
+                    IF NOT SYSTEMFILE(E,DIR[450+P(I,DUP,+)+1]) AND      06093000        
+                        DIR[X3+4].[12:4]=0 THEN     % NOT SYSTEM FILE   06093100        
+                    IF (P(DIR[X3+4],DUP).[1:3] OR P(XCH).[16:20] OR     06093200        
+                        DIR[X3+9].[1:28])=0 THEN    % FILE NOT IN USE   06093300        
+                    IF MOVEABLE THEN                % NOT PERMANENT     06093400        
+                    BEGIN                                               06093500        
+                         FILEOK:=TRUE; % ELIMINATE STATUS CHECKING      06093600        
+               FIXMV:    USE:=USE-(MV[CNT]:=C&DIR[X3+8][TODSIZE])       06093700        
+                                             .DSIZE;                    06093800        
+                         MV[CNT+1]:=(X1+I)&X2[CTF]; % HEADER INFO       06093900        
+                         IF PASSTWO THEN % SAVE LOC OF FIDS             06094000        
+                         MV[CNT+2]:=(X1+15)&(I|2)[CTF];                 06094100        
+                         IF USE=0 THEN % FOUND ALL USERS OF IN-USE AREA 06094200        
+                         BEGIN                                          06094300        
+                              BOUNDARYCK;                               06094400        
+                              GO OKINUSE;                               06094500        
+                         END;                                           06094600        
+                         IF USE<0 THEN GO TO NOTOK; % DIERCTORY ERROR   06094700        
+                         IF (CNT:=CNT+3) MOD 150 = 0 THEN               06094800        
+                         BEGIN                                          06094900        
+                              IF CNT=MAXMVSIZE THEN GO TO NOTOK;        06095000        
+                              FIXARRAY(MV,X4,(CNT+150));                06095100        
+                              MOVE(CNT,A2,X4);                          06095200        
+                              FORGETSPACE(A2);                          06095300        
+                              A2:=X4;                                   06095400        
+                         END;                                           06095500        
+                    END ELSE GO TO NEXT ELSE GO TO NEXT;                06095600        
+               END;                                                     06095700        
+NEXT:     END;                                                          06095800        
+     END;                                                               06095900        
+NOTOK:                                                                  06096000        
+     TOG:=0;                                                            06096100        
+OKINUSE:                                                                06096200        
+     INUSEOK:=TOG;                                                      06096300        
+END SEARCHING IN USE AREAS;                                             06096400        
+SUBROUTINE MOVEANDFIX;                                                  06096500        
+BEGIN                                                                   06096600        
+     I:=M[X2-1]; STOPCK;                                                06096700        
+     WHILE I<@1777 DO                                                   06096800        
+     BEGIN                                                              06096900        
+          DISKWAIT(-A4,30,(X2:=MV[I+1]).[CF]); % READ IN HEADER         06097000        
+     MVE: X1:=-30; F:=P(MV[I],DUP).DEND+(B:=P(XCH).ASIZE);              06097100        
+          IF P(MV[I+2].DEND=0,DUP) THEN C:=MV[I+1].[2:26] ELSE          06097200        
+          MV[I].DEND:=(C:=MV[I+2].DEND)-B;                              06097300        
+          WHILE (X1:=X1+30)<B DO                                        06097400        
+          BEGIN                                                         06097500        
+               E:=IF P((B-X1),DUP)<30 THEN P ELSE P(DEL,30);            06098300        
+               DISKIO(T,1-A3,E|30,F:=F-E);                              06098400        
+               IOD:=IOD&(E|30)[8:38:10]&E[27:42:6];                     06098500        
+               LOCIOD:=0; SLEEP([T],IOMASK);                            06098600        
+               STREAM(A:=C:=C-E,B:=A3-1);                               06098700        
+               BEGIN SI:=LOC A; DS:= 8 DEC END;                         06098800        
+               IOREQUEST(NABS(IOD)&@357[25:40:8],IOD,                   06098900        
+                         [LOCIOD]&18[12:42:6]);                         06099000        
+               SLEEP([LOCIOD],IOMASK);                                  06099100        
+               IF LOCIOD.[28:1] THEN % WRITE LOCKOUT OCCURED            06099200        
+               BEGIN                                                    06099300        
+                    UT[IF P THEN AV+1 ELSE MV[I+2].[2:10]].LOCKED:=1;   06099400        
+                    UT[AV+1].DEND:=MV[I+1].[2;26]; GO ENDMVE;           06099500        
+               END;                                                     06099600        
+          END;                                                          06099700        
+          FIXANDWRITEHEADER;                                            06099800        
+          IF NOT P THEN % TEMPORARY DISK STORAGE WAS USED.              06099900        
+          BEGIN                                                         06100000        
+               MV[I-2].DEND:=0;                                         06100100        
+               TEMPDISK:=1;                                             06100200        
+               GO TO MVE;                                               06100300        
+          END;                                                          06100400        
