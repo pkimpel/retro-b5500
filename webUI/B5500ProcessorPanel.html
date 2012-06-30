@@ -16,17 +16,19 @@ var nextRefresh = 0;
 var panel;
 var refreshTimer = null;
 var totalDelay = 0;
+var totalIdle = 0;
 var totalTime = 0;
 
 var updateDisplay = function updateDisplay() {
     /* Schedules itself to update the display on a periodic basis. */
     var thisTime = new Date().getTime();
     var delta;
+    var idle;
     var meter = document.getElementById("idleMeter");
     var that = updateDisplay.that;
 
     panel.X.update(Math.random()*0x8000000000);
-    panel.A.update(Math.random()*0x1000000000000);
+    panel.A.update((Math.random()/65536+Math.random())*0x1000000000000);
     panel.B.update(Math.random()*0x1000000000000);
     panel.P.update(Math.random()*0x1000000000000);
     panel.J.update(Math.random()*0x10);
@@ -58,7 +60,9 @@ var updateDisplay = function updateDisplay() {
     refreshTimer = setTimeout(updateDisplay, (delta < 0 ? (delta=0) : delta));
     totalTime = (totalTime*99 + displayRefreshPeriod)/100;
     totalDelay = (totalDelay*99 + delta)/100;
-    meter.value = (totalDelay/totalTime*100).toFixed(1) + "%";
+    idle = nextRefresh-new Date().getTime();
+    totalIdle = (totalIdle*99 + (idle < 0 ? 0 : idle))/100;
+    meter.value = (totalIdle/totalTime*100).toFixed(1) + "%";
 };
 
 window.onload = function() {
