@@ -29,7 +29,7 @@ function B5500DDLamp(x, y) {
 
 /**************************************/
 
-B5500DDLamp.onColor = "#FF9933";
+B5500DDLamp.onColor = "#FF9900";
 B5500DDLamp.offColor = "#999999";
 
 /**************************************/
@@ -193,7 +193,7 @@ B5500DDRegister.prototype.update = function(value) {
     var bit;
     var mask = value % 0x1000000000000;
 
-    while (mask) {
+    while (bitNr < this.bits) {
         bitNr++;
         bit = mask % 2;
         this.lamps[bitNr].element.style.backgroundColor = (bit ? B5500DDLamp.onColor : B5500DDLamp.offColor);

@@ -5157,3 +5157,148 @@ BEGIN                                                                   06096600
                TEMPDISK:=1;                                             06100200        
                GO TO MVE;                                               06100300        
           END;                                                          06100400        
+          I:=MV[I+2].LINK;                                              06100500        
+     END;                                                               06100600        
+%    WILL NOW RECONFIGURE THE AVAILABLE TABLE                           06100700        
+     UT[AV]:=HI&(UT[AV].ASIZE+UT[AV+I].ASIZE)[2:28:20];                 06100800        
+     MOVE(S-AV,P([UT[AV+2]],DUP),NOT 0 INX P(XCH));                     06100900        
+     C:=(S:=S-1)-1; FOR I:=C STEP -1 UNTIL D DO                         06101000        
+     IF P(UT[I].ASIZE,DUP)>USE THEN USE:=P ELSE P(DEL);                 06101100        
+     U[EU]:=P(DUP,LOD,DUP)&USE[1:28:20]&(P(XCH).NUMENT-1)[TONUMENT];    06101200        
+     EUNOTSQUASHED:=FALSE;                                              06101300        
+     IF NOT SQALL THEN                                                  06101400        
+     BEGIN                                                              06101500        
+          IF P(SQSIZE,DUP)!0 AND P(XCH) LEQ USE THEN CELL:=1            06101600        
+          ELSE IF P(EUS[EU-1],DSIZE,DUP)!0 AND P(XCH) LEQ USE           06101700        
+          THEN  ELSE GO TO ENDMVE;                                      06101800        
+          P(DEL); GO STOPSQ;                                            06101900        
+     END;                                                               06102000        
+ENDMVE:                                                                 06102100        
+END FIXING AND MOVING;                                                  06102200        
+ $ SET OMIT = NOT SHAREDISK                                             06102220        
+     P(0,0,0,0,0,0,0,0,0,0);                                            06102500        
+     P(0,0,0,0,0,0,0,0,0,0);                                            06102600        
+     P(0,0,0,0,0,0,0,0,0,0);                                            06102700        
+     P(0,0,0,0,0,0,0,0,0);                                              06102800        
+     P(.DISKSQUASH,DUP,M[(P)]); % PRTADDR,PRTVALUE                      06102900        
+ $ SET OMIT = NOT SHAREDISK                                             06103000        
+     SCANMESSAGE;                                                       06103300        
+ $ SET OMIT = SHAREDISK                                                 06103400        
+     LOCKDIRECTORY;                                                     06103500        
+ $ POP OMIT                                                             06103600        
+     SLEEP([TOGLE],USERDISKMASK); LOCKTOG(USERDISKMASK);                06103700        
+     HALT; % STOP NORMAL STATE PROCESSING WHILE SQUASHING               06103800        
+     A4:=SPACE(30);                                                     06103900        
+ $ SET OMIT = NOT SHAREDISK                                             06104000        
+     FIXARRAY(DIR,A1,480); FIXARRAY(MV,A2,150);                         06107200        
+     A3:=SPACE(900);                                                    06107300        
+     IOD:=@140000100000000&(A3-1)[CTC];                                 06107400        
+     IF NOT SQALL THEN FOR EU:=1 STEP 1 UNTIL NEUP.[FF] DO              06107900        
+     IF (CELL:=(P(SQSIZE,DUP)!0 AND P(XCH) LEQ U[EU].[1:20]))           06108000        
+     THEN BEGIN P(2); SQUASHMESS; GO STOPIT END;                        06108100        
+     FOR EU:=1 STEP 1 UNTIL NEUP.[FF] DO %                              06108200        
+     IF NOT (E:=U[EU]).EUNP THEN       % NOT A DUMMY EU                 06108300        
+     IF EUS[EU-1] OR SQALL OR SQSIZE!0 THEN % SQUASH THIS EU            06108400        
+     BEGIN                                                              06108500        
+          EUNOTSQUASHED:=TRUE;                                          06108600        
+          IF NOT SQALL THEN % CHECK IF SQUASH IS NECESSARY              06108700        
+          IF (P(EUS[EU-1].DSIZE,DUP) LEQ E.[1:20] AND P(XCH)!0)         06108800        
+          THEN  BEGIN P(3); SQUASHMESS; GO STOPIT END;                  06108900        
+          CELL:=0&1[CTF];                                               06109000        
+          P(0); SQUASHMESS;                                             06109100        
+          D:=(I:=E.STARTWRD) MOD 30;                                    06109200        
+          AVSIZE:=30-(S:=(E AND NUMENTM)+D) MOD 30+S;                   06109300        
+          FIXARRAY(UT,R,AVSIZE);                                        06109400        
+          DISKAV:=I DIV 30+USERDISKBOTTOM;                              06109500        
+ $ SET OMIT = NOT SHAREDISK                                             06109600        
+          DISKWAIT(-R,AVSIZE,DISKAV);                                   06110300        
+AGAIN:    SUM:=USE:=0;                                                  06110400        
+          FOR I:=S-3 STEP -1 UNTIL D DO                                 06110500        
+          BEGIN STOPCK;                                                 06110600        
+               IF (UT[I+1]<0)=PASSTWO THEN % NOT CHECKED THIS PASS      06110700        
+               IF ((X1:=UT[I].ASIZE)+(X2:=UT[I+1].ASIZE)) GEQ SUM       06110800        
+               THEN IF (X3:=(((X4:=UT[I+1].DEND)-1)-UT[I+1].ASIZE)-     06110900        
+               X5:=(UT[I].DEND-1)) LEQ FACTOR THEN IF MINSIZE LEQ X2    06111000        
+               THEN IF MINSIZE LEQ X1 THEN                              06111100        
+               BEGIN                                                    06111200        
+SQIT:               USE:=X3; AV:=I;                                     06111300        
+                    SUM:=X1-X2; % SUM OF CURRENT AVAILABLE AREAS        06111400        
+                    HI:=X4; LO:=X5;                                     06111500        
+               END ELSE IF I!0 THEN % LOOK AHEAD TO NEXT AREA           06111600        
+               IF ((MINSIZE LEQ UT[I-1].ASIZE) AND (((X5-X1)-           06111700        
+               UT[I-1].DEND-1) LEQ FACTOR)) THEN GO SQIT;               06111800        
+          END;                                                          06111900        
+          IF USE!0 THEN % FUOND A POSSIBLE SQUASH SITUATION             06112000        
+          BEGIN                                                         06112100        
+               IF INUSEOK THEN MOVEANDFIX;                              06112200        
+               GO AGAIN;                                                06112300        
+          END ELSE % TIME TO WRAP IT UP FOR THIS EU UNLESS....          06112400        
+          IF CONFLICT THEN IF NOT PASSTWO THEN % ..CONFLICTS EXIST      06112500        
+          BEGIN                                                         06112600        
+               PASSTWO:=TRUE;                                           06112700        
+               GO AGAIN;                                                06112800        
+          END ELSE                                                      06112900        
+          BEGIN % CLEAN-UP PASS AFTER CONFLICTS RESOLVED.               06113000        
+               PASSTWO:=CONFLICTS:=0;                                   06113100        
+               GO AGAIN;                                                06113200        
+          END;                                                          06113300        
+STOPSQ:   FOR I:=D STEP 1 UNTIL S DO UT[I]:=ABS(P(DUP.LOD)&0[2:2:1]);   06113400        
+          IF NOT EUNOTSQUASHED THEN                                     06113500        
+ $ SET OMIT = NOT SHAREDISK                                             06113600        
+          DISKWAIT( R,AVSIZ,DISKAV);                                    06114300        
+          FORGETSPACE(R);                                               06114400        
+          P(1); SQUASHMESS;                                             06114500        
+STOPIT:   IF STOP THEN GO OUT; % STOPCK GOT US HERE                     06114600        
+     END EU LOOP;                                                       06114700        
+OUT:                                                                    06114800        
+     FORGETSPACE(A1); FORGETSPACE(A2); FORGETSPACE(A3);                 06114900        
+ $ SET OMIT = NOT SHAREDISK                                             06115000        
+SDXIT:                                                                  06115500        
+     FORGETSPACE(A4); FORGETSPACE(A5);                                  06115600        
+     CELL:=PRTVALUE;                                                    06115700        
+     STREAM(A:=BUFF.[15:15]-1); DS:=13 LIT" END SQUASH.~";              06115800        
+     SPOUT(BUFF.[15:15]-1);                                             06115900        
+ $ SET OMIT = SHAREDISK                                                 06115990        
+     UNLOCKDIRECTORY;                                                   06116000        
+ $ POP OMIT                                                             06116010        
+     UNLOCKTOG(USERDISKMASK);                                           06116100        
+     NOPROCESSTOG:=NOPROCESSTOG-1;                                      06116200        
+     KILL([MSCW]);                                                      06116300        
+END SQUASHING;                                                          06116400        
+ PROCEDURE CHANGEABORT(X); VALUE X; REAL X; FORWARD;%                   06179000        
+REAL LOOKQ;                                                             06179200        
+ PROCEDURE SIGNOFF(VECTOR,FILEBLOCK,PKT);                               06180000        
+           VALUE VECTOR,FILEBLOCK,PKT;                                  06181000        
+         ARRAY VECTOR[*],FILEBLOCK[*];%                                 06182000        
+           REAL PKT;                                                    06182100        
+BEGIN ARRAY NAME LOG;                                                   06183000        
+              INTEGER N,L,I,J,TIMEX;%                                   06184000        
+              INTEGER MIX;                                              06184100        
+ $ SET OMIT = NOT STATISTICS                                            06184199        
+              REAL TIMEAX,T,A,Q,ESED;                                   06185000        
+ $ SET OMIT = NOT(PACKETS)                                              06185099        
+              REAL UNITNO;                                              06185100        
+              INTEGER ARRAY PM[*];                                      06185105        
+ $ POP OMIT                                                             06185110        
+ $ SET OMIT = NOT(WORKSET AND WORKSETMONITOR)                           06185111        
+ REAL DD;                                                               06185112        
+ $ POP OMIT % WORKSET AND WORKSETMONITOR                                06185113        
+              SUBROUTINE TIMEIT;%                                       06186000        
+                   BEGIN CHANGEABORT(0);%                               06187000        
+                        WHILE (NT2:=XCLOCK+P(RTR)) GEQ WITCHINGHOUR DO  06188000        
+                          MIDNIGHT;                                     06188100        
+                        LOG[TIMEAX+2] ~ NT2;%                           06189000        
+ $ SET OMIT = NOT(STATISTICS)                                           06189099        
+                        STOPLOG(P1MIX,0);                               06190000        
+                        MIX~P1MIX; P1MIX~0;                             06190100        
+                        IDLETIME;%                                      06191000        
+                        OLDIDLETIME ~ (LOG[TIMEX] ~ VECTOR[3]+%         06192000        
+                             PROCTIME[MIX])+OLDIDLETIME;                06193000        
+                        PROCTIME[MIX] ~ -VECTOR[3];%               %127-06193500        
+                        LOG[TIMEX+1]~VECTOR[4]+IOTIME[MIX];             06194000        
+ $                                               SET OMIT = NOT WORKSET 06194890        
+                        LOG[TIMEX+2] ~ OLAYTIME[MIX];              %710-06194900        
+ $                                               SET OMIT = WORKSET%710-06194990        
+ $ SET OMIT = NOT(WORKSET AND WORKSETMONITOR)                           06195090        
+   IF WKSETMONITOR AND (DD=0) THEN                                      06195095        
+      BEGIN                                                             06195100        
