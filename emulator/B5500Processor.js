@@ -2,7 +2,12 @@
 * retro-b5500/emulator B5500Processor.js
 ************************************************************************
 * Copyright (c) 2012, Nigel Williams and Paul Kimpel.
-* MIT Licensed http://www.opensource.org/licenses/mit-license.php
+* Licensed under the MIT License, see 
+*       http://www.opensource.org/licenses/mit-license.php
+*
+* Instance variables in all caps generally refer to register or flip-flop (FF)
+* entities in the processor hardware. See the Burroughs B5500 Reference Manual
+* (1021326, May 1967) for details.
 ************************************************************************
 * B5500 Processor (CPU) module.
 ************************************************************************
@@ -11,7 +16,9 @@
 ***********************************************************************/
 "use strict"; 
 
+/**************************************/
 function B5500Processor() {
+    /* Constructor for the Processor module object */
 
     this.scheduler = null;              // Reference to current setTimeout id
     this.accessor = {                   // Memory access control block
@@ -26,20 +33,23 @@ function B5500Processor() {
     this.clear();                       // Create and initialize the processor state
 }
 
+/**************************************/
+
 B5500Processor.timeSlice = 5000; // Standard run() timeslice, about 5ms (we hope)
 
+/**************************************/
 B5500Processor.prototype.clear = function() {
-    /* Initializes the processor state, FF is FlipFlop (in modern parlance: boolean flag) */
+    /* Initializes (and if necessary, creates) the processor state */
 
     this.A = 0;                         // Top-of-stack register A
-    this.AROF = 0;                      // A Register Occupied Flip-flop
+    this.AROF = 0;                      // A Register Occupied FF
     this.B = 0;                         // Top-of-stack register B
-    this.BROF = 0;                      // B contents valid
+    this.BROF = 0;                      // B Register Occupied FF
     this.C = 0;                         // Current program instruction word address
     this.CCCF = 0;                      // Clock-count control FF (maintenance only)
     this.CWMF = 0;                      // Character/word mode FF (1=CM)
     this.E = 0;                         // Memory access control register
-    this.EIHF = 0;                      // ??
+    this.EIHF = 0;                      // E-register Inhibit Address FF
     this.F = 0;                         // Top MSCW/RCW stack address
     this.G = 0;                         // Character index register for A
     this.H = 0;                         // Bit index register for G (in A)
@@ -78,74 +88,83 @@ B5500Processor.prototype.clear = function() {
 };
 
 /**************************************/
-B5500Processor.prototype.access = function(cc, eValue) {
+B5500Processor.prototype.access = function(eValue) {
     /* Access memory based on the E register. If the processor is in normal
     state, it cannot access the first 512 words of memory => invalid address */
 
     this.E = eValue;                    // Just to show the world what's happening
-    this.accessor.MAIL = (this.addr < 0x0200 && this.NCSF);
     switch (eValue) {
     case 0x02:                          // A = [S]
         this.accessor.addr = this.S;
+        this.accessor.MAIL = (this.S < 0x0200 && this.NCSF);
         cc.fetch(this);
         this.A = this.accessor.word;
         this.AROF = 1;
         break;
     case 0x03:                          // B = [S]
         this.accessor.addr = this.S;
+        this.accessor.MAIL = (this.S < 0x0200 && this.NCSF);
         cc.fetch(this);
         this.B = this.accessor.word;
         this.BROF = 1;
         break;
     case 0x04:                          // A = [M]
         this.accessor.addr = this.M;
+        this.accessor.MAIL = (this.M < 0x0200 && this.NCSF);
         cc.fetch(this);
         this.A = this.accessor.word;
         this.AROF = 1;
         break;
     case 0x05:                          // B = [M]
         this.accessor.addr = this.M;
+        this.accessor.MAIL = (this.M < 0x0200 && this.NCSF);
         cc.fetch(this);
         this.B = this.accessor.word;
         this.BROF = 1;
         break;
     case 0x06:                          // M = [M].[18:15]
         this.accessor.addr = this.M;
+        this.accessor.MAIL = (this.M < 0x0200 && this.NCSF);
         cc.fetch(this);
         this.M = ((this.accessor.word % 0x40000000) >>> 15) & 0x7FFF;
         break;
     case 0x0A:                          // [S] = A
         this.accessor.addr = this.S;
+        this.accessor.MAIL = (this.S < 0x0200 && this.NCSF);
         this.accessor.word = this.A;
         cc.store(this);
         break;
     case 0x0B:                          // [S] = B
         this.accessor.addr = this.S;
+        this.accessor.MAIL = (this.S < 0x0200 && this.NCSF);
         this.accessor.word = this.B;
         cc.store(this);
         break;
     case 0x0C:                          // [M] = A
         this.accessor.addr = this.M;
+        this.accessor.MAIL = (this.M < 0x0200 && this.NCSF);
         this.accessor.word = this.A;
         cc.store(this);
         break;
     case 0x0D:                          // [M] = B
         this.accessor.addr = this.M;
+        this.accessor.MAIL = (this.M < 0x0200 && this.NCSF);
         this.accessor.word = this.B;
         cc.store(this);
         break;
     case 0x30:                          // P = [C]
         this.accessor.addr = this.C;
+        this.accessor.MAIL = (this.C < 0x0200 && this.NCSF);
         cc.fetch(this);
         this.P = this.accessor.word;
         this.PROF = 1;
         break;
     default:
-        throw "Invalid E register value: " + this.E.toString(2);
+        throw "Invalid E register value: " + eValue.toString(2);
         break;
     }
 
-    this.cycleCount += 6;               // assume 6 us memory cycle time (the other option was 4 usec)
+    this.cycleCount += 6;               // assume 6 us memory cycle time (the other option is 4 usec)
     if (this.accessor.MAED) {
         this.I |= 0x02;                 // set I02F - memory address/inhibit error
         if (this.NCSF || this !== cc.P1) {
@@ -164,15 +183,13 @@ B5500Processor.prototype.access = function(cc, eValue) {
 };
 
 /**************************************/
-B5500Processor.prototype.adjustAEmpty = function(cc) {
-    /*
-	   Adjusts the A register so that it is empty pushing the prior
-       contents of A into B and B into memory, as necessary.
-	 */
+B5500Processor.prototype.adjustAEmpty = function() {
+    /* Adjusts the A register so that it is empty, pushing the prior
+    contents of A into B and B into memory, as necessary. */
 
     if (this.AROF) {
         if (this.BROF) {
-            if ((this.S >>> 6) === this.R || !this.NCSF) {
+            if ((this.S >>> 6) == this.R || !this.NCSF) {
                 this.I |= 0x04;         // set I03F: stack overflow
                 cc.signalInterrupt();
             } else {
@@ -206,12 +223,12 @@ B5500Processor.prototype.adjustAFull = function() {
 };
 
 /**************************************/
-B5500Processor.prototype.adjustBEmpty = function(cc) {
-    /* Adjusts the B register so that it is empty pushing the prior
+B5500Processor.prototype.adjustBEmpty = function() {
+    /* Adjusts the B register so that it is empty, pushing the prior
     contents of B into memory, as necessary. */
 
     if (this.BROF) {
-        if ((this.S >>> 6) === this.R || !this.NCSF) {
+        if ((this.S >>> 6) == this.R || !this.NCSF) {
             this.I |= 0x04;             // set I03F: stack overflow
             cc.signalInterrupt();
         } else {
@@ -224,7 +241,7 @@ B5500Processor.prototype.adjustBEmpty = function(cc) {
 
 /**************************************/
 B5500Processor.prototype.adjustBFull = function() {
-    /* Adjusts the B register so that it is full popping the contents of
+    /* Adjusts the B register so that it is full, popping the contents of
     [S] into B, as necessary. */
 
     if (!this.BROF) {
@@ -270,8 +287,8 @@ B5500Processor.prototype.exchangeTOS = function() {
 };
 
 /**************************************/
-B5500Processor.storeForInterrupt = function(cc, forTest) {
-    /* Implements the 3011=SFI operator and the parts of SFT that are
+B5500Processor.storeForInterrupt = function(forTest) {
+    /* Implements the 3011=SFI operator and the parts of 3411=SFT that are
     common to it. "forTest" implies use from SFT */
     var forced = this.Q & 0x0040;       // Q07F: Hardware-induced SFI syllable
     var saveAROF = this.AROF;
@@ -294,7 +311,9 @@ B5500Processor.storeForInterrupt = function(cc, forTest) {
             this.S++;
             this.access(0x0B);          // [S] = B
         }
-        this.B = this.X + saveAROF * 0x200000000000 + 0xC00000000000; // store CM loop-control word
+        this.B = this.X +               // store CM loop-control word
+              saveAROF * 0x200000000000 +
+              0xC00000000000;
         this.S++;
         this.access(0x0B);              // [S] = B
     } else {
@@ -373,7 +392,7 @@ B5500Processor.storeForInterrupt = function(cc, forTest) {
             cc.HP2F = 1;
             cc.P2BF = 0;
             if (cc.P2.scheduler) {
-                cc.cancelTimeout(cc.P2.scheduler);
+                clearTimeout(cc.P2.scheduler);
                 cc.P2.scheduler = null;
             }
         }
@@ -397,7 +416,7 @@ B5500Processor.storeForInterrupt = function(cc, forTest) {
             cc.HP2F = 1;
             cc.P2BF = 0;
             if (cc.P2.scheduler) {
-                cc.cancelTimeout(cc.P2.scheduler);
+                clearTimeout(cc.P2.scheduler);
                 cc.P2.scheduler = null;
             }
         }
@@ -620,15 +639,15 @@ B5500Processor.prototype.indexDescriptor = function() {
 B5500Processor.prototype.buildMSCW = function() {
     /* Return a Mark Stack Control Word from current processor state */
 
-    return this.F    * 0x8000 +
-           this.SALF * 0x40000000 +
-           this.MSFF * 0x80000000 +
-           this.R    * 0x200000000 +
-                       0xC00000000000;
-};
+    return this.F * 0x8000 +
+            this.SALF * 0x40000000 +
+            this.MSFF * 0x80000000 +
+            this.R * 0x200000000 +
+            0xC00000000000;
+}
 
 /**************************************/
-B5500Processor.prototype.enterSubroutine = function(cc, descriptorCall) {
+B5500Processor.prototype.enterSubroutine(descriptorCall) {
     /* Enters a subroutine via the present program descriptor in A as part
     of an OPDC or DESC syllable. Also handles accidental entry */
     var aw = this.A;                    // local copy of word in A reg
@@ -690,11 +709,9 @@ B5500Processor.prototype.enterSubroutine = function(cc, descriptorCall) {
 
 /**************************************/
 B5500Processor.prototype.operandCall = function() {
-    /*
-	   OPDC, the moral equivalent of "load accumulator" on lesser
-       machines. Assumes the syllable has already loaded a word into A.
-       See Figures 6-1, 6-3, and 6-4 in the B5500 Reference Manual
-	 */
+    /* OPDC, the moral equivalent of "load accumulator" on lesser
+    machines. Assumes the syllable has already loaded a word into A.
+    See Figures 6-1, 6-3, and 6-4 in the B5500 Reference Manual */
     var aw;                             // local copy of A reg value
     var interrupted = false;            // interrupt occurred
 
@@ -751,12 +768,10 @@ B5500Processor.prototype.operandCall = function() {
 
 /**************************************/
 B5500Processor.prototype.descriptorCall = function() {
-    /* 
-	   DESC, the moral equivalent of "load address" on lesser
-       machines. Assumes the syllable has already loaded a word into A, and
-       that the address of that word is in M.
-       See Figures 6-2, 6-3, and 6-4 in the B5500 Reference Manual
-	*/
+    /* DESC, the moral equivalent of "load address" on lesser
+    machines. Assumes the syllable has already loaded a word into A, and
+    that the address of that word is in M.
+    See Figures 6-2, 6-3, and 6-4 in the B5500 Reference Manual */
     var aw = this.A;                    // local copy of A reg value
     var interrupted = false;            // interrupt occurred
 
@@ -808,13 +823,11 @@ B5500Processor.prototype.descriptorCall = function() {
 
 /**************************************/
 B5500Processor.prototype.run = function() {
-    /*
-	   Instruction execution driver for the B5500 processor. This function is
-       an artifact of the emulator design and does not represent any physical
-       process or state of the processor. This routine assumes the registers are
-       set up, and in particular a syllable is in T with TROF set. It will run
-       until cycleCount >= cycleLimit or !this.busy
-	*/
+    /* Instruction execution driver for the B5500 processor. This function is
+    an artifact of the emulator design and does not represent any physical
+    process or state of the processor. This routine assumes the registers are
+    set up, and in particular a syllable is in T with TROF set. It will run
+    until cycleCount >= cycleLimit or !this.busy */
     var opcode;
     var t1;
     var t2;
@@ -1519,18 +1532,16 @@ B5500Processor.prototype.run = function() {
 
 /**************************************/
 B5500Processor.prototype.schedule = function schedule() {
-    /*
-	   Schedules the processor run time and attempts to throttle performance
-       to approximate that of a real B5500. Well, at least we hope this will run
-       fast enough that the performance will need to be throttled. It establishes
-       a timeslice in terms of a number of processor "cycles" of 1 microsecond
-       each and calls run() to execute at most that number of cycles. run()
-       counts up cycles until it reaches this limit or some terminating event
-       (such as a halt), then exits back here. If the processor remains active,
-       this routine will reschedule itself for an appropriate later time, thereby
-       throttling the performance and allowing other modules a chance at the
-       Javascript execution thread.
-	 */
+    /* Schedules the processor run time and attempts to throttle performance
+    to approximate that of a real B5500. Well, at least we hope this will run
+    fast enough that the performance will need to be throttled. It establishes
+    a timeslice in terms of a number of processor "cycles" of 1 microsecond
+    each and calls run() to execute at most that number of cycles. run()
+    counts up cycles until it reaches this limit or some terminating event
+    (such as a halt), then exits back here. If the processor remains active,
+    this routine will reschedule itself for an appropriate later time, thereby
+    throttling the performance and allowing other modules a chance at the
+    Javascript execution thread. */
     var delayTime;
     var that = schedule.that;
 
