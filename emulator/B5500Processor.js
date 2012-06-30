@@ -2,7 +2,7 @@
 * retro-b5500/emulator B5500Processor.js
 ************************************************************************
 * Copyright (c) 2012, Nigel Williams and Paul Kimpel.
-* Licensed under the MIT License, see 
+* Licensed under the MIT License, see
 *       http://www.opensource.org/licenses/mit-license.php
 *
 * Instance variables in all caps generally refer to register or flip-flop (FF)
@@ -14,14 +14,16 @@
 * 2012-06-03  P.Kimpel
 *   Original version, from thin air.
 ***********************************************************************/
-"use strict"; 
+"use strict";
 
 /**************************************/
-function B5500Processor() {
+function B5500Processor(procID) {
     /* Constructor for the Processor module object */
 
+    this.processorID = procID;          // Processor ID ("A" or "B")
     this.scheduler = null;              // Reference to current setTimeout id
     this.accessor = {                   // Memory access control block
+        requestorID: procID,               // Memory requestor ID
         addr: 0,                           // Memory address
         word: 0,                           // 48-bit data word
         MAIL: 0,                           // Truthy if attempt to access @000-@777 in normal state
@@ -91,88 +93,89 @@ B5500Processor.prototype.clear = function() {
 B5500Processor.prototype.access = function(eValue) {
     /* Access memory based on the E register. If the processor is in normal
     state, it cannot access the first 512 words of memory => invalid address */
+    var acc = this.accessor;            // get a local reference to the accessor object
 
     this.E = eValue;                    // Just to show the world what's happening
     switch (eValue) {
     case 0x02:                          // A = [S]
-        this.accessor.addr = this.S;
-        this.accessor.MAIL = (this.S < 0x0200 && this.NCSF);
-        cc.fetch(this);
-        this.A = this.accessor.word;
+        acc.addr = this.S;
+        acc.MAIL = (this.S < 0x0200 && this.NCSF);
+        cc.fetch(acc);
+        this.A = acc.word;
         this.AROF = 1;
         break;
     case 0x03:                          // B = [S]
-        this.accessor.addr = this.S;
-        this.accessor.MAIL = (this.S < 0x0200 && this.NCSF);
-        cc.fetch(this);
-        this.B = this.accessor.word;
+        acc.addr = this.S;
+        acc.MAIL = (this.S < 0x0200 && this.NCSF);
+        cc.fetch(acc);
+        this.B = acc.word;
         this.BROF = 1;
         break;
     case 0x04:                          // A = [M]
-        this.accessor.addr = this.M;
-        this.accessor.MAIL = (this.M < 0x0200 && this.NCSF);
-        cc.fetch(this);
-        this.A = this.accessor.word;
+        acc.addr = this.M;
+        acc.MAIL = (this.M < 0x0200 && this.NCSF);
+        cc.fetch(acc);
+        this.A = acc.word;
         this.AROF = 1;
         break;
     case 0x05:                          // B = [M]
-        this.accessor.addr = this.M;
-        this.accessor.MAIL = (this.M < 0x0200 && this.NCSF);
-        cc.fetch(this);
-        this.B = this.accessor.word;
+        acc.addr = this.M;
+        acc.MAIL = (this.M < 0x0200 && this.NCSF);
+        cc.fetch(acc);
+        this.B = acc.word;
         this.BROF = 1;
         break;
     case 0x06:                          // M = [M].[18:15]
-        this.accessor.addr = this.M;
-        this.accessor.MAIL = (this.M < 0x0200 && this.NCSF);
-        cc.fetch(this);
-        this.M = ((this.accessor.word % 0x40000000) >>> 15) & 0x7FFF;
+        acc.addr = this.M;
+        acc.MAIL = (this.M < 0x0200 && this.NCSF);
+        cc.fetch(acc);
+        this.M = ((acc.word % 0x40000000) >>> 15) & 0x7FFF;
         break;
     case 0x0A:                          // [S] = A
-        this.accessor.addr = this.S;
-        this.accessor.MAIL = (this.S < 0x0200 && this.NCSF);
-        this.accessor.word = this.A;
-        cc.store(this);
+        acc.addr = this.S;
+        acc.MAIL = (this.S < 0x0200 && this.NCSF);
+        acc.word = this.A;
+        cc.store(acc);
         break;
     case 0x0B:                          // [S] = B
-        this.accessor.addr = this.S;
-        this.accessor.MAIL = (this.S < 0x0200 && this.NCSF);
-        this.accessor.word = this.B;
-        cc.store(this);
+        acc.addr = this.S;
+        acc.MAIL = (this.S < 0x0200 && this.NCSF);
+        acc.word = this.B;
+        cc.store(acc);
         break;
     case 0x0C:                          // [M] = A
-        this.accessor.addr = this.M;
-        this.accessor.MAIL = (this.M < 0x0200 && this.NCSF);
-        this.accessor.word = this.A;
-        cc.store(this);
+        acc.addr = this.M;
+        acc.MAIL = (this.M < 0x0200 && this.NCSF);
+        acc.word = this.A;
+        cc.store(acc);
         break;
     case 0x0D:                          // [M] = B
-        this.accessor.addr = this.M;
-        this.accessor.MAIL = (this.M < 0x0200 && this.NCSF);
-        this.accessor.word = this.B;
-        cc.store(this);
+        acc.addr = this.M;
+        acc.MAIL = (this.M < 0x0200 && this.NCSF);
+        acc.word = this.B;
+        cc.store(acc);
         break;
     case 0x30:                          // P = [C]
-        this.accessor.addr = this.C;
-        this.accessor.MAIL = (this.C < 0x0200 && this.NCSF);
-        cc.fetch(this);
-        this.P = this.accessor.word;
+        acc.addr = this.C;
+        acc.MAIL = (this.C < 0x0200 && this.NCSF);
+        cc.fetch(acc);
+        this.P = acc.word;
         this.PROF = 1;
         break;
     default:
-        throw "Invalid E register value: " + eValue.toString(2);
+        throw "Invalid E-register value: " + eValue.toString(2);
         break;
     }
 
     this.cycleCount += 6;               // assume 6 us memory cycle time (the other option is 4 usec)
-    if (this.accessor.MAED) {
+    if (acc.MAED) {
         this.I |= 0x02;                 // set I02F - memory address/inhibit error
         if (this.NCSF || this !== cc.P1) {
             cc.signalInterrupt();
         } else {
             this.busy = false;          // P1 invalid address in control state stops the proc
         }
-    } else if (this.accessor.MPED) {
+    } else if (acc.MPED) {
         this.I |= 0x01;                 // set I01F - memory parity error
         if (this.NCSF || this !== cc.P1) {
             cc.signalInterrupt();
@@ -647,7 +650,7 @@ B5500Processor.prototype.buildMSCW = function() {
 }
 
 /**************************************/
-B5500Processor.prototype.enterSubroutine(descriptorCall) {
+B5500Processor.prototype.enterSubroutine = function(descriptorCall) {
     /* Enters a subroutine via the present program descriptor in A as part
     of an OPDC or DESC syllable. Also handles accidental entry */
     var aw = this.A;                    // local copy of word in A reg
@@ -1514,17 +1517,21 @@ B5500Processor.prototype.run = function() {
             case 0:
                 this.T = ((this.P - this.P % 0x1000000000) / 0x1000000000) % 0x1000;
                 this.L++;
+                break;
             case 1:
                 this.T = ((this.P - this.P % 0x1000000) / 0x1000000) % 0x1000;
                 this.L++;
+                break;
             case 2:
                 this.T = ((this.P - this.P % 0x1000) / 0x1000) % 0x1000;
                 this.L++;
+                break;
             case 3:
                 this.T = this.P % 0x1000;
                 this.L = 0;
                 this.C++;
                 this.access(0x30);      // P = [C]
+                break;
             }
         }
     } while ((this.cycleCount += 2) < this.cycleLimit && this.busy);
@@ -1556,6 +1563,22 @@ B5500Processor.prototype.schedule = function schedule() {
     if (that.busy) {
         delayTime = that.procTime/1000 - new Date().getTime();
         that.scheduleSlack += delayTime;
-        that.scheduler = setTimeout(that.schedule, (delayTime < 0 ? 0 : delayTime));
+        that.scheduler = setTimeout(that.schedule, (delayTime < 0 ? 1 : delayTime));
     }
 };
+
+/**************************************/
+B5500Processor.prototype.step = function() {
+    /* Single-steps the processor. Normally this will cause one instruction to
+    be executed, but note that in case of an interrupt, one or two injected
+    instructions (e.g., SFI followed by ITI) could also be executed. */
+
+    this.cycleLimit = 1;
+    this.cycleCount = 0;
+
+    this.run();
+
+    this.totalCycles += this.cycleCount
+    this.procTime += this.cycleCount;
+};
+

@@ -2,20 +2,22 @@
 * retro-b5500/emulator B5500CentralControl.js
 ************************************************************************
 * Copyright (c) 2012, Nigel Williams and Paul Kimpel.
-* Licensed under the MIT License, see http://www.opensource.org/licenses/mit-license.php
+* Licensed under the MIT License,
+*       see http://www.opensource.org/licenses/mit-license.php
 ************************************************************************
-* JavaScript object definition for the B5500 Central Control module.
+* B5500 Central Control module.
 ************************************************************************
 * 2012-06-03  P.Kimpel
 *   Original version, from thin air.
 ***********************************************************************/
+"use strict";
 
 /**************************************/
 function B5500CentralControl() {
     /* Constructor for the Central Control module object */
 
     /* Global system modules */
-
+    this.DD = null;                     // Distribution & Display unit
     this.PA = null;                     // Processor A (PA)
     this.PB = null;                     // Processor B (PB)
     this.IO1 = null;                    // I/O unit 1
@@ -26,17 +28,16 @@ function B5500CentralControl() {
     this.P1 = null;                     // Reference for Processor 1 (control) [PA or PB]
     this.P1 = null;                     // Reference for Processor 2 (slave)   [PA or PB]
 
-    this.AddressSpace = [];             // Array of memory module address spaces (8 x 32KB each)
-    this.Memory = [];                   // Array of memory module words as Float64s (8 x 4KW each)
+    this.AddressSpace = new Array(8);   // Array of memory module address spaces (8 x 32KB each)
+    this.MemMod = new Array(8);         // Array of memory module words as Float64s (8 x 4KW each)
 
-    // This memory instantiation should be done in configuration, but here's the idea...
-    this.AddressSpace[0] = new ArrayBuffer(32768);
-    this.Memory[0] = new Float64Array(this.AddressSpace[0]);
+    // Instance variables and flags
+    this.poweredUp = false;             // System power indicator
 
     this.PB1L = 0;                      // 0=> PA is P1, 1=> PB is P1
     this.cardLoadSelect = 0;            // 0=> load from disk/drum; 1=> load from cards
 
-    this.nextTimeStamp = 0;             // Next actual Date.getTime() expected
+    this.nextTimeStamp = 0;             // Next actual Date.getTime() for timer tick
     this.timer = null;                  // Reference to the RTC setTimeout id.
     this.loadTimer = null;              // Reference to the load setTimeout id.
 
@@ -85,7 +86,8 @@ B5500CentralControl.mask2 = [ // (2**n)-1 for n from 0 to 52
 
 /**************************************/
 B5500CentralControl.prototype.clear = function() {
-    /* Initializes the system and starts the real-time clock */
+    /* Initializes (and if necessary, creates) the system and starts the
+    real-time clock */
 
     if (this.timer) {
         clearTimeout(this.timer);
@@ -141,7 +143,7 @@ B5500CentralControl.prototype.clear = function() {
     if (!this.P2) {
         this.P2BF = 1;                  // mark non-existent P2 as busy
     }
-}
+};
 
 /**************************************/
 B5500CentralControl.prototype.bit = function(word, bit) {
@@ -149,27 +151,27 @@ B5500CentralControl.prototype.bit = function(word, bit) {
     var e = 47-bit;
     var p;
 
-    if (e > 0( {
+    if (e > 0) {
         p = B5500CentralControl.pow2[e];
         return ((word - word%p)/p) % 2;
     } else {
         return word % 2;
     }
-}
+};
 
 /**************************************/
 B5500CentralControl.prototype.bitSet = function(word, bit) {
     /* Sets the specified bit in word and returns the updated word */
 
     return this.fieldInsert(word, bit, 1, 1);
-}
+};
 
 /**************************************/
 B5500CentralControl.prototype.bitReset = function(word, bit) {
     /* Resets the specified bit in word and returns the updated word */
 
     return this.fieldInsert(word, bit, 1, 0);
-}
+};
 
 /**************************************/
 B5500CentralControl.prototype.fieldIsolate = function(word, start, width) {
@@ -184,7 +186,7 @@ B5500CentralControl.prototype.fieldIsolate = function(word, start, width) {
     } else {
         return word % B5500CentralControl.pow2[width];
     }
-}
+};
 
 /**************************************/
 B5500CentralControl.prototype.fieldInsert = function(word, start, width, value) {
@@ -203,94 +205,95 @@ B5500CentralControl.prototype.fieldInsert = function(word, start, width, value) 
         bottom = word % bpower;
     }
     return (value % B5500CentralControl.pow2[width])*bpower + top + bottom;
-}
+};
 
 /**************************************/
-B5500CentralControl.prototype.fetch = function(r) {
-    /* Called by requestor module "r" to fetch a word from memory. */
-    var acer = r.accessor;
-    var addr = acer.addr;
+B5500CentralControl.prototype.fetch = function(acc) {
+    /* Called by requestor module passing accessor object "acc" to fetch a
+    word from memory. */
+    var addr = acc.addr;
     var modNr = addr >>> 12;
     var modAddr = addr & 0x0FFF;
     var modMask = 1 << modNr;
 
     this.MCYF |= modMask;               // !! need to figure out when to turn this off for display purposes
                                         //    (odd/even addresses? fetch vs. store? XOR the mask?)
-    switch (r) {
-    case PA:
+    switch (acc.requestorID) {
+    case "A":
         this.PAXF = modMask;
         break;
-    case PB:
+    case "B":
         this.PBXF = modMask;
         break;
-    case IO1:
+    case "1":
         this.I1XF = modMask;
         break;
-    case IO2:
+    case "2":
         this.I2XF = modMask;
         break;
-    case IO3:
+    case "3":
         this.I3XF = modMask;
         break;
-    case IO4:
+    case "4":
         this.I4XF = modMask;
         break;
     }
 
     // For now, we assume memory parity can never happen
-    if (acer.MAIL || !this.Memory[modNr]) {
-        acer.MPED = 0;
-        acer.MAED = 1;
+    if (acc.MAIL || !this.MemMod[modNr]) {
+        acc.MPED = 0;   // no memory parity error
+        acc.MAED = 1;   // memory address error
         // no .word value is returned in this case
     } else {
-        acer.MPED = 0;
-        acer.MAED = 0;
-        acer.word = this.Memory[memMod][modAddr];
+        acc.MPED = 0;   // no parity error
+        acc.MAED = 0;   // no address error
+        acc.word = this.MemMod[modNr][modAddr];
     }
-}
+};
 
 /**************************************/
 B5500CentralControl.prototype.store = function(r, addr, word) {
-    /* Called by requestor module "r" to store a word into memory. */
-    var acer = r.accessor
-    var addr = acer.addr;
+    /* Called by requestor module passing accessor object "acc" to store a
+    word into memory. */
+    var addr = acc.addr;
     var modNr = addr >>> 12;
     var modAddr = addr & 0x0FFF;
     var modMask = 1 << modNr;
 
     this.MCYF |= modMask;               // !! need to figure out when to turn this off for display purposes
                                         //    (odd/even addresses? fetch vs. store? XOR the mask?)
-    switch (r) {
-    case this.PA:
+    switch (acc.requestorID) {
+    case "A":
         this.PAXF = modMask;
         break;
-    case this.PB:
+    case "B":
         this.PBXF = modMask;
         break;
-    case this.IO1:
+    case "1":
         this.I1XF = modMask;
         break;
-    case this.IO2:
+    case "2":
         this.I2XF = modMask;
         break;
-    case this.IO3:
+    case "3":
         this.I3XF = modMask;
         break;
-    case this.IO4:
+    case "4":
         this.I4XF = modMask;
         break;
     }
 
     // For now, we assume memory parity can never happen
-    if (acer.MAIL || !this.Memory[modNr]) {
-        acer.MPED = 0;
-        acer.MAED = 1;
+    if (acc.MAIL || !this.MemMod[modNr]) {
+        acc.MPED = 0;   // no memory parity error
+        acc.MAED = 1;   // memory address error
+        // no word is stored in this case
     } else {
-        acer.MPED = 0;
-        acer.MAED = 0;
-        this.Memory[memMod][modAddr] = acer.word;
+        acc.MPED = 0;   // no parity error
+        acc.MAED = 0;   // no address error
+        this.MemMod[modNr][modAddr] = acc.word;
     }
-}
+};
 
 /**************************************/
 B5500CentralControl.prototype.signalInterrupt = function() {
@@ -325,7 +328,7 @@ B5500CentralControl.prototype.signalInterrupt = function() {
              : p2.I & 0x04      ? 0x22  // @42: P2 stack overflow
              : p2.I & 0xF0      ? (p2.I >>> 4) + 0x20   // @44-55: P2 syllable-dependent
              : 0;                       // no interrupt set
-}
+};
 
 /**************************************/
 B5500CentralControl.prototype.clearInterrupt = function() {
@@ -427,11 +430,12 @@ B5500CentralControl.prototype.clearInterrupt = function() {
         break;
     }
     this.signalInterrupt();
-}
+};
 
 /**************************************/
 B5500CentralControl.prototype.tock = function tock() {
     /* Handles the 1/60th second real-time clock tick */
+    var interval;                       // milliseconds to next tick
     var that = tock.that;               // capture the current closure context
     var thisTime = new Date().getTime();
 
@@ -442,10 +446,9 @@ B5500CentralControl.prototype.tock = function tock() {
         that.CCI03F = 1;                // set timer interrupt
         // inhibit for now // that.signalInterrupt();
     }
-    that.nextTimeStamp += B5500CentralControl.rtcTick;
-    that.timer = setTimeout(function() {that.tock()},
-        (that.nextTimeStamp < thisTime ? 0 : that.nextTimeStamp-thisTime));
-}
+    interval = (that.nextTimeStamp += B5500CentralControl.rtcTick) - thisTime;
+    that.timer = setTimeout(function() {that.tock()}, (interval < 0 ? 1 : interval));
+};
 
 /**************************************/
 B5500CentralControl.prototype.initiateP2 = function() {
@@ -472,7 +475,7 @@ B5500CentralControl.prototype.initiateP2 = function() {
         p2.procTime = new Date().getTime()*1000;
         p2.scheduler = setTimeout(p2.schedule, 0);
     }
-}
+};
 
 /**************************************/
 B5500CentralControl.prototype.initiateIO = function() {
@@ -480,21 +483,21 @@ B5500CentralControl.prototype.initiateIO = function() {
 
     if (this.IO1) {
         this.AD1F = 1;
-        IO1.initiate();
+        this.IO1.initiate();
     } else if (this.IO2) {
         this.AD2F = 1;
-        IO2.initiate();
+        this.IO2.initiate();
     } else if (this.IO3) {
         this.AD3F = 1;
-        IO3.initiate();
+        this.IO3.initiate();
     } else if (this.IO4) {
         this.AD4F = 1;
-        IO4.initiate();
+        this.IO4.initiate();
     } else {
         this.CCI04F = 1;                // set I/O busy interrupt
         this.signalInterrupt();
     }
-}
+};
 
 /**************************************/
 B5500CentralControl.prototype.halt = function() {
@@ -519,10 +522,10 @@ B5500CentralControl.prototype.halt = function() {
     }
 
     if (this.loadTimer) {
-        cancelTimeout(this.loadTimer);
+        clearTimeout(this.loadTimer);
         this.loadTimer = null;
     }
-}
+};
 
 /**************************************/
 B5500CentralControl.prototype.load = function() {
@@ -533,12 +536,12 @@ B5500CentralControl.prototype.load = function() {
         if (this.P1) {
             this.LOFF = 1;
             if (this.IO1) {             // !! not sure about I/O selection here
-                IO1.initiateLoad(this.cardLoadSelect);
+                this.IO1.initiateLoad(this.cardLoadSelect);
                 this.loadComplete();
             }
         }
     }
-}
+};
 
 /**************************************/
 B5500CentralControl.prototype.loadComplete = function loadComplete() {
@@ -547,18 +550,90 @@ B5500CentralControl.prototype.loadComplete = function loadComplete() {
     var that = loadComplete.that;       // capture the current closure context
 
     if (!that.CCI08F) {
-        that.loadTimer = setTimeout(that.loadComplete, 10);
+        that.loadTimer = setTimeout(that.loadComplete, 100);
     } else {
         that.loadTimer = null
         that.LOFF = 0;
         that.P1.C = 0x10;               // execute from address @20
         that.P1.L = 0;
         that.P1.access(0x30);           // P = [C]
-        that.P1.T = Math.floor(that.P / 0x1000000000) % 0x1000;
+        that.P1.T = that.fieldIsolate(that.P, 0, 12);
         that.P1.TROF = 1;
 
         // Now start scheduling P1 on the Javascript thread
         that.P1.procTime = new Date().getTime()*1000;
         that.P1.scheduler = setTimeout(that.P1.schedule, 0);
     }
-}
+};
+
+/**************************************/
+B5500CentralControl.prototype.configureSystem = function() {
+    /* Establishes the hardware module configuration from the
+    B5500SystemConfiguration module */
+    var cfg = B5500SystemConfiguration;
+    var x;
+
+    // !! inhibit for now // this.DD = new B5500DistributionAndDisplay();
+
+    if (cfg.PA) {this.PA = new B5500Processor("A")};
+    if (cfg.PB) {this.PB = new B5500Processor("B")};
+
+    this.PB1L = (cfg.PB1L ? 1 : 0);
+
+    /*** enable once I/O exists ***
+    if (cfg.IO1) {this.IO1 = new B5500IOUnit("1")};
+    if (cfg.IO2) {this.IO2 = new B5500IOUnit("2")};
+    if (cfg.IO3) {this.IO3 = new B5500IOUnit("3")};
+    if (cfg.IO4) {this.IO4 = new B5500IOUnit("4")};
+    ***/
+
+    for (x=0; x<8; x++) {
+        if (cfg.MemMod[x]) {
+            this.AddressSpace[x] = new ArrayBuffer(32768);  // 4K B5500 words @ 8 bytes each
+            this.MemMod[x] = new Float64Array(this.AddressSpace[x]);
+        }
+    }
+
+    // Peripheral unit configuration should take place here once we have it.
+};
+
+/**************************************/
+B5500CentralControl.prototype.powerOn = function() {
+    /* Powers up the system and establishes the hardware module configuration.
+    Redundant power-ons are ignored. */
+
+    if (!this.poweredUp) {
+        this.configureSystem();
+        this.poweredUp = true;
+    }
+};
+
+/**************************************/
+B5500CentralControl.prototype.powerOff = function() {
+    /* Powers down the system and deallocates the hardware modules.
+    Redundant power-offs are ignored. */
+    var x;
+
+    if (this.poweredUp) {
+        this.halt();
+        if (this.timer) {
+            clearTimeout(this.timer);
+            this.timer = null;
+        }
+
+        // Deallocate the system modules
+        this.P1 = this.P2 = null;
+        this.PA = null;
+        this.PB = null;
+        this.IO1 = null;
+        this.IO2 = null;
+        this.IO3 = null;
+        this.IO4 = null;
+        for (x=0; x<8; x++) {
+            this.MemMod[x] = null;
+            this.AddressSpace[x] = null;
+        }
+
+        this.poweredUp = false;
+    }
+};

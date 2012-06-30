@@ -9,7 +9,9 @@
 * 2012-06-16  P.Kimpel
 *   Original version, from thin air.
 ***********************************************************************/
+"use strict";
 
+/**************************************/
 function B5500DistributionAndDisplay() {
     /* Constructor for the Distribution And Display module object */
 
@@ -32,7 +34,7 @@ B5500DistributionAndDisplay.prototype.refreshPeriod = 50; // milliseconds
 
 /**************************************/
 B5500DistributionAndDisplay.prototype.clear = function() {
-    /* Initializes the system and starts the real-time clock */
+    /* Initializes the displays and starts the refresh timer */
 
     if (this.timer) {
         clearTimeout(this.timer);
@@ -69,7 +71,7 @@ B5500DistributionAndDisplay.prototype.updateDisplay = function updateDisplay() {
     // Schedule ourself for the next refresh period
     that.nextRefresh += that.refreshPeriod;
     delayTime = that.nextRefresh - thisTime;
-    that.timer = setTimeout(that.updateDisplay, (delayTime < 0 ? 0 : delayTime);
+    that.timer = setTimeout(that.updateDisplay, (delayTime < 0 ? 1 : delayTime);
 
 
 }
