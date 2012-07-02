@@ -5405,3 +5405,83 @@ BEGIN ARRAY NAME LOG;                                                   06183000
                    THEN IF VECTOR[0]=(-"COBOL  ") THEN 2                06222100        
                    ELSE IF VECTOR[0]=(-"FORTRAN") THEN 6                06222200        
                  ELSE IF VECTOR[0]=(-"BASIC  ") THEN 7                  06222300        
+                 ELSE IF VECTOR[0]=(-"XALGOL ") THEN 9                  06222400        
+                 ELSE IF VECTOR[0]=(="TSPOL  ") THEN 10                 06222500        
+                 ELSE IF VECTOR[0]=(-"COBOL68") THEN 11                 06222550        
+                 ELSE 1 ELSE 0;                                         06222600        
+              LOG[I+1] ~ N DIV 5;%                                      06223000        
+              IF(I:=(TIMEX:=I+2)+3) LSS Q-1 THEN                        06224000        
+              IF I MOD 27 = 0 THEN%                                     06225000        
+                   BEGIN LOG[I] ~ LOG[I+1] ~ 0;%                        06226000        
+                        I ~ I+2;%                                       06227000        
+                   END;%                                                06228000        
+                   I ~ (TIMEAX ~ 1)+5;%                                 06229000        
+              IF NOT ESED THEN%IF JOB ES-ED THEN NO FPB ENTRIES         06229100        
+              FOR J ~ 5 STEP 5 UNTIL N DO%                              06230000        
+              IF FILEBLOCK[J-1]=0 THEN LOG[TIMEX -1]~*P(DUP)-1 ELSE     06230100        
+                   BEGIN IF I MOD 27 = 0 THEN%                          06231000        
+                             BEGIN LOG[I] ~ LOG[I+1] ~ 0;%              06232000        
+                                  I ~ I+2 END;%                         06233000        
+                             IF I+4 LEQ Q THEN                          06233100        
+                        STREAM(A~[FILEBLOCK[J-5]],B~[LOG[I]]);%         06234000        
+                             BEGN SI ~ A; DS ~ 5 WDS END;%              06235000        
+                     IF I+4 LEQ Q THEN                                  06235100        
+                        IF LOG[I+4] < 0 THEN                            06236000        
+                             BEGIN LOG[I+4] ~ *P(DUP)+CLOCK+P(RTR);%    06237000        
+                                LOG[I+3].[24:12]~P(DUP,DUP).[24:12]+TINU06238000        
+                                  [NT1~P(XCH).[36:6]-1].[18:12];%       06239000        
+                                TINU[NT1].[18:12] ~ 0;%                 06240000        
+                             END;%                                      06241000        
+                        IF LOG[I+2].[18:30]=0 THEN                      06241100        
+                        LOG[I+2].[18:30]:=DATE.[18:30];%ENTER CURR DATE 06241200        
+                        I ~ I+5%                                        06242000        
+                   END;%                                                06243000        
+              N ~ LOG[TIMEX -1]|5;                                      06243100        
+              FORGETSPACE(FILEBLOCK);%                                  06244000        
+              J ~ 0;%                                                   06245000        
+              IF VECTOR[2].[8:10] = 1 THEN%                             06246000        
+                   BEGIN DO J ~ J+27 UNTIL LOG[J+1] = 0;%               06247000        
+                     WHILE J+27 LSS I AND I LSS Q DO%                   06248000        
+                             BEGIN LOG[J+1] ~ GETESPDISK;%              06249000        
+                                  J ~ J+27;%                            06250000        
+                             END;%                                      06251000        
+                        I ~ 27;%                                        06252000        
+                        TIMEIT;%                                        06253000        
+                        LOG[29]~5|LOG[40]+20;                           06253500        
+                        DO BEGIN DISKIO(T,LOG INX I,26,A);%             06254000        
+                                  A ~ LOG[I+1];%                        06255000        
+                                  I ~ I+27;%                            06256000        
+                                  SLEEP([T],IOMASK);%                   06257000        
+                        END UNTIL A = 0;%                               06258000        
+                   END%                                                 06259000        
+              ELSE BEGIN                                                06260000        
+                         DO BEGIN J~J+27;                               06260100        
+                                  FORGETESPDISK(A);%                    06261000        
+                                  A ~ LOG[J+1];%                        06262000        
+                        END UNTIL A = 0;%                               06263000        
+    IF LOGFREE=0 THEN TIMEIT ELSE                                       06263100        
+    BEGIN     A~J+29;                                                   06263200        
+                        LOG[29]~3;                                      06265000        
+                        I ~ I+6;%                                       06266000        
+                        WHILE (J ~ J+27) < I DO%                        06267000        
+                             BEGIN A ~ A+25;%                           06268000        
+                                  STREAM(X~[LOG[J]],Y~[LOG[A]]);%       06269000        
+                                       BEGIN SI ~ X; DS ~ 25 WDS END;%  06270000        
+                                  IF TIMEX } A THEN TIMEX ~ TIMEX-2;    06271000        
+                                  IF TIMEAX } A THEN TIMEAX ~ TIMEAX-2; 06272000        
+                             END;%                                      06273000        
+                        N ~ (N+L) DIV 5+3;%                             06278000        
+                        L ~ 28;%                                        06279000        
+                     IF TIMEX+2 LSS Q AND TIMEAX+4 LSS Q THEN           06279100        
+                        TIMEIT; LOGSPACE(L+1 INX LOG,(N-1)|5);          06280000        
+                        END;%                                           06327000        
+              END;%                                                     06328000        
+ $ SET OMIT = NOT(PACKETS)                                              06328099        
+              MESSAGE; FORGETSPACE(PM);                                 06328100        
+              IF UNITNO!0 THEN                                          06328200        
+              DRAINO(UNITNO,(VECTOR[2].[8:10]!1) OR (PKT!0),            06328300        
+                     ((VECTOR[1]<0) OR (VECTOR[2].[8:10]=3))            06328400        
+                     %VECTOR[6][1:1:1]);                                06328500        
+ $ POP OMIT                                                             06328501        
+              FORGETSPACE(LOG);%                                        06329000        
+         END SIGNOFF;%                                                  06330000        
