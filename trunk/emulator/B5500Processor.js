@@ -1516,15 +1516,15 @@ B5500Processor.prototype.run = function() {
             switch (this.L) {
             case 0:
                 this.T = ((this.P - this.P % 0x1000000000) / 0x1000000000) % 0x1000;
-                this.L++;
+                this.L = 1;
                 break;
             case 1:
                 this.T = ((this.P - this.P % 0x1000000) / 0x1000000) % 0x1000;
-                this.L++;
+                this.L = 2;
                 break;
             case 2:
                 this.T = ((this.P - this.P % 0x1000) / 0x1000) % 0x1000;
-                this.L++;
+                this.L = 3;
                 break;
             case 3:
                 this.T = this.P % 0x1000;

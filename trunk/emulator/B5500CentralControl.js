@@ -555,10 +555,10 @@ B5500CentralControl.prototype.loadComplete = function loadComplete() {
         that.loadTimer = null
         that.LOFF = 0;
         that.P1.C = 0x10;               // execute from address @20
-        that.P1.L = 0;
         that.P1.access(0x30);           // P = [C]
         that.P1.T = that.fieldIsolate(that.P, 0, 12);
         that.P1.TROF = 1;
+        that.P1.L = 1;                  // advance L to the next syllable
 
         // Now start scheduling P1 on the Javascript thread
         that.P1.procTime = new Date().getTime()*1000;
