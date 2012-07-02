@@ -5228,7 +5228,7 @@ SQIT:               USE:=X3; AV:=I;                                     06111300
                IF ((MINSIZE LEQ UT[I-1].ASIZE) AND (((X5-X1)-           06111700        
                UT[I-1].DEND-1) LEQ FACTOR)) THEN GO SQIT;               06111800        
           END;                                                          06111900        
-          IF USE!0 THEN % FUOND A POSSIBLE SQUASH SITUATION             06112000        
+          IF USE!0 THEN % FOUND A POSSIBLE SQUASH SITUATION             06112000        
           BEGIN                                                         06112100        
                IF INUSEOK THEN MOVEANDFIX;                              06112200        
                GO AGAIN;                                                06112300        
@@ -5302,3 +5302,106 @@ BEGIN ARRAY NAME LOG;                                                   06183000
  $ SET OMIT = NOT(WORKSET AND WORKSETMONITOR)                           06195090        
    IF WKSETMONITOR AND (DD=0) THEN                                      06195095        
       BEGIN                                                             06195100        
+      STREAM(N1 := VECTOR[0], N2 := VECTOR[1],                          06195105        
+        T1 := ((LOG[TIMEX]+0.5)/60 DIV 1),                              06195110        
+        T2 := ((LOG[TIMEX+1]+0.5)/60 DIV 1),                            06195115        
+        T4 ~ (OLAYTIME[MIX]+59) DIV 60,  % OLAY I/O TIME IN SECS   %710-06195118        
+        T3:=(((LOG[TIMEAX+2]-VECTOR[5].[24:24])+0.5)/60 DIV 1),         06195120        
+        DV:=0, DD := DD := SPACE(10));                                  06195125        
+         BEGIN                                                          06195130        
+         SI:=LOC N; DS:=LIT" ";                                         06195135        
+         2(SI:=SI+1; DS:=7CHR; DS:=LIT" ");                             06195140        
+         DS:=4LIT"CPU=";                                                06195145        
+         DS:=6DEC; DV:=DI; DI:=DI-6; DS:=5FILL; DI:=DV;                 06195150        
+         DS:=5LIT" I/O=";                                               06195155        
+         DS:=6DEC; DV:=DI; DI:=DI-6; DS:=5FILL; DI:=DV;                 06195160        
+         DS~ 6LIT" OLAY=";                                         %710-06195161        
+         DS~ 6DEC; DV~ DI; DI~ DI-6; DS~ 5FILL; DI~ DV;            %710-06195162        
+         DS:=6LIT" ELAP=";                                              06195165        
+         DS:=6DEC; DV:=DI; DI:=DI-6; DS:=5FILL; DI:=DV;                 06195170        
+         DS:=LIT"~";                                                    06195175        
+         END STREAM STATEMENT;                                          06195180        
+      SPOUT(DD);                                                        06195185        
+      END;                                                              06195190        
+ $ POP OMIT % WORKSET AND WORKSETMONITOR                                06195195        
+                        STREAM(A~VECTOR[5].[1:23]:B~0);%                06196000        
+                        BEGIN SI ~ LOC A; DI ~ LOC A; DS ~ 8 DEC END;%  06197000        
+                        LOG[TIMEAX] ~ P(XCH);%                          06198000        
+                        LOG[TIMEAX+1] ~ VECTOR[5].[24:24];%             06199000        
+ $ SET OMIT = NOT(STATISTICS)                                           06199099        
+                        NT4 ~ VECTOR[2].[8:10];%                        06200000        
+                        LOG[TIMEAX+3] ~ IF VECTOR[1] < 0 THEN (NT4= 99) 06201000        
+                             +2 ELSE NT4 = 3;%                          06202000        
+                        LOG[TIMEAX+3].[1:30]~  DATE.[18:30];            06202100        
+                        LOG[TIMEAX+4]:=USERCODE[MIX];                   06203000        
+ $ SET OMIT = NOT(DCLOG  AND DATACOM)                                   06203099        
+                        IF TABCNT[MIX]!0 THEN                           06203600        
+                        BEGIN T:=CLOCK+900;                             06203650        
+                             COMPLEXSLEEP(TABACNT[MIX]=0 OR CLOCK>T);   06203700        
+                        END;                                            06203750        
+ $ SET OMIT = NOT (DATACOM AND NOT DCLOG)                               06203790        
+                        PRTROW[MIX].[PSF]:=0;                           06204000        
+ $ SET OMIT = NOT(PACKETS)                                              06205009        
+                        UNITNO:=PSEUDOMIX[MIX];                         06205010        
+                        PSEUDOMIX[MIX]:=0;                              06205020        
+                        PM[0]:=LOG[TIMEX  ]/60;                         06205030        
+                        PM[1]:=LOG[TIMEX+1]/60;                         06205040        
+ $ SET OMIT = NOT(WORKSET) OR OMIT                                 %759-06205049        
+                        PM[2]:=OLAYTIME[MIX]/60;                   %759-06205050        
+ $ POP OMIT                                                             06205051        
+ $ POP OMIT                                                        %759-06205052        
+                        USERCODE[MIX] := 0;                             06205100        
+                        STREAM(S~[NFO[(MIX-1)|NDX]]);%                  06205200        
+                        BEGIN DS~8 LIT "0";  DI~S;  DS~2 WDS;  END;%    06205300        
+ $ SET OMIT = NOT STATISTICS                                            06205540        
+                        JARROW[MIX]:=PRTROW[MIX]:=0;                    06206000        
+                   END TIMET;                                           06206100        
+ $ SET OMIT = NOT(PACKETS)                                              06206109        
+              SUBROUTINE MESSAGE;                                       06206110        
+              IF UNITNO!0 OR (VECTOR.[24:9]!0) THEN                     06206120        
+              BEGIN                                                     06206130        
+              STREAM(A:=[VECTOR[0]],MIX,B:=[PM[0]],T:=T:=SPACE(10));    06206140        
+              BEGIN DS:=5LIT" FOR";SI:=A;SI:=SI+1;DS:=7CHR;             06206150        
+              DS:=LIT"/";SI:=SI+1;DS:=7CHR;SI:=LOC MIX;                 06206160        
+              DS:=LIT"=";DS:=2DEC;                                      06206170        
+              A:=DI;DI:=DI-2;DS:=FILL;DI:=A; SI:=B;                     06206175        
+              DS:=10 LIT ": PROCESS="; DS:=5 DEC;                  %759-06206180        
+              A:=DI;DI:=DI-5;DS:=4FILL;DI:=A;                           06206190        
+              DS:=10 LIT " SECS, IO="; DS:=5 DEC;                  %759-06206200        
+              A:=DI;DI:=DI-5;DS:=4FILL;DI:=A;                           06206205        
+ $ SET OMIT = NOT(WORKSET) OR OMIT                                 %759-06206209        
+              DS:=12 LIT " SECS, OLAY="; DS:=5 DEC;                %759-06206210        
+              A:=DI;DI:=DI-5;DS:=4FILL;DI:=A;                      %759-06206215        
+ $ POP OMIT                                                        %759-06206216        
+              DS:=LIT"~";                                               06206220        
+              END;                                                      06206230        
+              SPOUTER(T,IF VECTOR.[24:9] NEQ 0 THEN                     06206240        
+                      VECTOR.[24:9] ELSE UNITNO,64);                    06206250        
+              END;                                                      06206260        
+ $ POP OMIT                                                             06206261        
+              A ~ VECTOR[6].[33:15];%                                   06207000        
+              ESED:=VECTOR[2].[2:1];                                    06207100        
+              T:=Q:=((L:=VECTOR[6].[18:15])+(IF ESED THEN N~0 ELSE      06208000        
+                   N:=FILEBLOCK.[8:10])+60) DIV 25|27;                  06209000        
+              LOG:=[M[TYPEDSPACE(T,LOGAREAV)]];%                   %167-06210000        
+              M[LOG INX NOT 1].[9:6] ~ 0;%                              06211000        
+ $ SET OMIT = NOT(PACKETS)                                              06211099        
+              PM:=[M[SPACE(5)]]&5[8:38:10];                             06211100        
+              M[PM INX NOT 1].[9:6]:=0;                                 06211200        
+ $ POP OMIT                                                             06211201        
+              J ~ A;%                                                   06212000        
+              DO BEGIN I ~ I+27;%                                       06213000        
+                   DISKIO( T ,-( LOG INX I),26,J);%                     06214000        
+                   SLEEP([T],IOMASK);%                                  06215000        
+                   J ~ LOG[I+1];%                                       06216000        
+              END UNTIL J=0 OR I+53>Q;%                                 06217000        
+              IF VECTOR[2].[8:10]=0 THEN L ~ LOG[29];                   06217100        
+              IF(I:=(L-5) MOD 25+I+7) LSS Q-3 THEN                      06218000        
+              IF I MOD 27 = 0 THEN%                                     06219000        
+                   BEGIN LOG[I] ~ LOG[I+1] ~ 0;%                        06220000        
+                        I ~ I+2 END;%                                   06221000        
+ $ SET OMIT = NOT(STATISTICS)                                           06221099        
+              LOG[I]:= IF VECTOR[0] LSS 0                               06222000        
+                   THEN IF VECTOR[0]=(-"COBOL  ") THEN 2                06222100        
+                   ELSE IF VECTOR[0]=(-"FORTRAN") THEN 6                06222200        
+                 ELSE IF VECTOR[0]=(-"BASIC  ") THEN 7                  06222300        
