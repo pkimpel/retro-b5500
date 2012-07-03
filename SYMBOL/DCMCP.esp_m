@@ -5485,3 +5485,90 @@ BEGIN ARRAY NAME LOG;                                                   06183000
  $ POP OMIT                                                             06328501        
               FORGETSPACE(LOG);%                                        06329000        
          END SIGNOFF;%                                                  06330000        
+PROCEDURE USERDISKSPECIALCASE(Q,R,UT,J) ;                               06350000        
+VALUE Q,J;  REAL R,J;  INTEGER Q;  ARRAY UT[*] ;                        06350300        
+     BEGIN                                                              06350600        
+     REAL BUFF=Q,N=J,Z=UT,E=R ;                                         06351000        
+ $ SET OMIT = NOT(SHAREDISK )                                           06351050        
+ $ SET OMIT = SHAREDISK                                                 06351100        
+    REAL NEU,NT;  ARRAY UA[*];                                          06351104        
+    DEFINE U=AVTABLE #,  AVS=B #,  NEU1=J-1 #,  NEU2=NT-1 #;            06351105        
+ $ POP OMIT                                                             06351106        
+    INTEGER NT1,NT3,NT4,B ;                                             06351250        
+    LABEL L1,L2,L3,UP,PU,BD,WHY,M1,T10 ;                                06351500        
+    SWITCH SW,~L1,L2,L3 ;                                               06351800        
+    IF Q!0 THEN GO SW[Q-1] ;                                            06352000        
+ $ SET OMIT = NOT(SHAREDISK )                                           06352490        
+L1: BUFF:=R; Z:=0; UNLOCKTOG(USERDISKMASK);                             06353500        
+         IF N LEQ RESERVEDISKSIZE THEN% CALL OUT RESERVES               06353510        
+         IF (Z:=DIRECTORYSEARCH("RESERVE","DISK   ",6)) NEQ 0 THEN      06353530        
+         BEGIN FORGETSPACE(Z);                                          06353540        
+                    IF N>0 THEN                                         06353541        
+ $ SET OMIT = PACKETS                                                   06353542        
+                    BEGIN STREAM(Z:=Z:=SPACE(3));                       06353545        
+                          DS!23 LIT "**RESERVE/DISK REMOVED~";          06353550        
+                          SPOUTER(Z,25,(NOT LIBMSG) AND 1);        %523-06353551        
+                    END;                                                06353552        
+                    FORGETSPACE(BUFF); P(XIT);                     %528-06353555        
+         END OF RESERVE CALL UP;                                        06353570        
+         IF AUTOUNLD THEN                                               06353580        
+         BEGIN P(P1MIX); AUTOUNLD:=P1MIX:=0;                            06353590        
+               STREAM(A:=DATE,Z:=Z:=SPACE(10)+2);                       06353600        
+               BEGIN DS:=23 LIT"CC UNLOAD EXPIRED TO XP";               06353610        
+                     SI:=LOC A; SI:=SI+3; DS:=5 CHR;                    06353620        
+                     DS:=9 LIT " =/=;END.";                             06353630        
+               END;                                                     06353640        
+               INDEPENDENTRUNNER(P(.CONTROLCARD),Z&31[3:43:5],192);     06353650        
+               P1MIX:=P;                                                06353660        
+               IF N GEQ 0 THEN                                          06353670        
+               BEGIN STREAM(Z:=Z:=SPACE(10));                           06353680        
+                     DS:=18 LIT"18 AUTOUNLD RESET~";                    06353690        
+                     SPOUT(Z);                                          06353700        
+         END   END AUTOMATIC UNLOADING;                                 06353710        
+         IF NOT N.[2:1] THEN                                            06353720        
+         BEGIN IF P1MIX!0 THEN                                          06354000        
+              BEGIN                                                     06354100        
+              NT1 ~ NOTERMSET(P1MIX); % NOTE: NT1 IS LOCAL         %537-06354200        
+    WHY:      STREAM(J:=JARROW[P1MIX],P1MIX,N,BUFF);                    06355000        
+              BEGIN DS~14 LIT "#NO USER DISK:";                         06356000        
+                   SI~J;  SI~SI+1;  DS~7 CHR;                           06357000        
+                   DS~LIT "/";  SI~SI+1;  DS~7 CHR;                     06358000        
+                   SI~LOC P1MIX;  DS~LIT "=";  DS~2 DEC;                06359000        
+                   J:=DI; DI:=DI-2; DS:=FILL; DI:=J; DS:=LIT"-";        06359500        
+                   SI:=LOC N; DS:=8 DEC; DS:=7 LIT" SEGS.~";            06360000        
+                   DI:=DI-15; DS:=7 FILL;                               06360500        
+                   END;                                                 06360505        
+              SPOUT(BUFF);                                              06360510        
+              IF AUTODS AND NOTERMSET(P1MIX) THEN                  %747-06360515        
+                   TERMINATE(P1MIX&61[CTF]) ELSE                   %747-06360516        
+              BEGIN                                                %747-06360517        
+              REPLY[P1MIX]:=-VWY&VOK[36:42:6];                          06360520        
+              COMPLEXSLEEP((REPLY[P1MIX] GTR 0) OR                      06360530        
+                             (TERMSET(P1MIX) AND NT1));            %537-06360540        
+              END;                                                 %747-06360542        
+              IF NT1 THEN                                          %537-06360545        
+              IF TERMSET(P1MIX) THEN                                    06360550        
+              BEGIN PRTROW[P1MIX].[7:1]~1;                              06360560        
+                    GO TO INITIATE;                                     06360570        
+              END;                                                      06360580        
+              IF NOT WHYSLEEP(VWY&VOK[36:42:6]) THEN                    06360590        
+              BEGIN BUFF~SPACE(10);                                     06360600        
+                    GO TO WHY;                                          06360610        
+              END;                                                      06360620        
+              END ELSE                                                  06361000        
+              BEGIN                                                     06361010        
+              STREAM(N,BUFF);                                           06361100        
+              BEGIN DS:=20 LIT"#NO USER DISK:MCP - ");                  06361200        
+                   SI:=LOC N; DS:=8 DEC;                                06361300        
+                   DS:=6 LIT" SEGS~";                                   06361400        
+                   DI:=DI-14; DS:=7 FILL;                               06361500        
+              END;                                                      06361600        
+              SPOUT(BUFF);                                              06361610        
+             NT1:=0; DO SLEEP([CLOCK], NOT CLOCK)                       06361700        
+                                UNTIL (NT1~NT1+1)=30);                  06361705        
+              END;                                                      06361710        
+         END ELSE FORGETSPACE(BUFF);                                    06365110        
+    P(XIT) ;                                                            06380070        
+L2: U[J]:=E; E:=NEU:=(NT:=NEUP.NEUF)+2+(NT+1)DIV 2; P(NT); J:=1;        06380100        
+ $ SET OMIT = SHAREDISK                                                 06380120        
+    NT1:=NT+NT+NT; FORGETSPACE(UT); FIXARRAY(UA,NT2,NT1); E:=0;         06380140        
