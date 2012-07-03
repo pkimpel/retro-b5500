@@ -8,6 +8,15 @@
 * Instance variables in all caps generally refer to register or flip-flop (FF)
 * entities in the processor hardware. See the Burroughs B5500 Reference Manual
 * (1021326, May 1967) for details.
+*
+* B5500 word format: 48 bits plus (hidden) parity.
+*   Bit 0 is high-order, bit 47 is low-order, big-endian character ordering.
+*       [0:1]   Flag bit (1=descriptor)
+*       [1:1]   Mantissa sign bit (1=negative)
+*       [2:1]   Exponent sign bit (1=negative)
+*       [3:6]   Exponent (power of 8, signed-magnitude)
+*       [9:39]  Mantissa (signed-magnitude, scaling point after bit 47)
+*
 ************************************************************************
 * B5500 Processor (CPU) module.
 ************************************************************************
@@ -251,6 +260,33 @@ B5500Processor.prototype.adjustBFull = function() {
         this.access(0x03);              // B = [S]
         this.S--;
     // else we're done -- B is already full
+    }
+};
+
+/**************************************/
+B5500Processor.prototype.adjustABFull = function() {
+    /* Ensures both TOS registers are occupied, pushing up from memory as required */
+
+    if (this.AROF) {
+        if (this.BROF) {
+            // A and B are already full, so we're done
+        } else {
+            // A is full and B is empty, so load B from [S]
+            this.access(0x03);          // B = [S]
+            this.S--;
+        }
+    } else {
+        if (this.BROF) {
+            // A is empty and B is full, so copy B to A and load B from [S]
+            this.A = this.B;
+            this.AROF = 1;
+        } else {
+            // A and B are empty, so simply load them from [S]
+            this.access(0x02);          // A = [S]
+            this.S--;
+        }
+        this.access(0x03);              // B = [S]
+        this.S--;
     }
 };
 
