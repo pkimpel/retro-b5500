@@ -5743,3 +5743,85 @@ END DIRSRH;                                                             06463820
           DKSGROW:=M[SH INX 8];                                         06463996        
           CODES:=SPACE(30);                                             06464000        
           ROWS:=(M[SH INX 9] AND 31)-1;                                 06464050        
+          FOR ROW:=0 STEP 1 UNTIL ROWS DO                               06464100        
+          BEGIN IF (DKADR:=M[SH INX 10+ROW])=0 THEN                     06464200        
+NOTFOUND:       BEGIN TYPE := 0;                                        06464300        
+                      FORGETSPACE(CODES); FORGETSPACE(SH);GO TO EXYT;   06464400        
+                END;                                                    06464500        
+                ROWSZ := DKADR + DKSGROW;                               06464600        
+                WHILE DKADR < ROWSZ DO                                  06464700        
+                BEGIN DISKIO(C,1-CODES,30,DKADR);                       06464800        
+                      SLEEP([C],IOMASK);                                06464900        
+                      FOR C:=0 STEP 1 UNTIL 29 DO                       06465000        
+                     BEGIN IF((USER:=NFLAG(M[CODES INX C]))EQV @114=    06465100        
+                             NOT 0 THEN GO TO NOTFOUND;                 06465200        
+                             IF (USER EQV @14)! NOT 0 THEN              06465210        
+                                     IF USER.[3:3]=0 THEN               06465220        
+                                     BEGIN                              06465230        
+                             IF (USERID EQV ABS(USER))=NOT 0 THEN       06465300        
+                             BEGIN TYPE :=                              06465400        
+                                  IF USER < 0 THEN 2 ELSE 3;            06465500        
+                                  GO TO FORGET;                         06465600        
+                             END;                                       06465700        
+                                     END ELSE                           06465800        
+                                     BEGIN                              06465805        
+                                     IF P1MIX ! 0 THEN                  06465810        
+                                     IF (ABS)JAR[P1MIX,0])EQV           06465820        
+                                       USER.[6:42])= NOT 0 THEN         06465830        
+    IF((IF JAR[P1MIX,0]<0 THEN "DISK   "ELSE JAR[P1MIX,1])EQV           06465840        
+                                       M[CODES INX C+1].[6:42])= NOT 0  06465850        
+                                     THEN                               06465860        
+                                     BEGIN                              06465870        
+                                       TYPE := USER.[3:3];              06465880        
+                                       GO TO FORGET;                    06465900        
+                                     END; C:=C+1;                       06465910        
+                                     END;                               06465920        
+                      END; % 30 USERS                                   06466000        
+                      DKADR := DKADR + 1;                               06466100        
+                END; % ROW                                              06466200        
+          END; % ROWS                                                   06466300        
+          GO TO NOTFOUND;                                               06466310        
+    END; % NO SECURITY BLOCK FILE                                       06466400        
+    TYPE :=0;                                                           06466500        
+EXYT:                                                                   06466600        
+    IF HEADER LSS 512 THEN                                              06466610        
+    IF HEADER GEQ 0 THEN HEADER:=FH ELSE FORGETSPACE(FH);               06466620        
+    SECURITYCHECK :=TYPE;                                               06466700        
+END SECURITYCHECK;                                                      06467500        
+ $ SET OMIT = NOT(DATACOM )                                             06499999        
+% * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *%JS06845900        
+ $ SET OMIT = NOT(DCLOG AND DATACOM )                                   06845999        
+DEFINE KLULMP=@174#; @173 IS RESERVED FOR THE DISK ADDRESS              07000000        
+COMMENT LASTCDNUM, FIRSTDECK, AND LASTDECK ARE STORED IN THE            07000010        
+        FIRST THREE WORDS OF THE DISK SEGMENT LOCATED AT DIRECTORYTOP   07000015        
+        +3. IN A NON SHARED DISK SYSTEM, THEY ARE WRITTEN OUT EACH      07000020        
+        TIME ONE OF THEM IS CHANGED SO THAT THEY WILL BE PRESERVED      07000025        
+        IF A HALT/LOAD OCCURS. N A SHARED DISK SYSTEM, THEY ARE         07000030        
+        READ INTO THE PRT WITH A READ-LOCK COMMAND EACH TIME THEY ARE   07000035        
+        USED. THIS PROVIDES CONTROL DECK INTERLOCKING BETWEEN SYSTEMS   07000040        
+        IN ADDITION TO PASSING THE INFORMATION BETWEEN SYSTEMS.         07000045        
+END COMMENT;                                                            07000050        
+INTEGER LASTCDNUM=@174;                                                 07000100        
+REAL FIRSTDECK=@175;                                                    07000200        
+REAL LASTDECK=@176;                                                     07000300        
+DEFINE LOCKCONTROLDECKS=BEGIN SLEEP([TOGLE],CDMASK); LOCKTOG(CDMASK);   07001000        
+ $ SET OMIT = NOT(SHAREDISK)                                            07001099        
+    END#,                                                               07001200        
+    UNLOCK(CONTROLDECKS=BEGIN                                           07001300        
+ $ SET OMIT = NOT(SHAREDISK)                                            07001399        
+         UNLOCKTOG(CDMASK) END#;                                        07001500        
+REAL PROCEDURE NEXTCDNUM(UPDATE); VALUE UPDATE; BOOLEAN UPDATE;         07001600        
+BEGIN                                                                   07001620        
+     LOCKCONTROLDECKS;                                                  07001640        
+     LASTCDNUM := (LASTCDNUM MOD 9999) + 1;                             07001660        
+     STREAM(CDNUM:=0; LNUM:=LASTCDNUM);                                 07001680        
+     BEGIN                                                              07001700        
+          SI:=LOC LNUM; DI:=LOC CDNUM; DS:=8 DEC;                       07001720        
+     END;                                                               07001740        
+     NEXTCDNUM := P;                                                    07001760        
+     IF UPDATE THEN                                                     07001780        
+     BEGIN                                                              07001800        
+          DISKWAIT(KLUMP,-3,DIRECTORYTOP+3);                            07001820        
+          UNLOCKTOG(CDMASK);                                            07001840        
+     END;                                                               07001860        
+END;                                                                    07001880        
