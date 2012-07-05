@@ -678,12 +678,67 @@ B5500Processor.prototype.indexDescriptor = function() {
 B5500Processor.prototype.buildMSCW = function() {
     /* Return a Mark Stack Control Word from current processor state */
 
-    return this.F * 0x8000 +
+    return  this.F * 0x8000 +
             this.SALF * 0x40000000 +
             this.MSFF * 0x80000000 +
             this.R * 0x200000000 +
             0xC00000000000;
-}
+};
+
+/**************************************/
+B5500Processor.prototype.buildRCW = function(descriptorCall) {
+    /* Return a Return Control Word from the current processor state */
+
+    return  this.C +
+            this.F * 0x8000 +
+            this.K * 0x40000000 +
+            this.G * 0x200000000 +
+            this.L * 0x1000000000 +
+            this.V * 0x4000000000 +
+            this.H * 0x20000000000 +
+            (descriptorCall ? 0xE00000000000 : 0xC00000000000);
+};
+
+/**************************************/
+B5500Processor.prototype.enterCharModeInline() {
+    /* Implements the 4441=CMN syllable */
+    var bw;                             // local copy of B reg
+
+    this.adjustAEmpty();                // flush TOS registers, but tank TOS value in A
+    if (this.BROF) {
+        this.A = this.B;                // tank the DI address in A
+        this.adjustBEmpty();
+    } else {
+        this.access(0x02)               // A = [S]: tank the DI address
+    }
+    this.B = this.buildRCW(false);
+    this.adjustBEmpty();
+    this.MSFF = 0;
+    this.SALF = 1;
+    this.F = this.S;
+    this.R = 0;
+    this.CWMF = 1;
+    this.X = this.S * 0x8000;           // inserting S into X.[18:15], but X is zero at this point
+    this.S = 0;
+    this.B = bw = this.A;
+    this.BROF = 1;
+    this.AROF = 0;
+    this.V = this.K = 0;
+
+    // execute the portion of CM XX04=RDA operator starting at J=2
+    if (bw < 0x800000000000) {                  // B contains an operand
+        this.S = bw % 0x8000;
+        this.K = (bw % 0x40000) >>> 15;
+    } else {                                    // B contains a descriptor
+        if (bw % 0x400000000000 < 0x200000000000) { // it's an absent descriptor
+            this.I = (this.I & 0x0F) | 0xE0;    // set I06/7/8: p-bit
+            cc.signalInterrupt();               // NOTE: docs do not mention if this is inhibited in control state
+        } else {
+            this.S = bw % 0x8000;
+        }
+    }
+};
+
 
 /**************************************/
 B5500Processor.prototype.enterSubroutine = function(descriptorCall) {
@@ -708,18 +763,7 @@ B5500Processor.prototype.enterSubroutine = function(descriptorCall) {
         }
 
         // Push a RCW
-        bw = this.C +
-            this.F * 0x8000 +
-            this.K * 0x40000000 +
-            this.G * 0x200000000 +
-            this.L * 0x1000000000 +
-            this.V * 0x4000000000 +
-            this.H * 0x20000000000 +
-            0xC00000000000;
-        if (descriptorCall) {
-            bw += 0x200000000000;
-        }
-        this.B = bw;
+        this.B = this.buildRCW(descriptorCall);
         this.adjustBEmpty();
 
         // Fetch the first word of subroutine code
@@ -865,8 +909,10 @@ B5500Processor.prototype.run = function() {
     /* Instruction execution driver for the B5500 processor. This function is
     an artifact of the emulator design and does not represent any physical
     process or state of the processor. This routine assumes the registers are
-    set up, and in particular a syllable is in T with TROF set. It will run
-    until cycleCount >= cycleLimit or !this.busy */
+    set up -- in particular there must be a syllable in T with TROF set, the
+    current program word must be in P with PROF set, and the C & L registers
+    must point to the next syllable to be executed.
+    This routine will run until cycleCount >= cycleLimit or !this.busy */
     var opcode;
     var t1;
     var t2;
@@ -1186,7 +1232,7 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x12:          // 2211: HP2=Halt Processor 2
-                        if (!this.NCSF & cc.P2 && cc.P2BF) {
+                        if (!this.NCSF && cc.P2 && cc.P2BF) {
                             cc.HP2F = 1;
                             // We know P2 is not currently running on this thread, so save its registers
                             cc.P2.storeForInterrupt(false);
@@ -1389,6 +1435,11 @@ B5500Processor.prototype.run = function() {
                 case 0x21:              // XX41: index, mark stack, etc.
                     switch (variant) {
                     case 0x01:          // 0141: INX=index
+                        this.adjustABFull();
+                        t1 = this.A % 0x8000;
+                        this.M = (t1 + this.B % 0x8000) & 0x7FFF;
+                        this.A += this.M - t1;
+                        this.BROF = 0;
                         break;
 
                     case 0x02:          // 0241: COC=construct operand call
@@ -1425,6 +1476,7 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x24:          // 4441: CMN=enter character mode inline
+                        this.enterCharModeInline();
                         break;
                     }
                     break;
@@ -1477,8 +1529,7 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x35:              // XX65: TRB=Transfer Bits
-                    this.adjustAFull();
-                    this.adjustBFull();
+                    this.adjustABFull();
                     t1 = this.G*8 + this.H;     // A register starting bit nr
                     if (t1+variant > 48) {
                         variant = 48-t1;
@@ -1495,8 +1546,7 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x39:              // XX71: FCL=Compare Field Low
-                    this.adjustAFull();
-                    this.adjustBFull();
+                    this.adjustABFull();
                     t1 = this.G*8 + this.H;     // A register starting bit nr
                     if (t1+variant > 48) {
                         variant = 48-t1;
@@ -1514,8 +1564,7 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x3D:              // XX75: FCE=Compare Field Equal
-                    this.adjustAFull();
-                    this.adjustBFull();
+                    this.adjustABFull();
                     t1 = this.G*8 + this.H;     // A register starting bit nr
                     if (t1+variant > 48) {
                         variant = 48-t1;
