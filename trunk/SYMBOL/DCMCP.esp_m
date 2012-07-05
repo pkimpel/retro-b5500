@@ -5572,3 +5572,174 @@ L1: BUFF:=R; Z:=0; UNLOCKTOG(USERDISKMASK);                             06353500
 L2: U[J]:=E; E:=NEU:=(NT:=NEUP.NEUF)+2+(NT+1)DIV 2; P(NT); J:=1;        06380100        
  $ SET OMIT = SHAREDISK                                                 06380120        
     NT1:=NT+NT+NT; FORGETSPACE(UT); FIXARRAY(UA,NT2,NT1); E:=0;         06380140        
+ $ POP OMIT                                                             06380141        
+UP: IF (NT4:=E MOD 30) LSS (NT3:=(NT1:=U[J].STARTWRD) MOD 30)           06380150        
+    THEN NT4:=NT3 ;                                                     06380200        
+    IF (NT2:=(Q:=U[J] AND NUMENTM)+NT4) GTR 1023                        06380250        
+    OR ((Q+E+1) DIV 30+1-E DIV 30) GTR 34 THEN                          06380300        
+BD: BYBY("ODISK IS TOO CHECKERED...PLEASE COMPACT IT~",43) ;            06380350        
+    DISKWAIT(-((UA[NEU1]:=(UA[NEU2+J]:=SPACE(NT2))+NT4)-NT3),Q+NT3,     06380400        
+             USERDISKBOTTOM~NT1 DIV 30) ;                               06380450        
+ $ SET OMIT = NOT(SHAREDISK )                                           06380490        
+ $ SET OMIT = SHAREDISK                                                 06380520        
+    IF J=1 THEN B:=UA.[CF]+NT+NT-1 ;                                    06380525        
+ $ POP OMIT                                                             06380526        
+    M[B+J]:=U[J]&E[TOSTARTWRD] ;                                        06380550        
+    IF (NT1:=Q DIV 4) LSS AVDIFFMIN THEN NT1:=AVDIFFMIN ;               06380600        
+    IF (E:=E+Q+NT1) GTR AVTMAX THEN GO TO BD;                           06380650        
+    IF P(DUP) GEQ J:=J+1 THEN GO UP;  E:=E-NT1;  J:=1 ;                 06380700        
+PU: NT2:=(NT3:=P(M[B+J],DUP).STARTWRD)+NT5:=P(XCH) AND NUMENTM ;        06380750        
+    IF P(DUP)!J THEN IF (NT2-1)DIV 30=(NT4~M[B+J+1].STARTWRD)DIV 30 THEN06380800        
+    MOVE(NT1~NT2 MOD 30,UA[NEU1]+NT5-NT1,NT1~UA[NEU1+1]-NT4 MOD 30);    06380850        
+    DISKWAIT(UA[NEU1]-NT1~NT3 MOD 30,NT1~NT5,USERDISKBOTTOM+NT3 DIV 30);06380900        
+ $ SET OMIT = NOT(SHAREDISK)                                            06380924        
+    FORGETSPACE(UA[NEU2+J]);                                            06380950        
+    IF P(DUP) GEQ J:=J+1 THEN GO PU ;                                   06381000        
+ $ SET OMIT = SHAREDISK                                                 06381020        
+    MOVE(NT,[UA[NT+NT]].[AVTABLE[1]]) ;                                 06381070        
+ $ POP OMIT                                                             06381071        
+ $ SET OMIT = NOT(SHAREDISK )                                           06381075        
+    FORGETSPACE(UA) ;                                                   06381085        
+ $ SET OMIT = NOT(SHAREDISK )                                           06381095        
+    P(DEL,Q&AVS[TOSIZE] OR M,RTN) ;                                     06381250        
+L3: P(U[NEUP.NEUF+2+(Q:=J DIV P(M1)) DIV 2],IF Q THEN P.[8:20] ELSE     06381300        
+      P.[28:20]) ;                                                      06381310        
+    IF U[Q+1].SPEED = 2 THEN                                            06381320        
+         BEGIN % 40-MILL MASK CONSTRUCTION.                             06381330        
+         Q:=P ;                                                         06381335        
+         STREAM(S:=0:Q);                                                06381340        
+              BEGIN                                                     06381345        
+              SI:=LOC Q; SKIP 28SB; DI:=LOC S; SKIP 8DB;                06381350        
+              5(4(IF SB THEN DS:=SET ELSE SKIP DB;SKIP SB); SKIP 4 DB); 06381355        
+              SI:=LOC Q; SKIP 28 SB; DI:=LOC S; DI:=DI+2;               06381360        
+              5(4(IF SB THEN DS:=SET ELSE SKIP DB;SKIP SB); SKIP 4 DB); 06381365        
+              END STREAM;                                               06381380        
+         END ;                                                          06381390        
+    STREAM(MSG:=0:V:=47-(J:=((Q:=J MOD P(M1))+ABS(R)-1) DIV P(T10)),    06381395        
+           W:=1+J-Q DIV P(T10));                                        06381400        
+    BEGIN DI:=LOC MSK; SKIP V DB; DS:=W SET; END;                       06381405        
+    P(LND,LNG,0,LNG,=,RTN);                                             06381410        
+M1:::    @3641100; % DECIMAL 1000000.                                   06381450        
+T10:::   @23420;   % DECIMAL 10000.                                     06381500        
+    END OF USERDISKSPECIALCASE ;                                        06381550        
+ PROCEDURE GETMOREOLAYDISK(MIX);%                                       06400000        
+ VALUE   MIX;%                                                          06401000        
+ INTEGER MIX;%                                                          06402000        
+    BEGIN INTEGER  I=+1,%                                               06403000        
+                   J=+2,%                                               06404000        
+                   T=+3;%                                               06405000        
+         ARRAY     A=+4[*];%                                            06406000        
+         REAL MSCW=-2;                                                  06406500        
+         REAL      RCW=+0;%                                             06407000        
+         LABEL EXIT;%                                                   06408000        
+    DEFINE DALOCMAXSZ =                                                 06408100        
+ $ SET OMIT = NOT(AUXMEM)                                               06408199        
+ $ SET OMIT = AUXMEM                                                    06408299        
+                        127#; %DALOC SIZE MUST = 9 INIITALLY.           06408300        
+ $ POP OMIT                                                             06408301        
+         P(0, 0, 0, 0);  TOGLE ~ TOGLE OR STACKMASK;%                   06410000        
+         IF (T~DALOC[MIX,0].[CF]+1)=DALOCMAXSZ THEN BEGIN               06411000        
+              TERMINATE (MIX&111[CTF]);                            %517-06411010        
+             GO TO EXIT; END;                                           06411030        
+         IF T=DALOCROW[MIX].[8:10] THEN%                                06412000        
+         BEGIN IF (J~T+P(DUP) - 1)=129 THEN J~DALOCMAXSZ;               06413000        
+              WHILE (I := GETSPACE(J, 0, 3)+2)=2 DO                     06414000        
+                SLEEP([CLOCK], NOT CLOCK);                              06415000        
+              MOVE(T, DALOCROW[MIX], I);                                06416000        
+              FORGETSPACE(DALOCROW[MIX]);                               06417000        
+              DALOCROW[MIX] := (*P(DUP)) & I[CTC] & J[8:38:10];         06417500        
+              M[I-2].[9:6] := MIX;                                      06418000        
+         END AIT TYPE ACTION;%                                          06419000        
+         IF (I ~ GETUSERDISK(500 OR MEMORY))=0 THEN GO TO EXIT;%        06420000        
+         DALOC[MIX,0] ~ (*P(DUP))&(T+1)[CTC];%                          06421000        
+         DALOC[MIX,T] ~ I;%                                             06422000        
+         DALOC[MIX,T+1] ~ 0;%                                           06423000        
+    EXIT: OLAYMASK ~ TWO(MIX) OR OLAYMASK;%                             06424000        
+         KILL([MSCW]);                                                  06425000        
+    END GET MORE OVERLAY DISK FOR A MIX INDEX;%                         06426000        
+REAL PROCEDURE SECURITYCHECK(MID,FID,USERID,HEADER);                    06460000        
+VALUE MID,FID,USERID;                                                   06460100        
+REAL MID,FID,USERID,HEADER;                                             06460200        
+%   MID       MULTI FILE ID OF FILE TO BE CHECKED                       06460300        
+%   FID       FILE ID OF FILE TO BE CHECKED                             06460400        
+%   USERID    USER IDENTIFICATION                                       06460500        
+%   HEADER                                                              06460600        
+%        >512      CORE ADDRESS OF HEADER IN 33:15. JUST CHECK IT.      06460700        
+%        >0, <512  VALUE FOR DIRECTORYSEARCH, FIND THE FILE AND PASS    06460800        
+%                  BACK THE HEADER IN ADDITION TO SECURITY INFO.        06460900        
+%        <0        DISK ADDRESS OF HEADER. READ IT IN AND CHECK IT, BUT 06460950        
+%                  DONT PASS IT BACK.                                   06460960        
+%                                                                       06461100        
+%   RESULT FROM SECURITYCHECK                                           06461200        
+%        =0   NO LEGITIMATE USER FOUND                                  06461300        
+%        =2   TERTIARY USER  ( INPUT ONLY)                              06461400        
+%        =3   SECONDARY USER (INPUT/OUTPUT)                             06461500        
+%        =7   PRIMARY USER (INPUT/OUTPUT/LIB MAINT.)                    06461600        
+BEGIN                                                                   06462000        
+    REAL T2,DKSGROW,CODES,ROWS,ROW,DKADR,ROWSZ,C,USER,TYPE,SH;          06462100        
+    REAL I=DKSGROW, FPBSIZE=CODES;                                      06462105        
+    ARRAY FH[*],FPB=ROW[*];                                             06462110        
+    LABEL FOUND;                                                        06462120        
+    LABEL EXYT,NOTFOUND,LOOK,WHY,FORGET;                                06462200        
+REAL SUBROUTINE DIRSRH;                                                 06463000        
+    BEGIN                                                               06463100        
+LOOK:    IF (T2:=DIRECTORYSEARCH(MID,FID,HEADER)) LSS 64 THEN           06463200        
+WHY:     BEGIN                                                          06463210        
+              IF T2=0 THEN FILEMESS("#NO FIL","ON DISK",MID,FID,0,0,0)  06463220        
+                ELSE IF T2=1 THEN BEGIN P(DEL); TYPE:=-1; GO EXYT; END  06463225        
+                ELSE IF T2=2 THEN FILEMESS("#SYSFIL","ERROR  ",         06463230        
+                                           MID,FID,0,0,0);              06463240        
+              IF AUTODS THEN TERMINATE(P1MIX&61[CTF]) ELSE         %747-06463260        
+              BEGIN                                                %747-06463270        
+              REPLY[P1MIX]:=-(SH:=VWY&VOK[36:42:6]&VIL[30:42:6]);       06463280        
+              COMPLEXSLEEP((REPLY[P1MIX] GTR 0) OR TERMSET(P1MIX));     06463300        
+              END;                                                      06463310        
+              IF TERMSET(P1MIX) THEN GO INITIATE;                       06463340        
+              IF NOT WHYSLEEP(SH) THEN GO TO WHY;                       06463360        
+              IF (SH~T2~REPLY[P1MIX].[FF]) > PSEUDOMAXT THEN  %  IL%540-06463380        
+              BEGIN STREAM(T2:);                                        06463400        
+                   BEGIN SI:=T2;                                        06463420        
+                   LL:  SI:=SI+1; IF SC!"L" THEN GO TO LL;              06463440        
+                        SI:=SI+1; T2:=SI;                               06463460        
+                   END;                                                 06463480        
+                   T2:=P;                                               06463500        
+                   FPBSIZE:=(FPB:=PRT[P1MIX,3]).[8:10];                 06463520        
+                   FOR I:=0 STEP ETRLNG UNTIL FPBSIZE DO                06463540        
+                      IF (FPB[I] EQV MID)=NOT 0 THEN                    06463560        
+                      IF (FPB[I+1] EQV ABS(FID))=NOT 0 THEN GO FOUND;   06463580        
+ FOUND:            NAMEID(C,T2);  MID:=C;  NAMEID(C,T2);                06463600        
+                   NAMEID(C,T2);  FID:=C&FID[1:1:1];                    06463620        
+                   IF I LSS 1020 THEN                                   06463640        
+                   BEGIN FPB[I]:=MID;                                   06463660        
+                        FPB[I+1]:=C;                                    06463680        
+                   END;                                                 06463700        
+                   FORGETSPACE(SH-1);                                   06463720        
+         END ELSE LABELTABLE[T2]:=-(*P(DUP));                      %764-06463740        
+              REPLY[P1MIX]:=0;                                          06463760        
+              GO TO LOOK;                                               06463780        
+         END;                                                           06463800        
+         DIRSRH := T2;                                                  06463810        
+END DIRSRH;                                                             06463820        
+         IF HEADER GEQ 0 THEN                                           06463840        
+              SH:=IF HEADER GTR 511 THEN HEADER ELSE DIRSRH             06463860        
+         ELSE DISKWAIT(-(SH:=SPACE(30)),30,HEADER.[CF]);                06463880        
+         FH:=IOQUE&SH[CTC];                                             06463900        
+         IF(FH[2] EQV 0)=NOT 0 OR (ABS(USERID) EQV ABS(FH[2]))=NOT 0    06463910        
+              OR (USERID EQV MCP)=NOT 0 THEN TYPE+7 ELSE%               06463920        
+                   IF HEADER<0 THEN GO EXYT ELSE                        06463925        
+         IF (FH[5] EQV @14)=NOT 0 THEN%                                 06463930        
+              IF (FH[6] EQV @14)=NOT 0 THEN TYPE~2 ELSE TYPE~3;%        06463940        
+         IF TYPE ~ 0 THEN GO TO EXYT;                                   06463950        
+         IF FH[5].[1:1] THEN                                            06463960        
+         BEGIN IF (SH:=DIRECTORYSEARCH(ABS(FH[5]),FH[6],19))=0          06463970        
+              THEN BEGIN TYPE:=0; GO TO EXYT END;                       06463980        
+          M[SH+4].[11:1]:=1;                                            06463982        
+          STREAM(DATE,J:=5); BEGIN SI:=LOC DATE; DS:=8OCT; END;         06463984        
+          M[SH+3].[12:18]:=JUNK;                                        06463986        
+          DISKWAIT(SH.[CF],-30,SH.[FF]);                                06463988        
+ $ SET OMIT = SHAREDISK                                                 06463990        
+          UNLOCKDIRECTORY;                                              06463992        
+ $ POP OMIT                                                             06463994        
+          DKSGROW:=M[SH INX 8];                                         06463996        
+          CODES:=SPACE(30);                                             06464000        
+          ROWS:=(M[SH INX 9] AND 31)-1;                                 06464050        
