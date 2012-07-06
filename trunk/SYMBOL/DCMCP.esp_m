@@ -5825,3 +5825,125 @@ BEGIN                                                                   07001620
           UNLOCKTOG(CDMASK);                                            07001840        
      END;                                                               07001860        
 END;                                                                    07001880        
+PROCEDURE STARTADECK(N); VALUE N; REAL N; FORWARD;                      07002000        
+PROCEDURE ENTERCONTROLDECK(H); VALUE H; ARRAY H[*]; FORWARD;            07002100        
+ REAL RUNNUMBER;%                                                       07003000        
+                                                                   %891-07003250        
+%#######################################################################07003251        
+                                                                   %891-07003252        
+PROCEDURE EBTABLE;                                                 %890-07003270        
+BEGIN  LABEL L;                                                    %890-07003280        
+   P(0,XIT,.L,DEL);                                                %890-07003290        
+L:::                                                               %890-07003300        
+0," 32?","1???","0TS?","/???","-LK?","J???","????","????","&CB?","A???",07003310        
+"!???","????","????","????","????",""????",                        %890-07003312        
+"9???","????","Z???","????","R???","????","????","????","I???","????",  07003320        
+"????","????","????","????","????","????",                         %890-07003322        
+"8#:?","????","Y,|?","????","Q$]?","????","????","????","H.[?","????",  07003330        
+"????","????","????","????","????","????",                         %890-07003332        
+@07770675,@05770413,@067146616,@65176473,                          %892-07003340        
+@47574656,@45554453,"????","????", @27742620,@25352436,            %890-07003342        
+"????","????","????","????","????","????",                         %891-07003344        
+   %QMARKADDRESSES                                                 %890-07003350        
+"????","????","????","????","????","????","????","????","????","????",  07003352        
+"????","????","????","????","????","????",                         %890-07003354        
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,    % SPACE FOR ADDRESSES         %890-07003360        
+ 0,0,0,0,0,0,0;                                                    %890-07003370        
+END;                                                               %890-07003380        
+                                                                   %891-07003390        
+%#######################################################################07003391        
+                                                                   %891-07003392        
+PROCEDURE SETUPEBTABLE;                                            %890-07003400        
+BEGIN REAL ADR; LABEL EXIT;                                        %890-07003410        
+DEFINE STOREADDRESS=                                               %890-07003412        
+X:=SI; SI:=LOC X; SI:=SI+5;                                        %890-07003414        
+DS:=3 CHR; DI:=DI+5 #;                                             %890-07003416        
+   EBTABLE;                                                        %890-07003420        
+P([M[(ADR:=*P(.EBTABLE) INX NOT 1)]],IOR);                         %890-07003430        
+    SETUPEBTABLE:=ADR:=ADR.[CF]+3;                                 %890-07003440        
+    IF  M[ADR+81] = 0 THEN                                         %890-07003450        
+STREAM (X:=0,TABLE:=ADR,QMARKTABLEADDRESS:=ADR+32,LOCATIONS:=ADR+40);   07003462        
+BEGIN                                                              %890-07003464        
+DI:=TABLE;  SI:=TABLE; SI:=SI+8;                                   %890-07003466        
+2(40(SI:=SI+4; DS:=4 CHR;));                                       %890-07003468        
+   %FIRST FILL ALL OF ADDRESSES WITH ADDRESS OF ?S                 %890-07003482        
+SI:=QMARKTABLEADDRESS;                                             %890-07003484        
+X:=SI;                                                             %890-07003486        
+SI:=LOC X; SI:=SI+5;  %POINT SI AT ADDRESS OF QMARKS               %890-07003488        
+DI:=LOCATIONS;                                                     %890-07003490        
+DS:=3 CHR;                                                         %890-07003492        
+SI:=LOCATIONS;                                                     %890-07003494        
+DS:=63 WDS;                                                        %890-07003496        
+   %NOW SET ADDRESSES FOR VALID CHARS INTO EBCDIC TABLE            %890-07003498        
+SI:=TABLE;                                                         %890-07003500        
+DI:=LOCATIONS;                                                     %890-07003502        
+3(STOREADDRESS;   %STORE ADDRESSES FOR LP=0,1,2                    %890-07003504        
+   %CORRESPONDING TO BLANK,9 HOLE,8 HOLE                           %890-07003506        
+SI:=X;                                                             %890-07003508        
+SI:=SI+63; SI:=SI+1);  %SKIP 8 WORDS DOWN TABLE                    %890-07003510        
+DI:=DI+8;   %LP=3 IN INVALID                                       %890-07003512        
+STOREADDRESS;    %LP=4..... 7 HOLE                                 %890-07003514        
+DI:=DI+8;    %LP=5 IS INVALID                                      %890-07003516        
+SI:=X;                                                             %890-07003518        
+SI:=SI+1;    %SKIP 1 CHAR DOWN TABLE                               %890-07003520        
+STOREADDRESS;     %LP=6....7&8 HOLES TOGETHER                      %890-07003522        
+DI:=DI+8;                                                          %890-07003524        
+SI:=X;                                                             %890-07003526        
+SI:=SI+1;                                                          %890-07003528        
+STOREADDRESS;     %LP=8....6 HOLE                                  %890-07003530        
+DI:=DI+8;                                                          %890-07003532        
+SI:=X;                                                             %890-07003534        
+SI:=SI+1;                                                          %890-07003536        
+STOREADDRESS;     %LP=10....6&8 HOLES TOGETHER                     %890-07003538        
+SI:=DI+40;    %MISS 5 WORDS...LP=11,12,13,14,15                    %890-07003540        
+SI:=X;                                                             %890-07003542        
+SI:=SI+1;                                                          %890-07003544        
+STOREADDRESS;     %LP:=16.... 5 HOLE                               %890-07003546        
+DI:=DI+8;                                                          %890-07003548        
+SI:=X;                                                             %890-07003550        
+SI:=SI+1;                                                          %890-07003552        
+STOREADDRESS;     %LP=18.... 5&8 HOLES TOGETHER                    %890-07003554        
+2(DI:=DI+52);     %MISS 13 WORDS....LP=19-31                       %890-07003556        
+SI:=X;                                                             %890-07003558        
+SI:=SI+1;                                                          %890-07003560        
+STOREADDRESS;     %LP=32..... 4 HOLE                               %890-07003562        
+DI:=DI+8;                                                          %890-07003564        
+SI:=X;                                                             %890-07003566        
+SI:=SI+1;                                                          %890-07003568        
+STOREADDRESS;     %LP=34...... 4&8 HOLES TOGETHER                  %890-07003570        
+END;                                                               %890-07003580        
+END;                                                               %890-07003590        
+%***********************************************************************07003600        
+     STREAM PROCEDURE EBCDICCONVERT(INTO,TABLE,POINTERS);          %890-07003610        
+VALUE INTO,TABLE,POINTERS;                                         %890-07003615        
+%***********************************************************************07003620        
+BEGIN                                                              %890-07003630        
+LOCAL HP,LP,SRCE,DEST,HPPTR,LPPTR;                                 %890-07003640        
+   %POINT HPPTR & LPPTR TO LAST CHAR OF HP,LP                      %890-07003650        
+SI:=LOC HP;                                                        %890-07003660        
+SI:=SI+7;                                                          %890-07003670        
+HPPTR:=SI;     %HIGH PART                                          %890-07003680        
+SI:=LOC LP;                                                        %890-07003690        
+SI:=SI+7;                                                          %890-07003700        
+LPPTR:=SI;     %LOW PART                                           %890-07003710        
+SI:=INTO;  SI:=SI+8;                                               %890-07003720        
+DI:=INTO;                                                          %890-07003730        
+   %START CHARACTER TRANSLATE LOOP                                 %890-07003740        
+2(40(                                                              %890-07003750        
+DEST:=DI;                                                          %890-07003760        
+   %TRANSFER LOW & HIGH PARTS                                      %890-07003770        
+DI:=HPPTR;                                                         %890-07003780        
+DS:=1 CHR;                                                         %890-07003790        
+DI:=LPPTR;                                                         %890-07003800        
+DS:=1 CHR;                                                         %890-07003810        
+SRCE:=SI;     %STORE SI FOR NEXT PASS THRU LOOP                    %890-07003820        
+   %NOW FIND THE POINTER INTO TABLE APPROPRIATE TO LP              %890-07003830        
+SI:=POINTERS;                                                      %890-07003840        
+LP(SI:=SI+8);                                                      %890-07003860        
+SI:=SC;     %SI NOW POINTS INTO TABLE @ POINT DEPENDANT ON LP      %890-07003870        
+DI:=DEST;                                                          %890-07003880        
+SI:=SI+HP;     %SKIP SI THROUGH TABLE HP CHARS                     %890-07003890        
+DS:=CHR;                                                           %890-07003900        
+SI:=SRCE));                                                        %890-07003910        
+DI:=TABLE; DI:=DI+3;         %POINT TO QMRK                        %890-07003920        
+END CONVERT;                                                       %890-07003950        
