@@ -8,6 +8,7 @@
 * Instance variables in all caps generally refer to register or flip-flop (FF)
 * entities in the processor hardware. See the Burroughs B5500 Reference Manual
 * (1021326, May 1967) for details.
+* http://bitsavers.org/pdf/burroughs/B5000_5500_5700/1021326_B5500_RefMan_May67.pdf
 *
 * B5500 word format: 48 bits plus (hidden) parity.
 *   Bit 0 is high-order, bit 47 is low-order, big-endian character ordering.
@@ -917,6 +918,9 @@ B5500Processor.prototype.run = function() {
     var t1;
     var t2;
     var variant;
+    var flagBit;                            // bit 0 indicates operand(off) or control word/descriptor(on).
+    var aLo,aHi,bLo,bHi;                    // upper/lower pieces of a word for bitwise operators.
+    var w32 = B5500CentralControl.pow2[32]; // 32-bit boundary constant for bitwise operators.
 
     do {
         this.Q = 0;
@@ -968,6 +972,8 @@ B5500Processor.prototype.run = function() {
             case 0x11:                  // XX11: control state ops
                 switch (variant) {
                 case 0x14:              // 2411: ZPI=Conditional Halt
+                    // TODO: this needs to test for the STOP OPERATOR switch
+                    // TODO: on the maintenance panel otherwise it is a NOP.
                     break;
 
                 case 0x18:              // 3011: SFI=Store for Interrupt
@@ -1278,21 +1284,60 @@ B5500Processor.prototype.run = function() {
                 case 0x0D:              // XX15: logical (bitmask) ops
                     switch (variant) {
                     case 0x01:          // 0115: LNG=logical negate
+                        // assert(this.AROF == 1);
+                        flagBit = cc.bit(this.A, 0);    // save flag bit
+                        aHi = this.A / w32;
+                        aLo = this.A % w32;
+                        this.A = (~aHi) * w32 + (~aLo); // negate as two chunks
+                        this.A = cc.fieldInsert(this.A, 0, 1, flagBit); // restore flag bit
+                        this.AROF == 1;
                         break;
 
-                    case 0x02:          // 0215: LOR=logical OR
+                    case 0x02:          // 0215: LOR=logical OR 
+                        // assert(this.AROF == 1 && this.BROF == 1);
+                        flagBit = cc.bit(this.B, 0); // save B flag bit
+                        aHi = this.A / w32;
+                        aLo = this.A % w32;
+                        bHi = this.B / w32;
+                        bLo = this.B % w32;
+                        this.A = (aHi | bHi) * w32 + (aLo | bLo);
+                        this.A = cc.fieldInsert(this.A, 0, 1, flagBit); // restore flag bit to A
+                        this.AROF = 1;
+                        this.BROF = 0;
                         break;
 
                     case 0x04:          // 0415: LND=logical AND
+                        // assert(this.AROF == 1 && this.BROF == 1);
+                        flagBit = cc.bit(this.B, 0); // save flag bit
+                        aHi = this.A / w32;
+                        aLo = this.A % w32;
+                        bHi = this.B / w32;
+                        bLo = this.B % w32;
+                        this.A = (aHi & bHi) * w32 + (aLo & bLo);
+                        this.A = cc.fieldInsert(this.A, 0, 1, flagBit); // restore flag bit to A
+                        this.AROF = 1;
+                        this.BROF = 0;
                         break;
 
                     case 0x08:          // 1015: LQV=logical EQV
+                        // assert(this.AROF == 1 && this.BROF == 1);
+                        flagBit = cc.bit(this.B, 0); // save B flag bit
+                        aHi = this.A / w32;
+                        aLo = this.A % w32;
+                        bHi = this.B / w32;
+                        bLo = this.B % w32;
+                        this.B = (~(aHi ^ bHi)) * w32 + (~(aLo ^ bLo));
+                        this.B = cc.fieldInsert(this.B, 0, 1, flagBit); // restore B flag bit
+                        this.AROF = 0;
+                        this.BROF = 1;
                         break;
 
                     case 0x10:          // 2015: MOP=reset flag bit (make operand)
+                        this.A = cc.fieldInsert(this.A, 0, 1, 0);
                         break;
 
                     case 0x20:          // 4015: MDS=set flag bit (make descriptor)
+                        this.A = cc.fieldInsert(this.A, 0, 1, 1);
                         break;
                     }
                     break;
@@ -1309,6 +1354,13 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x08:          // 1021: SND=Store nondestructive
+                        break;
+
+                    case 0x09:          // 0431: SSN=Set Sign Bit
+                        // the sign-bit is bit 1
+                        // assert(this.AROF == 1);
+                        this.A = cc.fieldInsert(this.A, 1, 1, 1);
+                        this.AROF = 1;
                         break;
 
                     case 0x10:          // 2021: LOD=Load operand
@@ -1331,6 +1383,11 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x04:          // 0425: NEQ=compare B not equal to A
+                        // assert(this.AROF == 1 && this.BROF == 1);
+                        // TODO: should this be excluding the flag bit in the comparison?
+                        this.B = (this.A != this.B) ? 1 : 0;
+                        this.AROF = 0;
+                        this.BROF = 1;                    
                         break;
 
                     case 0x08:          // 1025: XCH=exchange TOS words
@@ -1351,12 +1408,27 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x21:          // 4125: LEQ=compare B less or equal to A
+                        // assert(this.AROF == 1 && this.BROF == 1);
+                        // TODO: should this be excluding the flag bit in the comparison?
+                        this.B = (this.A >= this.B) ? 1 : 0;
+                        this.AROF = 0;
+                        this.BROF = 1;
                         break;
 
                     case 0x22:          // 4225: LSS=compare B less to A
+                        // assert(this.AROF == 1 && this.BROF == 1);
+                        // TODO: should this be excluding the flag bit in the comparison?
+                        this.B = (this.A > this.B) ? 1 : 0;
+                        this.AROF = 0;
+                        this.BROF = 1;
                         break;
 
                     case 0x24:          // 4425: EQL=compare B equal to A
+                        // assert(this.AROF == 1 && this.BROF == 1);
+                        // TODO: should this be excluding the flag bit in the comparison?
+                        this.B = (this.A == this.B) ? 1 : 0;
+                        this.AROF = 0;
+                        this.BROF = 1;
                         break;
 
                     case 0x2C:          // 5425: CTC=core field to C field
@@ -1376,12 +1448,29 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x04:          // 0431: SSN=set sign bit (set negative)
+                        // assert(this.AROF == 1);
+                        this.A = cc.fieldInsert(this.A, 1, 1, 1);
+                        this.AROF = 1;
                         break;
 
                     case 0x08:          // 1031: CHS=change sign bit
+                        // the sign-bit is bit 1
+                        // assert(this.AROF == 1);
+                        if (cc.bit(this.A, 1)) {
+                            this.A = cc.fieldInsert(this.A, 1, 1, 0);
+                        } else {
+                            this.A = cc.fieldInsert(this.A, 1, 1, 1);
+                        }                       
+                        this.AROF = 1;
                         break;
 
                     case 0x10:          // 2031: TOP=test flag bit (test for operand)
+                        if (cc.bit(this.B, 1)) {
+                            this.A = 0;
+                        } else {
+                            this.A = 1;
+                        }
+                        this.AROF = 1;
                         break;
 
                     case 0x11:          // 2131: LBC=branch backward word conditional
@@ -1400,6 +1489,10 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x24:          // 4431: SSP=reset sign bit (set positive)
+                        // the sign-bit is bit 1
+                        // assert(this.AROF == 1);
+                        this.A = cc.fieldInsert(this.A, 1, 1, 0);
+                        this.AROF = 1;
                         break;
 
                     case 0x31:          // 6131: LBU=branch backward word unconditional
@@ -1412,6 +1505,20 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x38:          // 7031: FBS=stack search for flag
+                        // Handbook (bit numbers not reversed!):
+                        //   M + 1, Load A @ M; // why is this incrementing here?
+                        //   A48 & A46 <- 1
+                        //   A47 <- 0, A[45=>16] <- 0;
+                        //   A[15=>1] <- M
+                        // RefMan:
+                        //   stack pop? // described as "Pushup into A occurs if necessary..."
+                        //   isolate lowest 15-bits of TOS // is this A?
+                        //   loop
+                        //     examine word at this base address
+                        //     if flag bit(0) is true, place address in A, present bit(2) is set, exit loop
+                        //     else increment address
+                        //   end loop
+                        this.AROF = 1;
                         break;
                     }
                     break;

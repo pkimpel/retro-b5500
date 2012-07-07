@@ -6,44 +6,12 @@
 <meta http-equiv="Content-Style-Type" content="text/css">
 <link id=defaultStyleSheet rel=stylesheet type="text/css" href="B5500DistributionAndDisplay.css">
 
-<script src="../emulator/B5500SystemConfiguration.js"></script>
-<script src="../emulator/B5500CentralControl.js"></script>
-<script src="../emulator/B5500Processor.js"></script>
-
 <script>
-"use strict";
-var cc;
-
-function stackIt(e) {
-    /* Simple test driver for the Processor module */
-
-    cc.powerOn();
-    cc.clear();
-    e.style.backgroundColor = "white";  // a kludge, for now
-
-    cc.MemMod[0][0x10] = 0x00400C215415;// LITC 1, LITC 3, XCH, DUP
-
-    cc.P1.S = 0x100;                    // stack at @400
-    cc.P1.R = 0x005;                    // PRT at @500 (R has addr div 64)
-
-    cc.P1.C = 0x10;                     // execute from address @20
-    cc.P1.access(0x30);                 // P = [C]
-    cc.P1.T = cc.fieldIsolate(cc.P1.P, 0, 12);
-    cc.P1.TROF = 1;
-    cc.P1.L = 1;                        // point to the next instruction
-
-    cc.P1.step();
-    cc.P1.step();
-    cc.P1.step();
-    cc.P1.step();
-}
-
-window.onload = function() {
-
-    cc = new B5500CentralControl();
-
-    // window.open("B5500ProcessorPanel.html", "PAPanel", "resizable=yes,scrollbars=yes");
-}
+PowerOnBtn_Click = function() {
+    document.getElementById("PowerOnBtn").style.backgroundColor = "white";
+    window.open("B5500ProcessorPanel.html", "PAPanel", "resizable=yes,scrollbars=yes");
+    return true;
+};
 </script>
 </head>
 
@@ -81,7 +49,7 @@ window.onload = function() {
     <span class=buttonCaption>B CONTROL</span>
 
 </div>
-<div id=PowerOnBtn class=whiteButton style="right:300px" onclick="stackIt(this)">
+<div id=PowerOnBtn class=whiteButton style="right:300px" onclick="return PowerOnBtn_Click()">
     <span class=buttonCaption>POWER ON</span>
 </div>
 <div id=PowerOffBtn class=blackButton style="right:225px">
@@ -94,6 +62,8 @@ window.onload = function() {
 <div id=B5500Logo> B 5500 </div>
 
 </div>
+
+<p>(Click the Power On button)</p>
 
 </body>
 </html>
