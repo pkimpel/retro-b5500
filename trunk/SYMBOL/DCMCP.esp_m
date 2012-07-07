@@ -5947,3 +5947,82 @@ DS:=CHR;                                                           %890-07003900
 SI:=SRCE));                                                        %890-07003910        
 DI:=TABLE; DI:=DI+3;         %POINT TO QMRK                        %890-07003920        
 END CONVERT;                                                       %890-07003950        
+ PROCEDURE COM23;%                                                      07004000        
+    BEGIN%                                                              07005000        
+    REAL INBUFF,%  ADDRESS OF THE INPUT BUFFER.                         07006000        
+        OUTBUFF,%     "    "   "  OUTPUT BUFFER.                        07006010        
+      FIRSTCARD,%     "    "   "  CARD IMAGE OF THE FIRST CARD          07006020        
+     OUTBUFFOLD,%     "    "   "  LAST OUTPUT BUFFER.                   07006030        
+        RESERVE,%     "    "  30 WDS OF CORE USED TO BUILD THE          07006040        
+        T,T1,T2,%  TEMPORARY VARIABLES.                                 07006050        
+          R,L,N,%      "         "     USED TO COUNT CARD IMAG          07006060        
+              Q,%  USUALLY INDICATES COL 1 HAS A QUESTION MARK          07006070        
+             IU,%  UNIT NUMBER OF THE INPUT UNIT.                       07006080        
+             OU,%   "     "    "   "  OUTPUT UNIT.                      07006090        
+          FIRST,%  TRUE IF THE FIRST CARD OF A DECK.                    07006100        
+              S,%  USED AS A TEMPROARY VARIABLE IN SUBROUTINE           07006140        
+                %  AND TO HAND THE UNIT NUMBER TO SUBROUTINE S          07006150        
+              D;%  USED AS A MASK TO SLEEP UNTIL DISK OPERATIO          07006160        
+                %  ARE COMPLETED.                                       07006161        
+ $ SET OMIT = NOT(PACKETS)                                              07006169        
+    REAL VERYFIRST,  %TRUE IF THE FIRST CARD OF THE FIRST DECK          07006172        
+                     %IN SINCE LOAD CONTROL WAS EXECUTED.               07006174        
+        FIRSTORSEC,  %TRUE IF THE FIRST OR SEC. CARD OF NEW DECK        07006176        
+          PTYPE,%  CONTAINS THE RESULT OF REAL SUBROUTINE               07006180        
+                %  PACKETCARD.SAVING SOME NEEDLESS EXTRA                07006190        
+                %  CALLS ON IT TO CHECK THE TYPE OF A CARD.             07006200        
+                %  THE VALUE OF PTYPE IS AS FOLLOWS:                    07006210        
+                %            0 = NOT A PACKET CONTROL CARD              07006220        
+                %            1 = "PACKEND"CARD, (USED BY THE            07006230        
+                %                 OPERATORS TO END A GROUP              07006240        
+                %                 OF PACKETS BEING LOADED TO            07006250        
+                %                 DISK)                                 07006260        
+                %            3 = "PACKET" CARD,(FIRST CARD              07006270        
+                %                 OF A PACKET)                          07006280        
+                %            5 = "END PACKETS" CARD, (USED BY           07006290        
+                %                 THE OPERATORS TO BOTH END             07006300        
+                %                 A GROUP OF PACKETS AND                07006310        
+                %            SIMULTANEOUSLY DISCONTINUE                 07006320        
+                %                 LOAD CONTROL).                        07006330        
+        PLUGGED;%  TRUE IF THE LAST "PACKET" CARD(I.E.,                 07006340        
+                %       PTYPE=3), WAS BOTH THE START OF A NEW           07006350        
+                %       PACKET AND WAS USED TO "PLUG" THE END           07006360        
+                %       OF THE LAST PACKET WITH AN ARTIFICIAL           07006370        
+                %       "-QUESTION MARK- PACKET." CARD;                 07007000        
+ $ POP OMIT                                                             07007001        
+BOOLEAN CDONLY;                                                         07007100        
+    INTEGER A,I;%                                                       07008000        
+ $ SET OMIT = NOT(PACKETS)                                              07008199        
+    REAL CONTINUE,DISKCHAIN,ADECK; LABEL OK;                            07008200        
+ $ POP OMIT                                                             07008251        
+    LABEL AGAIN,INL,ERROR,SUPER,BOMB,SKIPIT,EXIT;                       07009000        
+LABEL INPUTL;                                                           07009100        
+BOOLEAN EBCDIC; REAL  EBTABLEADR;                                  %890-07009200        
+    ARRAY FPB[*],H[*];%                                                 07010000        
+    SUBROUTINE STOP;%                                                   07011000        
+         BEGIN IF S ! 18 THEN%                                          07012000        
+                   BEGIN READY ~ NOT(Q ~ TWO(S)) AND READY;%            07013000        
+                        RRRMECH ~ NOT Q AND RRRMECH OR Q AND SAVEWORD;% 07014000        
+                        LABELTABLE[S] ~ @114;%                          07015000        
+                        RDCTABLE[S] ~ MULTITABLE[S] ~ 0%                07016000        
+                   END;%                                                07017000        
+              FPB[T+1]~ *P(DUP)+CLOCK+P(RTR);%                          07018000        
+              FPB[T].[24:12] ~ TINU[S].[18:12];%                        07019000        
+              TINU[S].[18:12]:=0;                                       07020000        
+         END;%                                                          07021000        
+ $ SET OMIT = PACKETS                                                   07021999        
+ $ SET OMIT = NOT(PACKETS)                                              07022099        
+    SUBROUTINE FORGETONE;                                               07022100        
+ $ POP OMIT                                                             07022101        
+         BEGIN T1 ~ H[9]+9;%                                            07023000        
+              FOR T2 ~ 10 STEP 1 UNTIL T1 DO%                           07024000        
+                   FORGETUSERDISK(H[T2],-H[8]);                         07025000        
+         END;%                                                          07026000        
+ $ SET OMIT = NOT(PACKETS)                                              07026099        
+    SUBROUTINE FORGETIT;                                                07026100        
+         BEGIN FORGETONE;                                               07026200        
+         WHILE DISKCHAIN NEQ 0 DO                                       07026300        
+                BEGIN DISKWAIT(-(H INX 0),30,DISKCHAIN);                07026400        
+                      DISKCHAIN:=H[6].[FF];                             07026500        
+                FORGETONE;                                              07026600        
+                END;                                                    07026700        
