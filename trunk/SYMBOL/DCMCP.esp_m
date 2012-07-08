@@ -6026,3 +6026,98 @@ BOOLEAN EBCDIC; REAL  EBTABLEADR;                                  %890-07009200
                       DISKCHAIN:=H[6].[FF];                             07026500        
                 FORGETONE;                                              07026600        
                 END;                                                    07026700        
+         END FORGETIT;                                                  07026800        
+ $ POP OMIT                                                             07026801        
+    SUBROUTINE BOMBTIME;%                                               07027000        
+         BEGIN WHILE STOPSET(P1MIX) DO STOPM(FALSE);                    07028000        
+              IF TERMSET(P1MIX) THEN GO BOMB; END;                      07028100        
+ $ SET OMIT = NOT(PACKETS)                                              07028999        
+ REAL SUBROUTINE PACKETCARD;%  THIS USED TO BE "ENDCARD"                07029000        
+         BEGIN IF Q THEN%                                               07030000        
+         BEGIN;%                                                        07031000        
+                        IF EBCDIC THEN                             %890-07031200        
+                        BEGIN                                      %890-07031300        
+                             EBCDIC:=FALSE;                        %890-07031400        
+                             M[(*P(.EBTABLE) INX NOT 1)].[2:1]:=0; %890-07031500        
+                        END;                                       %890-07031600        
+                  STREAM(X:="PACKETS":Y:="CONTINU",Z:="END.   ",   %890-07032000        
+                              EB:="DATA029",INBUFF);               %890-07032100        
+                             BEGIN SI ~ INBUFF;%                        07033000        
+                             L:   SI ~ SI+1; IF SC = " " THEN GO TO L;% 07034000        
+          INBUFF:=SI;                                              %890-07034500        
+              DI~LOC X; DI~DI+1;% POINT TO "PACKETS"                    07035000        
+              IF 4SC=DC THEN% A "PACKET" OR "PACKEND" CARD              07036000        
+              IF 2SC=DC THEN TALLY~3% A "PACKET" CARD                   07036100        
+              ELSE TALLY~1% A "PACKEND" CARD                            07036150        
+                   ELSE BEGIN DI~DI-4;% POINT TO "PACKETS"              07036200        
+                        IF 7 SC=DC THEN TALLY:=5 %"END PACKET"          07036210        
+                        ELSE BEGIN SI:=INBUFF;DI:=LOC Y;           %890-07036220        
+                                    DI:=DI+1;IF 7SC=DC THEN TALLY:=6    07036230        
+                                    ELSE BEGIN DI:=LOC Z;DI:=DI+1;      07036240        
+                                       SI:=INBUFF;                 %890-07036250        
+                                       IF 3 SC=DC THEN TALLY:=7    %890-07036260        
+                                       ELSE BEGIN                  %890-07036270        
+                                            DI:=LOC EB;DI:=DI+1    %890-07036280        
+                                                         SI:=INBUFF;    07036290        
+                                            IF 6 SC=DC THEN        %890-07036300        
+   $VOID                                                           %890-07036310        
+                                                            TALLY:=4;   07036320        
+   $ VOID 07036351                                                 %890-07036330        
+                                 END     END  END;                 %890-07036390        
+                        END;%                                           07036400        
+                                  X ~ TALLY;%                           07037000        
+                             END;%                                      07038000        
+                   END ELSE P(0);%                                      07039000        
+ PTYPE:=P;                                                              07039100        
+ IF PTYPE=6 THEN BEGIN PTYPE:=3; CONTINUE:=TRUE END                     07039200        
+    ELSE CONTINUE:=FALSE;                                               07039300        
+ IF PTYPE=7 THEN PTYPE:=ADECK;                                          07039410        
+   IF PTYPE = 4 THEN                                               %890-07039500        
+      BEGIN PTYPE:=0; EBCDIC:=TRUE;                                %890-07039600        
+            EBTABLEADR:=SETUPEBTABLE;                              %890-07039700        
+     END;                                                          %890-07039800        
+ PACKETCARD:=PTYPE;                                                     07040000        
+         END;%                                                          07041000        
+ $ POP OMIT                                                             07041001        
+ $ SET OMIT = PACKETS                                                   07041099        
+    REAL SUBROUTINE ADR;%                                               07042000        
+         BEGIN IF (T2 ~ H[(T1 ~ R DIV 200)+10]) = 0 THEN%               07043000        
+                   BEGIN H[9] ~ T1+1;%                                  07044000        
+                        H[T1+10] ~ T2 ~ GETUSERDISK(200);%              07045000        
+                   END;%                                                07046000        
+              ADR ~ R MOD 200+T2%                                       07047000        
+         END;%                                                          07048000        
+    SUBROUTINE INPUT;%                                                  07049000        
+         BEGIN%                                                         07050000        
+              IF IU < 16 THEN%                                          07051000        
+ $ SET OMIT = NOT(PACKETS)                                              07051099        
+              BEGIN                                                     07051100        
+              INPUTL:  T ! WAITIO (@120540000000 + INBUFF,              07051110        
+                   @6000040, IU);                                       07051120        
+                   IF T=@40 THEN GO TO INPUTL;                          07051130        
+                   IF T!0 THEN                                          07051140        
+                        BEGIN                                           07051150        
+                             P(DEL);                                    07051160        
+                             GO TO ERROR                                07051170        
+                        END;                                            07051180        
+ $ POP OMIT                                                             07051181        
+ $ SET OMIT = PACKETS                                                   07051999        
+                        Q ~ M[INBUFF-1]=9;%                             07057000        
+                   END%                                                 07058000        
+         ELSE BEGIN WHILE(Q:=WAITIO(@40000000+INBUFF+              %890-07059000        
+                         EBCDIC|@400000001,FIRST|4+                %890-07059010        
+                             @4000000,IU).[45:1] DO                     07059100        
+                        IF FIRST AND CDONLY AND NOT CONTINUE THEN  %654-07059110        
+                             GO EXIT ELSE                          %654-07059112        
+                        BEGIN SLEEP([TOGLE],STATUSMASK);                07059200        
+                             RRRMECH~RRRMECH AND NOT Q~TWO(IU);         07059300        
+                             READY~READY AND NOT Q;                     07059400        
+                             SLEEP([READY],Q);                          07059500        
+                        END;                                            07060000        
+                      IF EBCDIC THEN    EBCDICCONVERT(INBUFF,      %890-07060100        
+                                  EBTABLEADR,EBTABLEADR+40) ELSE   %890-07060200        
+                        IF Q ~ Q ! 0 THEN                               07061000        
+                             BEGIN S:=(T:=UNIT[IU]).[FF];               07062000        
+                                  RETURNIOSPACE(S);                     07063000        
+                                  UNIT[IU] ~ T&@77777[5:20:28];         07065000        
+                             END;%                                      07066000        
