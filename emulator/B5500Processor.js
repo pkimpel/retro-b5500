@@ -7,8 +7,10 @@
 *
 * Instance variables in all caps generally refer to register or flip-flop (FF)
 * entities in the processor hardware. See the Burroughs B5500 Reference Manual
-* (1021326, May 1967) for details.
+* (1021326, May 1967) and B5281 Processor Training Manual (B5281.55, August 1966)
+* for details:
 * http://bitsavers.org/pdf/burroughs/B5000_5500_5700/1021326_B5500_RefMan_May67.pdf
+* http://bitsavers.org/pdf/burroughs/B5000_5500_5700/B5281.55_ProcessorTrainingManual_Aug66.pdf
 *
 * B5500 word format: 48 bits plus (hidden) parity.
 *   Bit 0 is high-order, bit 47 is low-order, big-endian character ordering.
@@ -676,6 +678,22 @@ B5500Processor.prototype.indexDescriptor = function() {
 };
 
 /**************************************/
+B5500Processor.prototype.presenceTest(word) {
+    /* Tests and returns the presence bit [2:1] of the "word" parameter. If
+    0, the p-bit interrupt is set; otherwise no further action */
+
+    if (word % 0x400000000000 >= 0x200000000000) {
+        return 1;
+    } else {
+        if (this.NCSF) {
+            this.I = (this.I & 0x0F) | 0x70;    // set I05/6/7: p-bit
+            cc.signalInterrupt();
+        }
+        return 0;
+    }
+};
+
+/**************************************/
 B5500Processor.prototype.buildMSCW = function() {
     /* Return a Mark Stack Control Word from current processor state */
 
@@ -684,6 +702,23 @@ B5500Processor.prototype.buildMSCW = function() {
             this.MSFF * 0x80000000 +
             this.R * 0x200000000 +
             0xC00000000000;
+};
+
+/**************************************/
+B5500Processor.prototype.applyMSCW = function(word) {
+    /* Set  processor state from fields of the Mark Stack Control
+    Word in the "word" parameter */
+    var f;
+
+    f = word % 0x8000;                  // [33:15]
+    word = (word-f)/0x8000;
+    this.F = f = word % 0x8000;         // [18:15]
+    word = (word-f)/0x8000;
+    this.SALF = f = word % 2;           // [17:1]
+    word = (word-f)/0x02;
+    this.MSFF = word % 0x02;            // [16:1]
+    word = (word - word%0x04)/0x04;
+    this.R = word % 0x200;              // [6:9]
 };
 
 /**************************************/
@@ -698,6 +733,29 @@ B5500Processor.prototype.buildRCW = function(descriptorCall) {
             this.V * 0x4000000000 +
             this.H * 0x20000000000 +
             (descriptorCall ? 0xE00000000000 : 0xC00000000000);
+};
+
+/**************************************/
+B5500Processor.prototype.applyRCW = function(word) {
+    /* Set processor state from fields of the Return Control Word in
+    the "word" parameter. Returns the state of the OPDC/DESC bit [2:1] */
+    var f;
+
+    this.C = f = word % 0x8000;         // [33:15]
+    word = (word-f)/0x8000;
+    this.F = f = word % 0x8000;         // [18:15]
+    word = (word-f)/0x8000;
+    this.K = f = word % 0x08;           // [15:3]
+    word = (word-f)/0x08;
+    this.G = f = word % 0x08;           // [12:3]
+    word = (word-f)/0x08;
+    this.L = f = word % 0x04;           // [10:2]
+    word = (word-f)/0x04;
+    this.V = f = word % 0x08;           // [7:3]
+    word = (word-f)/0x08;
+    this.H = word % 0x08;               // [4:3]
+    word = (word - word % 0x10)/0x10;
+    return word % 0x02;                 // [2:1]
 };
 
 /**************************************/
@@ -732,14 +790,13 @@ B5500Processor.prototype.enterCharModeInline() {
         this.K = (bw % 0x40000) >>> 15;
     } else {                                    // B contains a descriptor
         if (bw % 0x400000000000 < 0x200000000000) { // it's an absent descriptor
-            this.I = (this.I & 0x0F) | 0xE0;    // set I06/7/8: p-bit
+            this.I = (this.I & 0x0F) | 0x70;    // set I05/6/7: p-bit
             cc.signalInterrupt();               // NOTE: docs do not mention if this is inhibited in control state
         } else {
             this.S = bw % 0x8000;
         }
     }
 };
-
 
 /**************************************/
 B5500Processor.prototype.enterSubroutine = function(descriptorCall) {
@@ -792,6 +849,51 @@ B5500Processor.prototype.enterSubroutine = function(descriptorCall) {
 };
 
 /**************************************/
+B5500Processor.prototype.exitSubroutine = function() {
+    /* Exits a subroutine by restoring the processor state from RCW and MSCW words
+    in the stack. The RCW is assumed to be in the B register, pointing to the MSCW.
+    The A register is not affected by this routine. If SALF & MSFF bits in the MSCW
+    are set, link back through the MSCWs until one is found that has either bit not
+    set, and store that MSCW at [R]+7. This is the last prior MSCW that actually
+    points to a RCW, thus skipping over any pending subroutine calls that are still
+    building their parameters in the stack. Returns results as follows:
+        0 = entered by OPDC
+        1 = entered by DESC
+        2 = flag bit interrupt set, terminate operator
+    */
+    var result;
+
+    if (this.B < 0x800000000000) {      // flag bit not set
+        result = 2;
+        if (this.NCSF) {
+            this.I = (this.I & 0x0F) | 0x80;    // set I08: flag-bit
+            cc.signalInterrupt();
+        }
+    } else {                            // flag bit is set
+        result = this.applyRCW(this.B);
+        this.X = this.B % 0x8000000000; // save F setting from MSCW to restore S at end
+        this.access(0x30);              // P = [C], C set from RCW
+
+        this.S = this.F;
+        this.access(0x03);              // B = [S], fetch the MSCW
+        this.applyMSCW(this.B);
+
+        if (this.MSFF && this.SALF) {
+            this.Q |= 0x20;             // set Q06F, not used except for display
+            do {
+                this.S = (this.B % 0x40000000) >>> 15;
+                this.access(0x03);      // B = [S], fetch prior MSCW
+            } while (((this.B - this.B % 0x40000000)/0x40000000) % 0x04 == 3); // MSFF & SALF
+            this.S = (this.R*64) + 7;
+            this.access(0x0B);          // [S] = B, store last MSCW at [R]+7
+        }
+        this.S = ((this.X % 0x40000000) >>> 15) - 1;
+        this.BROF = 0;
+    }
+    return result;
+};
+
+/**************************************/
 B5500Processor.prototype.operandCall = function() {
     /* OPDC, the moral equivalent of "load accumulator" on lesser
     machines. Assumes the syllable has already loaded a word into A.
@@ -831,7 +933,7 @@ B5500Processor.prototype.operandCall = function() {
         case 5:
             // Absent data or program descriptor
             if (this.NCSF) {
-                this.I = (this.I & 0x0F) | 0xE0;        // set I06/7/8: p-bit
+                this.I = (this.I & 0x0F) | 0x70;        // set I05/6/7: p-bit
                 cc.signalInterrupt();
             // else if control state, we're done
             }
@@ -885,7 +987,7 @@ B5500Processor.prototype.descriptorCall = function() {
         case 5:
             // Absent data or program descriptor
             if (this.NCSF) {
-                this.I = (this.I & 0x0F) | 0xE0;        // set I06/7/8: p-bit
+                this.I = (this.I & 0x0F) | 0x70;        // set I05/6/7: p-bit
                 cc.signalInterrupt();
             // else if control state, we're done
             }
@@ -1293,7 +1395,7 @@ B5500Processor.prototype.run = function() {
                         this.AROF == 1;
                         break;
 
-                    case 0x02:          // 0215: LOR=logical OR 
+                    case 0x02:          // 0215: LOR=logical OR
                         // assert(this.AROF == 1 && this.BROF == 1);
                         flagBit = cc.bit(this.B, 0); // save B flag bit
                         aHi = this.A / w32;
@@ -1387,7 +1489,7 @@ B5500Processor.prototype.run = function() {
                         // TODO: should this be excluding the flag bit in the comparison?
                         this.B = (this.A != this.B) ? 1 : 0;
                         this.AROF = 0;
-                        this.BROF = 1;                    
+                        this.BROF = 1;
                         break;
 
                     case 0x08:          // 1025: XCH=exchange TOS words
@@ -1460,7 +1562,7 @@ B5500Processor.prototype.run = function() {
                             this.A = cc.fieldInsert(this.A, 1, 1, 0);
                         } else {
                             this.A = cc.fieldInsert(this.A, 1, 1, 1);
-                        }                       
+                        }
                         this.AROF = 1;
                         break;
 
@@ -1526,15 +1628,57 @@ B5500Processor.prototype.run = function() {
                 case 0x1D:              // XX35: exit & return ops
                     switch (variant) {
                     case 0x01:          // 0135: BRT=branch return
+                        adjustAEmpty();
+                        if (!this.BROF) {
+                            this.Q |= 0x04;             // Q03F: not used, except for display purposes
+                            adjustBFull();
+                        }
+                        if (this.presenceTest(this.B)) {
+                            this.S = (this.B % 0x40000000) >>> 15;
+                            this.C = this.B % 0x8000;
+                            this.access(0x30);          // P = [C]
+                            this.L = 0;
+                            this.access(0x03);          // B = [S], fetch MSCW
+                            this.S--;
+                            this.applyMSCW(this.B);
+                            this.BROF = 0;
+                        }
                         break;
 
                     case 0x02:          // 0235: RTN=return normal
+                        this.adjustAFull();
+                        this.S = this.F;
+                        this.access(0x03);              // B = [S], fetch the RCW
+                        switch (this.exitSubroutine()) {
+                        case 0:
+                            this.X = 0;
+                            operandCall();
+                        case 1:
+                            this.Q |= 0x10;             // set Q05F, for display only
+                            this.X = 0;
+                            descriptorCall();
+                        }
                         break;
 
                     case 0x04:          // 0435: XIT=exit procedure
+                        this.AROF = 0;
+                        this.S = this.F;
+                        this.access(0x03);              // B = [S], fetch the RCW
+                        this.exitSubroutine();
                         break;
 
                     case 0x0A:          // 1235: RTS=return special
+                        this.adjustAFull();
+                        this.access(0x03);              // B = [S], fetch the RCW
+                        switch (this.exitSubroutine()) {
+                        case 0:
+                            this.X = 0;
+                            operandCall();
+                        case 1:
+                            this.Q |= 0x10;             // set Q05F, for display only
+                            this.X = 0;
+                            descriptorCall();
+                        }
                         break;
                     }
                     break;
@@ -1589,6 +1733,23 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x25:              // XX45: ISO=Variable Field Isolate op
+                    this.adjustAFull();
+                    t2 = variant >>> 3;                         // number of whole chars
+                    if (t2) {
+                        t1 = this.G*6 + this.H;                 // starting source bit position
+                        t2 = t2*6 - (variant & 7);              // number of bits
+                        if (t1+t2 <= 48) {
+                            this.A = cc.fieldIsolate(this.A, t1, t2);
+                        } else {                                // handle wrap-around in the source value
+                            this.A = cc.fieldInsert(
+                                    cc.fieldIsolate(this.A, 96-t1-t2, t1+t2-48), 48-t2, 48-t1,
+                                    cc.fieldIsolate(this.A, 0, 48-t1));
+                        }
+                        // approximate the shift cycle counts
+                        this.cycleCount += (variant >>> 3) + (variant & 7) + this.G + this.H;
+                        this.G = (this.G + variant >>> 3) & 7;
+                        this.H = 0;
+                    }
                     break;
 
                 case 0x29:              // XX51: delete & conditional branch ops
@@ -1637,11 +1798,11 @@ B5500Processor.prototype.run = function() {
 
                 case 0x35:              // XX65: TRB=Transfer Bits
                     this.adjustABFull();
-                    t1 = this.G*8 + this.H;     // A register starting bit nr
+                    t1 = this.G*6 + this.H;     // A register starting bit nr
                     if (t1+variant > 48) {
                         variant = 48-t1;
                     }
-                    t2 = this.K*8 + this.V;     // B register starting bit nr
+                    t2 = this.K*6 + this.V;     // B register starting bit nr
                     if (t2+variant > 48) {
                         variant = 48-t2;
                     }
@@ -1654,11 +1815,11 @@ B5500Processor.prototype.run = function() {
 
                 case 0x39:              // XX71: FCL=Compare Field Low
                     this.adjustABFull();
-                    t1 = this.G*8 + this.H;     // A register starting bit nr
+                    t1 = this.G*6 + this.H;     // A register starting bit nr
                     if (t1+variant > 48) {
                         variant = 48-t1;
                     }
-                    t2 = this.K*8 + this.V;     // B register starting bit nr
+                    t2 = this.K*6 + this.V;     // B register starting bit nr
                     if (t2+variant > 48) {
                         variant = 48-t2;
                     }
@@ -1672,11 +1833,11 @@ B5500Processor.prototype.run = function() {
 
                 case 0x3D:              // XX75: FCE=Compare Field Equal
                     this.adjustABFull();
-                    t1 = this.G*8 + this.H;     // A register starting bit nr
+                    t1 = this.G*6 + this.H;     // A register starting bit nr
                     if (t1+variant > 48) {
                         variant = 48-t1;
                     }
-                    t2 = this.K*8 + this.V;     // B register starting bit nr
+                    t2 = this.K*6 + this.V;     // B register starting bit nr
                     if (t2+variant > 48) {
                         variant = 48-t2;
                     }
