@@ -6121,3 +6121,102 @@ BOOLEAN EBCDIC; REAL  EBTABLEADR;                                  %890-07009200
                                   RETURNIOSPACE(S);                     07063000        
                                   UNIT[IU] ~ T&@77777[5:20:28];         07065000        
                              END;%                                      07066000        
+                        STREAM(QMK:=12:BCL:=1-EBCDIC,INBUFF);      %890-07066100        
+                        BEGIN                                      %890-07066200        
+                             SI:=INBUFF;                           %890-07066300        
+                             BCL  (IF SC=""" THEN JUMP     OUT TO L1);  07066350        
+                             IF SC=@14 THEN                        %890-07066400        
+                        L1: BEGIN SI:=LOC QMK;SI:=SI+7;            %890-07066500        
+                             DS:=1 CHR;                            %890-07066550        
+                             TALLY:=1;                             %890-07066600        
+                        SI:=INBUFF;                                %890-07066610        
+                        2(36(IF SC=">" THEN                        %890-07066620        
+                             BEGIN INBUFF:=SI; DI:=INBUFF;         %890-07066630        
+                             DS:=LIT "=";                          %890-07066635        
+                             END;                                  %890-07066640        
+                             IF SC="}" THEN                        %890-07066650        
+                             BEGIN INBUFF:=SI; DI:=INBUFF;         %890-07066660        
+                             DS:= LIT """                          %890-07066665        
+                             END;  SI:=SI+1;))                     %890-07066670        
+                        END;                                       %890-07066700        
+                        QMK    :=TALLY;                            %890-07066800        
+                        END;                                       %890-07066850        
+                        Q:=P OR Q;                                 %890-07066900        
+                        T = 0;%                                         07067000        
+                   END;%                                                07068000        
+         END INPUT; %                                                  -07069000        
+%----------------  COM23  -------------------                          -07069200        
+ $  SET UP INPUT VARIABLES%                                             07071000        
+              IF CDONLY:=(PRT[P1MIX,@25]>22) THEN                       07072000        
+              BEGIN IU:=PRT[P1MIX,@25];                                 07072100        
+                   PRT[P1MIX,@25]:=0;        % DISK                     07072200        
+              END ELSE                                                  07072300        
+              BEGIN IF (IU:=FINDINPUT("CONTROL","DECK   ",0,0,0,0,0,0,  07072400        
+                        0,0)) LSS 0 THEN GO INITIATE; % BEEN DS-ED      07072500        
+                   IF IU GEQ 32 THEN P(XIT);          % EOJ IF PSEUDODCK07072600        
+              END;                                                      07072700        
+              STARTIMING(0,IU);                                         07073000        
+              FPB:=PRT[P1MIX,3];                                        07073500        
+ $ SET OMIT = PACKETS                                                   07073999        
+              IF NOT(JAR[P1MIX,9].[2:1]) THEN % DONT SUPPRESS MESSAGE   07074090        
+              FILEMESSAGE(" IN "&TINU[IU][6:30:18],0,                   07074100        
+                          "CONTROL","DECK   ",0,0,0,OPNMESS);           07074200        
+              RDCTABLE[IU].[8:6] ~ P1MIX;%                              07075000        
+              IF IU LSS 16 THEN BEGIN%                                  07076000        
+                   FPB[3].[23:1]:=1; %SET INPUT FLAG FOR LOG            07076010        
+                   T ~ WAITIO(@540000005,0,IU)%                         07077000        
+                   END%                                                 07077010        
+              ELSE IF IU=23 AND READERA NEQ 0 THEN                      07078000        
+                   BEGIN FORGETSPACE(READERA-2);%                       07079000        
+                        READERA ~ 0;%                                   07080000        
+                   END%                                                 07081000        
+              ELSE IF IU=24 AND READERB NEQ 0 THEN                      07082000        
+                   BEGIN FORGETSPACE(READERB-2);%                       07083000        
+                        READERB ~ 0;%                                   07084000        
+                   END;%                                                07085000        
+   $ VOIDT                                                         %890-07086000        
+              FIRSTCARD ~ GETSPACE(10,CONTROLCARDAREAV,1)_2);%     %167-07087000        
+ %  SET UP OUTPUT VARIABLES%                                            07088000        
+              IF PRT[P1MIX,@25] THEN%                                   07089000        
+                   BEGIN OU ~ LABELASCRATCH(T ~%                        07090000        
+                             TAPELABEL("CONTROL","DECK   ",1,1,100));%  07091000        
+                        IF OU<0 THEN GO INITIATE;   %BEEN DS-ED         07091100        
+                        FORGETSPACE(I);%                                07093000        
+                        FPB[3].[23:1]:=0; %SET OUTPUT FLAG FOR LOG      07093010        
+                   END%                                                 07094000        
+              ELSE BEGIN OUTBUFFOLD ~ OUTBUFF ~%                   %167-07095000        
+                             GETSPACE(60,IOBUFERAREAV,1)+2;%       %167-07095100        
+                        RESERVE ~ GETSPACE(30,0,1)+2;%                  07096000        
+                        H := SAVEARRAYDESC(30,DISKHEADERAREAV);    %167-07097000        
+                        OU ~ 18;%                                       07098000        
+                        INBUFF ~ GETSPACE(21,IOBUFFERAREAV,1) + 2; %892-07101000        
+                   END;%                                                07103000        
+              STARTIMING(5,OU);                                         07104000        
+              FPB:=PRT[P1MIX,3];       % STARTIMING MAY HAVE MOVED IT.  07104500        
+ $ SET OMIT = NOT(PACKETS)                                              07105499        
+         VERYFIRST~1;%                                                  07105500        
+ $ POP OMIT                                                             07105501        
+ %  BEGIN ONE DECK%                                                     07106000        
+    AGAIN:    OUTBUF ~ OUTBUFFOLD;%                                     07107000        
+              L ~ N ~ 0;%                                               07108000        
+ $ SET OMIT = NOT(PACKETS)                                              07108099        
+              ADECK ~ 0; FIRSTORSEC ~                              %178-07108100        
+ $ POP OMIT                                                             07108101        
+              FIRST ~ D ~ 1;                                            07109000        
+              IF OU = 18 THEN%                                          07110000        
+                   BEGIN H[ 9] ~ 0;%                                    07111000        
+                        MOVE(20,[H[9]],[H[10]]);                        07112000        
+                        H[8]~200;                                       07112100        
+              END;%                                                     07113000        
+ %  BEGIN ONE CARD%                                                     07114000        
+    INL:                                                                07115000        
+ $ SET OMIT = NOT(PACKETS)                                              07115099        
+         IF PTYPE NEQ 3 OR VERYFIRST THEN                               07115100        
+ $ POP OMIT                                                             07115101        
+             INPUT;                                                     07115200        
+ $ SET OMIT = NOT(PACKETS)                                              07115499        
+            IF FIRSTORSEC THEN%                                         07115500        
+ $ POP OMIT                                                             07115501        
+              IF FIRST THEN%                                            07116000        
+                    BEGIN                                               07117000        
+ $ SET OMIT = NOT(PACKETS)                                              07117099        
