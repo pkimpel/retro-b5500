@@ -6220,3 +6220,105 @@ BOOLEAN EBCDIC; REAL  EBTABLEADR;                                  %890-07009200
               IF FIRST THEN%                                            07116000        
                     BEGIN                                               07117000        
  $ SET OMIT = NOT(PACKETS)                                              07117099        
+                   PLUGGED:=VERYFIRST;                                  07117100        
+ $ POP OMIT                                                             07117101        
+ $ SET OMIT = PACKETS                                                   07117199        
+                        MOVE(10,INBUFF,FIRSTCARD);%                     07118000        
+ $ SET OMIT = NOT(PACKETS)                                              07118099        
+                             IF PACKETCARD=5 THEN                  %124-07118500        
+                             IF OU<16 THEN FIRST:=VERYFIRST:=0 ELSE     07118510        
+                             GO TO EXIT ELSE                            07118520        
+                             IF PTYPE!3 OR CONTINUE THEN                07118550        
+                             BEGIN                                      07118600        
+                             ADECK:=1; GO DK;                           07118690        
+                             END;                                       07118700        
+                   END ELSE% THIS MUST BE THE SECOND CARD IN            07119000        
+ $ POP OMIT                                                             07119001        
+ $ SET OMIT = PACKETS                                                   07119009        
+ $ SET OMIT = NOT(PACKETS)                                              07119099        
+    DK:                 IF Q THEN FIRSTORSEC:=0 ELSE%BAD SEC./FIRST     07119100        
+                             BEGIN VERYFIRST+4;    % CARD               07119200        
+                                   GO TO ERROR;%                        07119300        
+                             END;% INV DECK SET-UP                      07119400        
+ $ POP OMIT                                                             07119401        
+                     IF T NEQ 0 THEN                                    07120000        
+ $ SET OMIT = NOT(PACKETS)                                              07120009        
+              IF PTYPE NEQ 3 OR VERYFIRST THEN                          07120010        
+ $ POP OMIT                                                             07120011        
+                   GO TO ERROR;                                         07120020        
+              BOMBTIME;%                                                07121000        
+              IF OU < 16 THEN % OUTPUT TO TAPE ( OU = 18 NORMALLY)     -07122000        
+                   BEGIN                                                07122010        
+ $ SET OMIT = NOT(PACKETS)                                              07122999        
+                        PLUGGED ~ VERYFIRST OR (PACKETCARD!3)           07123500        
+                             OR FIRST;                                  07124000        
+                        IF PLUGGED THEN                                 07124500        
+ $ POP OMIT                                                             07124501        
+                             T~WAITIO(INBUFF&@5000[18:33:15]            07125000        
+                                      &(10-Q)[8:38:10],0,OU);           07125500        
+ $ SET OMIT = PACKETS                                                   07125599        
+ $ SET OMIT = NOT(PACKETS)                                              07125999        
+                        IF VERYFIRST THEN VERYFIRST~PTYPE~0;            07126000        
+                        IF FIRST THEN FIRST~PTYPE~0;                    07126500        
+                        IF PTYPE=0 THEN GO TO INL;                      07127000        
+ $ POP OMIT                                                             07127001        
+                        M[INBUFF-1] ~ @1737000000000000;                07127500        
+                        T ~ WAITIO(INBUFF-1,0,OU);                      07128000        
+    SUPER::                                                             07129000        
+ $ SET OMIT = NOT(PACKETS)                                              07129099        
+              IF PTYPE=5 THEN GO TO EXIT;                               07129100        
+              IF PTYPE=1 THEN VERYFIRST:=TRUE;                          07129200        
+              GO TO AGAIN;                                              07129300        
+ $ POP OMIT                                                             07129301        
+ $ SET OMIT = PACKETS                                                   07129999        
+                   END;%                                                07139000        
+              IF D = 0 THEN SLEEP([D],NOT 0);                           07139500        
+ $ SET OMIT = NOT(PACKETS)                                              07139509        
+IF PACKETCARD NEQ 0 AND NOT(ADECK AND PTYPE=1) THEN                     07139510        
+      BEGIN IF NOT(PLUGGED OR FIRST) THEN%                              07139511        
+      BEGIN STREAM(D~OUTBUFF); BEGIN DS~27 LIT                          07139512        
+            "CC END...IN CASE YOUR FORGOT";DS~45LIT" " END;             07139513        
+      IF PTYPE = 3 AND NOT CONTINUE AND NOT ADECK THEN             %124-07139520        
+      BEGIN STREAM(FIRSTCARD,T!T!SPACE(13));                            07139530        
+            BEGIN DS~24LIT"#NO PACKEND CARD, PKT - "; SI~FIRSTCARD;     07139540        
+                  DS!9 WDS; DS~LIT"~";                                  07139550        
+            END;                                                        07139560        
+            SPOUT(T);                                                   07139565        
+      END;                                                              07139570        
+      END ELSE MOVE(10,INBUFF,OUTBUFF);%                                07139575        
+      END ELSE%                                                         07139590        
+ $ POP OMIT                                                             07139591        
+              MOVE(10,INBUFF,OUTBUFF);%                                 07140000        
+ $ SET OMIT = NOT(PACKETS)                                              07140099        
+              IF VERYFIRST THEN PLUGGED~0;%                             07140100        
+ $ POP OMIT                                                             07140101        
+              IF Q THEN%                                                07141000        
+                   BEGIN IF L DIV 6 ! N DIV 6 THEN%                     07142000        
+                             BEGIN R ~ L DIV 3;%                        07143000        
+                                  A ~ ADR;%                             07144000        
+                                  DISKIO(T,1-RESERVE,30,A);%            07145000        
+                                  SLEEP([T],IOMASK);%                   07146000        
+                                  M[I~L MOD 3|10+9+RESERVE] ~ N;%       07147000        
+                                  DISKIO(T,RESERVE-1,30,A);%            07148000        
+                                  SLEEP([T],IOMASK);%                   07149000        
+                             END%                                       07150000        
+                        ELSE M[I ~(L-N)|10+9+OUTBUFF] ~ N;%             07151000        
+                        L ~ M[OUTBUFF+9] ~ N;%                          07152000        
+                   END;%                                                07153000        
+              IF N = 12000 THEN%                                        07154000        
+                   BEGIN I ~ SPACE(14);%                                07155000        
+                        STREAM(FIRSTCARD,T);                            07156000        
+                             BEGIN DS ~ 32 LIT%                         07157000        
+ $ SET OMIT = NOT(PACKETS)                                              07157099        
+                        "#MORE THAN 12000 CARDS IN PKT - ";             07157100        
+ $ POP OMIT                                                             07157101        
+ $ SET OMIT = PACKETS                                                   07157999        
+                                    SI~FIRSTCARD;DS~9WDS;DS~LIT "~";    07159000        
+                             END;%                                      07160000        
+                        GO TO SKIPIT;                                   07161000        
+                   END;%                                                07162000        
+              IF (N ~ N+1) MOD 6 = 0 THEN%                              07163000        
+                   BEGIN R ~ N DIV 3-2;%                                07164000        
+                        A ~ ADR;%                                       07165000        
+                        OUTBUFF ~ OUTBUFFOLD;%                          07166000        
+                        DISKIO(D,OUTBUFF-1,60,A);                       07167000        
