@@ -6322,3 +6322,89 @@ IF PACKETCARD NEQ 0 AND NOT(ADECK AND PTYPE=1) THEN                     07139510
                         A ~ ADR;%                                       07165000        
                         OUTBUFF ~ OUTBUFFOLD;%                          07166000        
                         DISKIO(D,OUTBUFF-1,60,A);                       07167000        
+                   END ELSE OUTBUFF ~ OUTBUFF+10;%                      07169000        
+ $ SET OMIT = NOT(PACKETS)                                              07169099        
+              IF FIRST THEN FIRST~PTYPE~0;%                             07169100        
+              IF VERYFIRST THEN VERYFIRST:=PTYPE:=0;                    07169110        
+ $ POP OMIT                                                             07169201        
+ $ SET OMIT = NOT(PACKETS)                                              07169499        
+              IF PTYPE=0 THEN GO INL;                                   07169500        
+ $ POP OMIT                                                             07169501        
+ $ SET OMIT = PACKETS                                                   07169999        
+              IF D = 0 THEN SLEEP([D],NOT 0);                           07171000        
+              OUTBUFF ~ OUTBUFFOLD;%                                    07173000        
+              R ~ N DIV 6|2;%                                           07174000        
+              A ~ ADR;%                                                 07175000        
+              IF N MOD 6 ! 0 THEN                                       07175100        
+              BEGIN                                                     07175200        
+              DISKIO(T,OUTBUFF-1,60,A);%                                07176000        
+              SLEEP([T],IOMASK);%                                       07177000        
+              END;%                                                     07178000        
+              IF R+2 < 200 THEN                                         07178100        
+                   BEGIN H[8] ~ R+2;                                    07178200        
+                        FORGETUSERDISK(A+2,R-198);                      07178300        
+                   END;                                                 07178400        
+              H[7]~N-1;                                                 07179000        
+              H[4]~H[6]~0;                                              07179050        
+              H[5]:= -0;                                                07179100        
+ $ SET OMIT = NOT(PACKETS)                                              07179199        
+              H[6]~0&DISKCHAIN[CTF]&(IF IU<23 THEN 2 ELSE IU-23)        07179200        
+                    [2:42:6];                                           07179202        
+         IF CONTINUE THEN                                               07179205        
+              BEGIN                                                     07179210        
+              H[2]:=NEXTCDNUM(1);                                       07179220        
+              DISKCHAIN:=GETESPDISK;                                    07179230        
+              DISKWAIT(H INX 0,30,DISKCHAIN);                           07179250        
+              STREAM(A:=H[2],B:=FIRSTCARD,INBUFF);                      07179260        
+              BEGIN SI:=B; DS:=8 CHR;DS:=15 LIT" CONTINUES PKT#";       07179270        
+              DS:=15 LIT" CONTINUES PKT#";                              07179280        
+              SI:=LOC A; SI:=SI+4; DS:=4 CHR; DS:=LIT":";               07179290        
+              END;                                                      07179300        
+              END ELSE                                                  07179310        
+              BEGIN DISKCHAIN:=0;                                       07179320        
+ $ POP OMIT                                                             07179321        
+              ENTERCONTROLDECK(H);                                      07180000        
+ $ SET OMIT = NOT(PACKETS)                                              07180009        
+              END;                                                      07180010        
+ $ POP OMIT                                                             07180011        
+              GO TO SUPER;                                              07181000        
+    ERROR:    T ~ SPACE(12);%                                           07214000        
+ $ SET OMIT = NOT(PACKETS)                                              07214099        
+              STREAM(FIRSTCARD,X~VERYFIRST,T);%                         07214100        
+                   BEGIN SI~LOC X; SI~SI+7; IF SC="2" THEN              07214110        
+                     DS~16 LIT "#INV PKT CARD - "%                      07214120        
+                        ELSE IF SC="4" THEN%                            07214130        
+                          DS~16 LIT "#INV DECK,PKT - "%                 07214140        
+                        ELSE DS~16 LIT "#READ ERR,PKT - ";%             07214150        
+ $ POP OMIT                                                             07214151        
+ $ SET OMIT = PACKETS                                                   07214999        
+                        SI ~ FIRSTCARD; DS ~ 9 WDS; DS ~ LIT "~";%      07217000        
+                   END;%                                                07218000        
+    SKIPIT:   SPOUT(T);                                                 07219000        
+              DO BEGIN INPUT;%                                          07220000        
+                        VOMVRIMW;%                                      07221000        
+ $ SET OMIT = PACKETS                                                   07221999        
+ $ SET OMIT = NOT(PACKETS)                                              07222099        
+              END UNTIL PACKETCARD NEQ 0;                               07222100        
+ $ POP OMIT                                                             07222101        
+              IF OU < 16 THEN%                                          07223000        
+                   BEGIN DO BEGIN T ~ WAITIO(@340000005,@60,OU);%       07224000        
+                                  BOMBTIME;%                            07225000        
+                        END UNTIL T.[42:1];%                            07226000        
+                        T ~ WAITIO(@140000005,@60,OU);%                 07227000        
+                   END;%                                                07228000        
+              ELSE FORGETIT;%                                           07229000        
+              GO TO SUPER;%                                             07230000        
+    BOMB::    IF OU=18 THEN FORGETIT;%                             %164-07231000        
+    EXIT:     SLEEP([TOGLE]),STATUSMASK);                               07232000        
+              IF IU GEQ 23 THEN UNITCODE[IU-23]:=-0;                    07232500        
+              S ~ IU; T ~ 3; STOP;%                                     07233000        
+              S ~ OU; T ~ 8; STOP;%                                     07234000        
+              FORGETSPACE(INBUFF);%                                     07235000        
+              FORGETSPACE(FIRSTCARD);%                                  07236000        
+              IF OU > 16 THEN%                                          07237000        
+                   BEGIN FORGETSPACE(H);%                               07238000        
+                        FORGETSPACE(OUTBUFFOLD);%                       07239000        
+                        FORGETSPACE(RESERVE);%                          07240000        
+                   END;%                                                07241000        
+    END COM23;%                                                         07242000        

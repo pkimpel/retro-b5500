@@ -790,8 +790,11 @@ B5500Processor.prototype.enterCharModeInline() {
         this.K = (bw % 0x40000) >>> 15;
     } else {                                    // B contains a descriptor
         if (bw % 0x400000000000 < 0x200000000000) { // it's an absent descriptor
-            this.I = (this.I & 0x0F) | 0x70;    // set I05/6/7: p-bit
-            cc.signalInterrupt();               // NOTE: docs do not mention if this is inhibited in control state
+            if (!this.NCSF) {
+                // NOTE: docs do not mention if this is inhibited in control state, but we assume it is
+                this.I = (this.I & 0x0F) | 0x70;    // set I05/6/7: p-bit
+                cc.signalInterrupt();
+            }
         } else {
             this.S = bw % 0x8000;
         }
