@@ -6408,3 +6408,73 @@ IF PACKETCARD NEQ 0 AND NOT(ADECK AND PTYPE=1) THEN                     07139510
                         FORGETSPACE(RESERVE);%                          07240000        
                    END;%                                                07241000        
     END COM23;%                                                         07242000        
+ PROCEDURE STARTLOADN(KTR); VALUE KTR; REAL KTR;%                       07243000        
+         BEGIN REAL HDR,SEG0,I,F,T,C; ARRAY SHEAT[*];                   07244000        
+              LABEL TRYAGAIN,LDCNTRL,DISK;                              07244100        
+              STREAM(K~0:KTR);%                                         07245000        
+                   BEGIN SI ~ KTR;%                                     07246000        
+                   L:   IF SC = " " THEN%                               07247000        
+                             BEGIN SI ~ SI+1; GO TO L END;%             07248000        
+                        DI ~ LOC K; DI ~ DI+6; DS ~ 2 CHR;%             07249000        
+                   END;%                                                07250000        
+              C ~ P;%                                                   07251000        
+              T ~ KTR.[15:15]-1;%                                       07252000        
+              IF (C NEQ "MT" AND C NEQ "DK") OR                         07253000        
+                 (C  =  "DK" AND CDONLY    ) THEN                       07253100        
+                   SPOUT(T INX M[T-1])                                  07254000        
+              ELSE BEGIN C ~ C = "MT";%                                 07255000        
+TRYAGAIN:                                                               07255100        
+          IF (HDR:=DIRECTORYSEARCH(P(LDCNTRL),P(DISK),3)) ! 0 THEN      07256000        
+              BEGIN                                                     07256200        
+              SHEAT := [M[F:=TYPEDSPACE(31,SHEETAREAV)]] & 30[8:38:10];%07256400        
+              STREAM(S:=F-1, D:=F); % ZERO OUT THE SHEAT ENTRY          07256600        
+                 BEGIN                                                  07256800        
+                 SI:=S; DS:=30 WDS;                                     07257000        
+                 END;                                                   07257200        
+              SEG0 := TYPEDSPACE(30,SEGZEROAREAV);%                %167-07257400        
+              DISKWAIT(-SEG0, 30, M[HDR INX 10]);                       07257600        
+              F.[FF] := HDR; % CORE ADDRESS OF HEADER IN [FF] OF PARAM. 07257800        
+              SHEAT[7] := SEG0;  % CORE ADRS.OF SEGMENT ZERO IN SHEAT[7]07258000        
+              SHEAT[0] := P(LDCNTRL);                                   07258200        
+              SHEAT[1] := P(DISK);                                      07258400        
+              SHEAT[2] := 0 & LDCNTRLCODE[5:45:3] & 2[8:38:10];         07258600        
+              % [4:1] IN SHEET[2] MEANS SUPRESS BOJ/EOJ MESSAGES        07258800        
+              SHEAT[16] := SHEAT[17] := @377777777777; % TIME LIMITS    07259000        
+              SHEAT[19] := C;             % COMMON VALUE                07259200        
+              SHEAT[20] := 4;             % CORE ESTIMATE               07259400        
+              SHEAT[21] := 150;           % STACK SIZE                  07259600        
+                                                                        07259800        
+              STREAM(A:=0 : S := P(.SCHEDULEIDS));                      07260000        
+                  BEGIN                                                 07260200        
+                  SI:=S;                                                07260400        
+                  47(SKIP SB; SKIP DB; TALLY:=TALLY+1;                  07260600        
+                     IF SB THEN ELSE JUMP OUT);                         07260800        
+                  DS:=SET; A:=TALLY;                                    07261000        
+                  END STREAM STATEMENT;                                 07261200        
+                                                                        07261400        
+              I := P;                                                   07261600        
+              SHEAT[3].[8:10] := 1;       % SCHEDULE NUMBER             07261800        
+              SHEAT[23] := (CLOCK + P(RTR)) DIV 60;                     07262000        
+              SHEAT[24] := MCP;                                    %131-07262100        
+              SHEAT[25] := HDR.[FF]; % DISK ADDRESS OF FILE HEADER      07262200        
+              STREAM(C, T);                                             07262400        
+                 BEGIN                                                  07262600        
+                 DI:=DI+16;                                             07262800        
+                 DS:=31LIT"CC EXECUTE LDCNTRL/DISK;COMMON=";            07263000        
+                 SI:=LOC C; DS:=8DEC;                                   07263200        
+                 DS:=6LIT";END.~";                                      07263400        
+                 END STREAM STATEMENT;                                  07263600        
+              M[T] := 0; M[T+1] := 10;                                  07263700        
+              SHEAT[6] := GETESPDISK & 10[18:33:15];                    07263800        
+              DISKWAIT(T, 11, SHEAT[6].[CF]);                           07264000        
+              FORGETSPACE(T);                                           07264200        
+              INDEPENDENTRUNNER(P(.SELECTRUN),F,160);                   07264400        
+              END ELSE % IF IN DIRECTORY                                07265000        
+              BEGIN                                                     07265100        
+              ENTERSYSFILE(2);                                          07265200        
+              GO TRYAGAIN;                                              07265300        
+LDCNTRL:::    "LDCNTRL";                                                07265400        
+   DISK:::    "DISK   ";                                                07265500        
+   END;                                                                 07265600        
+                   END;%                                                07266000        
+         END;%                                                          07267000        
