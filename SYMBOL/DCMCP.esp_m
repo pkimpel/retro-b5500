@@ -6478,3 +6478,96 @@ LDCNTRL:::    "LDCNTRL";                                                07265400
    END;                                                                 07265600        
                    END;%                                                07266000        
          END;%                                                          07267000        
+PROCEDURE TABLEOFCONTENTS(B,COUNT);%                                    07268000        
+     VALUE B,COUNT; REAL B,COUNT;%                                      07268100        
+          BEGIN REAL I,T,NA,TUSTA,TU,BU;                                07269000        
+ $ SET OMIT = NOT(PACKETS)                                              07269099        
+                   REAL FIRST,START,FINAL,PKTCT;%                       07269100        
+ $ POP OMIT                                                             07269101        
+              LABEL L,EXIT,G;%                                          07270000        
+ $ SET OMIT = NOT(SHAREDISK)                                            07270099        
+              A:=B.[15:15]-1;                                           07271900        
+              TUSTA:=M[A-1];                                            07272000        
+              LOCKCONTROLDECKS;                                         07272500        
+              A:=FIRSTDECK;                                             07273000        
+ $ SET OMIT = NOT(PACKETS)                                              07273099        
+                   FIRST~1;%                                            07273100        
+ $ POP OMIT                                                             07273101        
+         L:   I:=SPACE(14) INX TUSTA;                                   07274000        
+         G:   IF A = 0 THEN GO TO EXIT;%                                07275000        
+         DISKWAIT(-1,12,A);                                             07276000        
+         A:=M[I+6].[CF];                                                07278000        
+ $ SET OMIT = NOT(DATACOM AND RJE )                                     07278499        
+ $ SET OMIT = NOT(SHAREDISK)                                            07279000        
+              N ~ M[I+2];%                                              07281000        
+ $ SET OMIT = NOT(PACKETS)                                              07281099        
+                   IF NOT COUNT THEN%                                   07281100        
+                 BEGIN%                                                 07281200        
+ $ POP OMIT                                                             07281201        
+                   DISKWAIT(-I-4,9,M[I+10]);                            07282000        
+              STREAM(N,T,TU,BU,I);                                      07284000        
+                   BEGIN SI ~ LOC N; SI ~ SI+1;%                        07285000        
+ $ SET OMIT = NOT(PACKETS)                                              07285099        
+                             DS:=8 LIT " PACKET ";DS:=5 CHR;            07285100        
+ $ POP OMIT                                                             07285111        
+ $ SET OMIT = PACKETS                                                   07285999        
+ $ SET OMIT = NOT(SHAREDISK)                                            07286100        
+ $ SET OMIT = SHAREDISK                                                 07286400        
+                        DS:=8 LIT" ";                                   07286500        
+ $ POP OMIT                                                             07286501        
+ $ SET OMIT = NOT(PACKETS)                                              07286509        
+                          DS:=3 LIT " =";                               07286510        
+ $ POP OMIT                                                             07286511        
+ $ SET OMIT = NOT(RJE AND DATACOM )                                     07286599        
+              DS:=8 LIT " ";                                            07286800        
+         NEX:                                                           07286900        
+ $ SET OMIT = PACKETS                                                   07286999        
+ $ SET OMIT = NOT(PACKETS)                                              07288099        
+                       DI:=DI+40;DI:=DI+19;DS:=LIT"~";                  07288100        
+ $ POP OMIT                                                             07288101        
+                   END;%                                                07289000        
+              SPOUT(I);%                                                07290000        
+ $ SET OMIT = NOT(PACKETS)                                              07290099        
+                 END ELSE%                                              07290100        
+                   BEGIN% OPERATOR WANTS A COUNT                        07290200        
+                     IF FIRST THEN BEGIN% STORE FIRST DECK #.           07290300        
+                                     FIRST~0;  START~N;%                07290400        
+                                   END;%                                07290500        
+                     PKTCT~PKTCT+1; FINAL~N;%                           07290600        
+                     FORGETSPACE(I);%                                   07290650        
+                   END;%                                                07290700        
+ $ POP OMIT                                                             07290701        
+              GO TO L;%                                                 07291000        
+         EXIT:IF N=0 THEN                                               07292000        
+                   BEGIN STREAM(I);                                     07293000        
+ $ SET OMIT = NOT(PACKETS)                                              07293099        
+                        DS:=20 LIT " NO PACKETS ON DISK~";              07293100        
+ $ POP OMIT                                                             07293101        
+ $ SET OMIT = PACKETS                                                   07293199        
+                        SPOUT(I);%                                      07294000        
+ $ SET OMIT = PACKETS                                                   07294899        
+ $ SET OMIT = NOT(PACKETS)                                              07294999        
+                   END ELSE% CHECK FOR COUNT REQUEST.                   07295000        
+                        IF COUNT THEN%                                  07295010        
+                           BEGIN;STREAM(C~PKTCT,S~START,%               07295020        
+                                   F~FINAL,T1~0,T2~0,I);%               07295030        
+                             BEGIN DS~LIT " "; T2~DI;%                  07295040        
+                                   SI~LOC C; DI~LOC T1;%                07295050        
+                                   DS~2 DEC; SI~LOC T1; DI~T2;          07295060        
+                                   DS~2 CHR; T2~DI; DI~DI-2;%           07295070        
+                                   DS~FILL; DI~T2;%                     07295080        
+                                   DS~7 LIT " PACKET";%                 07295090        
+                                   SI~LOC T1;                      %511-07295100        
+                                   IF SC!"0" THEN GO TO AQ         %511-07295102        
+                                             ELSE SI~SI+I;         %511-07295104        
+                                   IF SC="1" THEN% ONLY 1 DECK     %511-07295110        
+                                     BEGIN DS~2LIT ", ";%               07295120        
+                                       SI~LOC F; SI~SI+1;%              07295130        
+                                       DS~5 CHR;%                       07295140        
+                                     END ELSE% MORE THAN 1              07295150        
+                             AQ:   BEGIN DS~3 LIT "S, ";           %511-07295160        
+                                       SI~LOC S; SI~SI+1;%              07295170        
+                                       DS~5 CHR;%                       07295180        
+                                       DS~6 LIT " THRU ";%              07295190        
+                                       SI~SI+4; DS~4 CHR;%              07295200        
+                                     END;%                              07295210        
