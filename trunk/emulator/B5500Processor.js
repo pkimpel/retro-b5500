@@ -98,7 +98,7 @@ B5500Processor.prototype.clear = function() {
     this.totalCycles = 0;               // Total cycles executed on this processor
     this.procTime = 0;                  // Current processor running time, based on cycles executed
     this.scheduleSlack = 0;             // Total processor throttling delay, milliseconds
-    this.busy = false;                  // Proessor is running, not idle or halted
+    this.busy = 0;                      // Proessor is running, not idle or halted
 };
 
 /**************************************/
@@ -185,14 +185,14 @@ B5500Processor.prototype.access = function(eValue) {
         if (this.NCSF || this !== cc.P1) {
             cc.signalInterrupt();
         } else {
-            this.busy = false;          // P1 invalid address in control state stops the proc
+            this.busy = 0;              // P1 invalid address in control state stops the proc
         }
     } else if (acc.MPED) {
         this.I |= 0x01;                 // set I01F - memory parity error
         if (this.NCSF || this !== cc.P1) {
             cc.signalInterrupt();
         } else {
-            this.busy = false;          // P1 memory parity in control state stops the proc
+            this.busy = 0;              // P1 memory parity in control state stops the proc
         }
     }
 };
@@ -430,7 +430,7 @@ B5500Processor.storeForInterrupt = function(forTest) {
             this.T = 0;                 // idle the processor
             this.TROF = 0;
             this.PROF = 0;
-            this.busy = false;
+            this.busy = 0;
             cc.HP2F = 1;
             cc.P2BF = 0;
             if (cc.P2.scheduler) {
@@ -454,7 +454,7 @@ B5500Processor.storeForInterrupt = function(forTest) {
             this.T = 0;                 // idle the processor
             this.TROF = 0;
             this.PROF = 0;
-            this.busy = false;
+            this.busy = 0;
             cc.HP2F = 1;
             cc.P2BF = 0;
             if (cc.P2.scheduler) {
@@ -558,7 +558,7 @@ B5500Processor.initiate = function(forTest) {
         }
     } else {
         this.NCSF = 1;
-        this.busy = true;
+        this.busy = 1;
     }
 };
 
@@ -612,11 +612,11 @@ B5500Processor.prototype.computeRelativeAddr = function(offset, cEnabled) {
 /**************************************/
 B5500Processor.prototype.indexDescriptor = function() {
     /* Indexes a descriptor and, if successful leaves the indexed value in
-    the A register. Returns true if an interrupt is set and the syllable is
+    the A register. Returns 1 if an interrupt is set and the syllable is
     to be exited */
     var aw = this.A;                    // local copy of A reg
     var bw;                             // local copy of B reg
-    var interrupted = false;            // fatal error, interrupt set
+    var interrupted = 0;                // fatal error, interrupt set
     var xe;                             // index exponent
     var xm;                             // index mantissa
     var xo;                             // last index octade shifted off
@@ -643,7 +643,7 @@ B5500Processor.prototype.indexDescriptor = function() {
                     xm *= 8;
                 } else {                // oops... integer overflow normalizing the index
                     xe = 0;             // kill the loop
-                    interrupted = true;
+                    interrupted = 1;
                     if (this.NCSF) {
                         this.I = (this.I & 0x0F) | 0xC0;        // set I07/8: int-overflow
                         cc.signalInterrupt();
@@ -657,13 +657,13 @@ B5500Processor.prototype.indexDescriptor = function() {
     // Now we have an integerized index value in xm
     if (!interrupted) {
         if (xm && cc.bit(bw, 1)) {      // oops... negative index
-            interrupted = true;
+            interrupted = 1;
             if (this.NCSF) {
                 this.I = (this.I & 0x0F) | 0x90;                // set I05/8: invalid-index
                 cc.signalInterrupt();
             }
         } else if (xm >= cc.fieldIsolate(bw, 8, 10)) {
-            interrupted = true;         // oops... index out of bounds
+            interrupted = 1;            // oops... index out of bounds
             if (this.NCSF) {
                 this.I = (this.I & 0x0F) | 0x90;                // set I05/8: invalid-index
                 cc.signalInterrupt();
@@ -736,12 +736,17 @@ B5500Processor.prototype.buildRCW = function(descriptorCall) {
 };
 
 /**************************************/
-B5500Processor.prototype.applyRCW = function(word) {
+B5500Processor.prototype.applyRCW = function(word, inline) {
     /* Set processor state from fields of the Return Control Word in
-    the "word" parameter. Returns the state of the OPDC/DESC bit [2:1] */
+    the "word" parameter. If "inline" is truthy, C & L are NOT restored from
+    the RCW. Returns the state of the OPDC/DESC bit [2:1] */
     var f;
 
-    this.C = f = word % 0x8000;         // [33:15]
+    f = word % 0x8000;                  // [33:15]
+    if (!inline) {
+        this.C = f;
+        this.access(0x30);              // P = [C], fetch new program word
+    }
     word = (word-f)/0x8000;
     this.F = f = word % 0x8000;         // [18:15]
     word = (word-f)/0x8000;
@@ -749,7 +754,10 @@ B5500Processor.prototype.applyRCW = function(word) {
     word = (word-f)/0x08;
     this.G = f = word % 0x08;           // [12:3]
     word = (word-f)/0x08;
-    this.L = f = word % 0x04;           // [10:2]
+    f = word % 0x04;                    // [10:2]
+    if (!inline) {
+        this.L = f;
+    }
     word = (word-f)/0x04;
     this.V = f = word % 0x08;           // [7:3]
     word = (word-f)/0x08;
@@ -770,7 +778,7 @@ B5500Processor.prototype.enterCharModeInline() {
     } else {
         this.access(0x02)               // A = [S]: tank the DI address
     }
-    this.B = this.buildRCW(false);
+    this.B = this.buildRCW(0);
     this.adjustBEmpty();
     this.MSFF = 0;
     this.SALF = 1;
@@ -852,9 +860,10 @@ B5500Processor.prototype.enterSubroutine = function(descriptorCall) {
 };
 
 /**************************************/
-B5500Processor.prototype.exitSubroutine = function() {
+B5500Processor.prototype.exitSubroutine = function(inline) {
     /* Exits a subroutine by restoring the processor state from RCW and MSCW words
-    in the stack. The RCW is assumed to be in the B register, pointing to the MSCW.
+    in the stack. "inline" indicates the C & L registers are NOT restored from the
+    RCW. The RCW is assumed to be in the B register, pointing to the MSCW.
     The A register is not affected by this routine. If SALF & MSFF bits in the MSCW
     are set, link back through the MSCWs until one is found that has either bit not
     set, and store that MSCW at [R]+7. This is the last prior MSCW that actually
@@ -873,9 +882,8 @@ B5500Processor.prototype.exitSubroutine = function() {
             cc.signalInterrupt();
         }
     } else {                            // flag bit is set
-        result = this.applyRCW(this.B);
+        result = this.applyRCW(this.B, inline);
         this.X = this.B % 0x8000000000; // save F setting from MSCW to restore S at end
-        this.access(0x30);              // P = [C], C set from RCW
 
         this.S = this.F;
         this.access(0x03);              // B = [S], fetch the MSCW
@@ -902,7 +910,7 @@ B5500Processor.prototype.operandCall = function() {
     machines. Assumes the syllable has already loaded a word into A.
     See Figures 6-1, 6-3, and 6-4 in the B5500 Reference Manual */
     var aw;                             // local copy of A reg value
-    var interrupted = false;            // interrupt occurred
+    var interrupted = 0;                // interrupt occurred
 
     aw = this.A;
     if (aw >= 0x800000000000) {
@@ -928,7 +936,7 @@ B5500Processor.prototype.operandCall = function() {
 
         case 7:
             // Present program descriptor
-            this.enterSubroutine(false);
+            this.enterSubroutine(0);
             break;
 
         case 0:
@@ -962,7 +970,7 @@ B5500Processor.prototype.descriptorCall = function() {
     that the address of that word is in M.
     See Figures 6-2, 6-3, and 6-4 in the B5500 Reference Manual */
     var aw = this.A;                    // local copy of A reg value
-    var interrupted = false;            // interrupt occurred
+    var interrupted = 0;                // interrupt occurred
 
     if (aw < 0x800000000000) {
         // It's a simple operand
@@ -982,7 +990,7 @@ B5500Processor.prototype.descriptorCall = function() {
 
         case 7:
             // Present program descriptor
-            this.enterSubroutine(true);
+            this.enterSubroutine(1);
             break;
 
         case 0:
@@ -1039,6 +1047,13 @@ B5500Processor.prototype.run = function() {
             variant = opcode >>> 6;
             switch (opcode & 0x3F) {
             case 0x00:                  // XX00: CMX, EXC: Exit character mode
+                this.adjustBEmpty();                    // store destination string
+                this.S = this.F;
+                this.access(0x03);                      // B = [S], fetch the RCW
+                this.exitSubroutine(variant & 0x01);    // exit vs. exit inline
+                this.AROF = this.BROF = 0;
+                this.X = this.M = this.N = 0;
+                this.CWMF = 0;
                 break;
 
             case 0x02:                  // XX02: BSD=Skip bit destination
@@ -1082,11 +1097,11 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x18:              // 3011: SFI=Store for Interrupt
-                    this.storeForInterrupt(false);
+                    this.storeForInterrupt(0);
                     break;
 
                 case 0x1C:              // 3411: SFT=Store for Test
-                    this.storeForInterrupt(true);
+                    this.storeForInterrupt(1);
                     break;
 
                 default:                // Anything else is a no-op
@@ -1253,14 +1268,14 @@ B5500Processor.prototype.run = function() {
 
             case 2:                     // OPDC: Operand Call
                 this.adjustAEmpty();
-                computeRelativeAddr(opcode >>> 2, true);
+                computeRelativeAddr(opcode >>> 2, 1);
                 this.access(0x04);                  // A = [M]
                 this.operandCall();
                 break;
 
             case 3:                     // DESC: Descriptor (name) Call
                 this.adjustAEmpty();
-                computeRelativeAddr(opcode >>> 2, true);
+                computeRelativeAddr(opcode >>> 2, 1);
                 this.access(0x04);                  // A = [M]
                 this.descriptorCall();
                 break;
@@ -1346,7 +1361,7 @@ B5500Processor.prototype.run = function() {
                         if (!this.NCSF && cc.P2 && cc.P2BF) {
                             cc.HP2F = 1;
                             // We know P2 is not currently running on this thread, so save its registers
-                            cc.P2.storeForInterrupt(false);
+                            cc.P2.storeForInterrupt(0);
                         }
                         break;
 
@@ -1354,16 +1369,16 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x18:          // 3011: SFI=Store for Interrupt
-                        this.storeForInterrupt(false);
+                        this.storeForInterrupt(0);
                         break;
 
                     case 0x1C:          // 3411: SFT=Store for Test
-                        this.storeForInterrupt(true);
+                        this.storeForInterrupt(1);
                         break;
 
                     case 0x21:          // 4111: IP1=Initiate Processor 1
                         if (!this.NCSF) {
-                            this.initiate(false);
+                            this.initiate(0);
                         }
                         break;
 
@@ -1652,7 +1667,7 @@ B5500Processor.prototype.run = function() {
                         this.adjustAFull();
                         this.S = this.F;
                         this.access(0x03);              // B = [S], fetch the RCW
-                        switch (this.exitSubroutine()) {
+                        switch (this.exitSubroutine(0)) {
                         case 0:
                             this.X = 0;
                             operandCall();
@@ -1667,13 +1682,13 @@ B5500Processor.prototype.run = function() {
                         this.AROF = 0;
                         this.S = this.F;
                         this.access(0x03);              // B = [S], fetch the RCW
-                        this.exitSubroutine();
+                        this.exitSubroutine(0);
                         break;
 
                     case 0x0A:          // 1235: RTS=return special
                         this.adjustAFull();
                         this.access(0x03);              // B = [S], fetch the RCW
-                        switch (this.exitSubroutine()) {
+                        switch (this.exitSubroutine(0)) {
                         case 0:
                             this.X = 0;
                             operandCall();
@@ -1681,6 +1696,8 @@ B5500Processor.prototype.run = function() {
                             this.Q |= 0x10;             // set Q05F, for display only
                             this.X = 0;
                             descriptorCall();
+                        case 2:                         // flag-bit interrupt occurred, do nothing
+                            break;
                         }
                         break;
                     }
@@ -1709,7 +1726,7 @@ B5500Processor.prototype.run = function() {
                         this.adjustBEmpty();
                         this.F = this.S;
                         if (!this.MSFF) {
-                            if (this.SALF) {
+                            if (this.SALF) {            // store the MSCW at R+7
                                 this.M = (this.R*64) + 7;
                                 this.access(0x0D);      // [M] = B
                             }

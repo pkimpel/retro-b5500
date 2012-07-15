@@ -32,7 +32,7 @@ function B5500CentralControl() {
     this.MemMod = new Array(8);         // Array of memory module words as Float64s (8 x 4KW each)
 
     // Instance variables and flags
-    this.poweredUp = false;             // System power indicator
+    this.poweredUp = 0;                 // System power indicator
 
     this.PB1L = 0;                      // 0=> PA is P1, 1=> PB is P1
     this.cardLoadSelect = 0;            // 0=> load from disk/drum; 1=> load from cards
@@ -504,7 +504,7 @@ B5500CentralControl.prototype.halt = function() {
     /* Halts the processors. Any in-process I/Os are allowed to complete */
 
     if (this.PA && this.PA.busy) {
-        this.PA.busy = false;
+        this.PA.busy = 0;
         this.PA.cycleLimit = 0;
         if (this.PA.scheduler) {
             clearTimeout(this.PA.scheduler);
@@ -513,7 +513,7 @@ B5500CentralControl.prototype.halt = function() {
     }
 
     if (this.PB && this.PB.busy) {
-        this.PB.busy = false;
+        this.PB.busy = 0;
         this.PB.cycleLimit = 0;
         if (this.PB.scheduler) {
             clearTimeout(this.PB.scheduler);
@@ -604,7 +604,7 @@ B5500CentralControl.prototype.powerOn = function() {
 
     if (!this.poweredUp) {
         this.configureSystem();
-        this.poweredUp = true;
+        this.poweredUp = 1;
     }
 };
 
@@ -634,6 +634,6 @@ B5500CentralControl.prototype.powerOff = function() {
             this.AddressSpace[x] = null;
         }
 
-        this.poweredUp = false;
+        this.poweredUp = 0;
     }
 };

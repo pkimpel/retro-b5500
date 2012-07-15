@@ -6571,3 +6571,103 @@ PROCEDURE TABLEOFCONTENTS(B,COUNT);%                                    07268000
                                        DS~6 LIT " THRU ";%              07295190        
                                        SI~SI+4; DS~4 CHR;%              07295200        
                                      END;%                              07295210        
+                                   DS~LIT "~";                          07295220        
+                             END;%                                      07295230        
+                            SPOUT(I);%                                  07295235        
+                           END ELSE FORGETSPACE(I);%                    07295240        
+ $ POP OMIT                                                             07295241        
+              UNLOCKCONTROLKECKS;                                       07296000        
+         END;%                                                          07297000        
+ PROCEDURE REMOVEDECK(N,TUSTA);VALUE N,TUSTA;REAL N,TUSTA;              07298000        
+         BEGIN REAL I,T,A,L1,J=I,L2,V;%                                 07299000        
+ $ SET OMIT = NOT(PACKETS)                                              07299499        
+              REAL L3;                                                  07299500        
+              LABEL FAIL,CONTINUE;                                      07299600        
+ $ POP OMIT                                                             07299601        
+              LABEL L,EXIT,REMOVE;%                                     07300000        
+              LOCKCONTROLDECKS;                                         07301000        
+              IF (I ~ DIRECTORYSEARCH("DECK   ",N,5)) = 0 THEN%         07303000        
+ $ SET OMIT = NOT(PACKETS)                                              07303499        
+    FAIL:                                                               07303500        
+ $ POP OMIT                                                             07303501        
+                   BEGIN I ~ SPACE(5);%                                 07304000        
+                        STREAM(N,I);%                                   07305000        
+ $ SET OMIT = NOT(PACKETS)                                              07305099        
+                       BEGIN DS:=5 LIT " PKT ";                         07305100        
+ $ POP OMIT                                                             07305101        
+ $ SET OMIT = PACKETS                                                   07305999        
+                                  SI ~ LOC N; SI ~ SI+1; DS ~ 5 CHR;%   07307000        
+                                  DS ~ 13 LIT " NOT ON DISK~";%         07308000        
+                             END;%                                      07309000        
+                        GO TO EXIT;%                                    07310000        
+                   END;%                                                07311000        
+ $ SET OMIT = NOT(SHAREDISK)                                            07311199        
+ $ SET OMIT = NOT(PACKETS)                                              07311499        
+              L3:=M[I+6].[FF];                                          07311500        
+ $ POP OMIT                                                             07311501        
+              L2:=M[I+6].[CF];                                          07312000        
+              IF (A:=FIRSTDECK)=(L1:=I.[FF]) THEN                       07313000        
+              BEGIN                                                     07314000        
+ $ SET OMIT = PACKETS                                                   07314099        
+ $ SET OMIT = NOT(PACKETS)                                              07314109        
+                   FIRSTDECK:=IF L3 NEQ 0 THEN L3 ELSE L2;              07314110        
+                   IF L2=0 THEN LASTDECK~IF L3 NEQ 0 THEN L3 ELSE 0;    07314120        
+ $ POP OMIT                                                             07314121        
+                   DISKWAIT(KLUMP,3,DIRECTORYTOP+3);                    07314200        
+ $ SET OMIT = NOT(PACKETS)                                              07314289        
+                   IF L3 NEQ 0 THEN GO TO CONTINUE ELSE                 07314290        
+ $ POP OMIT                                                             07314291        
+                   GO TO REMOVE;                                        07314300        
+              END;                                                      07314400        
+              J ~ I.[33:15];%                                           07315000        
+         L:                                                             07316000        
+              DISKWAIT(-J,30,A);                                        07317000        
+              IF (V:=M[J+6].[CF])=0 THEN                                07318000        
+ $ SET OMIT = NOT(PACKETS)                                              07318009        
+              IF A=L1 THEN GO REMOVE ELSE BEGIN FORGETSPACE(I); GO FAIL 07318010        
+                                          END;                          07318012        
+ $ POP OMIT                                                             07318013        
+ $ SET OMIT = PACKETS                                                   07318019        
+              IF V ! L1 THEN%                                           07319000        
+                   BEGIN A ~ V; GO TO L END;%                           07320000        
+ $ SET OMIT = PACKETS                                                   07320999        
+ $ SET OMIT = NOT(PACKETS)                                              07321099        
+              M[J+6].[CF]~IF L3!0 THEN L3 ELSE L2;                      07321100        
+ $ POP OMIT                                                             07321101        
+              DISKWAIT(J,30,A);                                         07322000        
+              IF L2 = 0 THEN%                                           07324000        
+              BEGIN                                                     07325000        
+ $ SET OMIT = PACKETS                                                   07325999        
+ $ SET OMIT = NOT(PACKETS)                                              07326099        
+                    LASTDECK:=IF L3 NEQ 0 THEN L3 ELSE A;               07326100        
+ $ POP OMIT                                                             07326101        
+                   DISKWAIT(KLUMP,3,DIRECTORYTOP+3);                    07327000        
+ $ SET OMIT = PACKETS                                                   07327999        
+ $ SET OMIT = NOT(PACKETS)                                              07329999        
+               END ELSE IF L3=0 THEN ELSE                               07330000        
+         CONTINUE:                                                      07330050        
+               BEGIN J~I INX 0;                                         07330100        
+               DISKWAIT(-J,30,L3);                                      07330200        
+               M[J+6].[CF]~L2;                                          07330300        
+               DISKWAIT(J,30,L3);                                       07330400        
+               END;                                                     07330500        
+ $ POP OMIT                                                             07330501        
+         REMOVE:                                                        07331000        
+               FORGETSPACE(I);                                          07332000        
+              I:=DIRECTORYSEARCH("DECK   ",N,8).[CF];                   07333000        
+              T ~ M[I+9];%                                              07343000        
+              FOR V ~ 1 STEP 1 UNTIL T DO%                              07344000        
+                   IF M[I+V+9]!0 THEN FORGETUSREDISK(M[I+V+9],M[I+8]);  07345000        
+              STREAM(N,I);%                                             07346000        
+ $ SET OMIT = NOT(PACKETS)                                              07346099        
+              BEGIN DS:=5 LIT " PKT ";                                  07346100        
+ $ POP OMIT                                                             07346101        
+ $ SET OMIT = PACKETS                                                   07346999        
+                        SI ~ LOC N; SI ~ SI+1; DS ~ 5 CHR;%             07348000        
+                        DS ~ 9 LIT " REMOVED~";%                        07349000        
+                   END;%                                                07350000        
+ $ SET OMIT = PACKETS                                                   07350099        
+EXIT:         SPOUTER(I&TUSTA[9:9:9],TUSTA,LIBMSG)                      07351000        
+ $ SET OMIT = PACKETS                                                   07351099        
+              ;UNLOCKCONTROLDECKS;                                      07352000        
+         END;%                                                          07353000        
