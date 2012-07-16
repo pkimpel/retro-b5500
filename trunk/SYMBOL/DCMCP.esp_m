@@ -6671,3 +6671,61 @@ EXIT:         SPOUTER(I&TUSTA[9:9:9],TUSTA,LIBMSG)                      07351000
  $ SET OMIT = PACKETS                                                   07351099        
               ;UNLOCKCONTROLDECKS;                                      07352000        
          END;%                                                          07353000        
+ PROCEDURE DECKREMOVER(B); BALUE B; REAL B;%                            07354000        
+         BEGIN REAL K,N,F;%                                             07355000        
+              INTEGER U; LABEL ON,ERR;                                  07355100        
+              REAL D;                                                   07355200        
+              LABEL L,TRYIT,GIVEUP;                                     07356000        
+              K ~ B.[15:15]-1;%                                         07357000        
+ L:           STREAM(X~12,B:A~0);%                                      07358000        
+                   BEGIN SI ~ B;%                                       07359000        
+                   U:   IF SC = " " THEN BEGIN SI~SI+1; GO TO U END;%   07360000        
+                        IF SC="=" THEN BEGIN DI~LOC X; DI~DI+6; DS~CHR; 07360100        
+                                             SI~SI-1; B~SI; GO TO E END;07360200        
+                        IF SC = "#" THEN SI:=SI+1;                      07361000        
+                   BL:  IF SC=" "  THEN BEGIN SI:=SI+1;GO TO BL; END;   07361500        
+                        DI:=LOC X; DI:=DI+1; DS:=5 LIT "#0000";         07362000        
+                        4(IF SC < "0" THEN JUMP OUT TO EN;              07363000        
+                          IF SC > "9" THEN JUMP OUT TO EN;              07364000        
+                          SI:=SI+1; TALLY:=TALLY+1);                    07365000        
+                   EN:  A:=TALLY; SI:=SI-A; DI:=DI-A; DS:=A CHR;        07365500        
+                   N:   IF SC = " " THEN BEGIN SI~SI+1; GO TO N END;%   07366000        
+                        DS ~ CHR; B ~ SI;%                              07367000        
+                   E: END;%                                             07368000        
+              P(.B,~,.N,~);%                                            07369000        
+              F~N.[36:6]; N.[36:6]~"~";                                 07370000        
+              IF F="~" OR F="," OR F="=" THEN                           07371000        
+                   BEGIN IF F="=" THEN                                  07371100        
+                         BEGIN IF D=0 THEN D~SPACE(30);                 07371200        
+                               LOCKCONTROLDECKS;                        07371300        
+                               IF (N:=FIRSTDECK)=0 THEN                 07371400        
+GIVEUP:                                                                 07371450        
+                               BEGIN F:="~";                            07371500        
+                                    UNLOCKCONTROLDECKS;                 07371600        
+                                    GO ON;                              07371700        
+                               END;                                     07371750        
+TRYIT:                         DISKWAIT(-D,30,N);                       07371800        
+ $ SET OMIT = NOT(SHAREDISK)                                            07371809        
+                               N:=M[D+2];                               07371900        
+                               UNLOCKCONTROLDECKS;                      07371950        
+                         END;                                           07372000        
+                         FOR U ~ 0 STEP 1 UNTIL PSEUDOMAX DO            07372090        
+                         IF CIDROW[U]!0 THEN                            07372100        
+                         IF(CIDTABLE[U,2] EQV N)=NOT 0 THEN             07372200        
+                         IF LABELTABLE[U+32]}0                          07372300        
+ $ SET OMIT = NOT(PACKETS)                                              07372309        
+                          AND LABELTABLE[U+32]!@214 AND                 07372310        
+                          PACKETACT[U]=0                                07372320        
+ $ POP OMIT                                                             07372321        
+                         THEN                                           07372330        
+                         BEGIN                                          07372400        
+                                ENDOFDECK(U,M[K-1]);                    07372500        
+                                GO ON;                                  07372600        
+                         END ELSE GO TO ERR;                            07372700        
+                              REMOVEDECK(N,M[K-1]);                     07372800        
+              ON:        IF F!"~" THEN GO TO L;                         07372900        
+                        FORGETSPACE(K);%                                07373000        
+                   END ELSE                                             07374000        
+    ERR:           SPOUT(K INX M[K-1]);                                 07374100        
+              IF D!0 THEN FORGETSPACE(D);                               07374200        
+         END;%                                                          07375000        
