@@ -28,8 +28,10 @@ function B5500CentralControl() {
     this.P1 = null;                     // Reference for Processor 1 (control) [PA or PB]
     this.P1 = null;                     // Reference for Processor 2 (slave)   [PA or PB]
 
-    this.AddressSpace = new Array(8);   // Array of memory module address spaces (8 x 32KB each)
-    this.MemMod = new Array(8);         // Array of memory module words as Float64s (8 x 4KW each)
+    this.AddressSpace = [               // Array of memory module address spaces (8 x 32KB each)
+        null, null, null, null, null, null, null, null];
+    this.MemMod = [                     // Array of memory module words as Float64s (8 x 4KW each)
+        null, null, null, null, null, null, null, null];
 
     // Instance variables and flags
     this.poweredUp = 0;                 // System power indicator
@@ -148,12 +150,11 @@ B5500CentralControl.prototype.clear = function() {
 /**************************************/
 B5500CentralControl.prototype.bit = function(word, bit) {
     /* Extracts and returns the specified bit from the word */
-    var e = 47-bit;
-    var p;
+    var e = 47-bit;                     // word lower power exponent
+    var p;                              // bottom portion of word power of 2
 
     if (e > 0) {
-        p = B5500CentralControl.pow2[e];
-        return ((word - word%p)/p) % 2;
+        return ((word - word % (p = B5500CentralControl.pow2[e]))/p) % 2;
     } else {
         return word % 2;
     }
@@ -162,49 +163,74 @@ B5500CentralControl.prototype.bit = function(word, bit) {
 /**************************************/
 B5500CentralControl.prototype.bitSet = function(word, bit) {
     /* Sets the specified bit in word and returns the updated word */
+    var ue = 48-bit;                    // word upper power exponent
+    var le = ue-1;                      // word lower power exponent
+    var bpower = 1;                     // bottom portion of word power of 2
+    var bottom =                        // unaffected bottom portion of word
+        (le == 0 ? 0 : (word % (bpower = B5500CentralControl.pow2[le])));
+    var top =                           // unaffected top portion of word
+        (bit == 0 ? 0 : (word - (word % B5500CentralControl.pow2[ue])));
 
-    return this.fieldInsert(word, bit, 1, 1);
+    return bpower + top + bottom;
 };
 
 /**************************************/
 B5500CentralControl.prototype.bitReset = function(word, bit) {
     /* Resets the specified bit in word and returns the updated word */
+    var ue = 48-bit;                    // word upper power exponent
+    var le = ue-1;                      // word lower power exponent
+    var bottom =                        // unaffected bottom portion of word
+        (le == 0 ? 0 : (word % B5500CentralControl.pow2[le]));
+    var top =                           // unaffected top portion of word
+        (bit == 0 ? 0 : (word - (word % B5500CentralControl.pow2[ue])));
 
-    return this.fieldInsert(word, bit, 1, 0);
+    return top + bottom;
 };
 
 /**************************************/
 B5500CentralControl.prototype.fieldIsolate = function(word, start, width) {
     /* Extracts a bit field [start:width] from word and returns the field */
-    var ue = 48-start;                  // upper power exponent
-    var le = ue-width;                  // lower power exponent
-    var p;
+    var le = 48-start-width;            // lower power exponent
+    var p;                              // bottom portion of word power of 2
 
-    if (le > 0) {
-        p = B5500CentralControl.pow2[le];
-        return ((word - word%p)/p) % B5500CentralControl.pow2[width];
-    } else {
-        return word % B5500CentralControl.pow2[width];
-    }
+    return (le == 0 ? word :
+                      (word - word % (p = B5500CentralControl.pow2[le]))/p
+            ) % B5500CentralControl.pow2[width];
 };
 
 /**************************************/
 B5500CentralControl.prototype.fieldInsert = function(word, start, width, value) {
-    /* Inserts a bit field into word.[start:width] and returns the updated word */
-    var ue = 48-start;                  // upper power exponent
-    var le = ue-width;                  // lower power exponent
-    var bpower = 1;                     // bottom portion power of 2
-    var bottom = 0;                     // unaffected bottom portion of word
-    var top = 0;                        // unaffected top portion of word
+    /* Inserts a bit field from value.[48-width:width] into word.[start:width] and
+    returns the updated word */
+    var ue = 48-start;                  // word upper power exponent
+    var le = ue-width;                  // word lower power exponent
+    var bpower = 1;                     // bottom portion of word power of 2
+    var bottom =                        // unaffected bottom portion of word
+        (le == 0 ? 0 : (word % (bpower = B5500CentralControl.pow2[le])));
+    var top =                           // unaffected top portion of word
+        (bit == 0 ? 0 : (word - (word % B5500CentralControl.pow2[ue])));
 
-    if (start > 0) {
-        top = word - (word % B5500CentralControl.pow2[ue]);
-    }
-    if (le > 0) {
-        bpower = B5500CentralControl.pow2[le];
-        bottom = word % bpower;
-    }
     return (value % B5500CentralControl.pow2[width])*bpower + top + bottom;
+};
+
+/**************************************/
+B5500CentralControl.prototype.fieldTransfer = function(word, wstart, width, value, vstart) {
+    /* Inserts a bit field from value.[vstart:width] into word.[wstart:width] and
+    returns the updated word */
+    var ue = 48-vstart;                 // word upper power exponent
+    var le = ue-width;                  // word lower power exponent
+    var ve = 48-vstart-width;           // value lower power exponent
+    var vpower;                         // bottom port of value power of 2
+    var bpower = 1;                     // bottom portion of word power of 2
+    var bottom =                        // unaffected bottom portion of word
+        (le == 0 ? 0 : (word % (bpower = B5500CentralControl.pow2[le])));
+    var top =                           // unaffected top portion of word
+        (bit == 0 ? 0 : (word - (word % B5500CentralControl.pow2[ue])));
+
+    return ((ve == 0 ? value :
+                       (value - value % (vpower = B5500CentralControl.pow2[ve]))/vpower
+                ) % B5500CentralControl.pow2[width]
+            )*bpower + top + bottom;
 };
 
 /**************************************/

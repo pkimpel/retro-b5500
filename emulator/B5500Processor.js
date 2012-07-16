@@ -49,7 +49,17 @@ function B5500Processor(procID) {
 
 /**************************************/
 
-B5500Processor.timeSlice = 5000; // Standard run() timeslice, about 5ms (we hope)
+B5500Processor.timeSlice = 5000;        // Standard run() timeslice, about 5ms (we hope)
+
+B5500Processor.collation = [            // index by BIC to get collation value
+    53, 54, 55, 56, 57, 58, 59, 60,             // @00: 0 1 2 3 4 5 6 7
+    61, 62, 19, 20, 63, 21, 22, 23,             // @10: 8 9 # @ ? : > }
+    24, 25, 26, 27, 28, 29, 30, 31,             // @20: + A B C D E F G
+    32, 33,  1,  2,  6,  3,  4,  5,             // @30: H I . [ & ( < ~
+    34, 35, 36, 37, 38, 39, 40, 41,             // @40: | J K L M N O P
+    42, 43,  7,  8, 12,  9, 10, 11,             // @50: Q R $ * - ) ; {
+     0, 13, 45, 46, 47, 48, 49, 50,             // @60: _ / S T U V W X  (_ = blank)
+    51, 52, 14, 15, 44, 16, 17, 18];            // @70: Y Z , % ! = ] "
 
 /**************************************/
 B5500Processor.prototype.clear = function() {
@@ -324,6 +334,136 @@ B5500Processor.prototype.exchangeTOS = function() {
             this.S--;
             this.access(0x02);          // A = [S]
             this.S--;
+        }
+    }
+};
+
+/**************************************/
+B5500Processor.prototype.streamAdjustSourceChar = function() {
+    /* Adjusts the character-mode source pointer to the next character
+    boundary, as necessary. If the adjustment crosses a word boundary,
+    AROF is reset to force reloading later at the new source address */
+
+    if (this.H > 0) {
+        this.H = 0;
+        if (this.G < 7) {
+            this.G++;
+        } else {
+            this.G = 0;
+            this.AROF = 0;
+            this.M++;
+        }
+    }
+};
+
+/**************************************/
+B5500Processor.prototype.streamAdjustDestChar = function() {
+    /* Adjusts the character-mode destination pointer to the next character
+    boundary, as necessary. If the adjustment crosses a word boundary and
+    BROF is set, B is stored at S before S is incremented and BROF is reset
+    to force reloading later at the new destination address */
+
+    if (this.V > 0) {
+        this.V = 0;
+        if (this.K < 7) {
+            this.K++;
+        } else {
+            this.K = 0;
+            if (this.BROF) {
+                this.access(0x0B);
+                this.BROF = 0;
+            }
+            this.S++;
+        }
+    }
+};
+
+/**************************************/
+B5500Processor.prototype.streamSourceToDest = function(count, transform) {
+    /* General driver for character-mode character transfers from source to
+    destination. "count" is the number of source characters to transfer.
+    "transform" is a function(bBit, count) that determines how the
+    characters are transferred from the source (A) to destination (B). The
+    Y register will contain the current char during this call */
+    var aBit;
+    var bBit;
+
+    this.streamAdjustSourceChar();
+    this.streamAdjustDestChar();
+    if (count) {
+        if (!this.BROF) {
+            this.access(0x03);          // B = [S]
+        }
+        if (!this.AROF) {
+            this.access(0x04);          // A = [M]
+        }
+        this.cycleCount += count;       // approximate the timing
+        aBit = this.G*6;                // A-bit number
+        bBit = this.K*6;                // B-bit number
+        while (count) {
+            this.Y = cc.fieldIsolate(this.A, aBit, 6);
+            transform(bBit, count)
+            count--;
+            if (bBit < 42) {
+                bBit += 6;
+                this.K++;
+            } else {
+                bBit = 0;
+                this.K = 0;
+                this.access(0x0B);      // [S] = B
+                this.S++;
+                if (count < 8) {      // just a partial word left
+                    this.access(0x03);  // B = [S]
+                }
+            }
+            if (aBit < 42) {
+                aBit += 6;
+                this.G++;
+            } else {
+                aBit = 0;
+                this.G = 0;
+                this.M++;
+                this.access(0x04);      // A = [M]
+            }
+        }
+    }
+};
+
+/**************************************/
+B5500Processor.prototype.streamToDest = function(count, transform) {
+    /* General driver for character-mode character operations on the
+    destination from a non-A register source. "count" is the number of
+    characters to transfer. "transform" is a function(bBit, count) that
+    determines how the characters are stored to the destination (B).
+    Returning truthy terminates the process without incrementing the
+    destination address */
+    var bBit;
+
+    this.streamAdjustDestChar();
+    if (count) {
+        if (!this.BROF) {
+            this.access(0x03);          // B = [S]
+        }
+        this.cycleCount += count;       // approximate the timing
+        bBit = this.K*6;                // B-bit number
+        while (count) {
+            if (transform(bBit, count)) {
+                count = 0;
+            } else {
+                count--;
+                if (bBit < 42) {
+                    bBit += 6;
+                    this.K++;
+                } else {
+                    bBit = 0;
+                    this.K = 0;
+                    this.access(0x0B);   // [S] = B
+                    this.S++;
+                    if (count < 8) {     // just a partial word left
+                        this.access(0x03);  // B = [S]
+                    }
+                }
+            }
         }
     }
 };
@@ -678,7 +818,7 @@ B5500Processor.prototype.indexDescriptor = function() {
 };
 
 /**************************************/
-B5500Processor.prototype.presenceTest(word) {
+B5500Processor.prototype.presenceTest = function(word) {
     /* Tests and returns the presence bit [2:1] of the "word" parameter. If
     0, the p-bit interrupt is set; otherwise no further action */
 
@@ -767,7 +907,7 @@ B5500Processor.prototype.applyRCW = function(word, inline) {
 };
 
 /**************************************/
-B5500Processor.prototype.enterCharModeInline() {
+B5500Processor.prototype.enterCharModeInline = function() {
     /* Implements the 4441=CMN syllable */
     var bw;                             // local copy of B reg
 
@@ -1027,6 +1167,7 @@ B5500Processor.prototype.run = function() {
     current program word must be in P with PROF set, and the C & L registers
     must point to the next syllable to be executed.
     This routine will run until cycleCount >= cycleLimit or !this.busy */
+    var noSECL = 0;                     // to support char mode dynamic count from CRF
     var opcode;
     var t1;
     var t2;
@@ -1045,213 +1186,386 @@ B5500Processor.prototype.run = function() {
             *  Character Mode Syllables                                *
             ***********************************************************/
             variant = opcode >>> 6;
-            switch (opcode & 0x3F) {
-            case 0x00:                  // XX00: CMX, EXC: Exit character mode
-                this.adjustBEmpty();                    // store destination string
-                this.S = this.F;
-                this.access(0x03);                      // B = [S], fetch the RCW
-                this.exitSubroutine(variant & 0x01);    // exit vs. exit inline
-                this.AROF = this.BROF = 0;
-                this.X = this.M = this.N = 0;
-                this.CWMF = 0;
-                break;
-
-            case 0x02:                  // XX02: BSD=Skip bit destination
-                break;
-
-            case 0x03:                  // XX03: BSS=Skip bit source
-                break;
-
-            case 0x04:                  // XX04: RDA=Recall destination address
-                break;
-
-            case 0x05:                  // XX05: TRW=Transfer words
-                break;
-
-            case 0x06:                  // XX06: SED=Set destination address
-                break;
-
-            case 0x07:                  // XX07: TDA=Transfer destination address
-                break;
-
-            case 0x0A:                  // XX12: TBN=Transfer blank for numeric
-                break;
-
-            case 0x0C:                  // XX14: SDA=Store destination address
-                break;
-
-            case 0x0D:                  // XX15: SSA=Store source address
-                break;
-
-            case 0x0E:                  // XX16: SFD=Skip forward destination
-                break;
-
-            case 0x0F:                  // XX17: SRD=Skip reverse destination
-                break;
-
-            case 0x11:                  // XX11: control state ops
-                switch (variant) {
-                case 0x14:              // 2411: ZPI=Conditional Halt
-                    // TODO: this needs to test for the STOP OPERATOR switch
-                    // TODO: on the maintenance panel otherwise it is a NOP.
+            do {                        // inner loop to support CRF dynamic repeat count
+                noSECL = 0;             // force off by default (set by CRF)
+                switch (opcode & 0x3F) {
+                case 0x00:              // XX00: CMX, EXC: Exit character mode
+                    this.adjustBEmpty();                // store destination string
+                    this.S = this.F;
+                    this.access(0x03);                  // B = [S], fetch the RCW
+                    this.exitSubroutine(variant & 0x01);// exit vs. exit inline
+                    this.AROF = this.BROF = 0;
+                    this.X = this.M = this.N = 0;
+                    this.CWMF = 0;
                     break;
 
-                case 0x18:              // 3011: SFI=Store for Interrupt
-                    this.storeForInterrupt(0);
+                case 0x02:              // XX02: BSD=Skip bit destination
                     break;
 
-                case 0x1C:              // 3411: SFT=Store for Test
-                    this.storeForInterrupt(1);
+                case 0x03:              // XX03: BSS=Skip bit source
                     break;
 
-                default:                // Anything else is a no-op
+                case 0x04:              // XX04: RDA=Recall destination address
                     break;
-                } // end switch for XX11 ops
-                break;
 
-            case 0x12:                  // XX22: SES=Set source address
-                break;
+                case 0x05:              // XX05: TRW=Transfer words
+                    if (this.BROF) {
+                        this.access(0x0B);              // [S] = B
+                        this.BROF = 0;
+                    }
+                    if (this.G || this.H) {
+                        this.G = this.H = 0;
+                        this.M++;
+                        this.AROF = 0;
+                    }
+                    if (this.K || this.V) {
+                        this.K = this.V = 0;
+                        this.S++;
+                    }
+                    if (variant) {                      // count > 0
+                        if (!this.AROF) {
+                            this.access(0x04);          // A = [M]
+                        }
+                        do {
+                            this.access(0x0A);          // [S] = A
+                            this.S++;
+                            this.M++;
+                            this.access(0x04);          // A = [M]
+                        } while (--variant);
+                    }
+                    break;
 
-            case 0x14:                  // XX24: TEQ=Test for equal
-                break;
+                case 0x06:              // XX06: SED=Set destination address
+                    break;
 
-            case 0x15:                  // XX25: TNE=Test for not equal
-                break;
+                case 0x07:              // XX07: TDA=Transfer destination address
+                    break;
 
-            case 0x16:                  // XX26: TEG=Test for greater or equal
-                break;
+                case 0x0A:              // XX12: TBN=Transfer blank for numeric
+                    this.MSFF = 1;                      // initialize true-false FF
+                    this.streamToDest(variant, function(bb, count) {
+                        var c = this.Z = cc.fieldIsolate(this.B, bb, 6);
+                        var result = 0;
 
-            case 0x17:                  // XX27: TGR=Test for greater
-                break;
+                        if (c > 0 && c <= 9) {
+                            this.MSFF = 0;              // numeric, non-zero: stop blanking
+                            this.Q |= 0x04;             // set Q03F (display only)
+                            result = 1;                 // terminate, pointing at this char
+                        } else {
+                            this.B = cc.fieldInsert(this.B, bb, 6, 0x30);   // replace with blank
+                        }
+                        return result;
+                    });
+                    break;
 
-            case 0x18:                  // XX30: SRS=Skip reverse source
-                break;
+                case 0x0C:              // XX14: SDA=Store destination address
+                    break;
 
-            case 0x19:                  // XX31: SFS=Skip forward source
-                break;
+                case 0x0D:              // XX15: SSA=Store source address
+                    break;
 
-            case 0x1A:                  // XX32: ---=Field subtract (aux)       !! ??
-                break;
+                case 0x0E:              // XX16: SFD=Skip forward destination
+                    break;
 
-            case 0x1B:                  // XX33: ---=Field add (aux)            !! ??
-                break;
+                case 0x0F:              // XX17: SRD=Skip reverse destination
+                    break;
 
-            case 0x1C:                  // XX34: TEL=Test for equal
-                break;
+                case 0x11:              // XX11: control state ops
+                    switch (variant) {
+                    case 0x14:          // 2411: ZPI=Conditional Halt
+                        // TODO: this needs to test for the STOP OPERATOR switch
+                        // TODO: on the maintenance panel otherwise it is a NOP.
+                        break;
 
-            case 0x1D:                  // XX35: TLS=Test for less
-                break;
+                    case 0x18:          // 3011: SFI=Store for Interrupt
+                        this.storeForInterrupt(0);
+                        break;
 
-            case 0x1E:                  // XX36: TAN=Test for alphanumeric
-                break;
+                    case 0x1C:          // 3411: SFT=Store for Test
+                        this.storeForInterrupt(1);
+                        break;
 
-            case 0x1F:                  // XX37: BIT=Test bit
-                break;
+                    default:            // Anything else is a no-op
+                        break;
+                    } // end switch for XX11 ops
+                    break;
 
-            case 0x20:                  // XX40: INC=Increase TALLY
-                if (variant) {
-                    this.R = (this.R + variant) & 0x3F;
+                case 0x12:              // XX22: SES=Set source address
+                    break;
+
+                case 0x14:              // XX24: TEQ=Test for equal
+                    this.streamAdjustSource();
+                    if (!this.AROF) {
+                        this.access(0x04);              // A = [M]
+                    }
+                    t1 = B5500Processor.collate[cc.fieldIsolate(this.A, this.G*6, 6)];
+                    t2 = B5500Processor.collate[variant];
+                    this.MSFF = (t1 == t2 ? 1 : 0);
+                    break;
+
+                case 0x15:              // XX25: TNE=Test for not equal
+                    this.streamAdjustSource();
+                    if (!this.AROF) {
+                        this.access(0x04);              // A = [M]
+                    }
+                    t1 = B5500Processor.collate[cc.fieldIsolate(this.A, this.G*6, 6)];
+                    t2 = B5500Processor.collate[variant];
+                    this.MSFF = (t1 != t2 ? 1 : 0);
+                    break;
+
+                case 0x16:              // XX26: TEG=Test for equal or greater
+                    this.streamAdjustSource();
+                    if (!this.AROF) {
+                        this.access(0x04);              // A = [M]
+                    }
+                    t1 = B5500Processor.collate[cc.fieldIsolate(this.A, this.G*6, 6)];
+                    t2 = B5500Processor.collate[variant];
+                    this.MSFF = (t1 >= t2 ? 1 : 0);
+                    break;
+
+                case 0x17:              // XX27: TGR=Test for greater
+                    this.streamAdjustSource();
+                    if (!this.AROF) {
+                        this.access(0x04);              // A = [M]
+                    }
+                    t1 = B5500Processor.collate[cc.fieldIsolate(this.A, this.G*6, 6)];
+                    t2 = B5500Processor.collate[variant];
+                    this.MSFF = (t1 > t2 ? 1 : 0);
+                    break;
+
+                case 0x18:              // XX30: SRS=Skip reverse source
+                    break;
+
+                case 0x19:              // XX31: SFS=Skip forward source
+                    break;
+
+                case 0x1A:              // XX32: ---=Field subtract (aux)       !! ??
+                    break;
+
+                case 0x1B:              // XX33: ---=Field add (aux)            !! ??
+                    break;
+
+                case 0x1C:              // XX34: TEL=Test for equal or less
+                    this.streamAdjustSource();
+                    if (!this.AROF) {
+                        this.access(0x04);              // A = [M]
+                    }
+                    t1 = B5500Processor.collate[cc.fieldIsolate(this.A, this.G*6, 6)];
+                    t2 = B5500Processor.collate[variant];
+                    this.MSFF = (t1 <= t2 ? 1 : 0);
+                    break;
+
+                case 0x1D:              // XX35: TLS=Test for less
+                    this.streamAdjustSource();
+                    if (!this.AROF) {
+                        this.access(0x04);              // A = [M]
+                    }
+                    t1 = B5500Processor.collate[cc.fieldIsolate(this.A, this.G*6, 6)];
+                    t2 = B5500Processor.collate[variant];
+                    this.MSFF = (t1 < t2 ? 1 : 0);
+                    break;
+
+                case 0x1E:              // XX36: TAN=Test for alphanumeric
+                    this.streamAdjustSource();
+                    if (!this.AROF) {
+                        this.access(0x04);              // A = [M]
+                    }
+                    this.Y = t1 = cc.fieldIsolate(this.A, this.G*6, 6);
+                    this.Z = variant;                   // for display only
+                    if (B5500Processor.collate[t1] > B5500Processor.collate[variant]) {                      // alphanumeric unless | or !
+                        this.MSFF = (t1 == 0x20 ? 0 : (t1 == 0x3C ? 0 : 1));
+                    } else {                            // alphanumeric if equal
+                        this.Q |= 0x04;                 // set Q03F (display only)
+                        this.MSFF = (t1 == variant ? 1 : 0);
+                    }
+                    break;
+
+                case 0x1F:              // XX37: BIT=Test bit
+                    if (!this.AROF) {
+                        this.access(0x04);              // A = [M]
+                    }
+                    t1 = (this.Y = cc.fieldIsolate(this.A, this.G*6, 6)) >>> 5-this.H;
+                    this.MSFF = ((t1 & 0x01) == (variant & 0x01) ? 1 : 0);
+                    break;
+
+                case 0x20:              // XX40: INC=Increase TALLY
+                    if (variant) {
+                        this.R = (this.R + variant) & 0x3F;
                 // else it's a character-mode no-op
-                }
-                break;
+                    }
+                    break;
 
-            case 0x21:                  // XX41: STC=Store TALLY
-                break;
+                case 0x21:              // XX41: STC=Store TALLY
+                    break;
 
-            case 0x22:                  // XX42: SEC=Set TALLY
-                this.R = variant;
-                break;
+                case 0x22:              // XX42: SEC=Set TALLY
+                    this.R = variant;
+                    break;
 
-            case 0x23:                  // XX43: CRF=Call variant field
-                break;
+                case 0x23:              // XX43: CRF=Call repeat field
+                    this.A = this.B;                    // save B in A
+                    this.AROF = this.BROF;
+                    t1 = this.S;                        // save S (not the way the hardware did it)
+                    this.S = this.F - variant;          // compute parameter address
+                    this.access(0x03);                  // B = [S]
+                    variant = this.B % 0x40;            // dynamic repeat count is low-order 6 bits
+                    this.S = t1;                        // restore S
+                    this.B = this.A;                    // restore B
+                    this.BROF = this.AROF;
+                    this.AROF = 0;
+                    noSECL = 1;                         // override normal instruction fetch
+                    opcode = cc.fieldIsolate(this.P, this.L*12, 12);
+                    if (variant) {
+                        this.T = opcode & 0x3F + variant*64;    // use repeat count from parameter
+                    } else {
+                        if (opcode & 0xFC) {            // repeat field in next syl > 0
+                            this.T = opcode;
+                            variant = opcode >>> 6;     // execute next syl as is
+                        } else {
+                            this.T = opcode = 0x27;     // inject JFW 0 into T (effectively a no-op)
+                        }
+                    }
+                    break;
 
-            case 0x24:                  // XX44: JNC=Jump out of loop conditional
-                break;
+                case 0x24:              // XX44: JNC=Jump out of loop conditional
+                    break;
 
-            case 0x25:                  // XX45: JFC=Jump forward conditional
-                break;
+                case 0x25:              // XX45: JFC=Jump forward conditional
+                    break;
 
-            case 0x26:                  // XX46: JNS=Jump out of loop
-                break;
+                case 0x26:              // XX46: JNS=Jump out of loop
+                    break;
 
-            case 0x27:                  // XX47: JFW=Jump forward unconditional
-                break;
+                case 0x27:              // XX47: JFW=Jump forward unconditional
+                    break;
 
-            case 0x28:                  // XX50: RCA=Recall control address
-                break;
+                case 0x28:              // XX50: RCA=Recall control address
+                    break;
 
-            case 0x29:                  // XX51: ENS=End loop
-                break;
+                case 0x29:              // XX51: ENS=End loop
+                    break;
 
-            case 0x2A:                  // XX52: BNS=Begin loop
-                break;
+                case 0x2A:              // XX52: BNS=Begin loop
+                    break;
 
-            case 0x2B:                  // XX53: RSA=Recall source address
-                break;
+                case 0x2B:              // XX53: RSA=Recall source address
+                    break;
 
-            case 0x2C:                  // XX54: SCA=Store control address
-                break;
+                case 0x2C:              // XX54: SCA=Store control address
+                    break;
 
-            case 0x2D:                  // XX55: JRC=Jump reverse conditional
-                break;
+                case 0x2D:              // XX55: JRC=Jump reverse conditional
+                    break;
 
-            case 0x2E:                  // XX56: TSA=Transfer source address
-                break;
+                case 0x2E:              // XX56: TSA=Transfer source address
+                    break;
 
-            case 0x2F:                  // XX57: JRV=Jump reverse unconditional
-                break;
+                case 0x2F:              // XX57: JRV=Jump reverse unconditional
+                    break;
 
-            case 0x30:                  // XX60: CEQ=Compare equal
-                break;
+                case 0x30:              // XX60: CEQ=Compare equal
+                    break;
 
-            case 0x31:                  // XX61: CNE=Compare not equal
-                break;
+                case 0x31:              // XX61: CNE=Compare not equal
+                    break;
 
-            case 0x32:                  // XX62: CEG=Compare greater or equal
-                break;
+                case 0x32:              // XX62: CEG=Compare greater or equal
+                    break;
 
-            case 0x33:                  // XX63: CGR=Compare greater
-                break;
+                case 0x33:              // XX63: CGR=Compare greater
+                    break;
 
-            case 0x34:                  // XX64: BIS=Set bit
-                break;
+                case 0x34:              // XX64: BIS=Set bit
+                    break;
 
-            case 0x35:                  // XX65: BIR=Reset bit
-                break;
+                case 0x35:              // XX65: BIR=Reset bit
+                    break;
 
-            case 0x36:                  // XX66: OCV=Output convert
-                break;
+                case 0x36:              // XX66: OCV=Output convert
+                    break;
 
-            case 0x37:                  // XX67: ICV=Input convert
-                break;
+                case 0x37:              // XX67: ICV=Input convert
+                    break;
 
-            case 0x38:                  // XX70: CEL=Compare equal or less
-                break;
+                case 0x38:              // XX70: CEL=Compare equal or less
+                    break;
 
-            case 0x39:                  // XX71: CLS=Compare less
-                break;
+                case 0x39:              // XX71: CLS=Compare less
+                    break;
 
-            case 0x3A:                  // XX72: FSU=Field subtract
-                break;
+                case 0x3A:              // XX72: FSU=Field subtract
+                    break;
 
-            case 0x3B:                  // XX73: FAD=Field add
-                break;
+                case 0x3B:              // XX73: FAD=Field add
+                    break;
 
-            case 0x3C:                  // XX74: TRP=Transfer program characters
-                break;
+                case 0x3C:              // XX74: TRP=Transfer program characters
+                    this.streamAdjustDestChar();
+                    if (variant) {                  // count > 0
+                        if (!this.BROF) {
+                            this.access(0x03);          // B = [S]
+                        }
+                        this.cycleCount += variant;     // approximate the timing
+                        t1 = (this.L*2 + variant & 0x01)*6;     // P-bit number
+                        t2 = this.K*6;                  // B-bit number
+                        while (variant--) {
+                            this.Y = cc.fieldIsolate(this.P, t1, 6);
+                            this.B = cc.fieldInsert(this.B, t2, 6, this.Y)
+                            if (t2 < 42) {
+                                t2 += 6;
+                                this.K++;
+                            } else {
+                                t2 = 0;
+                                this.K = 0;
+                                this.access(0x0B);      // [S] = B
+                                this.S++;
+                                if (variant < 8) {      // just a partial word left
+                                    this.access(0x03);  // B = [S]
+                                }
+                            }
+                            if (t1 < 42) {
+                                t1 += 6;
+                                if (!(variant & 0x01)) {
+                                    this.L++;
+                                }
+                            } else {
+                                t1 = 0;
+                                this.L = 0;
+                                this.C++;
+                                this.access(0x30);      // P = [C]
+                            }
+                        }
+                    }
+                    break;
 
-            case 0x3D:                  // XX75: TRN=Transfer numerics
-                break;
+                case 0x3D:              // XX75: TRN=Transfer numerics
+                    this.MSFF = 0;                      // initialize true-false FF
+                    this.streamSourceToDest(variant, function(bb, count) {
+                        var c = this.Y;
 
-            case 0x3E:                  // XX76: TRZ=Transfer zones
-                break;
+                        if (count == 1 && (c & 0x30) == 0x20) {
+                            this.MSFF = 1;              // neg. sign
+                        }
+                        this.B = cc.fieldInsert(this.B, bb, 6, c & 0x0F);
+                    });
+                    break;
 
-            case 0x3F:                  // XX77: TRS=Transfer source characters
-                break;
+                case 0x3E:              // XX76: TRZ=Transfer zones
+                    this.streamSourceToDest(variant, function(bb, count) {
+                        this.B = cc.fieldInsert(this.B, bb, 2, this.Y);
+                    });
+                    break;
 
-            default:                    // everything else is a no-op
-                break;
-            } // end switch for character mode operators
+                case 0x3F:              // XX77: TRS=Transfer source characters
+                    this.streamSourceToDest(variant, function(bb, count) {
+                        this.B = cc.fieldInsert(this.B, bb, 6, this.Y);
+                    });
+                    break;
+
+                default:                // everything else is a no-op
+                    break;
+                } // end switch for character mode operators
+            } while (noSECL);
         } else {
             /***********************************************************
             *  Word Mode Syllables                                     *
@@ -1276,7 +1590,7 @@ B5500Processor.prototype.run = function() {
             case 3:                     // DESC: Descriptor (name) Call
                 this.adjustAEmpty();
                 computeRelativeAddr(opcode >>> 2, 1);
-                this.access(0x04);                  // A = [M]
+                this.access(0x04);                      // A = [M]
                 this.descriptorCall();
                 break;
 
@@ -1453,11 +1767,11 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x10:          // 2015: MOP=reset flag bit (make operand)
-                        this.A = cc.fieldInsert(this.A, 0, 1, 0);
+                        this.A = cc.bitReset(this.A, 0);
                         break;
 
                     case 0x20:          // 4015: MDS=set flag bit (make descriptor)
-                        this.A = cc.fieldInsert(this.A, 0, 1, 1);
+                        this.A = cc.bitSet(this.A, 0);
                         break;
                     }
                     break;
@@ -1474,13 +1788,6 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x08:          // 1021: SND=Store nondestructive
-                        break;
-
-                    case 0x09:          // 0431: SSN=Set Sign Bit
-                        // the sign-bit is bit 1
-                        // assert(this.AROF == 1);
-                        this.A = cc.fieldInsert(this.A, 1, 1, 1);
-                        this.AROF = 1;
                         break;
 
                     case 0x10:          // 2021: LOD=Load operand
@@ -1569,7 +1876,7 @@ B5500Processor.prototype.run = function() {
 
                     case 0x04:          // 0431: SSN=set sign bit (set negative)
                         // assert(this.AROF == 1);
-                        this.A = cc.fieldInsert(this.A, 1, 1, 1);
+                        this.A = cc.bitSet(this.A, 1);
                         this.AROF = 1;
                         break;
 
@@ -1577,9 +1884,9 @@ B5500Processor.prototype.run = function() {
                         // the sign-bit is bit 1
                         // assert(this.AROF == 1);
                         if (cc.bit(this.A, 1)) {
-                            this.A = cc.fieldInsert(this.A, 1, 1, 0);
+                            this.A = cc.bitReset(this.A, 1);
                         } else {
-                            this.A = cc.fieldInsert(this.A, 1, 1, 1);
+                            this.A = cc.bitSet(this.A, 1);
                         }
                         this.AROF = 1;
                         break;
@@ -1611,7 +1918,7 @@ B5500Processor.prototype.run = function() {
                     case 0x24:          // 4431: SSP=reset sign bit (set positive)
                         // the sign-bit is bit 1
                         // assert(this.AROF == 1);
-                        this.A = cc.fieldInsert(this.A, 1, 1, 0);
+                        this.A = cc.bitReset(this.A, 1);
                         this.AROF = 1;
                         break;
 
@@ -1827,7 +2134,7 @@ B5500Processor.prototype.run = function() {
                         variant = 48-t2;
                     }
                     if (variant > 0) {
-                        this.B = cc.fieldInsert(this.B, t2, variant, cc.fieldIsolate(this.A, t1, variant));
+                        this.B = cc.fieldTransfer(this.B, t2, variant, this.A, t1);
                     }
                     this.AROF = 0;
                     this.cycleCount += variant + this.G + this.K;       // approximate the shift counts
@@ -1843,7 +2150,7 @@ B5500Processor.prototype.run = function() {
                     if (t2+variant > 48) {
                         variant = 48-t2;
                     }
-                    if (variant > 0 && cc.fieldIsolate(this.B, t2, variant) < cc.fieldIsolate(this.A, t1, variant)) {
+                    if (variant > 0 && (cc.fieldIsolate(this.B, t2, variant) < cc.fieldIsolate(this.A, t1, variant))) {
                         this.A = 1;
                     } else {
                         this.A = 0;
@@ -1861,7 +2168,7 @@ B5500Processor.prototype.run = function() {
                     if (t2+variant > 48) {
                         variant = 48-t2;
                     }
-                    if (variant > 0 && cc.fieldIsolate(this.B, t2, variant) == cc.fieldIsolate(this.A, t1, variant)) {
+                    if (variant > 0 && (cc.fieldIsolate(this.B, t2, variant) == cc.fieldIsolate(this.A, t1, variant))) {
                         this.A = 1;
                     } else {
                         this.A = 0;
