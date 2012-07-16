@@ -6729,3 +6729,91 @@ TRYIT:                         DISKWAIT(-D,30,N);                       07371800
     ERR:           SPOUT(K INX M[K-1]);                                 07374100        
               IF D!0 THEN FORGETSPACE(D);                               07374200        
          END;%                                                          07375000        
+ BOOLEAN PROCEDURE READEMFROMDISK(H,IB);%                               07376000        
+         VALUE H,IB; ARRAY H[*],IB[*];%                                 07377000        
+         BEGIN%                                                         07378000        
+%   H[0] = ADDRESS OF BU+1 (B)%                                         07379000        
+%   H[1] = ADDRESS OF B2+1%                                             07380000        
+%   H[2] = DECK NAME%                                                   07381000        
+%   H[3] = RECORDCOUNT (N)%                                             07382000        
+%   H[4] = NEXT CONTROL CARD (L)%                                       07383000        
+%   H[5] = RECORDS USED IN THIS BLOCK | 10 (R)%                         07384000        
+%   H[7] - H[30] ARE FILE HEADER%                                       07385000        
+              REAL A,B;%                                                07386000        
+              DEFINE N=H[3]#,L=H[4]#,R=H[5]#;%                          07387000        
+              INTEGER I=A; DEFINE MOM=CIDROW[M[B]]#;                    07388000        
+ $ SET OMIT = NOT(BREAKOUT)                                             07388010        
+              B ~ H[0];%                                                07389000        
+              IF R = 0 THEN%                                            07390000        
+              IF (M[B-2] AND IOMASK) = 0 THEN%                          07391000        
+                   SLEEP([M[B-2]],IOMASK);%                             07392000        
+              STREAM(B!B+R,IB);%                                        07393000        
+                   BEGIN SI ~ B; DS ~ 10 WDS END;%                      07394000        
+              M[IB INX NOT 0] ~ 10;                                     07394500        
+              IF (READEMFROMDISK ~ N=L) THEN%                           07395000        
+                   L ~ IB[9];%                                          07396000        
+              IF (A:=N:=*P(DUP)+1) > (H[7]+1) THEN                 %639-07397000        
+                   BEGIN READEMFROMDISK:=1;                             07398000        
+                        STREAM(IB);                                     07398100        
+                        BEGIN                                           07398200        
+ $ SET OMIT = NOT(PACKETS)                                              07398299        
+                             DS:=8LIT" "; SI:=IB; DS:=8 WDS; DI:=IB;    07398300        
+ $ POP OMIT                                                             07398301        
+                             DS:=5LIT"-END."; DI:=DI-5; DS:=RESET;      07398400        
+                        END;                                            07398500        
+                   END                                                  07398600        
+              ELSE BEGN IF (R ~ *P(DUP)+10) = 30 THEN%                  07399000        
+                            BEGIN IB ~ [M[B-2]];%                       07400000        
+                                 R ~ 0;                                 07400400        
+                                 A ~ A DIV 3+1;                         07400500        
+                                 I~H[A DIV H[8]+10]+A MOD H[8];         07401000        
+                                 IF I>0 THEN % NEXT BUFF EXISTS    %639-07401900        
+                                 DISKIO(IB,1-B,30,I);%                  07402000        
+                                 H[0] ~ H[1];%                          07403000        
+                                 H[1] ~ B;%                             07404000        
+         END;      END;      END;%                                      07405000        
+BOOLEAN PROCEDURE PRINTORPUNCHWAIT(Q,PNCH);VALUE Q,PNCH;REAL Q,PNCH;    07405100        
+ FORWARD;                                                               07405110        
+ PROCEDURE ENDOFDECK(R,TUSTA);VALUE R,TUSTA; REAL R,TUSTA;              07406000        
+         BEGIN ARRAY H[*];%                                             07407000        
+              REAL B,I;%                                                07408000        
+ $ SET OMIT = NOT(PACKETS)                                              07408099        
+              REAL DISKAD,PBREC,T,USERIO; %                        %750-07408100        
+ $ POP OMIT                                                             07408101        
+              LABEL EXIT;                                               07408500        
+              IF (H:=CIDROW[R])=0 THEN GO TO EXIT;                      07409000        
+              LABELTABLE[R+32] ~ @114;                                  07409100        
+              MULTITABLE[R+32] ~ RDCTABLE[R+32] ~ 0;                    07409200        
+              USERID~UNITCODE[R+29]; %                             %750-07409250        
+              UNITCODE[R+9]:=-0;                                        07409300        
+              IF NOT TUSTA.[1:1] THEN REMOVEDECK(H[2],ABS(TUSTA)) ELSE  07410000        
+                             P(DIRECTORYSEARCH(-"DECK   ",H[2],14),DEL);07410100        
+              FOR I ~ 0 STEP 1 UNTIL 1 DO%                              07411000        
+                   BEGIN B ~ H[I];%                                     07412000        
+                        IF (M[B-2] AND IOMASK) = 0 THEN                 07413000        
+                             SLEEP([M[B-2]],IOMASK);%                   07414000        
+                   END;%                                                07415000        
+              IF CIDROW[R]=0 THEN GO TO EXIT; % FIXES TIMING PROB.      07415100        
+              IF H.[18:15] ! 0 THEN                                     07416000        
+                   FORGETSPACE(H.[18:15]-2);                            07417000        
+ $ SET OMIT = NOT(PACKETS)                                              07417099        
+              IF PACKETPBD[R] GEQ 11 THEN                               07417100        
+              BEGIN                                                     07417200        
+                   PBCOUNT := PBCOUNT+1;                                07417300        
+                   I := 001 & CIDTABLE[R,6][6:6:24];                    07417400        
+                   IF (PBREC := DIRECTORYSEARCH("PBD    ",I,5))!0 THEN  07417500        
+                   BEGIN                                                07417600        
+                   IF PACKETPAGE[R]>1 THEN                              07417700        
+                   BEGIN                                                07417800        
+                        PBREC := PBREC.[CF];                            07417900        
+                        T := M[PBREC+6];                                07418000        
+                        DISKAD := M[PBREC+10]+2;                        07418100        
+                        DISKWAIT(-PBREC,30,DISKAD);                     07418200        
+                        IF (M[PBREC+12] EQV (-"ABORTED"))=NOT 0 THEN    07418300        
+                        STREAM(B:=PBREC+11);                            07418500        
+                        BEGIN                                           07418600        
+                             DS:=8LIT":|0|4000"; DS:=8LIT"0PACKET ";    07418700        
+                        END;                                            07418800        
+                        M[PBREC+15]~M[PBREC+27]~USERID; %          %750-07418850        
+                        DISKWAIT(PBREC,30,DISKAD);                      07418900        
+                   END;                                                 07419000        
