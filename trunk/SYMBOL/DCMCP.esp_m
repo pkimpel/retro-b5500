@@ -6817,3 +6817,59 @@ BOOLEAN PROCEDURE PRINTORPUNCHWAIT(Q,PNCH);VALUE Q,PNCH;REAL Q,PNCH;    07405100
                         M[PBREC+15]~M[PBREC+27]~USERID; %          %750-07418850        
                         DISKWAIT(PBREC,30,DISKAD);                      07418900        
                    END;                                                 07419000        
+                   P(DIRECTORYSEARCH(-"PBD    ",1,14),DEL);             07419100        
+                   IF AUTOPRINT OR T0 THEN                              07419200        
+                   P(PRINTORPUNCHWAIT(I,0&T[9:39:9[),DEL);              07419300        
+                   FORGETSPACE(PBREC);                                  07419400        
+                   END;                                                 07419500        
+              END;                                                      07419600        
+              PSEUDO[R] :=                                              07419700        
+ $ POP OMIT                                                             07419701        
+              CIDROW[R] := 0;                                           07419800        
+              IF(RUNUMBER~RUNUMBER+1)>0 THEN                            07420000        
+                   STARTADECK(IF TUSTA.[1:1] THEN -H[2] ELSE 0);        07420010        
+              FORGETSPACE(H);                                           07420050        
+         EXIT:                                                          07420100        
+         END;%                                                          07421000        
+%         PSEUDOCOPY DECLARATION MOVED TO 02347110 TO              %541-07421500        
+%         ALLOW ACCESS IN DRANO                                    %541-07421505        
+PROCEDURE STARTADECK(N); VALUE N; REAL N;                               07422000        
+         BEGIN LABEL EXIT,L,POSSIBLE,NEXT;%                             07423000        
+              REAL I,R,T,A,S;                                           07424000        
+              READ SDED;                                                07424100        
+              ARRAY H[*];%                                              07425000        
+              LABEL AGAIN,START;                                        07425500        
+         START:                                                         07425600        
+              IF N.[1:1] THEN BEGN SDED~ABS(N); N~0 END;                07425700        
+              LOCKCONTROLDECKS;                                         07426000        
+              IF RUNUMBER LEQ 0 AND N=0 THEN GO TO EXIT;                07426100        
+         AGAIN:                                                         07427500        
+              IF PSEUDOCOPY > 2 THEN% TOO MANY COPIES CONTROLCARD       07427600        
+         IF STARTOG AND N=0 THEN GO TO EXIT %                           07427610        
+                   ELSE BEGIN STARTOG ~ TRUE;                           07427620        
+                             UNLOCKCONTROLDECKS;                        07427625        
+                             COMPLEXSLEEP(PSEUDOCOPY { 2);%             07427630        
+                             STARTOG ~ FALSE;%                          07427640        
+                             GO TO START;%                              07427645        
+                        END;%                                           07427650        
+              FOR R ~ 0 STEP 1 UNTIL PSEUDOMAX DO                       07428000        
+                   IF CIDROW[R] = 0 THEN GO TO POSSIBLE;%               07429000        
+                   STREAM(S~S~SPACE(4));                                07429100        
+                   DS:=27 LIT" ALL PSEUDO-READERS IN USE~";             07429200        
+                   SPOUT(S);                                            07429300        
+                   GO TO EXIT;%                                         07430000        
+              POSSIBLE:%                                                07431000        
+              IF (A:=FIRSTDECK)=0 THEN GO TO EXIT;                      07432000        
+              LABELTABLE[R+32]:=@114;                                   07432100        
+              W~CIDROW[R]~[M[S~GETSPACE(94,20,1)+2]]&94[8:38:10];       07433000        
+              M[S-2].[9:6] ~ 0; H[2] ~ 0;%                              07434000        
+         L:   DISKWAIT(-S,30,A);                                        07435000        
+         IF N!0 THEN                                                    07436000        
+         BEGIN                                                          07436100        
+              IF H[2].[12:24]~N THEN GO TO NEXT;                        07436200        
+              IF H[4].[2:1] THEN                                        07436300        
+              BEGIN                                                     07436400        
+                   STREAM(A:=[H[2]],                                    07436500        
+ $ SET OMIT = NOT(SHAREDISK)                                            07436509        
+                                  S);                                   07436520        
+ $ SET OMIT = PACKETS                                                   07436599        
