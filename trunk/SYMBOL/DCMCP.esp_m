@@ -6873,3 +6873,60 @@ PROCEDURE STARTADECK(N); VALUE N; REAL N;                               07422000
  $ SET OMIT = NOT(SHAREDISK)                                            07436509        
                                   S);                                   07436520        
  $ SET OMIT = PACKETS                                                   07436599        
+ $ SET OMIT = NOT(PACKETS)                                              07436609        
+                        BEGIN SI:=A;SI:=SI+1;DS:=5 LIT" PKT ";          07436610        
+ $ POP OMIT                                                             07436611        
+                             SI:=5 CHR;DS:=7LIT" IN USE";               07436700        
+ $ SET OMIT = NOT(SHAREDISK)                                            07436799        
+                             DS:=LIT"~";                                07437000        
+                        END;                                            07437100        
+                        SPOUT(S);                                       07437200        
+                        CIDROW[R]:=0;                                   07437300        
+                        GO TO EXIT;                                     07437400        
+                   END;                                                 07437500        
+              END ELSE                                                  07437600        
+              IF H[4].[2:1] OR (SDED!0 AND H[2]=SDED)                   07437800        
+ $ SET OMIT = NOT(SHAREDISK)                                            07437899        
+                   THEN GO TO NEXT;                                     07438000        
+              H[4]:=(*P(DUP))&2[2:46:2]&SYSNO[4:46:2];                  07438100        
+              DISKWAIT(S,30,A);                                         07438200        
+ $ SET OMIT = NOT (DATACOM AND RJE)                                     07438250        
+              H[0] ~ S+32;%                                             07441000        
+              H[1] ~ S+64;%                                             07442000        
+              T ~ [H[30]]; DISKIO(T,1-H[0],30,H[10]);%                  07444000        
+              IF H[7] LSS 3 THEN H[62]:=IOMASK ELSE                     07445000        
+              BEGIN T:=[H[62]]; IF H[8]=1 THEN                          07445100        
+              DISKIO(T,1-H[1],30,H[11]) ELSE                            07445200        
+              DISKIO(T,1-H[1],30,H[10]+1);                              07445300        
+              END;                                                      07445400        
+              T:=GTSPACE(13,20,0)+4;                                    07446000        
+ $ SET OMIT = NOT(BREAKOUT)                                             07446010        
+              M[T INX 10] := H[5];                                      07446100        
+ $ SET OMIT = NOT(PACKETS)                                              07446149        
+              T.[24:6]+H[6].[2:6];                                      07446150        
+ $ POP OMIT                                                             07446151        
+              H[3] := H[4] := H[5] := H[6] := 0;                        07446200        
+              M[T-4].[9:6] ~ 0;%                                        07447000        
+              LABELTABLE[R+32]~-@14;   %LET IT BE MOVED                 07448000        
+              I~READEMFROMDISK(H,[M[T]]&10[8:38:10]);                   07448500        
+              INDEPENDENTRUNNER(P(.CONTROLCARD),T&                      07449000        
+ $ SET OMIT = NOT(DATACOM AND RJE )                                     07449099        
+                                                (R+32)[2:42:6],192);    07449200        
+              PSEUDOCOPY ~ PSEUDOCOPY + 1;%                             07449500        
+              IF (RUNUMBER~RUNUMBER-1) LEQ 0 OR N!0 THEN GO TO EXIT;    07450000        
+              GO TO AGAIN;                                              07450200        
+         NEXT:IF (A:=H[6].[CF])!0 THEN GO TO L;                         07451000        
+              IF N!0 THEN                                               07452000        
+              BEGIN                                                     07452100        
+                   STREAM(N,S);                                         07452200        
+ $ SET OMIT = PACKETS                                                   07452299        
+ $ SET OMIT = NOT(PACKETS)                                              07452309        
+                   BEGIN SI~LOC N; SI~SI+4; DS:=6 LIT" PKT #";          07452310        
+ $ POP OMIT                                                             07452311        
+                        DS:=4 CHR;DS:=13 LIT" NOT ON DISK~");           07452400        
+                   END;                                                 07452500        
+                   SPOUT(S);                                            07452600        
+              END ELSE FORGETSPACE(S);                                  07452700        
+              CIDROW[R] ~ 0;%                                           07453000        
+         EXIT: UNLOCKCONTROLDECKS;                                      07455000        
+         END;%                                                          07456000        
