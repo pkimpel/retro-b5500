@@ -6930,3 +6930,51 @@ PROCEDURE STARTADECK(N); VALUE N; REAL N;                               07422000
               CIDROW[R] ~ 0;%                                           07453000        
          EXIT: UNLOCKCONTROLDECKS;                                      07455000        
          END;%                                                          07456000        
+ PROCEDURE RUNTHEDECK(B);VALUE B; REAL B;%                              07457000        
+         BEGIN REAL I,J;%                                               07458000        
+              STREAM(S:=0:B,A:=[I]);                                    07461000        
+              BEGIN SI ~ B;%        TO REAL IN I                        07461100        
+              L:        IF SC=" " THEN BEGIN SI:=SI+1; GO TO L END;     07461120        
+                        IF SC="#" THEN                                  07461140        
+                        BEGIN                                           07461160        
+              L1:            SI:=SI+1; IF SC=" " THEN GO TO L1;         07461180        
+                             DS:=8 LIT"00000000";                       07461200        
+                             4(IF SC<"0" THEN JUMP OUT;                 07461220        
+                               IF SC>"9" THEN JUMP OUT;                 07461240        
+                               SI:=SI+1; TALLY:=TALLY+1);               07461260        
+                             S:=TALLY; SI:=SI-S; DI:=DI-S; DS:=S CHR;   07461280        
+                             TALLY:=1;                                  07461300        
+                             GO TO FX;                                  07461320        
+                        DS:=4 LIT"0000";DS:=4 CHR;TALLY:=1;GO TO EX;    07461330        
+                        END;                                            07461340        
+                   SI ~ SI + 1;%                                        07461400        
+                   IF SC { "9" THEN IF SC } "0" THEN GO TO TWO;         07461500        
+                   SI ~ SI - 1; DS ~ OCT;%                              07461510        
+                   GO TO EX;                                            07461520        
+              TWO: SI ~ SI - 1; DS ~ 2 OCT;                             07461530        
+              EX:S:=TALLY;                                              07461540        
+              END;                                                      07461550        
+              J:=P;                                                     07461560        
+              B:=B.[15:15]-1;                                           07461570        
+              IF J THEN                                                 07461600        
+              BEGIN                                                     07461700        
+                   FORGETSPACE(B);                                      07461800        
+                   STARTADECK(I);                                       07461900        
+              END ELSE                                                  07462000        
+              BEGIN                                                     07462100        
+                   IF I GTR PSEUDOMAX1 THEN  I:=NABS(RUNUMBER)  ELSE    07462200        
+                   BEGIN                                                07462250        
+                   RUNUMBER:=I;                                         07462300        
+                   FOR J:=0 STEP 1 UNTIL PSEUDOMAX DO                   07462400        
+                        RUNUMBER:=RUNUMBER-(CIDROW[J]!0);               07462500        
+                   END;                                                 07462600        
+                   STREAM(X1:=1-I.[1:1],K2:=RUNUMBER.[1:1],I:=ABS(I),B);07463000        
+                   BEGIN CI:=CI+X1; GO L1; DS:=10LIT" WILL USE ";GO L2; 07464000        
+                         L1: CI:=CI+X2; GO L2; DS:=LIT"-"; L2:          07464100        
+                        SI:=LOC I;DS:=2 DEC;                            07465000        
+                        DS ~ 13 LIT " PSEUDO-RDRS~";                    07466000        
+                   END;%                                                07467000        
+                   SPOUT(B INX M[B-1]);                                 07468100        
+              IF RUNUMBER GTR 0 THEN STARTADECK(0);                     07469000        
+              END;                                                      07472500        
+         END;%                                                          07473000        
