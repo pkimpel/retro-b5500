@@ -7076,3 +7076,74 @@ MORE:                                                                   07547500
     UNLOCKTOG(CDMASK);                                                  07572000        
               IF RUNUMBER GTR 0 THEN STARTADECK(0);                     07573000        
 END ENTERCONTROLDECK;                                                   07575000        
+ BOOLEAN PROCEDURE MTXIN(I,U,BUFF);%                                    08000000        
+         REAL U,BUFF; INTEGER I;%                                       08001000        
+         BEGIN LABEL EXIT,X;%                                           08002000        
+              U ~ UNITIN(TINU,BUFF);                                    08003000        
+              BUFF ~ BUFF.[15:15]-1;                                    08004000        
+              IF U > 15 THEN%                                           08005000        
+                   BEGIN;STREAM(BUFF); DS ~ 8 LIT "INV KBD ";%          08006000        
+                        GO TO EXIT;%                                    08007000        
+                   END ELSE I ~ TWO(U);                                 08008000        
+              STREAM(A~TINU[U];BUFF);%                                  08009000        
+                   BEGIN SI~LOC A; SI~SI+5; DS~LIB" "; DS~3 CHR;%       08010000        
+                        DS ~ LIT " "; A ~ DI;%                          08011000        
+                   END;%                                                08012000        
+              P([BUFF].~);%                                             08013000        
+              IF LABELTABLE[U] = @114 OR LABELTABLE[U] = @214 THEN%     08014000        
+                   BEGIN                                                08015000        
+                   STREAM(SAV:=((I AND SAVEWORD) NEQ 0), BUFF);         08015100        
+                      BEGIN                                             08015200        
+                      DS:=10LIT"NOT READY~";                            08015300        
+                      SAV(DI:=DI-1; DS:=8LIT"*SAVED)~");                08015400        
+                      END;                                              08015500        
+                   GO TO EXIT;                                          08016000        
+                   END;%                                                08017000        
+              IF LABELTABLE[U] < 0 THEN%                                08018000        
+                   BEGIN;STREAM(BUFF); DS ~ 7 LIT "IN USE~";%           08019000        
+                   END%                                                 08020000        
+              ELSE GO TO X;%                                            08021000        
+         EXIT:MTXIN ~ TRUE;%                                            08022000        
+         X:END;%                                                        08023000        
+ PROCEDURE TAPEPURGE(BUFF); VALUE BUFF; REAL BUFF;%                     08024000        
+         BEGIN LABEL EXIT;%                                             08025000        
+              REAL I,U;%                                                08026000        
+              REAL R,T;                                                 08027000        
+              BOOLEAN TEST;                                             08027100        
+              REAL WHAT = BUFF;%                                        08028000        
+              IF MTXIN(I,U,WHAT) THEN GO TO EXIT;%                      08029000        
+              STREAM(B:=BUFF,T~[T]);                                    08029015        
+              BEGIN SI:=B; SI:=SI+6;                                    08029020        
+              IF SC="-" THEN                                            08029025        
+                 BEGIN SI:=SI+1;                                        08029030        
+                 5(IF SC="~" THEN JUMP OUT;                             08029035        
+                   TALLY:=TALLY+1;SI:=SI+1);                            08029040        
+                 B:=TALLY; SI:=SI-B; DS:=B OCT;                         08029045        
+                 DI~DI-8;  DS:=LIT "+";                            %725-08029046        
+                 END;                                                   08029050        
+              END;                                                      08029055        
+              LABELTABLE[U] ~ -@14;                                     08029100        
+              IF (R~WAITIO(@500000000,@177,U))!0 THEN                   08030000        
+               IF R!@120 THEN %ERROR OTHER THAN WRITE LOCK              08030100        
+               BEGIN;STREAM(U~TINU[U],BUFF);                            08030200        
+                     BEGIN DS~14 LIT "#CANNOT PURGE ";                  08030300        
+                           SI~LOC U; SI~SI+5; DS~3CHR;                  08030310        
+                           DS~LIT"~";                                   08030320        
+                     END;                                               08030330        
+               LABELTABLE[U]~@214;                                      08030400        
+               GO TO EXIT;                                              08030500        
+               END ELSE %NO WRITE RING                                  08030600        
+                   BEGIN; STREAM(BUFF); DS ~ 11 LIT "WRITE LOCK.";%     08031000        
+                        LABELTABLE[U] ~ @114;                           08031100        
+                        GO TO EXIT;%                                    08032000        
+                   END;%                                                08033000        
+              IF NOT T.[1:1] THEN IF T=0 THEN                      %725-08033980        
+              BEGIN T:=PRNTABLE[U].[30:18]; TEST:= TRUE END;            08033990        
+              IF I.[1:1]=0 AND T=0 THEN BEGIN                      %725-08033992        
+                 STREAM(BUFF); DS~17 LIT "NOT PG-ED(PRN=0)~";      %725-08033993        
+                   LABELTABLE[U]~ @14; GO EXIT END;     T~ABS(T);  %725-08033994        
+              STREAM(A:=T,BUFF);                                        08034000        
+                   BEGIN DI ~ DI + 3; DS ~ 8 LIT " LABEL  ";            08035000        
+                        8(DS~2 LIT "0X");                               08035100        
+                        24(DS~2 LIT "0"); DS~2 LIT "}!";                08036000        
+                        DI ~ DI-21; SI ~ LOC A; DS ~ 5 DEC;%            08037000        
