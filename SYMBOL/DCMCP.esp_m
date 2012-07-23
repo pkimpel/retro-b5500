@@ -7026,3 +7026,53 @@ BEGIN INTEGER PRIORITY; REAL B;                                         07486000
       END   END;                                                        07510000        
       SPOUTER(BUFF,UNITNO,1);                                           07511000        
 END CHANGEPRIORITY;                                                     07512000        
+PROCEDURE ENTERCONTROLDECK(H); VALUE H; ARRAY H[*];                     07541000        
+BEGIN REAL R,S,T,T1,T2;                                                 07542000        
+      INTEGER I;                                                        07543000        
+ $ SET OMIT = NOT(PACKETS)                                              07543099        
+    LABEL MORE;                                                         07543100        
+ $ POP OMIT                                                             07543101        
+    T~"DECK   "&H[4][1:47:1]; % FOR SCRATCHDIR DELETE                   07545000        
+    S:=NEXTCDNUM(0);                                                    07547000        
+    DISKWAIT(KLUMP,3,DIRECTORYTOP+3);         % CHANGE LASTCDNUM ON DISK07547100        
+ $ SET OMIT = NOT(PACKETS)                                              07547499        
+MORE:                                                                   07547500        
+ $ POP OMIT                                                             07547501        
+      H[0]:=@001200036000301;                                           07548000        
+ $ SET OMIT = NOT(PACKETS)                                              07548099        
+      T2~H[6].[FF]; H[6].[FF]~T;                                        07548100        
+ $ POP OMIT                                                             07548101        
+      STREAM(DATE,B~[H[3]]);                                            07549000        
+         BEGIN SI~LOC DATE;DS~8 OCT;DI~DI-8;DS~2 LIT"+7";END;           07549100        
+         H[4] := 0&                                                     07550000        
+ $ SET OMIT = NOT SHAREDISK                                             07550003        
+             15[12:44:4];                                               07550010        
+         H[1]~(XCLOCK+P(RTR))&H[3][6:30:18];                            07550100        
+         H[2]:=S:=@14&@12[6:42:6]&S[12:24:24]&@37[36:42:6];             07557000        
+      T1:=EUF(T,S,H.[CF]-1);                                            07559000        
+ $ SET OMIT = NOT(PACKETS)                                              07559099        
+    IF T2 NEQ 0 THEN                                                    07559100        
+         BEGIN DISKWAIT(-(H INX 0), 30, T2);                            07559110        
+              FORGETSPACE(T2);                                          07559120        
+              S~H[2]; GO TO MORE;                                       07559180        
+         END;                                                           07559190        
+ $ POP OMIT                                                             07559191        
+    H[2]~LASTCDNUM;                                                     07559500        
+    IF FIRSTDECK=0 THEN FIRSTDECK:=T1 ELSE                              07560000        
+      BEGIN                                                             07561000        
+ $ SET OMIT = SHAREDISK                                                 07561990        
+            LOCKDIRECTORY;                                              07562000        
+ $ POP OMIT                                                             07562010        
+            DISKWAIT(-(I:=SPACE(30)),-30,LASTDECK);                     07564000        
+            M[I+6].[CF]:=T1;                                            07565000        
+            DISKWAIT(I,-30,LASTDECK);                                   07566000        
+            FORGETSPACE(I);                                             07567000        
+ $ SET OMIT = SHAREDISK                                                 07567990        
+            UNLOCKDIRECTORY;                                            07568000        
+ $ POP OMIT                                                             07568010        
+      END;                                                              07569000        
+    LASTDECK:=T1;                                                       07570000        
+    DISKWAIT(KLUMP,-3,DIRECTORYTOP+3);                                  07571000        
+    UNLOCKTOG(CDMASK);                                                  07572000        
+              IF RUNUMBER GTR 0 THEN STARTADECK(0);                     07573000        
+END ENTERCONTROLDECK;                                                   07575000        
