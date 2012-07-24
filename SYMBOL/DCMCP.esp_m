@@ -7147,3 +7147,52 @@ END ENTERCONTROLDECK;                                                   07575000
                         8(DS~2 LIT "0X");                               08035100        
                         24(DS~2 LIT "0"); DS~2 LIT "}!";                08036000        
                         DI ~ DI-21; SI ~ LOC A; DS ~ 5 DEC;%            08037000        
+                   END;%                                                08038000        
+              RRRMECH ~ I OR RRRMECH;%                                  08039000        
+              MULTITABLE[U] ~ 0;%                                       08041000        
+              P(WAITIO(@4200000000,0,U),DEL);%                          08042000        
+              R ~ WAITIO(BUFF INX @120500000001,@2000000,U) OR%         08043000        
+                   WAITIO(BUFF INX 10,@2000000,U);%                     08044000        
+              IF MOD3IOS THEN                                        %AI08044500        
+                   DO UNTIL P(WAITIO(BUFF INX @340000012,@50,U))=@10 %AI08044600        
+              ELSE                                                   %AI08044700        
+              P(WAITIO(@4200000000,0,U),DEL);%                          08045000        
+              SLEEP([TOGLE],STATUSMASK);                                08046000        
+              RRRMECH ~ RRRMECH AND NOT I;%                             08047000        
+              READY ~ READY AND NOT I;%                                 08048000        
+              IF R = 0 THEN BEGIN%                                      08049000        
+              LABELTABLE[U] ~ @114;%                                    08050000        
+             IF TEST THEN BEGIN STREAM(B~T,BUFF);                  %708-08051000        
+    BEGIN  DS~10 LIT"PG-ED(PRN="; SI~LOC B; DS~5 DEC; DS~2 LIT")~";%708-08051004        
+   END;                    END  % PRINT PRN WITH PLAIN PGMT        %708-08051005        
+         ELSE BEGIN STREAM(A:=T,B:=PRNTABLE[U],[30:18],BUFF);           08051010        
+                    BEGIN DS:=10LIT"PG-ED(PRN=";                        08051020        
+                    SI:=LOC A; DS:=5 DEC;                               08051030        
+                    DS:=5LIT",WAS ";                                    08051040        
+                    SI:=LOC B; DS:=5 DEC;DS:=2LIT")~";                  08051050        
+                    END;                                                08051060        
+                    PRNTABLE[U].[30:18] ~ T;                            08051065        
+              END;                                                      08051070        
+         EXIT: SPOUT(NABS(BUFF INX M[BUFF-1]));%                        08052000        
+              END ELSE BEGIN%                                           08053000        
+                   LABELTABLE[U] ~ @214;%                               08054000        
+                   FORGETSPACE(BUFF);%                                  08055000        
+              END;%                                                     08056000        
+         END;%                                                          08057000        
+PROCEDURE GIMEDATE(B,DT); VALUE B,DT; REAL B,DT; FORWARD;               08070000        
+ PROCEDURE REWINDANDLOCK(WHAT); VALUE WHAT; REAL WHAT;%                 08079000        
+         BEGIN REAL BUFF=WHAT,U;%                                       08080000        
+              INTEGER I;%                                               08081000        
+              LABEL EXIT;%                                              08082000        
+              IF MIXIN(I,U,BUFF) THEN GO TO EXIT;%                      08083000        
+              RRRMECH ! RRRMECH OR I;%                                  08084000        
+              LABELTABLE[U] ~ -@14;%                                    08085000        
+              MULTITABLE[U] ~ 0;%                                       08086000        
+              P(WAITIO(@4200000000,0,U),DEL);%                          08087000        
+              SLEEP([TOGLE],STATUSMASK);                                08088000        
+              RRRMECH ~ RRRMECH AND NOT I;%                             08089000        
+              READY ~ READY AND NOT I;%                                 08090000        
+              LABELTABLE[U] ~ @214;%                                    08091000        
+              STREAM(BUFF); DS ~ 5 LIT "RW/L~";%                        08092000        
+         EXIT:     SPOUT(BUFF INX M[BUFF-1]);                           08093000        
+         END;%                                                          08094000        
