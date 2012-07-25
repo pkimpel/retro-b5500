@@ -7196,3 +7196,100 @@ PROCEDURE GIMEDATE(B,DT); VALUE B,DT; REAL B,DT; FORWARD;               08070000
               STREAM(BUFF); DS ~ 5 LIT "RW/L~";%                        08092000        
          EXIT:     SPOUT(BUFF INX M[BUFF-1]);                           08093000        
          END;%                                                          08094000        
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%08095050        
+%**********************************************************************%08095100        
+%*                                                                    *%08095150        
+%*                    P R I N T D I R E C T O R Y                     *%08095200        
+%*                    - - - - - - - - - - - - - -                     *%08095250        
+%*                                                                    *%08095300        
+%*     PURPOSE: THIS PROCEDURE HANDLES THE PD, EX, LF, LC AND LS      *%08095350        
+%*          MESSAGES.  ALL  MESSAGES ARE FORMS OF THE PD MESSAGE      *%08095400        
+%*          EXCEPT FOR CERTAIN  DIFFERENCES. THE PD MESSAGE WILL      *%08095450        
+%*          LIST THE NAMES OF  THE  DESIRED  FILES  AS  WELL  AS      *%08095500        
+%*          CERTAIN PIECES OF INFORMATION IF REQUESTED.               *%08095550        
+%*                                                                    *%08095600        
+%*     SYNTAX:  THE  FORMAT  OF  ALL THE KEYIN MESSAGES WITH THE      *%08095650        
+%*          EXCEPTION OF THE LF MESSAGE IS AS FOLLOWS:                *%08095700        
+%*                                                                    *%08095750        
+%*          <MESSAGE> <FILE SPECIFIER> <OPTION-LIST>                  *%08095800        
+%*                                                                    *%08095850        
+%*          <MESSAGE> ::= PD / EX / LC / LS                           *%08095900        
+%*                                                                    *%08095950        
+%*          <FILE  SPECIFIER>  ::= <FILENAME> /  <FILENAME>  "/"      *%08096000        
+%*               <FILENAME>                                           *%08096050        
+%*                                                                    *%08096100        
+%*          <OPTION-LIST> ::= <EMPTY> / <OPTION> / <OPTION> ,         *%08096150        
+%*               <OPTION-LIST>                                        *%08096200        
+%*                                                                    *%08096250        
+%*          <OPTION> ::= RECS / LAST / DATE / SAVE / SIZE /           *%08096300        
+%*               CREATOR / SECURITY / ALL                             *%08096350        
+%*                                                                    *%08096400        
+%*          <FILENAME> ::= [FROM  1  TO  7 CHARACTERS OPTIONALLY      *%08096450        
+%*               ENCLOSED IN QUOTES] / =                              *%08096500        
+%*                                                                    *%08096550        
+%*          THE SYNTAX FOR THE LF MESSAGE IS:                         *%08096600        
+%*                                                                    *%08096650        
+%*          LF <USERID> <OPTION-LIST>                                 *%08096700        
+%*                                                                    *%08096750        
+%*     SEMANTICS:  THE  EX, LF, LC, AND  LS  MESSAGES  ARE  JUST      *%08096800        
+%*          MODIFIED FORMS OF  THE PD MESSAGE. THE EX MESSAGE IS      *%08096850        
+%*          THE SAME AS A  PD EXCEPT THAT ONLY THE EXPIRED FILES      *%08096900        
+%*          ARE LISTED. THE LF IS  THE  SAME  AS  A PD=/= EXCEPT      *%08096950        
+%*          THAT  ONLY THE FILES BELONGING TO THE SPECIFIED USER      *%08097000        
+%*          ARE LISTED.  THE  LC  MESSAGE  IS  THE SAME AS A "PD      *%08097050        
+%*          <FILE  SPECIFIER>  CREATOR".  THE LS MESSAGE IS  THE      *%08097100        
+%*          SAME AS "PD <FILE SPECIFIER> SECURITY,CREATOR".           *%08097150        
+%*                                                                    *%08097200        
+%*               THE OPTIONS SPECIFY WHAT ADDITIONAL INFORMATION      *%08097250        
+%*          IS TO BE LISTED  BESIDES THE DEFAULT INFORMATION, IF      *%08097300        
+%*          AN UNRECOGNIZABLE WORD IS ENCOUNTERED  IN THE OPTION      *%08097350        
+%*          LIST, IT IS IGNORED. THE AVAILABLE OPTIONS ARE:           *%08097400        
+%*                                                                    *%08097450        
+%*          RECS - NUMBER OF RECORDS IN THE FILE, (SPECIAL LOGIC      *%08097500        
+%*               IS INCORPORATED TO THE LIST THE  CORRECT NUMBER      *%08097550        
+%*               FOR BACKUP FILES).                                   *%08097600        
+%*                                                                    *%08097650        
+%*          LAST - LAST ACCESS DATE.                                  *%08097700        
+%*                                                                    *%08097750        
+%*          DATE - CREATION DATE.                                     *%08097800        
+%*                                                                    *%08097850        
+%*          SAVE - SAVE FACTOR.                                       *%08097900        
+%*                                                                    *%08097950        
+%*          SIZE - SIZE OF THE FILE IN SEGMENTS.                      *%08098000        
+%*                                                                    *%08098050        
+%*          CREATOR  - PRIVILEGED USERCODE ASSOCIATED WITH FILE.      *%08098100        
+%*               (FOR BACKUP  FILES  THE LABEL OF THE PRINT FILE      *%08098150        
+%*               AND THE NAME OF THE PROGRAM CREATING THE BACKUP      *%08098200        
+%*               IS ALSO LISTED).                                     *%08098250        
+%*                                                                    *%08098300        
+%*          SECURITY  - ACCESS PRIVILEGES  OF  THE  FILE,  I.E.,      *%08098350        
+%*               LOCKED, UNLOCKED, PUBLIC, PRIVATE, FREE.             *%08098400        
+%*                                                                    *%08098450        
+%**********************************************************************%08098500        
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%08098550        
+PROCEDURE PRINTDIRECTORY(BUFF,CODE);                               %152-08098600        
+  VALUE BUFF,CODE;                                                 %152-08098650        
+  REAL BUFF,                                                       %152-08098700        
+BEGIN                                                              %152-08098750        
+                                                                   %152-08098800        
+  INTEGER                                                          %152-08098850        
+    I,      % NORMALLY CONTAINS OPTION NUMBER.                     %152-08098900        
+    J;            % JUNK.                                          %152-08098950        
+                                                                   %152-08099250        
+  REAL                                                             %152-08099300        
+    MFID,   % MFID OF DESIRED FILE OR  -1 IF "=".                  %152-08099350        
+    FID,    % FID OF DESIRED FILE OR -1 IF "=".                    %152-08099400        
+    C,      % ADDRESS OF DISK HEADER.                              %152-08099450        
+    D,      % MFID OF LAST FILE FOUND BY SEEKNAM.                  %152-08099500        
+    E,      % FID OF LAST FILE FOUND BY SEEKNAM.                   %152-08099550        
+    N,      % WORK VARIABLE USED BY SEEKNAM TO SAVE INFO.          %152-08099600        
+    T,      % NORMALLY USED TO SAVE DEST. INDEX.                   %152-08099650        
+    INFO,   % BIT MASK FOR OPTIONS SELECTED.                       %152-08099700        
+    LABELREC, % ADDRESS OF LABEL RECORD FOR PDB ( IF LC ).         %152-08099750        
+    STA,    % ORIGINATING STATION. TU/BUFF IN [9:9] FIELD.         %152-08099775        
+    USERID, % USERID IF LF.                                        %152-08099800        
+    X;      % JUNK.                                                %152-08099850        
+                                                                   %152-08099900        
+  ARRAY                                                            %152-08099950        
+    HDR[*], % DESCRIPTOR TO DISK HEADER.                           %152-08100000        
+    XLST[*];% SOME DAY WE MAY ALLOW EXCEPTION LIST.                %152-08100050        
