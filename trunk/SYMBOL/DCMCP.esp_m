@@ -7293,3 +7293,106 @@ BEGIN                                                              %152-08098750
   ARRAY                                                            %152-08099950        
     HDR[*], % DESCRIPTOR TO DISK HEADER.                           %152-08100000        
     XLST[*];% SOME DAY WE MAY ALLOW EXCEPTION LIST.                %152-08100050        
+                                                                   %152-08100100        
+  BOOLEAN                                                          %152-08100150        
+    PBDTOG, % TRUE IF SELECTED FILE IS A PBD.                      %152-08100200        
+    FOUNDAFILE;   % TRUE IF WE LISTED OUT AT LEAST ONE FILE.       %152-08100250        
+                                                                   %152-08100300        
+  LABEL EXIT,DROPOUT,DUMMY,OPTIONS;                                %152-08100350        
+  DEFINE NUMOPTS = 7#;                                             %152-08100500        
+  DEFINE                                                           %152-08100510        
+    TUANDBUF    = [9:9]%,        % TU/BUFF STORED IN [9:9] FIELD.  %152-08100520        
+    STATUANDBUF = STA.TUANDBUF#; % TU/BUFF OF ORIGINATING STATION. %152-08100530        
+  DEFINE PD = (CODE = 0)#,                                         %152-08100550        
+         EX = (CODE = 1)#,                                         %152-08100600        
+         LC = (CODE = 2)#,                                         %152-08100650        
+         LF = (CODE = 3)#,                                         %152-08100700        
+         LS = (CODE = 4)#;                                         %152-08100750        
+  DEFINE                                                           %152-08100800        
+    PRIMARYUSER    = HDR[2]#,         % PRIV. USER CODE.           %152-08100850        
+    SAVEFACTOR     = HDR[3].[2:10]#,  % SAVE FACTOR.               %152-08100900        
+    LASTACCESSDATE = HDR[3].[12:18]#, % LAST ACCESS DATE.          %152-08100950        
+    CREATIONDATE   = HDR[3].[30:18]#, % CREATION DATE.             %152-08101000        
+    GUARDFILEMFID  = HDR[5]#,         % MFID OF GUARD FILE.        %152-08101050        
+    GUARDFILEFID   = HDR[6]#,         % FID OF GUARD FILE.         %152-08101100        
+    PBDTUANDBUF    = HDR[6].[39:9]#,  % RJE TU/BUFF FOR PBD.       %152-08101110        
+    PBDTU          = HDR[6].[39:4]#,  % RJE TU NUMBER FOR PBD.     %152-08101120        
+    PBDBUF         = HDR[6].[44:4]#,  % RJE BUF NUMBER FOR PBD.    %152-08101130        
+    EOFPOINTER     = HDR[7]#,         % EOF POINTER.               %152-08101150        
+    SEGSPERROW     = HDR[8]#,         % SEG. POER ROW.             %152-08101200        
+    NOOFROWS       = HDR[9].[43:5]#,  % NO. OF ROWS DECLARED.      %152-08101250        
+    HEADERADDRESS  = HDR.[CF]#;       % CORE ADDRESS OF HEADER.    %152-08101300        
+%********************  S U B R O U T I N E S  **************************08101350        
+  SUBROUTINE GETREADY;                                             %152-08101400        
+% ---------- --------                                              %152-08101450        
+    BEGIN                                                          %152-08101500        
+      STA := M[(BUFF := (T:=BUFF).[15:15] -1) -1];                 %152-08101520        
+ $ SET OMIT = NOT(DATACOM)                                         %152-08101540        
+      INFO := 0 & (LC OR LF OR LS)[42:47:1] & LS[43:47:1];         %152-08101650        
+    END OF GETREADY;                                               %152-08101700        
+%                                                                  %152-08101750        
+  SUBROUTINE GETFILESPECIFIER;                                     %152-08101800        
+% ---------- ----------------                                      %152-08101850        
+    BEGIN                                                          %152-08101900        
+      NAMEID(MFID,T); % GET MFID (OR USERCODE IF "LF")             %152-08101950        
+      IF LF THEN USERID := MFID; % FIRST THING IS USERID FOR LF.   %152-08102000        
+      IF MFID = "~~     " OR LF THEN                               %152-08102050        
+        MFID := - 1;                                               %152-08102100        
+      NAMEID(FID,T);                                               %152-08102150        
+      IF FID = "/      " THEN % GET FID                            %152-08102200        
+        BEGIN                                                      %152-08102250        
+          NAMEID(FID,T);                                           %152-08102300        
+          NAMEID(N,T); % GET NEXT ITEM.                            %152-08102350        
+        END                                                        %152-08102400        
+      ELSE % NO FID SPECIFIED IMPLIES FID OF "="                   %152-08102450        
+        BEGIN                                                      %152-08102500        
+          N := FID;                                                %152-08102550        
+          FID := -1;                                               %152-08102600        
+        END;                                                       %152-08102650        
+      IF FID.[6:6] = LEFTARROW OR LF THEN  % NO FID SPECIFIED      %152-08102700        
+        FID := - 1;                                                %152-08102750        
+    END OF GETFILESPECIFIER;                                       %152-08102800        
+%                                                                  %152-08102850        
+  SUBROUTINE PROCESSOPTIONLIST;                                    %152-08102900        
+% ---------- -----------------                                     %152-08102950        
+    BEGIN                                                          %152-08103000        
+      WHILE N ! "~      " DO % ACCUMULATE OPTIONS                  %152-08103050        
+        BEGIN                                                      %152-08103100        
+          FOR I := -1 STEP 1 UNTIL (NUMOPTS - 2) DO                %152-08103150        
+    DUMMY:: IF P(.OPTIONS,I,+,LOD) = N THEN % MATCHES AN OPTION WORD    08103200        
+              BEGIN                                                %152-08103250        
+                INFO := INFO OR TWO(I+1); % SET BIT CORRESPONDING TO OPT08103300        
+                GO TO DROPOUT;                                     %152-08103350        
+              END                                                  %152-08103400        
+            ELSE % CHECK FOR "ALL"                                 %152-08103450        
+              IF N = "ALL    " THEN % SET ALL OPTION WORD BITS.    %152-08103500        
+                INFO := NOT 0;                                     %152-08103550        
+DROPOUT:                                                           %152-08103600        
+          NAMEID(N,T); % GET NEXT OPTION WORD.                     %152-08103650        
+          IF N = ",      " THEN NAMEID(N,T); % SKIP OVER COMMA.    %152-08103700        
+        END;                                                       %152-08103750        
+      GO TO EXIT;                                                  %152-08103800        
+%                                                                  %152-08103850        
+  OPTIONS ::: "RECS   ", % OPTION 0 (INFO.[47:1])                  %152-08103900        
+              "LAST   ", % OPTION 1 (INFO.[46:1])                  %152-08103950        
+              "DATE   ", % OPTION 2 (INFO.[45:1])                  %152-08104000        
+              "SIZE   ", % OPTION 3 (INFO.[44:1])                  %152-08104050        
+              "SECURIT", % OPTION 4 (INFO.[43:1])                  %152-08104100        
+              "CREATOR", % OPTION 5 (INFO.[42:1])                  %152-08104150        
+              "SAVE   "; % OPTION 6 (INFO.[41:1])                  %152-08104200        
+  EXIT:                                                            %152-08104250        
+    END OF PROCESSOPTIONLIST;                                      %152-08104300        
+%                                                                  %152-08104350        
+  SUBROUTINE GETSET;                                               %152-08104400        
+% ---------- ------                                                %152-08104450        
+    BEGIN                                                          %152-08104500        
+      IF EX OR INFO ! 0 OR (PD AND USERID ! 0) THEN % WE WILL NEED HDR. 08104550        
+        HDR := IOQUE & SPACE(30) [CTC];                            %152-08104600        
+    END OF GETSET;                                                 %152-08104650        
+%                                                                  %152-08104700        
+  BOOLEAN SUBROUTINE WEGOTAFILE;                                   %152-08104750        
+% ------- ---------- ----------                                    %152-08104800        
+    BEGIN                                                          %152-08104850        
+      SEEKNAM(MFID,FID,C,D,E,N,XLST); % FIND A FILE.               %152-08104900        
+      WEGOTAFILE := C ! 0; % C IS ADDRESS OF DISK HEADER.          %152-08104950        
+    END OF WEGOTAFILE;                                             %152-08105000        
