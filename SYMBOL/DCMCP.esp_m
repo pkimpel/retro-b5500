@@ -7396,3 +7396,105 @@ DROPOUT:                                                           %152-08103600
       SEEKNAM(MFID,FID,C,D,E,N,XLST); % FIND A FILE.               %152-08104900        
       WEGOTAFILE := C ! 0; % C IS ADDRESS OF DISK HEADER.          %152-08104950        
     END OF WEGOTAFILE;                                             %152-08105000        
+%                                                                  %152-08105050        
+  BOOLEAN SUBROUTINE WEWANTTHISFILE;                               %152-08105100        
+% ------- ---------- --------------                                %152-08105150        
+    BEGIN                                                          %152-08105200        
+      PBDTOG := ((D EQV "PBD    ") = NOT 0 OR (D EQV "PUD    ")    %152-08105250        
+                  = NOT 0);                                        %152-08105300        
+      IF HEADERADDRESS ! 0 THEN % WE NEED THE HEADER.              %152-08105350        
+        DISKWAIT(-HEADERADDRESS,30,C); % READ HEADER.              %152-08105400        
+      IF LF THEN % CHECK TO SEE IF WE WANT THIS FILE.              %152-08105450        
+        WEWANTTHISFILE := PRIMARYUSER = USERID                     %152-08105500        
+      ELSE                                                         %152-08105550        
+        IF EX THEN                                                 %152-08105600        
+          BEGIN                                                    %152-08105650        
+            STREAM(A:=CALCULATEPURGE(-SAVEFACTOR),X:=[X]);         %152-08105700        
+              BEGIN                                                %152-08105750        
+                SI := LOC A; DS := 8 OCT;                          %152-08105800        
+              END;                                                 %152-08105850        
+            WEWANTTHISFILE := X > LASTACCESSDATE; % TRUE IF FILE EXPIRED08105900        
+          END                                                      %152-08105950        
+        ELSE                                                       %152-08106000        
+          IF PD AND USERID ! 0 THEN % NEED TO CHECK SECURITY.      %152-08106020        
+            WEWANTTHISFILE := SECURITYCHECK(D,E,USERID,HEADERADDRESS)!0 08106040        
+          ELSE                                                     %152-08106060        
+            WEWANTTHISFILE := TRUE;                                %152-08106080        
+    END OF WEWANTTHISFIE;                                          %152-08106100        
+%                                                                  %152-08106150        
+  SUBROUTINE PUTINFILENAME;                                        %152-08106200        
+% ---------- -------------                                         %152-08106250        
+    BEGIN                                                          %152-08106300        
+      STREAM(A:=0 : D, E, BUFF); % SET UP FILE NAME.               %152-08106350        
+        BEGIN                                                      %152-08106400        
+          SI := LOC D;                                             %152-08106450        
+          DS := LIT " ";                                           %152-08106500        
+          2 ( SI := SI + 1; DS := 7 CHR; DS := LIT "/");           %152-08106550        
+          DI := DI - 1;                                            %152-08106600        
+          DS := 2 LIT "  "; % NEED 2 SPACES TO ALLOW FOR ARROW.    %152-08106650        
+          A := DI;                                                 %152-08106700        
+        END;                                                       %152-08106750        
+      T := P; % SAVE OFF DEST. INDEX.                              %152-08106800        
+    END OF PUTINFILENAME;                                          %152-08106850        
+%                                                                  %152-08106900        
+  SUBROUTINE DORECS;                                               %152-08106950        
+% ---------- ------                                                %152-08107000        
+    BEGIN                                                          %152-08107050        
+      STREAM(A:=IF PBDTOG THEN EOFPOINTER|5 ELSE EOFPOINTER+1 :T); %152-08107100        
+                                                                   %152-08107150        
+        BEGIN                                                      %152-08107200        
+          DS := 9 LIT "RECORDS: ";                                 %152-08107250        
+          SI := LOC A;                                             %152-08107300        
+          DS := 8 DEC; % CONVERT NUMBER OF RECORDS TO DEC.         %152-08107350        
+          A := DI; % SAVE OFF DI BEFORE ZERO SUPPRESSING.          %152-08107400        
+          DI := DI - 8;                                            %152-08107450        
+          DS := 7 FILL;                                            %152-08107500        
+        END;                                                       %152-08107550        
+      T := P; % SAVE DESTINATION ADDRESS.                          %152-08107600        
+    END OF DORECS;                                                 %152-08107650        
+%                                                                  %152-08107700        
+  SUBROUTINE DODATEORLAST;                                         %152-08107750        
+% ---------- ------------                                          %152-08107800        
+    BEGIN                                                          %152-08107850        
+%                                                                  %152-08107900        
+      STREAM(X:=[X]);                                              %152-08107950        
+        BEGIN                                                      %152-08108000        
+          SI := X;                                                 %152-08108050        
+          DS := 8 DEC; % CONVERT DATE TO DECIMAL.                  %152-08108100        
+        END;                                                       %152-08108150        
+      GIMEDATE([X].[CF],-X); % CONVERT JUILIAN DATE TO 6 DIGITS.   %152-08108200        
+      STREAM(A:=(I=1) : X, T);                                     %152-08108250        
+        BEGIN                                                      %152-08108300        
+          A ( DS := 10 LIT "ACCESSED: "; JUMP OUT TO L1);          %152-08108350        
+          DS := 9 LIT "CREATED: ";                                 %152-08108400        
+      L1:                                                          %152-08108450        
+          SI := LOC X;                                             %152-08108500        
+          SI := SI + 2;                                            %152-08108550        
+          3 ( DS := 2 CHR; DS := LIT "/");                         %152-08108600        
+          DI := DI - 1; % ERASE THE EXTRA SLASH.                   %152-08108650        
+          A := DI; % SAVE DEST. INDEX.                             %152-08108700        
+        END;                                                       %152-08108750        
+      T := P; % SAVE DESTINATION ADDRESS.                          %152-08108800        
+    END OF DODATEORLAST;                                           %152-08108850        
+%                                                                  %152-08108900        
+  SUBROUTINE DOSIZE;                                               %152-08108950        
+% ---------- ------                                                %152-08109000        
+    BEGIN                                                          %152-08109050        
+      NT2 := NOOFROWS; % NO. OF ROWS DECLARED.                     %152-08109100        
+      NT1 := 0; % NUMBER OF ROWS PROCESSED.                        %152-08109150        
+      FOR J := 1 STEP 1 UNTIL NT2 DO % CHECK TO SEE IF ROW EXISTS. %152-08109200        
+        IF HDR[J+9] ! 0 THEN NT1 := NT1 + 1; % BUMP UP COUNT.      %152-08109250        
+      STREAM(A:=NT1|SEGSPERROW : T);                               %152-08109300        
+        BEGIN                                                      %152-08109350        
+          DS := 10 LIT "SEGMENTS: ";                               %152-08109400        
+          SI := LOC A;                                             %152-08109450        
+          DS := 8 DEC;                                             %152-08109500        
+          A := DI;                                                 %152-08109550        
+          DI := DI - 8;                                            %152-08109600        
+          DS := 7 FILL;                                            %152-08109650        
+        END;                                                       %152-08109700        
+      T := P; % SAVE DESTINATION ADDRESS.                          %152-08109750        
+    END OF DOSIZE;                                                 %152-08109800        
+%                                                                  %152-08109850        
+  SUBROUTINE DOSECURITY;                                           %152-08109900        
+% ---------- ----------                                            %152-08109950        
