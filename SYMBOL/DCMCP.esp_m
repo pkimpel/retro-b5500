@@ -7498,3 +7498,107 @@ DROPOUT:                                                           %152-08103600
 %                                                                  %152-08109850        
   SUBROUTINE DOSECURITY;                                           %152-08109900        
 % ---------- ----------                                            %152-08109950        
+    BEGIN                                                          %152-08110000        
+      J:= IF PRIMARYUSER = 0 THEN % FREE FILE                      %152-08110050        
+          ELSE IF GUARDFILEMFID = "?" THEN % UNLOCK OR PUBLIC      %152-08110100        
+                 IF GUARDFILEFID = "?" THEN 1 % UNLOCKED           %152-08110150        
+                                 ELSE 2 % PUBLIC                   %152-08110200        
+               ELSE IF GUARDFILEMFID < 0 THEN 3 % PRIVATE          %152-08110250        
+                                    ELSE 4; % LOCKED               %152-08110300        
+      STREAM(J := A:=GUARDFILEMFID, B:=GUARDFILEFID, T);           %152-08110350        
+        BEGIN                                                      %152-08110400        
+          DS := 10 LIT "SECURITY: ";                               %152-08110450        
+          CI := CI + J;                                            %152-08110500        
+            GO TO FREE;                                            %152-08110550        
+            GO TO UNLOK;                                           %152-08110600        
+            GO TO PUBLIC;                                          %152-08110650        
+            GO TO PRIVATE;                                         %152-08110700        
+  LOCK:   DS := 6 LIT "LOCKED"; GO TO EXIT;                        %152-08110750        
+  PRIVATE:DS := 22 LIT "PRIVATE (SECURED WITH ";                   %152-08110800        
+          SI := LOC A;                                             %152-08110850        
+          2 ( SI := SI + 1; DS := 7 CHR; DS := LIT "/");           %152-08110900        
+          DI := DI - 1;                                            %152-08110950        
+          DS := LIT ")";                                           %152-08111000        
+          GO TO EXIT;                                              %152-08111050        
+  PUBLIC: DS := 6 LIT "PUBLIC"; GO TO EXIT;                        %152-08111100        
+  UNLOK:  DS := 8 LIT "UNLOCKED"; GO TO EXIT;                      %152-08111150        
+  FREE:   DS := 4 LIT "FREE";                                      %152-08111200        
+  EXIT:   J := DI;                                                 %152-08111250        
+        END;                                                       %152-08111300        
+      T := P; % SAVE DESTINATION ADDRESS.                          %152-08111350        
+    END OF DOSECURITY;                                             %152-08111400        
+%                                                                  %152-08111450        
+  SUBROUTINE DOCREATOR;                                            %152-08111500        
+% ---------- ---------                                             %152-08111550        
+    BEGIN                                                          %152-08111600        
+ $SET OMIT = PACKETS                                               %152-08111650        
+ $SET OMIT = NOT(PACKETS)                                          %152-08111800        
+     IF J:=(PBDTOG AND (E.[42:6] = 1)) THEN % REEL 1 OF PBD        %152-08111850        
+ $POP OMIT                                                         %152-08111900        
+        BEGIN                                                      %152-08111950        
+          IF LABELREC = 0 THEN LABELREC := SPACE(30);              %152-08112000        
+          DISKWAIT(-LABELREC,30,HDR[10]+2);                        %152-08112050        
+        END;                                                       %152-08112100        
+      STREAM(J : B:= PRIMARYUSER=0, C:=PRIMARYUSER,                %152-08112150        
+             RJE := PBDTUANDBUF!0, TU:=PBDTU, BUF:=PBDBUF,         %152-08112175        
+             D:=LABELREC INX 12, T);                               %152-08112200        
+        BEGIN                                                      %152-08112250        
+          DS := 9 LIT "CREATOR: ";                                 %152-08112300        
+          B ( DS := 4 LIT "NONE"; JUMP OUT TO L2 );                %152-08112350        
+          SI := LOC C;                                             %152-08112400        
+          SI := SI + 1;                                            %152-08112450        
+          DS := 7 CHR;                                             %152-08112500        
+       L2:                                                         %152-08112550        
+          J ( DS := 2 LIT " (";                                    %152-08112600        
+          SI := D;                                                 %152-08112650        
+              2 ( SI := SI + 1; DS := 7 CHR; DS := LIT "/");       %152-08112700        
+              DI := DI - 1; DS := 4 LIT " OF ";                    %152-08112750        
+              2 ( SI := SI + 1; DS := 7 CHR; DS := LIT "/");       %152-08112800        
+              DI := DI - 1;                                        %152-08112820        
+              RJE (DS := 2 LIT " ["; SI := TU;                     %152-08112840        
+                   DS := 2 DEC; DS := LIT "/"; DS := 2 DEC;        %152-08112860        
+                   DS := LIT "]");                                 %152-08112880        
+              DS := LIT ")");                                      %152-08112890        
+          J := DI;                                                 %152-08112900        
+        END;                                                       %152-08112950        
+      T := P; % SAVE DESTINATION ADDRESS.                          %152-08113000        
+   END OF DOCREATOR;                                               %152-08113050        
+%                                                                  %152-08113100        
+  SUBROUTINE DOSAVEFACTOR;                                         %152-08113150        
+% ---------- ------------                                          %152-08113200        
+    BEGIN                                                          %152-08113250        
+      STREAM(A := SAVEFACTOR : T);                                 %152-08113300        
+        BEGIN                                                      %152-08113350        
+          DS := 6 LIT "SAVE: ";                                    %152-08113400        
+          SI := LOC A;                                             %152-08113450        
+          DS := 3 DEC;                                             %152-08113500        
+          A := DI;                                                 %152-08113550        
+          DI := DI - 3;                                            %152-08113600        
+          DS := 2 FILL;                                            %152-08113650        
+        END;                                                       %152-08113700        
+      T := P; % SAVE DESTINATION ADDRESS;                          %152-08113750        
+    END OF DOSAVEFACTOR;                                           %152-08113800        
+%                                                                  %152-08113850        
+  SUBROUTINE DOOPTIONS;                                            %152-08113900        
+% ---------- ---------                                             %152-08113950        
+    BEGIN                                                          %152-08114000        
+      FOR I := 0 STEP 1 UNTIL (NUMOPTS - 1) DO % SEE IF OPTION BIT SET. 08114050        
+        IF (TWO(I) AND INFO) ! 0 THEN %OPTION SELECTED.            %152-08114100        
+          BEGIN                                                    %152-08114150        
+            CASE I OF                                              %152-08114200        
+              BEGIN                                                %152-08114210        
+                DORECS;        % CASE 0 - "RECS"                   %152-08114250        
+                BEGIN          % CASE 1 - "LAST"                   %152-08114290        
+                  X := LASTACCESSDATE;                             %152-08114300        
+                  DODATEORLAST;                                    %152-08114310        
+                END OF CASE 1;                                     %152-08114320        
+                BEGIN          % CASE 2 - "DATE"                   %152-08114340        
+                  X := CREATIONDATE;                               %152-08114350        
+                  DODATEORLAST;                                    %152-08114360        
+                END OF CASE 2;                                     %152-08114370        
+                DOSIZE;        % CASE 3 - "SIZE"                   %152-08114400        
+                DOSECURITY;    % CASE 4 - "SECURITY"               %152-08114450        
+                DOCREATOR;     % CASE 5 - "CREATOR"                %152-08114500        
+                DOSAVEFACTOR;  % CASE 6 - "SAVE"                   %152-08114550        
+              END OF CASES;                                        %152-08114600        
+              STREAM(I : T); % PUT COMMA AFTER LAST OPTION.        %152-08114650        
