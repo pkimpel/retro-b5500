@@ -7602,3 +7602,54 @@ DROPOUT:                                                           %152-08103600
                 DOSAVEFACTOR;  % CASE 6 - "SAVE"                   %152-08114550        
               END OF CASES;                                        %152-08114600        
               STREAM(I : T); % PUT COMMA AFTER LAST OPTION.        %152-08114650        
+                BEGIN                                              %152-08114700        
+                  DS := 2 LIT ", ";                                %152-08114750        
+                  I := DI;                                         %152-08114800        
+                END;                                               %152-08114850        
+              T := P;                                              %152-08114900        
+          END OF LOOP TO PROCESS OPTIONS;                          %152-08114950        
+    END OF DOOPTIONS;                                              %152-08115000        
+%                                                                  %152-08115050        
+  SUBROUTINE MAKETHEMESSAGE;                                       %152-08115100        
+% ---------- --------------                                        %152-08115150        
+    BEGIN                                                          %152-08115200        
+      IF FOUNDAFILE THEN % WE NEED A BUFFER.                       %152-08115250        
+        BUFF := SPACE(30);                                         %152-08115300        
+      PUTINFILENAME;                                               %152-08115350        
+      DOOPTIONS;                                                   %152-08115400        
+      STREAM(T); % PUT IN THE LEFT ARROW.                          %152-08115450        
+        BEGIN                                                      %152-08115500        
+          DI := DI -2;                                             %152-08115550        
+          DS := LIT LEFTARROW;                                     %152-08115600        
+        END;                                                       %152-08115650        
+      END OF MAKETHEMESSAGE;                                       %152-08115700        
+%                                                                  %152-08115750        
+  SUBROUTINE COMPLAIN;                                             %152-08115800        
+% ---------- --------                                              %152-08115850        
+    BEGIN                                                          %152-08115900        
+      STREAM(BUFF);                                                %152-08115950        
+        DS := 8 LIT " NULL    "; % ORIGINAL INPUT IS AT BUFF + 1,  %152-08116000        
+      SPOUT(BUFF INX STA);                                         %152-08116050        
+    END OF COMPLAIN;                                               %152-08116100        
+%                                                                  %152-08116150        
+  SUBROUTINE FORGETEVERYTHING;                                     %152-08116200        
+% ---------- ----------------                                      %152-08116250        
+    BEGIN                                                          %152-08116300        
+      IF HEADERADDRESS ! 0 THEN FORGETSPACE(HEADERADDRESS);        %152-08116350        
+      IF LABELREC ! 0 THEN FORGETSPACE(LABELREC);                  %152-08116400        
+    END OF FORGETEVERYTHING;                                       %152-08116450        
+%******************** S T A R T   O F   C O D E  ***********************08116500        
+    GETREADY;                                                      %152-08116550        
+    GETFILESPECIFIER;                                              %152-08116600        
+    PROCESSOPTIONLIST;                                             %152-08116650        
+    GETSET;                                                        %152-08116700        
+    WHILE WEGOTAFILE DO                                            %152-08116750        
+      IF WEWANTTHISFILE THEN                                       %152-08116800        
+        BEGIN                                                      %152-08116850        
+          MAKETHEMESSAGE;                                          %152-08116900        
+          SPOUT(BUFF INX STA);                                     %152-08116950        
+          FOUNDAFILE := TRUE;                                      %152-08117000        
+        END;                                                       %152-08117050        
+    IF NOT FOUNDAFILE THEN COMPLAIN;                               %152-08117100        
+    FORGETEVERYTHING;                                              %152-08117150        
+  END OF PRINTDIRECTORY;                                           %152-08117200        
