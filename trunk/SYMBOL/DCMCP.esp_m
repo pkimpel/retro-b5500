@@ -7653,3 +7653,69 @@ DROPOUT:                                                           %152-08103600
     IF NOT FOUNDAFILE THEN COMPLAIN;                               %152-08117100        
     FORGETEVERYTHING;                                              %152-08117150        
   END OF PRINTDIRECTORY;                                           %152-08117200        
+ $ SET OMIT = NOT(DCSPO AND DATACOM )                                   08135999        
+ PROCEDURE CONTINUITYBIT;%                                              08171000        
+         BEGIN REAL T,IOD,LINK,U;%                                      08172000        
+              ARRAY A[*];                                               08172500        
+              REAL RCW=+0;%                                             08173000        
+                            ARRAY R=-4[*];  DEFINE FIB=A#;           %P 08173100        
+              CHECKSTACKSPACE;%                                     %WF 08173200        
+              U ~(LINK ~ NFLAG(M[(IOD ~ NFLAG(M[T~PRT[P1MIX,9]]) INX%   08174000        
+                   P(0,LNG,XCH)) INX NOT 0])).[12:6];%                  08175000        
+              IF U } 32 THEN                                            08175100        
+                   BEGIN A ~ M[T];                                      08175200        
+                        IF READEMFROMDISK(CIDROW[U-32],A) THEN          08175300        
+                             M[T] ~ A&1[27:47:1]&0[2:47:1] ELSE         08175400        
+                             M[1] ~ R; GO TO RETURN;                    08175500        
+                   END;                                                 08175600        
+              M[IOD INX NOT 1]~FLAG(LINK); FIB~M[T-3];               %P 08176000        
+              M[FIX[14]INX 17]~[M[FIB[5].[FF]]]&IOD[3:3:30]&0[20:20:1]; 08177000        
+             ;FIB[5]~P(DUP,LOD,0,1,CFX,ADD);                         %P 08177100        
+              IF FIB[14].[FF]{FIB[14].[CF] THEN  %% BUFFER FULL      %P 08177200        
+                        PBIO(T,FIB[14])                              %P 08178000        
+                    ELSE                                             %P 08179000        
+              BEGIN; STREAM(A~FIB[14].[CF], B~FIB[14].[FF]);         %P 08179600        
+                     BEGIN SI~A; DS~18 WDS END;                      %P 08179700        
+                   FIB[14].[FF]~FIB[14].[FF]-18;                     %P 08179800        
+              END;                                                   %P 08179900        
+              GO RETURN                                              %P 08180000        
+         END CONTINUITYBIT;                                          %P 08181000        
+BOOLEAN PROCEDURE PRINTORPUNCHWAIT(Q,PNCH);VALUE Q,PNCH;REAL Q,PNCH;    08255000        
+%                                                                       08255050        
+%   THIS PROCEDURE IS RESPONSIBLE FOR STARTING PRNPBT/DISK. IT CHECKS   08255055        
+%   FOR I/O UNITS AS REQUIRED AND, IF AVAILABLE, GRABS THEM. THE        08255060        
+%   PARAMETERS ARE:                                                     08255065        
+%   Q    {-16      LOGICAL UNIT NUMBER FOR OUTPUT. TAPES AND DISK ARE   08255070        
+%                  SEARCHED TO FIND A FILE TO PRINT. THIS IS USED ONLY  08255075        
+%                  WHEN AUTOPRINT IS SET OR FOR RJE.                    08255080        
+%        >-16, {0  LOGICAL UNIT NUMBER OF A BACK-UP TAPE. CHECK FOR AN  08255085        
+%                  AVAILABLE OUTPUT UNIT.                               08255090        
+%        >0        FID OF A DISK FILE. CHECK FOR OUTPUT UNIT.           08255095        
+%   PNCH.[47:1]    ON FOR PUNCH BACK-UP.                                08255100        
+%        [39:8]    NUMBER OF COPIES FROM PB MESSAGE.                    08255105        
+%        [31:8]    IF TAPE, NUMBER OF FILE TO PRINT (FROM PB).          08255110        
+%                  IF DISK, =0 IF ENTRIE PACKET SHOULD BE PRINTED, =1 IF08255115        
+%                  NOT.                                                 08255120        
+%        [30:1]    ON IF =0 WAS USED IN PB MSG.                         08255122        
+%        [9:9]     RJE TU/BUFF.                                         08255125        
+%        [2:1]     ON IF CALLED FROM PRINTBACKUP, I.E, A PB MESSAGE.    08255130        
+%        [1:1]     ON IF CALLED FROM PRNPBT/DISK.                       08255135        
+%                                                                       08255140        
+   BEGIN INTEGER U,V,I,J,J1,J2,S;                                       08255200        
+         REAL A,HDR,SEG0=S,F=J;                                         08255400        
+         REAL PBT,PBD,PUD;                                              08255500        
+         ARRAY D[*],SHEAT=D[*];                                         08255600        
+         LABEL TRYAGAIN,PRNPBT,DISK;                                    08255700        
+         LABEL FOUND,FIREITUP,QUIT;                                %717-08255800        
+         DEFINE MFID = (IF V=22 THEN PUD ELSE PBD)#;                    08255900        
+         DEFINE STACURR = STATION[STA.[44:4],STA.[39:4]]#;              08256000        
+ $ SET OMIT = SHAREDISK                                                 08256190        
+         DEFINE SIXTY   = 60%;                                          08256200        
+ $ SET OMIT = NOT SHAREDISK                                             08256210        
+ $ SET OMIT = NOT RJE                                                   08256390        
+%                                                                       08256420        
+    SUBROUTINE LABELTHEPRINTER;                                         08256430        
+    BEGIN LABELTABLE[V]:=Q&@21[1:43:5];                                 08256440        
+         MULTITABLE[V]:=IF V=22 THEN PUD ELSE PBD;                      08256450        
+    END;                                                                08256460        
+%                                                                       08256470        
