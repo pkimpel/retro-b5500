@@ -7719,3 +7719,99 @@ BOOLEAN PROCEDURE PRINTORPUNCHWAIT(Q,PNCH);VALUE Q,PNCH;REAL Q,PNCH;    08255000
          MULTITABLE[V]:=IF V=22 THEN PUD ELSE PBD;                      08256450        
     END;                                                                08256460        
 %                                                                       08256470        
+         PBT := "PBT    "; PUD := "PUD    "; PBD := "PBD    ";          08256500        
+ $ SET OMIT = NOT(DATACOM AND RJE )                                     08256699        
+         IF Q}(-15) THEN  %%% PR GIVEN: LOOK FOR LP.                    08257000        
+         BEGIN                                                          08257100        
+ $ SET OMIT = NOT(DATACOM AND RJE )                                     08257199        
+              IF PNCH THEN IF LABELTABLE[V:=22]!0 THEN V:=0 ELSE ELSE   08257500        
+              IF LABELTABLE[V~20]!0 THEN                                08257600        
+              IF LABELTABLE[V~21]!0 THEN V~0;                           08258000        
+              IF V!0 THEN              % WE HAVE AN OUTPUT UNIT         08258200        
+                IF Q>0 THEN            %    BACK-UP DISK                08258400        
+                BEGIN U:=18;                                            08258600        
+                     LABELTHEPRINTER;  % TO HOLD IT DURING DISK I/O-S.  08258700        
+                     IF AUTOPRINT      % CHECK IF A PRNPBT WAS STARTED; 08258800        
+ $ SET OMIT = NOT RJE                  % IF SO, START THIS ONLY FOR PB. 08258990        
+                     THEN                                               08259200        
+                       IF (A:=DIRECTORYSEARCH(MIFD,Q,19))!0 THEN        08259225        
+                       BEGIN IF M[A+4].[6:1] THEN% NOT FIRST TIME.      08259250        
+                             BEGIN                                      08259275        
+ $ SET OMIT = NOT SHAREDISK                                             08259300        
+                                  P(PNCH.[2:1]);    % SEE 08259625      08259375        
+                             END ELSE            % FIRST TIME, MARK IT. 08259400        
+                             BEGIN M[A+4].[6:1]:=1;                     08259425        
+                                  DISKWAIT(A.[CF],-30,A.[FF]);          08259450        
+                                  P(1);                                 08259475        
+                             END;                                       08259500        
+                             FORGETSPACE(A);                            08259525        
+ $ SET OMIT = SHAREDISK                                                 08259550        
+                             UNLOCKDIRECTORY;                           08259575        
+ $ POP OMIT                                                             08259600        
+                             IF P THEN ELSE GO QUIT;                    08259625        
+                       END ELSE GO QUIT;                                08259650        
+                     GO FIREITUP;                                       08259700        
+                END ELSE          % Q{0, PB MT                     %717-08259800        
+                 BEGIN RRRMECH~TWO(U~ABS(Q)) OR RRRMECH;           %717-08259810        
+                 LABELTABLE[U] ~                                   %717-08259820        
+                         PBT&TINU[V][6:30:18]&@21[1:43:5];         %717-08259830        
+                 MULTITABLE[V] ~ PBT;                              %717-08259840        
+                 LABELTABLE[V] ~ PBT&TINU[U][6:30:18]&             %717-08259850        
+                   @21[1:43:5];                                    %717-08259860        
+                 GO FIREITUP;                                      %717-08259870        
+                 END                                               %717-08259880        
+              ELSE GO QUIT;                 % V =0, NO OUTPUT UNIT      08260000        
+         END;                                                           08260250        
+         BEGIN V:=ABS(Q);    % LP (OR PUNCH) GIVEN, LOOK FOR FILE.      08260500        
+              IF PBCOUNT!0 THEN             % TRY FOR DISK              08267000        
+              BEGIN D:=[M[SPACE(90)]]&90[8:38:10];                      08267500        
+ $ SET OMIT = SHAREDISK                                                 08267990        
+                   LOCKDIRECTORY;                                       08268000        
+ $ POP OMIT                                                             08268010        
+                   A:=MFID;                                             08268500        
+                   J1:=(A.[6:18] + A.[24:24]) MOD MODULUS;              08268600        
+                   FOR J2:=0 STEP 1 UNTIL (MODULUS-1) DO                08268700        
+                   BEGIN                                                08268750        
+ $ SET OMIT = NOT SHAREDISK                                             08268790        
+                        J:=SCRAMBLE(J1,J2);                             08268900        
+                        DO BEGIN DISKWAIT(-(D INX 30),SIXTY,J);         08268950        
+                             FOR I:=30 STEP 3 UNTIL 87 DO               08269000        
+                             IF (D[I] EQV A) = NOT 0 THEN               08269100        
+                             IF D[I+1].[CF]=1 THEN                      08269200        
+                             BEGIN DISKWAIT(-D.[CF],-30,D[I+2].[CF]);   08269300        
+                                  IF D[4].[1:3] ! 0 OR D[4].[6:1]       08269400        
+ $ SET OMIT = NOT(RJE AND DATACOM )                                     08269499        
+ $ SET OMIT = NOT(PACKETS)                                              08269509        
+                                  OR LABELTABLE[IF V=20 THEN 21 ELSE    08269510        
+                                   IF V=21 THEN 20 ELSE 22].[6:24]      08269520        
+                                    =D[I+1].[6:24]                      08269530        
+ $ POP OMIT                                                             08269531        
+                                  OR (D[4].[16:20] OR D[9].[1:28])!0    08269600        
+                                  THEN                                  08269650        
+ $ SET OMIT = NOT SHAREDISK                                             08269690        
+                                  ELSE                                  08269750        
+                                  BEGIN D[4].[6:1]:=1;                  08269800        
+                                       PBCOUNT:=PBCOUNT-1;              08269900        
+                                       DISKWAIT(D.[CF],-30,D[I+2].[CF]);08270000        
+ $ SET OMIT = NOT SHAREDISK                                             08270040        
+                                       U:=18;                           08270100        
+                                       Q:=D[I+1];                       08270200        
+                                       GO FOUND;                        08270300        
+                             END  END;                                  08270350        
+ $ SET OMIT = NOT SHAREDISK                                             08270390        
+                        END UNTIL (J:=D[32].[FF])=0;                    08270450        
+ $ SET OMIT = NOT SHAREDISK                                             08270490        
+                   END;                                                 08270550        
+    FOUND:         FORGETSPACE(D);                                      08270600        
+ $ SET OMIT = SHAREDISK                                                 08270640        
+                   UNLOCKDIRECTORY;                                     08270650        
+ $ POP OMIT                                                             08270660        
+              END SEARCHING FOR DISK;                                   08270700        
+         END;                                                           08270725        
+    %              IF WE HAVE BOTH AN INPUT FILE AND AN OUTPUT UNIT,    08270740        
+    %              FIRE UP PRNPBT/DISK.                                 08270745        
+         IF U!0 AND V!0 THEN                                            08270750        
+         BEGIN                                                          08270800        
+ $ SET OMIT = NOT(DATACOM AND RJE )                                     08270819        
+              LABELTHEPRINTER;                                          08271000        
+    FIREITUP:                                                           08271750        
