@@ -7815,3 +7815,70 @@ BOOLEAN PROCEDURE PRINTORPUNCHWAIT(Q,PNCH);VALUE Q,PNCH;REAL Q,PNCH;    08255000
  $ SET OMIT = NOT(DATACOM AND RJE )                                     08270819        
               LABELTHEPRINTER;                                          08271000        
     FIREITUP:                                                           08271750        
+              A:=V&U[38:43:5]&PNCH[21:30:17];                           08272000        
+ $ SET OMIT = NOT RJE                                                   08272240        
+              IF PNCH.[1:1] THEN P(A) ELSE                              08272250        
+              BEGIN                                                     08272500        
+TRYAGAIN:                                                               08272600        
+              IF (HDR:=DIRECTORYSEARCH(P(PRNPBT),P(DISK),3)) ! 0 THEN   08272750        
+                  BEGIN                                                 08273000        
+                  SHEAT := [M[F:=TYPEDSPACE(31,SHEETAREAV)]]&30[SIZE];  08273250        
+                  M[F-1].[9:6] := 0; M[HDR INX NOT 1],[9:6]:=0;         08273260        
+                  MOVE(30,F-1,F);                                       08274500        
+                  SEG0 := TYPEDSPACE(30,SEGZEROAREAV);%            %167-08275500        
+                  M[SEG0-2].[AREAMIXF] := 0;%                      %167-08275600        
+                  DISKWAIT(-SEG0, 30, M[HDR INX 10]);                   08275750        
+                  F.[FF] := HDR; % CORE ADDRESS OF HEADER               08276000        
+                  SHEAT[7] := SEG0;  % CORE ADDRESS OF SEGMENT ZERO     08276050        
+                  SHEAT[0] := P(PRNPBT);                                08276100        
+                  SHEAT[1] := P(DISK);                                  08276150        
+                  SHEAT[2] := 0 & PRBPBTCODE[5:45:3] & 2[8:38:10] &     08276200        
+                                  %PRIORITY=0.EXECUTE CODE              08276203        
+                              (PNCH.[2:1]=0)[4:47:1]; % SET IF NOT "PB" 08276205        
+                  SHEAT[16] := SHEAT[17] := @377777777777; % TIME LIMITS08276210        
+                  SHEAT[19] := A;             % COMMON VALUE            08276220        
+                  SHEAT[20] := 4;             % CORE ESTIMATE           08276230        
+                  SHEAT[21] := 150;           % STACK SIZE              08276240        
+                                                                        08276250        
+                  STREAM(A:=0: S:=P(.SCHEDULEIDS));                     08276260        
+                      BEGIN                                             08276270        
+                      SI:=S;                                            08276280        
+                      47(SKIP SB; SKIP DB; TALLY:=TALLY+1;              08276290        
+                         IF SB THEN ELSE JUMP OUT);                     08276300        
+                      DS:=SET; A:=TALLY;                                08276310        
+                      END STREAM STATEMENT;                             08276320        
+                                                                        08276330        
+                  I := P;                                               08276340        
+                  SHEAT[3].[8:10] := I;       % SCHEDULE NUMBER         08276350        
+                  SHEAT[23] := (CLOCK + P(RTR)) DIV 60);                08276360        
+                  SHEAT[24] := MCP;                                %131-08276365        
+ $ SET OMIT = NOT(DATACOM AND RJE)                                      08276370        
+                  SHEAT[25] := HDR.[FF]; % DISK ADDRESS OF FILE HEADER  08276400        
+                  STREAM(A, I:=I:=SPACE(11));                           08276410        
+                     BEGIN                                              08276420        
+                     DI:=DI+16;                                         08276430        
+                     DS:=30LIT"CC EXECUTE PRNPBT/DISK;COMMON=";         08276440        
+                     SI:=LOC A; DS:=8DEC;                               08276450        
+                     DS:=6LIT";END.~";                                  08276460        
+                     END STREAM STATEMENT;                              08276470        
+                  M[I] := 0; M[I+1]:=10;                                08276480        
+                  SHEAT[6] := GETESPDISK & 10[18:33:15];                08276490        
+                  DISKWAIT(I, 11, SHEAT[6].[CF]);                       08276500        
+                  FORGETSPACE(I);                                       08276510        
+                  INDEPENDENTRUNNER(P(.SELECTRUN),F,160);               08276520        
+                  P(1);                                                 08276530        
+                  END ELSE % IF IN DIRECTORY                            08276540        
+                  BEGIN                                                 08276550        
+                  ENTERSYSFILE(3);                                      08276560        
+                  GO TRYAGAIN;                                          08276570        
+PRNPBT:::         "PRNPBT ";                                            08276580        
+  DISK:::         "DISK   ";                                            08276590        
+                  END;                                                  08276600        
+              END;                                                      08277000        
+              PRINTORPUNCHWIAT:=P;                                      08277500        
+         END ELSE                                                       08278000        
+                                                                        08279000        
+QUIT:    IF V NEQ 0 THEN                                                08280000        
+ $ SET OMIT = NOT(RJE AND DATACOM )                                     08280009        
+         LABELTABLE[V]:=MULTITABLE[V]:=0;                               08280030        
+         END PRINTWAIT;%                                                08281000        
