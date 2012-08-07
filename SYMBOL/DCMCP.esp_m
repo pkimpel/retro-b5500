@@ -7998,3 +7998,105 @@ SPIT:          SPOUT(BUFF                                               08301600
                    END;%                                                08314000        
               SPOUT(B INX MEMORY[B-1]);                                 08315000        
          END;%                                                          08316000        
+PROCEDURE GIMEDATE(B,DT); VALUE B,DT; REAL B,DT;                        08317000        
+    %% PARAMETER USE IS:                                                08317100        
+       %% B=OUTPUT AREA FOR MESSAGE OR DATE                             08317200        
+       %%DT=0 RECONVERT ACTDATE,WEEKDAY THEN SPOUT TIME MSG             08317300        
+       %% DT>0 SPOUT TIME MSG ONLY                                      08317400        
+       %% DT<0 CONVERT MMDDYY USING DT (ACTDATE,WEEKDAY NOT CHANGED)    08317500        
+         BEGIN  REAL M,D,Y,NCV,NMG;                                     08318000        
+              REAL SUBROUTINE DAY;                                      08318100        
+              BEGIN;STREAM(M:X~0,Y~0,Z~0);                              08318200        
+                    BEGIN DI~LOC X; DS~24 LIT"000~0%1.1Y2G2V3D3T4A4 5>";08318300        
+                          DI~LOC X; SI~SI+M; SI~SI+M;                   08318400        
+                          DI~LOC M; DI~DI+6; DS~2 CHR;                  08318500        
+                    END;                                                08318600        
+                    DAY~P;                                              08318700        
+              END DAY;                                                  08318800        
+              LABEL DAYS;                                               08318900        
+              LABEL ON;;%                                               08319000        
+              IF NOT (NCV~(DT>0))  THEN   % NOT PRINT ONLY              08319700        
+              BEGIN                                                     08319900        
+              STREAM(DATE~IF (NMG~DT.[1:1]) THEN DT ELSE DATE,R~[Y]);   08320000        
+                   BEGIN SI ~ LOC DATE; SI ~ SI+3;%                     08321000        
+                        DS~2 OCT; DI~DI-16; DS~3 OCT;                   08322000        
+                   END;%                                                08323000        
+              IF Y MOD 4 = 0 AND Y ! 0 THEN%                            08324000        
+                   BEGIN IF D = 60 THEN%                                08325000        
+                                 BEGIN M~2; GO ON END;                  08326000        
+                        IF D > 60 THEN D ~D-1;%                         08327000        
+                   END;%                                                08328000        
+              FOR M~1 STEP 1 UNTIL 11 DO                                08329000        
+                   IF DAY}D THEN GO ON;                                 08330000        
+         ON:  M~M-1;                                                    08331000        
+              D~D-DAY;                                                  08332000        
+              IF M<2 THEN P(Y-1,M+11) ELSE P(Y,M-1);                    08332100        
+              P(26,|,2,-,10,IDV,D,+,XCH,P(DUP).[36:10],+,+,7,RDV,5,ISN);08332200        
+              :: P(.DAYS,+,LOD);                                        08332300        
+              M~M+1;                                                    08332400        
+              END ELSE P(WEEKDAY);                                      08332500        
+              STREAM(M~[M],NMG,NCV,MDY~[ACTDATE],B,DATE,DW~[WEEKDAY]);  08333000        
+                   BEGIN  NMG(JUMP OUT TO NOMSG);                       08334000        
+                        SI~LOC M; SI~SI-16;                             08334100        
+                        NCV(SI~SI+2; JUMP OUT TO NOCNV);                08334300        
+                        DS~WDS; SI~SI-6;                                08334500        
+    NOCNV:              DI~B; DS~9 LIT" DATE IS "; DS~6 CHR;            08334700        
+                        DS~5 LIT"DAY, "; B~DI; NCV(JUMP OUT TO NULCV);  08334900        
+    NOMSG:              SI~M; NMG(DI~B; JUMP OUT TO NULMS);             08335000        
+                        DI~MDY;                                         08335200        
+    NULMS:              DS~4 DEC; DS~2 DEC; DS~2 DEC;                   08335400        
+                        NMG(JUMP OUT TO OXIT);  DI~B;                   08335600        
+    NULCV:              SI~MDY; SI~SI+2;                                08335800        
+                        DS~2 CHR; 2(DS~LIT "/"; DS~2 CHR);              08336000        
+                        DS:=2 LIT"-("; SI:=LOC DATE;                    08336500        
+                        SI:=SI+3; DS:=5 CHR; DS:=2 LIT")~";             08337000        
+                        SI:=B;                                          08337500        
+                        3(DI ~ B; DS ~ FILL; SI ~ SI+3; B ~SI);%        08338000        
+    OXIT:          END;                                                 08339000        
+              IF DT}0 THEN                                              08339500        
+              IF NOT NMG THEN SPOUT(B INX MEMORY[B-1]);                 08340000        
+              P(XIT);                                                   08340100        
+    DAYS:::   "   MON","  TUES","WEDNES"," THURS","   FRI"," SATUR",    08340200        
+              "   SUN";                                                 08340300        
+         END;%                                                          08341000        
+DEFINE DATEOUT(DATEOUT1)=GIMEDATE(DATEOUT1,0)#; %CHANGE DATE & SPOUT IT 08342000        
+ PROCEDURE SETDATE(BUFF); VALUE BUFF; REAL BUFF;%                       08343000        
+         BEGIN REAL DY,MN,YR; INTEGER D=DY; REAL B,T=MN;                08344000        
+               REAL SUBROUTINE C;                                       08344100        
+              BEGIN;STREAM(C~0:B~[B]);                                  08344200        
+                   BEGIN%                                               08345000        
+                        SI ~ B; SI ~ SI+5; SI ~ SC;%                    08346000        
+                   L:   IF SC < "0" THEN%                               08347000        
+                             BEGIN IF SC = "~" THEN GO TO X;%           08348000        
+                                  SI ~ SI+1; GO TO L;%                  08349000        
+                             END;%                                      08350000        
+                   K:   IF SC } "0" THEN%                               08351000        
+                             BEGIN TALLY ~ TALLY+1;%                    08352000        
+                                  SI ~ SI+1; GO TO K END;%              08353000        
+                        DI ~ B; B ~ SI; SI ~ LOC B; DS ~ WDS;%          08354000        
+                        SI ~ B; B ~ TALLY; DI ~ LOC C;%                 08355000        
+                        SI ~ SI-B; DS ~ B OCT;%                         08356000        
+                   X:END;%                                              08357000        
+                    C~P;%                                               08358000        
+              END C;                                                    08358100        
+              B ~ BUFF;%                                                08359000        
+              MN~C; DY~C; YR~C;%                                        08360000        
+              BUFF ~ BUFF.[15:15]-1;%                                   08361000        
+              IF MN > 0 AND MN { 12 AND%                                08362000        
+                   DY > 0 AND DY { 31 AND%                              08363000        
+                   YR > 0 THEN%                                         08364000        
+              BEGIN;STREAM(M~MN-1:X~0,Y~0,Z~0);                         08365000        
+                    BEGIN DI~LOC X; DS~24 LIT"000~0%1.1Y2G2V3D3T4A4 5>";08365100        
+                          SI~LOC X; SI~SI+M; SI~SI+M;                   08365200        
+                          DI~LOC M; DI~DI+6; DS~2 CHR;                  08365300        
+                    END;                                                08365400        
+              DY~P+DY;                                                  08366000        
+              IF YR MOD 4 = 0 AND MN > 2 AND(YR MOD 100 ! 0 OR%         08367000        
+                        YR MOD 400 = 0) THEN%                           08368000        
+                   DY ~ DY+1;%                                          08369000        
+              D ~ YR MOD 100 | 1000+DY;%                                08370000        
+              STREAM(D,A~[DATE]);%                                      08371000        
+                   BEGIN SI ~ LOC D; DS ~ 8 DEC END;%                   08372000        
+              CHANGEDATE(BUFF);%                                        08373000        
+              END ELSE SPOUT(BUFF INX MEMORY[BUFF -1]);                 08374000        
+         END;%                                                          08375000        
