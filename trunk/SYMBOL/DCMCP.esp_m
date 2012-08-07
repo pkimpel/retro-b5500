@@ -7882,3 +7882,119 @@ QUIT:    IF V NEQ 0 THEN                                                08280000
  $ SET OMIT = NOT(RJE AND DATACOM )                                     08280009        
          LABELTABLE[V]:=MULTITABLE[V]:=0;                               08280030        
          END PRINTWAIT;%                                                08281000        
+    PROCEDURE PRINTBACKUP(BUFF); VALUE BUFF; REAL BUFF;              %P 08282000        
+%                                                                       08282100        
+%   THIS PROCEDURE HANDLES THE PB MESSAGE, MAKING THE NECESSARY CHECKS  08282110        
+%   AND THEN CALLING PRINTORPUNCHWIAT. THE SYNTAX OF THE MESSAGE IS:    08282120        
+%   <PB MSG> ::= PB<INPUT FILE><PB SPECS>                               08282140        
+%     <INPUT FILE> ::= <TAPE UNIT> / <DISK FILE NUMBER>                 08282150        
+%     <PB SPECS> ::= <PB ELEMENT> / <PB ELEMENT><PB SPECS> / <EMPTY>    08282160        
+%     <PB ELEMENT> ::= P / =<NUMBER OF COPIES> / #<STARTING FILE NUMBER>08282170        
+%                                                                       08282180        
+    BEGIN REAL U,I,COPY,MS,STA,B=BUFF;                                  08283000        
+ $ SET OMIT = NOT (DATACOM AND DCSPO)                                   08283400        
+          LABEL OK,BAD,SPIT;                                            08284000        
+ $ SET OMIT = NOT (DATACOM AND DCSPO)                                   08284450        
+          STREAM(PCPY:=1, NUMB:=1, N:=1, CPY:=-0: B:=BUFF);             08285000        
+          BEGIN SI~B; DI~LOC N;                                      %P 08286000        
+          L:  IF SC=" " THEN BEGIN SI~SI+1; GO TO L END;             %P 08287000        
+              IF SC<"0" THEN BEGIN DS~5 LIT"+0000"; DS~3 CHR END ELSE%P 08288000        
+              BEGIN B:=SI;                                              08289000        
+                   4(IF SC<"0" THEN JUMP OUT; TALLY~TALLY+1; SI~SI+1);  08289500        
+                   SI:=B; B:=TALLY; DI:=DI+5; DI:=DI-B;                 08290000        
+                   DS~B CHR;                                         %P 08290500        
+               END;                                                     08291000        
+          LL:  IF SC=" " THEN BEGIN SI:=SI+1; GO TO LL END;             08291025        
+               IF SC="=" THEN BEGIN DI:=LOC CPY; GO TO CNT END;         08291050        
+               IF SC="#" THEN                                           08291075        
+               BEGIN DI:=LOC NUMB;                                      08291100        
+          CNT:      SI:=SI+1; B:=SI; IF SC=" " THEN GO TO CNT;TALLY:=0; 08291125        
+                    3(IF SC < "0" THEN JUMP OUT;                        08291150        
+                      IF SC > "9" THEN JUMP OUT;                        08291175        
+                      TALLY:=TALLY+1; SI:=SI+1);                        08291200        
+                    SI:=B; B:=TALLY; DS:=8 OCT;                         08291225        
+                    GO TO LL;                                           08291250        
+               END;                                                     08291275        
+               IF SC="P" THEN                                           08291300        
+               BEGIN TALLY:=0; PCPY:=TALLY; SI:=SI+1;                   08291325        
+                    5(IF SC=ALPHA THEN IF SC<"0" THEN SI:=SI+1 ELSE     08291350        
+                      JUMP OUT ELSE JUMP OUT);                          08291375        
+                    GO TO LL;                                           08291400        
+               END;                                                     08291425        
+          END;                                                          08291450        
+          COPY:=(COPY:=P)&(NOT COPY = NOT 0)[31:47:1];                  08291460        
+%                                                                       08291470        
+%        BACK UP TAPE. CHECK THE LABEL THEN CALL PRINTORPUNCHWAIT.      08291475        
+%                                                                       08291480        
+          IF (U:=P) < 0 THEN                                            08291500        
+          BEGIN COPY:=COPY&(P(XCH)-1)[32:40:8];                         08291750        
+               IF NOT MTXIN(I,U,B) THEN                                 08292000        
+               IF (STA:=MULTITABLE[U]!"PBTMCP " OR STA) AND             08292500        
+                 MULTITABLE[U]!"PUTMCP " THEN                           08293000        
+                 BEGIN STREAM(BUFF); DS:=19 LIT" NOT A BACKUP TAPE~";   08293500        
+                      GO TO SPIT;                                       08294000        
+                 END                                                    08294500        
+               ELSE                                                     08295000        
+               IF PRINTORPUNCHWAIT(-U, STA&COPY[30:31:17] OR M) THEN    08295200        
+                 GO TO OK ELSE BEGIN MS:=-1; GO TO BAD END              08295600        
+               ELSE GO TO SPIT;                                         08295800        
+          END;                                                          08296000        
+%        BACK UP DISK. SET FIRST REEL NUMBER. IF COPIES OR REEL NUMBER  08296160        
+%             GIVEN, DISK IN "P" BIT, ELSE LEAVE IT OFF TO PRINT ENTIRE 08296170        
+%             THING. CHECK FOR THE FILE, THEN CALL PRINTORPUNCHWAIT.    08296180        
+%                                                                       08296190        
+%                                                                       08296200        
+          STREAM(I:=P: U:=[U]);                                         08296225        
+          BEGIN SI:=LOC I; DI:=DI+5;                                    08296250        
+               DS:=3 DEC;                                               08296275        
+          END;                                                          08296300        
+          I:=P-1;                                                       08296325        
+          IF (COPY OR I).[CF]=0 THEN P(DEL) ELSE                        08296350        
+            COPY:=COPY&P(XCH)[39:47:1];                                 08296375        
+          BUFF:=BUFF.[15:15]-1;                                         08296400        
+          IF (I:=DIRECTORYSEARCH("PBD    ",U,5))=0 THEN                 08296600        
+          IF (I:=DIRECTORYSEARCH("PUD    ",U,5))=0 THEN GO TO BAD       08296800        
+               ELSE STA:=STA OR 1;                                      08297000        
+          P(M[I+4]);                                                    08297200        
+          FORGETSPACE(I);                                               08297300        
+          IF P.[2:1] THEN BEGIN MS:=2; GO TO BAD END;                   08297400        
+          IF PBCOUNT LSS 1 THEN PBCOUNT:=1;                             08297600        
+          IF PRINTORPUNCHWAIT(U, STA&COPY[30:31:17] OR M) THEN          08298000        
+OK:         FORGETSPACE(BUFF)                                           08298200        
+          ELSE                                                          08298400        
+          BEGIN MS:=1;                                                  08298600        
+BAD:           STREAM(MS, X:=MS<0, U:=IF P(DUP) THEN TINU[U] ELSE U,    08298800        
+                      BUFF:=BUFF.[CF]);                                 08299000        
+               BEGIN DS:=8 LIT" NULL PB";                               08299200        
+                    SI:=LOC U; CI:=CI+X; GO TO DK;                      08299400        
+                    SI:=SI+5; DS:=3 CHR; GO TO LL;                      08299600        
+               DK:  SI:=SI+1; DS:=4 CHR;                                08299800        
+                    BUFF:=DI; DI:=DI-4; DS:=3 FILL; DI:=BUFF;           08300000        
+               LL:  DS:=2 LIT"-(";                                      08300200        
+                    CI:=CI+MS; GO TO L0; GO TO L1;                      08300400        
+                    DS:= 6 LIT"IN USE"; GO TO L;                        08300600        
+               L1:  DS:=14 LIT"NO OUTPUT UNIT"; GO TO L;                08300800        
+               L0:  DS:=11 LIT"NOT ON DISK";                            08301000        
+               L :  DS:= 2 LIT")~";                                     08301200        
+               END;                                                     08301400        
+SPIT:          SPOUT(BUFF                                               08301600        
+ $ SET OMIT = NOT (DATACOM AND DCSPO)                                   08301650        
+                    );                                                  08301800        
+          END;                                                          08302000        
+    END OF PB KEYBOARD MESSAGE HANDLER;                                 08302500        
+ SAVE PROCEDURE INITIALIZE;   FORWARD;                                  08303000        
+ REAL ACTDATE=INITIALIZE;                                               08303100        
+ SAVE REAL PROCEDURE COREND;   FORWARD;                                 08303200        
+ REAL WEEKDAY=COREND;                                                   08303300        
+ PROCEDURE TIMEOUT (B); VALUE B; REAL B;%                               08305000        
+         BEGIN INTEGER M,H,C;%                                          08306000        
+              C ~XCLOCK/3600;%                                          08307000        
+              M ~ C MOD 60;%                                            08308000        
+              H ~ C DIV 60;%                                            08309000        
+              STREAM(H,M,B);%                                           08310000        
+                   BEGIN DS ~ 9 LIT " TIME IS ";%                       08311000        
+                        SI ~ LOC H; DS ~ 2 DEC; DS ~ 2 DEC;%            08312000        
+                        DS ~ LIT "~"%                                   08313000        
+                   END;%                                                08314000        
+              SPOUT(B INX MEMORY[B-1]);                                 08315000        
+         END;%                                                          08316000        
