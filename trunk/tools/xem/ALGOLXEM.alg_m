@@ -128,7 +128,7 @@ ERROR NUMBER  ROUTINE:ERROR MESSAGE                                     00025000
                    TO ANOTHER.  IF THE QUANTITY IS A PROCEDURE NAME OR  00127000=00073000=
                    AN OWN VARIABLE THIS RESTRICTION IS RELAXED.         00128000=00074000=
  102          AEXP:  CONDITIONAL EXPRESSION IS NOT OF ARITHMETIC TYPEH  00129000=00075000=
- 103          PRIMARY:  PRIMARY MAY NOT BEING WITH A QUANTITY OF THIS   00130000=00076000=
+ 103          PRIMARY:  PRIMARY MAY NOT BEGIN WITH A QUANTITY OF THIS   00130000=00076000=
                    TYPE.                                                00131000=00077000=
  104          ANYWHERE:  MISSING RIGHT PARENTHESIS.                     00132000=00078000=
  105          ANYWHERE:  MISSING LEFT PARENTHESIS.                      00133000=00079000=
@@ -147,7 +147,7 @@ ERROR NUMBER  ROUTINE:ERROR MESSAGE                                     00025000
                    A CONCATENATE OPERATOR IS INCORRECT.                 00146000=00092000=
  114          DOTSYNTAX: EITHER THE SYNTAX OR THE RANGE OF THE LITERALS 00147000=00093000=
                    FOR A PARTIAL WORD DESIGNATOR IS INCORRECT.          00148000=00094000=
- 115          DEXP:  THE EXPRESSION IS NOT OF DESIGNATIONAL TYPE        00149000=00095000=
+ 115          DEXP:  THE EXPRESSION IS NOT OF DESIGNATIONAL TYPE.       00149000=00095000=
  116          IFCLAUSE:  MISSING THEN.                                  00150000=00096000=
  117          BANA:  MISSING LEFT BRAKET.                               00151000=00097000=
  118          BANA:  MISSING RIGHT BRAKET.                              00152000=00098000=
@@ -210,7 +210,7 @@ ERROR NUMBER  ROUTINE:ERROR MESSAGE                                     00025000
  155          IFEXP:  MISSING ELSE                                      00209000=00155000=
  156          LISTELEMENT: A DESIGNATIONAL EXPRESSION MAY NOT BE A LIST 00210000=00156000=
                    ELEMENT.                                             00211000=00157000=
- 157          LISTELEMENT: A ROW DESIGNATOR MAY NOT BE A LISTELEMENT    00212000=00158000=
+ 157          LISTELEMENT: A ROW DESIGNATOR MAY NOT BE A LIST ELEMENT   00212000=00158000=
  158          LISTELEMENT:  MISSING RIGHT BRAKET IN GROUP OF ELEMENTS   00213000=00159000=
  159          PROCSTMT:  ILLEGAL USE OF PROCEDURE OR FUNCTION IDENTIFIER00214000          
  160          PURGE:  DECLARED LABEL DOES NOT OCCUR.                    00215000=00161000=
@@ -256,7 +256,7 @@ ERROR NUMBER  ROUTINE:ERROR MESSAGE                                     00025000
  256          RELEASES: MISSING PARENTHESIS OR FILE IDENTIFIER IS NOT   00255000=00187000=
                         A FORMAL PARAMETER.                             00256000=00188000=
  257          GOTOS,LABELS,OR JUMPS: LABEL SPECIFIED IS NOT ON THE SAME 00257000=00189000=
-                        NEXT LEVEL AS A PRECEDING APPEARANCE OF THE     00258000=00190000=
+                        NEST LEVEL AS A PRECEDING APPEARANCE OF THE     00258000=00190000=
                         LABEL.                                          00259000=00191000=
  258          LABELS: MISSING :.                                        00260000=00192000=
  259          LABELS: LABEL APPEARS MORE THAN ONCE.                     00261000=00193000=
@@ -269,7 +269,7 @@ ERROR NUMBER  ROUTINE:ERROR MESSAGE                                     00025000
  266          IFS: MISSING THEN INIF STATEMENT.                         00268000=00200000=
  267          FREDFIX: THERE ARE GO TO STATEMENTS IN WHICH THE LABEL IS 00269000=00201000=
                    UNDEFINED.                                           00270000=00202000=
- 268          EMITO:  A REPEAT INDEX >= 64 WAS SPECIFIED OR TOO MANY    00271000=00203000=
+ 268          EMITC:  A REPEAT INDEX >= 64 WAS SPECIFIED OR TOO MANY    00271000=00203000=
                    FORMAL PARAMETERS,LOCALS AND LABELS.                 00272000=00204000=
  269          TABLE: A CONSTANT IS SPECIFIED WHICH IS TOO LARGE         00273000=00205000=
                    OR TOO SMALL.                                        00274000=00206000=
@@ -289,7 +289,7 @@ ERROR NUMBER  ROUTINE:ERROR MESSAGE                                     00025000
  295          FILEATTRIBUTEHANDLER:  FILE ATTRIBUTE MUST BE LEFT MOST   00288000=00211551=
                                      IN A LEFT PART LIST.               00289000=00211552=
  300          FILLSTMT:  THE IDENTIFIER FOLLOWING "FILL" IS NOT         00290000=00212000=
-                         AN ARRAY IDENTIFER.                            00291000=00213000=
+                         AN ARRAY IDENTIFIER.                           00291000=00213000=
  301          FILLSTMT:  MISSING "WITH" IN FILL STATEMENT.              00292000=00214000=
  302          FILLSTMT:  IMPROPER FILL ELEMENT.                         00293000=00215000=
  303          FILLSTMT:  NON-OCTAL CHARACTER IN OCTAL FILL.             00294000=00216000=
@@ -454,7 +454,7 @@ INTEGER                                                                 00505000
                    SYNTX ERR AT EOJ IF THIS IS NON-ZERO. MUST BE @R+25; 00520000=00502000=
 INTEGER                                                                 00525000=00503000=
   SAVETIME;        COMMENT SAVE-FACTOR FOR CODE FILE, GIVEN BY MCP.     00530000          
-                   IF COMPILER & GO =0.FOR SYNTAX, =-1. MUST BE AT R+26;00540000=00504000=
+                   IF COMPILE & GO =0, FOR SYNTAX, =-1. MUST BE AT R+26;00540000=00504000=
 INTEGER                                                                 00545000=00504100=
   CARDNUMBER;       % SEQ # OF CARD BEING PROCESSED.                    00550000=00504100=
 INTEGER                                                                 00555000=00504150=
@@ -1025,8 +1025,9 @@ PROCEDURE STREAMTRANSFERCHRQQ(MBASE, SBASE, N);                         00800400
       SBASE[SREG]:= BREG;                                               00803800          
       KREG:= 0;                                                         00803900          
       SREG:= *+1;                                                       00804000          
-      IF NC > 0 THEN                                                    00804100          
-        BREG:= SBASE[SREG];                                             00804200          
+      IF NC < 8 THEN                    % RELOAD B IF PARTIAL WORD LEFT 00804100          
+        IF NC > 0 THEN                                                  00804150          
+          BREG:= SBASE[SREG];                                           00804200          
       END;                                                              00804300          
     END WHILE;                                                          00804400          
                                                                         00804500          
@@ -1087,8 +1088,9 @@ PROCEDURE STREAMSMEARLITQQ(SBASE, N, CHAR);                             00807600
       SBASE[SREG]:= BREG;                                               00810000          
       KREG:= 0;                                                         00810100          
       SREG:= *+1;                                                       00810200          
-      IF NC > 0 THEN                                                    00810300          
-        BREG:= SBASE[SREG];                                             00810400          
+      IF NC < 8 THEN                    % RELOAD B IF PARTIAL WORD LEFT 00810300          
+        IF NC > 0 THEN                                                  00810350          
+          BREG:= SBASE[SREG];                                           00810400          
       END;                                                              00810500          
     END WHILE;                                                          00810600          
                                                                         00810700          
@@ -1128,8 +1130,9 @@ PROCEDURE STREAMTRANSFERLITQQ(SBASE, N, S);                             00811500
       SBASE[SREG]:= BREG;                                               00814100          
       KREG:= 0;                                                         00814200          
       SREG:= *+1;                                                       00814300          
-      IF NC > 0 THEN                                                    00814400          
-        BREG:= SBASE[SREG];                                             00814500          
+      IF NC < 8 THEN                    % RELOAD B IF PARTIAL WORD LEFT 00814400          
+        IF NC > 0 THEN                                                  00814450          
+          BREG:= SBASE[SREG];                                           00814500          
       END;                                                              00814600          
     END WHILE;                                                          00814700          
                                                                         00814800          
@@ -1256,8 +1259,9 @@ PROCEDURE STREAMTRANSFERFILLQQ(SBASE, N);                               00824300
         SBASE[SREG]:= BREG;                                             00826900          
         KREG:= 0;                                                       00827000          
         SREG:= *+1;                                                     00827100          
-        IF NC > 0 THEN                                                  00827200          
-          BREG:= SBASE[SREG];                                           00827300          
+        IF NC < 8 THEN                  % RELOAD B IF PARTIAL WORD LEFT 00827200          
+          IF NC > 0 THEN                                                00827250          
+            BREG:= SBASE[SREG];                                         00827300          
         END;                                                            00827400          
       END                                                               00827500          
     ELSE                                                                00827600          
@@ -1355,8 +1359,9 @@ PROCEDURE STREAMSETDBQQ(SBASE, N, TRUTH);                               00835600
         SBASE[SREG]:= BREG;                                             00838300          
         KREG:= 0;                                                       00838400          
         SREG:= *+1;                                                     00838500          
-        IF NC > 0 THEN                                                  00838600          
-          BREG:= SBASE[SREG];                                           00838700          
+        IF NC < 8 THEN                  % RELOAD B IF PARTIAL WORD LEFT 00838600          
+          IF NC > 0 THEN                                                00838650          
+            BREG:= SBASE[SREG];                                         00838700          
         END;                                                            00838800          
       END;                                                              00838900          
     END WHILE;                                                          00839000          
@@ -1848,7 +1853,7 @@ COMMENT  IF A NEW COMPILER-DEFINED OPTION IS ADDED, CHANGE USEROPINX    01565000
     LISTPTOG      = OPTIONWORD.[LISTPBIT:1] #,                          01620000=01001290=
     MCPTOG        = OPTIONWORD.[MCPBIT:1] #,                            01625000=01001300=
     MERGETOG      = OPTIONWORD.[MERGEBIT:1] #,                          01630000=01001310=
-    NESTTOG       = OPTIONWORD.[NESTBIT:1] #,                           01635000=01001320=
+    NESTOG        = OPTIONWORD.[NESTBIT:1] #,                           01635000=01001320=
     NEWTOG        = OPTIONWORD.[NEWBIT:1] #,                            01640000=01001330=
     NEWINCL       = OPTIONWORD.[NEWINCLBIT:1] #,                        01645000=01001340=
     OMITTING      = OPTIONWORD.[OMITBIT:1] #,                           01650000=01001350=
@@ -2036,7 +2041,7 @@ XLUN;                  % THIS VARIABLE CONTROLS THE ASSIGNING OF        02295000
               OR RESERVED WORD. THE FIRST WORD OF A GIVEN ENTRY IS      02575000=01009000=
               THE INTERNAL CODE (OR ELBAT WORD AS IT IS USUALLY         02580000=01010000=
               CALLED). THE SECOND WORD CONTAINS THE FORWARD BIT (IN     02585000=01011000=
-              [46:1]) FOR PROCEDURES. THE LINK TO PREVIOUS ENTRY (IN    02590000=01012000=
+              [46:1]) FOR PROCEDURES, THE LINK TO PREVIOUS ENTRY (IN    02590000=01012000=
               [43:8]). THE NUMBER OF CHARACTORS IN THE ALPHA REPRESENTA-02595000=01013000=
               TION (IN [35:6]), AND THE FIRST 5 CHARACTERS OF ALPHA.    02600000=01014000=
               SUCCEDING WORDS CONTAIN THE REMAINING CHARACTORS OF ALPHA,02605000=01015000=
@@ -2050,7 +2055,7 @@ XLUN;                  % THIS VARIABLE CONTROLS THE ASSIGNING OF        02295000
               ALPHA, FILLED IN WITH ZEROS FROM THE RIGHT IF NEEDED.     02645000=01023000=
               THIS NUMBER IS CALLED THE SCRAMBLE NUMBER OR INDEX.       02650000=01024000=
               THE FIRST ROW OF INFO IS USED FOR OTHER PURPOSES.  THE    02655000=01025000=
-              RESERVED WORDS OCCUPY THE SECOND ROW, IT IS FILLED DURING 02660000=01026000=
+              RESERVED WORDS OCCUPY THE SECOND ROW. IT IS FILLED DURING 02660000=01026000=
               INITIALIZATION;                                           02665000=01027000=
                                                                         02670000=01028000=
 COMMENT              INFO FORMAT                                        02675000=01028000=
@@ -2065,7 +2070,7 @@ COMMENT              INFO FORMAT                                        02675000
      THE LINK FIELD OF THE ELBAT WORD IN INFO IS DIFFERENT FROM         02720000=01037000=
      THAT OF THE ENTRY IN ELBAT PUT IN BY TABLE.THE ENTRY IN ELBAT      02725000=01038000=
      POINTS TO ITS OWN LOCATION (RELATIVE) IN INFO.                     02730000=01039000=
-     THE LINK IN INFO POINTS TO THE PREVIOUS ENTRY E.G.. THE            02735000=01040000=
+     THE LINK IN INFO POINTS TO THE PREVIOUS ENTRY E.G., THE            02735000=01040000=
      LINK FROM STACKHEAD WHICH THE CURRENT ENTRY REPLACED.              02740000=01041000=
      FOR SIMPLICITY,I WILL CONSIDER INFO TO BE A ONE DIMENSIONAL        02745000=01042000=
      ARRAY,SO THAT THE BREAKING UP OF THE LINKS INTO ROW AND COLUMN     02750000=01043000=
@@ -2081,11 +2086,11 @@ COMMENT              INFO FORMAT                                        02675000
       THEN  A IS ENTERED AS FOLLOWS:(ASSUME AN ELBAT WORD T HAS BEEN    02800000=01053000=
                                      CONSTRUCTED FOR A)                 02805000=01054000=
                          T.LINK:= S[L]. (WHICH IS ZERO AT FIRST).       02810000=01055000=
-    INFO[NEXTINFO]:=T,    S[L]:=NEXTINFO.                               02815000=01056000=
+    INFO[NEXTINFO]:=T.    S[L]:=NEXTINFO.                               02815000=01056000=
                          NEXTINFO:=NEXTINFO+NUMBER OF WORDS IN THIS     02820000=01057000=
                                   ENTRY.                                02825000=01058000=
        NOW  S[L] POINTS TO THE ENTRY FOR A IN INFO AND THE ENTRY        02830000=01059000=
-                 ITSELF CONTAINS THE STOP FLAG ZERO                     02835000=01060000=
+                 ITSELF CONTAINS THE STOP FLAG ZERO.                    02835000=01060000=
       B IS ENTERED SIMILARLY TO A.                                      02840000=01061000=
        NOW  S[L] POINTS TO THE ENTRY FOR B AND IT POINTS TO THE         02845000=01062000=
                                ENTRY FOR A.                             02850000=01063000=
@@ -2097,9 +2102,9 @@ COMMENT              INFO FORMAT                                        02675000
                    FORWARD.IT IS RESET AT THE TIME OF ITS ACTUAL        02880000=01069000=
                    FULL DECLARATION.                                    02885000=01070000=
       PURPT =[43:8] THIS GIVES A DECREMENT WHICH GIVES THE RELATIVE     02890000=01071000=
-                   INDEX TO THE PREVIOUS INFO ENTRY WHEN SUBSTRACTED    02895000=01072000=
+                   INDEX TO THE PREVIOUS INFO ENTRY WHEN SUBTRACTED     02895000=01072000=
                    FROM THE CURRENT ENTRY INDEX.                        02900000=01073000=
-     [35:6] TELLS THE NUMBER OF CHARACTERS IN THE ENTRY,(<64)           02905000=01074000=
+     [35:6] TELLS THE NUMBER OF CHARACTERS IN THE ENTRY.(<64)           02905000=01074000=
      [29:30] CONTAINS THE FIRST FIVE ALPHA CHARACTERS OF THE ENTRY      02910000=01075000=
              AND SUCCEEDING WORDS CONTAIN ALL OVERFLOW IF NEEDED.       02915000=01076000=
              THESE WORDS CONTAIN 8 CHARACTERS EACH,LEFT JUSTIFIED.      02920000=01077000=
@@ -2109,7 +2114,7 @@ COMMENT              INFO FORMAT                                        02675000
          I+1 =     OP6SYMBO     (P DEPENDS ON PREVIOUS ENTRY)           02940000=01081000=
          I+2 =     L                                                    02945000=01082000=
          I+3 =     ELBATWRD      (MADE FOR X)                           02950000=01083000=
-         I+4 =     O31X                                                 02955000=01084000=
+         I+4 =     031X                                                 02955000=01084000=
        THIS SHOWS THAT INFO[I-P] WOULD POINT TO THE BEGINNING OF        02960000=01085000=
        THE ENTRY BEFORE SYMBOL, AND                                     02965000=01086000=
        INFO[I+3-3] POINTS TO THE ENTRY FOR SYMBOL.                      02970000=01087000=
@@ -2138,7 +2143,7 @@ COMMENT              INFO FORMAT                                        02675000
                    TO BE ADDED TO THE SUBSCRIPT IN INDEXING OR          03085000=01110000=
                    SUBTRACTED.                                          03090000=01111000=
          [12:11] =11 BIT ADDRESS OF LOWER BOUND,IF THE LOWER BOUND      03095000=01112000=
-                   REQUIRES A PRT OR STACK CELL.OTHERWISE THE BIT       03100000=01113000=
+                   REQUIRES A PRT OR STACK CELL,OTHERWISE THE BIT       03100000=01113000=
                    35 IS IGNORED AND THE NEXT TEN BITS([11:10])         03105000=01114000=
                    REPRESENT THE ACTUAL VALUE OF THE LOWER BOUND        03110000=01115000=
           [1:2] =00 OR 10  DEPENDING ON WHETHER THE [12:11] VALUE       03115000=01116000=
@@ -2147,7 +2152,7 @@ COMMENT              INFO FORMAT                                        02675000
       THE FIRST WORD OF ADDITIONAL INFO CONTAINS THE NUMBER OF          03130000=01119000=
       PARAMETERS [7:8]                                                  03135000=01120000=
       IF A STREAM PROCEDURE THEN THIS WORD CONTAINS ALSO IN             03140000=01121000=
-      [34:11] ENDING PRT ADDRESS FOR LABELS.                            03145000=01122000=
+      [34:11] ENDING PRT ADDRESS FOR LABELS,                            03145000=01122000=
       [40:6]  NO OF LABELS REQUIRING PRT ADDRESSES, AND [46:6] NUMBER   03150000=01123000=
       OF LOCALS.                                                        03155000=01124000=
       SUCCEEDING WORDS (ONE FOR EACH FORMAL PARAMETER,IN ORDER          03160000=01125000=
@@ -2189,7 +2194,7 @@ COMMENT              INFO FORMAT                                        02675000
     LINKR         = [12:5] #,                                           03340000=01156000=
     LINKC         = [7:8] #;                                            03345000=01156000=
                                                                         03350000=01157000=
- COMMENT THESE DEFINES ARE USED TO PICK APART THE ELBAT WORD,           03355000=01157000=
+ COMMENT THESE DEFINES ARE USED TO PICK APART THE ELBAT WORD.           03355000=01157000=
              MON IS THE BIT WHICH IS TURNED ON IF:                      03360000=01158000=
                  1. THE QUANTITY IS TO BE MONITORED, OR                 03365000=01158100=
                  2. THE QUANTITY IS A PARAMETRIC DEFINE AND NOT         03370000=01158200=
@@ -2198,7 +2203,7 @@ COMMENT              INFO FORMAT                                        02675000
                    QUANTITY.                                            03385000=01160000=
               FORMAL IS THE BIT WHICH IS ON IF THE QUANTITY IS A FORMAL 03390000=01161000=
                    PARAMETER.                                           03395000=01162000=
-              V0 IS THE VALUE-OWN BIT. IF FORMAL = 1 THEN THE BIT       03400000=01163000=
+              VO IS THE VALUE-OWN BIT. IF FORMAL = 1 THEN THE BIT       03400000=01163000=
                    DISTINGUISHES VALUE PARAMETERS FROM OTHERS. IF       03405000=01164000=
                    FORMAL = 0 THEN THE BIT DISTINGUISHES OWN VARIABLES  03410000=01165000=
                    FROM OTHERS.                                         03415000=01166000=
@@ -2214,7 +2219,7 @@ COMMENT              INFO FORMAT                                        02675000
                   NEEDED, RELATIVE TO THE LOCATION IN INFO.             03465000=01170000=
               LINK CONTAINS A LINK TO THE LOCATION IN INFO IF THE       03470000=01171000=
                   QUANTITY LIES IN ELBAT, OTHERWISE IT LINKS TO THE     03475000=01172000=
-                  NEXT ITEM IN THE STACK, ZERO IS AN END FLAG.          03480000=01173000=
+                  NEXT ITEM IN THE STACK. ZERO IS AN END FLAG.          03480000=01173000=
               LINKR AND LINKC ARE SUBDIVISIONS OF LINK.;                03485000=01174000=
                                                                         03490000=01175000=
  COMMENT  CLASSES FOR ALL QUANTITIES  -  OCTAL CLASS IS IN COMMENT;     03495000=01175000=
@@ -2227,8 +2232,8 @@ COMMENT              INFO FORMAT                                        02675000
     LISTID        = 04 #,        COMMENT 004;                           03530000=01181000=
     FRMTID        = 05 #,        COMMENT 005;                           03535000=01182000=
     SUPERFRMTID   = 06 #,        COMMENT 006;                           03540000=01183000=
-    FILEID        = 07 #,        COMMENT 006;                           03545000=01184000=
-    SUPERFILEID   = 08 #,        COMMENT 007;                           03550000=01185000=
+    FILEID        = 07 #,        COMMENT 007;                           03545000=01184000=
+    SUPERFILEID   = 08 #,        COMMENT 010;                           03550000=01185000=
     SWITCHID      = 09 #,        COMMENT 011;                           03555000=01186000=
     PROCID        = 10 #,        COMMENT 012;                           03560000=01187000=
     INTRNSICPROCID =                                                    03565000=01188000=
@@ -2262,7 +2267,7 @@ COMMENT              INFO FORMAT                                        02675000
     COMMENT   CLASSES FOR ALL DECLARATORS;                              03705000=01213000=
     DECLARATORS   = 35 #,        COMMENT 043;                           03710000=01214000=
                                                                         03715000=01215000=
-    COMMENT   CLASSES FOR STATEMENT BEGINNERS;                          03720000=01215000=
+    COMMENT   CLASSES FOR STATEMENT BEGINNERS                           03720000=01215000=
     READV         = 36 #,        COMMENT 044;                           03725000=01216000=
     WRITEV        = 37 #,        COMMENT 045;                           03730000=01217000=
     SPACEV        = 38 #,        COMMENT 046;                           03735000=01218000=
@@ -2373,8 +2378,8 @@ COMMENT              INFO FORMAT                                        02675000
   ALPHA ARRAY                                                           04260000=01304000=
     ACCUM[0:10];                                                        04265000=01304000=
     COMMENT ACCUM HOLDS THE ALPHA AND CHARACTER COUNT OF THE LAST       04270000=01305000=
-              SCANNER ITEM IN A FORM COMPATIBLE WITH ITS APPEARANCE     04275000=01306000=
-              IN INFO. THAT IS ACCUM[1] = 00NAAAAA, ACCUM[I] , I> 1.    04280000=01307000=
+              SCANNED ITEM IN A FORM COMPATIBLE WITH ITS APPEARANCE     04275000=01306000=
+              IN INFO. THAT IS ACCUM[1] = 00NAAAAA, ACCUM[I] , I> 1,    04280000=01307000=
               HAS ANY ADDITIONAL CHARACTERS. ACCUM[0] IS USED FOR       04285000=01308000=
               THE ELBAT WORD BY THE ENTER ROUTINES;                     04290000=01309000=
   ARRAY                                                                 04295000=01310000=
@@ -2427,7 +2432,7 @@ COMMENT              INFO FORMAT                                        02675000
   ARRAY REFERENCE                                                       04540000          
     SBUFF[0];   % CURRENT SOURCE INPUT BUFFER                           04540100          
     COMMENT FCR CONTAINS ABSOLUTE ADDRESS OF THE FIRST CHARACTOR OF     04545000=01332000=
-              THE CARD IMAGE CURRENTLY BEING SCANNED. NCR THE ADDRESS   04550000=01333000=
+              THE CARD IMAGE CURRENTLY BEING SCANNED, NCR THE ADDRESS   04550000=01333000=
               OF THE NEXT CHARACTOR TO BE SCANNED, AND LCR THE LAST     04555000=01334000=
               CHARACTOR (COLUMN 73). CLCR CONTAIN ADDRESS OF            04560000=01335000=
               THE LAST CHARACTER IN THE CARD BUFFERS;                   04565000=01336000=
@@ -2556,18 +2561,18 @@ COMMENT THE CONTENTS OF RELATIVE DISK SEGMENT ZERO OF THE CODE FILE ARE:04950000
     COMMENT THESE VARIABLES ARE USED FOR TEMPORARY STORAGE;             05200000=01385000=
   INTEGER                                                               05205000=01386000=
     RESULT;                                                             05210000=01386000=
-    COMMENT THIS VARIALE IS USED FOR A DUAL PURPOSE BY THE TABLE        05215000=01387000=
+    COMMENT THIS VARIABLE IS USED FOR A DUAL PURPOSE BY THE TABLE       05215000=01387000=
               ROUTINE AND THE SCANNER.  THE TABLE ROUTINE USES THIS     05220000=01388000=
               VARIABLE TO SPECIFY SCANNER OPERATIONS AND THE SCANNER    05225000=01389000=
               USES IT TO INFORM THE TABLE ROUTINE OF THE ACTION TAKEN;  05230000=01390000=
   INTEGER                                                               05235000=01391000=
     LASTUSED;                                                           05240000=01391000=
     COMMENT LASTUSED IS A VARIABLE THAT CONTROLS THE ACTION OF          05245000=01392000=
-              READACARD. THE ROUTINE WHICH READS CARDS AND INITIALIZES  05250000=01393000=
+              READACARD, THE ROUTINE WHICH READS CARDS AND INITIALIZES  05250000=01393000=
               OR PREPARES THE CARD FOR THE SCANNER.                     05255000=01394000=
           LASTUSED  LAST CARD READ FROM                                 05260000=01394500=
           --------  -------------------                                 05265000=01394600=
-              1     CARD READ ONLY, NO TAPE.                            05270000=01395000=
+              1     CARD READER ONLY, NO TAPE.                          05270000=01395000=
               2     CARD READER, TAPE AND CARD MERGE.                   05275000=01396000=
               3     TAPE, TAPE AND CARD MERGE.                          05280000=01397000=
               4     INITIALIZATION ONLY, CARD ONLY.                     05285000=01398000=
@@ -2576,7 +2581,7 @@ COMMENT THE CONTENTS OF RELATIVE DISK SEGMENT ZERO OF THE CODE FILE ARE:04950000
  ;                                                                      05300000=01398300=
   BOOLEAN                                                               05305000=01399000=
     LINKTOG;                                                            05310000=01399000=
-    COMMENT LINKTOG IS FALSE IF THE LAST THING EMITTED IS A LINK.       05315000=01400000=
+    COMMENT LINKTOG IS FALSE IF THE LAST THING EMITTED IS A LINK,       05315000=01400000=
               OTHERWISE IT IS TRUE;                                     05320000=01401000=
   INTEGER                                                               05325000=01402000=
     LEVEL,                                                              05330000=01402000=
@@ -2584,7 +2589,7 @@ COMMENT THE CONTENTS OF RELATIVE DISK SEGMENT ZERO OF THE CODE FILE ARE:04950000
     SUBLEVEL,                                                           05340000=01402000=
     MODE;                                                               05345000=01402000=
     COMMENT THESE VARIABLES ARE MAINTAINED BY THE BLOCK ROUTINE TO KEEP 05350000=01403000=
-              TRACK OF LEVELS OF DEFINITION.  LEVEL GIVES THE DEPTH OF  05355000=01404000=
+              TRACK OF LEVELS OF DEFINITION,  LEVEL GIVES THE DEPTH OF  05355000=01404000=
               NESTING IN DEFINITION. WHERE EACH BLOCK AND EACH PROCEDURE05360000=01405000=
               GIVES RISE TO A NEW LEVEL.  SUBLEVEL GIVES THE LEVEL OF   05365000=01406000=
               THE PARAMETERS OF THE PROCEDURE CURRENTLY BEING COMPILED. 05370000=01407000=
@@ -2628,13 +2633,13 @@ COMMENT THE CONTENTS OF RELATIVE DISK SEGMENT ZERO OF THE CODE FILE ARE:04950000
     FA            = 5 #,                                                05560000=01420500=
     FI            = 6 #,                                                05565000=01420500=
     FIO           = 7 #;                                                05570000=01420500=
-    COMMENT THESE DEFINES ARE USED WHEN CALLING THE VARIABLE ROUTINE,   05575000=01421000=
+    COMMENT THESE DEFINES ARE USED WHEN CALLING THE VARIABLE ROUTINE.   05575000=01421000=
               THEIR PURPOSES IS TO TELL VARIABLE WHO IS CALLING.        05580000=01422000=
               THEIR MEANING IS:                                         05585000=01423000=
-              FS MEANS FROM STATEMENT.                                  05590000=01424000=
-              FP MEANS FROM PRIMARY.                                    05595000=01425000=
-              FL MEANS FROM LIST.                                       05600000=01426000=
-              FR MEANS FROM FOR.                                        05605000=01427000=
+              FS MEANS FROM STATEMENT,                                  05590000=01424000=
+              FP MEANS FROM PRIMARY,                                    05595000=01425000=
+              FL MEANS FROM LIST,                                       05600000=01426000=
+              FR MEANS FROM FOR,                                        05605000=01427000=
               FIO MEANS FROM IODEC.                                     05610000=01427250=
               FA MEANS FROM ACTUALPARAPART.                             05615000=01427500=
               FI MEANS FUNNY CALL FROM STATUS (IMPFUN);                 05620000=01427600=
@@ -2803,7 +2808,7 @@ COMMENT THE CONTENTS OF RELATIVE DISK SEGMENT ZERO OF THE CODE FILE ARE:04950000
     CODE(KIND=DISK, MAXRECSIZE=30, FRAMESIZE=48,                        06475000=01556200=
          AREAS=20, AREASIZE=CHUNK, FILEUSE=OUT, PROTECTION=SAVE);       06475100          
   FILE                                                                  06480000=01557000=
-    CARD(KIND=READER, DEPENDENTSPECS, FILEUSE=IN);                      06485000=01557000=
+    CARD(KIND=DISK, DEPENDENTSPECS, FILEUSE=IN);                        06485000=01557000=
   FILE                                                                  06490000=01559000=
     LINE(KIND=PRINTER, MAXRECSIZE=20, FRAMESIZE=48, FILEUSE=OUT);       06492000          
   ARRAY                                                                 06495000=01559010=
@@ -2928,8 +2933,8 @@ COMMENT THE CONTENTS OF RELATIVE DISK SEGMENT ZERO OF THE CODE FILE ARE:04950000
     PURPT         = [43:8] #,                                           07690000=01628000=
     SECRET        = 2 #;                                                07695000=01628000=
                                                                         07700000=01629000=
- COMMENT THESE DEFINES GIVE THE NAMES OF THE WORD MODE OPERATORS.   THE 07705000=01629000=
-    NUMBERS REFERS TO THE APPROPRIATE SECTION OF THE PRODUCT SPECS.  THE07710000=01630000=
+ COMMENT THESE DEFINES GIVE THE NAMES OF THE WORD MODE OPERATORS.  THE  07705000=01629000=
+    NUMBERS REFER TO THE APPROPRIATE SECTION OF THE PRODUCT SPECS.  THE 07710000=01630000=
     FULL NAME IS ALSO GIVEN;                                            07715000=01631000=
  DEFINE                                                                 07720000=01632000=
    ADD =  16#,    COMMENT (0101) 7.4.2.1    ADD;                        07725000=01633000=
@@ -3526,14 +3531,14 @@ COMMENT  EQUAL COMPARES COUNT CHARACTERS LOCATED AT A AND B FOR         12665000
     BEGIN                                                               12785000=02066500=
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%12790000=02067000=
 COMMENT  "SCNN" IS THE STREAM PROCEDURE WHICH DOES THE ACTUAL SCANNING. 12795000=02067000=
-         IT IS DRIVEN BY A SMALL WORD MODE PROCEDURE CALLED "SCANNER".  12800000=02067500=
+         IT IS DRIVEN BY A SMALL WORD MODE PROCEDURE CALLED "SCANNER",  12800000=02067500=
          WHICH CHECKS FOR A QUANTITY BEING BROKEN ACROSS A CARD. "SCNN" 12805000=02068000=
          IS CONTROLLED BY A VARIABLE CALLED "RESULT". "SCNN" ALSO       12810000=02068500=
-         INFORMS THE WORLD OF ITS ACTION BY MEANS OF THE SAME VARIABLE. 12815000=02069000=
+         INFORMS THE WORLD OF ITS ACTION BY MEANS OF THE SAME VARIABLE, 12815000=02069000=
          HENCE THE VARIABLE "RESULT" IS PASSED BY BOTH NAME AND VALUE.  12820000=02069500=
          THE MEANING OF "RESULT" AS INPUT IS:                           12825000=02070000=
             VALUE    MEANING                                            12830000=02070500=
-            =====    =========================================          12835000=02071000=
+            =====    ==========================================         12835000=02071000=
               0      INITIAL CODE - DEBLANK AND START TO FETCH THE      12840000=02071500=
                      NEXT QUANTITY.                                     12845000=02072000=
               1      CONTINUE BUILDING AN IDENTIFIER (INTERRUPTED BY    12850000=02072500=
@@ -3551,7 +3556,7 @@ COMMENT  "SCNN" IS THE STREAM PROCEDURE WHICH DOES THE ACTUAL SCANNING. 12795000
               7      DEBLANK ONLY.                                      12910000=02078500=
          THE MEANING OF "RESULT" AS OUTPUT IS:                          12915000=02079000=
             VALUE    MEANING                                            12920000=02079500=
-            =====    =======================================            12925000=02080000=
+            =====    ========================================           12925000=02080000=
               1      AN IDENTIFIER WAS BUILT.                           12930000=02080500=
               2      A SPECIAL CHARACTER WAS OBTAINED.                  12935000=02081000=
               3      A NUMBER (INTEGER) WAS BUILT.                      12940000=02081500=
@@ -3685,12 +3690,12 @@ COMMENT  IF WE ARRIVE AT ERROR WE HAVE MORE THAN 63 CHARACTERS          13505000
         END;                                                            13535500          
       GO ERROR;                                                         13540000=02119000=
   EXIT:                                                                 13545000=02120000=
-      ST1:= TALLY;   % "ST1" CONTAINS THE NUMBER OF CHARACTERS WE ARE   13550000=02120000=
+      ST1:= TALLY;   % "ST1" CONTAINS NUMBER OF CHARACTERS WE ARE       13550000=02120000=
                      % GOING TO MOVE INTO THE "ACCUMULATOR".            13555000=02120500=
       STREAMINCTALLY(COUNTV);                                           13560000=02121000=
       ST2:= TALLY;                                                      13565000=02121000=
       COUNT:= ST2;                                                      13570000=02121500=
-COMMENT  THIS CODE UPDATED "COUNT';                                     13590000=02122000=
+COMMENT  THIS CODE UPDATED "COUNT";                                     13590000=02122000=
       STREAMSETDI(ACCUM, AX);                                           13595000=02122500=
       STREAMSETLOCSI(ST2);                                              13600000=02122500=
       STREAMSKIPSI(+5);                                                 13600100=02122500=
@@ -3713,7 +3718,7 @@ L:  SCNN(SBUFF, NCR, COUNT, ACCUM, 1, 63-COUNT, RESULT, RESULT, COUNT,  13700000
     IF NCR = LCR THEN                                                   13710000=02129500=
       BEGIN                                                             13715000=02130000=
       READACARD;                                                        13720000=02130500=
-      GO TO L;    % GO DIRECTLY TO L, DO NOT PASS GO.                   13760000=02135500=
+      GO TO L;    % GO DIRECTLY TO L, DO NOT PASS GO,                   13760000=02135500=
                   % DO NOT COLLECT $200.                                13765000=02136000=
       END;                                                              13770000=02136500=
     END SCANNER;                                                        13775000=02137000=
@@ -3805,7 +3810,7 @@ COMMENT  COMPARE COMPARES SEQUENCE NUMBERS OF TAPE AND CARD. IF         14085000
       IF STREAMCOMPAREEQL(8) THEN                                       14165000=02189500=
         TALLY:= 2                                                       14170000=02189750=
       END;                                                              14175000=02189750=
-    COMPARE:= TALLY;                                                    14180000=02190000=
+    COMPARE:= TALLY                                                     14180000=02190000=
     END COMPARE;                                                        14185000=02190250=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%14186000          
   PROCEDURE OUTPUTSOURCE;                                               14190000=02190500=
@@ -3968,7 +3973,7 @@ COMPAR:                                                                 15540000
     ;                                                                   15545000=02224500=
 EXIT:                                                                   15565000=02225250=
     NCR:= FCR:= LCR-9;                 COMMENT  SETS UP NCR AND FCR;    15570000=02225250=
-    IF CHECKTOG AND EXAMIN(SBUFF, FCR) ^= 6"$" THEN %$=CARDS DON"T COUNT15585000=02225750=
+    IF CHECKTOG AND EXAMIN(SBUFF, FCR) ^= 6"$" THEN %$-CARDS DON"T COUNT15585000=02225750=
       IF COMPARE(INFO[LASTSEQROW,*], LASTSEQUENCE, SBUFF, LCR) = 1 THEN 15590000=02226000=
         IF SEQERRTOG THEN                                               15595000=02226250=
           BEGIN                                                         15600000=02226250=
@@ -4193,7 +4198,7 @@ COMMENT  DOLLARCARD HANDLES THE COMPILER CONTROL CARDS.                 17235000
          THE NUMBER OF USER DEFINED OPTIONS ALLOWED CAN BE              17330000=02301000=
          CHANGED BY CHANGING THE DEFINE "OPARSIZE".                     17335000=02302000=
          THE VARIABLE "OPTIONWORD" CONTAINS THE CURRENT TRUE OR FALSE   17340000=02303000=
-         SETTING OF ALL THE COMPILER-DEFINED OPTIONS, ONE BIT PER       17345000=02304000=
+         SETTING OF ALL OF THE COMPILER-DEFINED OPTIONS, ONE BIT PER    17345000=02304000=
          OPTION.                                                        17350000=02305000=
  ;                                                                      17355000=02306000=
   BOOLEAN PROCEDURE FINDOPTION(BIT);                                    17360000=02307000=
@@ -4265,7 +4270,7 @@ FOUND:                                                                  17435000
         OPTIONWORD:= OPTIONWORD & TRUE[XBIT:1];                         17685000=02335000=
       GO ALONG;                                                         17690000=02336000=
   XMODE2:                                                               17695000=02337000=
-         % RESET.                                                       17700000=02337000=
+         % RESET;                                                       17700000=02337000=
       OPTIONS[OPINX+1]:= REAL(FALSE & SETTING[46:45:46]);               17705000=02338000=
       IF XBIT < USEROPINX THEN                                          17710000=02339000=
         OPTIONWORD:= OPTIONWORD & FALSE[XBIT:1];                        17715000=02339000=
@@ -4614,8 +4619,9 @@ WHATISIT:                                                               19710000
         BEGIN                                                           19765000=02589000=
         SKAN;                                                           19770000=02590000=
         IF RESULT = 3 THEN                                              19775000=02591000=
-          ADDVALUE:= CONV(ACCUM, 1, 0, ACCUM[1].[35:6]);                19780000=02592000=
-        FLAG(600);       % NUMBER EXPECTED.                             19785000=02593000=
+          ADDVALUE:= CONV(ACCUM, 1, 0, ACCUM[1].[35:6])                 19780000=02592000=
+        ELSE                                                            19784000=02593000=
+          FLAG(600);  % NUMBER EXPECTED.                                19785000=02593000=
         END;                                                            19790000=02594000=
       GO SKANAGAIN;                                                     19795000=02595000=
       END;                                                              19800000=02596000=
@@ -4642,10 +4648,10 @@ COMMENT  TABLE IS THE ROUTINE THAT MOST CODE IN THE COMPILER            19895000
        THE RESULT RETURNED IS THE CLASS OF THE ITEM DESIRED.            19905000=02607000=
        TABLE MAINTAINS THE VARIABLES I AND NXTELBT AND THE ARRAY        19910000=02608000=
        ELBAT.   ELBAT AND I ARE PRINCIPAL VARIABLES USED FOR            19915000=02609000=
-       COMMUNICATION BETWEEN TABLE AND THE OUTSIDE WORLD.  NXTELBT      19920000=02610000=
-       IS ALMOST EXCLUSIVELY USED BY TABLE.  ALTHOUGH AN OCCASION-      19925000=02611000=
+       COMUNICATION BETWEEN TABLE AND THE OUTSIDE WORLD.  NXTELBT       19920000=02610000=
+       IS ALMOST EXCLUSIVELY USED BY TABLE, ALTHOUGH AN OCCASION-       19925000=02611000=
        AL OTHER USE IS MADE IN ORDER TO FORGET THAT SOMETHING WAS       19930000=02612000=
-       SCANNED.  (SEE. FOR EXAMPLE, COMPOUNDTAIL). FOR FURTHER          19935000=02613000=
+       SCANNED.  (SEE, FOR EXAMPLE, COMPOUNDTAIL). FOR FURTHER          19935000=02613000=
        GENERAL DISCUSSION SEE THE DECLARATION OF THESE VARIABLES.       19940000=02614000=
          THE PARAMETER P IS THE ACTUAL INDEX OF THE QUANTITY            19945000=02615000=
        DESIRED (USUALLY I-1,I, OR I+1).                                 19950000=02616000=
@@ -5386,7 +5392,7 @@ COMMENT  LOOK FOR BOOLEAN OPERATORS, THEN OPTIONS;                      23365000
       IF Q = 6"3AND00" THEN                                             23390000=02964500=
         ANDOP                                                           23395000=02965000=
       ELSE                                                              23400000=02965000=
-      IF Q = 6"3OR000" THEN                                             23405000=02965000=
+      IF Q = 6"2OR000" THEN                                             23405000=02965000=
         OROP                                                            23410000=02965500=
       ELSE                                                              23415000=02965500=
       IF Q = 6"3EQV00" THEN                                             23420000=02965500=
@@ -5828,7 +5834,7 @@ COMMENT#################################################################23780000
     EMIT(1 & OPERATOR[11:9:10]);                                        25600000=04007000=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%25605000=04007000=
                                                                         25610000=04008000=
- COMMENT EMITC IS PRIMARILY FOR USE BY STRMSTMT TO EMIT CHARACTER MODE  25615000=04008000=
+ COMMENT EMITC IS PRIMARILY FOR USE BY STRMSTMT TO EMIT CHARACTOR MODE  25615000=04008000=
               OPERATORS.  HOWEVER IT ALSO HANDLES DIA, DIB, AND TRB;    25620000=04009000=
   PROCEDURE EMITC(REPEAT, OPERATOR);                                    25625000=04010000=
   VALUE                                                                 25630000=04010000=
@@ -5966,7 +5972,7 @@ COMMENT#################################################################23780000
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%26290000=04079000=
                                                                         26295000=04080000=
  COMMENT ADJUST ADJUST L TO THE BEGINING OF A WORD AND FILLS IN THE     26300000=04080000=
-             INERVENING SPACE WITH NOPS, IT CHECKS STREAMTOG TO DECIDE  26305000=04081000=
+             INERVENING SPACE WITH NOPS. IT CHECKS STREAMTOG TO DECIDE  26305000=04081000=
              WHICH SORT OF NOP TO USE;                                  26310000=04082000=
   PROCEDURE ADJUST;                                                     26315000=04083000=
     BEGIN                                                               26320000=04084000=
@@ -6081,7 +6087,7 @@ COMMENT#################################################################23780000
     END;                                                                26765000=04138000=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%26766000          
     COMMENT   EMITWORD PLACES THE PARAMETER,"WORD",INTO EDOC. IF        26770000=04139000=
-              DEBUGGING IS REQUIRED. "L" AND "WORD" ARE OUTPUT ON       26775000=04140000=
+              DEBUGGING IS REQUIRED, "L" AND "WORD" ARE OUTPUT ON       26775000=04140000=
               THE  PRINTER FILE IN OCTAL FORMAT.     ;                  26780000=04141000=
   PROCEDURE EMITWORD(WORD);                                             26785000=04142000=
   VALUE                                                                 26790000=04142000=
@@ -6107,7 +6113,7 @@ COMMENT#################################################################23780000
     COMMENT CONSTANTCLEAN IS CALLED AFTER AN UNCONDITIONAL BRANCH HAS   26890000=04153000=
               BEEN EMITTED. IF ANY CONSTANTS HAVE BEEN ACCUMULATED BY   26895000=04154000=
               EMITNUM IN INFO[0,*], CONSTANTCLEAN WILL FIX  THE CHAIN   26900000=04155000=
-              OF  C-RELATIVE  OPDC S LEFT BY EMITNUM, IF  C-RELATIVE    26905000=04156000=
+              OF  C-RELATIVE  OPDC S LEFT BY EMITNUM. IF  C-RELATIVE    26905000=04156000=
               ADDRESSING IS IMPOSSIBLE (I.E. THE ADDRESS                26910000=04157000=
               IF GREATER THAN 127 WORDS) THEN THE CONSTANT ALONG WITH   26915000=04158000=
               THE 1ST  LINK OF THE OPDC CHAIN IS ENTERED IN INFO.       26920000=04159000=
@@ -6157,10 +6163,10 @@ COMMENT#################################################################23780000
       END;                                                              27140000=04190000=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%27145000=04190000=
     COMMENT   EMITNUM HANDLES THE EMISSION OF CODE FOR CONSTANTS,BOTH   27150000=04191000=
-                   EXPLICIT AND IMPLICIT, IN EVERY CASE,EMITNUM WILL    27155000=04192000=
+                   EXPLICIT AND IMPLICIT. IN EVERY CASE,EMITNUM WILL    27155000=04192000=
                    PRODUCE CODE TO GET THE DESIRED CONSTANT ON TOP OF   27160000=04193000=
                    THE STACK. IF THE NUMBER IS A LITERAL A SIMPLE LITC  27165000=04194000=
-                   SYLLABLE IS PRODUCED, HOWEVER,NON-LITERALS ARE KEPT  27170000=04195000=
+                   SYLLABLE IS PRODUCED. HOWEVER,NON-LITERALS ARE KEPT  27170000=04195000=
                    IN THE ZERO-TH ROW OF INFO WITH THE SYLLABLE         27175000=04196000=
                    POSITION,L. THE FIRST EMITNUM ON A PARTICULAR        27180000=04197000=
                    CONSTANT CAUSES THE VALUES OF L AND THE CONSTANT     27185000=04198000=
@@ -6252,7 +6258,7 @@ L:  SEARCH:= Q[I+1];                                                    27555000
     COMMENT   PACK IS A STREAM PROCEDURE WHICH INSERTS THE SYLLABLE     27615000=04265000=
               INTO THE EDOC ARRAY.   THE SPECIFIC ELEMENT OF EDOC       27620000=04266000=
               IS  PRECISILY = EDOC[(L DIV 4) DIV 128,(< DIV 4)MOD 128]  27625000=04267000=
-              SYLLABLE  POSITION=(L MOD 4 ). WHERE L IS THE SYLLABLE    27630000=04268000=
+              SYLLABLE  POSITION=(L MOD 4 ), WHERE L IS THE SYLLABLE    27630000=04268000=
               NUMBER RELATIVE TO THE BEGINNING OF THE SEGMENT;          27635000=04269000=
   PROCEDURE PACK(WORD, WX, POSITION, SYLLABLE);                         27640000=04270000=
   VALUE                                                                 27645000=04271000=
@@ -6325,7 +6331,7 @@ L:  SEARCH:= Q[I+1];                                                    27555000
     COMMENT   EMITD EMITS THE DIA,DIB,TRB SEQUENCE OF CODE. THE         27935000=04305000=
               PREVIOUS SETTING OF THE G-H AND K-V REGISTERS IS COMPARED 27940000=04306000=
               THE CURRENT . IF THE G-H,K-V OR BOTH ARE ALREADY SET THEN 27945000=04307000=
-              THE APPROIATE SYLLABLES(S) ARE OMITTED                    27950000=04308000=
+              THE APPROIATE SYLLABLE(S) ARE OMITTED                     27950000=04308000=
               IF 0 BITS ARE TO BE TRANSFERED THEN NO SYLLABLES ARE      27955000=04309000=
               EMITTED     ;                                             27960000=04310000=
   PROCEDURE EMITD(A, B, T);                                             27965000=04311000=
@@ -6628,7 +6634,7 @@ EXIT:                                                                   28625000
   LABEL                                                                 29430000=05101100=
     ENDOFITALL;                                                         29435000=05101100=
                                                                         29440000=05102000=
-COMMENT ERR. IS THE SAME AS FLAG EXCEPT THAT IT MAKES AN ATTEMPT TO     29445000=05102000=
+ COMMENT ERR,IS THE SAME AS FLAG EXCEPT THAT IT MAKES AN ATTEMPT TO     29445000=05102000=
               RECOVER FROM ERROR SITUATIONS BY SEARCHING FOR A          29450000=05103000=
               SEMICOLON, END, OR BEGIN;                                 29455000=05104000=
   PROCEDURE ERR(ERRNUM);                                                29460000=05105000=
@@ -6662,8 +6668,8 @@ COMMENT ERR. IS THE SAME AS FLAG EXCEPT THAT IT MAKES AN ATTEMPT TO     29445000
     ELBATWORD;                                                          29600000=05113000=
     BEGIN                                                               29605000=05114000=
     IF MODE >= 2 THEN                                                   29610000=05115000=
-      IF GTI1:= ELBATWORD.LVL >= FRSTLEVEL THEN                         29615000=05116000=
-        IF GTI1 < SUBLEVEL THEN                                         29620000=05117000=
+      IF GT1:= ELBATWORD.LVL >= FRSTLEVEL THEN                          29615000=05116000=
+        IF GT1 < SUBLEVEL THEN                                          29620000=05117000=
           IF ELBATWORD.[38:2] ^= 1 THEN                                 29625000=05119000=
             BEGIN                                                       29630000=05119000=
             FLAG(101);                                                  29635000=05119000=
@@ -7054,7 +7060,7 @@ EXIT:                                                                   31300000
     RANGE:= ELCLASS >= LOWER AND ELCLASS <= UPPER;                      31450000=05304000=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%31455000=05304000=
                                                                         31460000=05305000=
- COMMENT GET OBTAINS A SYLLABLE FROM EDOC. THE ARRAY INTO WHICH CODE IS 31465000=05305000=
+ COMMENT GET OBTAINS A SYLLABLE FROM EDOC, THE ARRAY INTO WHICH CODE IS 31465000=05305000=
               EMITTED;                                                  31470000=05306000=
   INTEGER PROCEDURE GET(L);                                             31475000=05307000=
   VALUE                                                                 31480000=05307000=
@@ -7476,9 +7482,9 @@ EXIT:                                                                   32735000
               COMPILED.  IT ALSO HANDLES THE CASE OF A CONCATENATE      33440000=06026000=
               WHERE ACTUALPARAPART CAUSED THE VARIABLE ROUTINE TO       33445000=06027000=
               COMPILE ONLY PART OF A PRIMARY.  MOST OF THE WORK OF      33450000=06028000=
-              SIMPARITH IS DONE BY ARITHCOMP. AN ARTIFIAL ROUTINE       33455000=06029000=
+              SIMPARITH IS DONE BY ARITHCOMP, AN ARTIFIAL ROUTINE       33455000=06029000=
               WHICH DOES THE HIERARCHY ANALYSIS USING RECURSION.        33460000=06030000=
-              ARITHOCMP IS A SUBROUTINE ONLY TO GET THIS RECURSION;     33465000=06031000=
+              ARITHCOMP IS A SUBROUTINE ONLY TO GET THIS RECURSION;     33465000=06031000=
   PROCEDURE SIMPARITH;                                                  33470000=06032000=
     BEGIN                                                               33475000=06033000=
     WHILE ELCLASS = AMPERSAND DO                                        33480000=06035000=
@@ -9819,7 +9825,7 @@ EXIT:                                                                   45090000
     END RELSESTMT;                                                      45095000=07472250=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%45100000=07472250=
                                                                         45105000=07481000=
- COMMENT  DOTSTMT HANDLES THE DO STATEMENT;                             45110000=07481000=
+ COMMENT  DOSTMT HANDLES THE DO STATEMENT;                              45110000=07481000=
   PROCEDURE DOSTMT;                                                     45115000=07482000=
     BEGIN                                                               45120000=07483000=
     INTEGER                                                             45125000=07483000=
@@ -11356,7 +11362,7 @@ EXIT:                                                                   50860000
           STMT;                                                         52710000=08163000=
         IF NUMLE THEN                                                   52715000=08165000=
           BEGIN                                                         52720000=08165000=
-          EMITV(RETURNSTORE+FOOT);                                      52725000=08166000=
+          EMITV(RETURNSTORE:= FOOT);                                    52725000=08166000=
           EMITO(BBW)                                                    52730000=08166000=
           END                                                           52735000=08167000=
         ELSE                                                            52740000=08167000=
@@ -13435,7 +13441,7 @@ COMMENT  START FILLING TABLES NEEDED TO COMPILE A PROGRAM;              62890000
       3"0737461304707100", 3"0751137556607072", 3"0761367512350710",    63005000=09080000=
       3"0771665435043073";                                              63010000=09080000=
                                                                         63015000=09081000=
-COMMENT  THIS IS THE FULL FOR THE SECOND ROW OF INFO:                   63020000=09081000=
+COMMENT  THIS IS THE FILL FOR THE SECOND ROW OF INFO:                   63020000=09081000=
               THE FIRST ITEMS ARE STREAM RESERVED WORDS,                63025000=09082000=
               THEN ORDINARY RESERVED WORDS,                             63030000=09083000=
               THEN INTRINSIC FUNCTIONS;                                 63035000=09084000=
@@ -18667,7 +18673,7 @@ COMMENT  201  VARIABLE- A PARTIAL WORD DESIGNATOR IS NOT THE          * 88950000
                            IF FIRST SUBSCRIPT THEN VN ELSE CDC,EXP,     89220000=15176000=
                              XCH,~.                                     89225000=15177000=
                       6. ADD THE SEQUENCE:                              89230000=15178000=
-                           IF FIRST SUBSCRIPT THEN VN ELSE CDC,DUP,LOD. 89235000=15179000=
+                           IF FIRST SUBSCRIPT THEN VN ELSE CDC,DUP,LOD, 89235000=15179000=
                              EXP,T, XCH,~.                              89240000=15180000=
               EXP,T,~,ZEROL,ETC. HAVE SAME MEANINGS AS DEFINED IN       89245000=15181000=
               SIMPLE VARIABLE BLOCK.                                ;   89250000=15182000=
@@ -18811,7 +18817,7 @@ COMMENT  ****  MONITOR  FUNCTION M1  GOES  HERE ;                       89760000
             END;                                                        89940000=15256000=
                                                                         89945000=15257000=
 COMMENT  203  VARIABLE- THE NUMBER OF SUBSCRIPTS USED IN A ROW        * 89950000=15257000=
-                        ROW DESIGNATOR  DOES NOT MATCH THE ARRAY      * 89955000=15258000=
+                        ROW DESIGNATER  DOES NOT MATCH THE ARRAY      * 89955000=15258000=
                         DECLARATION.                                  *;89960000=15259000=
           IF STEPI ^= RTBRKET THEN                                      89965000=15260000=
             BEGIN                                                       89970000=15261000=
@@ -19202,7 +19208,7 @@ COMMENT THIS SECTION GENERATES CODE FOR STREAM PROCEDURES;              91075000
               ARE FIXED BY FAKING TOTOS INTO COMPILING THE REQUIRED     91900000=16111000=
               JUMPS.                                                    91905000=16112000=
               FINALLY THE BNS IS FIXED,IF REQUIRED,AND NEST LEVEL       91910000=16113000=
-              AND JOINFO RESOTRED TO THEIR ORIGINAL VALUES.  ;          91915000=16114000=
+              AND JOINFO RESTORED TO THEIR ORIGINAL VALUES.  ;          91915000=16114000=
     PROCEDURE NESTS;                                                    91920000=16115000=
       BEGIN                                                             91925000=16116000=
       LABEL                                                             91930000=16117000=
@@ -19297,7 +19303,7 @@ COMMENT THIS SECTION GENERATES CODE FOR STREAM PROCEDURES;              91075000
               FIRST THE TEST IS COMPILED. NOTE THAT IN THE              92375000=16179000=
               CONSTRUCTS  "SC RELOP DC" AND  "SC RELOP STRING" THAT     92380000=16180000=
               THE SYLLABLE EMITTED IS FETCHED FROM ONE OF TWO FIELDS    92385000=16181000=
-              IN THE ELBAT WORD FOR THE RELATIONAL OPERATOR, OTHERWISE  92390000=16182000=
+              IN THE ELBAT WORD FOR THE RELATIONAL OPERATOR. OTHERWISE  92390000=16182000=
               THE CODE IS EMITTED STRAIGHTAWAY.                         92395000=16183000=
               A TEST IS MADE TO SEE WHETHER THE STATEMENT AFTER THE     92400000=16184000=
               "THEN" COULD POSSIBLY BE LONGER THAN 63 SYLLABLES,AND IF  92405000=16185000=
@@ -19437,7 +19443,7 @@ COMMENT THIS SECTION GENERATES CODE FOR STREAM PROCEDURES;              91075000
               GO TOS IN THE CASE OF FORWARD JUMPS.                      93075000=16245000=
               FINALLY, IF THE NEST LEVEL IS DEFINED THEN IT IS CHECKED  93080000=16246000=
               AGAINST THE CURRENT LEVEL MINUS THE NUMBER OF LEVELS TO   93085000=16247000=
-              BE JUMPED OUT, OTHERWISE,NEST LEVEL IS DEFINED.  ;        93090000=16248000=
+              BE JUMPED OUT. OTHERWISE,NEST LEVEL IS DEFINED.  ;        93090000=16248000=
     PROCEDURE GOTOS;                                                    93095000=16249000=
       BEGIN                                                             93100000=16250000=
       LABEL                                                             93105000=16251000=
@@ -19503,11 +19509,11 @@ COMMENT THIS SECTION GENERATES CODE FOR STREAM PROCEDURES;              91075000
               THE VARIABLE "INDEX" IS COMPUTED,DEPENDING UPON WHICH     93405000=16297000=
               CASE EXISTS,SUCH THAT ARRAY ELEMENT "MACRO[INDEX]"CONTAINS93410000=16298000=
               THE CODE TO BE EMITTED.                                   93415000=16299000=
-              EACH ELEMENT OF MACRO HAS  1-3 SYLLABES ORDERED FROM      93420000=16300000=
+              EACH ELEMENT OF MACRO HAS  1-3 SYLLABLES ORDERED FROM     93420000=16300000=
               RIGHT TO LEFT, UNUSED SYLLABLES MUST = 0.   EACH MACRO    93425000=16301000=
               MAY REQUIRE AT MOST ONE REPEAT PART.                      93430000=16302000=
               IN THIS PROCEDURE,INDEXS,THE VARIABLE "ADDR" CONTAINS THE 93435000=16303000=
-              PROPER REPEAT PART BY THE TIME THE LABEL "GENERATE' IS    93440000=16304000=
+              PROPER REPEAT PART BY THE TIME THE LABEL "GENERATE" IS    93440000=16304000=
               ENCOUNTERED. THE SYLLABLES ARE FETCHED FROM MACRO[TYPE]   93445000=16305000=
               ONE AT A TIME AND IF THE REPEAT PART ^= 0 THEN"ADDR" IS   93450000=16306000=
               USED AS THE REPEAT PART,THUS BUILDING A SYLLABLE WITH     93455000=16307000=
@@ -19592,7 +19598,7 @@ COMMENT THIS SECTION GENERATES CODE FOR STREAM PROCEDURES;              91075000
   EXIT:                                                                 93840000=16355000=
       END INDEXS;                                                       93845000=16355000=
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%93850000=16355000=
-    COMMENT  DSS COMPILES DESINTATION STREAM STATEMENTS.                93855000=16356000=
+    COMMENT  DSS COMPILES DESTINATION STREAM STATEMENTS.                93855000=16356000=
               DS:= LIT"STRING" IS HANDLED AS A SPECIAL CASE BECAUE THE  93860000=16357000=
               STRING MUST BE SCANED FROM RIGHT TO LEFT,REPEATEDLY IF    93865000=16358000=
               NECESSARY, AND EMITTED TO THE PROGRAM STREAM.  IN         93870000=16359000=
@@ -19721,7 +19727,7 @@ COMMENT THIS SECTION GENERATES CODE FOR STREAM PROCEDURES;              91075000
       JUMPLEVEL:= 1;                                                    94440000=16433000=
       IF STEPI ^= DECLARATORS THEN                                      94445000=16434000=
         FLAG(261);                                                      94450000=16434000=
-      IF STEPI ^= LITNO THEN                                            94455000=16435000=
+      IF STEPI = LITNO THEN                                             94455000=16435000=
         JUMPLEVEL:= ELBAT[I].ADDRESS                                    94460000=16436000=
       ELSE                                                              94465000=16436000=
         BEGIN                                                           94470000=16436000=
