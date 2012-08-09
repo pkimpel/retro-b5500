@@ -8230,3 +8230,89 @@ AWAY:         FORMESS:=-1;                                              08438300
     DISKWAIT( I,30,DIRECTORYTOP-SYSNO);                            %146-08438430        
     FORGETSPACE(I);                                                %146-08438440        
     END;                                                                08438500        
+PROCEDURE SUSTATUS(A,DDD,B);  VALUE A,DDD,B;  REAL A,B;  ARRAY DDD[*];  08438900        
+                              FORWARD;                                  08438910        
+ PROCEDURE OUTPUTLABEL(B); VALUE B; REAL B;%                            08439000        
+    BEGIN REAL BU=B,U,T,A;%                                             08440000        
+         REAL G,Q;%                                                     08441000        
+                    REAL TUSTA,TEMP;                                    08441050        
+         BOOLEAN SCHTOG;                                                08441100        
+         LABEL EXIT;%                                                   08442000        
+         SUBROUTINE DOIT;%                                              08443000        
+              BEGIN; STREAM(A~TINU[U]:B);%                              08444000        
+                  BEGIN SI ~ LOC A; SI ~ SI+5; DS ~ LIT" ";%            08445000        
+                        DS ! 3 CHR; DS ~ LIT " "; A ~ DI END;%          08446000        
+                   A ~ P; T ~ LABELTABLE[U];%                           08447000        
+                    IF U LSS 16 THEN TEMP:=PRNTABLE[U].[30:18];         08447100        
+                    IF T=0 THEN                                         08448000        
+                    STREAM(B:=TEMP,V:=(U LSS 16),A);                    08448050        
+                    BEGIN SI:=LOC V;SI:=SI+7;                           08448100        
+                    IF SC NEQ "0" THEN BEGIN SI:=LOC B;DS:=5DEC END;    08448110        
+                                          DS:=9LIT" SCRATCH~" END       08448150        
+                   ELSE IF T = @114 OR T = @214 THEN%                   08449000        
+                          BEGIN                                         08450000        
+                          STREAM(SAV:=((TWO)U) AND SAVEWORD) NEQ 0),A); 08450100        
+                             BEGIN                                      08450200        
+                             DS:=10LIT"NOT READY~";                     08450300        
+                             SAV(DI:=DI-1; DS:=8LIT"(SAVED)~");         08450400        
+                             END                                        08450500        
+                          END                                           08450600        
+                    ELSE IF ABS(T)=@314 THEN                            08451000        
+                    STREAM(B:=TEMP,V:=(U LSS 16),A);                    08451100        
+                    BEGIN SI:=LOC V; SI:=SI+7;                          08451200        
+                    IF SC NEQ "0" THEN BEGIN SI:=LOC B;DS:=5DEC END;    08451210        
+                          DS:=11 LIT " UNLABELED~";                     08452000        
+                    END                                                 08452100        
+                   ELSE BEGIN;%                                         08453000        
+                        STREAM(K:=T<0: TEMP, V:=U<16, A);               08454000        
+                        BEGIN V(SI:=LOC TEMP; DS:=5 DEC; DS:=LIT" ");   08454500        
+                             CI:=CI+K; GO TO LAB;                       08455000        
+                             DS:=6 LIT"IN USE"; GO TO L;                08455500        
+                        LAB: DS:=7 LIT"LABELED";                        08456000        
+                        L:   DS:=LIT" "; K:=DI;                         08457000        
+                        END;                                            08458000        
+                   A ~ P;%                                              08459000        
+                   IF (NT1 ~ RDCTABLE[U].[8:6]) ! 0 THEN%               08460000        
+                   IF JARROW[NT1] ! 0 THEN%                             08461000        
+                        BEGIN;STREAM(J~JARROW[NT1]:NT1,A);%             08462000        
+                             BEGIN DS ~ 3 LIT "BY "; SI ~ J;%           08463000        
+                                  SI ~ SI+1; DS ~ 7 CHR;%               08464000        
+                                  DS ~ LIT "/"; SI ~ SI+1;%             08465000        
+                                  DS ~ 7 CHR; DS ~ LIT "=";%            08466000        
+                                  SI~LOC NT1; DS~2DEC;                  08467000        
+                                  DS ~ LIT ":"; J ~ DI;%                08468000        
+                                  DI~DI-3; DS~FILL;                     08468500        
+                             END;%                                      08469000        
+                             A ~ P;%                                    08470000        
+                        END ELSE ELSE                                   08471000        
+                   IF T<0 AND (U=23 OR U=24) THEN                       08471010        
+                      BEGIN                                             08471020        
+                      STREAM(S:=0 : A);                                 08471030        
+                         BEGIN                                          08471040        
+                         DS:=22LIT"BY AUTO LOAD CONTROL: ";             08471050        
+                      S:=DI;                                            08471060        
+                         END;                                           08471070        
+                      A:=P;                                             08471080        
+                      END ELSE                                          08471090        
+                   IF U GEQ 20 AND U LEQ 22 THEN                        08471100        
+                   IF LABELTABLE[U].[1:5]=@21 THEN                      08471105        
+                        BEGIN STREAM(S:=0,A);                           08471110        
+                              BEGIN                                     08471120        
+                                   DS:=13 LIT "BY SCHEDULED ";          08471130        
+                                   DS:=13 LIT "PRNPBT/DISK: ";          08471140        
+                                   S:=DI;                               08471150        
+                              END;                                      08471160        
+                              A:=P;                                     08471170        
+                        END;                                            08471180        
+                   STREAM(S~0:K~MULTITABLE[U],T,R~RDCTABLE[U].          08472000        
+                        [14:10],D~RDCTABLE[U].[24:17],C~RDCTABLE[U].%   08473000        
+                        [41:7],A); BEGIN SI ~ LOC K;%                   08474000        
+                        2(SI ~ SI+1; DS ~ 7 CHR; DS ~ LIT " ");%        08475000        
+                        DS ~ 3 DEC; DS ~ LIT " ";%                      08476000        
+                        DS ~ 5 DEC; DS ~ LIT " ";%                      08477000        
+                        DS ~ 2 DEC; DS ~ LIT "~";%                      08478000        
+                        S~DI;                                           08478500        
+                        END;                                            08478600        
+                   A~P;                                                 08478700        
+                   IF U}32 THEN IF CIDROW[U   -32]!0 THEN               08478800        
+                        STREAM(DK~CIDTABLE[U   -32,2],A);               08478900        
