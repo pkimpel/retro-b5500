@@ -8316,3 +8316,125 @@ PROCEDURE SUSTATUS(A,DDD,B);  VALUE A,DDD,B;  REAL A,B;  ARRAY DDD[*];  08438900
                    A~P;                                                 08478700        
                    IF U}32 THEN IF CIDROW[U   -32]!0 THEN               08478800        
                         STREAM(DK~CIDTABLE[U   -32,2],A);               08478900        
+                             BEGIN                                      08479000        
+                             DI~DI-1;                                   08479100        
+ $ SET OMIT = NOT(PACKETS)                                              08479109        
+                              DS:=5 LIT ",PKT ";                        08479110        
+ $ POP OMIT                                                             08479111        
+ $ SET OMIT = PACKETS                                                   08479199        
+                             SI~LOC DK; SI~SI+1;                        08479300        
+                             DS~7 CHR;                                  08479400        
+                             END;                                       08479500        
+                        END;                                            08479600        
+                   SPOUT(B INX TUSTA);                                  08480000        
+                   B ~ 0;%                                              08481000        
+              END;%                                                     08482000        
+         TUSTA~M[B.[15:15]-2];                                          08482050        
+         IF (U ~ UNITIN(TINU,B)){ PSEUDOMAXT  THEN                      08483000        
+              BEGIN B ~ B.[15:15]-1;%                                   08484000        
+                   IF (U OR 1)=19 THEN SUSTATUS(B INX TUSTA,0,U) ELSE   08484500        
+                   DOIT;%                                               08485000        
+                   GO TO EXIT;%                                         08486000        
+              END;%                                                     08487000        
+ $ SET OMIT = SHAREDISK                                                 08487099        
+         SCRTOG ~ U = PSEUDOMAXT + 1;                                   08487100        
+ $ POP OMIT                                                             08487101        
+ $ SET OMIT = NOT(SHAREDISK)                                            08487199        
+         STREAM(A~0:B);%                                                08488000        
+              BEGIN SI ~ B;%                                            08489000        
+              L:   IF SC = " " THEN%                                    08490000        
+                        BEGIN SI ~ SI+1; GO TO L END;%                  08491000        
+                   DI ~ LOC A; DI ~ DI+6; DS ~ 2 CHR;%                  08492000        
+              END;%                                                     08493000        
+         Q ~ P; B ~ B.[15:15]-1;%                                       08494000        
+         FOR U ~ 0 STEP 1 UNTIL PSEUDOMAXT DO                           08495000        
+              IF TINU[U].[30:12] = Q THEN%                              08496000        
+              IF (G ~ LABELTABLE[U])!0 AND G!@114 AND G!@214            08497000        
+                   AND NOT SCRTOG OR G=0 AND SCRTOG THEN                08497100        
+                   BEGIN IF B = 0 THEN B ~ SPACE(10);%                  08498000        
+                        DOIT;%                                          08499000        
+                   END;%                                                08500000        
+         IF B ! 0 THEN%                                                 08501000        
+              BEGIN;STREAM(Q,R);%                                       08502000        
+                        BEGIN DS ~ 6 LIT " NULL ";%                     08503000        
+                             SI ~ LOC Q; SI ~ SI+6; DS ~ 2 CHR;%        08504000        
+                             DS ~ 7 LIT " TABLE~";%                     08505000        
+                        END;%                                           08506000        
+                   SPOUT(B INX TUSTA);                                  08507000        
+              END;%                                                     08508000        
+    EXIT: END;%                                                         08509000        
+ PROCEDURE    TIMEUSED(B, X);                                           08525000        
+    VALUE     B, X;                                                     08526000        
+    REAL      B, X;                                                     08527000        
+    BEGIN INTEGER  T, H, M, S, CPT, IOT, ET;                            08528000        
+ $ SET OMIT = NOT(PACKETS)                                              08528499        
+         DEFINE UNITNO = PSEUDOMIX[X]#;                                 08528500        
+ $ POP OMIT                                                             08528501        
+         REAL SUBROUTINE CONVERTIME;                                    08529000        
+         BEGIN S ~ T-60|(T ~ T DIV 60);                                 08530000        
+              M ~ T-60|(H ~ T DIV 60);                                  08531000        
+              STREAM(R~0: A~[H]);                                       08532000        
+              BEGIN DI~LOC R; DI~DI+2; SI~A; 3(DS~2 DEC) END;           08533000        
+              CONVERTIME ~ POLISH                                       08533100        
+         END;                                                           08533200        
+         T ~ JAR[X,3]+PROCTIME[X];                                      08533400        
+ $ SET OMIT = NEWLOGGING                                                08533499        
+         IF X=P2MIX OR X=P1MIX THEN                                     08533500        
+ $ POP OMIT                                                             08533501        
+ $ SET OMIT = NOT(NEWLOGGING)                                           08533599        
+         T ! T+CLOCK+P(RTR);                                            08533700        
+         T ~ T/60;  CPT ~ CONVERTIME;                                   08534000        
+         T ~ JAR[X,4]+IOTIME[X];                                        08535000        
+         WHILE T<0 DO T ~ T+CLOCK+P(RTR);                               08536000        
+         T ~ T/60;  IOT ~ CONVERTIME;                                   08537000        
+         T ~ ((CLOCK+P(RTR))/60)-NFO[(X-1)|NDX+2].[1:17];               08538000        
+         ET ~ CONVERTIME;                                               08538500        
+         STREAM(J~JARROW[X],X,T~[CPT],B);                               08540000        
+         BEGIN DS~10 LIT " TIME FOR "; SI~J; SI~SI+1; DS~7 CHR;         08540100        
+              SI~SI+1; DS~LIT "/"; DS~7 CHR; DS~LIT"=";                 08540200        
+              SI~LOC X; DS~2 DEC; X~DI; DI~DI-2; DS~FILL;               08540300        
+              DI~X; DS~8 LIT " IS: CP="; SI~T; SI~SI+2;                 08541000        
+              3(DS~LIT ":"; DS~2 CHR);                                  08542000        
+              X~DI; DI~DI-9; DS~8 FILL; DI~X;                           08543000        
+              DS~5 LIT ", IO="; SI~SI+2;                                08544000        
+              3(DS~LIT ":"; DS~2 CHR);                                  08544100        
+              X~DI; DI~DI-9; DS~8 FILL; DI~X;                           08544200        
+              DS~3 LIT " IN"; SI~SI+2;                                  08544300        
+              3(DS~LIT ":"; DS~2 CHR); DS~LIT "~";                      08544400        
+              DI~DI-10; DS~8 FILL                                       08544500        
+         END;                                                           08544600        
+         SPOUTER(B INX MEMORY[B-1],UNITNO,1);                           08544700        
+              COMMENT MESSAGE PRESENTLY 72 CHARACTERS LONG;             08544800        
+    END;                                                                08545000        
+ REAL PROCEDURE ANVIL(IL,Z); VALUE IL,Z; REAL IL,Z;%                    08546000        
+         BEGIN REAL B=Z,U=+1;%                                          08547000        
+         REAL ZZ;                                                       08547050        
+         LABEL EXIT;                                                    08547100        
+         ZZ:=Z;                                                         08547200        
+         NAMEID(U,ZZ);                                                  08547300        
+         NAMEID(U,ZZ);                                                  08547400        
+         IF U="/      " THEN                                            08547500        
+         BEGIN U:=Z.[15:15]; GO EXIT END ELSE                           08547600        
+              IF (U ~ UNITIN(TINU,B)) { PSEUDOMAXT THEN                 08548000        
+              BEGIN%                                                    08549000        
+              IF LABELTABLE[U] = @114 OR LABELTABLE[U] = @214 THEN%     08550000        
+                   BEGIN                                                08551000        
+                   STREAM(A:=TINU[U],SAV:=((TWO(U) AND SAVEWORD) ! 0 ), 08551100        
+                          X:=Z.[15:15]-1);                              08551200        
+                      BEGIN                                             08551300        
+                      SI:=LOC A; SI:=SI+5; DS:=3CHR;                    08552000        
+                      DS:=11LIT" NOT READY~";                           08553000        
+                      SAV(DI:=DI-1; DS:=8LIT"(SAVED)~");                08554000        
+                      END;                                              08554100        
+                        U ~ PSEUDOMAXT + 1;                             08555000        
+                   END ELSE                                             08556000        
+              IF LABELTABLE[U] < 0 THEN%                                08557000        
+                   BEGIN;STREAM(A~TINU[U],X~Z.[15:15]-1);%              08558000        
+                             BEGIN SI ~ LOC A; SI ~ SI+5;%              08559000        
+                                  DS ~ 3 CHR; DS ~ 8 LIT " IN USE~";%   08560000        
+                             END;%                                      08561000        
+                        U ~ PSEUDOMAXT + 1;                             08562000        
+                   END;%                                                08563000        
+              IF U { PSEUDOMAXT THEN                                    08564000        
+                   LABELTABLE[U] ~ -(IF IL THEN *P(DUP) ELSE @314);%    08565000        
+              EXIT: END; END;                                           08566000        
