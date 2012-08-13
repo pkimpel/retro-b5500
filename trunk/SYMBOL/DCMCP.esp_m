@@ -8438,3 +8438,120 @@ PROCEDURE SUSTATUS(A,DDD,B);  VALUE A,DDD,B;  REAL A,B;  ARRAY DDD[*];  08438900
               IF U { PSEUDOMAXT THEN                                    08564000        
                    LABELTABLE[U] ~ -(IF IL THEN *P(DUP) ELSE @314);%    08565000        
               EXIT: END; END;                                           08566000        
+PROCEDURE LOGOUT(A); VALUE A; REAL A;                                   08568000        
+BEGIN REAL RCW=+0;                                                      08568100        
+    REAL MSCW=-2;                                                       08568125        
+    INTEGER I=RCW+1;                                                    08568150        
+    REAL J=I+1, L=J+1;                 % L MUST BE LAST DECLARATION.    08568200        
+    LABEL EXIT;                                                         08568300        
+    P(0,0,SPACE(335));        % INITIALIZES L                           08568600        
+    IF (J:=DIRECTORYSEARCH("SYSTEM ","LOG    ",4))=0 THEN               08568700        
+    BEGIN;                                                              08568800        
+         STREAM(L);                                                     08568900        
+         BEGIN DS:=10 LIT "-NULL LOG~" END;                             08569000        
+         GO TO EXIT;                                                    08569100        
+    END;                                                                08569200        
+    IF LOGFREE GTR 0 THEN SLEEP([LOGFREE],-0);                          08569300        
+    LOGFREE:=ABS(LOGFREE);                                              08569400        
+ $ SET OMIT = NOT(SHAREDISK)                                            08569499        
+    MOVE(30,J INX 0,L);                                                 08569600        
+    M[L+10] ~ GETUSERDISK(-(M[L+8]~M[L+8]+10)); % GET XTRA TEN          08569700        
+    DO BEGIN                                    % TO MAKE COPY          08569800        
+         DISKWAIT (-L-31,300,M[J+10]+I);        % SIMPLER               08569900        
+         DISKWAIT ( L+31,300,M[L+10]+I);                                08569910        
+    END UNTIL (I~I+10)}M[J+8];                                          08569920        
+    LOGFREE ~ M[J+10];                                                  08570000        
+    J:=J INX 0;                                                         08570300        
+    M[J]:=M[J+2]:=M[J+3]:=0;                                            08570400        
+    M[J+1]:=M[J+8]|6;                                                   08570500        
+    M[J+4]:="DISKLOG";                                                  08570600        
+    M[J+5]:=4;                                                          08570700        
+    DISKWAIT(J,30,LOGFREE);                                             08570800        
+ $ SET OMIT = NOT(SHAREDISK)                                            08570849        
+    LOGFREE~NABS(LOGFREE);                                              08570870        
+    P(DIRECTORYSEARCH(-"SYSTEM ","LOG    ",14),DEL);                    08570880        
+    IF HOLDFREE=0 THEN SLEEP([TOGLE],HOLDMASK);                         08571000        
+    LOCKTOG(HOLDMASK);                                                  08571100        
+    DISKWAIT(-J,-30,DIRECTORYTOP);                                      08571200        
+    I:=(M[J+20].[8:10]+1) MOD 1000;                                     08571300        
+    M[J+20]:=(*P(DUP))&I[8:38:10];                                      08571400        
+    DISKWAIT(J,-30,DIRECTORYTOP);                                       08571500        
+    UNLOCKTOG(HOLDMASK);                                                08571600        
+    STREAM(J~[ACTDATE],D~[I]);                                          08571800        
+    BEGIN SI:=D;DS:=8 DEC;DI:=DI-7;SI:=J;                               08571900        
+         SI~SI+2; DS~4 CHR;                                             08572000        
+    END;                                                                08572300        
+    FORGETSPACE(J);                                                     08572400        
+    M[L+4]:=(*P(DUP))&0[1:43:5]&1[11:47:1]&0[12:44:4];                  08572500        
+    M[L+1]~XCLOCK+P(RTR);                                               08572510        
+    STREAM(DATE,A~0,B~L+1);                                             08572520        
+    BEGIN SI~ LOC DATE;DI~LOC A;DS~8 OCT;SI~LOC A;                      08572530        
+              SI~SI+5;DI~B;DI~DI+1;DS~3 CHR; END;                       08572540        
+    ENTERUSERFILE(-I,"SYSLOG ",L-1);                                    08572600        
+    STREAM(I,L);                                                        08572700        
+    BEGIN DS:=21 LIT"**** NEW LOG FILE IS ";SI:=LOC I;SI:=SI+1;         08572800        
+         DS:=7 CHR;DS:=8 LIT"/SYSLOG~" ;                                08572900        
+    END;                                                                08573000        
+EXIT:                                                                   08573100        
+    SPOUT(L);                                                           08573200        
+    IF A THEN KILL([MSCW]);                                             08573300        
+END;                                                                    08573400        
+ PROCEDURE SAVETHEUNIT(B); VALUE B; REAL B;%                            08575000        
+         BEGIN REAL A=B,T,U,I,M1;                                       08576000        
+              LABEL AGAIN,EXIT;                                         08576100        
+              M1:=M[B.[15:15]-2];                                       08577000        
+              STREAM(B:);                                               08577100        
+              BEGIN SI:=B;                                              08577200        
+                L: IF SC=" " THEN BEGIN SI:=SI+1; GO TO L END;          08577300        
+                   B:=SI;                                               08577400        
+              END;                                                      08577500        
+              B:=P;                                                     08577600        
+AGAIN:        T:=SPACE(10);                                             08577700        
+              IF (U:=UNITIN(TINU,A)) GTR 31 THEN                        08578000        
+              STREAM(A,T);                                              08578100        
+              BEGIN DS:=10 LIT"INV KBD SV";                             08578200        
+                   SI:=A; DS:=3 CHR;                                    08578300        
+                   DS:=LIT"~";                                          08578400        
+              END ELSE                                                  08578500        
+                   BEGIN I ~ TWO(U);%                                   08579000        
+                        SLEEP([TOGLE],STATUSMASK);                      08580000        
+                        IF LABELTABLE[U] } 0 THEN%                      08581000        
+                             BEGIN LABELTABLE[U] ~ @114;%               08582000        
+                                  MULTITABLE[U]~RDCTABLE[U]~0;          08582100        
+                                  RRRMECH ~ RRRMECH OR I;%              08583000        
+                                  READY ~ READY OR I;%                  08584000        
+                                  SAVEWORD := SAVEWORD OR I;            08584100        
+                                  I ~ "      ";%                        08585000        
+                             END%                                       08586000        
+                        ELSE BEGIN SAVEWORD ~ SAVEWORD OR I;%           08587000        
+                                  I ~ " TO BE";%                        08588000        
+                             END;%                                      08589000        
+                        STREAM(A~TINU[U],I,T);%                         08590000        
+                             BEGIN DS ~ LIT " ";%                       08591000        
+                                  SI ~ LOC A; SI ~ SI+5; DS ~ 3 CHR;%   08592000        
+                                  SI ~ SI+2; DS ~ 6 CHR;%               08593000        
+                                  DS ~ 7 LIT " SAVED~";%                08594000        
+                             END;%                                      08595000        
+                   END;%                                                08596000        
+              SPOUT(T INX M1);                                          08597000        
+              STREAM(OK:=0,A:);                                         08597050        
+              BEGIN SI:=A;                                              08597100        
+                   3(IF SC=" " THEN JUMP OUT;                           08597150        
+                     IF SC="," THEN JUMP OUT;                           08597200        
+                     IF SC="~" THEN JUMP OUT OT L3;                     08597250        
+                     SI:=SI+1);                                         08597300        
+              L1:  IF SC=" " THEN                                       08597350        
+              L2:  BEGIN SI:=SI+1; GO TO L1 END;                        08597400        
+                   IF SC="," THEN GO TO L2;                             08597450        
+                   A:=SI;                                               08597500        
+                   IF SC!"~" THEN TALLY:=1;                             08597550        
+              L3:  OK:=TALLY;                                           08597600        
+              END;                                                      08597650        
+              A:=P;                                                     08597700        
+              IF P THEN GO AGAIN;                                       08597750        
+              T:=SPACE(30);                                        %146-08597800        
+              DISKWAIT(-1,30,DIRECTORYTOP-SYSNO);                  %146-08597810        
+              M[T+29]:=SAVEWORD;                                   %146-08597820        
+              DISKWAIT( T,30,DIRECTORYTOP-SYSNO);                  %146-08597830        
+              FORGETSPACE(T);                                      %146-08597840        
+         END;%                                                          08598000        
