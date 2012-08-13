@@ -8555,3 +8555,78 @@ AGAIN:        T:=SPACE(10);                                             08577700
               DISKWAIT( T,30,DIRECTORYTOP-SYSNO);                  %146-08597830        
               FORGETSPACE(T);                                      %146-08597840        
          END;%                                                          08598000        
+BOOLEAN PROCEDURE WHYSLEEP(MASK); VALUE MASK; REAL MASK;                08599000        
+   BEGIN                                                                08600000        
+   REAL A, B;                                                           08601000        
+   IF REPLY[P1MIX]=VWY THEN                                             08602000        
+      BEGIN                                                             08603000        
+      B:=SPACE(KEYMSGSZ);                                               08604000        
+      DISKWAIT(-B,KEYMSGSZ,MESSAGETABLE[2].[22:26]);                    08604100        
+      STREAM(B,MASK,T:=0,O:=0,D:=0,A:=A:=SPACE(4));                     08605000        
+         BEGIN                                                          08606000        
+         SI:=LOC MASK;                                                  08607000        
+         8(IF SC="0" THEN GO TO NEXT;                                   08608000        
+           IF SC=VWY THEN                                               08609000        
+              BEGIN                                                     08610000        
+              DI:=A; DS:=3LIT" DS"; A:=DI; GO TO NEXT;                  08611000        
+              END;                                                      08612000        
+           T:=SI; DI:=LOC 0; DI:=DI+7; DS:=CHR;                         08613000        
+           SI:=LOC O; DI:=LOC D; DI:=DI+6; DS:=2DEC;                    08614000        
+           SI:=B;                                                       08615000        
+        R: SI:=SI+6; DI:=DI-2;                                          08616000        
+           IF SC="*" THEN % END OF FIRST PART OF TABLE                  08617000        
+              BEGIN                                                     08617500        
+              SI:=T; GO TO NEXT;                                        08618000        
+              END;                                                      08618500        
+           IF 2SC NEQ DC THEN GO TO R;                                  08619000        
+           SI:=SI-6; DI:=A; DS:=LIT" "; DS:=2CHR; A:=DI; SI:=T;         08619500        
+     NEXT: SI:=SI+1);                                                   08620000        
+         DI:=A; DS:=LIT"~";                                             08620500        
+         END STREAM STATEMENT;                                          08621000        
+      SPOUT(A);                                                         08621500        
+      FORGETSPACE(B);                                                   08621600        
+      END % IF "WY"                                                     08622000        
+   ELSE WHYSLEEP:=TRUE;                                                 08622500        
+   END PROCEDURE WHYSLEEP;                                              08623000        
+PROCEDURE CHANGEOPTION(BUFF,RS);%                                       08624000        
+         VALUE BUFF,RS;REAL BUFF,RS;%                                   08625000        
+BEGIN    REAL B,T,OP,BUS,MASK,OPTER;                                    08626000        
+         SLEEP([TOGLE],HOLDMASK);                                       08627000        
+         LOCKTOG(HOLDMASK);                                             08628000        
+         BUS ~ BUFF.[15:15]-1; B ~ SPACE(30);%                          08629000        
+         DISKIO(T,1-B,-30,DIRECTORYTOP-SYSNO);                          08630000        
+         OPTER ~ SPACE(OPTIONSZ);                                       08630100        
+         DISKWAIT(-OPTER,OPTIONSZ,MESSAGETABLE[0].[22:26]);             08631000        
+    STREAM(BUFF,T~0,OPTER,R~[OP]);%                                     08632000        
+         BEGIN%                                                         08633000        
+         L0:  SI~BUFF;                                             %535-08634000        
+         L1:  IF SC=" " THEN BEGIN SI~SI+1; GO TO L1; END;         %535-08635000        
+              IF SC<"0" THEN                                       %535-08636000        
+              IF SC!"~" THEN                                       %535-08637000        
+                   BEGIN TALLY~0; T~TALLY; DI~LOC T;               %535-08638000        
+                   8(IF SC=" " THEN JUMP OUT ELSE                  %535-08639000        
+                     IF SC="~" THEN JUMP OUT ELSE                  %535-08640000        
+                     IF SC}"0" THEN JUMP OUT ELSE DS ~CHR);        %535-08641000        
+                   BUFF~SI; SI~OPTER;                              %535-08642000        
+                   63(DI~LOC T;                                    %535-08643000        
+                      IF 8 SC=DC THEDN JUMP OUT TO L2 ELSE         %535-08644000        
+                      IF SC="~" THEN JUMP OUT TO L0 ELSE TALLY~TALLY+1);08645000        
+                   GO TO L3;                                       %535-08646000        
+         L2:       IF SC="~" THEN GO TO L0;                        %535-08647000        
+                   END ELSE                                        %535-08648000        
+         L3:                 TALLY~48 ELSE                         %535-08649000        
+                   BEGIN DI~LOC T; SI~SI+1;                        %535-08650000        
+                   IF SC<"0" THEN BEGIN SI~SI-1; DS~1 OCT; END     %535-08651000        
+                             ELSE BEGIN SI~SI-1; DS~2 OCT; END;    %535-08652000        
+                   TALLY~47; T(TALLY~TALLY+63);                    %535-08653000        
+                   END;                                            %535-08654000        
+              T~TALLY; SI~LOC T; DI~R; DS~WDS;                     %535-08655000        
+         END;%                                                          08657000        
+              IF OP<47 THEN                                             08658000        
+                   BEGIN;STREAM(A ~ IF RS THEN " RESET" ELSE "   SET",% 08659000        
+                        O~OPTER INX OP,OP ~ 47-OP,BUS);%                08660000        
+                        BEGIN DS ~ LIT " "; SI ~ LOC OP; DS ~ 2 DEC;%   08661000        
+                             DS ~ LIT " "; SI ~ O;%                     08662000        
+                             8(IF SC=0 THEN JUMP OUT TO L; DS~CHR);%    08663000        
+                   L:        SI ~ LOC A; SI ~ SI+2; DS ~ 6 CHR;%        08664000        
+                             DS ~ LIT"~";%                              08665000        
