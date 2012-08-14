@@ -8630,3 +8630,59 @@ BEGIN    REAL B,T,OP,BUS,MASK,OPTER;                                    08626000
                              8(IF SC=0 THEN JUMP OUT TO L; DS~CHR);%    08663000        
                    L:        SI ~ LOC A; SI ~ SI+2; DS ~ 6 CHR;%        08664000        
                              DS ~ LIT"~";%                              08665000        
+                        END;%                                           08666000        
+                        MASK~TWO(OP);%                                  08667000        
+                        M[BUS-1].[9:9]:=0;                              08667100        
+                   END;%                                                08668000        
+              SPOUT(BUS INX M[BUS-1]);                                  08669000        
+         SLEEP([T],IOMASK);                                             08670000        
+         M[B]~OPTION~IF RS THEN OPTION AND NOT MASK ELSE OPTION OR MASK;08671000        
+         DISKWAIT(B,-30,DIRECTORYTOP-SYSNO);                            08673000        
+         FORGETSPACE(OPTER);%                                           08674000        
+         FORGETSPACE(B);%                                               08676000        
+         UNLOCKTOG(HOLDMASK);                                           08677000        
+    END;%                                                               08678000        
+    PROCEDURE TYPOP(KTR,PO); VALUE KTR,PO; REAL KTR,PO;                 08679000        
+    BEGIN REAL VASE,TUSTA,N,X,OPTER;                                    08680000        
+         LABEL INCR;                                                    08680500        
+    REAL SUBROUTINE SETT;                                               08681000        
+    BEGIN                                                               08681100        
+     STREAM(OPT:=[OPTION]:OPTER,N,NBS:=47-N,VASE);                      08681200        
+         BEGIN                                                          08681300        
+              DI:=DI+4;                                                 08682000        
+              SI~OPTER;N(SI~SI+8);IF SC="~" THEN GO TO EXIT;%           08683000        
+              8(IF SC<"0" THEN DS~CHR ELSE DS~1 LIT" ");DS~2 LIT" ";%   08684000        
+              SI:=OPT; SKIP NBS SB;                                     08684500        
+              IF SB THEN TALLY:=1 ELSE                                  08685000        
+              BEGIN DS:=3 LIT"NOT"; TALLY:=2; END;                      08685500        
+              DS~5 LIT" SET~";%                                         08686000        
+              DI:=VASE; SI:=LOC NBS; DS:=LIT" "; DS:=2 DEC; DS:=LIT" "; 08686500        
+    EXIT:     OPT:=TALLY;                                               08687000        
+         END;                                                           08688000        
+          SETT~P;                                                       08689000        
+    END SETT;                                                           08689100        
+                                                                   %    08689110        
+         SLEEP([TOGLE],HOLDMASK);                                       08689200        
+         LOCKTOG(HOLDMASK);                                             08689300        
+         TUSTA:=M[(VASE:=KTR.[15:15]-1)-1];                             08689900        
+         OPTER ~ SPACE(OPTIONSZ)&OPTIONSZ[8:38:10];                     08690000        
+         DISKWAIT(-OPTER,OPTIONSZ,MESSAGETABLE[0].[22:26]);             08690020        
+         IF PO THEN                                                     08690080        
+      BEGIN                                                             08690090        
+         STREAM(BUFF:=KTR, T:=0, OPTER, D:=[N]);                        08690100        
+         BEGIN SI~BUFF;63(IF SC=" " THEN SI~SI+1 ELSE JUMP OUT TO L);L: 08690110        
+         IF SC GEQ "0" THEN GO TO L4;                                   08690120        
+         DI~LOC T;                                                      08690130        
+         8(IF SC=" " THEN JUMP OUT TO L1 ELSE                           08690140        
+           IF SC="~" THEN JUMP OUT TO L1 ELSE                           08690150        
+           IF SC}"0" THEN JUMP OUT TO L1 ELSE                           08690160        
+            DS~1 CHR); L1:                                              08690170        
+         TALLY~0; BUFF~SI; SI~OPTER;                                    08690180        
+         63(DI~LOC T;IF 8 SC!DC THEN                                    08690190        
+                     BEGIN IF SC="~" THEN                               08690200        
+                           BEGIN TALLY~48; JUMP OUT TO L3 END           08690210        
+                           ELSE TALLY~TALLY+1;                          08690220        
+                     END ELSE JUMP OUT TO L2); TALLY~48;GO TO L3;L2:    08690230        
+            IF SC="~" THEN BEGIN SI~BUFF;63(IF SC<"0" THEN SI~SI+1      08690240        
+             ELSE JUMP OUT TO L4); L4: DI~LOC T; SI~SI+1;               08690250        
+              IF SC<"0" THEN BEGIN SI~SI-1; SI~1 OCT END ELSE           08690260        
