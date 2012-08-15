@@ -8686,3 +8686,87 @@ BEGIN    REAL B,T,OP,BUS,MASK,OPTER;                                    08626000
             IF SC="~" THEN BEGIN SI~BUFF;63(IF SC<"0" THEN SI~SI+1      08690240        
              ELSE JUMP OUT TO L4); L4: DI~LOC T; SI~SI+1;               08690250        
               IF SC<"0" THEN BEGIN SI~SI-1; SI~1 OCT END ELSE           08690260        
+                        BEGIN SI~SI-1; DS~2 OCT END;                    08690270        
+              TALLY~47; T(TALLY~TALLY+63);                              08690280        
+                           END;                                         08690290        
+         L3: T~TALLY; SI~LOC T; DI~D; DS~ WDS;                          08690300        
+         END;                                                           08690310        
+         IF N LSS OPTER.[8:10] THEN P(SETT,DEL);                        08690400        
+         SPOUT(VASE INX TUSTA);                                         08690600        
+      END ELSE                                                          08690800        
+      BEGIN                                                             08691000        
+         STREAM(KTR:);                                                  08691200        
+              BEGIN SI:=KTR;                                            08691400        
+                   IF SC="S" THEN TALLY:=1 ELSE                         08691600        
+                   IF SC="R" THEN TALLY:=2 ELSE TALLY:=3;               08691800        
+                   KTR:=TALLY;                                          08692000        
+              END;                                                      08692200        
+         X:=P; N:=-1;                                                   08692400        
+INCR:    N:=N+1;                                                        08692600        
+         IF ((KTR:=SETT) AND X) ! 0 THEN                                08692800        
+         BEGIN SPOUT(VASE INX TUSTA);                                   08693000        
+              VASE:=SPACE(3);                                           08693200        
+              GO TO INCR;                                               08693400        
+         END;                                                           08693600        
+         IF KTR=0 THEN                                                  08693800        
+         IF X!3 THEN                                                    08694000        
+         BEGIN STREAM(X:=X=1, VASE);                                    08694200        
+                   BEGIN DS:=12 LIT" ALL OTHERS ";                      08694400        
+                        X(DS:=4 LIT"NOT ");                             08694600        
+                        DS:=4 LIT"SET~";                                08694800        
+                   END;                                                 08695000        
+              SPOUT(VASE INX TUSTA);                                    08695200        
+         END ELSE FORGETSPACE(VASE);                                    08695400        
+         ELSE GO TO INCR;                                               08695600        
+      END;                                                              08695800        
+         FORGETSPACE(OPTER);%                                           08696000        
+         UNLOCK(HOLDMASK);                                              08696100        
+                END;%                                                   08697000        
+ $ SET OMIT = NOT(DISKLOG)                                              08697099        
+% THE FOLLOWING THREE DEFINES MUST EACH BE CHANGED IF THE               08699000        
+% DISK ROW SIZE OF PBD AND PUD FILES IS TO BE CHANGED.                  08699050        
+  DEFINE PBDROWSZ   =                                                   08699100        
+                     300#  %                                       %732-08699150        
+%        PBDROWSZ IS THE DISK ROW SIZE, IN SEGMENTS, OF PBD AND         08699200        
+%        PUD FILES. PBDROWSZ MUST BE A MULTIPLE OF THREE.               08699250        
+        ,PBDRECS    =                                                   08699300        
+                     100#  %                                       %732-08699350        
+%        PBDRECS=PBDROWSZ/3 : NO. OF LOGICAL RECORDS PER ROW.           08699400        
+        ,PBDTOTRECS =                                                   08699450        
+                     2000# %                                       %732-08699500        
+;%       PBDTOTRECS=PBDRECS|20 : NO. OF TOTAL RECORDS PER BACK-UP FILE. 08699550        
+ PROCEDURE PBIO(ALPHA,POINTER); VALUE ALPHA; REAL ALPHA,POINTER;     %P 08700000        
+%                                                                       08700900        
+%   THIS PROCEDURE HANDLES IO FOR THE CREATION OF BACK-UP FILES. FOR    08700910        
+%   DISK, IT OBTAINS NEW ROWS AND NEW FILES AS NECESSARY. IF IT RUNS    08700920        
+%   OUT OF FILES, HEADER[5].[4:1] IS SET AND THE JOB TERMINATED, LEAVING08700930        
+%   ONE BLOCK FOR THE LABEL AND DS MESSAGE.                             08700940        
+%                                                                       08700950        
+% ALPHA IS ADDRESS OF TOP I/O DESCRIPTOR. <0 MEANS READ              %P 08701000        
+% POINTER IS FIB[14]                                                 %P 08702000        
+    BEGIN NAME HEADER;                                                  08703000        
+    REAL T=-2,IOD,H,S;                                                  08704000        
+    INTEGER I=IOD;                                                      08704100        
+    LABEL OK;                                                           08704500        
+         POINTER.[FF]~POINTER INX  72;                               %P 08705000        
+         IF (HEADER~POINTER.[3:15])!0 THEN    %%%%PB ON DISK  %%%%%  %P 08706000        
+         BEGIN                                                          08707000        
+              HEADER := [M[(*HEADER)]];                                 08707500        
+              IF HEADER[7] GEQ PBDTOTRECS-2 THEN % CHECK FOR NEW FILE   08708000        
+              BEGIN                                                     08708200        
+ $ SET OMIT = PACKETS                                                   08708400        
+                IF HEADER[6].[42:6]="9" THEN                            08709000        
+ $ POP OMIT OMIT                                                        08709200        
+                   IF HEADER[7] GEQ PBDTOTRECS THEN P(XIT) ELSE         08709400        
+                   IF HEADER[5].[4:1] THEN GO TO OK ELSE                08709500        
+                   BEGIN STREAM(F:=PRT[P1MIX,3] INX M[M[ALPHA-3] INX 4].08709600        
+                             [13:11], H:=H:=NABS(SPACE(12)));           08709800        
+                        BEGIN SI:=F; SI:=SI+1;                          08710000        
+                             DS:=24 LIT"TOO MANY BACKUP RECS ON ";      08710200        
+                             DS:=7 CHR; DS:=LIT"/"; SI:=SI+1; DS:=7 CHR;08710400        
+                             DS:=2 LIT":~";                             08710600        
+                        END;                                            08710800        
+                        HEADER[5].[4:1]:=1;                             08711000        
+                        GO TO OK;                                       08711200        
+                   END;                                                 08711400        
+                IF HEADER[7] GEQ PBDTOTRECS THEN   % GET A NEW FILE     08711600        
