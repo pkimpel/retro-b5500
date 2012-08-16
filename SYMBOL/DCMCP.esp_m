@@ -8770,3 +8770,61 @@ INCR:    N:=N+1;                                                        08692600
                         GO TO OK;                                       08711200        
                    END;                                                 08711400        
                 IF HEADER[7] GEQ PBDTOTRECS THEN   % GET A NEW FILE     08711600        
+                BEGIN                                                   08711800        
+                   IF I:=HEADER[5].[3:1] THEN HEADER[5].[3:1]:=0;       08712000        
+                   H~SPACE(30); S~M[HEADER INX NOT 0];                  08712100        
+                   DISKWAIT(-H,30,S);                                   08712110        
+                   M[H+7]~HEADER[7];                                    08712120        
+                   M[H+5].[2:1]~0;                                      08712130        
+                   DISKWAIT(H,30,S);                                    08712140        
+                   M[H+7]~M[H+9]~0;                                     08712150        
+                   MOVE(20,H+9,H+10);                                   08712160        
+                   M[H+5]~(*P(DUP)) OR H;                               08712170        
+                   HEADER[5].[3:1]:=1; %SET CP BK UP TOG                08712200        
+                   HEADER[7] := 0;                                      08712500        
+                   HEADER[3] := XCLOCK + P(RTR);                        08713000        
+                   STREAM(ONE:=1, H:=[HEADER[6]]);                      08713250        
+                   BEGIN SI:=LOC ONE; DS:=8 ADD;                        08713500        
+                        DI:=DI+24; 20(DS:=8 LIT"0");                    08713750        
+                   END;                                                 08714000        
+                   M[H+7]~PBDROWSZ DIV 3;                               08714110        
+                   HEADER[9]~M[H+9]~1;                                  08714120        
+                   HEADER[10]~M[H+10]~GETUSERDISK(-(PBDROWSZ+1));       08714130        
+                   M[HEADER INX NOT 0] := EUF(-(IF I THEN "PUD    "     08714140        
+                     ELSE "PBD    "),HEADER[6],H-1);                    08714150        
+                   FORGETSPACE(H);                                      08714170        
+ $ SET OMIT = PACKETS                                                   08714199        
+                   FILEMESSAGE((IF I THEN "PUD    " ELSE                08714300        
+                               "PBD    ")&HEADER[6][24:6:24],           08714310        
+                               "OUT    " &HEADER[6][30:30:18],          08714320        
+                               0,"       ",0,0,0,                       08714330        
+                               (PBDREL OR OPNMESS));                    08714340        
+                END;                                                    08714400        
+              END ELSE                                                  08714500        
+                   IF HEADER[7] MOD PBDRECS=0 THEN %GET NEW ROW         08715000        
+                   BEGIN H:=SPACE(30); S:=M[HEADER INX NOT 0];          08715100        
+                   DISKWAIT(-H,30,S);                                   08715200        
+                   HEADER[9+HEADER[9]~*P(DUP)+1]~                       08716000        
+                                        GETUSERDISK(-(PBDROWSZ+1));     08716010        
+                   M[H+9+HEADER[9]]~HEADER[9+HEADER[9]];                08716100        
+                   M[H+9]~HEADER[9];                                    08716110        
+                   M[H+7]~HEADER[7] + PBDROWSZ DIV 3;                   08716200        
+                   DISKWAIT(H,30,S);                                    08716300        
+                   FORGETSPACE(H);                                      08716500        
+                   END;                                                 08716600        
+OK:                                                                     08716800        
+                   STREAM(A~1~HEADER[HEADER[9]+9]+(HEADER[7] MOD        08717000        
+                          PBDRECS)|3,D~POINTER.[CF]-1);                 08718000        
+                        BEGIN SI~LOC A; DS~8 DEC END;                %P 08720000        
+                        HEADER[7]~(*P(DUP))+1;                       %P 08721000        
+         IOD~@141330100477777;                                          08722000        
+                   END ELSE  %% ON TAPE %%                           %P 08723000        
+         IOD~@21320500000000&M[POINTER INX NOT 1][3:14:4];           %P 08724000        
+         IOREQUEST(M[ALPHA],POINTER INX IOD&ALPHA[24:1:1],           %P 08726000        
+                             M[POINTER INX NOT 1]);                     08727000        
+         M[T]~IOD INX M[T]$0[26:26:7]&0[19:19:1] AND NOT M;             08728000        
+         IF H LSS 0 THEN                                                08728500        
+         BEGIN TERMINATE(P1MIX);                                        08728600        
+              TERMINALMESSAGE(H);                                       08728700        
+         END;                                                           08728800        
+    END PBIO;                                                           08729000        
