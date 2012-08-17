@@ -8828,3 +8828,89 @@ OK:                                                                     08716800
               TERMINALMESSAGE(H);                                       08728700        
          END;                                                           08728800        
     END PBIO;                                                           08729000        
+ PROCEDURE TIMERELAXER(KTR,TYPE,MIX);%                                  08730000        
+ VALUE                 KTR,TYPE,MIX;%                                   08731000        
+ REAL                  KTR,TYPE,MIX;%                                   08732000        
+    BEGIN INTEGER BUFF,PRT,IOT,T,P1,I1;%                                08733000        
+         LABEL SPIT;%                                                   08734000        
+   DEFINE VCT = 29#, % CHANGE TIME LIMITS                               08734010        
+          VXT = 30#, % EXTEND TIME LIMITS                               08734020        
+          VTL = 31#; % PRINT TIME LIMITS                                08734030        
+         COMMENT:  THIS ROUTINE SHOULD BE BLAMED ON WWF4;%              08734100        
+ $ SET OMIT = NOT(PACKETS)                                              08734499        
+         DEFINE UNITNO = PSEUDOMIX[MIX]#;%                              08734500        
+ $ POP OMIT                                                             08734501        
+         BUFF ~ KTR.[15:15]-1;%                                         08735000        
+         IF TYPE NEQ VTL THEN BEGIN;                                    08736000        
+              STREAM(IOT~0,PRT~0,CODE~0: KTR);%                         08737000        
+              BEGIN SI~KTR;  IF SC=" " THEN BEGIN L1:  SI~SI+1;%        08738000        
+                   IF SC=" " THEN GO L1; END;                      %534-08739000        
+                   IF SC="*" THEN BEGIN SI~SI+1; GO L5; END;       %534-08739500        
+                   IF SC="," THEN GO L2;  IF SC<"0" THEN GO EXIT;%      08740000        
+                   KTR~SI;  L3:  TALLY~TALLY+1;  SI~SI+1;               08741000        
+                   IF SC}"0" THEN GO L3;  SI~KTR;  CODE~TALLY;          08742000        
+                   DI~LOC PRT;  DS~CODE OCT;  TALLY~0;%                 08743000        
+              L5:  IF SC=" " THEN BEGIN L4:  SI~SI+1;%                  08744000        
+                   IF SC=" " THEN GO L4 END;  IF SC="," THEN GO L2;%    08745000        
+                   IF SC="~" THEN TALLY~1;  GO EXIT;%                   08746000        
+              L2:  SI~SI+1;  IF SC=" " THEN BEGIN L6:  SI~SI+1;%        08747000        
+                   IF SC=" " THEN GO L6 END ; KTR~SI;%                  08748000        
+                   IF SC="*" THEN BEGIN TALLY~1;  GO EXIT END;%         08749000        
+                   IF SC="~" THEN BEGIN TALLY~1; GO EXIT; END;     %534-08749500        
+                   IF SC<"0" THEN GO EXIT;  L7:  TALLY~TALLY+1;%        08750000        
+                   SI~SI+1;  IF SC}"0" THEN GO L7;  DI~ LOC IOT;%       08751000        
+                   SI~KTR;  CODE~TALLY; DS~CODE OCT;  TALLY~1;%         08752000        
+              EXIT:  CODE~TALLY;%                                       08753000        
+              END STREAM;%                                              08754000        
+              IF NOT P THEN GO SPIT;%                                   08755000        
+              PRT ~ P|3600;  IOT ~ P|3600;%                             08756000        
+              IF TYPE=VXT THEN BEGIN                                    08757000        
+                   IF PRT!0 THEN BEGIN%                                 08758000        
+                        PROCTIME[MIX] ~ *P(DUP)-PRT;%                   08759000        
+                        JAR[MIX,3] ~ *P(DUP)+PRT;%                      08760000        
+                   END;%                                                08761000        
+                   IF IOT!0 THEN BEGIN%                                 08762000        
+                        IOTIME[MIX] ~ *P(DUP)-IOT;%                     08763000        
+                        JAR[MIX,4] ~ *P(DUP)+IOT;%                      08764000        
+              END END ELSE BEGIN%                                       08765000        
+                   IF PRT!0 THEN BEGIN%                                 08766000        
+                        PROCTIME[MIX] ~ *P(DUP)+JAR[MIX,3]-PRT;%        08767000        
+                        JAR[MIX,3] ~ PRT;%                              08768000        
+                   END;%                                                08769000        
+                   IF IOT!0 THEN BEGIN%                                 08770000        
+                        IOTIME[MIX] ~ *P(DUP)+JAR[MIX,4]-IOT;           08771000        
+                        JAR[MIX,4] ~ IOT;%                              08772000        
+              END END;                                                  08773000        
+              STREAM(TEST~0: X~JARROW[MIX],MIX,Z~PRT!0,I~IOT!0,%        08774000        
+                        K:=TYPE=VXT,T:=T:=SPACE(10));                   08775000        
+              BEGIN DS~LIT " ";  Z(DS~4 LIT "PRT ";  TALLY~1;%          08776000        
+                   I(DS~4 LIT"AND "));  I(DS~4 LIT "IOT ";  TALLY~1);%  08777000        
+                   DS~8 LIT "ESTIMATE"; Z(I(DS~LIT "S"));%              08778000        
+                   DS~8LIT" CHANGED";  K(DI~DI-7; DS~8LIT"EXTENDED"0;%  08779000        
+                   DS~5LIT" FOR";  SI~S;  SI~SI+1;  DS~7CHR;  SI~SI+1;% 08780000        
+                   DS~LIT"/";  DS~7CHR;  DS~LIT"=";  SI~LOC Z;%         08781000        
+                   SI~SI-8; DS~2DEC; DS~LIT"~"; TEST~TALLY;             08782000        
+                   DI~DI-3; DS~FILL;                                    08782500        
+              END STREAM;%                                              08783000        
+              IF P THEN SPOUTER(T INX M[BUFF-1],UNITNO,1) ELSE          08784000        
+              FORGETSPACE(T);                                           08784100        
+         END;                                                           08785000        
+         IOT ~ PRT ~ -0;%                                               08786000        
+         IF P(JAR[MIX,3],DUP)=@377777777777 THEN P(DEL)ELSE%            08787000        
+         P1 ~ (PRT ~ P DIV 3600)-60|(PRT ~ PRT DIV 60);%                08788000        
+         IF P(JAR[MIX,4],DUP)=@377777777777 THEN P(DEL) ELSE%           08789000        
+         I1 ~ (IOT ~ P DIV 3600)-60|(IOT ~ IOT DIV 60);%                08790000        
+         STREAM(X~JARROW[MIX], MIX,PRT,P1,IOT,I1,BUFF);                 08791000        
+         BEGIN DS~17LIT" TIME LIMITS FOR";  SI~X;  SI~SI+1;  DS~7CHR;%  08792000        
+              DS~LIT"/"; SI~SI+1; DS~7CHR; DS~LIT"="; DI~LOC MIX;       08793000        
+              DS~2DEC; MIX~DI; DI~DI-2; DS~FILL; DI~MIX;                08793500        
+              DS~10LIT" ARE: PRT="; IF SC="+" THEN                      08794000        
+              BEGIN  SI~SI+16;  DS~8LIT"NO LIMIT" END ELSE BEGIN%       08795000        
+              DS~8DEC;  DS~LIT":";  DS~2DEC;  BUFF~DI;  DI~DI-11;%      08795500        
+              DS~7FILL;  DI~BUFF END;  DS~6LIT"; IOT=";  IF SC="+" THEN 08796000        
+              DS~10LIT"NO LIMIT.~" ELSE BEGIN DS~8DEC;  DS~LIT":";%     08796500        
+              DS~2DEC;  DS~2LIT".~";  DI~DI-13;  DS~7FILL END;          08797000        
+         END STREAM;%                                                   08797500        
+    SPIT:%                                                              08798000        
+         SPOUTER(BUFF INX M[BUFF-1],UNITNO,1);                          08798500        
+    END TIMERELAXER;                                                    08799000        
