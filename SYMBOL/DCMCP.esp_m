@@ -8914,3 +8914,101 @@ OK:                                                                     08716800
     SPIT:%                                                              08798000        
          SPOUTER(BUFF INX M[BUFF-1],UNITNO,1);                          08798500        
     END TIMERELAXER;                                                    08799000        
+PROCEDURE CHANGEFACTOR(BUFF,TF); VALUE BUFF,TF; REAL BUFF; BOOLEAN TF;  08800000        
+BEGIN REAL FACTOR,B,T; INTEGER TEMP=T;                                  08801000        
+      LABEL TYPEOUT,EXIT;                                               08802000        
+      BUFF ~ ((B~BUFF).[15:15]-1)&M[P(DUP)-1][9:9:9];                   08802500        
+      IF TF THEN GO TYPEOUT;                                            08803000        
+      STREAM(ANS~0:B);                                                  08804000        
+        BEGIN SI~B; DI~LOC B; DS~8LIT"00000000:; DI~DI-2;               08805000        
+        L:    IF SC = " " THEN BEGIN SI~SI+1; GO TO L END;              08806000        
+              IF SC < "0" THEN GO TO L1;                                08807000        
+              IF SC > "9" THEN GO TO L1;                                08808000        
+              SI~SI+1;                                                  08809000        
+              IF SC < "0" THEN GO TO ONECHR;                            08810000        
+              IF SC { "9"                                               08810500        
+                THEN         BEGIN SI~SI-1; DI~DI-2; DS~2 CHR; END      08811000        
+                ELSE ONECHR: BEGIN SI~SI-1; DI~DI-1; DS~1 CHR; END;     08812000        
+              IF SC = "." THEN GO TO L2 ELSE GO TO L3;                  08813000        
+        L1:   IF SC ! "." THEN GO TO ERROR;                             08814000        
+        L2:   SI~SI+1;                                                  08815000        
+              IF SC < "0" THEN GO TO ERROR;                             08816000        
+              IF SC > "0" THEN GO TO ERROR;                             08817000        
+              DS~CHR;                                                   08818000        
+              IF SC } "0" THEN IF SC { "9" THEN DS~CHR;                 08819000        
+        L3:   IF SC = " " THEN GO CONVERT;                              08820000        
+              IF SC = "~" THEN GO CONVERT;                              08821000        
+        ERROR:DI~LOC ANS; SKIP 1 DB; DS~ 10 SET; GO TO EXITS;           08822000        
+        CONVERT: SI~LOC B; SI~SI+4; DI~LOC ANS; DS~4 OCT;               08823000        
+        EXITS:                                                          08824000        
+        END STREAM;                                                     08825000        
+      P(.FACTOR,~);                                                     08826000        
+      IF FACTOR < 0 THEN GO TO EXIT;                                    08828000        
+      CORE.[4:14] ~ FACTOR;                                             08829000        
+      SLEEP([TOGLE],HOLDMASK); LOCKTOG(HOLDMASK);                       08830000        
+      B ~ SPACE(30);                                                    08831000        
+      DISKWAIT(-B,30,DIRECTORYTOP-SYSNO);                               08832000        
+      M[B+9] ~ CORE;                                   % CHANGE FACTOR  08833000        
+      DISKWAIT(B,-30,DIRECTORYTOP-SYSNO);                               08834000        
+      FORGETSPACE(B);                                                   08835000        
+      UNLOCKTOG(HOLDMASK);                                              08836000        
+      SELECTION;                                                        08836500        
+TYPEOUT:                                                                08837000        
+      STREAM(I~(FACTOR~CORE.[4:14]) DIV 100, FR~(TEMP~FACTOR MOD 100),  08838000        
+             MX~(TEMP~CORE.[CF]|64|FCTOR/100),US~CORE.[FF]|64,     %749-08839000        
+ $ SET OMIT = NOT WORKSET                                          %749-08839499        
+             NOSELECT~WKSETNOSELECT,                               %749-08839500        
+ $ POP OMIT                                                        %749-08839501        
+             BUFF);                                                %749-08839600        
+        BEGIN DS~9 LIT"FACTOR = ";                                      08840000        
+              SI~LOC I; DS~2 DEC; I~DI; DI~DI-2; DS~FILL; DI~I;         08841000        
+                        DS~LIT"."; DS~2 DEC;                            08842000        
+              DS~13 LIT", MAX CORE = "; DS~7 DEC;                       08843000        
+                        I~DI; DI~DI-7; DS~6 FILL; DI~I;                 08844000        
+              DS~7LIT",USING "; DS~7 DEC; I~DI; DI~DI-7; DS~6 FILL;%749-08845000        
+              DI:=I;                                               %749-08845500        
+ $ SET OMIT = NOT WORKSET                                          %749-08845999        
+              NOSELECT(DS:=14 LIT ",WKSETNOSELECT");               %749-08846000        
+ $ POP OMIT                                                        %749-08846001        
+              DS:=LIT"~";                                          %749-08846010        
+        END STREAM;                                                     08847000        
+EXIT: SPOUT(BUFF);                                                      08848000        
+END CHANGEFACTOR;                                                       08849000        
+PROCEDURE SHEETDIDDLER(BUFF,TYPE,STD); VALUE BUFF,TYPE,SID;             08850000        
+                                       REAL  BUFF,TYPE,SID;             08850100        
+COMMENT TYPE = 6: PS -- CHANGE PRIORITY OF JOB IN SCHEDULE              08850200        
+             = 8: XS -- EXECUTE JOB IN SCHEDULE (FORCE SELECTION)       08850300        
+             = 7: ES -- ELIMINATE JOB FROM SCHEDULE (FORCE SELECTION,   08850400        
+                                                      THEN "DS")        08850500        
+             = 5: TS -- TYPE OUT SCHEDULE;                              08850600        
+BEGIN REAL IOD,T,PRIORITY;                                              08851000        
+      INTEGER LEVEL,NEXTLINK,THISLINK,LASTLINK;                         08852000        
+      INTEGER ES,EM,EH; DEFINE ET = EH#;                                08852500        
+ $ SET OMIT = NOT(DATACOM )                                             08852599        
+      BOOLEAN LASTPASED,ATLEASTONE;                                     08853000        
+      ARRAY S[*],DLNK[*];                                               08854000        
+ $ SET OMIT = NOT(PACKETS)                                              08854499        
+      DEFINE UNITNO = S[23].[2:6]#;  % ORIGINATING UNIT                 08854500        
+ $ POP OMIT                                                             08854501        
+      LABEL CONTINUE,C1,READIN,GNX,TS,TS1,TS2,                          08855000        
+            XSES,ESLL,PS,PS1,PS2,SPIT,EXIT;                             08856000        
+      SUBROUTINE GETNEXT; % READS IN NEXT JOB SHEET ENTRY               08858000        
+      BEGIN                                                             08859000        
+      CONTINUE: LASTLINK ~ THISLINK;                                    08860000        
+                IF (THISLINK~NEXTLINK) ! 0 THEN GO TO READIN;           08860500        
+      C1:       IF (LEVEL~LEVEL+1) > MIXMAX THEN                        08861000        
+                  BEGIN LASTPASSED ~ TRUE; GO TO GNX END;               08862000        
+                LASTLINK ~ NEXTLINK ~ 0;                                08863000        
+                IF (THISLINK~SHEET[LEVEL].[CF]) = 0 THEN GO TO C1;      08864000        
+      READIN:   DISKIO(IOD,-(S INX 0-1),30,THISLINK);                   08865000        
+                SLEEP([IOD],IOMASK);                                    08866000        
+                NEXTLINK ~ S[29];                                       08867000        
+                IF S[0].[36:6]=@14 THEN GO CONTINUE;%PASS LM ENTRY      08868000        
+      GNX:                                                              08869000        
+      END GETNEXT;                                                      08870000        
+      SLEEP([TOGLE],SHEETMASK); LOCKTOG(SHEETMASK);                     08880000        
+      S := [M[TYPEDSPACE(31,SHEETAREAV)]] & 30[SIZE];%             %167-08881000        
+      LEVEL ~ -1; LASTPASSED ~ FALSE;                                   08882000        
+         IF BUFF!0 THEN                                                 08882050        
+      BUFF ~ ((T~BUFF).[15:15]-1)&M[P(DUP)-1][9:9:9];                   08882500        
+ $ SET OMIT = NOT(DATACOM )                                             08882599        
