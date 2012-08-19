@@ -9012,3 +9012,89 @@ BEGIN REAL IOD,T,PRIORITY;                                              08851000
          IF BUFF!0 THEN                                                 08882050        
       BUFF ~ ((T~BUFF).[15:15]-1)&M[P(DUP)-1][9:9:9];                   08882500        
  $ SET OMIT = NOT(DATACOM )                                             08882599        
+      IF TYPE=5 THEN GO TS; IF TYPE GTR 6 THEN GO XSES; GO PS;          08883000        
+IS:   ATLEASTONE ~ FALSE;                                               08884000        
+IS1:  GETNEXT; IF LASTPASSED THEN GO TO TS2;                            08885000        
+    IF SID NEQ 63 THEN BEGIN IF S[3].[8:10]NEQ SID THEN GO TS; END ELSE 08885500        
+    IF ATLEASTONE THEN BUFF.[CF]~SPACE(12);                             08886000        
+      ET~((CLOCK+P(RTR))/60)-S[23].[24:24];                             08886300        
+      ES ~ ET MOD 60; ET ~ ET DIV 60; EM ~ ET MOD 60; EH ~ ET DIV 60;   08886600        
+    STREAM(TU~S[23].[9:4],BUF~S[23].[14:4],                             08887000        
+    RT:=S[23].[9:4] NEQ 0,C:=LEVEL,J1:=(S[0] LSS 0) OR                  08887001        
+    (S[2].SSYSJOBF = LIBMAINCODE),J2:=S[27],                            08887010        
+    J~S[*],ID~S[3].[8:10],EH,EM,ES,A~S[20]|64,BUFF); %                  08887100        
+        BEGIN SI~LOC C; DS~6 DEC; DI~DI-6; DS~5 FILL; DI~BUFF; DI~DI+6; 08888000        
+              DS~LIT":"; SI~J; SI~SI+1; DS~7 CHR; DS~LIT"/"; SI~SI+1;   08889000        
+              DS:=7CHR;J1(DS:=LIT" ";SI:=LOC J2;SI:=SI+1;DS:=7CHR);     08890000        
+              DS:=LIT"=";SI:=LOC ID;DS:=2 DEC;                          08890010        
+    RT(DS~6 LIT " FROM "; SI~LOC TU; DS~2 DEC; %                        08890100        
+    DS~1 LIT "/"; SI~LOC BUF; DS~2 DEC;); %                             08890200        
+              DS~7 LIT" IN FOR"; SI~LOC EM;                             08891000        
+              3(DS ~ LIT":"; DS~2 DEC); ES~DI; DI~DI-9; DS~8 FILL;      08892000        
+              DI~ES; DS~8 LIT", NEEDS ";                                08893000        
+              SI~LOC A; DS~5 DEC; DS~LIT"~"; DI~DI-6; DS~4 FILL;        08899000        
+        END STREAM;                                                     08900000        
+      SPOUTER(BUFF,IF SID!63 THEN UNITNO ELSE 0,1);                     08901000        
+      IF SID NEQ 63 THEN BEGIN TYPE:=5;GO EXIT END;                     08901500        
+      ATLEASTONE~TRUE;                                                  08902000        
+      GO TO TS;                                                         08903000        
+TS2:  IF ATLEASTONE THEN GO TO EXIT;                                    08904000        
+      IF SID NEQ 63 THEN YTPE:=5 ELSE%                                  08904050        
+      STREAM(BUFF);  DS ~ 15 LIT " NULL SCHEDULE~";%                %WF 08905000        
+      SPOUT(BUFF); GO TO EXIT;                                          08906000        
+XSES: GETNEXT;                                                          08910000        
+         IF LASTPASSED THEN BEGIN IF BUFF!0 THEN SPOUT(BUFF);           08911000        
+                                  GO TO EXIT; END;                      08911050        
+      IF S[3].[8:10]~SID THEN GO TO XSES;                               08912000        
+ $ SET OMIT = NOT(DATACOM )                                             08912099        
+      S[2].[1:2]:=(IF TYPE=8 THEN 2 ELSE 3); % 7=ES,8=XS                08913000        
+      DISKIO(IOD,S INX 0-1,30,THISLINK); SLEEP([IOD],IOMASK);           08915000        
+      GO TO SPIT;                                                       08915100        
+PS:   STREAM(PRIORITY:T);                                               08916000        
+      BEGIN SI~T;                                                       08917000        
+      N:    IF SC="~" THEN GO TO X;                                     08918000        
+            IF SC<"0" THEN BEGIN SI~SI+1; GO TO N; END; T~SI;           08919000        
+      K:    IF SC}"0" THEN IF SC{"9" THEN                               08920000        
+                   BEGIN TALLY~TALLY+1; SI~SI+1; GO TO K END;           08921000        
+            SI~T; DI~LOC PRIORITY; T~TALLY; DS~T OCT; GO TO Z;          08922000        
+      X:    DI~LOC PRIORITY; SKIP DB; DS~11 SET;                        08923000        
+      Z:                                                                08924000        
+      END STREAM;                                                       08925000        
+      IF (PRIORITY~P)<0 THEN BEGIN SPOUT(BUFF); GO TO EXIT END;         08926000        
+PS1:  GETNEXT; IF LASTPASSED THEN BEGIN SPOUT(BUFF); GO TO EXIT END;    08927000        
+      IF S[3].[8:10]!SID THEN GO TO PS1;                                08928000        
+% DELINK AND RELINK THIS SHEET ENTRY                                    08929000        
+      DLNK := [M[TYPEDSPACE(31,SHEETAREAV)]] & 30[SIZE];%          %167-08930000        
+      IF NEXTLINK = 0 THEN SHEET[LEVEL].[FF] ~ LASTLINK;                08931000        
+      IF LASTLINK = 0 THEN BEGIN SHEET[LEVEL].[CF]~ NEXTLINK;GO PS2 END;08932000        
+      DISKIO(IOD,-(DLNK INX 0-1),30,LASTLINK); SLEEP([IOD],IOMASK);     08933000        
+      DLNK[29] ~ NEXTLINK;                                              08934000        
+      DISKIO(IOD,+(DLNK INX 0-1),30,LASTLINK); SLEEP([IOD],IOMASK);     08935000        
+PS2:  S[2].[CF] ~ IF (S[18]~PRIORITY) > 32767 THEN 32767 ELSE PRIORITY; 08936000        
+      LEVEL ~ IF PRIORITY > MIXMAX THEN MIXMAX ELSE PRIORITY;           08937000        
+      IF SHEET[LEVEL].[CF] ~ 0 THEN                                     08938000        
+      BEGIN DISKIO(IOD,-(DLNK INX 0-1),30,SHEET[LEVEL].[FF]);           08939000        
+            SLEEP([IOD],IOMASK);                                        08940000        
+            DLNK[29] ~ THISLINK;                                        08941000        
+            DISKIO(IOD,+(DLNK INX 0-1),30,SHEET[LEVEL].[FF]);           08942000        
+            SLEEP([IOD],IOMASK);                                        08943000        
+      END ELSE SHEET[LEVEL] ~ THISLINK;                                 08944000        
+      SHEET[LEVEL].[FF] ~ THISLINK;                                     08944500        
+      S[29] ~ 0; S[3] ~ ABS(S[3]); % TO GET SELECTION TO PRINT MESSAGE; 08945000        
+      DISKIO(IOD,+(S INX 0-1),30,THISLINK); SLEEP([IOD],IOMASK);        08946000        
+      FORGETSPACE(DLNK);                                                08947000        
+SPIT: IF BUFF!0 THEN                                                    08947100        
+ $ SET OMIT = NOT(PACKETS)                                              08947199        
+      IF UNITNO GEQ 32 THEN                                             08947200        
+      BEGIN                                                             08947300        
+           MOVE(9,BUFF+1,BUFF); SPOUTER(BUFF,UNITNO,64);                08947400        
+      END ELSE                                                          08947500        
+ $ POP OMIT                                                             08947501        
+      FORGETSPACE(BUFF);                                                08947600        
+EXIT: UNLOCKTOG(SHEETMASK);                                             08997000        
+      FORGETSPACE(S);                                                   08998000        
+      IF TYPE!5 THEN BEGIN KEYBOARDCOUNTER ~ KEYBOARDCOUNTER-1;         08998200        
+                            SELECTION;                                  08998400        
+                            KEYBOARDCOUNTER ~ KEYBOARDCOUNTER+1;        08998600        
+                      END;                                              08998800        
+END SHEETDIDDLER;                                                       08999000        
