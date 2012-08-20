@@ -9098,3 +9098,50 @@ EXIT: UNLOCKTOG(SHEETMASK);                                             08997000
                             KEYBOARDCOUNTER ~ KEYBOARDCOUNTER+1;        08998600        
                       END;                                              08998800        
 END SHEETDIDDLER;                                                       08999000        
+ $ SET OMIT = NOT(DCSPO AND DATACOM )                                   08999999        
+ $ SET OMIT = NOT(DISKLOG)                                              09299999        
+PROCEDURE WHATINTRNSIC(BUFF);  VALUE BUFF;  REAL BUFF; FORWARD;         09400000        
+ $ SET OMIT = NOT(AUXMEM)                                               09400099        
+ $ SET OMIT = NOT MONITOR                                               09410100        
+ $ SET OMIT = NOT AUXMEM                                                09433590        
+PROCEDURE INTRINSICTABLEBUILDER(FH); VALUE FH; REAL FH;                 09500000        
+   BEGIN                                                                09500500        
+   % WHEN CALLED WITH FH= (-1), TRANSFER TO AUXMEM ONLY                 09500510        
+   REAL DISKADDR=+1,T=+2,INTLOC=+3,T17SIZE=+4,MAXINT=+5;                09501000        
+ $ SET OMIT = NOT(AUXMEM)                                               09501500        
+P(0, 0, 0, 0, 0);                                                       09504570        
+   IF (T:=FH.[FF])=0 THEN T:=SPACE(30);                                 09505000        
+ $ SET OMIT = NOT(AUXMEM)                                               09505100        
+   DISKWAIT(-T, 30, DISKADDR:=M[FH INX 10]);                            09505500        
+   MAXINT  := M[T] ~ 1; % NUMBER OF INTRINSICS + 1                      09505600        
+   T17SIZE := M[T INX 17].[8:10]+1; % INTR.#17 SIZE+1WD.FOR DISK.ADDR.  09505700        
+   FORGETSPACE(T);                                                      09505750        
+   INTRNSC:=[M[INTLOC:=GETSPACE(MAXINT+I17SIZE,INTARRAYAREAV,1)+2]]&    09506000        
+     (MAXINT+T17SIZE)[8:38:10]; % SPACE FOR INTRINSIC TABLE + INT.#17   09506100        
+   DISKWAIT(-(INTRNSC INX 0),MAXINT,DISKADDR);                          09506500        
+   M[INTRNSC INX NOT 0] := 0; MAXINT := MAXINT -1;                      09507000        
+   FOR T := 1 STEP 1 UNTIL MAXINT DO                                    09507500        
+      INTRNSC[T]:=NABS(([(*P(DUP),DUP).[8:10]+INTSIZE) &                09508000        
+         (P(XCH) INX 0 + DISKADDR)[6:21:27]);                           09508500        
+   DISKWAIT(-(INTLOC:=INTLOC+MAXINT+2),(T17SIZE-1),INTRNSC[17].[6:27]); 09508600        
+   INTRNSC[17] := (*P(DUP))&INTLOC[CTC]; % MARK PERCENT                 09508700        
+   M[INTLOC-1]:=0&(T17SIZE-1)[CTF]; % DUMMY MARKER FOR DUMP/ANALYZE     09508800        
+   DISKADDR:=0&1[4:47:1];                                               09509000        
+   INTRNSC[2]:=*P(DUP) OR DISKADDR;                                     09509500        
+   FOR T:=18 STEP 1 UNTIL 20 DO INTRNSC[T]:=*P(DUP) OR DISKADDR;        09510000        
+ $ SET OMIT = NOT(AUXMEM)                                               09510500        
+   INTSIZE:=(INTRNSC[0] + 3 ) DIV 4;                                    09534500        
+ $ SET OMIT = NOT(PACKETS)                                              09534999        
+   T:=SPACE(15); WHATINTRNSIC(T);                                       09535000        
+   STREAM(S:=T,D:=3);                                                   09535100        
+   BEGIN                                                                09535200        
+        SI:=S; DI:=DI+4; % CMBIT IN M[3].[1:1]                          09535300        
+        63(IF SC="." THEN JUMP OUT; SI:=SI+1); S:=SI;                   09535400        
+         4(SI:=SI+1; IF SC="." THEN JUMP OUT);                          09535500        
+        IF TOGGLE THEN ELSE SI:=S; SI:=SI+1;                            09535600        
+        3(IF SC<"0" THEN JUMP OUT; TALLY:=TALLY+1; SI:=SI+1);           09535700        
+        S:=TALLY; SI:=SI-S; DI:=DI-S; DS:=S CHR;                        09535800        
+   END;                                                                 09535900        
+   FORGETSPACE(T);                                                      09536000        
+ $ POP OMIT                                                             09536001        
+   END INTRINSCI TABLE BUILDER;                                         09537000        
