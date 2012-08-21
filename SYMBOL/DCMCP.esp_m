@@ -9145,3 +9145,76 @@ P(0, 0, 0, 0, 0);                                                       09504570
    FORGETSPACE(T);                                                      09536000        
  $ POP OMIT                                                             09536001        
    END INTRINSCI TABLE BUILDER;                                         09537000        
+ PROCEDURE CHANGEINTRINSICFILE(BUFF);  VALUE BUFF;  REAL BUFF;%         09600000        
+BEGIN REAL A,B,IOD,I,J,K,L;                                             09601000        
+REAL FH,T,IT; LABEL FXIT,WITHOUT;                                       09602000        
+    REAL SIZE=I,DISKADDR=T,LOC=IT,WI=J;                                 09602100        
+    BOOLEAN SUBROUTINE NULLMIX;%                                        09603000        
+    BEGIN POLISH(1);%                                                   09604000        
+         IF INTSIZE!0 THEN BEGIN INTSIZE ~ 0;%                          09605000        
+              FOR I~1 STEP 1 UNTIL MIXMAX DO%                           09606000        
+              IF JARROW[I]!0 THEN%                                      09607000        
+              IF NOT (JAR[I,9].SYSJOBF) THEN % NOT "SYSTEM" JOB         09608000        
+              BEGIN P(DEL, 0);  I ~ MIXMAX;  END;%                      09611000        
+              IF NOT P(DUP) THEN INTSIZE ~ (INTRNSC[0]+3) DIV 4;%       09612000        
+         END;%                                                          09613000        
+         NULLMIX ~ POLISH;%                                             09614000        
+    END NULLMIX;%                                                       09615000        
+    SUBROUTINE FORGETEM;%                                               09616000        
+    BEGIN SLEEP([TOGLE],STOREMASK); LOCKTOG(STOREMASK);                 09617000        
+         WHILE (K ~ M[L]).[CF]!0 DO%                                    09618000        
+         BEGIN IF K>0 THEN%                                             09619000        
+              IF K.[3:12]=@700 THEN%                                    09620000        
+                FORGETSPACE(L+2);%                                      09621000        
+              L ~ K.[CF];%                                              09622000        
+         END;%                                                          09623000        
+         UNLOCKTOG(STOREMASK);                                          09624000        
+ $ SET OMIT = NOT(AUXMEM)                                               09624010        
+              FORGETSPACE(INTRNSC INX 0); INTRNSC~0                     09624100        
+    END FORGETEM;%                                                      09625000        
+    DEFINE ERROR = GO TO EXIT#;%                                        09626000        
+         SLEEP([TOGLE], FREEMASK);  INTFREE ~ FALSE;%                   09630000        
+         T ~ BUFF;%                                                     09631000        
+         NAMEID(A,T);  NAMEID(B,T);  NAMEID(B,T);%                      09632000        
+         IF (FH:=DIRECTORYSEARCH(A,B,17))=0 THEN ERROR;                 09633000        
+         IF (J~M[FH+4].[36:6])!0 THEN                                   09633100        
+              IF J!DCINTYPE AND J!TSSINTYPE THEN                        09633200        
+         BEGIN     % DONT ALLOW CI ON KNOWN NON-INTRINSICS FILE         09633300        
+              STREAM(A,B,NT1:=BUFF.[15:15]-1);                          09633400        
+              BEGIN DS:=2LIT"# "; SI:=LOC A;                            09633500        
+                   SI:=SI+1; DS:=7CHR; DS:=LIT"/";                      09633600        
+                   SI:=SI+1; DS:=7 CHR;                                 09633700        
+                   DS:=24 LIT" NOT AN INTRINSICS FILE~";                09633800        
+              END;                                                      09633900        
+              FORGETSPACE(FH);                                          09634000        
+              FORGETSPACE(DIRECTORYSEARCH(A,B,16));                     09634100        
+              ERROR;                                                    09634200        
+         END;                                                           09634300        
+         IF NOT NULLMIX THEN COMPLEXSLEEP(NULLMIX);                     09635000        
+         IF INTRNSC!0 THEN FORGETEM;                                    09636000        
+ $ SET OMIT = SHAREDISK                                                 09636999        
+         IF MCPFREE=0 THEN SLEEP([TOGLE],MCPMASK);                      09637000        
+         LOCKTOG(MCPMASK);                                              09638000        
+ $ POP OMIT                                                             09638001        
+         T:=SPACE(30);                                                  09639000        
+OKSEGZEROWRITE:=TRUE;                                              %204-09639001        
+         DISKWAIT(-T,-30,0);                                            09640000        
+         I:=T+13+5|SYSNO;                                               09641000        
+         IF (IT:=DIRECTORYSEARCH(M[I],M[I+1],16))!0 THEN                09642000        
+         FORGETSPACE(T);                                                09643000        
+         M[I]:=A;                                                       09644000        
+         M[I+1]:=B;                                                     09645000        
+         DISKWAIT(T,-30,0);                                             09646000        
+OKSEGZEROWRITE:=FALSE;                                             %204-09646001        
+ $ SET OMIT = SHAREDISK                                                 09646999        
+         UNLOCKTOG(MCPMASK);                                            09647000        
+ $ POP OMIT                                                             09647001        
+ $ SET OMIT = NOT(AUXMEM)                                               09647999        
+         FORGETSPACE(T);                                                09648000        
+         INTRINSICTABLEBUILDER(FH.[CF]);                                09657000        
+         FORGETSPACE(FH);                                               09658000        
+         WHATINTRNSIC(BUFF.[15:15]);                                    09659000        
+         STREAM(B:=BUFF.[15:15]-1); DS:=8 LIT" NEW    ";                09670000        
+    EXIT:  SPOUT(BUFF.[15:15]-1);%                                      09676000        
+         INTFREE ~ TRUE;%                                               09677000        
+    END CHANGING INTRINSIC FILES ON USER DISK WITH MANY PRECAUTIONS;%   09679000        
