@@ -9218,3 +9218,63 @@ OKSEGZEROWRITE:=FALSE;                                             %204-09646001
     EXIT:  SPOUT(BUFF.[15:15]-1);%                                      09676000        
          INTFREE ~ TRUE;%                                               09677000        
     END CHANGING INTRINSIC FILES ON USER DISK WITH MANY PRECAUTIONS;%   09679000        
+PROCEDURE CHANGEMCP(BUFF); VALUE BUFF; REAL BUFF;                       09679100        
+BEGIN                                                                   09679200        
+    REAL A,B,T,Z,BASE;                                                  09679300        
+    LABEL EXIT;                                                         09679400        
+    T:=BUFF;                                                            09679800        
+    NAMEID(A,T); NAMEID(B,T); NAMEID(B,T);                              09679900        
+ $ SET OMIT = SHAREDISK                                                 09679999        
+    IF MCPFREE=0 THEN SLEEP([TOGLE],MCPMASK);                           09680000        
+    LOCKTOG(MCPMASK);                                                   09680100        
+ $ POP OMIT                                                             09680101        
+    Z:=SPACE(30);                                                       09680200        
+OKSEGZEROWRITE:=TRUE;                                              %204-09680229        
+    DISKWAIT(-Z,-30);                                                   09680300        
+    BASE:=Z+10+5|SYSNO;                                                 09680400        
+    IF (A EQV M[BASE])!NOT 0 OR                                         09680500        
+       (B EQV M[BASE+1])!NOT 0 THEN                                     09680600        
+    BEGIN                                                               09680700        
+         IF (T:=DIRECTORYSEARCH(A,B,17))=0 THEN                         09680800        
+         BEGIN;                                                         09680900        
+              STREAM(A:=[A],T:=BUFF.[15:15]-1);                         09681000        
+              BEGIN DS:=13 LIT"#NO MCP FILE ";SI:=A;SI:=SI+1;           09681100        
+                   DS:=7 CHR;DS:=LIT"/";SI:=SI+1;DS:=7 CHR;             09681200        
+              DS~LIT"~";                                                09681250        
+              END;                                                      09681300        
+              GO TO EXIT;                                               09681400        
+         END;                                                           09681500        
+         IF (NT1~M[T+4].[36:6])!0 THEN IF NT1!MCPTYPE THEN              09681505        
+         BEGIN     % DONT ALLOW CM ON KNOWN NON-MCP FILE                09681510        
+              STREAM(A:=[A],T:=BUFF.[15:15]-1);                         09681515        
+              BEGIN DS:=2LIT"# "; SI:=A; SI:=SI+1;                      09681520        
+                   DS:=7CHR; DS:=LIT"/"; SI:=SI+1;                      09681525        
+                   DS:=7CHR; DS:=12LIT" NOT AN MCP~";                   09681530        
+              END;                                                      09681535        
+              FORGETSPACE(T);                                           09681540        
+              FORGETSPACE(DIRECTORYSEARCH(A,B,16));                     09681545        
+              GO TO EXIT;                                               09681550        
+         END;                                                           09681555        
+         IF M[BASE+2]-2!MCPBASE THEN                                    09681600        
+         FORGETSPACE(DIRECTORYSEARCH(M[BASE],M[BASE+1],16));            09681650        
+         M[BASE]:=A;                                                    09681700        
+         M[BASE+1]:=B;                                                  09681800        
+         M[BASE+2]:=M[T+10];                                            09681900        
+ $ SET OMIT = NOT(AUXMEM)                                               09681909        
+         FORGETSPACE(T);                                                09682000        
+    END;                                                                09682100        
+    STREAM(A:=[A],T:=BUFF.[15:15]-1);                                   09682200        
+    BEGIN DS:=18 LIT " NEXT MCP WILL BE ";SI:=A;SI:=SI+1;               09682300        
+         DS:=7 CHR;DS:=LIT"/";SI:=SI+1;DS:=7 CHR;                       09682400        
+         DS~LIT"~";                                                     09682450        
+    END;                                                                09682500        
+    M[3]~NABS(*P(DUP)); % SET FLAG FOR WM                               09682550        
+EXIT:                                                                   09682600        
+    DISKWAIT(Z,-30,0);                                                  09682610        
+OKSEGZEROWRITE:=FALSE;                                             %204-09682611        
+ $ SET OMIT = NOT(NOT SHAREDISK)                                        09682619        
+    UNLOCKTOG(MCPMASK);                                                 09682620        
+ $ POP OMIT                                                             09682621        
+    FORGETSPACE(Z);                                                     09682700        
+    SPOUT(BUFF.[15:15]-1);                                              09682800        
+END CHANGING OF THE MCP;                                                09683100        
