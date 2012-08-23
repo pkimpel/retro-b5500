@@ -9278,3 +9278,77 @@ OKSEGZEROWRITE:=FALSE;                                             %204-09682611
     FORGETSPACE(Z);                                                     09682700        
     SPOUT(BUFF.[15:15]-1);                                              09682800        
 END CHANGING OF THE MCP;                                                09683100        
+    BOOLEAN PROCEDURE SYSTEMFILE(A,B);  VALUE A,B;  REAL A,B;%          09700000        
+    BEGIN LABEL DISK,LOG,TRUTH,DIR,SYS,REM,DECK,MASK,TEST;              09701000        
+         LABEL DMP;                                                     09701500        
+         LABEL MAINT;                                                   09701550        
+ $ SET OMIT = NOT(STATISTICS)                                           09701599        
+         DEFINE T=P(TRUTH)#;%                                           09702000        
+         IF (B EQV P(DISK))=T THEN%                                     09703000        
+              P(((A EQV P(DIR))=T) OR                                   09704000        
+              ((A EQV P(LOG))=T) OR                                     09704100        
+              ((A EQV P(DMP))=T))                                       09704500        
+         ELSE IF (B EQV P(LOG))=T THEN%                                 09705000        
+                     P(((A EQV P(SYS))=T) %                             09706000        
+ $ SET OMIT = SHAREDISK                                                 09706049        
+                    OR ((A EQV P(MAINT))=T)%                            09706050        
+                    OR ((A EQV P(REM))=T)%                              09706100        
+ $ POP OMIT                                                             09706101        
+                                          )%                            09706150        
+ $ SET OMIT = NOT(SHAREDISK)                                            09706199        
+         ELSE IF (A EQV P(DECK))=T THEN%                                09707000        
+              P(((B AND P(MASK)) EQV P(TEST))=T)%                       09708000        
+ $ SET OMIT = NOT(STATISTICS)                                           09708099        
+         ELSE P(0);%                                                    09709000        
+         P(RTN);%                                                       09710000        
+    DISK :::  "DISK   ";%                                               09711000        
+    LOG  :::  "LOG    ";%                                               09712000        
+    TRUTH:::  @3777777777777777;%                                       09713000        
+    DIR  :::  "DIRCTRY";%                                               09715000        
+    SYS  :::  "SYSTEM ";%                                               09716000        
+    REM  :::  "REMOTE ";%                                               09717000        
+    DECK :::  "DECK   ";%                                               09718000        
+    MASK :::  @77000000007777;%                                         09719000        
+    TEST :::  @12000000003714;%                                         09720000        
+    DMP  :::  "DMPAREA";%                                               09720500        
+    MAINT:::  "MAINT  ";%                                               09720650        
+ $ SET OMIT = NOT(STATISTICS)                                           09720699        
+    END;%                                                               09721000        
+ $ SET OMIT = NOT(DEBUGGING)                                            09999999        
+ $ SET OMIT = NOT(WORKSET)                                              12200000        
+                                                                        12200500        
+PROCEDURE WKSETVALUES(KTRX); VALUE KTRX; REAL KTRX;                     12201000        
+   BEGIN                                                                12201500        
+                                                                        12202000        
+   % ROUTINE FOR HANDLING KEYIN WORKSET REQUESTS.                       12202500        
+                                                                        12203000        
+   REAL                                                                 12203500        
+   BUFF,                                                                12204000        
+   CYCLETOG,                                                            12204500        
+   ERRORTOG,                                                            12205000        
+   INS,                                                                 12205500        
+   INSTRUCT,                                                            12206000        
+   KTR,                                                                 12206500        
+ $ SET OMIT = NOT(WORKSETMONITOR) OR OMIT                               12207000        
+   MONTOG,                                                              12207500        
+ $ POP OMIT % WORKSET MONITOR                                           12208000        
+   N,                                                                   12208500        
+   NAM,                                                                 12209000        
+   NEXTNAME,                                                            12209500        
+   OLAYTOG,                                                             12210000        
+   STARTING,                                                            12210500        
+   TOLTOG,                                                              12211000        
+   USETOG,                                                              12211500        
+   VALU,                                                                12212000        
+   ZZSTA;                                                               12212500        
+                                                                        12213000        
+   ARRAY NAMS[*];                                                       12213500        
+                                                                        12214000        
+   LABEL NU, NEW, SKAN, SKP, ERROR;                                     12214500        
+                                                                        12215000        
+   DEFINE                                                               12215500        
+   OLAYINDX        = 1#, % CODE FOR "OLAY RATIO"                        12216000        
+   PRIORINDX       = 2#, % CODE FOR "PRIORITY",                         12216500        
+   ETIMEINDX       = 3#, % CODE FOR "ELAPSED TIME",                     12217000        
+   COREINDX        = 4#, % CODE FOR "CORE USAGE"                        12217500        
+   SAVEINDX        = 5#, % CODE FOR "SAVE CORE USAGE"                   12218000        
