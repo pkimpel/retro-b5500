@@ -1,0 +1,113 @@
+$ SET LIST MCP PRT DEBUG DEBUGN                                         00000011        
+                   B-5500 ESSENCE OF MCP : NOV,1968  P.E.G.             00020000        
+  COMMENT: * TITLE: B5500/B5700 MARK XVI SYSTEM RELEASE            *    00020110        
+           * FILE ID: SYMBOL/KERNAL  TAPE ID: SYMBOL2/FILE000      *    00020111        
+           * THIS MATERIAL IS PROPRIETARY TO BURROUGHS CORPORATION *    00020112        
+           * AND IS NOT TO BE REPRODUCED, USED, OR DISCLOSED       *    00020113        
+           * EXCEPT IN ACCORDANCE WITH PROGRAM LICENSE OR UPON     *    00020114        
+           * WRITTEN AUTHORIZATION OF THE PATENT DIVISION OF       *    00020115        
+           * BURROUGHS CORPORATION, DETROIT, MICHIGAN 48232        *    00020116        
+           *                                                       *    00020117        
+           * COPYRIGHT (C)  1971, 1972, 1974                       *    00020118        
+           *       BURROUGHS CORPORATION                           *    00020119        
+           *  AA320206   AA386657   AA332366                       *;   00020120        
+    BEGIN                                                               00030000        
+         DEFINE  M=MEMORY #, P=POLISH #;                                00040000        
+         ARRAY     DATA [*];                                            00050000        
+         DEFINE    ADDRESS = M[@40] #;                                  00060000        
+         DEFINE    BASE    = M[0] #;                                    00070000        
+         DEFINE    DIRECTOP= M[1] #;                                    00080000        
+         DEFINE    DISK    = M[@41] #;                                  00090000        
+         DEFINE    INDX    = M[@42] #;                                  00100000        
+         DEFINE    MODS    = M[@46] #;                                  00110000        
+         DEFINE    NOSYS   = M[@43] #;                                  00120000        
+         DEFINE    R       = M[@44] #;                                  00130000        
+         DEFINE    SYSTEM  = M[@45] #;                                  00140000        
+         INTEGER   PROCVAL = +1;                                        00150000        
+         INTEGER   FINDMEM;                                             00160000        
+         LABEL     TIMER,START,TOPOCODE;                                00170000        
+SAVE REAL PROCEDURE EOM;                                                00180000        
+         BEGIN     GO TO TIMER END;                                     00190000        
+SAVE REAL PROCEDURE IO (DESC);            %THIS FIRES OFF THE IO        00200000        
+              VALUE DESC;                                               00210000        
+              REAL  DESC;                                               00220000        
+         BEGIN                                                          00230000        
+              DO   BEGIN                                                00240000        
+                        P([DESC],IIO);                                  00250000        
+                        R ~ EOM;                                        00260000        
+                        IO ~  R.[25:8]                                  00270000        
+                   END  UNTIL (PROCVAL AND 5)=0;                        00280000        
+              END;                                                      00290000        
+SAVE PROCEDURE  DISKREED (DESC);                                        00300000        
+              VALUE     DESC;                                           00310000        
+              REAL      DESC;                                           00320000        
+              BEGIN     STREAM(A ~ BASE + ADDRESS,B:=DESC.[33:15]);     00330000        
+                            BEGIN SI:=LOC A;DI:=B;DS:=8 DEC; END;       00340000        
+                        IF M[DESC].[5:1] THEN DESC.[3:5]~12;%           00345000        
+                        DO  R~ IO(DESC) UNTIL R=0;                      00350000        
+              END;                                                      00360000        
+TOPOCODE      :@20: GO TO START;            % FIRST CODE                00380000        
+TIMER         :@22: P(INI);IF NOT FINDMEM THEN  % TIMER                 00390000        
+                    GO TO START;            % SET UP FOR INVD ADDR      00400000        
+              :   : GO TO TIMER;            % SPO                       00410000        
+              :@25: GO TO TIMER;            % LPA                       00420000        
+              :@26: GO TO TIMER;            % LPB                       00430000        
+              :@27: P(@14,LOD,RTN);         % I-O 1 COMPLETE            00440000        
+              :@30: P(@15,LOD,RTN);         % I-O 2 COMPLETE            00450000        
+              :@31: P(@16,LOD,RTN);         % I-O 3 COMPLETE            00460000        
+              :@32: P(@17,LOD,RTN);         % I-O 4 COMPLETE            00470000        
+              :@34: GO TO TIMER;            % DATA COMM                 00480000        
+              :@36: GO TO TIMER;            % DF #1 USED ON FREE ADDRESS00490000        
+              :@37: GO TO TIMER;            % DF #2 RETURN              00500000        
+              :@61: GO TO START;            % P1 INVD ADDRESS           00510000        
+START :*:     P(@100,STS);     % SET STACK TO OCT 100                   00530000        
+              M[MODS := MODS + @10000] := 0;     % FIND MOD TO LOAD MCP 00540000        
+              P(INI);     % CHECK FOR INVD ADDRESS                      00550000        
+              IF  MODS GTR @70000 THEN                                  00560000        
+              BEGIN MODS := 0;                                          00570000        
+                    GO TO START;                                        00580000        
+              END;                                                      00590000        
+              FINDMEM := TRUE;                                          00600000        
+              DATA ~[M[ (*P(.EOM))INX 100]] & 1023[8:38:10];            00610000        
+              DISK ~ DATA.[33:15];                                      00620000        
+              M[DISK] ~ @40;                                            00630000        
+              INDX ~ 13;                                                00640000        
+              IF IO (@140004000000000& DISK [33:33:15]) = 0 THEN        00650000        
+                   BEGIN                                                00660000        
+                   SYSTEM ~ DATA[1].[4:2];                              00670000        
+                   M[DISK]~ @4060&SYSTEM [30:46:2]; %CLEAR CONTENTION   00680000        
+                   P(IO(@140000100000000 & DISK[33:33:15]),DEL);  %BITS 00690000        
+                   M[DISK]~ @6060&SYSTEM[30:46:2];  % UNLOCK ADDRESSES  00700000        
+                   P(IO(@140000100000000 & DISK [33:33:15]),DEL);       00710000        
+                   INDX ~ INDX + (SYSTEM | 5);                          00720000        
+                   END;                                                 00730000        
+              M[DISK] := 0;  %SET ADDRESS TO ZERO                       00740000        
+              DO R~IO(DISK INX @140000040100000 ) UNTIL R=0;            00750000        
+              DIRECTOP := DATA [2];                                     00760000        
+              NOSYS    := DATA [1];                                     00770000        
+              BASE     := DATA [INDX];                                  00780000        
+              IF BASE LEQ DIRECTOP THEN                                 00790000        
+              BEGIN M[@46] := @3145652143312460;  %INVALID              00800000        
+                    M[@47] := @2124245125626260;  %ADDRESS              00810000        
+                    M[@50] := @2646516044234737;  %FOR MCP              00820000        
+                    P(IO(@740000000000046),DEL);                        00830000        
+                    DO UNTIL FALSE;                                     00840000        
+              END;                                                      00850000        
+              % BEGIN LOADING MCP    (MAX SIZE IS 4080)                 00860000        
+              ADDRESS ~ 73;                                             00870000        
+              DISKREED (@140000047704235 OR MODS);                      00880000        
+              ADDRESS ~ 10;                                             00890000        
+              DISKREED (@140000047700473 OR MODS);                      00900000        
+              ADDRESS ~ 0;                                              00910000        
+              DISKREED (@140000041200017 OR MODS);                      00920000        
+              % END MCP LOAD                                            00930000        
+              MODS := MODS + @40;                                       00940000        
+              M[@15] ~  @0441023201004441;  %CODE TO PULL MCP DOWN      00950000        
+              M[@16] ~  @0253010453527705;  %THIS MOVES 4042 WDS        00960000        
+              M[@17] ~  @3705005101002411;                              00970000        
+              BASE ~ BASE - 2;                                          00980000        
+              M[0]:=BASE&SYSTEM[16:46:2]&(NOSYS)[14:46:2];              00990000        
+              P(1,STS,0,STF);                                           01000000        
+              GO TO P([M[@15]]);                                        01010000        
+              WHILE TRUE DO;                                            01020000        
+           END OF HALT LOAD CARD.....                                   01030000        
