@@ -9352,3 +9352,106 @@ PROCEDURE WKSETVALUES(KTRX); VALUE KTRX; REAL KTRX;                     12201000
    ETIMEINDX       = 3#, % CODE FOR "ELAPSED TIME",                     12217000        
    COREINDX        = 4#, % CODE FOR "CORE USAGE"                        12217500        
    SAVEINDX        = 5#, % CODE FOR "SAVE CORE USAGE"                   12218000        
+   INFOSIZE        = 5#, % NUMBER OF ENTRIES FOR EACH MIX               12218500        
+                                                                        12219000        
+   DEFINE PRINTDIGIT = % OUTPUT ROUTINE FOR STREAM STATEMENT            12219500        
+      DV:=DI; DS:=5DEC; DI:=DV; DS:=4FILL;                              12220000        
+      DI:=DV; SI:=DV; 5(IF SC=" " THEN SI:=SI+1 ELSE DS:=CHR);          12220500        
+      DS:=LIT","#;                                                      12221000        
+                                                                        12221500        
+   BUFF  := KTRX.[15:15]; % KEYIN BUFFER LOCATION                       12222000        
+   KTR   := KTRX.[15:33]; % LOCATION OF REQUEST IN KEYIN BUFFER         12222500        
+   ZZSTA := 0 & M[BUFF-2][9:9:9]; % REMOTE STATION                      12223000        
+                                                                        12223500        
+SKAN: % SCAN INPUT BUFFER FOR REQUEST ANALYSIS                          12224000        
+                                                                        12224500        
+    STREAM(NAM :=0, VALU:=(-1), LOCN:=0, NEXTNAME:="~" :                12225000        
+           TOG:=0, EQLTOG:=0, T:=0,  KTR);                              12225500        
+      BEGIN                                                             12226000        
+      SI:=KTR; GO TO L2;                                                12226500        
+ L0:  63(IF SC=ALPHA THEN SI:=SI+1 ELSE JUMP OUT TO L2);                12227000        
+ L1:  SI:=SI+1;                                                         12227500        
+ L2:  IF SC="~" THEN GO TO L3; % END OF RECORD                          12228000        
+      IF SC=" " THEN GO TO L1; % IGNORE BLANKS                          12228500        
+      IF SC="," THEN GO TO L1; % COMMA IS OPTIONAL                      12229000        
+      IF SC="=" THEN           % SET "EQUAL" TOGGLE                     12229500        
+         BEGIN                                                          12230000        
+         TALLY:=1; EQLTOG:=TALLY; GO TO L1;                             12230500        
+         END;                                                           12231000        
+      IF SC=ALPHA THEN ELSE GO TO XX0; % NO OTHER SPECIAL CHR.ALLOWED   12231500        
+      % TREAT STRING AS NUMERIC ONLY IF PRECEEDED BY "="                12232000        
+      EQLTOG(IF SC GEQ "0" THEN IF SC LEQ "9" THEN JUMP OUT TO L4);     12232500        
+ L3:  TOG(DI:=LOC NEXTNAME; JUMP OUT TO LL1); % USE "NEXTNAME" 2ND.PASS 12233000        
+      DI:=LOC NAM;            % USE "NAM" ON FIRST PASS                 12233500        
+      GO TO LL1; GO TO L0; XX0: GO TO XXIT; LL1: % BRANCH POINT         12234000        
+      DI:=DI+5; % NAME STORED IN LAST 3 CHRS.                           12234500        
+      IF SC="~" THEN % END OF RECORD,DONT MOVE SI;                      12235000        
+         BEGIN                                                          12235500        
+         DS:=3LIT"00~"; GO TO XXIT;                                     12236000        
+         END;                                                           12236500        
+      T:=SI; DS:=CHR;                                                   12237000        
+      2(IF SC=ALPHA THEN DS:=CHR ELSE DS:=LIT" ");                      12237500        
+      TOG(SI:=T; JUMP OUT TO XXIT); % BRANCH OUT ON 2ND PASS            12238000        
+      TALLY:=1; TOG:=TALLY;         % SET SECOND PASS TOGGLE            12238500        
+      GO TO LL0;                                                        12239000        
+      % NUMERICS CONVERTED AT "L4"                                      12239500        
+ L4:  LOCN:=SI; SI:=SI+1; TALLY:=0; EQLTOG:=TALLY; TALLY:=1;            12240000        
+      7(IF SC GEQ "0" THEN IF SC LEQ "9" THEN;                          12240500        
+      IF TOGGLE THEN ELSE JUMP OUT; SI:=SI+1; TALLY:=TALLY+1;           12241000        
+      SI:=LOCN; T:=TALLY; DI:=LOC VALU; DS:=T OCT; GO TO LL0;           12241500        
+XXIT: LOCN:=SI;                                                         12242000        
+      END STREAM STATEMENT;                                             12242500        
+                                                                        12243000        
+   NEXTNAME := P; % VALUE OF NEXT ITEM IN REQUEST                       12243500        
+   KTR      := P; % ADDRESS OF NEXT ITEM IN KEYIN BUFFER                12244000        
+   VALU     := P; % NUMERIC VALUE OF REQUEST (-1 IF NONE GIVEN)         12244500        
+   NAM      := P; % REQUEST ITEM                                        12245000        
+                                                                        12245500        
+   IF NAM="~" THEN % NULL INPUT, TREAT AS "LIST" REQUEST                12246000        
+      BEGIN                                                             12246500        
+NU:   USETOG := TOLTOG := OLAYTOG := CYCLETOG := 1;                     12247000        
+      GO TO NEW;                                                        12247500        
+      END                                                               12248000        
+   ELSE IF USETOG = 3 THEN % SETTING NEW OPTIONS                        12248500        
+      BEGIN                                                             12249000        
+      IF (N:=(IF (NAM="OLA" AND VALU=(-1)) THEN OLAYINDX ELSE           12249500        
+             IF NAM="PRI" THEN PRIORINDX ELSE                           12250000        
+             IF NAM="TIM" THEN ETIMEINDX ELSE                           12250500        
+             IF NAM="COR" THEN COREINDX  ELSE                           12251000        
+             IF NAM="SAV" THEN SAVEINDX  ELSE 0)) NEQ 0 THEN            12251500        
+                INSTRUCT := 0 & INSTRUCT[8:4:40] & N[4:44:4]            12252000        
+         ELSE GO TO SKP; % MAY NOT BE PART OF "USE" COMMAND             12252500        
+      END % IF USETOG = 3                                               12253000        
+   ELSE                                                                 12253500        
+SKP: IF (NAM="ON " OR NAM="OFF") THEN                                   12254000        
+      BEGIN                                                             12254500        
+      STARTING := 1 + (NAM="OFF");                                      12255000        
+      GO TO NU;                                                         12255500        
+      END                                                               12256000        
+   ELSE IF NAM="USE" THEN % SETTING NEW VALUES                          12256500        
+      BEGIN                                                             12257000        
+      INSTRUCT := 0;                                                    12257500        
+      USETOG := 3;                                                      12258000        
+      END                                                               12258500        
+   ELSE IF NAM="OPT" THEN USETOG := 1 % LISTING OPTIONS                 12259000        
+   ELSE IF NAM="TOL" THEN    % TOLERANCE FOR OPTIONS                    12259500        
+      BEGIN                                                             12260000        
+      TOLTOG := 1;                                                      12260500        
+      IF VALU GEQ 0 THEN                                                12261000        
+         BEGIN                                                          12261500        
+         IF VALU GTR 100 THEN GO TO ERROR;                              12262000        
+         WKSETTOLERANCE := VALU | 0.01;                                 12262500        
+         END;                                                           12263000        
+      END                                                               12263500        
+   ELSE IF NAM = "OLA" THEN                                             12264000        
+      BEGIN                                                             12264500        
+      OLAYTOG := 1;                                                     12265000        
+      IF VALU GEQ 0 THEN                                                12265500        
+         BEGIN                                                          12266000        
+         WKSETMAXOLAY := VALU/100;                                      12266500        
+         END;                                                           12267000        
+      END                                                               12267500        
+   ELSE IF NAM="CYC" THEN % CYCLE TIME                                  12268000        
+      BEGIN                                                             12268500        
+      CYCLETOG := 1;                                                    12269000        
+      IF VALU GEQ 0 THEN % SETTING NEW VALUE                            12269500        
