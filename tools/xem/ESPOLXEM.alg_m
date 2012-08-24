@@ -1,6 +1,7 @@
+$ RESET LIST                                                            00000009120821PK  
 %#######################################################################00005000=00001000=
 %                                                                       00010000=00001010=
-%                   B-5700 ESPOL COMPILER                               00015000=00001020=
+%                   B-5700 ESPOLXEM COMPILER                            00015000          
 %                        MARK XVI.0.00                                  00020000=00001030=
 %                        OCT  1, 1974                                   00025000=00001040=
 %                                                                       00030000=00001050=
@@ -409,7 +410,7 @@ BOOLEAN                                                                 02017100
 ARRAY                                                                   02018100          
   STREAMTEMPS[0:15],                    % STREAM TEMP SOURCE            02018200          
   STREAMTEMPD[0:15],                    % STREAM TEMP DESTINATION       02018300          
-  EBCDICBUFF[0:21];                     % EBCDIC I/O BUFFER             02018400          
+  EBCDICBUFF[0:29];                     % EBCDIC I/O & TEMP BUFFER      02018400          
                                                                         02030000          
 VALUE ARRAY                                                             02030100          
   BICCOLLATE (          % INDEX BY INTERNAL CODE TO GET COLLATION VALUE 02030200          
@@ -1298,6 +1299,43 @@ BOOLEAN PROCEDURE STREAMCOMPARELSSQQ(MBASE, SBASE, N);                  02150400
                                                                         02153400          
     STREAMCOMPARELSSQQ:= TFFF;                                          02153500          
   END STREAMCOMPARELSS;                                                 02153600          
+                                                                        02153700          
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%02153800          
+DEFINE STREAMCOMPARELEQ(N) =                                            02153900          
+    STREAMCOMPARELEQQQ(MBASE, SBASE, N) #;                              02154000          
+BOOLEAN PROCEDURE STREAMCOMPARELEQQQ(MBASE, SBASE, N);                  02154100          
+  VALUE N;                                                              02154200          
+  ARRAY MBASE, SBASE[0];                                                02154300          
+  REAL N;                                                               02154400          
+  BEGIN COMMENT                                                         02154500          
+      COMPARES "N" CHARACTERS BETWEEN SOURCE AND DESTINATION FOR A      02154600          
+      LESS-THAN-OR-EQUAL CONDITION. ADVANCES BOTH INDEXES BY "N".       02154700          
+      EMULATES CEL.                                                     02154800          
+      ;                                                                 02154900          
+  STREAMADJUSTSICHAR;                                                   02155000          
+  STREAMADJUSTDICHAR;                                                   02155100          
+  TFFF:= TRUE;                                                          02155200          
+  WHILE N > 0 DO                                                        02155300          
+    BEGIN                                                               02155400          
+    IF STREAMGETSC = STREAMGETDC THEN                                   02155500          
+      BEGIN                                                             02155600          
+      STREAMSKIPSI(+1);                                                 02155700          
+      STREAMSKIPDI(+1);                                                 02155800          
+      N:= *-1;                                                          02155900          
+      END                                                               02156000          
+    ELSE                                                                02156100          
+      BEGIN                                                             02156200          
+      IF BICCOLLATE[STREAMGETSC] > BICCOLLATE[STREAMGETDC] THEN         02156300          
+        TFFF:= FALSE;                                                   02156400          
+                                                                        02156500          
+      STREAMSKIPSI(+N);                                                 02156600          
+      STREAMSKIPDI(+N);                                                 02156700          
+      N:= 0;                                                            02156800          
+      END;                                                              02156900          
+    END WHILE;                                                          02157000          
+                                                                        02157100          
+    STREAMCOMPARELEQQQ:= TFFF;                                          02157200          
+  END STREAMCOMPARELEQ;                                                 02157300          
                                                                         02160000          
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%02160100          
 DEFINE STREAMCOMPAREEQL(N) =                                            02160200          
@@ -1333,6 +1371,41 @@ BOOLEAN PROCEDURE STREAMCOMPAREEQLQQ(MBASE, SBASE, N);                  02160400
                                                                         02163200          
     STREAMCOMPAREEQLQQ:= TFFF;                                          02163300          
   END STREAMCOMPAREEQL;                                                 02163400          
+                                                                        02163500          
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%02163600          
+DEFINE STREAMCOMPARENEQ(N) =                                            02163700          
+    STREAMCOMPARENEQQQ(MBASE, SBASE, N) #;                              02163800          
+BOOLEAN PROCEDURE STREAMCOMPARENEQQQ(MBASE, SBASE, N);                  02163900          
+  VALUE N;                                                              02164000          
+  ARRAY MBASE, SBASE[0];                                                02164100          
+  REAL N;                                                               02164200          
+  BEGIN COMMENT                                                         02164300          
+      COMPARES "N" CHARACTERS BETWEEN SOURCE AND DESTINATION FOR A      02164400          
+      NOT-EQUAL CONDITION. ADVANCES BOTH INDEXES BY "N".                02164500          
+      EMULATES CNE.                                                     02164600          
+      ;                                                                 02164700          
+  STREAMADJUSTSICHAR;                                                   02164800          
+  STREAMADJUSTDICHAR;                                                   02164900          
+  TFFF:= TRUE;                                                          02165000          
+  WHILE N > 0 DO                                                        02165100          
+    BEGIN                                                               02165200          
+    IF STREAMGETSC ^= STREAMGETDC THEN   % COLLATING SEQ IS IMMATERIAL  02165300          
+      BEGIN                                                             02165400          
+      STREAMSKIPSI(+1);                                                 02165500          
+      STREAMSKIPDI(+1);                                                 02165600          
+      N:= *-1;                                                          02165700          
+      END                                                               02165800          
+    ELSE                                                                02165900          
+      BEGIN                                                             02166000          
+      TFFF:= FALSE;                                                     02166100          
+      STREAMSKIPSI(+N);                                                 02166200          
+      STREAMSKIPDI(+N);                                                 02166300          
+      N:= 0;                                                            02166400          
+      END;                                                              02166500          
+    END WHILE;                                                          02166600          
+                                                                        02166700          
+    STREAMCOMPARENEQQQ:= TFFF;                                          02166800          
+  END STREAMCOMPARENEQ;                                                 02166900          
                                                                         02175000          
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%02175100          
 DEFINE STREAMCOMPAREGEQ(N) =                                            02175200          
@@ -1697,7 +1770,7 @@ COMMENT  IF A NEW COMPILER-DEFINED OPTION IS ADDED, CHANGE USEROPINX    02495000
     LISTPTOG      = OPTIONWORD.[LISTPBIT:1] #,                          02550000=01001290=
     MCPTOG        = OPTIONWORD.[MCPBIT:1] #,                            02555000=01001300=
     MERGETOG      = OPTIONWORD.[MERGEBIT:1] #,                          02560000=01001310=
-    NESTOG        = OPTIONWORD.[NESTBIT:1] #,                           02565000=01001320=
+    %% NESTOG     = OPTIONWORD.[NESTBIT:1] #,    % DUP DECL, NOT USED   02565000=01001320=
     NEWTOG        = OPTIONWORD.[NEWBIT:1] #,                            02570000=01001330=
     NEWINCL       = OPTIONWORD.[NEWINCLBIT:1] #,                        02575000=01001340=
     OMITTING      = OPTIONWORD.[OMITBIT:1] #,                           02580000=01001350=
@@ -2021,7 +2094,7 @@ COMMENT              INFO FORMAT                                        02910000
     OROP          = 93 #,        COMMENT 135;                           04190000=01275000=
     ANDOP         = 94 #,        COMMENT 136;                           04195000=01276000=
     RELOP         = 95 #,        COMMENT 137;                           04200000=01277000=
-    ADDOP         = 96 #,        COMMENT 140;                           04205000=01278000=
+    ADOP          = 96 #,        COMMENT 140;                           04205000=01278000=
     MULOP         = 97 #,        COMMENT 141;                           04210000=01278500=
 %        STRING         =99#,    COMMENT 143;                           04215000=01278600=
     COMMENT   SUBCLASSES FOR DECLARATORS (KEPT IN ADDRESS);             04220000=01279000=
@@ -2043,8 +2116,9 @@ COMMENT              INFO FORMAT                                        02910000
     NAMEV         = 16 #,        COMMENT  20;                           04300000=01295000=
     FILEV         = 17 #,        COMMENT  21;                           04305000=01296000=
     STREAMV       = 18 #,        COMMENT  22;                           04310000=01297000=
-    DEFINEV       = 19 #,        COMMENT  23;                           04315000=01298000=
-    DEFINEDDES    = 8 #,                                                04320000=01299010=
+    DEFINEV       = 19 #;        COMMENT  23;                           04315000=01298000=
+  DEFINE                                                                04320000=01299010=
+    DDES          = 8 #,                                                04322000          
     ADES          = 28 #,                                               04325000=01299020=
     PDES          = 29 #,                                               04330000=01299030=
     LDES          = 30 #,                                               04335000=01299040=
@@ -2052,8 +2126,7 @@ COMMENT              INFO FORMAT                                        02910000
     FACTOP        = ASTRISK #,                                          04345000=01299200=
     OPERATORS     = HEXOP #,                                            04350000=01299300=
     FILEID        = 0 #,                                                04355000=01299400=
-    MAXINTRINSIC  = 150 #,                                              04360000=01299400=
-                            % USED IN BUILDING INTABLE @ 09414120       04365000=01299400=
+    MAXINTRINSIC  = 150 #,  % USED IN BUILDING INTABLE @ 09414120       04360000=01299400=
     INTRINSICADR  = (MAXINTRINSIC DIV 30) #;  % RESERVES SEG FOR INTABLE04370000=01299500=
   REAL                                                                  04375000=01300000=
     TIME1;                                                              04380000=01300000=
@@ -2334,7 +2407,7 @@ COMMENT              INFO FORMAT                                        02910000
   DEFINE                                                                05845000=01556500=
     SUBOP         = 48 #;                                               05850000=01556500=
   ARRAY                                                                 05855000=01556900=
-    CODEBUFF[0:1023];                  % CODE BUFFER (WAS A FILE)       05860000=01556900=
+    CODE[0:1023];                      % CODE BUFFER (WAS A FILE)       05860000=01556900=
   FILE                                                                  05865000=01557000=
     CARD(KIND=DISK, DEPENDENTSPECS, FILEUSE=IN);                        05870000=01557000=
   FILE                                                                  05875000=01558000=
@@ -2491,8 +2564,8 @@ COMMENT  ESPOL CODE FILES ARE UNIQUELY TYPED IN THEIR FILE              05975000
    XIT =  71#,    COMMENT (0435) 7.4.8.2    EXIT;                       06625000=01676000=
    ZP1 = 322#,    COMMENT (2411) 7.4.10.8   CONDITIONAL HALT;           06630000=01677000=
    SCI =1003#,    COMMENT (7655)            SCAN OUT INITIALIZE;        06635000=01677050=
-   SAN =1004#,    COMMENT (7661)            SYSTEM ATTENTION NEEDED     06640000=01677100=
-   SCS =1019#,    COMMENT (7755)            SCAN OUT STOP;              06645000=01677150=
+   SAN =1004#,    COMMENT (7661)            SYSTEM ATTENTION NEEDED;    06640000=01677100=
+   SCS =1019#;    COMMENT (7755)            SCAN OUT STOP;              06645000=01677150=
  COMMENT  THESE DEFINES ARE USED BY EMITD;                              06650000=01678000=
  DEFINE                                                                 06655000=01679000=
    DIA =  45#,    COMMENT (XX55) 7.4.7.1    DIAL A;                     06660000=01680000=
@@ -2563,10 +2636,11 @@ COMMENT  ESPOL CODE FILES ARE UNIQUELY TYPED IN THEIR FILE              05975000
     CPLUS2        = 770 #;                                              07000000=01714000=
                        COMMENT CPLUS1 AND CPLUS2 ARE EXPLICIT CONSTANTS 07005000=01714000=
                       USED IN THE GENERATION OF C-RELATIVE CODE;        07010000=01715000=
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%07012000          
   PROCEDURE FLAG(ERRNUM);                                               07015000=01716000=
   VALUE                                                                 07020000=01716000=
     ERRNUM;                                                             07025000=01716000=
-  INTEGER                                                               07030000=01716000=
+  REAL                                                                  07030000=01716000=
     ERRNUM;                                                             07035000=01716000=
     FORWARD;                                                            07040000=01716000=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%07045000=01716000=
@@ -2580,7 +2654,7 @@ COMMENT  ESPOL CODE FILES ARE UNIQUELY TYPED IN THEIR FILE              05975000
   REAL PROCEDURE TAKE(W);                                               07085000=01717700=
   VALUE                                                                 07090000=01717700=
     W;                                                                  07095000=01717700=
-  INTEGER                                                               07100000=01717700=
+  REAL                                                                  07100000=01717700=
     W;                                                                  07105000=01717700=
     FORWARD;                                                            07110000=01717700=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%07115000=01717700=
@@ -2668,7 +2742,7 @@ COMMENT  "BLANKET" BLANKS OUT N+1 WORDS IN "THERE";                     07315000
     REPLACE P:POINTER(EBCDICBUFF,8) BY DISK.TITLE;                      07790000=01828500=
     N2:= MIN(OFFSET(P)-1, 118);                                         07795000=01828500=
     WRITE(LINE,                                                         07800000=01835500=
-           <X18, 6"BURROUGHS B-5700 ESPOLXEM COMPILER MARK ",           07802000          
+           <X18, "BURROUGHS B-5700 ESPOLXEM COMPILER MARK ",            07802000          
 "XVI.0.00"                                                              07805000=01835500=
            ,"  ",A6,"DAY, ",I4,"-",A2,"-",A2,",  ",I2,":",A2,X1,A3,     07806000=01832000=
           ////X*,A*,/X*,*("=")//>,                                      07808000          
@@ -2680,6 +2754,10 @@ COMMENT  "BLANKET" BLANKS OUT N+1 WORDS IN "THERE";                     07315000
            IF H >= 12 THEN "PM." ELSE "AM.",                            07820000=01835000=
            (120-N2) DIV 2, N2, POINTER(EBCDICBUFF,8),                   07825000=01835550=
            (120-N2) DIV 2, N2);                                         07826000          
+    REPLACE P:POINTER(EBCDICBUFF,8) BY CARD.TITLE;                      07826100          
+    N2:= MIN(OFFSET(P)-1, 106);                                         07826200          
+    WRITE(LINE, <X*,"SOURCE FILE: ",A*,//>,                             07826300          
+           (107-N2) DIV 2, N2, POINTER(EBCDICBUFF,8));                  07826400          
     NOHEADING:= FALSE;                                                  07830000=01836000=
     END OF DATIME;                                                      07835000=01837000=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%07840000=01837000=
@@ -2700,7 +2778,7 @@ COMMENT  OCTIZE REFORMATS ACCUM FOR OCTAL CONSTANTS;                    07865000
     STREAMLOCALS;                                                       07886000          
     TALLY:= 0;                                                          07888000          
     STREAMSETSI(S, SX);                                                 07890000=02001842=
-    STREAMSKIPSI(+3);                                                   07892000=02001842=
+    STREAMSKIPSI(+4);                                                   07892000=02001842=
     STREAMSETDI(D, DX);                                                 07894000=02001842=
     THRU SKP DO                                                         07896000=02001842=
       STREAMSETDB(3, 0);                   % RIGHT JUSTIFY.             07898000          
@@ -2724,9 +2802,17 @@ COMMENT  OCTIZE REFORMATS ACCUM FOR OCTAL CONSTANTS;                    07865000
         STREAMSKIPSB(1);                                                07934000          
         END;                                                            07936000          
       END THRU;                                                         07938000          
-                                                                        07940000=02001850=
-    OCTIZE:= BOOLEAN(TALLY); % "1" = NON OCTAL CHARACTER.               07942000=02001852=
-    END OCTIZE;                                                         07970000=02001854=
+                                                                        07940000          
+    STREAMSETSI(D, DX);                                                 07942000=02001848=
+    IF STREAMTESTSB THEN                                                07944000=02001848=
+      BEGIN                                                             07946000=02001850=
+      TALLY:= 1;                                                        07948000=02001850=
+      STREAMSETDI(D, DX);                                               07950000=02001850=
+      STREAMSETDB(1, 0)                                                 07952000=02001850=
+      END; % PREVENT FLAG BIT                                           07954000=02001850=
+                                                                        07965000=02001850=
+    OCTIZE:= BOOLEAN(TALLY); % "1" = NON OCTAL CHARACTER OR FLAG BIT.   07970000=02001852=
+    END OCTIZE;                                                         07975000=02001854=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%07976000          
 COMMENT  HEXIZE REFORMATS ACCUM FOR HEXADECIMAL CONSTANTS;              07980000=02001856=
   BOOLEAN PROCEDURE HEXIZE(S, SX, D, DX, SKP, CNT);                     07985000=02001858=
@@ -3153,7 +3239,7 @@ L:  SCNN(SBUFF, NCR, COUNT, ACCUM, 1, 63-COUNT, RESULT, RESULT, COUNT,  09710000
     STREAMSMEARLIT(1, 6":");                                            09930000=02185750=
     STREAMSETLOCSI(L);                                                  09935000=02186000=
     STREAMTRANSFERDEC(1);                                               09940000=02186000=
-    STREAMSMEARLIT(1, 6" ");                                            09945000=02186250=
+    STREAMSMEARLIT(6, 6" ");                                            09945000=02186250=
     THRU REAL(OMIT) DO                                                  09950000=02186750=
       BEGIN                                                             09951000          
       STREAMSKIPDI(-12);                                                09952000          
@@ -3833,7 +3919,7 @@ LENGTH6:                                                                13625000
       IF DEBUGTOG THEN                                                  13730000=02533000=
         IF WOP[0] = 0 THEN                                              13735000=02534000=
           BEGIN                                                         13740000=02535000=
-          FILL WOP[*] WITH "LITC", 6"    ", "OPDC", 6"DESC",            13745000=02536100=
+          FILL WOP[*] WITH 6"LITC", 6"    ", 6"OPDC", 6"DESC",          13745000          
  11,6"NOP ", 12,6"PRT ", 13,6"DEL ", 16,6"ADD ", 18,6"PRL ", 19,6"LNG ",13760000=02539000=
  21,6"GEQ ", 22,6"BBC ", 24,6"INX ", 35,6"LOR ", 37,6"GTR ", 38,6"BFC ",13765000=02540000=
  39,6"RTN ", 40,6"COC ", 48,6"SUB ", 64,6"MUL ", 67,6"LND ", 68,6"STD ",13770000=02541000=
@@ -4038,12 +4124,14 @@ COMMENT  INCR FIELD OF SPECIAL CHARACTER IS NON-ZERO FOR SPECIAL        14655000
       SCANNER;                      % SCAN PAST "@".                    14775000=02684000=
       IF COUNT > 17 THEN                                                14780000=02685000=
         GO ARGH;                    % 16 CHARS, + "@".                  14785000=02685000=
-      IF OCTIZE(ACCUM, 1, C, 17-COUNT, COUNT-1) THEN                    14790000=02686000=
+      EBCDICBUFF[0]:= C;                                                14789000          
+      IF OCTIZE(ACCUM, 1, EBCDICBUFF, 0, 17-COUNT, COUNT-1) THEN        14790000=02686000=
         BEGIN                                                           14795000=02686500=
         Q:= ACCUM[1];                                                   14800000=02686500=
         FLAG(521);                                                      14805000=02686500=
         GO SCANAGAIN                                                    14810000=02686500=
         END;                                                            14815000=02686500=
+      C:= EBCDICBUFF[0];                                                14816000          
       GO NUMBEREND;                                                     14820000=02687000=
                                                                         14825000=02689000=
 COMMENT  DOT AND ATSIGN ENTER NUMBER CONVERSION AT CORRECT SPOT;        14830000=02689000=
@@ -4108,6 +4196,8 @@ COMMENT  CROSSHATCH HANDLES TWO SITUATIONS:                             15020000
       GT2:= 0 & (T:= DEFINEARRAY[DEFINEINDEX:= DEFINEINDEX-3])[14:29:15]15100000=02721000=
         ;                                                               15105000=02721000=
       LASTUSED:= T.[14:15];                                             15110000=02722000=
+      IF DEFINEINDEX <= 0 THEN                                          15110100          
+        SBUFF:= CBUFF;                  % REVERT BACK TO CARD BUFFER    15110200          
       FOR GT1:= 1 STEP 1 UNTIL GT2 DO                                   15115000=02723000=
         BEGIN                                                           15120000=02723500=
         STACKHEAD[(T:= TAKE(LASTINFO+1)).[35:36] MOD 125]:=             15125000=02725000=
@@ -4161,7 +4251,8 @@ COMMENT  MIGHT BE FUNNY COMMA - HANDLE HERE;                            15225000
       C:= CONVERT;                                                      15365000=02758000=
 %        RESULT:=7; SCANNER; % DEBLANK.                                 15370000=02759000=
 %        IF DEFINECTR=0 THEN                                            15375000=02760000=
-%         IF (C=3 OR C=4) AND EXAMIN(NCR)=""" THEN %OCTAL OR HEX STRING.15380000=02761000=
+%         IF (C=3 OR C=4) AND EXAMIN(SUBFF, NCR)=""" THEN               15380000=02761000=
+%                                                  %OCTAL OR HEX STRING.15380100          
 %             BEGIN    INTEGER SIZ;                                     15385000=02762000=
 %             RESULT:=5; SCANNER; % SKIP QUOTE.                         15390000=02763000=
 %             COUNT:=0;                                                 15395000=02764000=
@@ -4169,19 +4260,19 @@ COMMENT  MIGHT BE FUNNY COMMA - HANDLE HERE;                            15225000
 %                  RESULT:=5; SCANNER;                                  15405000=02766000=
 %                  IF COUNT > SIZ:=48 DIV C THEN % > 1 WORD LONG.       15410000=02767000=
 %                       BEGIN  ERR(520); GO SCANAGAIN  END;             15415000=02768000=
-%                  END UNTIL EXAMIN(NCR)=""";                           15420000=02769000=
+%                  END UNTIL EXAMIN(SBUFF, NCR)=""";                    15420000=02769000=
 %             Q:=ACCUM[1]; RESULT:=5; SCANNER; COUNT:=COUNT-1;          15425000=02770000=
 %             IF C=3 THEN % OCTAL STRING.                               15430000=02771000=
-%               IF OCTIZE(ACCUM[1],ACCUM[4],16-COUNT,COUNT) THEN        15435000=02772000=
+%               IF OCTIZE(ACCUM,1,ACCUM,4,16-COUNT,COUNT) THEN          15435000=02772000=
 %                 FLAG(521) % NON OCTAL CHARACTER IN STRING.            15440000=02773000=
-%        ELSE ELSE IF HEXIZE(ACCUM[1],ACCUM[4],12-COUNT,COUNT) THEN     15445000=02774000=
+%        ELSE ELSE IF HEXIZE(ACCUM,1,ACCUM,4,12-COUNT,COUNT) THEN       15445000=02774000=
 %                  FLAG(521); % NON CHARACTER IN HEX STRING.            15450000=02775000=
 %             IF COUNT < SIZ THEN                                       15455000=02776000=
 %                  BEGIN                                                15460000=02777000=
 %                  C:=ACCUM[4]; GO FINISHNUMBER;                        15465000=02778000=
 %                  END;                                                 15470000=02779000=
 %             T.INCR:=COUNT:=8; T.CLASS:=STRING;                        15475000=02780000=
-%             MOVECHARACTERS(8,ACCUM[4],0,ACCUM[1],3);                  15480000=02781000=
+%             MOVECHARACTERS(8,ACCUM,4,0,ACCUM,1,3);                    15480000=02781000=
 %             GO COMPLETE;                                              15485000=02782000=
 %             END OCTAL OR HEX STRING;                                  15490000=02783000=
       IF DPTOG THEN                                                     15495000=02784000=
@@ -4618,7 +4709,7 @@ COMMENT#################################################################17045000
     FORWARD;                                                            17660000=03037000=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%17665000=03037000=
   PROCEDURE VARIABLE(FROM);                                             17670000=03038000=
-  INTEGER                                                               17675000=03038000=
+  REAL                                                                  17675000=03038000=
     FROM;                                                               17680000=03038000=
     FORWARD;                                                            17685000=03038000=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%17690000=03038000=
@@ -4701,13 +4792,6 @@ COMMENT#################################################################17045000
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%18075000=03051001=
   PROCEDURE FORSTMT;                                                    18080000=03052000=
     FORWARD;                                                            18085000=03052000=
-  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%18090000=03052000=
-  REAL PROCEDURE TAKE(INDEX);                                           18095000=03053000=
-  VALUE                                                                 18100000=03053000=
-    INDEX;                                                              18105000=03053000=
-  INTEGER                                                               18110000=03053000=
-    INDEX;                                                              18115000=03053000=
-    FORWARD;                                                            18120000=03053000=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%18125000=03053000=
   PROCEDURE E;                                                          18130000=03054000=
     FORWARD;                                                            18135000=03054000=
@@ -5174,7 +5258,7 @@ COMMENT DEBUG PRINTS OUT OBJECT CODE IF "DEBUGN" IS SET;                20165000
       END                                                               20360000=04300000=
     ELSE                                                                20365000=04300000=
       BEGIN                                                             20370000=04300000=
-      ERROR(200);                                                       20375000=04300000=
+      ERR(200);                                                         20375000=04300000=
       L:= 1;                                                            20380000=04300000=
       END;                                                              20385000=04300000=
     COMMENT   200 EMIT - SEGMENT GREATER THAN 4093 SYLLABLES         *; 20390000=04301000=
@@ -5331,7 +5415,7 @@ EXIT:                                                                   21070000
   REAL PROCEDURE TAKE(INDEX);                                           21145000=05005000=
   VALUE                                                                 21150000=05005000=
     INDEX;                                                              21155000=05005000=
-  INTEGER                                                               21160000=05005000=
+  REAL                  % B5500 DIDN'T INTEGERIZE PARAM ON CALL?        21160000=05005000=
     INDEX;                                                              21165000=05005000=
     TAKE:= INFO[INDEX.LINKR, INDEX.LINKC];                              21170000=05006000=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%21175000=05006000=
@@ -5373,7 +5457,7 @@ EXIT:                                                                   21070000
       STREAMSETSI(LSTSEQ, QX);                                          21330000=05020000=
       STREAMSKIPSI(-8);                                                 21335000=05020000=
       STREAMTRANSFERWDS(1);                                             21340000=05020000=
-      STREAMSETSILINE, 0);                                              21345000=05021000=
+      STREAMSETSI(LINE, 0);                                             21345000=05021000=
       STREAMTRANSFERWDS(2);                                             21350000=05021000=
       STREAMSMEARLIT(4*2, 6"X");       COMMENT  SET RIGHT MARGIN FLAG;  21355000=05022000=
       STREAMSETSI(LSTSEQ, QX);                                          21365000=05023000=
@@ -5383,7 +5467,7 @@ EXIT:                                                                   21070000
       STREAMSETDI(LINE, 0);                                             21385000=05024000=
       STREAMSKIPDI(+8);                  COMMENT INDENT MESSAGE;        21390000=05024000=
       STREAMTRANSFERLIT(6, 6"ERROR ");                                  21400000=05025000=
-      STREAMTRANSFERLIT(6, 6"NUMBER ");                                 21402000          
+      STREAMTRANSFERLIT(7, 6"NUMBER ");                                 21402000          
       STREAMSETLOCSI(ERRNUM);                                           21405000=05026000=
       STREAMTRANSFERDEC(3);                     COMMENT CONVERT ERRNUM; 21410000=05026000=
       STREAMTRANSFERLIT(4, 6" -- ");                                    21420000=05027000=
@@ -5400,7 +5484,7 @@ EXIT:                                                                   21070000
       ERRORCOUNT:= ERRORCOUNT+1;               COMMENT COUNT ERRORS;    21470000=05035000=
       IF NOT LISTER THEN                                                21480000=05036000=
         BEGIN                                                           21485000=05037000=
-        EDITLINE(LIN, SBUFF, FCR, L DIV 4, L.[1:2], MEDIUM, 0);         21490000=05038000=
+        EDITLINE(LIN, SBUFF, FCR, L DIV 4, L.[1:2], MEDIUM, FALSE);     21490000=05038000=
         MOVE(1, INFO[LASTSEQROW,*], LASTSEQUENCE, LIN, 12);             21495000=05039500=
         IF NOHEADING THEN                                               21500000=05039600=
           DATIME;                                                       21505000=05039600=
@@ -5698,6 +5782,7 @@ EXIT:                                                                   23235000
         XIT,                                                            23645000=05325080=
         JUMPOUT;                                                        23646000          
                                                                         23648000          
+      TALLY:= 0;                                                        23649000          
       STREAMSETLOCSI(PORS);                                             23650000=05325090=
       STREAMSKIPSI(+3);                                                 23655000=05325090=
       STREAMSETDI(LIN, 0);                   % "PRT" OR "STACK".        23660000=05325090=
@@ -5885,7 +5970,8 @@ EXIT:                                                                   23235000
             IF ELBAT[I].ADDRESS = SUBOP THEN                            24365000=05344580=
               GS:= FZERO                                                24370000=05344580=
             ELSE                                                        24375000=05344580=
-              GS:= 512;                                                 24380000=05344580=
+              GS:= 512                                                  24380000          
+          ELSE                                                          24381000          
             BEGIN                                                       24385000=05344600=
             GS:= 0;                                                     24390000=05344600=
             I:= I-1                                                     24395000=05344600=
@@ -6112,9 +6198,10 @@ EXIT:                                                                   24705000
       NESTSORT(L, M);                                                   25425000=05442000=
       NESTSORT(M+1, U);                                                 25430000=05443000=
       I:= K:= L;                                                        25435000=05444000=
-      J:= M+1 AGAIN:                                                    25440000=05445000=
-        IF I > M THEN                                                   25445000=05445000=
-          GO TO TOP;                                                    25450000=05445000=
+      J:= M+1;                                                          25440000=05445000=
+  AGAIN:                                                                25442000          
+      IF I > M THEN                                                     25445000=05445000=
+        GO TO TOP;                                                      25450000=05445000=
       IF J > U THEN                                                     25455000=05446000=
         GO TO BOTTOM;                                                   25460000=05446000=
       GT1:= NESTPRT[SORTPRT[I].[14:15]].LINK;                           25465000=05447000=
@@ -6295,7 +6382,8 @@ EXIT:                                                                   24705000
            IF ELCLASS >= OPERATOR THEN                                  26310000=06076000=
              BEGIN                                                      26315000=06077000=
              IF T1 ^= 0 THEN                                            26320000=06077000=
-               EMITO(T1);                                               26325000=06077000=
+               EMITO(T1)                                                26325000=06077000=
+             ELSE                                                       26327000          
                BEGIN                                                    26330000=06078000=
                T1:= T2.LINK+2;                                          26335000=06079000=
                T2:= T2.INCR+T1;                                         26340000=06080000=
@@ -6319,7 +6407,7 @@ EXIT:                                                                   24705000
                ELSE                                                     26430000=06091000=
                  IF T2 = ISOLATE THEN                                   26435000=06092000=
                    BEGIN                                                26440000=06093000=
-                   T2+C;                                                26445000=06093000=
+                   T2:= C;                                              26445000=06093000=
                    IF STEPI ^= LITNO THEN                               26450000=06095000=
                      BEGIN                                              26455000=06095000=
                      ERR(500);                                          26460000=06095000=
@@ -6613,7 +6701,7 @@ EXIT:                                                                   27805000
     T1:= (T2:= ELBAT[I]).ADDRESS;                                       27845000=06185000=
     PANA;                                                               27850000=06186000=
     IF T1 ^= 0 THEN                                                     27855000=06187000=
-      EMITO(T1);                                                        27860000=06187000=
+      EMITO(T1)                                                         27860000=06187000=
     ELSE                                                                27865000=06188000=
       BEGIN                                                             27870000=06188000=
       T1:= T2.LINK+T2.INCR+1;                                           27875000=06189000=
@@ -6948,7 +7036,7 @@ ANOTHER:                                                                29240000
         IF ACLASS = REALID AND BOOLEAN(ELBAT[I].FORMAL) THEN            29465000=07070000=
           BEGIN                                                         29470000=07070000=
           CHECKER(ELBAT[I]);                                            29475000=07070500=
-          EMITPAIR(ELBAT[I], ADDRESS, LOD);                             29480000=07071000=
+          EMITPAIR(ELBAT[I].ADDRESS, LOD);                              29480000=07071000=
           STEPIT;                                                       29485000=07072000=
           END                                                           29490000=07073000=
         ELSE                                                            29495000=07073000=
@@ -6961,7 +7049,7 @@ ANOTHER:                                                                29240000
       IF ELCLASS <= STRNGCON AND ELCLASS > LABELID THEN                 29515000=07076000=
         BEGIN                                                           29520000=07076000=
         PRIMARY;                                                        29525000=07076000=
-        GOTO COMMON                                                     29530000=07076000=
+        GO TO COMMON                                                    29530000=07076000=
         END;                                                            29535000=07076000=
       END;                                                              29540000=07077000=
     EMITO(NOP);                                                         29545000=07078000=
@@ -7066,10 +7154,10 @@ EXIT:                                                                   29785000
       ACTUALPARAPART(FALSE, GIT(HOLE))                                  30030000=07411000=
     ELSE                                                                30035000=07411000=
       IF FORMALF THEN                                                   30040000=07411000=
-        L:= L-1;                                                        30045000=07411000=
-    ELSE                                                                30050000=07412000=
-    IF TAKE(GIT(HOLE)).NODIMPART ^= 0 THEN                              30055000=07412000=
-      ERR(128);                                                         30060000=07412000=
+        L:= L-1                                                         30045000=07411000=
+      ELSE                                                              30050000=07412000=
+        IF TAKE(GIT(HOLE)).NODIMPART ^= 0 THEN                          30055000=07412000=
+          ERR(128);                                                     30060000=07412000=
     EMITV(ADDRESS);                                                     30065000=07413000=
 EXIT:                                                                   30070000=07425000=
     END PROCSTMT;                                                       30075000=07425000=
@@ -7176,7 +7264,7 @@ EXIT:                                                                   30070000
       ELBW;                                                             30580000=07503000=
     LABEL                                                               30585000=07504000=
       GOMCP,                                                            30590000=07504000=
-       EXIT;                                                            30595000=07504000=
+      EXIT;                                                             30595000=07504000=
     IF STEPI = TOV THEN                                                 30600000=07505000=
       STEPIT;                                                           30605000=07505000=
     IF ELCLASS = LABELID THEN                                           30610000=07506000=
@@ -7282,7 +7370,7 @@ EXIT:                                                                   31070000
     BEGIN                                                               31110000=07562000=
     REAL                                                                31115000=07562000=
       T1,                                                               31120000=07562000=
-       T2;                                                              31125000=07562000=
+      T2;                                                               31125000=07562000=
     LABEL                                                               31130000=07562000=
       EXIT;                                                             31135000=07562000=
     IFCLAUSE;                                                           31140000=07563000=
@@ -7483,6 +7571,7 @@ COMMENT  "COCT" PERFORMS THE OCTAL CONVERT FOR THE FILL STATEMENT.      32030000
       ACC, CD[0];                                                       32108000          
       BEGIN                                                             32110000=07654000=
       STREAMLOCALS;                                                     32112000          
+      TALLY:= 0;                                                        32114000          
       STREAMSETSI(ACC, AX);                                             32115000=07654500=
       STREAMSKIPSI(+6);                                                 32120000=07654500=
       STREAMSETDI(CD, CX);                                              32125000=07654500=
@@ -7498,7 +7587,7 @@ COMMENT  "COCT" PERFORMS THE OCTAL CONVERT FOR THE FILL STATEMENT.      32030000
         THRU 3 DO                                                       32155000=07656000=
           BEGIN                                                         32155500          
           IF STREAMTESTSB THEN                                          32156000          
-            STREAMSETDB(1)                                              32156500          
+            STREAMSETDB(1, 1)                                           32156500          
           ELSE                                                          32157000          
             STREAMSKIPDB(1);                                            32157500          
           STREAMSKIPSB(1);                                              32158000          
@@ -7830,7 +7919,7 @@ EXIT:                                                                   33765000
     END STMT;                                                           33770000=07771000=
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%33775000=07771000=
   PROCEDURE IOSTMT;                                                     33780000=07993000=
-    IF(GT1:= ELBAT[I].ADDRESS > 15 THEN ERR(98)                         33785000=07994000=
+    IF(GT1:= ELBAT[I].ADDRESS) > 15 THEN ERR(98)                        33785000=07994000=
     ELSE                                                                33790000=07994000=
       BEGIN                                                             33795000=07995000=
       EMIT(ELBAT[I-1].ADDRESS & GT1[6:0:1] & GT1[11:3:3]);              33800000=07995000=
@@ -8318,7 +8407,7 @@ EOF:                                                                    36210000
       I,                                                                36260000=08999500=
       J;                                                                36265000=08999500=
     I:= (L+7) DIV 4;                                                    36270000=08999525=
-    EBCDICBUF[0]:= I;                                                   36275000=08999550=
+    EBCDICBUFF[0]:= I;                                                  36275000=08999550=
     REPLACE POINTER(EBCDICBUFF[1],0) BY POINTER(CODE[0],0)              36280000=08999575=
         FOR (J:=29) WORDS;                                              36280100          
     WRITE(CODISK, 30, EBCDICBUFF);                                      36285000=08999600=
@@ -8543,12 +8632,12 @@ COMMENT  THIS IS THE FILL FOR THE SECOND ROW OF INFO:                   36760000
     3"1310441000000002", 6"3MUL00",                          %503       37410000=09121300=
     3"1310441050000002", 6"3NEQ00",                          %505       37415000=09121400=
     3"1310100130000002", 6"3NOP00",                          %507       37420000=09121500=
-    3"0650006550000002", 6"6SCOPO", 6"N.......";             %509       37425000=09121600=
+    3"0650006550000003", 6"6SCOPO", 6"N.......";             %509       37425000=09121600=
         FILL INFO[2, *] WITH                                            37430000=09121700=
-    3"131030000020004",  6"3RDF00",                          %512       37432000          
+    3"1310300000020004", 6"3RDF00",                          %512       37432000          
               3"0000",   COMMENT  LITC 0;                               37435000=09121800=
               3"2141",   COMMENT  FXS   ;                               37440000=09121900=
-    3"131030000020004",  6"3RDS00",                          %516       37450000=09122000=
+    3"1310300000020004", 6"3RDS00",                          %516       37450000=09122000=
               3"0004",   COMMENT  LITC 1;                               37455000=09122100=
               3"2141",   COMMENT  FXS   ;                               37460000=09122200=
     3"1310456000000002", 6"3RDV00",                          %520       37470000=09122300=
@@ -8607,12 +8696,12 @@ COMMENT  THIS IS THE FILL FOR THE SECOND ROW OF INFO:                   36760000
     3"0030000000040003", 6"2LB000", 6"[#      ",             %621       37755000=09127500=
     3"0030000000040003", 6"2RB000", 6"]#      ",             %624       37760000=09127600=
     3"0030000000040003", 6"3GTR00", 6">#      ",             %627       37765000=09127700=
-    3"0030000000040003", 6"3GEQ00", 6"}#      ",             %630       37770000=09127800=
+    3"0030000000040003", 6"3GEQ00", 3"17"6"#      ",         %630       37770000=09127800=
     3"0030000000040003", 6"3EQL00", 6"=#      ",             %633       37775000=09127900=
-    3"0030000000040003", 6"3NEQ00", 6"!#      ",             %636       37780000=09128000=
-    3"0030000000040003", 6"3LEQ00", 6"{#      ",             %639       37785000=09128100=
+    3"0030000000040003", 6"3NEQ00", 3"74"6"#      ",         %636       37780000=09128000=
+    3"0030000000040003", 6"3LEQ00", 3"57"6"#      ",         %639       37785000=09128100=
     3"0030000000040003", 6"3LSS00", 6"<#      ",             %642       37790000=09128200=
-    3"0030000000040003", 6"5TIMES", 6"|#      ",             %645       37795000=09128300=
+    3"0030000000040003", 6"5TIMES", 3"40"6"#      ",         %645       37795000=09128300=
     3"1310117530000002", 6"3SCI00",                          %688       37800000=09128400=
     3"1310117540000002", 6"3SAN00",                          %650       37805000=09128500=
     3"1310157730000002", 6"3SCS00",                          %652       37810000=09128600=
@@ -8789,7 +8878,7 @@ COMMENT  THIS IS THE FILL FOR THE SECOND ROW OF INFO:                   36760000
       VALUE                                                             38590000=09378000=
         LX, N, SX;                                                      38595000=09378000=
       ARRAY                                                             38596000          
-        LINE[0];                                                        38597000          
+        LINE, SEQ[0];                                                   38597000          
       REAL                                                              38598000          
         LX, N, SX;                                                      38599000          
         BEGIN                                                           38600000=09379000=
@@ -8949,7 +9038,7 @@ COMMENT  THIS IS THE FILL FOR THE SECOND ROW OF INFO:                   36760000
              3"0051000000000000",                                       39302000=09395500=
              3"0441070001000062";                                       39305000=09395500=
         Q:= -1;                                                         39310000=09395700=
-        PUSHEE(SAVEINFO, L, 4, 5);                                      39315000=09396000=
+        PUSHEE(SAVINFO, L, 4, 5);                                       39315000=09396000=
         SAVNDX:= L;                                                     39320000=09397000=
         END;                                                            39325000=09397100=
       REWIND(CODISK);                                                   39330000=09398000=
@@ -9011,7 +9100,7 @@ COMMENT  THIS IS THE FILL FOR THE SECOND ROW OF INFO:                   36760000
           ELSE                                                          39615000=09419000=
             SAVINFO[I.LINKR, I.LINKC]:= 0                               39620000=09419000=
         UNTIL I:= I+1 >= PRTIMAX;                                       39625000=09419000=
-        MDESC(0 & 1[45:0:1], SAVINFO[D, PRTBASE-1]);                    39630000=09419100=
+        MDESC(0 & 1[45:0:1], SAVINFO[0, PRTBASE-1]);                    39630000=09419100=
         SAVNDX:= 30*N;                                                  39635000=09420000=
         END;                                                            39640000=09420010=
       I:= 0;                                                            39645000=09420020=
@@ -9153,10 +9242,11 @@ COMMENT  THIS IS THE FILL FOR THE SECOND ROW OF INFO:                   36760000
     VALUE                                                               40255000=10257100=
       DX, SX, Q, N, J;                                                  40260000=10257100=
     ARRAY                                                               40262000          
-      D, A[0];                                                          40264000          
+      D, S[0];                                                          40264000          
     REAL                                                                40266000          
       DX, SX, Q, N, J;                                                  40268000          
       BEGIN                                                             40275000=10257200=
+      STREAMLOCALS;                                                     40277000          
       STREAMSETDI(D, DX);                                               40280000=10257200=
       STREAMSKIPDI(+11);                                                40285000=10257200=
       STREAMSETSI(S, SX);                                               40290000=10257200=
@@ -9427,7 +9517,7 @@ EXIT:                                                                   40870000
     EL:= TABLE(NXTELBT);                                                41535000=12112000=
     NXTELBT:= NXTELBT-1;                                                41540000=12113000=
     IF EL ^= LEFTPAREN AND EL ^= LFTBRKET THEN                          41545000=12114000=
-      FLAG(141);                                                        41550000=12115000=
+      FLAG(141)                                                         41550000=12115000=
     ELSE                                                                41555000=12116000=
     DO   BEGIN                                                          41560000=12116000=
          J:= J+1;                                                       41565000=12116000=
@@ -9856,7 +9946,7 @@ COMMENT JUMPCHKNX DETERMINES WHETHER ANY EXECUTABLE CODE HAS BEEN       43420000
       STREAMTRANSFERDEC(5);                                             43605000=13642000=
       END PRINT;                                                        43610000=13643000=
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%43612000          
-    CODE[0]:= SAVECODE;                                                 43615000=13651000=
+    CODE[0]:= REAL(SAVECODE);                                           43615000=13651000=
     IF SAVECODE AND INTOG AND NOT DECKTOG THEN                          43620000=13651100=
       FLAG(57);                                                         43625000=13651100=
     IF LISTER OR SEGSTOG THEN                                           43630000=13652000=
@@ -9887,7 +9977,7 @@ COMMENT JUMPCHKNX DETERMINES WHETHER ANY EXECUTABLE CODE HAS BEEN       43420000
       BEGIN                                                             43730000=13663000=
       STREAMLOCALS;                                                     43732000          
       STREAMSETDI(FIEL, 0);                                             43735000=13665000=
-      STREAMTRANSFERLIT(8, 6" ");                                       43740000=13665000=
+      STREAMSMEARLIT(8, 6" ");                                          43740000=13665000=
       STREAMSETSI(FIEL, 0);                                             43745000=13667000=
       STREAMTRANSFERWDS(14);                                            43750000=13667000=
       STREAMSKIPDI(-16);                                                43755000=13668000=
@@ -9923,7 +10013,7 @@ COMMENT JUMPCHKNX DETERMINES WHETHER ANY EXECUTABLE CODE HAS BEEN       43420000
       N:= STREAMTEMPD[0];                                               43882000          
       STREAMSETDI(S, SX);                                               43885000=13673350=
       STREAMSETLOCSI(F);                                                43890000=13673350=
-      STREAMKIPSI(+7);                                                  43895000=13673350=
+      STREAMSKIPSI(+7);                                                 43895000=13673350=
       STREAMTRANSFERCHR(1);                                             43900000=13673350=
       STREAMSETLOCSI(C);                                                43905000=13673350=
       STREAMTRANSFERDEC(3);                                             43910000=13673400=
@@ -9948,7 +10038,7 @@ COMMENT JUMPCHKNX DETERMINES WHETHER ANY EXECUTABLE CODE HAS BEEN       43420000
           IF FR > 1024 THEN                                             44000000=13677250=
             FR:= FR-1024;                                               44005000=13677250=
           DOIT(KLASSF, FR, INFO[PROINFO.LINKR,*], PROINFO.LINKC,        44010000=13677400=
-              TWXA, 0, SAF, SIZE);                                      44015000=13677400=
+              TWXA, 0, REAL(SAF), SIZE);                                44015000=13677400=
           WRITE(STUFF, 10, TWXA[*]);                                    44020000=13677500=
           END;                                                          44025000=13677600=
     IF SIZE > SEGSIZEMAX THEN                                           44030000=13678000=
@@ -10212,7 +10302,7 @@ COMMENT SOP IS TRUE IF THE BLOCK WAS CALLED BY ITSELF THROUGH THE       45040000
     BEGINCTR:= BEGINCTR+1;                                              45490000=14035000=
     IF SOP THEN                                                         45495000=14037000=
       BEGIN                                                             45500000=14037000=
-      BLKAD:= PROADD;                                                   45505000=14037000=
+      BLKAD:= PROADO;                                                   45505000=14037000=
       IF LASTENTRY ^= 0 THEN                                            45510000=14039000=
         BEGIN                                                           45515000=14039000=
         GT1:= BUMPL;                                                    45520000=14039000=
@@ -10433,11 +10523,10 @@ SWITCHDEC:                                                              46505000
            IF STEPI ^= LABELID OR ELBAT[I].LVL ^= LEVEL THEN            46605000=14220000=
              FLAG(63);                                                  46610000=14220000=
            PUTNBUMP(ELBAT[I]);                                          46615000=14221000=
-           GT1:= GT1+1;                                                 46620000=14221000=
-           END;                                                         46625000=14222000=
-      ;       COMMENT                                                   46630000=14222500=
-   UNTIL STEPI^=COMMA;                                                  46635000=14223000=
-PUT(GT1, GT2);                                                          46640000=14224000=
+           GT1:= GT1+1                                                  46620000=14221000=
+           END COMMENT                                                  46625000=14222000=
+      UNTIL STEPI^=COMMA;                                               46635000=14223000=
+      PUT(GT1, GT2);                                                    46640000=14224000=
       STOPENTRY:= STOPGSP:= FALSE;                                      46645000=14251000=
       END SWITCHDEC;                                                    46650000=14252000=
     GO TO START;                                                        46655000=14253000=
@@ -10458,6 +10547,7 @@ DEFINEDEC:                                                              46660000
         SX, K, J;                                                       46718000          
         BEGIN                                                           46720000=14254300=
         STREAMLOCALS;                                                   46722000          
+        TALLY:= 0;                                                      46724000          
         STREAMSETSI(S, SX);                                             46725000=14254300=
         STREAMSKIPSI(+2);                                               46730000=14254300=
         STREAMSETDI(D, 0);                                              46735000=14254300=
@@ -10468,7 +10558,7 @@ DEFINEDEC:                                                              46660000
         STREAMSKIPDI(+7);                                               46755000=14254500=
         IF STREAMCOMPARENEQ(1) THEN                                     46760000=14254600=
           TALLY:= 1;                                                    46765000=14254600=
-        PARM:= TALLY;                                                   46770000=14254700=
+        PARM:= BOOLEAN(TALLY);                                          46770000=14254700=
         END;                                                            46775000=14254800=
       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%46776000          
       STOPENTRY:= STOPGSP:= TRUE;                                       46780000=14255000=
@@ -10814,9 +10904,8 @@ HF:   BEGIN                                                             47785000
           IF ELCLASS = BEGINV THEN                                      48485000=14479000=
             BEGIN                                                       48490000=14481000=
             CALLINFO:= (CALLX:= CALLX+1)+1;                             48495000=14481100=
-            NEXTCTR:= STACKCTR;                                         48500000=14481200=
+            NESTCTR:= STACKCTR;                                         48500000=14481200=
             BLOCK(TRUE);                                                48505000=14482000=
-            ;                                                           48510000=14483000=
             PURGE(PINFOO);                                              48515000=14483000=
             IF NESTOG THEN                                              48520000=14483100=
               BEGIN                                                     48525000=14483200=
@@ -10888,7 +10977,7 @@ CALLSTATEMENT:                                                          48680000
         SORTNEST;                                                       48855000=14601000=
       PURGE(NINFOO);                                                    48860000=14601000=
       END;                                                              48865000=14601000=
-    SEGMENT((L+3) DIV 4, PROADD);                                       48870000=14602000=
+    SEGMENT((L+3) DIV 4, PROADO);                                       48870000=14602000=
     IF LEVEL > 1 THEN                                                   48875000=14603000=
       RIGHT(L);                                                         48880000=14603000=
     IF LEVEL:= LEVEL-1 = 0 THEN                                         48885000=14604000=
@@ -11275,7 +11364,7 @@ COMMENT  208  VARIABLE- NUMBER OF SUBSCRIPTS DOES NOT MATCH WITH      * 50680000
           EMITD(48-T2, T1, T2);                                         50795000=15308000=
           EMITO(XCH);                                                   50800000=15309000=
           IF TALL.ADDRESS > 1023 THEN                                   50805000=15310000=
-            EMITI(PRTE);                                                50810000=15310000=
+            EMITO(PRTE);                                                50810000=15310000=
           EMITO(IF TALL.CLASS MOD 2 = INTARRAYID MOD 2 THEN IF P1 = FS  50815000=15335000=
             THEN ISD ELSE ISN ELSE IF P1 = FS THEN STD ELSE SND);       50820000=15335000=
           STACKCT:= 0;                                                  50825000=15335500=
@@ -11700,12 +11789,13 @@ EXIT:                                                                   52305000
     IF STEPI ^= TOV THEN                                                52385000=16252000=
       I:= I-1;                                                          52390000=16252000=
     IF STEPI ^= STLABID THEN                                            52395000=16253000=
-      ELCLASS <= IDMAX                                                  52400000=16253000=
-    DECLARELABEL ELSE                                                   52405000=16253100=
-      BEGIN                                                             52410000=16253100=
-      ERR(260);                                                         52415000=16253100=
-      GO TO EXIT                                                        52420000=16253100=
-      END;                                                              52425000=16253100=
+      IF ELCLASS <= IDMAX THEN                                          52400000=16253000=
+        DECLARELABEL                                                    52405000=16253100=
+      ELSE                                                              52407000          
+        BEGIN                                                           52410000=16253100=
+        ERR(260);                                                       52415000=16253100=
+        GO TO EXIT                                                      52420000=16253100=
+        END;                                                            52425000=16253100=
     IF (GT2:= TAKE(GIT(GT1:= ELBAT[I]))).MON = 1 OR GT2.LOC ^= 0 THEN   52430000=16255000=
       EMITJUMP(GT1)                                                     52435000=16256000=
     ELSE                                                                52440000=16256000=
@@ -11869,7 +11959,7 @@ EXIT:                                                                   53005000
       EMITC(ADDR, 10)                                                   53220000=16378500=
     ELSE                                                             %E 53225000=16378500=
       IF ELCLASS = TRNSFER THEN                                         53230000=16379000=
-        EMITC(ADDR, ELBAT[1].OPCODE)                                    53235000=16380000=
+        EMITC(ADDR, ELBAT[I].OPCODE)                                    53235000=16380000=
       ELSE                                                              53240000=16380000=
         IF ELCLASS = LITV THEN                                          53245000=16381000=
           BEGIN                                                         53250000=16382000=
@@ -11961,7 +12051,7 @@ EXIT:                                                                   53360000
           BEGIN                                                         53655000=16441000=
           JOINFO:= NEXTINFO;                                            53660000=16442000=
           PUTNBUMP                                                      53665000=16444000=
-            (STACKHEAD[0], LINK & (STLABID*2+1)[45:7:8] & 2[20:7:8]);   53670000=16444000=
+            (STACKHEAD[0].LINK & (STLABID*2+1)[45:7:8] & 2[20:7:8]);    53670000=16444000=
           PUTNBUMP(0 & (JOINFO-LASTINFO)[43:7:8]);                      53675000=16445000=
           PUTNBUMP(0);                                                  53680000=16446000=
           LASTINFO:= JOINFO;                                            53685000=16447000=
