@@ -1,0 +1,916 @@
+                    STARTER DECKS                                       00010000
+                 MAY 1969   BY P.E.G.                                   00020000
+ $ SET OMIT = COOL                                                      00030000
+                   B-5500 COLD START PROGRAM                            00040000
+ $ POP OMIT                                                             00040050
+ $ SET OMIT = NOT(COOL)                                                 00050000
+                   B-5500 COOL START PROGRAM                            00060000
+ $ POP OMIT                                                             00060050
+  COMMENT: * TITLE: B5500/B5700 MARK XIV SYSTEM RELEASE            *    00060100
+           * FILE ID: SYMBOL/COOL  TAPE ID: SYMBOL2/FILE000        *    00060101
+           * THIS MATERIAL IS PROPRIETARY TO BURROUGHS CORPORATION *    00060102
+           * AND IS NOT TO BE REPRODUCED, USED, OR DISCLOSED       *    00060103
+           * EXCEPT IN ACCORDANCE WITH PROGRAM LICENSE OR UPON     *    00060104
+           * WRITTEN AUTHORIZATION OF THE PATENT DIVISION OF       *    00060105
+           * BURROUGHS CORPORATION, DETROIT, MICHIGAN 48232        *    00060106
+           *                                                       *    00060107
+           * COPYRIGHT (C) 1971, 1972 BURROUGHS CORPORATION        *    00060108
+           *  AA320206   AA386657                                  *;   00060109
+ BEGIN DEFINE P=POLISH#,M=MEMORY#;                                      00070000
+         DEFINE DEFAULTDIRECT=4500#;                                    00071000
+         DEFINE KERNELADR=1#;                                           00072000
+         DEFINE MEMDISKADR=20#;                                         00073000
+         DEFINE ESPBOTTOM=50#;                                          00074000
+         DEFINE SCN(SCN1)=SCAN(CARD,SCN1)#,                             00075000
+         NAAME=1#, NUMBER=2#, DELIM=0#, PERCENT=4#;                     00076000
+         REAL CORE,READBACK,LOADER,J,I,DISKTOP,CARD,TYPE,MN,YR;         00080000
+         REAL ESUTEMP;                                                  00081000
+ $ SET OMIT = COOL                                                      00082000
+         REAL LOWADR;                                                   00083000
+ $ POP OMIT                                                             00084000
+         ARRAY INFO[*],SHAR[*],BUFFER[*],TEMMP[*],FILEX[*];             00090000
+         ARRAY FILEH[*],LABELS[*],ZERO[*],RT[*];                        00100000
+         INTEGER DY,LOADED,QX,XY,N,T,K,SYSNO,NUMWDS;                    00120000
+         REAL TREAL=T;                                                  00120010
+ $ SET OMIT = NOT(COOL)                                                 00120099
+         BOOLEAN RD,SKEDTOG,HARD,HARC,RC,FNDERR;                        00120100
+ $ POP OMIT                                                             00120101
+      LABEL    READCARD,FENCE ,ESU,DATE,FILE,USE,DKA,DKB,STOP,EXIT,TIMER00130000
+              ,ERROR,START,TART,DIRECT,DIRECTORYTOP                     00140000
+              ,WRCLEAN,XLOADED,HANDLE,SYSTEMS;                          00150000
+ $ SET OMIT = NOT(COOL)                                                 00160000
+    DEFINE REMOVE(REMOVE1)#BEGIN REMOVER(REMOVE1); GO REMOVED END#;     00169000
+    LABEL QUIT,REMOVED,PUNT,ARND,LP,ON;                                 00170000
+    REAL HDRO,RTI;                                                      00170010
+    DEFINE RECSIZE=HDRO.[1:14]#,BLOCKSIZE=HDRO.[15:15]#,                00170020
+      RECSPERBLOCK=HDRO.[30:12]#,SEGSPERBLOCK=HDRO.[42:6]#;             00170030
+    BOOLEAN FIRSTCARD;                                                  00170049
+ $ POP OMIT                                                             00170050
+    LABEL REMCD,MEMDUMP,BOMBOUT,REM,RECONSTR,GLOB;                      00170100
+    SWITCH TYPESWITCH:=ERROR,FILE,FENCE,STOP,ESU,USE,DATE,USE,USE       00180000
+                         ,DIRECT,DIRECTORYTOP,SYSTEMS,REMCD,MEMDUMP     00190000
+                         ,REM,RECONSTR,XLOADED; % SAVE FOR LAST         00191000
+    ARRAY MONTHS[12]_ 0,31,59,90,120,151,181,212,243,273,304,334;       00200000
+    BOOLEAN SPDIO,P1IO,P2IO,PRINTWAIT;                                  00201000
+DEFINE KERNEL=16#; % SHOULD BE NUMBER OF FIRST WORDS - 1                00201100
+ARRAY FIRST[17]:=0,                                                     00210000
+              "FILE0000",                                               00220000
+              "FENCE000",                                               00230000
+              "STOP0000",                                               00240000
+              "ESU00000",                                               00250000
+              "USE00000",                                               00260000
+              "DATEO000",                                               00270000
+              "TYPE0000",                                               00280000
+              "OPTN0000",                                               00290000
+              "DIRECT00",                                               00300000
+              "DRCTRYTP",                                               00310000
+              "SYSTEMS0",                                               00320000
+              "REMOVECD",                                               00321000
+              "MEMDUMP0",                                               00321100
+              "REMOVEF0",                                               00321200
+              "RECONSTR",                                               00321300
+              "_0000000";                                               00330000
+    ARRAY OPTIONS[54] _ 0,                                              00340000
+              "DRA00000",    %47, USE DRUM A
+
+              "CHECK DE","CLARED F","ILE ADDR","ESSES_  ", % 65         01035050
+              "NO. OF E","SUS TO B","E CHANGE","D FROM  ","        ",%6901035060
+              "________";                                               01039000
+ ARRAY LOADBUTTON[15]_                                                  01040000
+                             OCT0441000401570421,  %  1     20          01050000
+                             OCT0157000000104411,  %  2     21          01060000
+                             OCT0211001441310055,  %  3     22          01070000
+                             OCT4155124500004425,  %  4     23          01080000
+                             OCT0060013101600064,  %  5     24          01090000
+                             OCT4441010402530305,  %  6     25          01100000
+                             OCT0100023441310055,  %  7     26          01110000
+                             OCT0062011441310055,  %  8     27          01120000
+                             OCT0066013441310055,  %  9     30          00113000
+                             OCT0072015441310055,  % 10     31          01140000
+                             OCT0076017441310055,  % 11     32          01150000
+                             OCT5140000047700200,  % 12     33          01160000
+                             OCT0441100401004441,  % 13     34          01170000
+                             OCT0253010420527405,  % 14     35          01180000
+                             OCT7405005101002411;  % 15     36          01190000
+BOOLEAN STREAM PROCEDURE OK(B); VALUE B;                                01195000
+BEGIN SI:=B; L: IF SC=" " THEN BEGIN SI:=SI+1; GO L END;                01195100
+    IF SC="O" THEN SI:=SI+1 ELSE GO AWAY;                               01195200
+    IF SC="K" THEN TALLY:=1;                                            01195300
+    AWAY:OK:=TALLY;                                                     01195400
+END OK;                                                                 01195500
+REAL STREAM PROCEDURE DECI(V); VALUE V;                                 01195700
+BEGIN SI:=LOC V; DI:=LOC DECI; DS:=8 DEC;                               01195800
+END DECI;                                                               01195900
+ REAL STREAM PROCEDURE SEARCH(CARD,FIRST,N); VALUE CARD,N;              01200000
+         BEGIN LABEL L,EXIT;                                            01210000
+              SI:=CARD; SI:=SI-N; DI:=LOC CARD; DS:=8LIT"0";            01220000
+              DI:=LOC CARD; N(DS:=CHR);                                 01225000
+         L:   SI _ FIRST; SI _ SI+8; TALLY _ TALLY+1;                   01230000
+              IF SC = "_" THEN BEGIN TALLY _ C; GO TO EXIT END;         01240000
+              DI _ FIRST; DI _ DI+8; FIRST _ DI;                        01250000
+              SI:=LOC CARD;                                             01260000
+              IF 8 SC NEQ DC THEN GO L;                                 01270000
+         EXIT:SEARCH _ TALLY;                                           01280000
+         END;                                                           01290000
+  REAL STREAM PROCEDURE SCAN(LSTADR,TOKEN);                             01290100
+   BEGIN LABEL L,XXIT; LOCAL SV,SVR;                                    01290200
+    DI:=TOKEN; DS:=8LIT"00000000"; DI:=DI-8;                            01290250
+    SI:=LSTADR; SI:=SI+5; SI:=SC;                                       01290300
+    TALLY:=3; SCAN:=TALLY;                                              01290400
+ L: IF SC=" " THEN BEGIN SI:=SI+1; GO L; END;                           01290500
+    IF SC=ALPHA THEN                                                    01290600
+       IF SC LSS "0" THEN BEGIN % ALPHA                                 01290700
+          TALLY:=7; DI:=DI+1;                                           01290800
+          7(DS:=CHR; TALLY:=TALLY+63; IF SC=ALPHA THEN ELSE JUMP OUT);  01290900
+          SV:=TALLY; SV(DS:=LIT" ");                                    01291000
+          TALLY:=1; SCAN:=TALLY;                                        01291100
+                          END                                           01291200
+                     ELSE BEGIN % NUMBER                                01291300
+          TALLY:=0;                                                     01291400
+          7(SI:=SI+1; TALLY:=TALLY+1;                                   01291500
+            IF SC=ALPHA THEN                                            01291600
+               IF SC GEQ "0" THEN ELSE JUMP OUT TO XXIT                 01291700
+                        ELSE JUMP OUT);                                 01291800
+          SV:=TALLY; SI:=SI-SV;                                         01291900
+          DS:=SV OCT;                                                   01292000
+          TALLY:=2; SCAN:=TALLY;                                        01292100
+                          END                                           01292200
+                ELSE                                                    01292300
+    IF SC=""" THEN BEGIN                                                01292400
+              SI:=SI+1; TALLY:=7; DI:=DI+1;                             01292500
+             8(IF SC NEQ """ THEN BEGIN DS:=CHR; TALLY:=TALLY+63; END   01292600
+                             ELSE BEGIN SI:=SI+1; JUMP OUT; END);       01292700
+            IF TOGGLE THEN GO XXIT;                                     01292800
+            SV:=TALLY; SV(DS:=LIT" "); SVR:=SI;                         01292900
+            SI:=LOC SV; SI:=SI+7; IF SC="7" THEN GO XXIT                01293000
+                                  ELSE BEGIN TALLY:=1; SCAN:=TALLY;     01293100
+                                  SI:=SVR; END;                         01293200
+                 END ELSE BEGIN                                         01293300
+                        IF SC="%" THEN BEGIN TALLY:=4; SCAN:=TALLY;     01293400
+                             GO XXIT; END;                              01293500
+                        DI:=DI+7;                                       01293600
+                        DS:=CHR;                                        01293700
+                        TALLY:=0; SCAN:=TALLY;                          01293800
+                           END;                                         01293900
+XXIT: SV:=SI; SI:=LOC SV; DI:=LSTADR; DS:=WDS;                          01294000
+ END;                                                                   01294100
+ REAL STREAM PROCEDURE ISOLATE(CARD);                                   01300000
+         BEGIN LABEL L,A,X,E;                                           01310000
+              LOCAL T;                                                  01320000
+              SI _ CARD; SI _ SI+5; SI _ SC;                            01330000
+         L:   IF SC = " " THEN BEGIN SI _ SI+1; GO TO L END;            01340000
+              IF SC = """ THEN                                          01350000
+                   BEGIN SI _ SI+1;                                     01360000
+                       17(SI _SI+1; TALLY _ TALLY+1;                    01370000
+                             IF SC = """ THEN                           01380000
+                                  BEGIN T _ SI; DI _ T; DS _ LIT " ";   01390000
+                                       JUMP OUT TO X                    01400000
+                                  ENDL);                                01410000
+         E:            TALLY _ 0; GO TO X;                              01420000
+                   END;                                                 01430000
+              IF SC = ALPHA THEN BEGIN                                  01440000
+             17(SI_SI+1; TALLY _ TALLY+1;                               01450000
+                   IF SC = ALPHA THEN GO TO A;                          01460000
+                   JUMP OUT TO X; A:;);                                 01470000
+              GO TO E;                                                  01480000
+              END ELSE BEGIN SI _ SI+1; TALLY _ 1 END;                  01490000
+         X:   ISOLATE _ TALLY;                                          01500000
+              T _ SI;                                                   01510000
+              DI _ CARD; SI _ LOC T; DS _ WDS;                          01520000
+         END;                                                           01530000
+ SAVE PROCEDURE SPECIAL(C); VALUE C; REAL C;                            01540000
+         BEGIN IF ISOLATE(CARD) ! 1 THEN GO TO ERROR;                   01550000
+              STREAM(C:CARD);                                           01560000
+                   BEGIN SI _ CARD; SI _ SI-1;                          01570000
+                        DI _ LOC C; DI _ DI+7;                          01580000
+                        IF SC ! DC THEN TALLY _ 1;                      01590000
+                        C _ TALLY;                                      01600000
+                   END;                                                 01610000
+              IF P THEN GO TO ERROR;                                    01620000
+         END;                                                           01630000
+ SAVE PROCEDURE IOERR(IOD); VALUE IOD; REAL IOD; FORWARD;               01640000
+ SAVE REAL PROCEDURE EOM; FORWARD;                                      01650000
+%                                                                       01651000
+SAVE PROCEDURE WAITFORPRINTERFINISH(U); VALUE U; REAL U;                01652000
+              BEGIN PRINTWAIT:=TRUE;                                    01653000
+                    DO UNTIL EOM=U;                                     01654000
+                    PRINTWAIT:=FALSE;                                   01655000
+              END;                                                      01656000
+ SAVE PROCEDURE IO(ADDRESS,IOD); VALUE ADDRESS,IOD; REAL ADDRESS,IOD;   01660000
+         BEGIN REAL T;                                                  01670000
+              LABEL L;                                                  01680000
+              IOD _ ADDRESS INX IOD;                                    01690000
+         L:   P([IOD],IIO);                                             01700000
+              T _ EOM;                                                  01710000
+              IF T.[30:3] ! 0 THEN                                      01720000
+                   IF QX THEN GO TO L ELSE QX := 2;                     01730000
+              IF ADDRESS } 0 THEN                                       01735000
+              IF T.[26:4] ! 0 THEN                                      01740000
+                IF T.[29:1] AND T.[3:5]=6 AND M[ADDRESS]=@40            01751000
+                  THEN BEGIN                                            01752000
+                       M[ADDRESS]:=0;                                   01753000
+                       M[ADDRESS+1]:=0;                                 01754000
+                       GO L;                                            01755000
+                       END                                              01756000
+                  ELSE IF (T.[3:5]=22 OR T.[3:5]=26)                    01757000
+                         THEN IF T.[27:1]                               01758000
+                                THEN BEGIN                              01759000
+                                     WAITFORPRINTERFINISH(T.[3:5]);     01760000
+                                     IOD:=0&T[3:3:5]&1[18:47:1]         01761000
+                                           &1[29:44:4];                 01762000
+                                     GO L;                              01763000
+                                     END                                01764000
+                         ELSE WAITFORPRINTERFINISH(T.[3:5])             01765000
+                         ELSE IF T.[29:1] AND T.[3:5]=10 AND            01767000
+                              M[ADDRESS]=0                              01768000
+                              THEN                                      01769000
+                              ELSE BEGIN IOERR(IOD); GO L; END;         01770000
+         END;                                                           01850000
+ SAVE PROCEDURE SPOINOUT(WHICH); VALUE WHICH; INTEGER WHICH;            01851000
+         BEGIN                                                          01852000
+              IF SPOIO THEN                                             01853000
+              IO(MESSAGE INX ABS(WHICH),@740000000000000&WHICH[24:1:1]);01854000
+         END SPOINOUT;                                                  01855000
+ DEFINE KEYIN(KEYIN1)=SPOINOUT(NABS(KEYIN1))#;                          01856000
+ DEFINE SPOUT=SPOINOUT#;                                                01857000
+ SAVE PROCEDURE IOERR(IOD); VALUE IOD; REAL IOD;                        01860000
+         BEGIN REAL T;                                                  01870000
+              IOD _ IOD.[3:5];                                          01890000
+              T _ IF IOD=30 THEN "SPO" ELSE                             01900000
+                  IF IOD=10 THEN "CRA" ELSE                             01910000
+                  IF IOD= 6 THEN "DKA" ELSE                             01920000
+                  IF IOD=22 THEN "LPA" ELSE                             01921000
+                  IF IOD=26 THEN "LPB" ELSE                             01922000
+                  IF IOD= 4 THEN "DRA" ELSE "XXX";                      01930000
+              STREAM(T,A_[MESSAGE[4]]);                                 01940000
+                   BEGIN SI _ LOC T; SI _ SI+5; DS _ 3CHR; END;         01950000
+              SPOUT(4);                                                 01960000
+              IF IOD =10 THEN                                           01970000
+                   BEGIN DO UNTIL P(RRR).[24:1] = 0;                    01980000
+                        DO UNTIL P(RRR).[24:1];                         01990000
+                   END ELSE                                             02000000
+                   IF IOD LSS 22 THEN GO BOMBOUT;                       02000100
+         END IOERR;                                                     02020000
+ SAVE PROCEDURE DISKIO(A,C); VALUE A;                                   02030000
+         ARRAY C[*];                                                    02040000
+         REAL A;                                                        02050000
+         BEGIN BOOLEAN R;                                               02060000
+              C :=C INX NOT 0;                                          02070000
+              IF R:=A.[1:1] THEN A := ABS (A);                          02080000
+              STREAM(A,X_FLAG(C));                                      02090000
+                   BEGIN SI _ LOC A; DS _ 8 DEC END;                    02100000
+              IF R THEN IO(C,@140360140100000&NUMWDS[8:38:10]           02110000
+                     &((NUMWDS+29)DIV 30)[27:42:6]) ELSE                02120000
+              BEGIN                                                     02130000
+                   IO(C,@140360100100000);                              02140000
+                   M[READBACK] _ M[C];                                  02150000
+                   IO(READBACK,@140360140100000);                       02160000
+                   STREAM(READBACK:X_FLAG(C));                          02170000
+                   BEGIN SI _ READBACK; SI _ SI+8L DI _ DI+8;           02180000
+                        5(IF 48 SC ! DC THEN TALLY _ 1);                02190000
+                        READBACK _ TALLY;                               02200000
+                   END;                                                 02210000
+                   IF P THEN IOERR(@140000000000000);                   02220000
+              END;                                                      02230000
+         END;                                                           02240000
+ SAVE REAL PROCEDURE SCANWORD(TABLE); ARRAY TABLE[*];                   02250000
+         BEGIN REAL T;                                                  02260000
+              T:=IF(M[CARD] EQV 0)=NOT 0 THEN KERNEL ELSE ISOLATE(CARD);02270000
+              SCANWORD:=IF T=KERNEL THEN T ELSE SEARCH(CARD,TABLE,T);   02280000
+         END;                                                           02290000
+ SAVE REAL PROCEDURE SCANUMBER;                                         02300000
+         BEGIN REAL T;                                                  02310000
+              T _ ISOLATE(CARD);                                        02320000
+              STREAM(R_0:T,CARD);                                       02330000
+                   BEGIN DI_DI-T; CARD _ DI;                            02340000
+                        SI _ CARD;                                      02350000
+                        DI _ LOC R;                                     02360000
+                        DS _ T OCT;                                     02370000
+                   END;                                                 02380000
+              SCANUMBER _ P;                                            02390000
+         END;                                                           02400000
+%                                                                       02410000
+ $ SET OMIT = NOT(COOL)                                                 02410500
+SAVE BOOLEAN PROCEDURE LOOKFOR(L1,L2); VALUE L1,L2; REAL L1,L2;         02411000
+         BEGIN REAL I; LABEL XXIT;                                      02411100
+         FOR I:=0 STEP 2 UNTIL RTI DO                                   02411200
+         IF (L1 EQV RT[I])=NOT 0 OR RT[I] LSS 0 THEN                    02411300
+           IF (L2 EQV RT[I+1])=NOT 0 OR RT[I+1] LSS 0 THEN              02411400
+             BEGIN LOOKFOR:=TRUE; I:=RTI; GO XXIT; END;                 02411500
+XXIT:                                                                   02411600
+         END;                                                           02411700
+ $ POP OMIT                                                             02411750
+%                                                                       02411800
+SAVE INTEGER PROCEDURE PACKER;                                          02420000
+     BEGIN;                                                             02430000
+          STREAM (A:=[BUFFER[9]],B:=[PACKER]);                          02440000
+           BEGIN SI := A; SI := SI + 4;                                 02450000
+                 DI := B; DI := DI + 6;                                 02460000
+               4(SKIP 3 SB; 3(IF SB THEN DS:=SET ELSE SKIP DB;SKIP SB));02470000                  
+           END;                                                         02480000
+     END;                                                               02490000
+%                                                                       02500000
+SAVE PROCEDURE LOADERS;                                                 02510000
+         BEGIN LABEL TOPPER,NXTCRD,EXIT;                                02520000
+              INTEGER N,SIZE;                                           02521000
+              IF (TYPE=KERNEL AND LOADED)                               02530000
+              OR (TYPE!KERNEL AND (LOADED.[46:1])) THEN                 02531000
+              BEGIN SPOUT(9);                                           02540000
+                    GO BOMBOUT;                                         02550000
+              END;                                                      02560000
+              IF TYPE NEQ KERNEL THEN GO NXTCRD;                        02561000
+     TOPERR:   STREAM(B:=[BUFFER[1]],A:=N:=BUFFER[9].[6:9],             02570000
+                    D_PACKER INX BUFFER);                               02580000
+                   BEGIN  SI _B; DS _ A WDS; END;                       02590000
+              SIZE:=SIZE+N;                                             02591000
+     NXTCRD:  IO(BUFFER INX 0,@240120040000000);                        02600000
+              IF BUFFER[0].[4:44]=0 THEN GO TO TOPPER;                  02610000
+              SIZE:=(SIZE+29) DIV 30;                                   02611000
+              IF (TYPE=KERNEL AND (1+SIZE) GTR MEMDISKADR) THEN         02612000
+              BEGIN                                                     02612100
+                   SPOUT(36);                                           02612300
+                   LOADED:=LOADED OR 2;                                 02612400
+              END ELSE                                                  02612500
+              IF (TYPE!KERNEL AND (MEMDISKADR+SIZE) GTR ESPBOTTOM) THEN 02612600
+              BEGIN                                                     02612700
+                   SPOUT(32);                                           02612800
+                   GO EXIT;                                             02612900
+              END;                                                      02613000
+              TEMMP := BUFFER;                                          02620000
+              BUFFER := 111 INX BUFFER;                                 02630000
+              BUFFER[0] := IF TYPE=KERNEL THEN 1 ELSE DECI(MEMDISKADR); 02640000
+              LOADED := LOADED OR                                       02650000
+                        (IF TYPE=KERNEL THEN 1 ELSE 2);                 02651000
+              IO(BUFFER INX 0,@140000000000000&SIZE[27:42:6]);          02660000
+              BUFFER := TEMMP;                                          02670000
+     EXIT:                                                              02671000
+         END;                                                           02680000
+ $ SET OMIT = NOT COOL                                                  02689999
+SAVE PROCEDURE REMOVER(L); VALUE L; INTEGER L;                          02690000
+    BEGIN                                                               02700000
+         STREAM(A:=[LABELS[I]],X:=(L=0),L,ADR:=J-(L NEQ 0)x             02710000
+                ((80-I) DIV 2),MONTHS);                                 02711000
+         BEGIN 55(DS:=LIT" "); DS:=LIT"_"; DI:=MONTHS;                  02712000
+              SI:=A; X(DS:=8CHR;DS:=LIT"/"; DS:=8CHR; JUMP OUT TO RMVE);02720000
+              SI:=SI+ 1;DS:=7 CHR; DS:=LIT"/";SI:=SI+1;DS:=7CHR;        02720200
+         RMVE:DS:=9LIT" REMOVED(";                                      02730000
+              CI:=CI+L;                                                 02730100
+              GO NAM;                                                   02730120
+              GO HDR;                                                   02730140
+              GO DECK;                                                  02730160
+         NAM :DS:=8LIT"BAD NAME";GO FIN;                                02730200
+         HDR :DS:=7LIT"BAD HDR"; GO FIN;                                02730300
+         DECK:DS:=4LIT"DECK";                                           02730400
+         FIN :DS:=9LIT") AT ADR=";                                      02730500
+              SI:=LOC ADR; X:=DI; DS:=8DEC; DI:=X; DS:=7FILL;           02730600
+         END;                                                           02740000
+         LABELS[I]:=@14;                                                02750000
+         IF NOT(P1IO OR P2IO) THEN IF NOT SPOIO THEN ELSE               02751000
+           IO(MONTHS INX 0,@740000000000000) ELSE                       02755000
+           IO(MONTHS INX 0,IF P1IO THEN @540070004000000 ELSE           02757000
+                                        @640070004000000);              02760000
+    END;                                                                02770000
+ $ POP OMIT                                                             02700001
+ SAVE REAL PROCEDURE EOM;                                               02780000
+         BEGIN GO TO TIMER END;                                         02790000
+%***********************START HERE****************************          02800000
+    TART      :@20: QX _ 1; GO TO START;                                02810000
+    TIMER     :@22:P(INI); GO TO TIMER; % TIME INTERVAL                 02820000
+              :@24:GO TO TIMER; % KEYBOARD REQUEST                      02830000
+              :@25:P(22); GO GLOB; % LPA FINISHED                       02840000
+              :@26:P(26); GO GLOB; % LPB FINISHED                       02850000
+              :@27:P(@14,LOD,RTN); % I/O #1 FINISHED                    02860000
+              :@30:P(@15,LOD,RTN); % I/O #2 FINISHED                    02870000
+              :@31:P(@16,LOD,RTN); % I/O #3 FINISHED                    02880000
+              :@32:P(@17,LOD,RTN); % I/O #4 FINISHED                    02890000
+              :@34:GO TO TIMER; % INQUIRY REQUEST                       02900000
+%**********************CODE STARTS HERE**************************       02910000
+    START:*:  P(64,STS);                                                02920000
+              DISKTOP _ -1;                                             02930000
+              NUMWDS := 30;                                             02940000
+              CORE _ P(.EOM,LOD).[33:15]+3;                             02950000
+              STREAM(CORE);                                             02960000
+                   BEGIN DS _ 8 LIT "0"; SI _ CORE;                     02970000
+                        32(DS _ 32 WDS);                                02980000
+                   END;                                                 02990000
+              SHAR := [M[CORE]]&31[8:38:10];                            03000000
+              CORE := CORE +31;                                         03010000
+              LOADER _ CORE;                                            03020000
+              CORE _ CORE+30;                                           03030000
+              INFO _ [M[CORE]]&30[8:38:10];                             03040000
+              CORE _ CORE+40;                                           03050000
+              FILEH _ [M[CORE]]&30[8:38:10];                            03060000
+              CORE _ CORE+40;                                           03070000
+              FILEX := [M[CORE]]&450[8:38:10];                          03080000
+              CORE := CORE + 450;                                       03090000
+              LABELS _ [M[CORE]]&30[8:38:10];                           03100000
+              CORE _ CORE+40;                                           03110000
+              READBACK _ CORE;                                          03120000
+              CORE _ CORE+40;                                           03130000
+              ZERO:=[M[CORE]]&30[8:38:10];                              03130100
+              CORE:=CORE+40;                                            03130200
+              RT:=[M[CORE]]&300[8:38:10];                               03130300
+              CORE:=CORE+310;                                           03130400
+              SPOIO:=P(RRR).[22:1];                                     03131000
+              P1IO:=P(RRR).[27:1];                                      03131050
+              P2IO:=P(RRR).[26:1];                                      03131100
+ $ SET OMIT = COOL                                                      03131299
+              LOWADR:=99999999; % INITIALIZE                            03131300
+ $ POP OMIT                                                             03131401
+ $ SET OMIT = NOT(COOL)                                                 03140000
+              DISKIO(-0,SHAR);                                          03150000
+              FOR I := 13 STEP 5 UNTIL 28                               03160000
+                     DO SHAR[I] := SHAR[I+1] := 0; %CLEAR ALL INT       03170000
+              INFO[0] := @40;                                           03180000
+              INFO[1] _ 0;                                              03185000
+              IO(-(INFO INX 0),@140004000000000);                       03190000
+              SYSNO := INFO[1].[4:2]; %GET SYSTEM NUMBER                03200000
+              FIRSTCARD:=TRUE;                                          03200025
+              RTI:=-1;                                                  03200030
+ $ POP OMIT                                                             03200050
+              I _ 0;                                                    03210000
+              BUFFER := [M[CORE]]&10[8:38:10];                          03230000
+%                                                                       03240000
+READCARD:     CARD _ CORE;                        %READ CARD            03250000
+              IO(CARD,@240000040000000);                                03260000
+HANDLE:       STREAM (C:=CARD+10); DS := 2 LIT "%-";                    03270000
+              TYPE:=SCANWORD(FIRST);                                    03280000
+ $ SET OMIT = NOT(COOL)                                                 03280099
+              IF FIRSTCARD THEN                                         03280100
+              IF TYPE NEQ 10 AND TYPE NEQ KERNEL THEN                   03280200
+              BEGIN                                                     03280300
+                   SPOUT(24);                                           03280400
+                   GO TO ERROR;                                         03280500
+              END;                                                      03280600
+ $ POP OMIT                                                             03280601
+              GO TYPESWITCH[TYPE];                                      03280700
+GLOB::        IF PRINTWAIT THEN P(RTN) ELSE P(DEL);                     03280800
+              GO TIMER;                                                 03280900
+%                                                                       03290000
+ERROR::       SPOUT(2);                                                 03300000
+              DO UNTIL P(RRR).[24:1] = 0;                               03310000
+              DO UNTIL P(RRR).[24:1];                                   03320000
+              P(64,STS);                                                03330000
+              GO READCARD;                                              03340000
+%                                                                       03350000
+MEMDUMP:                                                                03351000
+XLOADED:      LOADERS; %LOAD LOADER DECK                                03360000
+              CARD := CORE;                                             03370000
+              GO TO HANDLE;                                             03380000
+%                                                                       03390000
+REM:                                                                    03391000
+ $ SET OMIT = COOL                                                      03391100
+         GO ERROR;                                                      03391200
+ $ POP OMIT                                                             03391300
+ $ SET OMIT = NOT(COOL)                                                 03391400
+         CARD:=CORE;                                                    03391500
+         IO(CARD,@240000040000000);                                     03391600
+         STREAM(C:=CARD+10); DS:=2LIT"%-";                              03391700
+LP:      IF P(SCN(HDRO)) NEQ NAAME THEN                                 03391900
+            IF HDRO NEQ "=" THEN GO ERROR                               03392000
+                            ELSE RT[RTI:=RTI+1]:=-1                     03392100
+         IF P(SCN(HDRO)) NEQ DELIM THEN                                 03392300
+            IF RT[RTI]="STOP   " THEN BEGIN RTI:=RTI-1; GO READCARD; END03392400
+                                 ELSE GO ERROR                          03392500
+                                   ELSE                                 03392600
+            IF HDRO NEQ "/" THEN GO ERROR;                              03392700
+         IF P(SCN(HDRO)) NEQ NAAME THEN                                 03392800
+            IF HDRO NEQ "=" THEN GO ERROR                               03392900
+                            ELSE RT[RTI:=RTI+1]:=-1                     03393000
+                                   ELSE RT[RTI:=RTI+1]:=HDRO;           03393100
+         IF P(SCN(HDRO),DUP) NEQ PERCENT THEN                           03393200
+            IF P NEQ DELIM THEN GO ERROR                                03393300
+                           ELSE GO LP                                   03393400
+                                         ELSE BEGIN P(DEL); GO REM; END;03393500
+ $ POP OMIT                                                             03393600
+%                                                                       03393700
+SYSTEMS:      SPECIAL ("=");                                            03400000
+              SHAR[0] := SCANUMBER ;                                    03410000
+              IF SHAR[0] GTR 4 OR  SHAR[0] LSS 1 THEN                   03420000
+              BEGIN SHAR[0] := 1;                                       03430000
+                    GO TO ERROR;                                        03440000
+              END;                                                      03450000
+              GO TO READCARD;                                           03460000
+%                                                                       03470000
+DIRECTORYTOP:                                                           03480000
+ $ SET OMT = NOT(COOL)                                                  03480050
+             IF NOT FIRSTCARD THEN                                      03480100
+             BEGIN                                                      03480200
+                  SPOUT(27);                                            03480300
+                  GO BOMBOUT;                                           03480400
+             END;                                                       03480500
+ $ POP OMIT                                                             03480501
+             DISKTOP:=SCANUMBER;                                        03480600
+             J _ DISKTOP+19;                                            03490000
+ $ SET OMIT = NOT(COOL)                                                 03500000
+             DISKIO(-(DISKTOP-SYSNO),INFO);                             03510000
+             FIRSTCARD:=FALSE;                                          03510100
+ $ POP OMIT                                                             03510101
+             GO TO READCARD;                                            03520000
+%                                                                       03530000
+DIRECT:      INFO[4] _ SHAR[4]_SCANUMBER;                               03540000
+             GO TO READCARD;                                            03550000
+%                                                                       03560000
+FENCE:       SPECIAL("=");                                              03570000
+             INFO[19]_@100000-(P(DUP)-SCANUMBER) DIV 1024x1024;         03580000
+             IF INFO[19]<@20000 THEN INFO[19]_@20000 ELSE               03590000
+             IF INFO[19]>@70000 THEN IFNO[19]_@70000;                   03600000
+             GO TO READCARD;                                            03610000
+%                                                                       03620000
+ESU:         ESUTEMP:=SCANUMBER;                                        03630000
+             SPECIAL("%");                                              03635000
+             GO READCARD;                                               03640000
+%                                                                       03650000
+ DATE:       MN _ SCANUMBER;                                            03660000
+             IF MN < 1 OR MN > 12 THEN GO TO ERROR;                     03670000
+             SPECIAL("/");                                              03680000
+             DY _ SCANUMBER;                                            03690000
+             SPECIAL("/");                                              03700000
+             YR _ SCANUMBER;                                            03710000
+             DY _ MONTHS[MN-1]+DY;                                      03720000
+             IF YR MOD 4 = 0 AND (YR MOD 100 ! 0 OR YR MOD 400 = 0)     03730000
+                  AND MN } 3 THEN DY _ DY+1;                            03740000
+             DY _ YR MOD 100 x 1000+DY;                                 03750000
+             STREAM(D_[DY],I_[INFO[1]]);                                03760000
+                  BEGIN SI _ D; DS _ 8 DEC END;                         03770000
+             GO READCARD;                                               03780000
+ %                                                                      03810000
+ USE:        IF TYPE NEQ 8 THEN XY:=SCANWORD(OPTIONS)                   03820000
+                           ELSE XY:=48-SCANUMBER;                       03820100
+             IF XY=0 THEN GO ERROR;                                     03830000
+             TREAL:=1;                                                  03880000
+             FOR K:=2 STEP 1 UNTIL XY DO TREAL:=0&TREAL[1:2:46];        03890000
+             INFO[0]:=INFO[0] OR TREAL;                                 03900000
+             SPECIAL("%");                                              03905000
+             GO READCARD;                                               03910000
+ %                                                                      03920000
+ FILE:                                                                  03930000
+  $ SET OMIT = NOT(COOL)                                                03940000
+          GO TO ERROR;                                                  03950000
+  $ POP OMIT                                                            03950050
+  $ SET OMIT = COOL                                                     03960000
+          IF P(SCN(LABELS[28-I])) NEQ NAAME THEN GO ERROR;              03971000
+          IF P(SCN(N)) NEQ DELIM THEN GO ERROR                          03972000
+                                      ELSE IF N NEQ "/" THEN GO ERROR;  03973000
+          IF P(SCN(LABELS[29-I])) NEQ NAAME THEN GO ERROR;              03974000
+                IF DISKTOP LSS 0 THEN BEGIN SPOUT(6); GO ERROR; END;    03975000
+                FILEH[0]:=(*P(DUP))&30[1:34:14]&30[15:33:15]&           03975100
+                                     1[30:36:12]&1[42:42:6];            03975200
+          IF P(SCN(N)) NEQ DELIM THEN GO ERROR;                         03976000
+          IF P(SCN(FILEH[9])) NEQ NUMBER THEN GO ERROR;                 03977000
+          IF FILEH[9] GTR 20 THEN GO ERROR;                             03978000
+          IF P(SCN(N)) NEQ DELIM THEN GO ERROR;                         03979000
+          IF P(SCN(FILEH[8])) NEQ NUMBER THEN GO ERROR;                 03980000
+          IF P(SCN(N)) NEQ DELIM THEN GO ERROR;                         03981000
+          IF P(SCN(N)) NEQ NUMBER THEN GO ERROR                         03982000
+                                  ELSE IF N GTR 999 THEN GO ERROR       03983000
+                       ELSE FILEH[3]:=-DY&DY[12:30:18]&N[2:38:10];      03984000
+         IF (K:=P(SCN(N))) = PERCENT THEN                               03985000
+                                ELSE                                    03986000
+            BEGIN IF K NEQ DELIM THEN GO ERROR;                         03987000                                 
+                  IF P(SCN(N)) NEQ NUMBER THEN GO ERROR                 03988000
+                                          ELSE FILEH[0]:=(*P(DUP))&     03989000
+                                                        N[1:34:14];     03989100
+                  K:=N;                                                 03989200
+                  IF P(SCN(N)) NEQ DELIM THEN GO ERROR;                 03990000
+                  IF P(SCN(N)) NEQ NUMBER THEN GO ERROR                 03991000
+                                          ELSE FILEH[0]:=(*P(DUP))&     03992000
+                                                        N[15:33:15];    03992100
+                  FILEH[0]:=(*P(DUP))&((N+29) DIV 30)[42:42:6]          03992200
+                            &(N DIV K)[30:36:12];                       03992300
+                  IF P(SCN(N)) NEQ PERCENT THEN GO ERROR;               03993000
+            END;                                                        03994000
+         N:=FILEH[9];                                                   03996000
+         FOR K _ 1 STEP 1 UNTIL N DO                                    04180000
+              BEGIN CARD _ CORE;                                        04190000
+                   IO(CARD,@240000040000000);                           04200000
+                   IF SCANWBRD(FIRST) ! 0 THEN GO TO ERROR;             04210000
+                   CARD _ CORE;                                         04220000
+                   FILEH[9+K] _ SCANUMBER;                              04230000
+                   SPECIAL("%");                                        04240000
+                   IF FILEH[9+K] LSS LOWADR THEN                        04241000
+                   IF FILEH[9+K] NEQ DISKTOP+4 THEN LOWADR:=FILEH[9+K]; 04245000
+              END;                                                      04250000
+         FOR K _ K STEP 1 UNTIL 20 DO                                   04260000
+              FILEH[9+K] _ 0;                                           04270000
+              FILEH[4]:=@44;                                            04280200
+              FILEH[7] _ FILEH[8]xN-1;                                  04290000
+         I _ I+2;                                                       04300000
+         DISKIO(J-(I DIV 2),FILEH);                                     04310000
+         IF I = 30 THEN                                                 04320000
+              BEGIN DISKIO(J,LABELS);                                   04330000
+                   J _ J+16;                                            04340000
+                   I _ 0                                                04350000
+              END;                                                      04360000
+         GO TO READCARD;                                                04370000
+ $ POP OMIT                                                             04370050
+RECONSTR:                                                               04371000
+ $ SET OMIT = NOT COOL                                                  04371100
+              RC:=HARD:=TRUE; GO READCARD;                              04371200
+ $ SET OMIT = COOL                                                      04371300
+              GO ERROR;                                                 04371400
+ $ RESET OMIT                                                           04371500
+REMCD:                                                                  04372000
+ $ SET OMIT = NOT COOL                                                  04372009
+              RD:=HARD:=TRUE; GO READCARD;                              04372010
+ $ SET OMIT = COOL                                                      04372015
+              GO TO ERROR;                                              04372020
+ $ RESET OMIT                                                           04372021
+ %::::::::::::::::::::::NO MORE CARDS:::::::::::::::::::::::::::::      04380000
+STOP:         SHAR[4]:=INFO[4];                                         04390500
+              INFO[16]:=15;                                             04395000
+              IF SPOIO THEN                                             04395100
+              BEGIN                                                     04395200
+              SPOUT(12);                                                04395300
+              KEYIN(12);                                                04395400
+              IF NOT OK([MESSAGE[12]] INX 0) THEN                       04395500
+BOMBOUT::                                                               04395550
+              BEGIN STREAM(B:=[MESSAGE[12]]);                           04395600
+                    DS:=24 LIT "COOL/COLD START ABORTED_";              04395700
+              SPOUT(12);                                                04395800
+              DO UNTIL FALSE;                                           04395900
+              END;                                                      04396000
+              STREAM(A:=INFO[4],SV:=0,N:=(MESSAGE[27]]);                04396050
+               BEGIN DS:=20LIT"USER DISK BEGINS AT "; SI:=LOC A;        04396100
+                     DS:=8DEC; SV:=DI; DI:=DI-8; DS:=7FILL; DI:=SV;     04396150
+                     DS:=LIT"_";                                        04396200
+               END;                                                     04396250
+              SPOUT(27);                                                04396300
+              END;                                                      04396400
+ $ SET OMIT = COOL                                                      04397000
+              IF (INFO[4] LEQ DISKTOP OR (N:=LOWADR LSS INFO[4])) THEN  04397100
+                BEGIN IF SPOIO THEN                                     04397200
+                      BEGIN SPOUT(62); IF N=1 THEN SPOUT(65); END;      04397300
+                      GO BOMBOUT;                                       04397400
+                END;                                                    04397500
+              IF DISKTOP < 0 THEN                                       04400000
+                   BEGIN                                                04410000
+                   SPOUT(6);                                            04420000
+                   GO TO ERROR;                                         04430000
+                   END;                                                 04440000
+ $ POP OMIT                                                             04440001
+              IF ESUTEMP LEQ 0 THEN                                     04441000
+                   BEGIN                                                04441100
+                   SPOUT(17);                                           04441200
+                   GO TO ERROR;                                         04441300
+                   END;                                                 04441400
+              SHAR[1] _ DISKTOP;                                        04450000
+              IF SHAR[0] GTR 4 OR SHAR[0] LSS 1 THEN SHAR[0] := 1;      04460000
+ $ SET OMIT = NOT COOL                                                  04470004
+ %********* LOOK AT SEGMENT ZERO **********                             04470005
+              IF SHAR[1] GTR 10000 OR SHAR[1] LSS 50 OR                 04470010
+                 SHAR[4] GTR 100000 OR SHAR[4] LSS 50                   04470015
+                THEN BEGIN SPOUT(53); GO BOMBOUT; END;                  04470020
+              FOR N:=C STEP 1 UNTIL 29 DO                               04470030
+              IF P(SHAR[N],TOP,XCH,DEL) THEN ELSE                       04470035
+                     BEGIN FNDERR:=TRUE; SHAR[N]:=0; END;               04470040
+              FOR N:=10 STEP 5 UNTIL SHAR[0]x5+5 DO                     04470045
+              BEGIN                                                     04470050
+              IF ((SHAR[N] OR SHAR[N+1]) AND @3700000000000000) NEQ 0   04470055
+                THEN BEGIN FNDERR:=TRUE; SHAR[N]:=SHAR[N+1]:=0; END;    04470060
+              IF ((SHAR[N+3] OR SHAR[N+4]) AND @3700000000000000) NEQ 0 04470065
+                THEN BEGIN FNDERR:=TRUE; SHAR[N+3]:=SHAR[N+4]:=0; END;  04470070
+              END;                                                      04470075
+              IF FNDERR THEN SPOUT(53);                                 04470080
+%********** END OF SEGMENT ZERO EXAMINATION **********                  04470085
+ $ POP OMIT                                                             04470090
+              DISKIO(0,SHAR);                                           04470095
+ $ SET OMIT = NOT COOL                                                  04470099
+              IF ESUTEMP NEQ INFO[2] THEN                               04470100
+              IF SPOIO THEN                                             04470105
+              BEGIN                                                     04470110
+              STREAM(A:=INFO[2],D:=0,B:=ESUTEMP,C:=MESSAGE INX 69);     04470120
+              BEGIN DI:=DI+31; SI:=LOC A; C:=DI; DI:=LOC D; DS:=8DEC;   04470130
+              DI:=LOC D; DS:=7FILL; DI:=C; 8(IF SC=" " THEN SI:=SI+1    04470140
+              ELSE DS:=CHR); DS:=4LIT" TO "; C:=DI; DI:=LOC D; DS:=8DEC;04470150
+              DI:=LOC D; DS:=7FILL; DI:=C; SI:=LOC D; 8(IF SC=" " THEN  04470160
+              SI:=SI+1 ELSE DS:=CHR); DS:=LIT"_";                       04470170
+              END;                                                      04470180
+              SPOUT(69);                                                04470200
+              SPOUT(14);                                                04470210
+              KEYIN(69);                                                04470220
+              IF NOT OK(MESSAGE INX 69) THEN GO BOMBOUT;                04470230
+              END;                                                      04470235
+ $ POP OMIT                                                             04470236
+              INFO[2]:=ESUTEMP;                                         04470240
+ $ SET OMIT = COOL                                                      04480000
+              LABELS[28-I] _ @114;                                      04490000
+              LABELS[29-I] _ 0;                                         04500000
+              FOR I:=0 STEP 1 UNTIL(SHAR[0]-1)DO DISKIO(DISKTOP-I,INFO);04510000
+ $ POP OMIT                                                             04510050
+ $ SET OMIT = NOT(COOL)                                                 04520000
+              FOR I:=-7 STEP 1 UNTIL -4 DO DISKIO(DISKTOP+I,ZERO);      04520200
+              FOR I:=1 STEP 1 UNTIL 3 DO DISKIO(DISKTOP+I,ZERO);        04520300
+%********** LOOK AT DIRECTORYTOP **********                             04520400
+              FNDERR:=FALSE;                                            04520450
+              FOR I:=0 STEP 1 UNTIL 29 DO                               04520500
+              IF P(INFO[I],TOP,XCH,DEL) THEN ELSE                       04520600
+                 BEGIN FNDERR:=TRUE; INFO[I]:=0; END;                   04520700
+              IF (INFO[2] DIV 100) GTR 10 OR (INFO[2] MOD 100) GTR 10   04520800
+                 THEN BEGIN SPOUT(56); GO BOMBOUT; END;                 04520900
+              IF INFO[8] GTR @7777 THEN                                 04521000
+                 BEGIN FNDERR:=TRUE; INFO[8]:=1; END;                   04521050
+              IF INFO[9] LSS 0 THEN                                     04521100
+                 BEGIN FNDERR:=TRUE; INFO[1]:=1; END;                   04521150
+              IF FNDERR THEN SPOUT(56);                                 04521175
+%********** END OF DIRECTORYTOP EXAMINATION **********                  04521200
+              DISKIO(DISKTOP-SYSNO,INFO);                               04521300
+ $ POP OMIT                                                             04530050
+              N := ESPBOTTOM ;%START CLEAN ESPDISK                      04540000
+MRCLEAN:      IF N LSS (DISKTOP-SHAR[0]) THEN                           04550000
+              BEGIN ;STREAM(B:=N,X:=FILEH);                             04560000
+                          BEGIN SI:=LOC B;DS:=8 DEC;END;                04570000
+                     P(N);                                              04580000
+                     IF (N:=DISKTOP-SHAR[0]-N))GEQ 63 THEN              04590000
+                        IO(FILEH INX 0,@14000007700000)                 04600000
+                     ELSE                                               04610000
+                        IO(FILEH INX 0,@14000000000000&N[27:42:6]);     04620000
+                     N := P + 63;                                       04630000
+                     GO TO MRCLEAN;                                     04640000
+              END;                                                      04650000
+              STREAM (B:=DISKTOP+1,X:=FILEH);                           04660000
+                       BEGIN SI:=LOC B;DS:=8 DEC;END;                   04670000
+              IO(FILEH INX 0,@141320000000000 &                         04680000
+ $ SET OMIT = NOT(COOL)                                                 04680099
+                   (IF RD THEN 3 ELSE 2)[30:45:3]);                     04680100
+ $ POP OMIT                                                             04680101
+ $ SET OMIT = COOL                                                      04680199
+                   3[30:45:3]);                                         04680200
+ $ POP OMIT                                                             04680201
+ $ SET OMIT = NOT(COOL)                                                 04685000
+              N_(((INFO[4]-DISKTOP+3) DIV (35/2))x16) + J;              04690000
+         MN:=DISKTOP +4;                                                04691000
+         YR:=INFO[4];                                                   04691100
+         TYPE:=INFO[2]x1000000;                                         04691200
+         IF P1IO OR P2IO THEN BEGIN                                     04691300
+         STREAM(M:=[MESSAGE[53]]);                                      04691400
+           DS:=25LIT"CHECK PRINTER FOR OUTPUT_";                        04691500
+         SPOUT(53);                                                     04691600
+                              END;                                      04691700
+         FOR J_J STEP 16 UNTIL N DO                                     04700000
+         BEGIN                                                          04710000
+              NUMWDS := 480;                                            04720000
+              DISKIO(-(J-15),FILEX);                                    04730000
+              FOR I:=0 STEP 2 UNTIL 28 DO                               04740000
+              BEGIN                                                     04750000
+                   STREAM(A:=0?D:=[LABELS[I]]);                         04760000
+                   BEGIN SI:=D;IF SC!"0" THEN TALLY:=1;                 04770000
+                        SI:=SI+8;IF SC!"0" THEN TALLY:=1;               04780000
+                         A:=TALLY;                                      04790000
+                   END;                                                 04800000
+                   IF P THEN REMOVE(0);                                 04810000
+              END;                                                      04820000
+              FOR I_28 STEP -2 UNTIL 0 DO                               04830000
+                   IF LABELS[I]=@114 THEN GO QUIT ELSE                  04840000
+                   IF LABELS[I]!@14 THEN                                04850000
+                        IF RTI LEQ 0 THEN GO ON ELSE                    04851000
+                            IF P(LOOKFOR(LABELS[I],LABELS[I+1]))        04852000
+                              THEN BEGIN                                04853000
+                               STREAM(A:=(LABELS[I]],B:=[MESSAGE[59]]); 04854000
+                               BEGIN SI:=A; SI:=SI+1; DS:=7CHR;         04855000
+                                     DI:=DI+1; SI:=SI+1; DS:=7CHR;      04856000
+                               END;                                     04856500
+                               LABELS[I]:=@14;                          04856600
+                               IF NOT(P1IO OR P2IO) THEN                04856650
+                                 IF NOT SPOIO THEN ELSE                 04856670
+                               IO(MESSAGE INX 59,@740000000000000)      04856700
+                                                    ELSE                04856750
+                               IO(MESSAGE INX 59,IF P1IO THEN           04856760
+                                        @540030004000000 ELSE           04756770
+                                        @640030004000000);              04856780
+                                   END                                  04857000
+                              ELSE                                      04858000
+ON:                BEGIN                                                04860000
+                        IF (LABELS[I] EQV "DECK   ")=NOT 0 THEN         04869000
+                        BEGIN                                           04869200
+                        IF NOT HARD THEN BEGIN                          04869400
+                                         IF SPOIO THEN                  04869500
+                                         BEGIN                          04869550
+                                         SPOUT(20); KEYIN(20);          04869600
+                                         RD:=OK([MESSAGE[20]] INX 0);   04869800
+                                         HARD:=TRUE;                    04870000
+                                         END;                           04870100
+                                         END;                           04870200
+                        IF RD THEN                                      04870400
+                        IF ((LABELS[I+1] AND @77000000007777) EQV       04880000
+                             @12000000003714)=NOT 0 THEN                04890000
+                             BEGIN                                      04900000
+                                  LABELS[I+1]_(P(DUP,LOD) AND           04910000
+                                       @77777777770000) OR @6060;       04920000
+                             REMOVE(2);                                 04930000
+                             END;                                       04935000
+                        END;                                            04940000
+                        SKEDTOG:=LABELS[I].[6:24]="FILE" AND            04941000
+                                 (LABELS[I+1] EQV "SHCEDUL")=NOT 0;     04942000
+                         FILEH := ((NUMWDS:=Ix15)INX FILEX)&30[8:38:10];04950000
+                        K:=                                             04959000
+                        FILEH[9]:=(*[(DUP)) AND 31;                     04960000
+                        STREAM(T_0:FILEH);                              04970000
+                        BEGIN SI_FILEH; 30(IF S? THEN BEGIN TALLY_1;    04980000
+                             JUMP OUT END ELSE SI_SI+8); T_TALLY;       04990000
+                        END;                                            05000000
+                        IF P OR(K GTR 20) THEN REMOVE(1);               05010000
+                        FOR T:=K+9 STEP -1 UNTIL 10 DO                  05020000
+                             IF (DY:=FILEH[T]) NEQ 0 THEN               05030000
+                             IF DY GEQ TYPE OR                          05040000
+                             (DY LEQ YR AND DY GTR MN) THEN REMOVE(1);  05050000
+                        DY:=0;                                          05059000
+                        FOR T:=10 STEP 1 UNTIL 29 DO                    05060000
+                        BEGIN                                           05061000
+                             DY:=DY+(XY:=(FILEH[T] NEQ 0));             05062000
+                                  IF T GEQ K+10 THEN IF XY THEN T:=31;  05063000
+                        END;                                            05064000
+                        IF ((T=31) OR (DY GTR K) AND NOT SKEDTOG) OR    05065000
+                           (DY NEQ 0 AND FILEH[8]=0) THEN REMOVE(1);    05070000
+%********** RECONSTRUCT BAD HEADERS **********                          05070005
+    IF (HDRO:=FILEH[0]).[1:14]=0 OR BLOCKSIZE=0 OR                      05070010
+       RECSPERBLOCK=0 OR SEGSPERBLOCK=0 THEN                            05070020
+    BEGIN                                                               05070030
+    IF NOT HARC THEN BEGIN                                              05070040
+                     IF SPOIO THEN                                      05070045
+                     BEGIN                                              05070047
+                     SPOUT(40); KEYIN(40);                              05070050
+                     RC:=OK([MESSAGE[40]] INX 0);                       05070060
+                     HARC:=TRUE;                                        05070070
+                     END;                                               05070075
+                     END;                                               05070080
+    IF RC THEN                                                          05070090
+      BEGIN IF SEGSPERBLOCK=0 THEN                                      05070100
+               BEGIN IF RECSPERBLOCK=0 THEN                             05070110
+                        BEGIN                                           05070120
+                        IF RECSIZE=0 THEN GO PUNT;                      05070130
+                        IF BLOCKSIZE=0 THEN GO PUNT;                    05070140
+                        RECSPERBLOCK:=BLOCKSIZE DIV RECSIZE;            05070150
+                        SEGSPERBLOCK:=(BLOCKSIZE+29) DIV 30;            05070160
+                        END                                             05070170
+                                       ELSE                             05070180
+                        BEGIN                                           05070190
+                        IF BLOCKSIZE=0 THEN                             05070200
+                           IF RECSIZE=0 THEN GO PUNT                    05070210
+                                        ELSE                            05070220
+                              BEGIN BLOCKSIZE:=RECSPERBLOCKxRECSIZE;    05070230
+                                    SEGSPERBLOCK:=(BLOCKSIZE+29) DIV 30;05070240
+                              END                                       05070250
+                                       ELSE                             05070260
+                           BEGIN                                        05070270
+                           RECSIZE:=BLOCKSIZE DIV RECSPERBLOCK;         05070280
+                           SEGSPERBLOCK:=(BLOCKSIZE+29) DIV 30;         05070290
+                           END                                          05070300
+                        END                                             05070310
+               END                                                      05070320
+                              ELSE                                      05070330
+               BEGIN                                                    05070340
+               BLOCKSIZE:=SEGSPERBLOCK x 30;                            05070350
+               IF RECSIZE=0 THEN                                        05070360
+                  IF RECSPERBLOCK=0 THEN GO PUNT                        05070370
+                                    ELSE                                05070380
+                          RECSIZE:=BLOCKSIZE DIV RECSPERBLOCK           05070385
+                           ELSE RECSPERBLOCK:=BLOCKSIZE DIV RECSIZE;    05070390
+               END;                                                     05070400
+      FILEH[0]:=HDR0;                                                   05070405
+      GO ARND;                                                          05070410
+PUNT: BLOCKSIZE:=30;                                                    05070420
+      RECSIZE:=30;                                                      05070425
+      RECSPERBLOCK:=1;                                                  05070430
+      SEGSPERBLOCK:=1;                                                  05070435
+      FILEH[0]:=HDRO;                                                   05070440
+ARND:                                                                   05070450
+      IF NUMWDS NEQ 0 THEN ESUTEMP:=FILEX[NUMWDS-1];                    05070452
+      DISKIO(J-15+(I DIV 2),FILEX[NUMWDS-1]);                           05070454
+      IF NUMWDS NEQ 0 THEN FILEX[NUMWDS-1]:=ESUTEMP;                    05070456
+      END;                                                              05070460
+    STREAM(A:=[LABELS[I]],BS:=BLOCKSIZE,RS:=RECSIZE,RPB:=RECSPERBLOCK,  05070470
+           SPB:=SEGSPERBLOCK,SV:=0,B:=[MESSAGE[45]]);                   05070480
+      BEGIN SI:=A; SI:=SI+1; DI:=B; DS:=7CHR; DI:=DI+1; SI:=SI+1;       05070490
+            DS:=7CHR; DI:=DI+8; SI:=LOC BS; DS:=5DEC; SV:=DI; DI:=DI-5; 05070500
+            DS:=4FILL; DI:=SV; DI:=DI+8; DS:=5DEC; SV:=DI; DI:=DI-5;    05070510
+            DS:=4FILL; DI:=SV; DI:=DI+6; DS:=4DEC; SV:=DI; DI:=DI-4;    05070520
+            DS:=3FILL; DI:=SV; DI:=DI+6; DS:=2DEC; DI:=DI-2; DS:=FILL;  05070530
+      END;                                                              05070540
+    IF NOT(P1IO OR P2IO) THEN IF NOT SPOIO THEN ELSE                    05070550
+    IO(MESSAGE INX 45,@740000000000000) ELSE                            05070560
+    IO(MESSAGE INX 45,IF P1IO THEN @540100004000000                     05070570
+                              ELSE @640100004000000);                   05070580
+    END;                                                                05070590
+%************* END RECONSTRUCTION CODE **********                       05070600
+REMOVED:                                                                05071000
+          END;                                                          05100000
+          LABELS[0]_@114;                                               05110000
+QUIT:                                                                   05120000
+          IF P1IO OR P2IO THEN IO(0,@440004000100000&(IF P1IO THEN      05120010
+           @1 ELSE @2)[4:46:2]);                                        05120010 
+ $ POP OMIT                                                             05120050
+         DISKIO(J,LABELS);                                              05130000
+         FOR I _ 0 STEP 1 UNTIL 29 DO INFO[I] _0;                       05160000
+         IF SPOIO THEN                                                  05160100
+         SPOUT(0);                                                      05170000
+         QX _ 0;                                                        05180000
+         IO(LOADER,@240000540000000);                                   05190000
+         IF QX ! 2 THEN                                                 05200000
+            STREAM(L_LOADER,A_16); BEGIN SI_L; DS_20 WDS END            05210000
+         ELSE                                                           05220000
+            STREAM(LOADBUTTON,A_@20); BEGIN SI_LOADBUTTON;DS_15 WDS END;05230000
+         P(0,STS,0,STF);                                                05240000
+         GO TO TART;                                                    05250000
+         DO UNTIL FALSE;                                                05260000        
+END OF WARM LOADER.                                                     05270000
