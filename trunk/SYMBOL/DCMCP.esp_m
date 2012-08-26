@@ -9455,3 +9455,146 @@ SKP: IF (NAM="ON " OR NAM="OFF") THEN                                   12254000
       BEGIN                                                             12268500        
       CYCLETOG := 1;                                                    12269000        
       IF VALU GEQ 0 THEN % SETTING NEW VALUE                            12269500        
+         BEGIN                                                          12270000        
+NEW:     IF WKSETCYCLETIME=0 THEN % NO PREVIOUS VALUE                   12270500        
+            BEGIN                                                       12271000        
+            STFIRST := 0; STNEXT := 0;                                  12271500        
+            IF WKSETINSTRUCT=0 THEN % SET DEFAULT OPTIONS               12272000        
+               BEGIN                                                    12272500        
+               WKSETINSTRUCT := PRIORINDX &                             12273000        
+                                OLAYINDX [40:44:4] &                    12273500        
+                                COREINDX [36:44:4] &                    12274000        
+                                ETIMEINDX[32:44:4] &                    12274500        
+                                SAVEINDX [28:44:4];                     12275000        
+               END;                                                     12275500        
+            IF WKSETOLERANCE=0 THEN WKSETOLERANCE := 0.10;              12276000        
+            IF WKSETMAXOLAY=0 THEN WKSETMAXOLAY := 0.40;                12276500        
+            END; % IF NOT PREVIOUS VALUE                                12277000        
+         IF STARTING NEQ 0 THEN % "WK ON" OR "WK OFF"                   12277500        
+            BEGIN                                                       12278000        
+            IF STARTING = 2 THEN % "OFF"                                12278500        
+              WKSETCYCLETIME := NABS(WKSETCYCLETIME) ELSE               12279000        
+               BEGIN % "ON"                                             12279500        
+               WKSETCYCLETIME:=                                         12280000        
+                 (IF WKSETCYCLETIME=0 THEN 20|64 ELSE                   12280500        
+                  ABS(WKSETCYCLETIME));                                 12281000        
+               END; % IF STARTING = 1                                   12281500        
+            STARTING := 0;                                              12282000        
+            END; % IF STARTING GTR 0                                    12282500        
+         IF VALU GEQ 0 THEN WKSETCYCLETIME := VALU|64;                  12283000        
+         IF WKSETCYCLETIME LEQ 0 THEN WKSETNOSELECT:=0; % TELL SELECTRUN12283500        
+         END; % IF VALU GEQ 0                                           12284000        
+      END % IF NAM="CYC"                                                12284500        
+ $ SET OMIT = NOT(WORKSETMONITOR) OR OMIT                               12285000        
+   ELSE IF NAM="MON" THEN                                               12285500        
+      BEGIN                                                             12286000        
+      IF (VALU LSS 0) OR (VALU GTR 1) THEN GO TO ERROR;                 12286500        
+      WKSETMONITOR :=VALU; MONTOG:=1;                                   12287000        
+      END                                                               12287500        
+ $ POP OMIT % WORKSETMONITOR                                            12288000        
+   ELSE GO TO ERROR;                                                    12288500        
+                                                                        12289000        
+   IF NAM NEQ "~" THEN                                                  12289500        
+      IF NEXTNAME NEQ "~" THEN                                          12290000        
+         GO TO SKAN;                                                    12290500        
+                                                                        12291000        
+   IF FALSE THEN                                                        12291500        
+ERROR:                                                                  12292000        
+   ERRORTOG:=1;                                                         12292500        
+                                                                        12293000        
+   IF USETOG THEN                                                       12293500        
+      BEGIN                                                             12294000        
+      IF USETOG=3 THEN % NEW OPTIONS SET                                12294500        
+         IF INSTRUCT NEQ 0 THEN % NEW INSTRUCTIONS OBTAINED             12295000        
+            BEGIN                                                       12295500        
+            WHILE (INSTRUCT.[44:4]=0) DO INSTRUCT:=INSTRUCT.[4:40];     12296000        
+            WKSETINSTRUCT := INSTRUCT;                                  12296500        
+            END;                                                        12297000        
+      INSTRUCT := WKSETINSTRUCT;                                        12297500        
+      NAMS := [M[BUFF INX 20]]&20[8:38:10]; % USE PART OF KEYIN BUFFER  12298000        
+      NAMS[0]:=0;                                                       12298500        
+      N:=(-1);                                                          12299000        
+      WHILE (INS := INSTRUCT.[44:4]) GTR 0 DO                           12299500        
+         BEGIN                                                          12300000        
+         INSTRUCT := INSTRUCT.[4:40];                                   12300500        
+         NAMS[N:=N+1] :=                                                12301000        
+         (IF INS=1 THEN "OLAY   " ELSE                                  12301500        
+          IF INS=2 THEN "PRIORTY" ELSE                                  12302000        
+          IF INS=3 THEN "TIME   " ELSE                                  12302500        
+          IF INS=4 THEN "CORE   " ELSE                                  12303000        
+          IF INS=5 THEN "SAVCOR " ELSE                                  12303500        
+          "UNKNOWN") & 1[5:47:1];                                       12304000        
+         NAMS[N+1]:=0;                                                  12304500        
+         END;                                                           12305000        
+      END; % IF USETOG                                                  12305500        
+   STREAM(CYCLETOG, NEG:=(WKSETCYCLETIME.[1:1]),                        12306000        
+            CYC:=(ABS[WKSETCYCLETIME)/64+0.5) DIV 1,                    12306500        
+            ERRORTOG, VALUTOG:=(VALU GEQ 0), NAM, VALU,                 12307000        
+            OLAYTOG, OLA:=(WKSETMAXOLAY|100+0.5) DIV 1,                 12307500        
+            TOLTOG, TOL:=(WKSETOLERANCE|100+0.5) DIV 1,                 12308000        
+ $ SET OMIT = NOT(WORKSETMONITOR) OR OMIT                               12308500        
+            MONTOG, MON:=WKSETMONITOR,                                  12309000        
+ $ POP OMIT % WORKSETMONITOR                                            12309500        
+            USETOG, NM:=NAMS INX 0, DV:=0, BUFF:=BUFF-1);               12310000        
+      BEGIN                                                             12310500        
+      DS:=4LIT"WK:";                                                    12311000        
+      ERRORTOG(DS:=7LIT" ERROR:"; SI:=LOC NAM; SI:=SI+5; DS:=3CHR;      12311500        
+               VALUTOG(DS:=LIT"="; SI:=LOC VALU; DS:=8DEC;              12312000        
+               DV:=DI; DI:=DI-8; DS:=7FILL; DI:=DV); DS:=LIT" ");       12312500        
+ $ SET OMIT = NOT(WORKSETMONITOR) OR OMIT                               12313000        
+      MONTOG(DS:=4LIT"MON="; SI:=LOC MON; PRINTDIGIT);                  12313500        
+ $ POP OMIT % WORKSETMONITOR                                            12314000        
+      CYCLETOG(DS:=6LIT"CYCLE="; NEG(DS:=LIT"-");                       12314500        
+               SI:=LOC CYC; PRINTDIGIT);                                12315000        
+      OLAYTOG(DS:=5LIT"OLAY=";                                          12315500        
+               SI:=LOC OLA; PRINTDIGIT);                                12316000        
+      TOLTOG(DS:=4LIT"TOL=";                                            12316500        
+               SI:=LOC TOL; PRINTDIGIT);                                12317000        
+      USETOG(SI:=NM; DS:=9LIT"OPTIONS: ";                               12317500        
+           L1: IF SC="0" THEN JUMP OUT;                                 12318000        
+               SI:=SI+1; 7(IF SC=" " THEN SI:=SI+1 ELSE DS:=CHR);       12318500        
+               DS:=LIT","; GO TO L1);                                   12319000        
+      DI:=DI-1; DS:=LIT"~";                                             12319500        
+      END STREAM STATEMENT;                                             12320000        
+                                                                        12320500        
+   SPOUT((BUFF-1) INX (0&ZZSTA[9:9:9]));                                12321000        
+      NAMS:=[M[NAM:=SPACE(30)]] & 30[8:38:10];                     %143-12321100        
+      DISKWAIT(-NAM,30,DIRECTORYTOP+1);                            %143-12321110        
+      NAMS[N:=4|SYSNO+4]:=WKSETCYCLETIME;                          %143-12321120        
+      NAMS[N+1         ]:=WKSETINSTRUCT;                           %143-12321130        
+      NAMS[N+2         ]:=WKSETOLERANCE;                           %143-12321140        
+      NAMS[N+3         ]:=WKSETMAXOLAY;                            %143-12321150        
+      DISKWAIT( NAM,30,DIRECTORYTOP+1);                            %143-12321160        
+      FORGETSPACE(NAM);                                            %143-12321170        
+   END PROCEDURE WKSETREQUESTS;                                         12321500        
+                                                                        12350000        
+PROCEDURE WORKSET(N); VALUE N; REAL N;                                  12350500        
+   BEGIN                                                                12351000        
+   REAL  MSCW             = -2;                                         12351500        
+   REAL                                                                 12352000        
+   DEVIATION,                                                           12352500        
+   INS,                                                                 12353000        
+   INSTRUCT,                                                            12353500        
+   LINK,                                                                12354000        
+   LOC,                                                                 12354500        
+   MAXMIX,                                                              12355000        
+   MAXOLAY,                                                             12355500        
+   MAXVALUE,                                                            12356000        
+   MIX,                                                                 12356500        
+   NJOBS,                                                               12357000        
+   PTIME,                                                               12357500        
+   TOTALPTIME,                                                          12358000        
+   OLAY,                                                                12358500        
+   TOTALOLAY,                                                           12359000        
+   STARTING,                                                            12359500        
+   STOPMIX,                                                             12360000        
+   SIZE,                                                                12360500        
+   T1,                                                                  12361000        
+   T2,                                                                  12361500        
+   TOTALOLAYCORE,                                                       12362000        
+   TOTALSAVECORE,                                                       12362500        
+   TOTALSYSTEMCORE,                                                     12363000        
+   VALU;                                                                12363500        
+                                                                        12364000        
+   ARRAY JOBINFO[*];                                                    12364500        
+   ARRAY RUNNING[*];                                                    12365000        
