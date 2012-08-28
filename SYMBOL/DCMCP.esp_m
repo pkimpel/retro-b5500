@@ -9703,3 +9703,109 @@ START:                                                                  12409500
                BEGIN                                                    12416500        
                RUNNING[MIX] := 1;                                       12417000        
                NJOBS := NJOBS + 1; % COUNT THE NUMBER OF JOBS           12417500        
+               END;                                                     12418000        
+            INFO[MIX,ETIMEINDX]:=                                       12418500        
+              NABS(CLOCK+P(RTR)-NFO[MIX-1)|NXD+2].[1:17]|60);           12419000        
+            PTIME := JAR[MIX,3] + PROCTIME[MIX];                        12419500        
+ $ SET OMIT = NEWLOGGING OR OMIT                                        12419599        
+            IF (P1MIX=MIX OR P2MIX=MIX) THEN                            12419600        
+ $ POP OMIT                                                             12419601        
+ $ SET OMIT = NOT(NEWLOGGING) OR OMIT                                   12419699        
+            PTIME := PTIME+CLOCK+P(RTR);                                12420000        
+            IF (INFO[MIX,OLAYINDX]:=                                    12420500        
+                OLAYTIME[MIX]/PTIME) GTR MAXOLAY THEN                   12421000        
+                   IF RUNNING[MIX] THEN                                 12421500        
+                      MAXOLAY:=INFO[MIX,OLAYINDX]; % FIND MAX.VALUE     12422000        
+            INFO[MIX,PRIORINDX] := PRYOR[MIX].[CF];                     12422500        
+            TOTALOLAY := TOTALOLAY + OLAYTIME[MIX];                     12423000        
+            TOTALPTIME:= TOTALPTIME + PTIME;                            12423500        
+            END; % MIX LOOP;                                            12424000        
+                                                                        12424500        
+  MIX~WKSETNOSELECT;                                               %525-12424700        
+   WKSETNOSELECT:=((OLAY:=TOTALOLAY/TOTALPTIME) GEQ (WKSETMAXOLAY|.85));12425000        
+  IF MIX AND NOT WKSETNOSELECT THEN SELECTION; % SEE IF ANYTHING CAN GO 12425200        
+   % NOTE: WKSETNOSELECT IS A FLAG TO PROCEDURE SELECTRUN TO            12425500        
+   %       PREVENT ENTERING ADDITIONAL JOBS INTO THE MIX                12426000        
+   IF (OLAY GTR WKSETMAXOLAY) OR (MAXOLAY GTR (WKSETMAXOLAY|4)) THEN    12426500        
+   % SUSPEND SOMETHING IF THE TOTAL OLAY RATE EXCEEDS MAX. VALUE        12427000        
+   % SPECIFIED, OR ANY INDIVIDUAL RATE EXCEEDS 4 TIMES THE MAX.         12427500        
+   % RATE SPECIFIED.                                                    12428000        
+     IF NJOBS GTR1 THEN % MORE THAN ONE JOB IS RUNNING                  12428500        
+      BEGIN                                                             12429000        
+      CORESEARCH; % SEARCH MEMORY TO DETERMINE CORE USAGE               12429500        
+      % NOW DETERMINE WHICH JOB TO STOP BASED ON THE PRIORITY OF        12430000        
+      % THE INSTRUCTIONS IN "WKSETINSTRUCT"                             12430500        
+      STOPMIX := -1;                                                    12431000        
+      INSTRUCT := WKSETINSTRUCT;                                        12431500        
+      STARTING := TRUE;                                                 12432000        
+                                                                        12432500        
+LOOP:                                                                   12433000        
+                                                                        12433500        
+      IF (INS:=INSTRUCT.[44:4]) NEQ 0 THEN % MORE INSTRUCTIONS          12434000        
+         BEGIN                                                          12434500        
+         INSTRUCT := 0 & INSTRUCT[8:4:40]; % SHIFT RIGHT FOR NXT.INSTR. 12435000        
+         MAXVALUE := (IF STARTING THEN (-33000) ELSE INFO[STOPMIX,INS]);12435500        
+         STARTING := FALSE;                                             12436000        
+         % FIRST, FIND THEMAXIMUM VALUE                                 12436500        
+         FOR MIX:=1 STEP 1 UNTIL MAXMIX DO                              12437000        
+            IF RUNNING[MIX] THEN                                        12437500        
+               IF (VALU := INFO[MIX,INS]) GTR MAXVALUE THEN             12438000        
+                  BEGIN                                                 12438500        
+                  MAXVALUE := VALU;                                     12439000        
+                  STOPMIX := MIX;                                       12439500        
+                  END;                                                  12440000        
+                                                                        12440500        
+         % NEXT, FIND THE VALUES WITHIN THE WORK SET TOLERANCE          12441000        
+                                                                        12441500        
+         FOR MIX:=1 STEP 1 UNTIL MAXMIX DO                              12442000        
+           IF MIX NEQ STOPMIX THEN                                      12442500        
+             IF RUNNING[MIX] THEN                                       12443000        
+                BEGIN                                                   12443500        
+                DEVIATION := (MAXVALUE-INFO[MIX,INS])/MAXVALUE;         12444000        
+                IF ABS(DEVIATION) GTR WKSETOLERANCE THEN                12444500        
+                   BEGIN                                                12445000        
+                   RUNNING[MIX]:=0;                                     12445500        
+                   NJOBS := NJOBS -1;                                   12446000        
+                   END;                                                 12446500        
+                END;                                                    12447000        
+         IF NJOBS GTR 1 THEN GO TO LOOP;                                12447500        
+         END; % IF THERE WERE MORE INSTRUCTIONS                         12448000        
+                                                                        12448500        
+      IF STOPMIX GTR 0 THEN % SOMETHING SHOULD BE STOPPED               12449000        
+         BEGIN                                                          12449500        
+         IF NOTERMSET(STOPMIX) THEN % JOB IS NOT TERMINATING            12451000        
+            BEGIN                                                       12451500        
+            PRTROW[STOPMIX].[PSF]:=2; % MARK IT STOPPED                 12452000        
+            WKSETSWITCHTIME:=CLOCK+P(RTR);                              12452500        
+            WKSETSTOPJOBS:=WKSETSTOPJOBS OR TWO(STOPMIX); % MARK AUTO-ST12453000        
+            WKSETNOSELECT:=TRUE;                                   %138-12453100        
+            JAR[STOPMIX,9].[3:1]:=1; % MARK IT STOPPED                  12453500        
+            STQUE[STNEXT]:=STOPMIX;  % PUT IT IN THE STQUE              12454000        
+            STNEXT := (STNEXT+1).[44:4]; % CIRCULAR QUEUE, 16 ENTRIES   12454500        
+            END; % IF WE ARE STOPPING THE JOB                           12455000        
+         END; % IF SOMETHING SHOULD BE STOPPED                          12455500        
+ $ SET OMIT = NOT(WORKSETMONITOR) OR OMIT                               12456000        
+      IF WKSETMONITOR THEN                                              12456500        
+         IF STOPMIX GTR 0 THEN                                          12457000        
+         FOR STOPMIX:=1 STEP 1 UNTIL MIXMAX DO                          12457500        
+         IF JARROW[STOPMIX] NEQ 0 THEN                                  12458000        
+         IF PRTROW[STOPMIX] NEQ 0 THEN                                  12458500        
+         IF INFO[STOPMIX,OLAYINDX] GTR 0 THEN                           12459000        
+         BEGIN                                                          12459500        
+         STREAM(                                                        12460000        
+         V1:="MIX=",                                                    12460500        
+         V2:=STOPMIX,                                                   12461000        
+         V3:="RAT=",                                                    12461500        
+         V4:=(INFO[STOPMIX,OLAYINDX]|100+0.5) DIV 1,                    12462000        
+         V5:="PRI=",                                                    12462500        
+         V6:=INFO[STOPMIX,PRIORINDX],                                   12463000        
+         V7:="TIM=",                                                    12463500        
+         V8:=(ABS(INFO[STOPMIX,ETIMEINDX])/64+ 0.5) DIV 1,              12464000        
+         V9:="COR=",                                                    12464500        
+         V10:=INFO[STOPMIX,COREINDX],                                   12465000        
+         V11:="SAV=",                                                   12465500        
+         V12:=ABS(INFO[STOPMIX,SVEINDX]),                               12466000        
+         V13 := "TOT=",                                                 12466500        
+         V14 := (TOTALOLAY/TOTALPTIME|100+0.5) DIV 1,                   12467000        
+         DV:=0,                                                         12467500        
+         D:=T1:=SPACE(15));                                             12468000        
