@@ -9598,3 +9598,108 @@ PROCEDURE WORKSET(N); VALUE N; REAL N;                                  12350500
                                                                         12364000        
    ARRAY JOBINFO[*];                                                    12364500        
    ARRAY RUNNING[*];                                                    12365000        
+                                                                        12365500        
+   DEFINE                                                               12366000        
+   OLAYINDX        = 1#, % CODE FOR "OLAY RATIO"                        12366500        
+   PRIORINDX       = 2#, % CODE FOR "PRIORITY",                         12367000        
+   ETIMEINDX       = 3#, % CODE FOR "ELAPSED TIME",                     12367500        
+   COREINDX        = 4#, % CODE FOR "CORE USAGE"                        12368000        
+   SAVEINDX        = 5#, % CODE FOR "SAVE CORE USAGE"                   12368500        
+   INFOSIZE        = 5#; % NUMBER OF ENTRIES FOR EACH MIX               12369000        
+                                                                        12369500        
+   DEFINE INFO[INFO1,INFO2] = JOBINFO[INFO1|INFOSIZE+INFO2-1]#;         12370000        
+                                                                        12370500        
+   LABEL START, LOOP, FINISHED;                                         12371000        
+                                                                        12371500        
+   COMMENT                                                              12372000        
+   THE "INSTRUCTIONS" ARE STORED IN THE GLOBAL VARIABLE                 12372500        
+   "WKSETINSTRUCT", USING FIELDS FOUR BITS IN LENGTH.                   12373000        
+   THE FIRST "INSTRUCTION" WILL BE IN THE [44:4] FIELD, THE             12373500        
+   SECOND "INSTRUCTION" WILL BE IN THE [40:4] FIELD, AN SO FORTH.       12374000        
+   THESE "INSTRUCTIONS" ARE THE NUMERICAL VALUES CORRESPONDING TO       12374500        
+   CODES DEFINED ABOVE.                                                 12375000        
+                                                                        12375500        
+   AS AN EXAMPLE OF HOW THESE "INSTRUCTIONS" ARE USED, SUPPOSE THAT     12376000        
+   WKSETINSTRUCT.[44:4] CONTAINED A VALUE OF 3,                         12376500        
+   WKSETINSTRUCT.[40:4] CONTAINED A VALUE OF 2, AND THE                 12377000        
+   REMAINDER OF THE WKSETINSTRUCT WORD WERE ZERO. IN THIS               12377500        
+   INSTANCE, THIS ROUTINE WOULD FIRST EXAMINE ALL JOBS IN THE           12378000        
+   MIX, FINDING THE JOB WHICH HAD BEEN RUNNING FOR THE LONGEST          12378500        
+   PERIOD OF TIME. NEXT, ALL JOBS WHICH HAVE BEEN RUNNING FOR A         12379000        
+   PERIOD OF TIME WHICH IS WITHIN THE "WKSETOLERANCE" (NORMALLY         12379500        
+   WITHIN ABOUT 10% OF THE MAXIMUM VALUE FOUND ABOVE) ARE EXAMINED      12380000        
+   FOR THE NEXT "INSTRUCTION", THAT IS, THE PRIORITY.                   12380500        
+   IN THIS MANNER, THE JOB WHICH HAS BEEN RUNNING FOR THE LONGEST       12381000        
+   PERIOD OF TIME, AND WHICH HAS THE HIGHEST PRIORITY WILL BE           12381500        
+   SELECTED FOR "STOPPING".                                             12382000        
+   END OF COMMENT;                                                      12382500        
+                                                                        12383000        
+                                                                        12383500        
+   SUBROUTINE CORESEARCH;                                               12384000        
+      BEGIN                                                             12384500        
+      MAXMIN := 0;                                                      12385000        
+      % SEARCH THE LINKS TO DETERMINE CORE USAGE                        12385500        
+      IF NOT STOREDY THEN SLEEP([TOGLE],STOREMASK);                     12386000        
+      LOC := 0; % START AT LOW WND OF MEMORY                            12386500        
+      TOTALSYSTEMCORE := TOTALOLAYCORE := TOTALSAVECORE := 0;           12387000        
+      WHILE (SIZE:=(LINK:=M[LOC]).[CF] -LOC) GEQ 0 DO                   12387500        
+         BEGIN                                                          12388000        
+         TOTALSYSTEMCORE := TOTALSYSTEMCORE + SIZE;                     12388500        
+         IF NOT LINK.[1:1] THEN % IN-USE AREA                           12389000        
+            BEGIN                                                       12389500        
+            IF (MIX:=LINK.[9:6]) GTR MAXMIX THEN MAXMIX := MIX;         12390000        
+            IF LINK.[2:1] THEN % SAVE AREA                              12390500        
+               BEGIN                                                    12391000        
+               TOTALSAVECORE := TOTALSAVECORE + SIZE;                   12391500        
+               INFO[MIX,SAVEINDX] := INFO[MIX,SAVEINDX] - SIZE;         12392000        
+               % NOTE: JOBS SHOULD BE STOPPED IN INVERSE RELATION TO    12392500        
+               %       AMOUNT OF SAVE CORE USED                         12393000        
+               END                                                      12393500        
+            ELSE                                                        12394000        
+               BEGIN                                                    12394500        
+               TOTALOLAYCORE := TOTALOLAYCORE + SIZE;                   12395000        
+               INFO[MIX,COREINDX] := INFO[MIX,COREINDX] + SIZE;         12395500        
+               END;                                                     12396000        
+            END; % IF IN-USE AREA                                       12396500        
+         LOC := LINK.[CF]; % NEXT LINK                                  12397000        
+         END; % WHILE STATEMENT                                         12397500        
+      FOR MIX := 1 STEP 1 UNTIL MAXMIX DO                               12398000        
+         IF RUNNING[MIX] THEN                                           12398500        
+            IF PRYOR[MIX] LSS 0 THEN % CHECK AGAIN (LOSS OF CNTRL,ABOVE)12399000        
+               BEGIN                                                    12399500        
+               RUNNING[MIX] := 0;                                       12400000        
+               NJOBS := NJOBS - 1;                                      12400500        
+               END;                                                     12401000        
+      % DONT USE JOBS WHICH ARE TERMINATING OR JUST STARTING            12401500        
+      IF NJOBS LSS 2 THEN GO TO FINISHED;                               12402000        
+      END SUBROUTINE CORESEARCH;                                        12402500        
+                                                                        12403000        
+   IF (CLOCK+P(RTR)-WKSETSWITCHTIME) LSS 960 THEN                       12403500        
+      BEGIN                                                             12404000        
+      % ALLOW 15 SECONDS AFTER THE LAST "BOJ" OR "EOJ"                  12404500        
+      % BEFORE TESTING THE OVERLAY RATE                                 12405000        
+      WKSETCLOCK:=(P(DUP)) + 960;                                       12405500        
+      GO TO FINISHED;                                                   12406000        
+      END;                                                              12406500        
+   RUNNING := [M[T1:=SPACE(MIXMAX+1)]] &                                12407000        
+               (MIXMAX+1)[8:38:10];                                     12407500        
+   JOBINFO := [M[T2:=SPACE((MIXMAX+1)|INFOSIZE)]] &                     12408000        
+               ((MIXMAX+1)|INFOSIZE)[8:38:10];                          12408500        
+                                                                        12409000        
+START:                                                                  12409500        
+                                                                        12410000        
+   STREAM(F1:=T1-1,SZ1:=MIXMAX+1,F1:=T2-1,                              12410500        
+          SZ2 := (MIXMAX+1)|INFOSIZE, T1,T2);                           12411000        
+      BEGIN % ZERO OUT THE ARRAYS                                       12411500        
+      SI:=F2; DS:=SZ2 WDS; SI:=F1; DI:=T1, DS:=SZ1 WDS;                 12412000        
+      END;                                                              12412500        
+   NJOBS := TOTALPTIME := TOTALOLAY := MAXOLAY := 0;                    12413000        
+   FOR MIX:=1 STEP 1 UNTIL MIXMAX DO                                    12413500        
+     IF JARROW[MIX] NEQ 0 THEN % RUNNING JOB                            12414000        
+       IF NOT(JAR[MIX,9].[3:1]) THEN % NOT ALREADY STOPPED              12414500        
+         IF (PRYOR[MIX] GEQ 0) AND (REPLY[MIX]=0) THEN                  12415000        
+            BEGIN                                                       12415500        
+            IF NOT(JAR[MIX,9].SYSJOBF) THEN %NOT "SYSTEM JOB            12416000        
+               BEGIN                                                    12416500        
+               RUNNING[MIX] := 1;                                       12417000        
+               NJOBS := NJOBS + 1; % COUNT THE NUMBER OF JOBS           12417500        
