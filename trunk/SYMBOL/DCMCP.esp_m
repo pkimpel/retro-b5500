@@ -9809,3 +9809,129 @@ LOOP:                                                                   12433000
          V14 := (TOTALOLAY/TOTALPTIME|100+0.5) DIV 1,                   12467000        
          DV:=0,                                                         12467500        
          D:=T1:=SPACE(15));                                             12468000        
+            BEGIN                                                       12468500        
+            SI:=LOC V1; DS:=LIT" ";                                     12469000        
+            7(SI:=SI+4; DS:=4CHR; DS:=5DEC;                             12469500        
+            DV:=DI; DI:=DI-5; DS:=4FILL; DS:=DV; DS:=LIT" ");           12470000        
+            DS:=LIT"~";                                                 12470500        
+            END STREAM;                                                 12471000        
+         SPOUT(T1);                                                     12471500        
+         END;                                                           12472000        
+ $ POP OMIT % WORKSETMONITOR                                            12472500        
+      END                                                          %142-12473000        
+     ELSE                                                          %142-12473010        
+   ELSE                                                            %142-12473020        
+     IF WKSETSTOPJOBS GTR 0 THEN                                   %142-12473030        
+      IF (OLAY LSS (WKSETMAXOLAY/2)) THEN % START SOMETHING        %142-12473040        
+       BEGIN                                                       %142-12473050        
+       STNEXT:=IF STNEXT=0 THEN STQUEMAX ELSE STNEXT-1;            %142-12473060        
+       STOPMIX:=STQUE[STNEXT];                                     %142-12473070        
+       STQUE[STNEXT]:=0;                                           %142-12473080        
+       IF (STOPMIX GTR 0) AND (STOPMIX LEQ MIXMAX) THEN            %142-12473090        
+       IF JARROW[STOPMIX] NEQ 0 THEN                               %142-12473100        
+         BEGIN                                                     %142-12473110        
+         IF STOPSET(STOPMIX) THEN % NOT YET STOPPED                %142-12473120        
+         BEGIN                                                     %142-12473130        
+         PRTROW[STOPMIX].[PSF]:=0;                                 %142-12473140        
+         WKSETSTOPJOBS:=WKSETSTOPJOBS AND NOT(TWO(STOPMIX));       %142-12473150        
+         JAR[STOPMIX,9].[3:1]:=0;                                  %142-12473160        
+         END ELSE                                                  %142-12473170        
+         BEGIN                                                     %142-12473180        
+         REPLY[STOPMIX]:=VOK; % WAKE IT UP                         %142-12473190        
+         STREAM(J:=JARROW[STOPMIX], STOPMIX,                       %142-12473200        
+                D:=T1:=SPACE(10));                                 %142-12473210        
+            BEGIN                                                  %142-12473220        
+            SI:=J; DS:=9 LIT" AUTO-OK ";                           %142-12473230        
+            2(SI:=SI+1; DS:=7 CHR; DS:=LIT "/");                   %142-12473240        
+            DI:=DI-1; DS:=LIT"="; SI:=LOC STOPMIX;                 %142-12473250        
+            DS:=2 DEC; DS:=LIT"~"; DI:=DI-3; DS:=FILL;             %142-12473260        
+            END STREAM STATEMENT;                                  %142-12473270        
+         SPOUTER(T1,PSEUDOMIX[STOPMIX],1);                         %525-12473280        
+         END;                                                      %142-12473290        
+       END;                                                        %142-12473300        
+       END;                                                        %142-12473310        
+FINISHED:                                                               12473500        
+   IF JOBINFO NEQ 0 THEN FORGETSPACE(JOBINFO INX 0);                    12474000        
+   IF RUNNING NEQ 0 THEN FORGETSPACE(RUNNING INX 0);                    12474500        
+   WKSETRUNNING := 0; % READY FOR NEXT CYCLE                            12475000        
+   KILL([MSCW]);                                                        12475500        
+   END;                                                                 12476000        
+ $ POP OMIT % WORKSET                                                   12477000        
+REAL PROCEDURE PRNPBTSPECASE1(Z);                                       12500000        
+%                                                                       12500100        
+%   THIS PROCEDURE HANDLES THE FOLLOWING FUNCTIONS FOR COM19, DEPENDING 12500110        
+%   ON THE VALUE OF Z:                                                  12500120        
+%   0    FINDS THE NEXT REEL OF TAPE.                                   12500130        
+%   1    FINDS THE NEXT REEL OF A BACK-UP DISK FILE.                    12500140        
+%   2    HANDLES THE QT + OR - MESSAGE.                                 12500150        
+%   3    INITAILIZES A NEW FILE (OR PACKET).                            12500160        
+%   4    HANDLES TERMINATION OF A FILE.                                 12500170        
+%                                                                       12500180        
+VALUE Z;  REAL Z;                                                       12500500        
+BEGIN                                                                   12501000        
+    REAL    RCW=+0, MSCW=-2, COMMON=-4;                                 12501500        
+    ARRAY   INREC=+1[*];                                                12502000        
+    ARRAY   FPB=INREC+1[*], LOGINFO=FPB+1[*], HEADER=LOGINFO+1[*];      12502500        
+    REAL    UNIT=HEADER+1, V=UNIT+1, COPY=V+1, MFID=COPY+1, FID=MFID+1, 12503000        
+            IOD=FID+1, T=IOD+1, B=T+1;                                  12503500        
+    REAL    SEARCHVAL=B+1, CURROW=SEARCHVAL+1, FIRSTFID=CURROW+1,       12504000        
+            SEGNR=FIRSTFID+1;                                           12504500        
+    REAL    X=SEARCHVAL, NUM=CURROW, RECOUNT=SEGNR;                     12505000        
+    BOOLEAN SIGNEDON=SEGNR+1, FORMTOG=SIGNEDON+1, ABORTED=FORMTOG+1;    12505500        
+    BOOLEAN TERMFLAG=LOGINFO, NOCONT=FIRSTFID;                          12506000        
+ $ SET OMIT = NOT PACKETS                                               12506500        
+    BOOLEAN STOG=ABORTED+1;                                             12507000        
+    REAL    PCOPY=STOG+1, PFIRSTFID=PCOPY+1;                            12507500        
+ $SET OMIT = NOT (RJE AND PACKETS)                                      12508000        
+ $ SET OMIT = PACKETS                                                   12509500        
+                                                                        12512000        
+    LABEL   RD, RED, SPACEND, NOMORE, NOFILE, AUT, BOMBER, NEXTFILE,    12512500        
+            PNCHLK, PRINTITAGAIN, EOF, PRNTDS, PNCHDS, TAPEND, CONTINUE,12513000        
+            RETURNFALSE, REMOVEM, TEST, TAPECL, STOPTIME, RETURNTRUE,   12513500        
+            RETURNTOCOM19;                                              12513750        
+    LABEL   LOOK4TAPE, NOMOREELS, QTSPEC, INITIALIZE, STARTANEWFILE;    12514000        
+    SWITCH  SW :=                                                       12514500        
+            LOOK4TAPE, NOMOREELS, QTSPEC, INITIALIZE, STARTANEWFILE;    12515000        
+    DEFINE  DSED        = TERMSET(P1MIX)#,                              12515500        
+            QTED        = (PRT[P1MIX,@25]!0)#,                          12516000        
+            VF          = 43:5#,                                        12516100        
+            UNITE       = 38:5#,                                        12516150        
+            COPYF       = 30:8#,                                        12516200        
+            NUMF        = 22:8#,                                        12516250        
+            NOTP        = 29:1#,                                        12516300        
+            COPY0       = 21:1#,                                        12516350        
+ $ SET OMIT = PACKETS                                                   12516500        
+            REELNO      = 42:6#,                                        12518000        
+ $ POP OMIT OMIT                                                        12518500        
+ $ SET OMIT = RJE                                                       12518600        
+            STA         = 0#,                                           12518700        
+ $ POP OMIT                                                             12518800        
+            SEPARATION  = 46#;    % FOR 6 LPI. SET IT TO 70 FOR 8 LPI.  12519000        
+%***********************************************************************12519500        
+                                                                        12520000        
+    SUBROUTINE RDYTAPE;                                                 12520500        
+    BEGIN                                                               12521000        
+         B.[18:9]:=@54;                                                 12521500        
+         P(WAITIO(@4200000000,0,UNIT),DEL);                             12522000        
+         P(WAITIO(B,0,UNIT),WAITIO(B,@40,UNIT),DEL,DEL);                12522500        
+         RECOUNT:=@77777;                                               12523000        
+    END;                                                                12523500        
+                                                                        12524000        
+%***********************************************************************12524500        
+                                                                        12525000        
+    SUBROUTINE REWIND;                                                  12525500        
+    BEGIN                                                               12526000        
+         STOPIMING(1,1023);                                             12526500        
+         P(WAITIO(@4200000000,0,UNIT),DEL);                             12527000        
+         IF (SAVEWORD AND TWO(UNIT))=0 AND PRNTABLE[UNIT].[1:1]         12527500        
+           AND NOT (SVPBT OR QTED OR NOCONT) THEN                       12528000        
+              BEGIN RDCTABLE[UNIT].[8:6]~0;                        %539-12528400        
+              INDEPENDENTRUNNER(P(.PURGEIT),UNIT,64)                    12528500        
+              END                                                  %539-12528600        
+         ELSE                                                           12529000        
+         BEGIN LABELTABLE[UNIT]~@114;                                   12529500        
+              MULTITABLE[UNIT]~RDCTABLE[UNIT]~0;                        12530000        
+              SLEEP([TOGLE],STATUSMASK);                                12530500        
+              READY~READY AND NOT NT1~TWO(UNIT);                        12531000        
+              RRRMECH~NOT NT1 AND RRRMECH OR NT1 AND SAVEWORD;          12531500        
+         END;                                                           12532000        
