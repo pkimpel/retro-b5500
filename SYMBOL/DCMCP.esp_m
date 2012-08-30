@@ -9935,3 +9935,103 @@ BEGIN                                                                   12501000
               READY~READY AND NOT NT1~TWO(UNIT);                        12531000        
               RRRMECH~NOT NT1 AND RRRMECH OR NT1 AND SAVEWORD;          12531500        
          END;                                                           12532000        
+    END;                                                                12532500        
+                                                                        12533000        
+%***********************************************************************12533500        
+                                                                        12534000        
+    BOOLEAN PROCEDURE LOOKFORTAPE;                                      12534500        
+    BEGIN                                                               12535000        
+         T:=RDCTABLE[UNIT];                                             12535500        
+         REWIND;                                                        12536000        
+         IF SIGNEDON THEN FPB[4]:=FPB[4]-LOGINFO[24]-CLOCK-P(RTR);      12536500        
+         IF P((T:=FINDINPUT(MFID,@122212342546447,T.[14:10]+1,T.[24:17],12537000        
+              -0,0,T:=0,0,0,0)) GEQ 0, DUP) THEN                        12537500        
+         BEGIN                                                          12538000        
+              RDCTABLE[UNIT:=T].[8:6]:=P1MIX;                           12538500        
+              LABELTABLE[UNIT]:=FID;                                    12539000        
+              FPB:=PRT[P1MIX,3];       % FINDINPUT CALLS STARTIMING     12539500        
+              IF SIGNEDON THEN FPB[4]:=FPB[4]+LOGINFO[24]+CLOCK+P(RTR); 12540000        
+              RDYTAPE;                                                  12540500        
+         END;                                                           12541000        
+         LOOKFORTAPE:=P;                                                12541500        
+    END;                                                                12542000        
+                                                                        12542500        
+%***********************************************************************12543000        
+                                                                        12543500        
+    REAL SUBROUTINE READTAPE;                                           12544000        
+    BEGIN                                                               12544500        
+RD:      IF DSED OR PRT[P1MIX,@25]=5 THEN BEGIN P(5); GO TO RED END;    12545000        
+         IF WAITIO(B,@2000040,UNIT).[42:1] THEN                         12545500        
+         BEGIN                                                          12546000        
+              P(WIATIO(B,@3000040,UNIT),DEL);                           12546500        
+              IF M[B INX 3] THEN                                        12547000        
+                IF LOOKFORTAPE THEN GO TO RD;                           12547500        
+              P(3);                                                     12548000        
+              GO TO RED;                                                12548500        
+         END;                                                           12549000        
+         FOR T:=17 STEP 18 UNTIL 89 DO                                  12549500        
+           IF M[B INX T].[20:1] THEN T:=256;                            12550000        
+         P(T>200);                                                      12550500        
+RED:     READTAPE:=P;                                                   12551000        
+    END;                                                                12551500        
+                                                                        12552000        
+%***********************************************************************12552500        
+                                                                        12553000        
+    BOOLEAN SUBROUTINE SPACETOFILE;                                     12553500        
+    BEGIN                                                               12554000        
+         X:=NUM;                                                        12554500        
+         WHILE (X:=X-1) GEQ 0 DO                                        12555000        
+         BEGIN                                                          12555500        
+              DO UNTIL (T:=READTAPE);                                   12556000        
+              IF T GEQ 3 THEN BEGIN P(1) GO TO SPACEND END;             12556500        
+         END;                                                           12557000        
+         P(0);                                                          12557500        
+SPACEND:                                                                12558000        
+         SPACETOFILE:=P;                                                12558500        
+   END;                                                                 12559000        
+                                                                        12559500        
+%***********************************************************************12560000        
+                                                                        12560500        
+    BOOLEAN SUBROUTINE FINDFILE;                                        12561000        
+    BEGIN                                                               12561500        
+         IF HEADER.[CF] GEQ 64 THEN FORGETSPACE(HEADER);           %159-12561600        
+         IF (HEADER:=DIRECTORYSEARCH(MFID,-FID,SEARCHVAL)) LSS 64 THEN  12562000        
+           GO TO NOMORE;                                                12562500        
+         HEADER:=[M[HEADER]]&30[8:38:10];                               12563000        
+         SEGNR:=0;                                                      12563500        
+         CURROW:=10;                                                    12564000        
+         IF ABORTED:=HEADER[5].[2:1] THEN                               12564500        
+           IF HEADER[7]=0 THEN                                          12565000        
+           BEGIN                                                        12565500        
+NOMORE:         P(1);                                                   12566000        
+                GO TO NOFILE;                                           12566500        
+           END;                                                         12567000        
+           LABELTABLE[V]:=NABS(FID);                                    12567500        
+           P(0);                                                        12568000        
+NOFILE:    FINDFILE:=P;                                                 12568500        
+    END;                                                                12569000        
+                                                                        12569500        
+%***********************************************************************12570000        
+                                                                        12570500        
+    BOOLEAN SUBROUTINE NOMOREREELS;                                     12571000        
+    BEGIN                                                               12571500        
+         IF FID.[REELNO]=0 THEN                                         12572500        
+              P(1)                                                 %159-12573500        
+         ELSE                                                      %159-12574000        
+         BEGIN                                                          12574500        
+              STREAM[ONE:=1, F:=[FID]);                                 12575000        
+              BEGIN SI:=LOC ONE; DS:=8 ADD END;                         12575500        
+              P(FINDFILE);                                              12576000        
+         END;                                                           12576500        
+         NOMOREREELS:=P;                                                12577000        
+    END;                                                                12577500        
+ $ SET OMIT = NOT PACKETS                                               12578000        
+                                                                        12578500        
+%***********************************************************************12579000        
+                                                                        12579500        
+    BOOLEAN SUBROUTINE NOMOREFILES;                                     12580000        
+    BEGIN                                                               12580500        
+         IF NOT P(FID.[30:12]="99" OR COMMON.[NOTP],DUP) THEN           12581000        
+         BEGIN                                                          12581500        
+              P(DEL);                                                   12582000        
+              STREAM(ONE:=1, F:=[FID]);                                 12582500        
