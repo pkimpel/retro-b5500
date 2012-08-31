@@ -10035,3 +10035,106 @@ NOFILE:    FINDFILE:=P;                                                 12568500
          BEGIN                                                          12581500        
               P(DEL);                                                   12582000        
               STREAM(ONE:=1, F:=[FID]);                                 12582500        
+              BEGIN SI:=LOC ONE; SI:=SI+6; SI:=SI+5;                    12583000        
+                   DS:=2 ADD; DS:=LIT"1";                               12583500        
+              END;                                                      12584000        
+              FIRSTFID:=FID;                                            12584500        
+              P(FINDFILE);                                              12585000        
+         END;                                                           12585500        
+         NOMOREFILES:=P;                                                12586000        
+    END;                                                                12586500        
+ $ POP OMIT                                                             12587000        
+                                                                        12587500        
+%***********************************************************************12588000        
+                                                                        12588500        
+    SUBROUTINE REMOVEIT;                                                12589000        
+    BEGIN                                                               12589500        
+         T:=DIRECTORYSEARCH(-MFID,-(FID:=PFIRSTFID),SEARCHVAL);         12590000        
+         IF T GEQ 64 THEN                                               12590500        
+ $ SET OMIT = NOT PACKETS                                               12591000        
+         DO BEGIN                                                       12591500        
+ $ POP OMIT                                                             12592000        
+           DO IF FID=IOD THEN GO AUT UNTIL NOMOREREELS;                 12592500        
+ $ SET OMIT = NOT PACKETS                                               12593000        
+         END UNTIL NOMOREFILES;                                         12593500        
+ $ POP OMIT                                                             12594000        
+AUT:                                                                    12594500        
+    END;                                                                12595000        
+                                                                        12595500        
+%***********************************************************************12596000        
+                                                                        12596500        
+    SUBROUTINE PAGEJECT;                                                12597000        
+    BEGIN                                                               12597500        
+ $ SET OMIT = NOT RJE                                                   12598000        
+              P(WAITIO(@4000100000,0,V), DEL);                          12600500        
+    END;                                                                12601000        
+                                                                        12601500        
+%***********************************************************************12602000        
+                                                                        12602500        
+    SUBROUTINE WRITER;                                                  12603000        
+    BEGIN                                                               12603500        
+ $ SET OMIT = NOT RJE                                                   12604000        
+         P(WIATIO(B INX @210104000000,0,V), DEL);                       12607000        
+    END;                                                                12607500        
+                                                                        12608000        
+%***********************************************************************12608500        
+                                                                        12609000        
+    SUBROUTINE IDLETIMER;                                               12609500        
+    BEGIN                                                               12610000        
+         STOPLOG(P1MIX,1);                                              12610100        
+         P(P1MIX); P1MIX:=0;                                            12610500        
+         IDLETIME;                                                      12611000        
+         P1MIX:=P;                                                      12611500        
+ $ SET OMIT = NOT(NEWLOGGING)                                           12611899        
+         STARTLOG(P1MIX);                                               12612000        
+    END IDLETIMER;                                                      12612500        
+                                                                        12613000        
+%***********************************************************************12613500        
+                                                                        12614000        
+    SUBROUTINE SETUPINREC;                                              12614500        
+    BEGIN                                                               12615000        
+         INREC:=[M[B INX (UNIT=18)]]&18[8:38:10];                       12615500        
+         INREC[17]:=0;                                                  12616000        
+    END;                                                                12616500        
+                                                                        12617000        
+%***********************************************************************12617500        
+                                                                        12618000        
+    SUBROUTINE INVALIDNUM;                                              12618500        
+    BEGIN                                                               12618750        
+         FILEMESS("INVALID","FILE   ",0,"NUMB  #",NUM+1,0,0);           12619000        
+    END;                                                                12619250        
+                                                                        12619500        
+%***********************************************************************12620000        
+                                                                        12620500        
+    P(DEL,Z,MSCW,STF);                                                  12621000        
+    GO TO SW[P];   % LOOK4TAPE,NOMOREELS,QTSPEC,INITIALIZE,STARTANEWFILE12621500        
+%                                                                       12621900        
+%   LOOKFORTAPE FINDS THE NEXT REEL. THE FIRST RECORD IS A LABEL SO     12621910        
+%   INREC IS MOVED DOWN TO SKIP IT.                                     12621920        
+                                                                        12621930        
+LOOK4TAPE:                                                              12622000        
+                                                                        12622100        
+    P(LOOKFORTAPE);                                                     12622500        
+    IF M[B+89].[1:11]=0 THEN % LABEL RECORD                             12623000        
+    BEGIN                                                               12623100        
+         INREC~(NOT 17) INX INREC;                                      12623200        
+         RECOUNT~0;                                                     12623300        
+    END;                                                                12623400        
+    GO RETURNTOCOM19;                                                   12624000        
+                                                                        12624400        
+NOMOREELS:                                                              12624500        
+                                                                        12624600        
+    P(NOMOREREELS);                                                     12625000        
+    GO RETURNTOCOM19;                                                   12625500        
+                                                                        12625900        
+QTSPEC:                                                                 12626000        
+                                                                        12626100        
+    PRT[P1MIX,@25]:=0;                                                  12626250        
+    P(T);                              % BE CAREFUL OF THIS.            12626500        
+    IF UNIT=18 THEN                    % DISK PORTION                   12626750        
+    BEGIN NT2:=(T.[9:24] DIV 5)&T[1:2:1];                               12627000        
+         IOD:=(HEADER[8] DIV 3)|3;          % CALCULATE TRUE ROW SIZE   12627500        
+         IF (T:=3|NT2+SEGNR) LSS 0 THEN     % SPACE BACKWARD            12628000        
+         DO IF (CURROW:=CURROW-1) LSS 10 THEN                           12628500        
+         BEGIN                                                          12629000        
+              IF FID=FIRSTFID THEN GO TO BOMBER;                        12629500        
