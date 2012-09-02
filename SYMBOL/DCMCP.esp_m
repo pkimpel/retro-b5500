@@ -10138,3 +10138,105 @@ QTSPEC:                                                                 12626000
          DO IF (CURROW:=CURROW-1) LSS 10 THEN                           12628500        
          BEGIN                                                          12629000        
               IF FID=FIRSTFID THEN GO TO BOMBER;                        12629500        
+              IF SEARCHVAL=3 THEN P(DIRECTORYSEARCH(-MFID,FID,13),DEL); 12630000        
+              FORGETSPACE(HEADER);                                      12630500        
+              STREAM(ONE:=1, F:=[FID]);                                 12631000        
+              BEGIN SI:=LOC ONE; DS:=8 SUB END;                         12631500        
+              IF (HEADER:=DIRECTORYSEARCH(MFID,FID,5)) LSS 64           12632000        
+                THEN GO BOMBER;                                         12632002        
+              HEADER:=[M[HEADER]]&30[8:38:10];                          12632500        
+              CURROW:=HEADER[9].[43:5]+9;                               12633000        
+              WHILE HEADER[CURROW]=0 DO CURROW:=CURROW-1;               12633500        
+              IF CURROW<10 THEN                                         12634000        
+              BEGIN                                                     12634500        
+BOMBER:            NT1:="RANGE +";                                      12635000        
+                   IF (NT2:=P).[2:1] THEN        % LEFT AT 12626500%168-12635500        
+                   NT1:=NT1&"-"[42:42:6];                               12636000        
+                   FILEMESS("INVALID","QT     ",0,                      12636500        
+                            NT1,NT2.[9:24],0,0);                        12637000        
+                   PRT[P1MIX,@25]:=5;            % FORCE A QT           12637500        
+                   GO RETURNFALSE;                                      12638500        
+              END;                                                      12639000        
+         END UNTIL (T:=IOD+T) GEQ 0                                     12639500        
+         ELSE                               % SPACE DISK FORWARD        12640000        
+         BEGIN                                                          12640500        
+              IF T GEQ IOD THEN                  % TO ANOTHER ROW,      12641000        
+              DO                                 % CHECKING FOR NEW FILE12641500        
+                IF (CURROW:=CURROW+1) GEQ (HEADER[9].[43:5]+10) THEN    12642000        
+NEXTFILE:         IF NOMOREREELS THEN GO TO BOMBER                      12642500        
+              UNTIL (T:=T-IOD) LSS 100;                                 12643000        
+              IF (CURROW-10)|IOD+T GTR HEADER[7]|3 THEN                 12643500        
+                GO TO NEXTFILE;                                         12644000        
+         END;                                                           12644500        
+         SEGNR:=T;                                                      12645000        
+         P(19);                                                         12645500        
+    END ELSE                           % TAPE PORTION                   12646000        
+    BEGIN                                                               12646500        
+         IF T.[2:1] THEN                    % SPACE BACKWARD            12647000        
+           IF (T:=T.[9:24]) LSS INREC[17].[CF] THEN                     12647500        
+           BEGIN IOD:=(I+4) DIV 5;                                      12648000        
+                DO P(WAITIO((89 INX B)&7[22:45:3],0,UNIT),DEL)          12648500        
+                  UNTIL (IOD:=IOD-1) LEQ 0 OR DSED OR QTED;             12649000        
+                RECOUNT:=5;                                             12649500        
+           END ELSE GO TO BOMBER            % REEL SWITCH NOT ALLOWED   12650000        
+         ELSE                                                           12650250        
+         BEGIN IF (IOD:=T.[9:24] DIV 5) ! 0 THEN % SPACE FORWARD   %168-12650500        
+              DO UNTIL (X:=READTAPE) OR (IOD:=IOD-1)=0;                 12651000        
+              IF IOD!0 THEN                                             12651500        
+                IF X!5 THEN GO TO BOMBER;   % 5=DS-ED, LET IT FALL THRU.12652000        
+              RECOUNT:=0;                                               12652500        
+         END;                                                           12653000        
+         RECOUNT:=(M[B INX 17] INX NOT RECOUNT).[CF];                   12653500        
+         P(18);                                                         12654000        
+    END;                                                                12654500        
+%                                                                       12654900        
+%   FIX UP INREC, BUILD IO DESC AND QT MESSAGE AS NEXT TO BE WRITTEN.   12654910        
+%                                                                       12654920        
+    P(T:=B INX P(XCH));                                                 12655000        
+    INREC:=INREC&P(XCH)[CTC];                                           12655500        
+    M[T-1]:=(RECOUNT+1)&74[11:41:7]&(V!22)[29:44:4];                    12656000        
+    NT1:=P;                                 % LEFT AT 12626500          12656500        
+    STREAM(A:=NT1.[9:24], C:=NT1.[2:1], PNCH:=V=22, B:=T-18);           12657000        
+    BEGIN DS:=16 LIT"<<<<<<<<<<<<<<< ";                                 12657500        
+         CI:=CI+PNCH; GO TO PRNT; DS:=7 LIT"  PUNCH"; GO TO L1;         12658000        
+    PRNT:DS:=7 LIT"PRINTER";                                            12658500        
+    L1:  DS:=21 LIT" BACK UP FILE SPACED ";                             12659000        
+         CI:=CI+C; GO TO FER; DS:=4 LIT"BACK"; GO TO L2;                12659500        
+    FER: DS:=4 LIT" FOR";                                               12660000        
+    L2:  DS:=4 LIT"WARD";                                               12660500        
+         SI:=LOC A; DS:=6 DEC; B:=DI; DI:=DI-6;                         12661000        
+         DS:=5 FILL; DI:=B;                                             12661500        
+         CI:=CI+PNCH; GO TO LIN; DS:=5 LIT" CARD"; GO TO L3;            12662000        
+    LIN: DS:=5 LIT" LINE";                                              12662500        
+    L3:  DS:=17 LIT"S. >>>>>>>>>>>>>>";                                 12663000        
+         B:=DI; SI:=B; SI:=SI-8; DS:=7 WDS;                             12663500        
+    END;                                                                12664000        
+    GO RETURNTRUE;                                                      12664500        
+                                                                        12664900        
+INITIALIZE:                                                             12665000        
+                                                                        12665100        
+%   HANDLES MISCELLANEOUS SETUP TASKS, INCLUDING STARTING THE TIMING FOR12665110        
+%   LOGGING, CHECKING AND READYING THE INPUT FILE AND SPREADING COMMON. 12665120        
+%                                                                       12665130        
+    RCW.[CF]:=P(.COM19,LOD) INX 1;                                      12665500        
+ $ SET OMIT = NOT RJE                                                   12665750        
+    V:=COMMON.[VF];                                                     12667750        
+    IF P(.INREC,LOD)=0 THEN                                             12668000        
+    BEGIN                                                               12668250        
+ $ SET OMIT = NOT RJE                                                   12668500        
+         BEGIN                                                          12669250        
+              IF LABELTABLE[V].[1:5]!@21 THEN    % PRINTER CL-ED        12669500        
+              BEGIN                                                     12669750        
+                   IF (UNIT:=COMMON.[UNITF])<16 THEN                    12670000        
+                   IF LABELTABLE[UNIT]=@2100000060606060&               12670250        
+                     TINU[V][6:30:18] THEN SETNOTINUSE(UNIT,0);         12670500        
+                   GO TO INITIATE;                                      12670750        
+              END;                                                      12671000        
+              LABELTABLE[C].[5:1]:=0;                                   12671250        
+         END;                                                           12671500        
+         PRT[P1MIX,@25]:=0;                                             12672000        
+         P:=(GETSPACE[91,IOBUFFERAREAV,1)+2)&90[8:38:10];%         %167-12672500        
+    END;                                                                12673000        
+ $ SET OMIT = NOT RJE                                                   12673500        
+    RDCTABLE[V].[8:6]:=P1MIX;                                           12675000        
+    STARTIMING(5,V);                                                    12675250        
