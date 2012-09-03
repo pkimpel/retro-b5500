@@ -10240,3 +10240,107 @@ INITIALIZE:                                                             12665000
  $ SET OMIT = NOT RJE                                                   12673500        
     RDCTABLE[V].[8:6]:=P1MIX;                                           12675000        
     STARTIMING(5,V);                                                    12675250        
+    STARTIMING(0,UNIT:=COMMON.[UNITF]);                                 12675500        
+    FPB:=PRT[P1MIX,3];                                                  12675750        
+    COPY:=COMMON.[COPYF];                                               12676000        
+    IF UNIT=18 THEN                                                     12676500        
+    BEGIN                                                               12677000        
+         MFID:=IF V=22 THEN "PUD    " ELSE "PBD    ";                   12677500        
+ $ SET OMIT = NOT RJE                                                   12678000        
+         FIRSTFID:=LABELTABLE[V].[6:42];                                12679500        
+ $ SET OMIT = NOT PACKETS                                               12680000        
+         IF NOT COMMON.[NOTP] THEN BEGIN PCOPY:=COPY; COPY:=0 END;      12680250        
+         PFIRSTFID:=                                                    12680500        
+ $ POP OMIT                                                             12681000        
+         FID:=FIRSTFID;                                                 12681500        
+         SEARCHVAL:=3;                                                  12682000        
+         IF FINDFILE THEN GO RETURNFALSE;                               12682500        
+    END ELSE                                                            12684000        
+    BEGIN                                                               12684500        
+         ABORTED:=0;                                                    12686000        
+         NOCONT:=((NUM:=COMMON.[NUMF]) OR COPY)!0;                      12686500        
+         MFID:=MULTITABLE[UNIT];                                        12687000        
+         IF LABELTABLE[UNIT].[1:5]!@21 THEN      % UNIT WAS CL-ED WHILE 12687300        
+         BEGIN ABORTED:=2;                       % WE WERE SCHEDULED.   12687400        
+              GO RETURNFALSE;                                           12687500        
+         END;                                                           12687600        
+         FID:=LABELTABLE[UNIT]:=(*P(DUP))&0[5:47:1];                    12687700        
+         RDCTABLE[UNIT].[8:6]:=P1MIX;                                   12688000        
+         RDYTAPE;                                                       12689000        
+         IF SPACETOFILE THEN                                            12690500        
+         BEGIN                                                          12691000        
+              IF T=3 THEN INVALIDNUM;       % SET BY READTAPE IF EOT.   12691500        
+              GO RETURNFALSE;                                           12692000        
+         END;                                                           12692500        
+    END;                                                                12693000        
+    SETUPINREC;                                                         12693500        
+    GO RETURNTRUE;                                                      12694000        
+                                                                        12694400        
+STARTANEWFILE:                                                          12694500        
+                                                                        12694600        
+%   HANDLES THE END OF A FILE AND FIGURES OUT WHAT TO DO NEXT. BUT      12694610        
+%   FIRST, THE LOG MUST BE TAKEN CARE OF. (DONT USE T BETWEEN HERE AND  12694620        
+%   THE TEST AT 12705750.)                                              12694630        
+%                                                                       12694640        
+    IF ABORTED=2 THEN GO TO TAPECL;                                     12694800        
+    IF SIGNEDON THEN                                                    12695000        
+    BEGIN                                                               12695500        
+         LOGINFO[12]:=-P(DUP)+PROCTIME[P1MIX]+CLOCK+P(RTR);             12696000        
+         LOGINFO[13]:=IOTIME[P1MIX]-(IOTIME[P1MIX]:=LOGINFO[13]);       12696500        
+         OLDIDLETIME:=OLDIDLETIME+LOGINFO[12];                          12697000        
+         PROCTIME[P1MIX]:=*P(DUP)-LOGINFO[12];                          12697500        
+         IDLETIMER;                                                     12698000        
+         LOGINFO[14]:=JAR[P1MIX,7]-(JAR[P1MIX,7]:=LOGINFO[14]);         12698500        
+         LOGINFO[17]:=XCLOCK+P(RTR);                                    12699000        
+         LOGINFO[18]:=(DSED|2)&DATE[1:18:30];                           12699500        
+         LOGINFO[23]:=FPB[3]&TINU[UNIT][24:18:12];                      12700000        
+         LOGINFO[28]:=FPB[8]&TINU[V][24:18:12]&FORMTOG[42:47:1];   %750-12700500        
+         TINU[UNIT].[18:12]:=0; TINU[V].[18:12]:=0;                     12701000        
+         SIGNEDON:=LOGINFO[24]+CLOCK+P(RTR);                            12701500        
+         LOGINFO[24]:=LOGINFO[29]:=SIGNEDON;                            12702000        
+         FPB[4]:=(*P(DUP))-SIGNEDON;                                    12702500        
+         FPB[9]:=(*P(DUP))-SIGNEDON;                                    12703000        
+         LOGSPACE([LOGINFO[0]],30);                                     12703500        
+         FORGETSPACE(LOGINFO);                                          12704000        
+         SIGNEDON:=0;                                                   12704500        
+    END;                                                                12705000        
+%                                                                       12705100        
+%   IF DSED OR QTED, SKIP THE CHECKS FOR COPIES.                        12705110        
+%                                                                       12705120        
+    IF (TERMFLAG:=DSED OR QTED|3) THEN                                  12705250        
+      IF V=22 THEN GO TO PNCHDS ELSE GO TO PRNTDS;                      12705500        
+%                                                                       12705600        
+%   T IS SET IF THE FIRST GET FAILS. THIS SHOULD ONLY HAPPEN AT THE END 12705610        
+%   OF A BACK-UP TAPE. NOTE THAT IF A FILE NUMBER IS SPECIFIED, INITIAL-12705620        
+%   IZE ONLY SPACES TO ITS START, SO WE MAY CATCH AN INVALID NUMBER     12705630        
+%   HERE. SINCE ONLY ONE FILE IS PRINTED WHEN A NUMBER IS GIVEN, IF WE  12705640        
+%   ARRIVE HERE, IT MUST HAVE BEEN A BAD NUMBER. IF IT IS DESIRED TO    12705650        
+%   CONTINUE DOWN THE TAPE AFTER THE SPECIFIED FILE, THIS TEST WILL NEED12705660        
+%   TO BE CHANGED.                                                      12705670        
+%                                                                       12705680        
+    IF T THEN                          % FIRST GET FAILED               12705750        
+      IF UNIT!18 THEN                                                   12706000        
+      BEGIN                                                             12706250        
+           IF COMMON.[NUMF]!0 THEN INVALIDNUM;                          12706500        
+           GO TO TAPEND;                                                12706750        
+      END ELSE GO REMOVEM;                                              12707000        
+%                                                                       12707100        
+    IF (COPY:=COPY-1) GTR 0 THEN       % MORE COPIES OF FILE RQD.       12707250        
+    BEGIN                                                               12707500        
+         IF V=22 AND PUNCHLCK THEN                                      12707750        
+         BEGIN                                                          12708000        
+PUNCHLK:      STREAM(P1MIX, T:=T:=SPACE(10));                           12708250        
+              BEGIN DS:=25 LIT"#PNCH LOCKED;PRNPBT/DISK=";              12708500        
+                   SI:=LOC P1MIX; DS:=2 DEC; DS:=LIT"~";                12708750        
+                   DI:=DI-3; DS:=FILL;                                  12709000        
+              END;                                                      12709250        
+              SPOUT(T);                                                 12709500        
+              REPLY[P1MIX]:=NABS(T:=VOK&VWY[36:42:6]&VQT[30:42:6]);     12709750        
+              COMPLEXSLEEP(REPLY[P1MIX]>0 OR DSED);                     12710000        
+              IF NOT WHYSLEEP(T) THEN GO TO PNCHLK;                     12710250        
+              IF DSED OR QTED THEN GO STARTANEWFILE;                    12710500        
+         END;                                                           12710750        
+         IF UNIT=18 THEN                    % DISK                      12711000        
+         BEGIN                                                          12711250        
+ $ SET OMIT = NOT PACKETS                                               12711500        
+              IF NOT STOG THEN STOG:=SEARCHVAL=3;                       12712000        
