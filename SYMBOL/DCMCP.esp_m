@@ -10344,3 +10344,87 @@ PUNCHLK:      STREAM(P1MIX, T:=T:=SPACE(10));                           12708250
          BEGIN                                                          12711250        
  $ SET OMIT = NOT PACKETS                                               12711500        
               IF NOT STOG THEN STOG:=SEARCHVAL=3;                       12712000        
+ $ POP OMIT                                                             12712500        
+PRINTITAGAIN:                                                           12713000        
+              FID:=FIRSTFID;                                            12713500        
+              SEARCHVAL:=5;                                             12714000        
+              IF FINDFILE THEN GO TO EOF ELSE GO TO CONTINUE;           12714500        
+         END;                                                           12715000        
+%                                           % TAPE                      12715400        
+         IF RDCTABLE[UNIT].[14:10]!1 THEN        % THIS ISNT FIRST REEL 12715500        
+         BEGIN                                                          12716000        
+              RDCTABLE[UNIT].[14:10]:=0;                                12716500        
+              IF NOT LOOKFORTAPE THEN GO TO EOF;                        12717000        
+         END ELSE                                                       12717500        
+              RDYTAPE;                                                  12718000        
+         IF SPACETOFILE THEN GO TO EOF ELSE GO TO CONTINUE;             12718500        
+    END;                                                                12719000        
+ $ SET OMIT = NOT PACKETS                                               12719500        
+    IF UNIT=18 THEN                    % CHECK FOR COPIES OF PACKET     12720000        
+    BEGIN                                                               12720500        
+         IF STOG THEN BEGIN SEARCHVAL:=3; STOG:=0 END;                  12721000        
+         IF NOMOREFILES THEN                                            12721500        
+            IF (PCOPY:=PCOPY-1) GTR 0 THEN                              12722000        
+            BEGIN                                                       12722500        
+                 FIRSTFID:=PFIRSTFID;                                   12723000        
+                 GO PRINTAGAIN;                                         12723500        
+            END ELSE                                                    12724000        
+         ELSE GO CONTINUE;                                              12724500        
+    END;                                                                12725000        
+ $ POP OMIT                                                             12725500        
+                                                                        12725900        
+EOF:                                                                    12726000        
+                                                                        12726100        
+%   AT THIS POINT, WE ARE THROUGH WITH THIS FILE OR PACKET. CLEAN UP    12726110        
+%   THE OUTPUT BEFORE COING ON.                                         12726120        
+%                                                                       12726130        
+PRNTDS:                                                                 12728000        
+PNCHDS:                                                                 12740000        
+    IF UNIT!18 THEN                    % TAPE                           12740500        
+    BEGIN                                                               12741000        
+         IF TERMFLAG OR NOCONT OR ABORTED THEN                          12741500        
+         BEGIN                                                          12742000        
+TAPEND:                                                                 12742500        
+              REWIND;                                                   12743000        
+              GO TO TEST;                                               12743500        
+         END ELSE                                                       12744000        
+         BEGIN                              % TRY THE NEXT FILE         12744500        
+              NUM:=NUM+1;                                               12745000        
+              RECOUNT:=@77777;                                          12745500        
+CONTINUE:     SETUPINREC;                                               12746000        
+RETURNFALSE:                                                            12746500        
+              P(0);                                                     12747000        
+              GO RETURNTOCOM19;                                         12747500        
+         END;                                                           12748000        
+    END;                                                                12748500        
+                                                                        12748900        
+REMOVEM:                                                                12749000        
+                                                                        12749100        
+%   DISK - CLOSE THE OPENED FILES AND, IF NOT QTED, REMOVE THEM.        12749110        
+%                                                                       12749120        
+    IOD:=IF SEARCHVAL=3 THEN FID ELSE NOT 0;                            12749500        
+    SEARCHVAL:=13; REMOVEIT;                                            12750000        
+    FPB[4]:=(*P(DUP))+CLOCK+P(RTR);                                     12750250        
+    IF TERMFLAG!3 THEN                      % NOT QT-ED                 12750500        
+    BEGIN                                                               12751000        
+         IOD:=NOT 0;                                                    12751500        
+         SEARCHVAL:=7; REMOVEIT;                                        12752000        
+TEST:                        % FOR CONTINUATION FOR AUTOPRINT OR RJE.   12752500        
+         IF AUTOPRINT AND NOT (FORMTOG OR TERMFLAG) AND                 12753000        
+            (TWO(V) AND SAVWORD)=0                                      12753500        
+ $ SET OMIT = NOT RJE                                                   12753750        
+         THEN                                                           12755000        
+           IF (COMMON:=PRINTORPUNCHWAIT(-V,-STA))!0 THEN GO TO STOPTIME;12755500        
+    END;                                                                12756000        
+TAPECL:                                                                 12756400        
+    COMMON:=0;                                                          12756500        
+    FORGETSPACE(B);                                                     12757000        
+ $ SET OMIT = NOT RJE                                                   12757350        
+    SETNOTINUSE(V,FORMTOG);                                             12757500        
+STOPTIME:                                                               12757750        
+    STOPTIMING(5,1023);                                                 12758000        
+RETURNTRUE:                                                             12758250        
+    P(1);                                                               12758500        
+RETURNTOCOM19:                                                          12759000        
+    P(0,RDS,1,SUB,0,XCH,CFX,STF);                                       12759500        
+END F FIRST PRINTER BACKUP SPECIAL CASES PROCEDURE;                     12760000        
