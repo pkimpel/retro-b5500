@@ -10427,4 +10427,84 @@ RETURNTRUE:                                                             12758250
     P(1);                                                               12758500        
 RETURNTOCOM19:                                                          12759000        
     P(0,RDS,1,SUB,0,XCH,CFX,STF);                                       12759500        
-END F FIRST PRINTER BACKUP SPECIAL CASES PROCEDURE;                     12760000        
+END OF FIRST PRINTER BACKUP SPECIAL CASES PROCEDURE;                    12760000        
+PROCEDURE PRNPBTSPECASE2(Z);                                            12800000        
+%                                                                       12800100        
+%   THIS PROCEDURE HANDLES ADDITIONAL THINGS FOR COM19. VALUES OF Z ARE:12800110        
+%   0    INITIALIZE LOGGING.                                            12800120        
+%   1    WRITE ABORT OR DSED MESSAGE AND CONSTRUCT ENDING LABEL.        12800130        
+%   2    HANDLE PARITY ON INPUT FILE.                                   12800140        
+%                                                                       12800150        
+VALUE Z;  REAL Z;                                                       12800500        
+BEGIN                                                                   12801000        
+    REAL    RCW=+0, MSCW=-2, COMMON=-4;                                 12801500        
+    ARRAY   INREC=+1[*];                                                12802000        
+    ARRAY   FPB=INREC+1[*], LOGINFO=FPB+1[*], HEADER=LOGINFO+1[*];      12802500        
+    REAL    UNIT=HEADER+1, V=UNIT+1, COPY=V+1, MFID=COPY+1, FID=MFID+1, 12803000        
+            IOD=FID+1, T=IOD+1, B=T+1;                                  12803500        
+    REAL    SEARCHVAL=B+1, CURROW=SEARCHVAL+1, FIRSTFID=CURROW+1,       12804000        
+            SEGNR=FIRSTFID+1;                                           12804500        
+    REAL    X=SEARCHVAL, NUM=CURROW, RECOUNT=SEGNR;                     12805000        
+    BOOLEAN SIGNEDON=SEGNR+1, FORMTOG=SIGNEDON+1, ABORTED=FORMTOG+1;    12805500        
+    BOOLEAN NOCOUNT=FIRSTFID;                                           12806000        
+ $ SET OMIT = NOT PACKETS                                               12806500        
+    BOOLEAN STOG=ABORTED+1;                                             12807000        
+    REAL    PCOPY=STOG+1, PFIRSTFID=PCOPY+1;                            12807500        
+ $SET OMIT = NOT (RJE AND PACKETS)                                      12808000        
+ $ SET OMIT = PACKETS                                                   12809500        
+                                                                        12812000        
+    LABEL   SLEAP, WHY, EXITTOCOM19;                                    12812500        
+    LABEL   SIGNIN, ABORTMSG, PARERR;                                   12813000        
+    SWITCH  SW :=                                                       12813500        
+            SIGNIN, ABORTMSG, PARERR;                                   12814000        
+    DEFINE  DSED        = TERMSET(P1MIX)#,                              12814500        
+            QTED        = (PRT[P1MIX,@25]!0)#,                          12815000        
+            VF          = 43:5#,                                        12815100        
+            UNITF       = 38:5#,                                        12815200        
+            COPYF       = 30:8#,                                        12815300        
+            NUMF        = 22:8#,                                        12815400        
+            NOTP        = 29:1#,                                        12815500        
+            COPY0       = 21:1#;                                        12815600        
+                                                                        12815900        
+%***********************************************************************12816000        
+                                                                        12816500        
+    SUBROUTINE IDELTIMER;                                               12817000        
+    BEGIN                                                               12817500        
+         STOPLOG(P1MIX,1);                                              12817600        
+         P(P1MIX); P1MIX:=0;                                            12818000        
+         IDLETIME;                                                      12818500        
+         P1MIX:=P;                                                      12819000        
+ $ SET OMIT = NOT(NEWLOGGING)                                           12819399        
+         STARTLOG(P1MIX);                                               12819500        
+    END IDLETIMER;                                                      12820000        
+                                                                        12820500        
+%***********************************************************************12821000        
+                                                                        12821500        
+    SUBROUTINE        FM;   %% BUILD AND SPOUT FORMS MESSAGE      %%    12822000        
+    BEGIN                                                               12822500        
+         STREAM(U:=TINU[V], P1MIX, INREC, D:=T:=SPACE(10));             12823000        
+         BEGIN DS:=LIT"#";                                              12823500        
+              SI:=LOC U; SI:=SI+5; DS:=3 CHR;                           12824000        
+              DS:=20 LIT" FM RQD:PRNPBT/DISK="; DS:=2 DEC;              12824500        
+              U:=DI; DI:=DI-2; DS:=FILL; DI:=U;                         12825000        
+              SI:=INREC; DS:=5 LIT" FOR ";                              12825500        
+              SI:=SI+1; DS:=7 CHR; DS:=LIT"/";                          12826000        
+              SI:=SI+1; DS:=7 CHR; DS:=4 LIT" OF ";                     12826500        
+              SI:=SI+1; DS:=7 CHR; DS:=LIT"/";                          12827000        
+              SI:=SI+1; DS:=7 CHR;                                      12827500        
+              DS:=LIT"~";                                               12828000        
+         END;                                                           12828500        
+         SPOUT(T);                                                      12829000        
+         REPLY[P1MIX] :=                                                12829500        
+              NABS(T:=VOK&VWY[36:42:6]&VQT[30:42:6]&VFM[24:42:6]);      12830000        
+    END  FM SUBROUTIN;                                                  12830500        
+                                                                        12831000        
+%***********************************************************************12831500        
+    SUBROUTINE        BADFM;       %BUILD AND SPOUT BAD FM MESSAGE   %  12832000        
+    BEGIN                                                               12832500        
+         STREAM(A:=TINU[T],MX:=P1MIX,T:=T:=SPACE(10));                  12833000        
+         BEGIN DS:=19 LIT"INVALID INPUT UNIT ";                         12833500        
+              SI:=LOC MX; DS:=2 DEC;DS:=2 LIT"FM";                      12834000        
+              SI:=LOC A; SI:=SI+5; DS:=3 CHR;                           12834500        
+              DS:=LIT "~"; DI:=DI-8; DS:=FILL;                          12835000        
+         END;                                                           12835500        
