@@ -10508,3 +10508,107 @@ BEGIN                                                                   12801000
               SI:=LOC A; SI:=SI+5; DS:=3 CHR;                           12834500        
               DS:=LIT "~"; DI:=DI-8; DS:=FILL;                          12835000        
          END;                                                           12835500        
+         SPOUT(T);                                                      12836000        
+    END BADFM SUBROUTINE;                                               12836500        
+                                                                        12837000        
+%***********************************************************************12837500        
+                                                                        12838000        
+    SUBROUTINE WRITEBANDEJECT;                                          12838500        
+    BEGIN                                                               12839000        
+ $ SET OMIT = NOT RJE                                                   12839500        
+         BEGIN                                                          12842500        
+              P(WAITIO(B INX @210104000000,0,V),DEL);                   12843000        
+              IF V!22 THEN %                                       %150-12843500        
+                   IF SEPARATE THEN P(WAITIO(@4000100000,0,V),DEL) %150-12843600        
+                   ELSE             P(WAITIO(@4002000000,0,V),DEL);%150-12843700        
+         END;                                                           12844000        
+    END;                                                                12844500        
+                                                                        12845000        
+%***********************************************************************12845500        
+                                                                        12846000        
+%                                                                       12846500        
+    P(Z,MSCW,STF);                                                      12847000        
+    GO TO SW[P];                                                        12847500        
+                                                                        12847600        
+SIGNIN:                                                                 12848000        
+                                                                        12848100        
+%   HANDLES FIRST RECORD OF FILE, PICKING UP LOGGING INFO AS WELL AS    12848110        
+%   COPIES OR FORM SPECIFICATIONS. NOTE THAT LABEL INFO IS SAVED IN     12848120        
+%   LOGARRAY FOR USE AT ABORTMSG. TIMING IS STARTED AT INITIALIZE AND   12848130        
+%   STOPPED IN REWIND, AT REMOVEM OR AT STOPTIME FOR TAPE, DISK AND THE 12848140        
+%   OUTPUT UNIT RESPECTIVELY. LOGARRAY IS USED TO REMOVE THE TIME       12848150        
+%   ASSOCIATED WITH A GIVEN BACK UP FILE FROM THE TIMING IN THE FPB AND 12848160        
+%   LOG IT TO THE USER. THAT IS DONE IN SIGNOUT. THUS, THE TIME LOGGED  12848170        
+%   AT PRNPBT/DISK EOJ IS OVERHEAD TIME OCURRING DURING SWITCHING FROM  12848180        
+%   FILE TO FILE.                                                       12848190        
+%                                                                       12848200        
+    LOGINFO := SAVEARRAYDESC(31,LOGAREAV);                         %167-12848500        
+    IF FORMTOG:=INREC[13] THEN FM;                                      12849000        
+    IF COPY LEQ 0 AND NOT COMMON.[COPY0] THEN                           12849500        
+      COPY:=IF (INREC[14] AND NOT @377)=0 THEN INREC[14]+1 ELSE 0;      12850000        
+    LOGINFO[0]:=3;                                                      12850500        
+    STREAM(S:=[INREC[4]],D:=[LOGINFO[1]]);                              12851000        
+    BEGIN SI:=S; DS:=9 WDS; END;                                        12851500        
+    LOGINFO[10]:=5;                                                     12852000        
+    LOGINFO[11]:=2;                                                     12852500        
+    LOGINFO[12]:=-(PROCTIME[P1MIX]+CLOCK+P(RTR));                       12853000        
+    LOGINFO[13]:= IOTIME[P1MIX];                                        12853500        
+    IDLETIMER; LOGINFO[14]:=JAR[P1MIX,7];                               12854000        
+    LOGINFO[15]:=DATE;                                                  12854500        
+    LOGINFO[16]:=XCLOCK+P(RTR);                                         12855000        
+    LOGINFO[19]:=INREC[15];                                        %132-12855500        
+    LOGINFO[20]:="PRINTER";                                             12856000        
+    LOGINFO[21]:="BACK-UP";                                             12856500        
+    LOGINFO[22]:=LOGINFO[27]:=0;                                        12857000        
+    LOGINFO[24]:=-CLOCK-P(RTR);                                         12857500        
+    LOGINFO[25]:=INREC[0];             % SAVE LABEL INFO FOR ABORT      12858000        
+    LOGINFO[26]:=INREC[1];                                              12858500        
+    LOGINFO[28]:=M[INREC INX NOT 14];                                   12859000        
+    LOGINFO[29]~INREC[2];                                               12859500        
+    LOGINFO[30]~INREC[3];                                               12860000        
+  RDCTABLE[V].[47:1]~INREC[0]="FULLPGE";   % LINES66 OPTION        %724-12860100        
+    IF FORMTOG THEN                                                     12860500        
+SLEAP:                                                                  12861000        
+    BEGIN COMPLEXSLEEP(REPLY[P1MIX] GEQ 0 OR DSED OR QTED);             12861500        
+         IF NOT WHYSLEEP(I) THEN                                        12862000        
+         BEGIN FM; GO TO SLEAP END;                                     12862500        
+         IF REPLY[P1MIX].[CF]=VFM THEN                                  12863000        
+           IF (T:=REPLY[P1MIX].[FF]) NEQ 20 AND T NEQ 21 THEN           12863500        
+           BEGIN                       % ILLEGAL UNIT.                  12864000        
+                LABELTABLE[T]:=@114;                                    12864500        
+                BADFM;                                                  12865000        
+                READY:=READY AND (T:=NOT TWO(T));                       12865500        
+                RRRMECH:=RRRMECH AND T;                                 12866000        
+                SAVEWORD:=SAVEWORD AND T; FM; GO SLEAP                  12866500        
+ $ SET OMIT = NOT(RJE AND DATACOM )                                     12867000        
+           END ELSE                                                     12873000        
+           IF T!V THEN                                                  12873500        
+           BEGIN                       % SWITCH UNITS.                  12874000        
+                LABELTABLE[T] := LABELTABLE[V];                         12874500        
+                RDCTABLE[T]   := RDCTABLE[V];                           12875000        
+                MULTITABLE[T] := MULTITABLE[V];                         12875500        
+                LABELTABLE[V] := MULTITABLE[V] := RDCTABLE[V] := 0;     12876000        
+                FPB[8].[36:6]:=(V:=T)+1;                                12876500        
+           END;                                                         12877000        
+    END;                                                                12877500        
+    FORMTOG:=(FORMTOG OR PUNCHLCK AND V=22) AND NOT (DSED OR QTED);     12878000        
+    SIGNEDON:=TRUE;                                                     12878500        
+    GO EXITTOCOM19;                                                     12879000        
+                                                                        12879100        
+ABORTMSG:                                                               12879500        
+                                                                        12879600        
+%   ABORTED=3 IMPLIES ABORT HAS OCCURRED. CURRENTLY, NOTHING ATTEMPTS TO12879610        
+%   DISTINGUISH BETWEEN 1 AND 3, BUT ABORTED MUST BE SET HERE FOR TAPE  12879620        
+%   SO WHY NOT MAKE IT DIFFERENT.                                       12879630        
+%                                                                       12879640        
+    ABORTED:=3;                                                         12880000        
+    STREAM(T:=DSED OR QTED, B);                                         12880500        
+    BEGIN                                                               12881000        
+         DS:=8 LIT"#"; SI:=B; DS:=16 WDS; DI:=B;                        12881500        
+         CI:=CI+T; GO TO AB;                                            12882000        
+         DI:=DI+24;                                                     12882500        
+         DS:=34 LIT"  BACK-UP TERMINATED BY OPERATOR  ";                12883000        
+         GO TO LEND;                                                    12883500        
+    AB:  DI:=DI+34; DS:=11 LIT"  ABORTED  ";                            12884000        
+    LEND:                                                               12884500        
+    END;                                                                12885000        
