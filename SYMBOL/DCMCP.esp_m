@@ -10612,3 +10612,70 @@ ABORTMSG:                                                               12879500
     AB:  DI:=DI+34; DS:=11 LIT"  ABORTED  ";                            12884000        
     LEND:                                                               12884500        
     END;                                                                12885000        
+    WRITEBANDEJECT;                                                     12885500        
+    IF V!22 AND SIGNEDON THEN                                           12886000        
+    BEGIN                                                               12886500        
+         STREAM(S~[LOGINFO[1]],T~0,B);                                  12887000        
+         BEGIN DS~ 8LIT" LABEL  "; SI~S; 24(SI~SI+8); DS~16CHR;         12887500        
+               SI~SI+8; DS~8CHR; T~SI; SI~S; DS~9WDS; SI~T;             12888000        
+               SI~SI+1; DS~LIT" "; DS~7CHR; DS~LIT"/"; DI~SI+1; DS~7CHR;12888500        
+               DS~ 12 LIT " ";                                          12889000        
+         END;                                                           12889500        
+         WRITEBANDEJECT;                                                12890000        
+         IF NOT SEPARATE THEN P(WAITIO(@4000100000,0,V),DEL);      %150-12890100        
+    END;                                                                12890500        
+    GO TO EXITTOCOM19;                                                  12891000        
+                                                                        12891100        
+PARERR:                                                                 12891500        
+                                                                        12891600        
+%   BUILDS ERROR MESSAGE FOR OUTPUT AND ALLOWS OPERATOR TO OK OR DS.    12891610        
+%   T IS USED TO PASS BACK WHETHER OR NOT TO TERMINATE.                 12891620        
+%                                                                       12891630        
+    IF V=22 THEN GO TO WHY;                                             12892000        
+    STREAM(A:=UNIT, T:=T:=SPACE(15));                                   12892500        
+    BEGIN 22(DS:=2 LIT ">>");SI:=LOC A;SI:=SI+7;                        12893000        
+         IF SC="B" THEN DS:=6 LIT " DISK " ELSE                         12893500        
+         DS:=6 LIT " TAPE ";                                            12894000        
+         DS:=26 LIT "PARITY ON PRINTER BACK UP ";                       12894500        
+         22(DS:=2 LIT ">>");                                            12895000        
+    END STREAM;                                                         12895500        
+ $ SET OMIT = NOT(RJE AND DATACOM )                                     12896000        
+    P(WAITIO(T&16[CTF],0,V),DEL);                                       12897500        
+    FORGETSPACE(T);                                                     12898000        
+WHY:                                                                    12898500        
+    FILEMESS("#PARITY",0,0,"ERROR  ",0,0,0);                            12899000        
+    REPLY[P1MIX]:=-VQT&VWY[36:42:6]&VOK[30:42:6];                       12899500        
+    COMPLEXSNOOZE(MIXMAX,REPLY[P1MIX] GEQ 0 OR DSED OR QTED);           12900000        
+    IF NOT WHYSLEEP(VQT&VWY[36:42:6]&VOK[30:42:6]) THEN GO TO WHY;      12900500        
+    T:=DSED OR QTED;                                                    12901000        
+EXITTOCOM19:                                                            12901500        
+    P(0,RDS,0,XCH,CFX,STF);                                             12902000        
+END OF SECOND GROUP OF PRINTER BACKUP SPECIAL CASES;                    12902500        
+PROCEDURE COM19;                                                        13000000        
+%                                                                       13000100        
+%   COM19, TOGETHER WITH PRNPBTSPECASE1 AND PRNPBTSPECASE2 WHICH SHARE  13000110        
+%   ITS STACK, ARE THE WORKING PART OF PRINTER BACK-UP. INFORMATION IS  13000120        
+%   PASSED TO COM19 IN COMMON AND LABELTABLE, AS FOLLOWS:               13000130        
+%   COMMON.[43:5]  LOGICAL UNIT NUMBER OF OUTPUT UNIT.                  13000140        
+%          [38:5]  INPUT UNIT NUMBER. IF DISK, THE LABELTABLE ENTRY FOR 13000160        
+%                  THE OUTPUT UNIT CONTAINS THE FILE ID.                13000170        
+%          [30:8]  NUMBER OF COPIES SPECIFIED IN PB MESSAGE.            13000180        
+%          [22:8]  IF TAPE, STARTING FILE NUMBER GIVEN IN PB MESSAGE.   13000190        
+%                  IF DISK, =0 IF ENTIRE PACKET IS TO BE PRINTED, =1 IF 13000200        
+%                  NOT.                                                 13000210        
+%          [21:1]  ON IF "=0" APPEARED IN PB MESSAGE.                   13000215        
+%   FOR RJE, COMMON IS THE ADDRESS OF A TWO WORD ARRAY. THE FIRST WORD  13000220        
+%   CONTAINS THE INFORMATION DESCRIBED ABOVE AND THE SECOND CONTAINS THE13000230        
+%   FILE ID FOR DISK (WHICH IS IN LABELTABLE FOR NON-RJE FILES).        13000240        
+%                                                                       13000250        
+BEGIN                                                                   13001000        
+    REAL    RCW=+0, COMMON=-4;                                          13002000        
+    ARRAY   INREC[*], FPB[*], LOGINFO[*], HEADER[*];                    13003000        
+    REAL    UNIT, V, COPY, MFID, FID, IOD, T, B;                        13004000        
+    REAL    SEARCHVAL, CURROW, FIRSTFID, SEGNR;                         13005000        
+    REAL    X=SEARCHVAL, NUM=CURROW, RECOUNT=SEGNR;                     13006000        
+    BOOLEAN SIGNEDON, FORMTOG, ABORTED;                                 13007000        
+    BOOLEAN NOCONT=FIRSTFID;                                            13008000        
+ $ SET OMIT = NOT PACKETS                                               13009000        
+    BOOLEAN STOG;                                                       13010000        
+    REAL    PCOPY, PFIRSTFID;                                           13011000        
