@@ -10679,3 +10679,114 @@ BEGIN                                                                   13001000
  $ SET OMIT = NOT PACKETS                                               13009000        
     BOOLEAN STOG;                                                       13010000        
     REAL    PCOPY, PFIRSTFID;                                           13011000        
+ $ SET OMIT = PACKETS                                                   13012000        
+ $ SET OMIT = NOT RJE                                                   13015000        
+%                                                                       13017100        
+%   THE LOCAL VARIABLES ARE USED AS FOLLOWS:                            13017110        
+%   ARRAYS                                                              13017120        
+%     INREC     ARRAY DESCRIPTOR FOR THE CURRENT RECORD.                13017130        
+%     FPB       FPB ARRAY. INPUT IS THE FIRST FILE; OUTPUT THE 2ND.     13017140        
+%     LOGINFO   ARRAY IN WHICH THE LOG ENTRY IS BUILT. THE FIRST TEN    13017150        
+%               WORDS ARE THE CONTROL CARD ENTRY; THE NEXT 10, THE      13017160        
+%               PRINTER BACK-UP ENTRY AND THE LAST 10, THE FILE ENTRIES.13017170        
+%     HEADER    DISK FILE HEADER.                                       13017180        
+%   REALS                                                               13017190        
+%     UNIT      LOGICAL UNIT NUMBER FOR INPUT.                          13017200        
+%     V         LOGICAL UNIT NUMBER FOR OUTPUT.                         13017210        
+%     COPY      NUMBER OF COPIES OF THIS FILE TO BE PRINTED. IF IT IS   13017220        
+%               NOT SPECIFIED, IT EQUALS 0.                             13017230        
+%     MFID      MULTI-FILE ID OF INPUT FILE.                            13017240        
+%     FID       FILE ID OF INPUT FILE.                                  13017250        
+%     IOD, T    TEMPORARY STORAGE.                                      13017260        
+%     B         ADDRESS OF 90 WORD BUFFER FOR INPUT.                    13017270        
+%   BOOLEANS                                                            13017280        
+%     SIGNEDON  ON IF LOGGING IS INITIALIZED. THIS SHOULD BE OFF ONLY   13017290        
+%               FOR FILES WHICH DO NOT START AT THE BEGINING, E.G.,     13017300        
+%               WHEN A STARTING REEL IS SPECIFIED ON DISK.              13017310        
+%     FORMTOG   ON IF FORM IS SPECIFIED OR PNCHLOCK IS SET.             13017320        
+%     ABORTED   =1, DISK ABORTED BY H/L. CHECK IN GET TO FIND OUT WHERE.13017330        
+%               =2, TERMINATION DUE TO CL OF INPUT TAPE WHILE SCHEDULED.13017335        
+%               =3, TAPE ABORTED BY H/L. FOUND BY RECOUNT MISMATCH.     13017340        
+%                                                                       13017350        
+%   THE FOLLOWING APPLY ONLY TO DISK FILES:                             13017360        
+%     SEARCHVAL THIRD PARAMETER FOR DIRECTORYSEARCH. IT IS 3 OR 5 DURING13017370        
+%               PRINTING, DEPENDING ON WHETHER IT IS THE FIRST COPY OR  13017380        
+%               NOT, AND 13 OR 7 DURING FILE TERMINATION.               13017390        
+%     CURROW    INDEX OF THE ROW CURRENTLY BEING PRINTED.               13017400        
+%     FIRSTFID  FILE ID OF FIRST REEL, USED FOR MULTIPLE COPIES OF      13017410        
+%               MULTI-REEL FILES.                                       13017420        
+%     SEGNR     NUMBER OF NEXT SEGMENT TO READ FROM THE CURRENT ROW.    13017430        
+%                                                                       13017440        
+%   THE FOLLOWING APPLY ONLY TO TAPES:                                  13017450        
+%     X         TEMPORARY STORAGE.                                      13017460        
+%     NUM       NUMBER OF CURRENT FILE ON TAPE, USED FOR COPIES.        13017470        
+%     RECOUNT   NUMBER OF RECORDS PRINTED IN THIS FILE. THIS IS CHECKED 13017480        
+%               AGAINST THE C-FIELD OF THE IO DESCRIPTORS IN THE FILE TO13017490        
+%               SPOT ABORTS.                                            13017500        
+%     NOCONT    TRUE IF CONTINUATION FROM FILE TO FILE IS NOT ALLOWED.  13017510        
+%                                                                       13017520        
+%   THE FOLLOWING APPLY ONLY TO PACKETS:                                13017530        
+%     PCOPY     NUMBER OF COPIES FROM PB MESSAGE, WHICH MAY APPLY TO THE13017540        
+%               ENTIRE PACKET. "COPY" IS SET ONLY FROM LABEL EQUATION.  13017550        
+%     PFIRSTFID FILE ID OF FIRST FILE IN THE PACKET, USED FOR COPIES OF 13017560        
+%               THE PACKET. FIRSTFID APPLIES TO INDIVIDUAL FILES WITHIN 13017570        
+%               THE PACKET AND IS USED FOR COPIES SPECIFIED VIA LABEL   13017580        
+%               EQUATION.                                               13017590        
+%     STOG      SET DURING THE FIRST PRINTING OF THE PACKET IF ONE OF   13017600        
+%               THE FILES SPECIFIES MULTIPLE COPIES. IT IS USED TO      13017610        
+%               RESTORE THE VALUE OF 3 TO SEARCHVAL WHEN THE FILE IS    13017620        
+%               COMPLETED.                                              13017630        
+%                                                                       13017640        
+%   THE FOLLOWING APPLIES ONLY TO RJE:                                  13017650        
+%     STA       TERMINAL UNIT AND BUFFER NUMBER OF THE RJE TERMINAL.    13017660        
+%                                                                       13017670        
+    LABEL   TRYNEXT, TAPERDR, TAPERD, TAPECHK, ABORT, NOGET, GOTTEN,    13018000        
+            START, RESTART, MAINLOOP, GOTIT, QUIT, TESTEND;             13019000        
+    DEFINE  DSED = TERMSET(P1MIX)#,                                     13020000        
+            QTED = (PRT[P1MIX,@25]!0)#;                                 13021000        
+    DEFINE  LINECT = LOGINFO[27]#; %                               %750-13021900        
+    DEFINE  LOOKFORTAPE    = PRNPBTSPECASE1(0)#,                        13022000        
+            NOMOREREELS    = PRNPBTSPECASE1(1)#,                        13023000        
+            QTSPEC         = P(PRNPBTSPECASE1(2),DEL)#,                 13024000        
+            INITIALIZE     = PRNPBTSPECASE1(3)#,                        13025000        
+            STARTANEWFILE  = PRNPBTSPECASE1(4)#,                        13026000        
+            SIGNIN         = PRNPBTSPECASE2(0)#,                        13027000        
+            ABORTMSG       = PRNPBTSPECASE2(1)#,                        13028000        
+            PARERR         = PRNPBTSPECASE2(2)#;                        13029000        
+                                                                        13030000        
+%***********************************************************************13031000        
+                                                                        13032000        
+    BOOLEAN SUBROUTINE GET;                                             13033000        
+    BEGIN                                                               13034000        
+         IF INREC[17].[20:1] THEN GO TO NOGET;                          13035000        
+         IF (INREC:=(NOT 17) INX INREC).[CF] GEQ B.[CF] THEN            13036000        
+           IF UNIT!18 THEN GO TO TAPECHK ELSE                           13037000        
+         ELSE                          % READ NEXT BLOCK                13038000        
+         IF UNIT=18 THEN                                                13039000        
+         BEGIN                                                          13040000        
+              IF SEGNR > HEADER[7]|3 THEN GO TRYNEXT; % END OF FILE     13041000        
+              IF (SEGNR GEQ HEADER[8]-1) THEN                           13042000        
+              BEGIN                         % END OF ROW                13043000        
+                   IF (CURROW:=CURROW+1) GEQ HEADER[9].[43:5]+10 THEN   13044000        
+TRYNEXT:             IF NOMOREREELS THEN GO TO NOGET;                   13045000        
+                   SEGNR:=0;                                            13046000        
+              END;                                                      13047000        
+              INREC:=90 INX INREC;                                      13048000        
+              DISKIO(IOD,-B,90,HEADER[CURROW]+SEGNR);                   13049000        
+              SEGNR:=SEGNR+3;                                           13050000        
+              SLEEP([IOD],IOMASK);                                      13051000        
+              IF IOD.[28:1] THEN                                        13052000        
+              BEGIN PARERR;                                             13053000        
+                   IF T THEN GO TO NOGET;   % DSED OR QTED              13054000        
+              END;                                                      13055000        
+              IF ABORTED THEN               % TEST FOR BAD IO DESC.     13056000        
+                IF (M[B INX 18].[6:42] EQV "       ")=NOT 0 THEN        13057000        
+                GO ABORT;                                               13058000        
+         END ELSE                                                       13059000        
+         BEGIN                         % TAPE                           13060000        
+TAPERDR:      X:=0;                                                     13061000        
+TAPERD:       IF (IOD:=WAITIO(B,@2000040,UNIT)).[43:1] THEN             13062000        
+              BEGIN PARERR;                                             13063000        
+                   IF T THEN GO TO NOGET;   % DSED OR QTED              13064000        
+              END;                                                      13065000        
+              IF IOD.[42:1] OR X THEN                                   13066000        
