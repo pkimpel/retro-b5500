@@ -10790,3 +10790,182 @@ TAPERD:       IF (IOD:=WAITIO(B,@2000040,UNIT)).[43:1] THEN             13062000
                    IF T THEN GO TO NOGET;   % DSED OR QTED              13064000        
               END;                                                      13065000        
               IF IOD.[42:1] OR X THEN                                   13066000        
+              BEGIN                                                     13067000        
+                   IF (X:=NOT X) THEN GO TO TAPERD;                     13068000        
+                   IF M[B INX 3] THEN                                   13069000        
+                     IF LOOKFORTAPE THEN GO TO TAPERDR ELSE GO NOGET;   13070000        
+              END;                                                      13071000        
+              IF (X:=M[B INX NOT 0])!90 THEN                            13072000        
+                IF (X AND @7775)=16 THEN    % OLD FORMAT TAPE           13073000        
+                BEGIN                                                   13074000        
+                     INREC.[CF]:=B INX 1;                               13075000        
+                     INREC[17]:=M[B]&0[20:20:7];                        13076000        
+                END ELSE GO TO NOGET                                    13077000        
+              ELSE                                                      13078000        
+              BEGIN                                                     13079000        
+                   INREC:=90 INX INREC;                                 13080000        
+                   IF RECOUNT=@77777 THEN RECOUNT~INREC[17].[CF] ELSE   13080100        
+TAPECHK:           IF (RECOUNT:=RECOUNT INX 1) ! INREC[17].[CF] THEN    13081000        
+                   BEGIN                                                13082000        
+ABORT:                  ABORTMSG;                                       13083000        
+NOGET:                  P(0);                                           13084000        
+                        GO TO GOTTEN;                                   13085000        
+                   END;                                                 13086000        
+              END;                                                      13087000        
+         END;                                                           13088000        
+         P(1);                                                          13089000        
+GOTTEN:  GET:=P;                                                        13090000        
+    END;                                                                13091000        
+%                                                                      -13091500        
+%%%%%    START OF CODE    %%%%%                                        -13091600        
+%                                                                       13092000        
+%   START IS USED FOR A NEW FILE (OR NEW PACKET), RESTART ISUSED FOR    13092010        
+%   A COPY (OR A NEW FILE WITHIN A PACKET).                             13092020        
+                                                                        13092030        
+START:                                                                  13093000        
+    IF COMMON=0 THEN GO TO INITIATE;                                    13094000        
+    IF INITIALIZE THEN                                                  13095000        
+    BEGIN                                                               13096000        
+RESTART: IF GET THEN                                                    13097000        
+         BEGIN                                                          13098000        
+              IF INREC[17].[1:11]=0 THEN SIGNIN ELSE GO GOTIT;          13099000        
+              IF UNIT!18 THEN RECOUNT:=INREC[17].[CF];                  13101000        
+         END ELSE                      % BAD FIRST BLOCK, USUALLY EOT.  13102000        
+         BEGIN P(1);                                                    13103000        
+              GO TO TESTEND;                                            13104000        
+         END;                                                           13105000        
+MAINLOOP:                                                               13106000        
+         IF STOPSET(P1MIX) THEN STOPM(0);                               13107000        
+         IF (T:=PRT[P1MIX,@25])!0 OR DSED THEN                          13108000        
+         BEGIN                                                          13109000        
+              IF T<0 THEN                   % + OR - SPECIFIED.         13110000        
+              BEGIN                                                     13111000        
+                   QTSPEC;                                              13112000        
+                   GO TO MAINLOOP;                                      13113000        
+              END;                                                      13114000        
+              ABORTMSG;                     % DSED OR QTED              13115000        
+              GO TO QUIT;                                               13116000        
+         END;                                                           13117000        
+         IF GET THEN                   % VALID REC. WRITE IT & CONTINUE 13118000        
+         BEGIN                                                          13119000        
+GOTIT:                                                                  13119100        
+ $ SET OMIT = NOT RJE                                                   13120000        
+  IF V EQL 22 AND INREC[17].[18:1] THEN ELSE                       %206-13127899        
+              BEGIN %                                              %750-13127990        
+              P(WAITIO(INREC[17]&(INREC)[CTC]&8[21:42:6],0,V),DEL);     13128000        
+              LINECT~*P(DUP) + 1; %                                %750-13128010        
+              END; %                                               %750-13128020        
+              GO TO MAINLOOP;                                           13129000        
+         END;                                                           13130000        
+    END;                                                                13131000        
+QUIT:                                                                   13132000        
+    P(0);                                                               13133000        
+TESTEND:                                                                13134000        
+    P:=P;                              % I=1 IF FIRST GET FAILS, ELSE 0.13135000        
+    IF STARTANEWFILE THEN GO TO START ELSE GO TO RESTART;               13136000        
+END OF PRINTING BACKUP TAPE AND DISK FILES;                             13137000        
+ $ SET OMIT = NOT(DATACOM )                                             13198999        
+ $ SET OMIT = NOT(DATACOM AND RJE )                                     13299999        
+REAL PROCEDURE ANALYSIS;%                                               14000000        
+         BEGIN%                                                         14001000        
+         REAL ICW,IRCW,INCW,CL,T1,C,T2=SYLLABLE ;%                      14002000        
+ $ SET OMIT = NOT(NEWLOGGING)                                           14002099        
+         LABEL GETOUT;%                                                 14003000        
+COMMENT  ANALYSIS  EXAMINS THE SYLLABLE WHICH CAUSED THE INTURRUPT AND% 14004000        
+              FROM  THE RELATIVE ADDRESS OF THE SYLLABLE (INCLUDING%    14005000        
+              VARIENT OPERATOR CONSIDERATIONS) COMPUTES THE LOCATION,C, 14006000        
+              OF A COPY OF THE DESCRIPTOR ON THE TOP OF THE STACK.%     14007000        
+              THE PREVIOUS TWO SYLLABLES ARE FETCHED BY THE STREAM%     14008000        
+              STATEMENT GETSYLLABLES WHICH ALSO ADJUSTS THE C-L REGIST- 14009000        
+              ERS PROPERLY.%                                            14010000        
+              FINALLY THE STACK IS ADJUSTED AS FOLLOWS:%                14011000        
+                   DECREASE  S BY 1,IF OPDC OR DESC%                    14012000        
+                   XCH A AND B REGISTERS,IF COC OR CDC%                 14013000        
+                   OTHERWISE LEAVE THE SAME.                           ;14014000        
+         CHECKSTACKSPACE;%                                          %WF 14014100        
+ $ SET OMIT = NOT(NEWLOGGING)                                           14014199        
+         INCW = PRT[P1MIX,8];%                                          14015000        
+         IF INCW.[CF]<@1777 THEN   % SOMETHING VERY WRONG          %602-14015200        
+         BEGIN   JAR[P1MIX,6].[1:1]~1; % SD BIT                    %602-14015210        
+                 FILEMESS(-"SEE MCP"," PATCH ",0,0,0,0,602)%KLUGE MSG&DS14015220        
+         END;                                                           14015240        
+         POLISH(.INCW,IOR);%                                            14016000        
+         IRCW ~ * INCW ;%                                               14017000        
+         ICW ~ *( (NOT 0) INX INCW);%                                   14018000        
+         CL ~ (IRCW INX 0) & IRCW[30:10:2];%                            14019000        
+         STREAM             (T1~0,T2~0,CL:X~0);%                        14020000        
+              BEGIN%                                                    14021000        
+              SI~CL; SI~SI-2 ;  CL ~ SI; DI ~ LOC T2; DI~DI+6;%         14022000        
+              DS ~ 2 CHR;  SI ~ SI-3;%                                  14023000        
+              IF SC = "/" THEN%                                         14024000        
+                   BEGIN%                                               14025000        
+                   SI~SI-1; IF SC ="0" THEN%                            14026000        
+                   BEGIN TALLY~1; T1~TALLY ;CL ~ SI  END;%              14027000        
+                   END;%                                                14028000        
+              END  GETSYLLABLE ;%                                       14029000        
+         POLISH(.CL,~,.T2,~,.T1,~);%                                    14030000        
+         IF INCW.[32:1] THEN%                                           14031000        
+              BEGIN COMMENT  P-BIT IN CHARACTER MODE ;%                 14032000        
+              IF T2 = @4441 THEN%                                       14033000        
+              BEGIN COMMENT ENTER CHARACTER MODE;%                      14034000        
+                        P(M[(IRCW ~ *(NOT 0 INX INCW ~ PRT[P1MIX,8] ~%  14035000        
+                             (NOT 1 INX INCW)&0[32:1:1])).[18:15]]&%    14036000        
+                             1[16:47:1]&0[18:18:15],(NOT 0)INX INCW,~); 14037000        
+                        C ~ INCW INX 0 -2;%                             14038000        
+                   END ELSE BEGIN%                                      14039000        
+              IF MEMORY[ C ~ IRCW.[18:15]-T2.[36:6]].[1:3] = 4%         14040000        
+              THEN%                                                     14041000        
+              BEGIN%                                                    14042000        
+              IF T2.[42:6]= @53 THEN BEGIN%                             14043000        
+COMMENT  CONTROL WORD MEANS CHARACTER MODE RELEASE;%                    14044000        
+              T1~PRT[P1MIX,9]~M[(*((NOT 1)INX INCW)).[18:15]].[33:15];% 14045000        
+              POLISH(M[T1],0,0);%                                       14046000        
+         IF M[T1].[20:1] THEN CONTINUITYBIT;%                           14047000        
+              PROGRAMRELEASE;%                                          14048000        
+              END%                                                      14049000        
+              END;%                                                     14050000        
+              IF T2 = 0 THEN GO TO GETOUT;%                             14051000        
+                   END%                                                 14052000        
+              END%                                                      14053000        
+              ELSE%                                                     14054000        
+         BEGIN%                                                         14055000        
+         IF T2.[46:1] THEN%                                             14056000        
+              BEGIN%                                                    14057000        
+              C ~ ICW.[33:15];%                                         14058000        
+              POLISH(ICW, (NOT 1)INX INCW, ~,IRCW,%                     14059000        
+              PRT[P1MIX,8]~INCW ~ (NOT 0)INX INCW ,~);%                 14060000        
+              END    OPDC  DESC  PART%                                  14061000        
+         ELSE%                                                          14062000        
+              BEGIN%                                                    14063000        
+              C ~ INCW INX 0 -2;%                                       14064000        
+              IF (NT1 ~ T2 AND @77) = @41 THEN%                         14065000        
+              BEGIN   C ~C-1 ;%                                         14066000        
+              POLISH(MEMORY[C],MEMORY[C+1],[MEMORY[C]], ~ ,[MEMORY[C+1] 14067000        
+                     ],~);%                                             14068000        
+              END COC CDC PART%                                         14069000        
+              ELSE IF NT1 = @31 THEN%                                   14070000        
+                   BEGIN COMMENT THIS IS A BRANCH;%                     14071000        
+         GETOUT:        CL ~ P([PRT[P1MIX,1]],DUP,T2,XCH,~) INX @600000;14072000        
+                   END BRANCH PART%                                     14073000        
+              ELSE IF NT1 = @35 THEN GO TO GETOUT; COMMENT RETURN;%     14074000        
+              END  ALL SYLLABLES BUT OPDC DESC ;%                       14075000        
+         END WORD MODE INTERRUPT ;%                                     14076000        
+         POLISH(IRCW & CL[33:33:15]&CL[10:30:2],INCW,~) ;%              14077000        
+         ANALYSIS ~ C ;%                                                14078000        
+ $ SET OMIT = NOT(NEWLOGGING)                                           14078099        
+         END   ANALYSIS OF P BIT ;%                                     14079000        
+ SAVE INTEGER PROCEDURE ACTUALOVERLAYADDRESS(TYPE, MIX, LOC);           14105000        
+    VALUE     TYPE, MIX, LOC;                                           14106000        
+    INTEGER   TYPE, MIX, LOC;                                           14107000        
+    BEGIN INTEGER  T = +1;                                              14108000        
+ $ SET OMIT = NOT(AUXMEM)                                               14108999        
+         IF TYPE THEN % CODE...                                         14110000        
+         BEGIN                                                          14110100        
+ $ SET OMIT = NOT(AUXMEM)                                               14110999        
+              LOC := LOC INX 0;                                         14112000        
+              T := JAR[MIX,LOC DIV (T:=JAR[MIX,8])+10]+LOC MOD T;       14113000        
+         END ELSE % BETTER BE DATA...                                   14114000        
+ $ SET OMIT = NOT(AUXMEM)                                               14114999        
+               T~DALOC[MIX,LOC.[33:6]+P(DUP)-1]+LOC.[39:9]              14117000        
+ $ SET OMIT = NOT(AUXMEM)                                               14117999        
+    END;                                                                14119000        
