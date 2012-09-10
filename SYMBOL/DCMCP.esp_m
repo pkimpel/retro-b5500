@@ -10969,3 +10969,94 @@ COMMENT  CONTROL WORD MEANS CHARACTER MODE RELEASE;%                    14044000
                T~DALOC[MIX,LOC.[33:6]+P(DUP)-1]+LOC.[39:9]              14117000        
  $ SET OMIT = NOT(AUXMEM)                                               14117999        
     END;                                                                14119000        
+ $ SET OMIT = NOT(AUXMEM)                                               14119999        
+COMMENT            THE SEGMENT DICTIONARY IS CONSTRUCTED BY THE%        14125000        
+                        COMPILERS AND EACH ENTRY HAS THE FORMAT:%       14126000        
+                   [ 1: 1]  = 1 FOR TYPE 2 SEGMENTS, =0 OTHERWISE,%     14127000        
+                   [ 2: 1]  = 1 FOR INTRINSICS , = 0 OTHERWISE.%        14128000        
+                   [ 3: 1]  = 1 IF BEING MADE PRESENT, = 0 OTHERWISE    14128100        
+                                (INTERLOCK FOR RE-ENTRANT CODE)         14128200        
+                   [ 4: 2]  = 0 FOR NORMAL SEGMENTS                     14128300        
+                            = 3 FOR SEGMENTS OVERLAID TO AUX. MEM.      14128400        
+                            = 2 FOR SEGMENTS TO BE OVERLAID TO          14128500        
+                                AUXILIARY MEMORY WHICH HAVEN"T BEEN     14128600        
+                   [ 6: 1]  = 1 FOR COBOL68 FILE TANK,                  14128700        
+                   [ 7: 1]  = 1 FOR COBOL68 READ ONLY ARRAY.            14128800        
+                   [ 8:10]  = LINK TO PRT FOR 1ST DESCRIPTOR FOR%       14129000        
+                             THIS SEGMENT.%                             14130000        
+                   [16:15]  = SEGMENT SIZE(<1024) FOR ABSENT            14131000        
+                             SEGMENTS.%                                 14132000        
+                             = CORE ADDRESS OF PRESENT SEGMENTS.%       14133000        
+                             =  1  FOR NEVER-PRESENT INTRINSICS.%       14134000        
+                   [33:15]  = DISK ADDRESS  OF SEGMENT.%                14135000        
+                             = INTRINSIC-NUMBER FOR INTRINSICS.%        14136000        
+                   THE  PRT FOR PROGRAM SEGMENTS IS CONSTRUCTED BY THE% 14137000        
+                        COMPILERS IN THE FORMAT :%                      14138000        
+                   [ 0:5]    = PROGRAM DESCRIPTOR BITS.%                14139000        
+                   [ 6:1]    = STOPPER BIT WHICH DEFINES THE [ 7:11]%   14140000        
+                             FIELD.%                                    14141000        
+                   [ 7:11]   = LINK TO NEXT DESCRIPTOR THAT BELONGS TO% 14142000        
+                             THIS SEGMENT, IF STOPPER BIT FALSE.%       14143000        
+                             = SEGMENT NUMBBER, IF STOPPER TRUE.%       14144000        
+                   [18:15]   = F-REGISTER FIELD USED AT RUN TIME IN%    14145000        
+                             LABEL AND ACCIDENTAL DESCRIPTORS.%         14146000        
+                             = SEGMENT NUMBER FOR WORD MODE AND%        14147000        
+                             CHARACTER MODE DESCRIPTORS.%               14148000        
+                   [33:15]   = CORE ADDRESS FOR PRESENT SEGMENTS.%      14149000        
+                             = RELATIVE ADDRESS FOR ABSENT SEGMENTS.%   14150000        
+                             I.E. RELATIVE TO BEGINNING OF SEGMENT.%    14151000        
+                   EACH PRT  (R+4) CONTAINS A DESCRIPTOR WHICH POINTS   14152000        
+                        TO THE SEGMENT DICTIONARY.%                     14153000        
+         ;%                                                             14154000        
+PROCEDURE MAKEPRESENT(C); VALUE C; REAL C;%                             14155000        
+         BEGIN%                                                         14156000        
+         REAL SAVEBIT, MINE;%                                           14157000        
+         REAL   D,MOTHER,MOM,LOC,SIZE;%                                 14158000        
+         INTEGER DISKADDR = SAVEBIT;%                                   14159000        
+         DEFINE LINK= [ 7:11]#,STOPPER=[ 6: 1]#,PROGRAMDESC=[5:1]#;%    14160000        
+         DEFINE NOTOPEN =[25:1] #;%                                     14161000        
+         ARRAY NAME  DD ;%                                              14162000        
+         ARRAY AIT[*];                                                  14162500        
+         ARRAY PRTR[*]  ;%                                              14163000        
+         REAL SEGNO=MOTHER, X=MOM,IOD ;%                                14164000        
+         REAL SPACE;%   SPACE FOR SEGMENT NUMBERS  (INTRINSICS) BY MIX  14164100        
+         REAL MES,SAGE,GM;            % SPACE FOR NO MEM MESSAGE.       14164200        
+          REAL I,J;                                                %101-14164300        
+ $ SET OMIT = NOT(NEWLOGGING)                                           14164399        
+         LABEL EXIT; % ALL AVENUES MUST LEAD TO HERE                    14164500        
+         LABEL WRAP,AROUND,TESTREADY;%                                  14165000        
+         LABEL OPEN,CLOSE;%                                             14166000        
+         LABEL CODEIN,INT;                                              14166100        
+         LABEL DLOOP, NG;                                               14166200        
+         DEFINE  REVERSE =[22:1]#,READY  =[19:1]#,PRESENT  =[2:1]#;%    14167000        
+COMMENT MAKEPRESENT HAS THE FOLLOWING ACTIONS,DEPENDING ON THE TYPE%    14168000        
+              OF DESCRIPTOR CAUSING PRESENCE BIT :%                     14169000        
+              DATA DESCRIPTOR :%                                        14170000        
+                   IF MOTHER ABSENT THEN GET CORE SPACE AND SET%        14171000        
+                        MOTHER PRESENT WITH PROPER CORE ADDRESS%        14172000        
+                        THEN IF INITIAL ACCESS,ZERO THE SPACE ELSE%     14173000        
+                        READ IN FROM DISK AND RETURN DISK SPACE%        14174000        
+                        THEN SET 1ST MEMORY LINK TO SAVE OR NOT SAVE%   14175000        
+                        AND SET 2ND LINK TO ADDRESS OF MOTHER%          14176000        
+                   IN ANY EVENT, SET COPY PRESENT WITH CORRECT CORE%    14177000        
+                        ADDRESS.%                                       14178000        
+              IO  DESCRIPTOR:%                                          14179000        
+              PROGRAM DESCRIPTOR:%                                      14180000        
+              ;%                                                        14181000        
+    SUBROUTINE RUNAROUND;%                                              14182000        
+    BEGIN WHILE NOT (PRTR[X] ~ ((LOC+2) INX PRTR[X])%                   14183000        
+         OR MEMORY).STOPPER DO X ~ PRTR[X].LINK;%                       14184000        
+    END RUNAROUND;%                                                     14185000        
+%                                                                       14185100        
+ $ SET OMIT = NOT(NEWLOGGING)                                           14185199        
+    IF (D ~ M[C]).[1:1] THEN%                                           14186000        
+    IF D.[6:2]=1 THEN % TYPE 13 INTRINSIC                               14186010        
+    BEGIN X:=[INTRINSC[SEGNO~MINE~NFLAG(D) INX 0]];                     14186020        
+         SEGNO:=SEGNO-1;                                                14186030        
+         STREAM(T:=SEGNO AND 3, I:=[INTABLE[P1MIX,SEGNO DIV 4]]);       14186100        
+         BEGIN DI:=DI+T;DI:=DI+T;SKIP 1 DB;DS:=SET;END;%MARK TYPE 13 BIT14186110        
+          IF X>0 THEN SLEEP([X],-0);                                    14186120        
+ $ SET OMIT = NOT MONITOR                                               14186121        
+          IF (X INX 0){1023 THEN                                        14186130        
+          BEGIN P(ABS(X),[X],~); SIZE~X INX 0;                          14186140        
+ $ SET OMIT = NOT(AUXMEM)                                               14186143        
