@@ -11060,3 +11060,99 @@ COMMENT MAKEPRESENT HAS THE FOLLOWING ACTIONS,DEPENDING ON THE TYPE%    14168000
           IF (X INX 0){1023 THEN                                        14186130        
           BEGIN P(ABS(X),[X],~); SIZE~X INX 0;                          14186140        
  $ SET OMIT = NOT(AUXMEM)                                               14186143        
+                DISKADDR := X.[6:27];                                   14186148        
+                MINE~MINE&SIZE[8:38:10]&3[1:46:2];                      14186150        
+               IOD:=13; GO TO CODEIN;                                   14186152        
+           END ELSE BEGIN M[C].[CF]~INTRNSC[MINE].[CF];                 14186160        
+                    M[C].[2:1]:=1;                                      14186170        
+                    GO EXIT;                                            14186180        
+                    END                                                 14186190        
+    END ELSE                                                            14186200        
+    BEGIN PRTR ~ PRT[P1MIX,*];  LOC ~ NFLAG(D)&0[5:5:1];                14187000        
+         DO IF LOC.PROGRAMDESC THEN SEGNO ~ LOC.[18:15]%                14188000        
+              ELSE IF LOC.STOPPER THEN SEGNO ~ LOC.LINK%                14189000        
+              ELSE LOC ~ NFLAG(PRTR[LOC.LINK])%                         14190000        
+         UNTIL SEGNO!0;%                                                14191000        
+         DD ~ SEGNO INX PRTR[4];%                                       14192000        
+          IF DD[0].[3:1] AND NOTERMSET(P1MIX) THEN                      14193000        
+             COMPLEXSLEEP((TERMSET(P1MIX) OR NOT DD[0].[3:1]));         14193100        
+          IF TERMSET(P1MIX) THEN GO INITIATE;                           14193200        
+         IF (SIZE ~ (MINE ~ DD[0]).[18:15]){1023 THEN%                  14194000        
+         BEGIN DD[0].[3:1] ~ `;%                                        14195000        
+              IF MINE<0 THEN%                                           14196000        
+                IF PRTR[X ~ MINE.[8:10]].[2:1] THEN GO AROUND;%         14197000        
+              IF MINE.[2:1] THEN%                                       14198000        
+              BEGIN X ~ [INTRNSC[MINE INX 0]];%                         14198100        
+                   IF X>0 THEN SLEEP([X],-0);%                          14198200        
+                   IF (X INX 0){1023 THEN BEGIN P(ABS(X),[X],~);%       14198300        
+                        SIZE ~ X INX 0;                                 14198400        
+ $ SET OMIT = NOT MONITOR                                               14198410        
+ $ SET OMIT = NOT(AUXMEM)                                               14198499        
+                        DISKADDR ~ X.[6:27];                            14198700        
+                   END ELSE BEGIN LOC ~ (SIZE ~ X INX 0)-2;             14198800        
+                        DD[0].[FF] ~ SIZE;  GO AROUND;%                 14199000        
+                   END;%                                                14200000        
+              END ELSE IF JAR[P1MIX,10]=0 THEN%                         14201000        
+                DISKADDR := DATADDRESS(P1MIX, MINE)                     14202000        
+              ELSE DISKADDR := CODEADDRESS(P1MIX, MINE);                14203000        
+              IOD:=6|MINE.[2:1]+(MINE LSS 0)+1;                         14203010        
+ CODEIN::     WHILE (LOC~GETSPACE(SIZE,IOD,(MINE<0 AND MINE.[6:1])+66)) 14203020        
+                   = 0 DO                                               14203021        
+              BEGIN IF TERMSET(P1MIX) THEN                              14203100        
+                   BEGIN IF MINE.[2:1] THEN                             14203200        
+                              INTRNSC[MINE]:=NABS(*P(DUP));             14203300        
+                         IF D.[6:2]=1 THEN                              14203400        
+                              INTRNSC[D]:=NABS(*P(DUP));                14203500        
+                         DD[0].[3:1]:=0; GO TO INITIATE;                14203600        
+                   END;                                                 14203700        
+                   IF(SPACE:=SPACE+1)=5 THEN                            14204000        
+                   BEGIN STREAM(P1MIX,SIZE,T:=[MES]);                   14204100        
+                         BEGIN SI:=LOC P1MIX; DS:=2 DEC;                14204200        
+                               DS:=8LIT" NO MEM ";DS:=5 DEC;            14204300        
+                               DS:=5 LIT " WDS~";                       14204400        
+                         END;                                           14204500        
+                         P(WAITIO([MES],@177,25),DEL);                  14204600        
+                   END;                                                 14204700        
+                   SLEEP([CLOCK],NOT CLOCK);                            14205000        
+              END;                                                      14205100        
+              IF MES NEQ 0 THEN                                         14205200        
+              BEGIN STREAM(T:=[MES]);                                   14205300        
+                    BEGIN DI:=DI+3;DS:=7LIT"OK MEM~" END;               14205400        
+                    P(WAITIO([MES],@177,25),DEL);                       14205500        
+              END;                                                      14205600        
+              DISKIO(IOD, -LOC-1, SIZE, DISKADDR);  X ~ MINE.[8:10];%   14206000        
+         SLEEP([IOD],IOMASK);                                           14206100        
+         IF IOD.[26:7] NEQ 0 THEN                                       14206110        
+            BEGIN                                                       14206120        
+            IF MINE.[2:1] THEN INTRNSC[MINE]:=NABS(*P(DUP));            14206135        
+            DD[0].[3:1] := 0;                                           14206140        
+            GO TO NG;                                                   14206145        
+            END;                                                        14206160        
+ $ SET OMIT = NOT(STATISTICS)                                           14206299        
+               IF D.[6:2]=1 THEN                                        14206310        
+               BEGIN M[C].[CF]~LOC+2;                                   14206320        
+                     M[C].[2:1]~1;                                      14206330        
+               GO TO INT;                                               14206340        
+               END;                                                     14206350        
+              IF MINE>0 THEN BEGIN RUNAROUND;%                          14207000        
+                   M[C] ~ ((LOC+2) INX D) OR MEMORY;%                   14208000        
+INT:                                                                    14208010        
+                   IF MINE.[2:1] THEN%                                  14209100        
+                   BEGIN M[LOC] ~ (*P(DUP))&0[9:9:6];%                  14209200        
+                        INTRNSC[MINE INX 0] ~ -(*P(DUP))&(LOC+2)[CTC];% 14209300        
+                   END ELSE%                                            14209500        
+                   IF (X ~ PRTR[4].[18:6])!0 THEN%                      14210000        
+                     M[LOC] ~ (*P(DUP))&X[9:42:6];%                     14211000        
+                   IF DISKADDR>0 THEN M[LOC+1] := 0 & SIZE[CTF];        14212000        
+                   M[LOC+1] := (*P(DUP)) & SEGNO[CTC];                  14212010        
+              IF MINE.[2:1] THEN M[LOC+1] ~ (*P(DUP))&MINE[8:38:10];%   14212100        
+              IF D.[6:2]=1 THEN                                         14212200        
+              BEGIN M[LOC].[2:1]~0; GO EXIT;                            14212300        
+              END;                                                      14212400        
+                   DD[0].[18:15] ~ LOC+2;%                              14213000        
+              END PROGRAM CODE SEGMENTS%                                14214000        
+            ELSE BEGIN                                                  14215000        
+                   M[C] ~ PRTR[X] ~ M OR ((LOC+2)%                      14216000        
+                        &(M[LOC+1] ~ [PRTR[X]] INX 0)[18:33:15]%        14217000        
+                        & (MINE.[7:1]|24) [3:43:5] % COBOL68 READ ONLY  14217500        
+                        &SIZE[8:38:10]);%                               14218000        
