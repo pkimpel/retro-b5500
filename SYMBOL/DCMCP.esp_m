@@ -11156,3 +11156,99 @@ INT:                                                                    14208010
                         &(M[LOC+1] ~ [PRTR[X]] INX 0)[18:33:15]%        14217000        
                         & (MINE.[7:1]|24) [3:43:5] % COBOL68 READ ONLY  14217500        
                         &SIZE[8:38:10]);%                               14218000        
+                   IF MINE.[6:1] THEN    % COBOL68 FILE TANK            14218010        
+                      IF NOT P(M[LOC+4],TOP,XCH,DEL) THEN% BUILD FIB PTR14218025        
+                      BEGIN                                             14218027        
+                         P([M[LOC+4]],DUP,DUP,LOD,XCH,INX,M[C],FFX,     14218030        
+                         @100026,DIA 32,DIB 2 TRB 16,XCH,~);            14218035        
+                      WHILE (AIT~PRTR[AITNDX]).PBIT=0                   14218040        
+                        DO MAKEPRESENT([PRTR[AITNDX]] INX 0);           14218045        
+                      IF AIT.[8:10] < AIT[0]+2 THEN                     14218050        
+                        BEGIN  P(AIT,0,0); INTERRUPT(1);% PHONEY INVALID14218055        
+                               P(DEL,DEL,DEL);          % INDEX ON AIT  14218060        
+                               AIT ~ PRTR[AITNDX];                      14218065        
+                        END;                                            14218070        
+                      IF AIT[AIT[0]].[8:10] NEQ 1 THEN             %101-14218072        
+                         BEGIN                                     %101-14218074        
+                             I := 1;                               %101-14218076        
+                             WHILE AIT[I].[8:10] = 1 DO I := I + 1;%101-14218078        
+                             FOR J := AIT[0] STEP -1 UNTIL I DO    %101-14218080        
+                                  AIT[J+1] := AIT[J];              %101-14218082        
+                        END ELSE I := AIT[0] + 1;                  %101-14218084        
+                     AIT[0] := *P(DUP) + 1;                        %101-14218086        
+                     AIT[I] := -(1 & 1[8:38:10] & M[C][FTF]);      %101-14218088        
+                      END;                                              14218090        
+ $ SET OMIT = NOT(STATISTICS)                                           14218099        
+              END TYUPE TWO DATA SEGMENTS;%                             14219000        
+              IF NOT MINE.[6:1] THEN M[LOC].[2:1] ~ 0;                  14220000        
+         END ABSENT SEGMENTS%                                           14221000        
+         ELSE BEGIN LOC ~ SIZE-2;%                                      14222000        
+    AROUND:   IF DD[0]>0 THEN%                                          14223000        
+                IF NOT PRTR[X ~ DD[0].[8:10]].[2:1] THEN RUNAROUND;%    14224000        
+              M[C] ~ IF DD[0]>0 THEN ((SIZE INX D) OR M)%               14225000        
+                   ELSE PRTR[DD[0].[8:10]];%                            14226000        
+         END;%                                                          14227000        
+         IF DD[0].[2:1] THEN%                                           14227100        
+         BEGIN % INTRINSIC                                              14227200        
+         IF (SIZE:=(DD[0] INX 0)-1) NEQ 16 THEN %NOT INTRINSIC 17       14227210        
+            BEGIN                                                       14227220        
+              STREAM(SEGNO, T ~ SIZE AND 3,%                            14227300        
+                        I ~ [INTABLE[P1MIX,SIZE DIV 4]]);%              14227400        
+              BEGIN                                                     14227500        
+                   SI:=I; SI:=SI+T; SI:=SI+T; SKIP 1 SB;                14227520        
+                   IF SB THEN; % REMEMBER TYPE 13 REFERENCE             14227540        
+                   DI:=DI+T; DI:=TI+T; T:=DI; SI:=LOC T;                14227560        
+                   SI:=SI-2; DS:=2 CHR;                                 14227580        
+                   IF TOGGLE THEN BEGIN DI:=T; SKIP 1 DB; DS:=SET; END; 14227600        
+              END;                                                      14227620        
+            END;                                                        14227630        
+         END;%                                                          14227700        
+         DD[0].[3:1] ~ 0; GO EXIT;                                      14228000        
+    END;%                                                               14229000        
+         IF (MOM:=D.[3:5])!0 AND (MOM AND @33)!@30 THEN                 14230000        
+              BEGIN%                                                    14231000        
+COMMENT I/O DESCRIPTOR;%                                                14232000        
+              IF JAR[P1MIX,2] < 0 THEN                                  14233000        
+                   BEGIN TERMINATE(P1MIX);                              14233100        
+                        TERMINALMESSAGE(25);                            14233200        
+                   END;                                                 14233300        
+              MOM~ MEMORY[D  INX  (IF D.REVERSE THEN 2 ELSE NOT 1)]%    14234000        
+                        INX  0;%                                        14235000        
+TESTREADY:    IF NOT MEMORY[MOM].READY THEN%                            14236000        
+                        SLEEP([MEMORY[MOM]],IOMASK);%                   14237000        
+              IF MEMORY[MOM].PRESENT THEN%                              14238000        
+                        MEMORY[C]~MEMORY[MOM]%                          14239000        
+              ELSE%                                                     14240000        
+              BEGIN%                                                    14241000        
+              IF MEMORY[MOM].NOTOPEN THEN%                              14242000        
+OPEN:         BEGIN SAVEOPEN(MOM); IF TERMSET(P1MIX) THEN GO EXIT;      14243000        
+                        GO TESTREADY END                                14244000        
+              ELSE BEGIN%                                               14245000        
+COMMENT READY AND NOT PRESENT INDICATES REEL-SWITCH OR TERMINATE;%      14246000        
+                   PRTR~M[MOM-3];%                                      14247000        
+                   LOC~PRTR[15].[25:5];%                                14248000        
+                   SIZE~PRTR[4].[8:4];%                                 14249000        
+                   IF M[MOM].[27:1] THEN%                               14250000        
+                   IF M[MOM].[24:1] THEN%                               14251000        
+                   BEGIN IF SIZE=2 AND NOT PRTR[4].[2:1]%               14252000        
+                             AND NOT M[MOM].[22:1] THEN%                14253000        
+                         BEGIN BLASTQ(LOC);%                            14254000        
+                               P(WAITIO(M[MOM-2],0,LOC),DEL);%          14255000        
+                               P(WAITIO(@1000000340000005,0,LOC),DEL);% 14256000        
+                               IF M[M[MOM-2] INX 4].[42:6]=1 THEN%      14257000        
+                   CLOSE:      BEGIN LOC~PRTR[13].[28:10];%             14258000        
+                                     FILECLOSE(MOM&@12[18:33:15]);%     14259000        
+                                     PRTR[13].[28:10]~LOC+1;%           14260000        
+                                     GO TO OPEN;%                       14261000        
+                               END;%                                    14262000        
+                         END;%                                          14263000        
+                   END ELSE%                                            14264000        
+                   BEGIN IF SIZE=2 OR SIZE=7 OR SIZE=8 THEN%            14265000        
+                         BEGIN IF NOT PRTR[4].[2:1] THEN%               14266000        
+                                  M[M[MOM-2] INX 4].[42:6]~1;%          14267000        
+                               GO TO CLOSE;%                            14268000        
+                         END;%                                          14269000        
+                   END;%                                                14270000        
+                   P(MOM,M[MOM].[27:1]+1,0,0,);%                        14271000        
+                   COM11;%                                              14272000        
+                   END;%                                                14273000        
