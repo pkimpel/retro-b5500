@@ -11252,3 +11252,133 @@ COMMENT READY AND NOT PRESENT INDICATES REEL-SWITCH OR TERMINATE;%      14246000
                    P(MOM,M[MOM].[27:1]+1,0,0,);%                        14271000        
                    COM11;%                                              14272000        
                    END;%                                                14273000        
+              END;%                                                     14274000        
+              END%                                                      14275000        
+         ELSE%                                                          14276000        
+              BEGIN%                                                    14277000        
+COMMENT  DATA DESCRIPTOR;%                                              14278000        
+DLOOP:                                                                  14278100        
+         IF   (MOTHER~MEMORY[MOM ~ D.[18:15]]).[2:1] THEN GO WRAP;%     14279000        
+       IF (MOTHER INX 0) = 6 THEN % I/O ERROR FROM OLAY                 14279150        
+            BEGIN                                                       14279200        
+            TERMINATE(P1MIX & 20[CTF]);                                 14279250        
+            GO TO INITIATE;                                             14279350        
+            END;                                                        14279400        
+         IF (MOTHER INX 0) = 5 THEN % INTERLOCK FROM OLAY               14279450        
+            BEGIN                                                       14279500        
+            COMPLEXSLEEP(((M[MOM] INX 0) NEQ 5));                       14279550        
+            GO TO DLOOP;                                                14279600        
+            END;                                                        14279650        
+         SAVEBIT ~ MOTHER.[CF]=1;                                       14280000        
+         MEMORY[MOM] ~ MOTHER&((LOC ~GETSPACE(SIZED~MOTHER.[8:10],2,%   14281000        
+                   SAVEBIT+64))+2)[CTC]&1[2:47:1];                      14282000        
+ $ SET OMIT = NOT(AUXMEM)                                               14282099        
+         IF MOTHER.[CF]{3 THEN                                          14283000        
+              STREAM(L~LOC+2, S~SIZE-1, T~0, W~(MOTHER.[CF]=2));        14284000        
+                   BEGIN  SI ~ LOC S;SI~SI+6;DI~LOC T;DI~DI+7;DS~CHR;%  14285000        
+                   DI~L;  SI~LOC W;  SI~WDS;                            14286000        
+                   SI~L; T(DS~32 WDS; DS~32 WDS); DS~S WDS;%            14287000        
+                   END  ZERO SPACE%                                     14288000        
+         ELSE%                                                          14289000        
+              BEGIN%                                                    14290000        
+COMMENT READ ARRAY FROM DISK AND RETURN DISK SPACE;%                    14291000        
+ $ SET OMIT = NOT(STATISTICS)                                           14291099        
+              DISKIO(IOD,-LOC-1,MOTHER.[8:10],%                         14292000        
+                             DATADDRESS(P1MIX, MOTHER));                14292100        
+         SLEEP([IOD],IOMASK);                                           14292110        
+         IF IOD.[26:7] NEQ 0 THEN                                       14292120        
+            BEGIN                                                       14292130        
+NG:         FORGETSPACE(LOC+2);                                         14292140        
+            COMPLEXSLEEP(TERMSET(P1MIX));                               14292150        
+            GO TO INITIATE;                                             14292160        
+            END;                                                        14292170        
+ $ SET OMIT = NOT(STATISTICS)                                           14292199        
+               MOM~MOM&MOTHER[CTF];                                     14293000        
+              END ;%                                                    14295000        
+         MEMORY[LOC].[2:1] ~   SAVEBIT;%                                14296000        
+         MEMORY[LOC+1] ~ MOM ;%                                         14297000        
+ $ SET OMIT = NOT(STATISTICS)                                           14297099        
+WRAP:%                                                                  14298000        
+         MEMORY[C] ~ IF D.[8:10] = 0 THEN P(M[MOM],0,CDC,D,XCH,INX)%    14299000        
+                    ELSE  MEMORY[MOM];%                                 14300000        
+              END;%                                                     14301000        
+EXIT:                                                                   14301100        
+ $ SET OMIT = NOT(NEWLOGGING)                                           14301199        
+         END  MAKEPRESENT ;%                                            14302000        
+ REAL ADDRS=NT1;%                                                       14342000        
+PROCEDURE ZIPPER(A,B,C);VALUE A,B,C; REAL A,B,C; FORWARD;               14342100        
+ PROCEDURE COM5;%                                                       14343000        
+    BEGIN%                                                              14344000        
+         REAL RCW=+0,%                                                  14345000        
+              ERTOG=+2,%                                                14346000        
+              I    =+3,%                                                14347000        
+              T    =+4,%                                                14348000        
+         INTEGER J=1;%                                                  14349000        
+         ARRAY VECTOR=+5[*],S=+6[*];%                                   14350000        
+         INTEGER Q=S;                                                   14350100        
+         ARRAY FILEBLOCK=+7[*];%                                        14351000        
+         ARRAY TSKA=+13[*];                                             14351050        
+         INTEGER LINK; LABEL RETURNEM;                                  14351100        
+         INTEGER MOTHER=+8, NEXTMOM=+9, MOMMIX=+10, CATCH=+11;%         14351200        
+         REAL ENDAIT=MOMMIX,A=MOMMIX,K=NEXTMOM;                         14351205        
+         REAL CHAIN=+12,ABSEVT=CHAIN;                                   14351210        
+         REAL MSCW = -1;                                                14351220        
+         REAL JAR9 = TSKA+1;                                       %519-14351230        
+ $ SET OMIT = NOT(WORKSET)                                              14351240        
+         REAL STOPMIX=JAR9+1; LABEL STOPLOOP;                           14351250        
+ $ POP OMIT % WORKSET                                                   14351260        
+ SUBROUTINE DELINKIT;                                                   14351300        
+ BEGIN T:=M[I] INX 0;                                                   14351310        
+       IF NOT M[T].[4:1] THEN SLEEP([M[T]],@200000000000000);           14351320        
+       M[T].[4:1]:=0;                                                   14351330        
+       IF M[I].[2:1] THEN%IN CONTROL                                    14351340        
+       BEGIN M[T].[CF]:=M[I].[FF];                                      14351350        
+             IF (M[T] INX 0) NEQ 0 THEN M[M[T] INX 0].[2:1]:=1          14351360        
+              ELSE M[T]:=ABS(M[T]);%UNLOCK IT                           14351370        
+       END ELSE% IN WAIT QUEUE                                          14351380        
+       BEGIN T:=M[T] INX 0;                                             14351390        
+             WHILE M[T].[FF] NEQ (I INX 0) DO                           14351400        
+              T:=M[T].[FF];                                             14351410        
+             M[T].[FF]:=M[I].[FF];                                      14351420        
+       END;                                                             14351430        
+ M[T].[4:1]:=1;                                                         14351440        
+ END;                                                                   14351450        
+              PRYOR[P1MIX] ~ -1;                                        14351500        
+         P((ADDRS:=GETSPACE(196,12,0))+1,STS,.COM5,RCW,0,RDS,0,XCH,CFX, 14353000        
+            STF);                                                       14353002        
+         P(P&[MSCW][CTF],0,0,0,0,0,0);                                  14354000        
+         P(0,0,0,0,0,0,0); % ZERO FILEBLOCK THRU JAR9...           %172-14355000        
+ $ SET OMIT = NOT(WORKSET)                                              14355020        
+         P(0); % STOPMIX                                                14355030        
+ $ POP OMIT % WORKSET                                                   14355040        
+         M[(FILEBLOCK~PRT[P1MIX,3]) INX 0-2].[9:6] ~ 0;%                14356000        
+         M[ADDRS]~(*P(DUP))&0[9:9:6];                                   14357000        
+         M[(VECTOR~JARROW[P1MIX]) INX 0-2]~(*P(DUP))&0[9:9:6];          14358000        
+              IF VECTOR[0]<0 THEN%                                      14358100        
+                   BEGIN CATCH~PRT[P1MIX,@26];                          14358150        
+                    ERTOG ~ (VECTOR[1]>0) OR (PRT[P1MIX,@25]!0);%       14358200        
+                   END;                                                 14358300        
+    IF VECTOR[2].[6:1] THEN   % IPC                                     14358310        
+    BEGIN IF VECTOR[1]<0 THEN % DS-ED TASK                              14358315        
+    BEGIN     WHILE (S~PRT[P1MIX,AITNDX]).PBIT=0 DO   % SEARCH AIT FOR  14358320        
+               MAKEPRESENT( PRTROW[P1MIX]  INX AITNDX); % TASK ARRAYS   14358325        
+              MEMORY[S INX NOT 1].[2:1] ~ 1;               % MARK SAVE  14358330        
+              ENDAIT ~ S[0];                                            14358335        
+              FOR K~1 STEP 1 UNTIL ENDAIT DO                            14358340        
+         BEGIN     TSKA ~ MEMORY[(NT1~S[K]).MOM];                       14358345        
+                   IF NT1.[1:2]=3 THEN IF              % DEPENDENT TASK 14358355        
+                   ((NT2~TSKA[3])=1 OR (NT2=2 AND TSKA[4]!P1MIX)) THEN  14358360        
+                        % TASK ARRAY OF A SCHEDULED OR RUNNING OFFSPRING14358365        
+                        BEGIN IF NT2=1 THEN                             14358370        
+                            BEGIN                                       14358373        
+                                  SHEETDIDDLER(0,20,TSKA[4]);       % ES14358375        
+                            END;                                        14358377        
+                              IF TSKA[3]=2 THEN              % RUNNING  14358380        
+                            BEGIN                                       14358382        
+                                  TERMINATE(TSKA[4]&86[CTF]); HALT; % DS14358383        
+                                  NOPROCESSTOG ~ NOPROCESSTOG-1;        14358384        
+                            END;                                        14358385        
+                            COMPLEXSLEEP((TSKA[3] LSS 0));              14358386        
+                        END;                                            14358389        
+         END;                                                           14358390        
+    END; IF VECTOR[2].[5:1] THEN SOFTI ~ SOFTI-1;                       14358391        
