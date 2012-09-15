@@ -11483,3 +11483,104 @@ PROCEDURE ZIPPER(A,B,C);VALUE A,B,C; REAL A,B,C; FORWARD;               14342100
               FORGETSPACE(DIRECTORYSEARCH(ABS(VECTOR[0]),IF VECTOR[0]<0 14372000        
                     THEN "DISK   " ELSE ABS(VECTOR[1]),13));            14373000        
  $ POP OMIT                                                             14373001        
+ $ SET OMIT = NOT(STATISTICS)                                           14373099        
+              IF VECTOR[2].[8:10] = 1 THEN % COMPILER ON COMPILE AND GO 14374000        
+                   BEGIN%                                               14375000        
+                        IF ERTOG=0 THEN%                                14376000        
+                             BEGIN%                                     14377000        
+                                  COMPLEXSLEEP((SCHEDULEIDS!NOT 0) AND  14378000        
+                                                SHEETFREE);             14378100        
+                                  LOCKTOG(SHEETMASK);                   14379000        
+                                  S~[M[GETSPACE(31,2,0)+2]]&30[8:38:10];14380000        
+                                  DISKIO(T,-(S INX 0-1),30,             14381000        
+                                                       VECTOR[2].[FF]); 14382000        
+                                  SLEEP([T],IOMASK);                    14383000        
+                                  STREAM(A~0:B~P(.SCHEDULEIDS));        14383100        
+                                  BEGIN SI~B;                           14383200        
+                                     47(SKIP SB; SKIP DB; TALLY~TALLY+1;14383300        
+                                        IF SB THEN BEGIN END %         -14383400        
+                                              ELSE JUMP OUT);           14383450        
+                                        DS~SET; A~TALLY;                14383500        
+                                  END STREAM;                           14383600        
+                                  T ~ P; S[3] ~ D&T[8:38:10];           14383700        
+                                  S[25] ~ CATCH;                        14383740        
+                                  S[23].[24:24]~(CLOCK+P(RTR))DIV 60;   14383750        
+                                  DISKIO(T,+(S INX 0-1),30,             14383800        
+                                                       VECTOR[2].[FF]); 14383900        
+                                  SLEEP([T],IOMASK);                    14384000        
+                                  I ~ IF S[18] > MIXMAX THEN MIXMAX     14385000        
+                                                        ELSE S[18];     14386000        
+                                  IF SHEET[I].[CF] ! 0 THEN             14387000        
+                                  BEGIN DISKIO(T,-(S INX 0-1),30,       14388000        
+                                                       SHEET[I].[FF]);  14389000        
+                                        SLEEP([T],IOMASK);              14390000        
+                                        S[29] ~ VECTOR[2].[FF];         14391000        
+                                        DISKIO(T,+(S INX 0-1),30,       14392000        
+                                                       SHEET[I].[FF]);  14392500        
+                                        SLEEP([T],IOMASK);              14393000        
+                                  END ELSE SHEET[I] ~ VECTOR[2].[FF];   14394000        
+                                  SHEET[I].[FF] ~ VECTOR[2].[FF];       14395000        
+                                  UNLOCKTOG(SHEETMASK);                 14396000        
+                                  FORGETSPACE(S INX 0);%           %165-14396100        
+                             END%                                       14397000        
+                   ELSE BEGIN%                                          14398000        
+                        RETURNEM:                                       14398500        
+                             S~[M[GETSPACE(31,2,0)+2]]&30[8:38:10];     14398600        
+                             DISKIO(T,-(S INX 0-1),30,VECTOR[2].[FF]);  14398700        
+                             SLEEP([T],IOMASK);                         14398800        
+                             FORGETESPDISK(VECTOR[2].[18:15]);%         14399000        
+                             LINK ~ S[13];                              14399100        
+                             WHILE LINK!0 DO                            14399200        
+                               BEGIN DISKIO(T,-(S INX 0-1),30,LINK);    14399300        
+                                     SLEEP([T],IOMASK);                 14399400        
+                                     FORGETESPDISK(LINK); LINK ~ S[29]; 14399500        
+                               END;                                     14399600        
+                             FORGETSPACE(S);                            14399700        
+                        END                                             14400000        
+                   END  ELSE%                                           14401000        
+                        IF VECTOR[2].[8:10] = 0 THEN%                   14402000        
+                             BEGIN%                                     14403000        
+              VECTOR[9]:=VECTOR[9].[CF];                                14403900        
+              FOR I~1 STEP 1 UNTIL VECTOR[9] DO%                        14404000        
+              IF VECTOR[9+I] ! 0 THEN%                                  14405000        
+              FORGETUSERDISK[VECTOR[9+I],-VECTOR[8]);                   14406000        
+              IF VECTOR[2].[7:1] THEN VECTOR[2].[8:10]~2;%FOR TASK LOG  14406100        
+                             END ELSE                                   14407000        
+                        IF VECTOR[2].[8:10]=4%                          14407100        
+                           THEN GO TO RETURNEM;                         14407200        
+              IF VECTOR[0]<0 THEN                                       14408000        
+              IF ERTOG ! 0 THEN%                                        14409000        
+                   VECTOR[2].[8:10] ~ 3;%                               14410000        
+              I ~ P1MIX;%                                               14411000        
+              COMMENT SUBTRACT CORE REQUIREMENTS FROM CORE WORD;        14411100        
+              CORE.[18:15]~CORE.[18:15] - NFO[(P1MIX-1)|NDX+2].[18:15]; 14411200        
+ $ SET OMIT = NOT(AUXMEM)                                               14411309        
+ $ SET OMIT = NOT(DATACOM )                                             14411499        
+              IF CHAIN GTR 0 THEN                                       14411620        
+              BEGIN S:=[M[SPACE(5)]]&5[8:38:10];                        14411640        
+                   DISKWAIT(-(S INX 0),5,CHAIN);                        14411660        
+                   ZIPPER(S[1],S[2],S[3]);                              14411680        
+                   FORGETSPACE(S);                                      14411700        
+              END;                                                      14411720        
+              IF CHAIN ! 0 THEN FORGETESPDISK(ABS(CHAIN));              14411740        
+              IF VECTOR[2].[3:1] THEN                                   14411800        
+              BEGIN                                                     14411810        
+                NT1:=TYPEDSPACE(5,MAINTBUFFAREAV);%                %167-14411820        
+                M[NT1-2].[9:6] := 0;                                    14411830        
+                M[NT1  ]:= 0 & P1MIX[20:43:5];                          14411840        
+                M[NT1+1]:= VECTOR[5].[1:23];                            14411850        
+                M[NT1+2]:= XCLOCK & VECTOR[2][1:1:17] &                 14411860        
+                                  (VECTOR[1]<0)[18:42:6];               14411870        
+                M[NT1+3]:= VECTOR[0];                                   14411880        
+                M[NT1+4]:= VECTOR[1];                                   14411890        
+                LINKUP(14,NT1);                                         14411900        
+              END;                                                      14411910        
+ $ SET OMIT = PACKETS                                                   14411999        
+     BEGIN; STREAM(TK~VECTOR[2].[7:1],B~IF VECTOR[1] <0 THEN 2 ELSE%110-14414000        
+                        VECTOR[2].[8:10]!3,I,Q~Q~((NT1~(XCLOCK DIV 3600)14415000        
+                        ) MOD 60 + (NT1 DIV 60)|100), V:=VECTOR         14415100        
+ $ SET OMIT = NOT PACKETS                                               14415150        
+                        ,T:=T:=SPACE(10)                                14415200        
+ $ POP OMIT                                                             14415250        
+                        );                                              14415300        
+                   BEGIN%                                               14416000        
