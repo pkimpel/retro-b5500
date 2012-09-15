@@ -578,7 +578,7 @@ B5500CentralControl.prototype.loadComplete = function loadComplete() {
     if (!that.CCI08F) {
         that.loadTimer = setTimeout(that.loadComplete, 100);
     } else {
-        that.loadTimer = null
+        that.loadTimer = null;
         that.LOFF = 0;
         that.P1.C = 0x10;               // execute from address @20
         that.P1.access(0x30);           // P = [C]

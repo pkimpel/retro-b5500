@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<head>
+<title>B5500 Test Loader</title>
+<meta name="Author" content="Paul Kimpel">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta http-equiv="Content-Script-Type" content="text/javascript">
+<meta http-equiv="Content-Style-Type" content="text/css">
+<link id=defaultStyleSheet rel=stylesheet type="text/css" href="B5500DistributionAndDisplay.css">
+
+<script src="../emulator/B5500SystemConfiguration.js"></script>
+<script src="../emulator/B5500CentralControl.js"></script>
+<script src="../emulator/B5500Processor.js"></script>
+
+<script>
+"use strict";
+
+window.onload = function() {
+    var cc = new B5500CentralControl();
+
+    function store(addr, a, b, c) {
+        /* Stores a 48-bit word composed of three 16-bit parts at the
+           specified B5500 address. Invalid addresses are ignored */
+        var modNr = addr >>> 12;
+        var modAddr = addr & 0x0FFF;
+
+        if (modNr < 8 && cc.MemMod[modNr]) {
+            cc.MemMod[modNr][modAddr] = ((a*0x10000) + b)*0x10000 + c;
+        }
+    }
+
+    function fileLoader_onLoad(ev) {
+        /* Handle the onload event for an ArrayBuffer FileReader */
+        var addr = 0;                   // starting B5500 memory address
+        var buf = ev.target.result;
+        var bytes = buf.byteLength;
+        var elements = Math.floor(bytes/2);     // ignore any odd ending-byte
+        var hextets = new Uint16Array(buf, 0, elements);
+        var x = 0;
+
+        while (elements >= 3) {
+            store(addr, hextets[x], hextets[x+1], hextets[x+2]);
+            x += 3;
+            elements -= 3;
+            if (++addr > 0x7FFF) {
+                break;
+            }
+        }
+        // Store any partial word that may be left
+        if (elements > 1) {
+            store(addr, hextets[x], hextets[x+1], 0);
+        } else if (elements > 0) {
+            store(addr, hextets[x], 0, 0);
+        }
+
+        document.getElementById("RunBtn").disabled = false;
+    }
+
+    function fileSelector_onChange(ev) {
+        var f = ev.target.files[0];
+        var reader = new FileReader();
+
+        reader.onload = fileLoader_onLoad;
+
+        document.getElementById("RunBtn").disabled = true;
+        reader.readAsArrayBuffer(f);
+    }
+
+    function runBtn_onClick(ev) {
+        /* Driver to initiate Processor module */
+
+        cc.powerOn();
+        cc.clear();
+
+        cc.P1.S = 0x100;                // stack at @400
+        cc.P1.R = 0x005;                // PRT at @500 (R has addr div 64)
+
+        cc.loadTimer = null;
+        cc.LOFF = 0;
+        cc.P1.C = 0x10;                 // execute from address @20
+        cc.P1.access(0x30);             // P = [C]
+        cc.P1.T = cc.fieldIsolate(cc.P, 0, 12);
+        cc.P1.TROF = 1;
+        cc.P1.L = 1;                    // advance L to the next syllable
+
+        // Now start scheduling P1 on the Javascript thread
+        cc.P1.procTime = new Date().getTime()*1000;
+        cc.P1.scheduler = setTimeout(cc.P1.schedule, 0);
+    }
+
+    document.getElementById("FileSelector").addEventListener("change", fileSelector_onChange, false);
+    document.getElementById("RunBtn").addEventListener("click", runBtn_onClick, false);
+}
+</script>
+</head>
+
+<body>
+
+<div style="position:relative; width:100%">
+    <div style="position:absolute; left:0; top:0; width:auto">
+        retro-B5500 Test Loader
+    </div>
+    <div style="position:absolute; top:0; right:0; width:auto">
+        <input id=FileSelector type=file size=30>
+        &nbsp;
+        <input id=RunBtn type=button value=Run disabled>
+    </div>
+</div>
+<hr>
+
+</body>
+</html>
