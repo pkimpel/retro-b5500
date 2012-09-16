@@ -17,14 +17,14 @@
 window.onload = function() {
     var cc = new B5500CentralControl();
 
-    function store(addr, a, b, c) {
-        /* Stores a 48-bit word composed of three 16-bit parts at the
-           specified B5500 address. Invalid addresses are ignored */
+    function store(addr, word) {
+        /* Stores a 48-bit word at the specified B5500 address.
+           Invalid addresses are ignored */
         var modNr = addr >>> 12;
         var modAddr = addr & 0x0FFF;
 
         if (modNr < 8 && cc.MemMod[modNr]) {
-            cc.MemMod[modNr][modAddr] = ((a*0x10000) + b)*0x10000 + c;
+            cc.MemMod[modNr][modAddr] = word;
         }
     }
 
@@ -33,29 +33,33 @@ window.onload = function() {
         var addr = 0;                   // starting B5500 memory address
         var buf = ev.target.result;
         var bytes = buf.byteLength;
-        var elements = Math.floor(bytes/2);     // ignore any odd ending-byte
-        var hextets = new Uint16Array(buf, 0, elements);
+        var data = new DataView(buf);   // use DataView() to avoid problems with littleendians.
+        var power = 0x10000000000;
+        var word = 0;
         var x = 0;
 
-        while (elements >= 3) {
-            store(addr, hextets[x], hextets[x+1], hextets[x+2]);
-            x += 3;
-            elements -= 3;
+        while (bytes > 6) {
+            store(addr, data.getUint32(x, false)*0x10000 + data.getUint16(x+4, false));
+            x += 6;
+            bytes -= 6;
             if (++addr > 0x7FFF) {
                 break;
             }
         }
         // Store any partial word that may be left
-        if (elements > 1) {
-            store(addr, hextets[x], hextets[x+1], 0);
-        } else if (elements > 0) {
-            store(addr, hextets[x], 0, 0);
+        while (bytes > 0) {
+            word += data.getUint8(x, false)*power;
+            x++;
+            bytes--;
+            power /= 0x100;
         }
-
+        store(addr, word);
         document.getElementById("RunBtn").disabled = false;
+        alert("File loaded: " + buf.byteLength + " bytes, last addr = @" + addr.toString(8));
     }
 
     function fileSelector_onChange(ev) {
+        /* Handle the <input type=file> onchange event when a file is selected */
         var f = ev.target.files[0];
         var reader = new FileReader();
 
@@ -68,12 +72,7 @@ window.onload = function() {
     function runBtn_onClick(ev) {
         /* Driver to initiate Processor module */
 
-        cc.powerOn();
         cc.clear();
-
-        cc.P1.S = 0x100;                // stack at @400
-        cc.P1.R = 0x005;                // PRT at @500 (R has addr div 64)
-
         cc.loadTimer = null;
         cc.LOFF = 0;
         cc.P1.C = 0x10;                 // execute from address @20
@@ -86,6 +85,32 @@ window.onload = function() {
         cc.P1.procTime = new Date().getTime()*1000;
         cc.P1.scheduler = setTimeout(cc.P1.schedule, 0);
     }
+
+    function checkBrowser() {
+        /* Checks whether this browser can support the necessary stuff */
+        var missing = "";
+
+        if (!window.File) {missing += ", File"}
+        if (!window.FileReader) {missing += ", FileReader"}
+        if (!window.FileList) {missing += ", FileList"}
+        if (!window.Blob) {missing += ", Blob"}
+        if (!window.ArrayBuffer) {missing += ", ArrayBuffer"}
+        if (!window.DataView) {missing += ", DataView"}
+
+        if (missing.length == 0) {
+            return false;
+        } else {
+            alert("No can do... your browser does not support the following features:\n" + missing.substring(2));
+            return true;
+        }
+    }
+
+    /* Start of window.onload() */
+    if (checkBrowser()) {
+        return;
+    }
+
+    cc.powerOn();
 
     document.getElementById("FileSelector").addEventListener("change", fileSelector_onChange, false);
     document.getElementById("RunBtn").addEventListener("click", runBtn_onClick, false);
@@ -100,12 +125,11 @@ window.onload = function() {
         retro-B5500 Test Loader
     </div>
     <div style="position:absolute; top:0; right:0; width:auto">
-        <input id=FileSelector type=file size=30>
+        <input id=FileSelector type=file size=60>
         &nbsp;
         <input id=RunBtn type=button value=Run disabled>
     </div>
 </div>
-<hr>
 
 </body>
 </html>
