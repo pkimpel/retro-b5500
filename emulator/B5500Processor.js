@@ -1181,6 +1181,7 @@ B5500Processor.prototype.run = function() {
         this.Y = 0;
         this.Z = 0;
         opcode = this.T;
+
         if (this.CWMF) {
             /***********************************************************
             *  Character Mode Syllables                                *
