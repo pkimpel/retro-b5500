@@ -11584,3 +11584,148 @@ PROCEDURE ZIPPER(A,B,C);VALUE A,B,C; REAL A,B,C; FORWARD;               14342100
  $ POP OMIT                                                             14415250        
                         );                                              14415300        
                    BEGIN%                                               14416000        
+ $ SET OMIT = PACKETS                                                   14416999        
+ $ SET OMIT = NOT(PACKETS)                                              14418099        
+                         SI:=V;SI:=SI+1;DS:=LIT" ";DS:=7CHR;            14418100        
+                         SI:=SI+1;DS:=LIT"/";DS:=7CHR;                  14418110        
+ $ POP OMIT                                                             14418111        
+                   DS~LIT"="; SI~LOC I; DS~2DEC;                        14419000        
+                   I~DI; DI~DI-2; DS~FILL; DI~I;                        14419500        
+                        CI ~ CI+B;%                                     14420000        
+                        GO TO E;%                                       14421000        
+                        GO TO OK;%                                      14422000        
+                        DS~7 LIT " DS-ED ";                             14423000        
+                        GO TO X;%                                       14424000        
+              OK:%                                                      14425000        
+                        DS~5 LIT " EOJ ";                               14426000        
+                        TK(DI~DI-2; DS~2 LIT "T "); % END OF TASK  %110-14426100        
+                        GO TO X;%                                       14427000        
+              E:        DS~11 LIT " SYNTX ERR ";                        14428000        
+              X:        DS~ 4 DEC; DS~LIT "~";                          14429000        
+                   END;                                                 14429100        
+ $ SET OMIT = PACKETS                                                   14429150        
+ $ SET OMIT = NOT RJE OR OMIT                                           14430190        
+              SPOUTER(T,0,(EOJMESS AND NOT(JAR9.[2:1])));               14430400        
+         END;                                                           14430600        
+         SIGNOFF(VECTOR,FILEBLOCK,0);                                   14430800        
+         FORGETSPACE(VECTOR);                                           14431000        
+ $ POP OMIT OMIT                                                        14431010        
+ $ SET OMIT = NOT(AUXMEM)                                               14431299        
+ $ SET OMIT = NOT(WORKSET)                                              14431400        
+STOPLOOP:                                                               14431410        
+              IF WKSETSTOPJOBS NEQ 0 THEN % JOB WAS AUTO-STOPPED        14431420        
+              IF NOT(JAR9.SYSJOBF) THEN % NOT EOJ FOR "SYSTEM" JOB      14431425        
+                 BEGIN                                                  14431430        
+                 STNEXT:=IF STNEXT=0 THEN STQUEMAX ELSE STNEXT-1;  %138-14431440        
+                 STOPMIX:=STQUE[STNEXT];                           %138-14431450        
+                 STQUE[STNEXT]:=0;                                 %138-14431460        
+                 STFIRST := (STFIRST+1).[44:4]; % POINT TO NEXT CELL    14431470        
+                 IF (STOPMIX GTR 0) AND (STOPMIX LEQ MIXMAX) THEN       14431480        
+                    IF JARROW[STOPMIX] NEQ 0 THEN                       14431490        
+                       BEGIN                                            14431500        
+                       IF STOPSET(STOPMIX) THEN % NOT YET STOPPED       14431502        
+                       BEGIN                                            14431504        
+                       PRTROW[STOPMIX,X].[PSF]:=0;                      14431506        
+                       WKSETSTOPJOBS:=WKSETSTOPJOBS AND                 14431508        
+                                      NOT (TWO(STOPMIX));               14431510        
+                       JAR[STOPMIX,9].[3:1]:=0;                         14431512        
+                       GO STOPLOOP;                                     14431514        
+                       END ELSE                                         14431516        
+                       BEGIN REPLY[STOPMIX]:=VOK; % WAKE IT UP          14431518        
+                       STREAM(J:=JARROW[STOPMIX],STOPMIX,               14431520        
+                              D:=Q:=SPACE(10));                         14431530        
+                           BEGIN                                        14431540        
+                           SI:=J; DS:=9LIT" AUTO-OK ";                  14431550        
+                           2(SI:=SI+1; DS:=7CHR; DS:=LIT"/");           14431560        
+                           DI:=DI-1; DS:=LIT"="; SI:=LOC STOPMIX;       14431570        
+                           DS:=2DEC; DS:=LIT"~"; DI:=DI-3; DS:=FILL;    14431580        
+                           END STREAM STATEMENT;                        14431590        
+                        SPOUTER(Q,PSEUDOMIX[STOPMIX],1);           %525-14431600        
+                       END;                                             14431602        
+                        END % IF AWAKENING A JOB                        14431610        
+                    ELSE GO TO STOPLOOP                                 14431620        
+                 ELSE GO TO STOPLOOP;                                   14431630        
+                 END; % IF JOBS WHERE AUTO-STOPPED                      14431640        
+              WKSETSWITCHTIME := CLOCK + P(RTR);                        14431650        
+ $ POP OMIT % WORKSET                                                   14431660        
+ $ SET OMIT = NOT(WORKSET)                                              14431970        
+              WKSETNOSELECT~(WKSETNOSELECT AND (WKSETSTOPJOBS ! 0));    14431975        
+              IF WKSETSTOPJOBS=0 THEN                                   14431980        
+ $ POP OMIT % WORKSET                                                   14431990        
+                   SELECTION;%                                          14432000        
+              KILL([MSCW]);                                             14433000        
+    END L5COM;%                                                         14434000        
+PROCEDURE ZIPPER(W1,W2,USERSTA);VALUE W1,W2,USERSTA;                    14531000        
+REAL W1,W2,USERSTA;                                                     14531100        
+         BEGIN REAL T,I;                                                14532000        
+         T ~ GETSPACE(12,CONTROLCARDAREAV,0)+4;%                   %167-14533000        
+         M[T-4].[9:6]~0;%                                               14534000        
+         IF (I~USERCODE[P1MIX])=ABS(NOT 0) THEN I~ 0;                   14534500        
+         STREAM(K~@14,A~[W1],C~I,B~T);                                  14535000        
+         BEGIN                                                          14536000        
+         SI~LOC K; SI~SI+7; DS~ CHR;                                    14537000        
+         DS:= 5 LIT "USER="; SI:=LOC C; SI:=SI+1; DS:= 7 CHR;           14537100        
+         DS~ 9 LIT ";EXECUTE "; SI~A; SI~SI+1;                          14537200        
+         DS~ 7 CHR; DS~ LIT "/"; SI~SI+1); DS~ 7 CHR;                   14538000        
+         DS~ 6 LIT ";END.~"; 37(DS~ LIT " ");                           14539000        
+         END;                                                           14540000        
+         IF USERSTA!0 THEN                                              14540100        
+           BEGIN                                                        14540200        
+              I:=30;                                                    14540300        
+              IF USERSTA.[19:1] THEN ELSE T:=T&USERSTA[9:15:9];         14540350        
+           END                                                          14540400        
+              ELSE                                                      14540500        
+         I~IF P1MIX=0 OR USERCODE[P1MIX]=MCP THEN 31 ELSE 26;           14541000        
+ $ SET OMIT = PACKETS                                                   14541049        
+ $ SET OMIT = NOT(PACKETS)                                              14541089        
+         IF PSEUDOMIX[P1MIX] NEQ 0 THEN NYLONZIPPER[P1MIX].[2:1]:=0;    14541090        
+        INDEPENDENTRUNNER(P(.CONTROLCARD),T&I[2:42:6]                   14541100        
+         &P1MIX[18:42:6]&PSEUDOMIX[P1MIX][24:39:9],192);                14541110        
+         IF PSEUDOMIX[P1MIX] NEQ 0 THEN                                 14541120        
+             SLEEP([NYLONZIPPER[P1MIX]],@1000000000000000);             14541130        
+ $ POP OMIT                                                             14541131        
+         END ZIPPER;%                                                   14542000        
+REAL PROCEDURE EUF(A,B,L); VALUE A,B,L; REAL A,B,L;                     14543000        
+         BEGIN%                                                         14544000        
+         REAL I,J,R,T,Z;%                                               14545000        
+         REAL H;                                                        14545100        
+         ARRAY X[*];%                                                   14546000        
+         INTEGER S;                                                     14546100        
+ $ SET OMIT = SHAREDISK                                                 14546199        
+         DEFINE R1=R#, X1=X#;                                           14546200        
+ $ POP OMIT                                                             14546201        
+ $ SET OMIT = NOT SHAREDISK                                             14546299        
+         LABEL LL,FOUND,WHY,BYE;                                        14547000        
+         LABEL CHECK,DOWN,BOMBOUT,DSD;                                  14548000        
+%                                                                       14548900        
+    REAL SUBROUTINE THERE;%                                             14549000        
+%                                                                       14549100        
+%        ON EXIT, X IS THE LAST BYPASS BLOCK READ AND J IS ITS ADDRESS. 14549110        
+%        IF THERE IS TRUE, I IS THE INDEX OF THE ENTRY FOR THE FILE AND,14549120        
+%        FOR SECURITYCHECK, H IS THE NEGATIVE OF ITS HEADER ADDRESS.    14549125        
+%        IF THERE IS FALSE, T IS THE ADDRESS OF THE FIRST BLOCK WHICH   14549130        
+%        HAS A VACANT SLOT.                                             14549140        
+%                                                                       14549150        
+         BEGIN%                                                         14550000        
+              T:=0;                                                     14550500        
+LL:           FOR I:=0 STEP 3 UNTIL 57 DO                               14551000        
+              BEGIN IF (X[I] EQV A) = NOT 0 THEN                        14551500        
+                   IF (X[I+1] EQV B) = NOT 0 THEN                       14552000        
+                   BEGIN P(1);                                          14552500        
+                        H:=NABS(X[I+2]);                                14552750        
+                        GO DOWN;                                        14553000        
+                   END;                                                 14553500        
+                   IF (X[I] EQV @14) = NOT 0 THEN                       14554000        
+                   IF T=0 THEN T:=J;                                    14554500        
+              END;                                                      14555000        
+              IF (Z:=X[2].[FF])!0 THEN                                  14555500        
+              BEGIN DISKWAIT(-R,60,J:=Z);                               14556000        
+                   GO TO LL;                                            14556500        
+              END;                                                      14557000        
+              IF T=0 THEN T:=J;                                         14557500        
+              P(0);                                                     14558000        
+DOWN:         THERE:=P;                                                 14558500        
+         END;%                                                          14559000        
+ $ SET OMIT = NOT(SHAREDISK)                                            14559099        
+         A:=ABS(A);                                                     14559200        
+         X:=[M[R:=SPACE(60)]]&60[8:38:10];                              14559250        
