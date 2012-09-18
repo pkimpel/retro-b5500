@@ -11729,3 +11729,159 @@ DOWN:         THERE:=P;                                                 14558500
  $ SET OMIT = NOT(SHAREDISK)                                            14559099        
          A:=ABS(A);                                                     14559200        
          X:=[M[R:=SPACE(60)]]&60[8:38:10];                              14559250        
+         IF (A OR B).[1:5]!0 OR A=@14 OR A=@114 THEN                    14559300        
+         BEGIN                                                          14559400        
+              TERMINATE(P1MIX&75[18:33:15]); GO DSD;                    14559500        
+         END;                                                           14559600        
+ $ SET OMIT = SHAREDISK                                                 14559990        
+         LOCKDIRECTORY;                                                 14560000        
+ $ POP OMIT                                                             14560010        
+         S:=SCRAMBLE(A,B);                                              14562000        
+ CHECK:  DISKWAIT(-R,-60,(J:=S));                                       14563000        
+         IF P1MIX !0 THEN                                               14564000        
+         IF THERE THEN%                                                 14567000        
+         BEGIN                                                          14568000        
+ $ SET OMIT = NOT SHAREDISK                                             14568890        
+           UNLOCKDIRECTORY;                                             14569000        
+ $ POP OMIT OMIT                                                        14569010        
+           H~SECURITYCHECK(A,B,USERCODE[P1MIX],H)!7;                    14569200        
+           Z:=VWY&VOK[36:42:6]&(IF H THEN 0 ELSE VRM)[30:42:6];         14569500        
+ WHY:      STREAM(A:=[A], B:=JAR[P1MIX], C:=P1MIX, UC:=H,               14570000        
+                  D:=J:=SPACE(10));                                     14570100        
+              BEGIN%                                                    14571000        
+              DS~13LIT"#DUP LIBRARY ";%                                 14572000        
+              UC(DS~15LIT"(ILLEGAL USER) ");                            14572100        
+              SI~A      ;SI~SI+1;DS~7CHR;%                              14573000        
+              DS~LIT"/" ;SI~SI+1;DS~7CHR;%                              14574000        
+              DS~LIT":";%                                               14575000        
+              SI~B      ;SI~SI+1;DS~7CHR;%                              14576000        
+              DS~LIT" " ;SI~SI+1;DS~7CHR;%                              14577000        
+              DS:=LIT"="; SI:=LOC C; DS:=2 DEC; DS:=LIT"~":             14578000        
+              DI~DI-3; DS~FILL;                                         14578500        
+              END;%                                                     14579000        
+         SPOUT(J);                                                      14580000        
+         REPLY[P1MIX]:=-Z;                                              14581000        
+         IF AUTODS THEN                                            %747-14581500        
+         IF H=1 THEN TERMINATE(P1MIX&61[CTF]) ELSE REPLY[P1MIX]~VRM%747-14581700        
+         ELSE                                                      %757-14581800        
+         COMPLEXSLEEP(TERMSET(P1MIX) OR (REPLY[P1MIX] GTR 0));          14582000        
+         IF TERMSET(P1MIX) THEN                                         14583000        
+DSD:     BEGIN FOR I:=M[L+10]+10 STEP -1 UNTIL 11 DO                    14583100        
+               IF M[L+I]!0 THEN FORGETUSERDISK(M[L+I],-M[L+9]);         14583200        
+               GO TO BOMBOUT;                                           14583300        
+         END;                                                           14583400        
+         IF NOT WHYSLEEP(Z) THEN GO TO WHY;                             14584000        
+         IF REPLY[P1MIX].[18:30]=VRM THEN                               14585000        
+ $ SET OMIT = NOT(DATACOM )                                             14585050        
+             BEGIN                                                      14585200        
+                   IF P(DIRECTORYSEARCH(-A,B,7),DUP)=2                  14585300        
+                     THEN BEGIN  P(DEL);         % ALWAYS TO SPO   %589-14585350        
+                          LBMESS( A, B, -7, 25, 0, 0, 1 ); END     %589-14585360        
+                     ELSE IF P=3 THEN GO DSD;                           14585400        
+ $ SET OMIT = NOT DATACOM                                               14585490        
+             END;                                                       14587200        
+         REPLY[P1MIX]:=0;                                               14588000        
+ $ SET OMIT = SHAREDISK                                                 14588090        
+         LOCKDIRECTORY;                                                 14588100        
+ $ POP OMIT                                                             14588110        
+         GO TO CHECK;%                                                  14589000        
+         END ELSE ELSE T:=S;           % SETS UP FOR P1MIX=0            14590000        
+%                                                                       14590900        
+%        THE FILE IS NOT THERE. WE SEARCH FOR A VACANCY. IF ONE IS FOUND14590910        
+%        Z AND T ARE ITS ADDRESS. IF THERE ISNT ONE, Z IS THE ADDRESS OF14590920        
+%        THE LAST BLOCK AND T IS SET TO THE ADDRESS OF THE NEW BLOCK.   14590930        
+%                                                                       14590940        
+ $ SET OMIT = NOT SHAREDISK                                             14590990        
+         DO BEGIN                                                       14591500        
+              IF (Z:=T)!J THEN DISKWAIT(-R,60,Z);                       14592000        
+              FOR I~0 STEP 3 UNTIL 57 DO                                14593000        
+              IF (X[I] EQV @14)= NOT 0 THEN GO TO FOUND;                14594000        
+         END UNTIL (T:=X[2].[FF])=0;                                    14595000        
+         X[2].[FF]~  BYPASS ~ BYPASS-2;                                 14596000        
+         IF BYPASS.[CF] LEQ BYPASS.[FF] THEN GO TO BYE;                 14598000        
+ $ SET OMIT = SHAREDISK                                                 14598090        
+         DISKWAIT(R,60,Z);             % WRITE OUT POINTER TO NEW BLOCK 14598100        
+ $ POP OMIT                                                             14598110        
+         T:=BYPASS.[CF];                                                14598200        
+         X1[0]:=@14; MOVE(59,X1,X1 INX 1);                              14598300        
+ $ SET OMIT = NOT SHAREDISK                                             14598390        
+         T:=0;                                                          14598500        
+    FOUND:%                                                             14599000        
+                   PBCOUNT~PBCOUNT+((((A EQV"PBD    ")=NOT 0) OR        14599900        
+                           ((A EQV"PUD    ")=NOT 0)) AND (B.[CF]=1));   14599910        
+         X[I]~A; X[I+1]~B; X[I+2].[CF]~NEXTSLOT;                        14600000        
+ $ SET OMIT = NOT SHAREDISK                                             14600290        
+         DISKWAIT(R1,60,T);                                             14600500        
+%                                                                       14600900        
+%        UPDATE THE NAME SEGMENT, BUT DONT WRITE IT OUT UNTIL THE NEW   14600910        
+%        HEADER IS WRITTEN.                                             14600920        
+%                                                                       14600930        
+         J~(NEXTSLOT-DIRECTORYTOP-3)&0[44:44:4]+DIRECTORYTOP+19;        14601000        
+         I:=((T:=NEXTSLOT)-J)|2+30;                                     14601500        
+         DISKWAIT(-R1,-30,J);                                           14602000        
+         NEXTSLOT:=X1[I+1];                                             14602500        
+         X1[I]:=A; X1[I+1]:=B;                                          14603000        
+         IF NEXTSLOT=0 THEN       % GOING TO USE EOF RECORD             14603100        
+         IF I=0 THEN              % WRITE NEW EOF RECORD BEFORE         14603110        
+         BEGIN P(X1[28],X1[29]);  % DESTROYING CURRENT ONE              14603200        
+              X1[28]:=@114;                                             14603300        
+              X1[29]:=0;                                                14603310        
+              NEXTSLOT:=T+30;                                           14603320        
+              BYPASS.[FF] ~ J+16;                                       14603330        
+              DISKWAIT(R1,30,J+16);                                     14603400        
+              P([X1[29]],~,[X1[28]],~);      % RESTORE CLOBBERED NAME   14603600        
+                   IF J~16 GEQ BYPASS.[CF] THEN                         14603700        
+    BYE:        BYBY("DIRECTORY FULL~",15);                             14603750        
+         END ELSE                                                       14603800        
+         BEGIN X1[I-2]:=@114; X1[I-2]:=0; NEXTSLOT:=T-1 END;            14604000        
+%                                                                       14604900        
+%        NOW WE CAN WRITE EVERYTHING OUT, NOTE THAT IN ORDER TO MINIMIZE14604910        
+%        THE DAMAGE CAUSED BY AN UNTIMELY HANG, THE MAIN AND (FOR       14604920        
+%        SHAREDISK) THE BYPASS DIRECTORIES ARE CORRECT AT ALL TIMES.    14604930        
+%                                                                       14604940        
+ $ SET OMIT = NOT SHAREDISK                                             14605490        
+         DISKWAIT(L+1,-30,T);                    % FILE HEADER          14607000        
+ $ SET OMIT = NOT SHAREDISK                                             14608490        
+         DISKWAIT(R1,-30,J);                     % NAME SEGMENT         14609000        
+ $ SET OMIT = NOT SHAREDISK                                             14609990        
+ $ SET OMIT = SHAREDISK                                                 14617990        
+         UNLOCKDIRECTORY;                                               14618000        
+ $ POP OMIT                                                             14618010        
+         EUF:=T;                                                        14619000        
+    BOMBOUT:%                                                           14620000        
+         FORGETSPACE(R);                                                14621000        
+         END  ENTERUSERFILE ;%                                          14622000        
+PROCEDURE COM11; COMMENT ALGOL I/O COMMUNICATE;%                        14623000        
+BEGIN                                                              %740-14624000        
+REAL   CODE=-4,   TANK=-5,   ROW=-6,    FID=-7,    MID=-8,         %740-14624100        
+       STA=-6,    RESULT=-7, TIMEOUT=-7 ;                               14624200        
+NAME   PHYL=-5;       %                                                 14624300        
+ARRAY  HEADER=-5[*],  FINAL=-6[*]; %                                    14624400        
+REAL   B, T, F, S;  %                                                   14624450        
+NAME   A;  %                 % SAME STACK LOCATIONS AS BEFORE           14624500        
+REAL   INFO, LOC, USASI, I;  %                                          14624550        
+ARRAY  FPB[*],  FIB[*] ; %                                              14624600        
+ $                                           SET OMIT = NOT DATACOM     14624990        
+LABEL    PARITY,   EOF,      EOT,      RDATA,    SELERR,   MESSAGE,     14627200        
+         DISKSPACE,OPEN,     CLOSE,    HEADC,    GIN,      NG,          14627300        
+         SLEAP,    GRABIT,   READSOUGHT,         READSOUGHT2,           14627400        
+         BACK,     SEEKDC,   DCWRITER, WHILOOP,  COBOLDCWR,FINDBUF,     14628000        
+         PURGELOCK,SPACE,    REFILL,   HEADLABEL,IOREQ,    DCBUFRLS,    14628100        
+         ROTATE,   ABN;      %                                          14629000        
+                                                                        14630000        
+SWITCH FUNCTION ~  OPEN,     PARITY,   EOF,      EOT,      DISKSPACE,   14631000        
+                   SEEKDC,   CLOSE,    RDATA,    SELERR,   SPACE,       14632000        
+                   REFILL,   READLABEL,IOREQ,    ROTATE,   READC,       14632100        
+                   READSOUGHT,DCBUFRLS,DCWRITER, FINDBUF,  COBOLDCWR,   14632200        
+                   PURGELOCK ; %                                        14632900        
+                                                                        14633000        
+ GO TO FUNCTION [CODE] ;  %                                             14634000        
+                                                                        14635000        
+PARITY:  INFO~"PARITY ";  B~"ERROR~ ";  %                               14636000        
+         GO TO MESSAGE;   %                                             14636100        
+EOF:     INFO~"END FO ";  B~"FILE~  ";  %                               14637000        
+         GO TO MESSAGE;   %                                             14639000        
+EOT:     INFO~"FILE TO";  B~"O SMALL";  I~"~      ";  %                 14640000        
+         GO TO MESSAGE;                                                 14641000        
+     ::  % AT PURGELOCK, GO TO RDATA SHOULD BE TO MESSAGE ON WORD BOUNDY14641999        
+RDATA:   INFO~"DATA ER";  B~"ROR, FM";  T~"T=R,~  ";  %                 14642000        
