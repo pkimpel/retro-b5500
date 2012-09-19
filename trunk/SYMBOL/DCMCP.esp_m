@@ -11854,34 +11854,141 @@ DSD:     BEGIN FOR I:=M[L+10]+10 STEP -1 UNTIL 11 DO                    14583100
 PROCEDURE COM11; COMMENT ALGOL I/O COMMUNICATE;%                        14623000        
 BEGIN                                                              %740-14624000        
 REAL   CODE=-4,   TANK=-5,   ROW=-6,    FID=-7,    MID=-8,         %740-14624100        
-       STA=-6,    RESULT=-7, TIMEOUT=-7 ;                               14624200        
-NAME   PHYL=-5;       %                                                 14624300        
-ARRAY  HEADER=-5[*],  FINAL=-6[*]; %                                    14624400        
-REAL   B, T, F, S;  %                                                   14624450        
-NAME   A;  %                 % SAME STACK LOCATIONS AS BEFORE           14624500        
-REAL   INFO, LOC, USASI, I;  %                                          14624550        
-ARRAY  FPB[*],  FIB[*] ; %                                              14624600        
- $                                           SET OMIT = NOT DATACOM     14624990        
-LABEL    PARITY,   EOF,      EOT,      RDATA,    SELERR,   MESSAGE,     14627200        
-         DISKSPACE,OPEN,     CLOSE,    HEADC,    GIN,      NG,          14627300        
-         SLEAP,    GRABIT,   READSOUGHT,         READSOUGHT2,           14627400        
-         BACK,     SEEKDC,   DCWRITER, WHILOOP,  COBOLDCWR,FINDBUF,     14628000        
+       STA=-6,    RESULT=-7, TIMEOUT=-7 ;                          %740-14624200        
+NAME   PHYL=-5;       %                                            %740-14624300        
+ARRAY  HEADER=-5[*],  FINAL=-6[*]; %                               %740-14624400        
+REAL   B, T, F, S;  %                                              %740-14624450        
+NAME   A;  %                 % SAME STACK LOCATIONS AS BEFORE      %740-14624500        
+REAL   INFO, LOC, USASI, I;  %                                     %740-14624550        
+ARRAY  FPB[*],  FIB[*] ; %                                         %740-14624600        
+ $                                           SET OMIT = NOT DATACOM%740-14624990        
+LABEL    PARITY,   EOF,      EOT,      RDATA,    SELERR,   MESSAGE,%740-14627200        
+         DISKSPACE,OPEN,     CLOSE,    HEADC,    GIN,      NG,     %740-14627300        
+         SLEAP,    GRABIT,   READSOUGHT,         READSOUGHT2,      %740-14627400        
+         BACK,     SEEKDC,   DCWRITER, WHILOOP,  COBOLDCWR,FINDBUF,%740-14628000        
          PURGELOCK,SPACE,    REFILL,   HEADLABEL,IOREQ,    DCBUFRLS,    14628100        
-         ROTATE,   ABN;      %                                          14629000        
-                                                                        14630000        
+         ROTATE,   ABN;      %                                     %740-14629000        
+                                                                   %740-14630000        
 SWITCH FUNCTION ~  OPEN,     PARITY,   EOF,      EOT,      DISKSPACE,   14631000        
-                   SEEKDC,   CLOSE,    RDATA,    SELERR,   SPACE,       14632000        
-                   REFILL,   READLABEL,IOREQ,    ROTATE,   READC,       14632100        
+                   SEEKDC,   CLOSE,    RDATA,    SELERR,   SPACE,  %740-14632000        
+                   REFILL,   READLABEL,IOREQ,    ROTATE,   READC,  %740-14632100        
                    READSOUGHT,DCBUFRLS,DCWRITER, FINDBUF,  COBOLDCWR,   14632200        
-                   PURGELOCK ; %                                        14632900        
-                                                                        14633000        
- GO TO FUNCTION [CODE] ;  %                                             14634000        
-                                                                        14635000        
-PARITY:  INFO~"PARITY ";  B~"ERROR~ ";  %                               14636000        
-         GO TO MESSAGE;   %                                             14636100        
-EOF:     INFO~"END FO ";  B~"FILE~  ";  %                               14637000        
-         GO TO MESSAGE;   %                                             14639000        
-EOT:     INFO~"FILE TO";  B~"O SMALL";  I~"~      ";  %                 14640000        
-         GO TO MESSAGE;                                                 14641000        
+                   PURGELOCK ; %                                   %740-14632900        
+                                                                   %740-14633000        
+ GO TO FUNCTION [CODE] ;  %                                        %740-14634000        
+                                                                   %740-14635000        
+PARITY:  INFO~"PARITY ";  B~"ERROR~ ";  %                          %740-14636000        
+         GO TO MESSAGE;   %                                        %740-14636100        
+EOF:     INFO~"END FO ";  B~"FILE~  ";  %                          %740-14637000        
+         GO TO MESSAGE;   %                                        %740-14639000        
+EOT:     INFO~"FILE TO";  B~"O SMALL";  I~"~      ";  %            %740-14640000        
+         GO TO MESSAGE;                                            %740-14641000        
      ::  % AT PURGELOCK, GO TO RDATA SHOULD BE TO MESSAGE ON WORD BOUNDY14641999        
-RDATA:   INFO~"DATA ER";  B~"ROR, FM";  T~"T=R,~  ";  %                 14642000        
+RDATA:   INFO~"DATA ER";  B~"ROR, FM";  T~"T=R,~  ";  %            %740-14642000        
+         GO TO MESSAGE;   %                                        %740-14642100        
+SELERR:  INFO~"INVALID";  B~" OPERAT";  T~"ION ON~";  %            %740-14643000        
+         %                                                         %740-14643100        
+MESSAGE:    FPB~PRT[P1MIX,3];  FIB~M[P(.TANK,LOD).[33:15]-3];      %740-14644000        
+            IF FIB[5].[1:1] THEN INFO ~ -" INV" OR M;  %           %740-14644400        
+            STREAM ( X ~ INFO,  B,  T,    % THESE 3 MUST BE THIS ORDER  14645000        
+                     Z ~ 0,  Q ~ TANK!0,  %                        %740-14645400        
+                     F ~ IF TANK=0 THEN 0 ELSE [FPB[FIB[4].[13:11]]],   14645600        
+                     D ~( CODE ~ GETSPACE(12,2,0) +2)  ); %        %740-14645800        
+            BEGIN DS ~ LIT "-";  SI ~ LOC X;  %                    %740-14646000        
+                  IF SC  = 0 THEN  % MESSAGES WITH NEW WORDING     %740-14646200        
+                  BEGIN  3(  SI~SI+1;  % CHARS IN INFO, B & T IN STACK  14646400        
+                     7( IF SC!"~" THEN DS~CHR ELSE JUMP OUT 2 TO L) );  14646600        
+                     L:  DS~LIT " ";  %                            %740-14646800        
+                  END ELSE  % UNCHANGED MESSAGES                   %740-14647000        
+                  BEGIN  SI~SI+5;  DS~3 CHR;  SI~LOC X;            %740-14647200        
+                     IF SC!"8" THEN DS ~ 11 LIT  %                 %740-14647400        
+            "WRITE TU 0 "  %                                       %740-14647600        
+                     ELSE IF SC=@30 THEN DS ~ 10 LIT  % "INV"      %740-14648000        
+            "ALID USER "  %                                        %740-14648200        
+                     ELSE IF SC=@20 THEN DS ~ 10 LIT  %            %740-14648400        
+            " WRT/SEEK "  %                                        %740-14648600        
+                  END;  %  NEXT, OPTIONALLY ADD <FILE SPECIFIER>   %740-14649000        
+                  Q( SI~F;  X~DI;  DI~LOC Z;  %                    %740-14650000        
+                     IF 8 SC!DC THEN  % MFID ! "0000000"           %740-14650200        
+                       BEGIN  SI~F;  SI~SI+1;  DI~X;  %            %740-14650400        
+                         DS~7 CHR;  DS~LIT "/";  X~DI;  %          %740-14650600        
+                       END;  %                                     %740-14650800        
+                     DI~X;  SI~SI+1;  DS~7 CHR  );  %              %740-14651000        
+                  DS ~ 2 LIT ":~";  %                              %740-14654000        
+            END OF STREAM;  %                                      %740-14655000        
+            TERMINATE(P1MIX); TERMINALMESSAGE((-CODE));%                14658000        
+DISKSPACE:OPEN:CLOSE: GO TO INITIATE;%                                  14659000        
+ $ SET OMIT = DATACOM                                                   14660499        
+ SEEKDC:READC:READSOURGHT:DCBUFRLS:DCWRITER:FINDBUF:COBOLDCWR:          14660500        
+              GO INITIATE;                                              14660525        
+ $ POP OMIT                                                             14660526        
+ $ SET OMIT = NOT(DATACOM)                                              14660999        
+              GO INITIATE;     ::                                       14670600        
+PURGELOCK:  SAVEWORD ~ SAVEWORD OR TWO(ROW);   % RDATA USED TO FOLLOW   14671000        
+            GO TO RDATA;  ::  % SPACE NEEDS TO BE ON WORD BOUNDARY %740-14673000        
+SPACE:      FIB~M[P(.TANK,LOD).[33:15]-3]; LOC~FIB[15].[25:5];%         14675000        
+            BLASTQ(LOC);%                                               14676000        
+            FPB~[MEMORY[5]]&3[23:46:2]&ROW[22:1:1];%                    14677000        
+            ROW~ABS(ROW);%                                              14678000        
+            WHILE (ROW~ROW-1)}0 DO INFO~WAITIO(FPB,@40,LOC);%           14679000        
+                   GO TO INITIATE;     ::                               14680000        
+REFILL:     FIB~M[(TANK~P(.TANK,LOD).[33:15])-3];%                      14681000        
+            CODE~FIB[13].[10:9]-1;%                                     14682000        
+            LOC~FIB[19].[33:15]-FIB[16].[33:15];%                       14683000        
+            FPB~MEMORY[FIB[16] INX 0+ROW];%                             14684000        
+            INFO~FPB.[18:15];%                                          14685000        
+            FOR I~1 STEP 1 UNTIL CODE DO%                               14686000        
+            BEGIN IOREQUEST(FLAG(FIB[19]&(INFO+LOC)[33:33:15]),%        14687000        
+                            FIB[16]&INFO[33:33:15],FPB);%               14688000        
+                  MEMORY[TANK]~MEMORY[TANK]&0[2:2:1]&0[19:19:1]%        14689000        
+                                  &0[26:26:7]&INFO[33:33:15];%          14690000        
+                  STREAM(CODE,T~MEMORY[TANK],TANK);%                    14691000        
+                  BEGIN SI~TANK; SI~SI+8; DS~CODE WDS;%                 14692000        
+                        SI~LOC T; DS~WDS;%                              14693000        
+                  END;%                                                 14694000        
+                  INFO~MEMORY[INFO+ROW].[18:15];%                       14695000        
+            END;%                                                       14696000        
+                   GO TO INITIATE;     ::                               14697000        
+READLABEL:  FIB~M[(TANK~P(.TANK,LOD).[33:15])-3];%                      14698000        
+            LOC~FIB[15].[25:5];%                                        14699000        
+            BLASTQ(LOC);%                                               14700000        
+            P(WAITIO((FIB[5].[44:1]|(M[TANK-2].[8:10]-1) INX M[TANK-2]) 14701000        
+                      &M[TANK][21:21:4],@37700000,LOC),DEL);            14702000        
+            STREAM(Y:=0:X:=0;X1:=0,X2:=0,Z:=M[TANK-2]);                 14702025        
+              BEGIN  DI:=LOC X; DS:=24 LIT "VOL1HDR1HDR2EOF1EOF2EOV1";  14702050        
+                     DI:=LOC X;                                         14702100        
+                     6(TALLY:=TALLY+1;                                  14702150        
+                     SI:=Z;                                             14702200        
+                     IF 4 SC=DC THEN                                    14702250        
+                     JUMP OUT TO A);                                    14702300        
+                     TALLY:=0;                                          14702350        
+              A:                                                        14702400        
+                     Y:=TALLY;                                          14702450        
+              END;                                                      14702500        
+            IF (USASI:=P)>0 THEN                                        14702550        
+            USASITAPE(M[TANK-2].[CF],USASI,3,LOC,FIB[5].[44:1]);        14702600        
+            P(WAITIO([M[5]]&3[23:46:2]&(NOT FIB[5])[22:44:1],           14703000        
+                     @37700000,LOC),DEL);                               14703100        
+                   GO TO INITIATE;     ::                               14704000        
+IOREQ:      FPB~MEMORY[(IF (INFO~NFLAG(MEMORY[P(TANK,DUP,[M],INX,PRL)]))14705000        
+                       .[22:1] THEN 2 ELSE NOT 1) INX INFO];%           14706000        
+      IOREQUEST(FINAL,INFO,FPB);%                                       14707000        
+      MEMORY[TANK]~MEMORY[TANK]&0[26:26:7]&0[19:47:1];%                 14708000        
+      GO TO INITIATE;%                                                  14709000        
+ $ SET OMIT = NOT(DATACOM )                                             14709099        
+::                                                                      14709300        
+ROTATE:     TANK~P(.TANK,LOD).[33:15];%                                 14710000        
+      STREAM(T~M[TANK],N~ROW-1,D~TANK);%                                14711000        
+      BEGIN SI~D; SI~SI+8; DS~N WDS; SI~LOC T; DS~WDS END;%             14712000        
+IF M[TANK].[3:5]=16 THEN                                                14712100        
+IF M[TANK].[24:1] THEN                                                  14712200        
+IF (I~P(M[TANK-3],14,COC))!0 THEN                                       14712300        
+    BEGIN                                                               14712350        
+    PHYL ~ TANK INX M;                                                  14712400        
+    FOR LOC ~ ROW-1 STEP -1 UNTIL 0 DO                                  14712450        
+         BEGIN                                                          14712500        
+         INFO ~ NFLAG(PHYL[LOC]);    %[19:2]=0  THEN I/O IN-PROCESS     14712510        
+         IF (B~M[INFO INX NOT(2+(INFO.[19:2]=0))])!0 THEN               14712550        
+              BEGIN                                                     14712600        
+ $ SET OMIT = NOT(DATACOM )                                             14712649        
+              IF (I~I-1) { 0 THEN                                       14712750        
