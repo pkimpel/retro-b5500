@@ -11992,3 +11992,84 @@ IF (I~P(M[TANK-3],14,COC))!0 THEN                                       14712300
               BEGIN                                                     14712600        
  $ SET OMIT = NOT(DATACOM )                                             14712649        
               IF (I~I-1) { 0 THEN                                       14712750        
+                   LOC ~ -1;                                            14712800        
+              END;                                                      14712850        
+         END;                                                           14712900        
+    END;                                                                14712950        
+      GO TO INITIATE;%                                                  14713000        
+END COM11;%                                                             14714000        
+ $ SET OMIT = NOT(DATACOM )                                             14715000        
+ PROCEDURE DISPLAY(X); VALUE X; REAL X;%                                14719000        
+         BEGIN REAL T;                                                  14720000        
+              STREAM(X:J~JARROW[P1MIX],P1MIX,%                          14721000        
+                   Y ~T~SPACE(25));%                                    14722000        
+                   BEGIN DS ~ LIT "#";%                                 14723000        
+                        2(DS ~ J; SI ~ SI+1; DS ~ 7 CHR; J ~ SI;%       14724000        
+                   L:        SI ~ SI-1;%                                14725000        
+                             IF SC = " " THEN%                          14726000        
+                                  BEGIN DI ~ DI-1; GO TO L END;%        14727000        
+                             DS ~ LIT "/";);%                           14728000        
+                        DI ~ DI-1; DS ~ LIT "=";%                       14729000        
+                   SI~LOC P1MIX; DS~2DEC; P1MIX~DI; DI~DI-2;            14730000        
+                   DS~FILL; DI~P1MIX; DS~2LIT": ";                      14730500        
+                        SI ~ X;%                                        14731000        
+                   H:   4(40(IF SC="~" THEN JUMP OUT 2 TO HH;           14732000        
+                        DS~CHR)); HH:                                   14733000        
+                        J ~ DI; DI ~ DI+8; SI~J;%                       14734000        
+                   S:   SI ~ SI-1; IF SC = " " THEN GO TO S;%           14735000        
+                        SI ~ SI+1; J ~ SI; DI ~ J; DS ~ LIT "~";%       14736000        
+                        X~ DI;                                          14737000        
+                   END;                                                 14738000        
+              X~ (((X~P) INX 0) -T)|8+X.[30:31]-1;                      14739000        
+              SPOUT(P(X,T));                                            14740000        
+         END;%                                                          14741000        
+PROCEDURE  COM13 ;%                                                     15060000        
+         BEGIN%                                                         15061000        
+%   COBOL  IO  INTERFACE COMMUNICATE%                                   15062000        
+         REAL  CODE = -4, REEL = -6 ;%                                  15063000        
+         NAME  FLOC = -5 ;%                                             15064000        
+         ARRAY FIB [*];%                                                15065000        
+         REAL T, COB68;                                                 15066000        
+         LABEL L0,L1,L2,L3,L4,L5,L6,L7,L8,L9,L10,L11,L12,L13,L14,L15,%  15067000        
+                   L15,L17;%                                            15068000        
+         SWITCH  TYPE ~ L0,L1,L2,L3,L4,L5,L6,L7,L8,L9,L10,L11,%         15069000        
+                        L12,L13,L14,L15,L16,L17;%                       15070000        
+         DEFINE INOUT=FIB[13].[27:1]#,DIREC=FIB[13].[25:1]#,%           15071000        
+              SORTFILE=FIB[14].[7:1]#,LABELSOMITTED=FIB[4].[2:1]#;%     15072000        
+         COB68 ~ (FIB ~ *(FLOC)).[8:10] = 22;                           15073000        
+         GO TO TYPE[CODE];%                                             15074000        
+    L0:%                                                                15075000        
+         DO UNTIL FALSE;%                                               15076000        
+    L1:%                                                                15077000        
+    L2:%                                                                15078000        
+    L3:%                                                                15079000        
+         INOUT~CODE!3;  DIREC~ CODE=2;%                                 15080000        
+         IF NOT COB68 THEN                                              15080900        
+         IF FIB[5].[46:2]=3 THEN BEGIN%                                 15081000        
+         FIB[18].[18:15]~FIB[18].[3:15];%                               15082000        
+         IF CODE=3 THEN                                                 15082100        
+         FIB[18].[3:15]~FIB[18].[33:15]+FIB[18].[3:15]; END;%           15083000        
+         NT1:=FLOC INX 3;                                               15084000        
+         P(0,STF,PRT[P1MIX,8],STS);                                     15085000        
+         FILEOPEN(1,NT1);                                               15086000        
+    L16:%                                                               15088000        
+    L17:%                                                               15089000        
+         DO UNTIL FALSE;%                                               15090000        
+    L5:  L6:L7:L8:L9:L10:L11:L12:L13:L14:L15:%                          15091000        
+         DO UNTIL FALSE;%                                               15092000        
+    L4:%                                                                15093000        
+         CODE ~ IF (CODE~ABS(REEL))=0 THEN 6 ELSE%                      15094000        
+                   (IF CODE=1 THEN 7 ELSE%                              15095000        
+              (IF CODE=2 THEN 10 ELSE%                                  15096000        
+              (IF CODE=4 THEN @22 ELSE                         %KRUNCH  15097000        
+              (IF CODE=64 THEN @52 ELSE 0))));                 %KRUNCH  15097500        
+         IF (T~FIB[4].[8:4])!2 AND T!4 AND T!8 THEN CODE~0;%            15098000        
+         IF T=4 AND  CODE=0 THEN CODE~10  ;%                            15099000        
+         FILECLOSE(( FLOC INX 3 )& CODE[18:33:15]);%                    15100000        
+         IF CODE=0 OR CODE=10 OR CODE=@22 THEN FIB[5].[42:1]~1          15101000        
+              ELSE FIB[5].[40:2]~(CODE=7)|2+1;%                         15102000        
+         IF NOT COB68 THEN                                              15102900        
+         IF FIB[5].[46:2]=3 THEN BEGIN%                                 15103000        
+         FIB[18].[3:15]~FIB[18].[18:15];FIB[18].[18:15]~0 END;%         15104000        
+         GO TO INITIATE;%                                               15105000        
+         END  COM13;%                                                   15106000        
