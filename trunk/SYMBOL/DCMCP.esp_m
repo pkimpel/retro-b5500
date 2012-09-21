@@ -12073,3 +12073,65 @@ PROCEDURE  COM13 ;%                                                     15060000
          FIB[18].[3:15]~FIB[18].[18:15];FIB[18].[18:15]~0 END;%         15104000        
          GO TO INITIATE;%                                               15105000        
          END  COM13;%                                                   15106000        
+PROCEDURE REELCHANGER(U);                                               15110000        
+VALUE U; REAL U;                                                        15110100        
+%                                                                       15110200        
+%    THE PURPOSE OF THIS ROUTINE IS TO ALLOW REEL CHANGE FOR            15110300        
+%    OUTPUT TAPE FILES BY OPERATOR REQUEST. THIS ROUTINE IS             15110400        
+%    INITIATED FROM THE SPO WITH A KEYBOARD INPUT REQUEST OF            15110500        
+%    "RC" FOLLOWED BY A THREE CHARACTER TAPE UNIT IDENTIFIER.           15110600        
+%                                                                       15110700        
+%    IF THE WRITEPARITYREELSWITCH ROUTINE IS RUNNING                    15110800        
+%    CONCURRENTLY WHEN THE "RC" MESSAGE IS RECEIVED,                    15110900        
+%    THEN THIS ROUTINE WILL ABORT. OTHERWISE IT WILL                    15111000        
+%    CALL WRITEPARITYREELSWITCH IN ORDER TO AFFECT THE                  15111100        
+%    NECESSARY REEL CHANGE.                                             15111200        
+%                                                                       15111300        
+%    THE PARAMETER IS USED AS FOLLOWS:                                  15111400        
+%       U          THE LOGICAL UNIT NUMBER OF THE TAPE UNIT TO SWITCH   15111500        
+%                                                                       15111600        
+BEGIN                                                                   15111700        
+     REAL RCW=+0, MKSW=-2;                                              15111800        
+     REAL MIX,TOPIOD,T2;                                                15111900        
+%                                                                       15112000        
+%    THE LOCAL VARIABLES ARE USED AS FOLLOWS:                           15112100        
+%    REALS                                                              15112200        
+%       MIX        MIX INDEX OF JOB USING TAPE UNIT U                   15112300        
+%       TOPIOD     LOCATION OF TOP I/O DESCRIPTOR IN TANK               15112400        
+%       T2         TEMPORARY                                            15112500        
+%                                                                       15112600        
+     LABEL RESETJAR,ERROROUT,EXIT;                                      15112700        
+ $ SET OMIT = NOT(PACKETS)                                              15112800        
+     DEFINE UNITNO = PSEUDOMIX[MIX]#;                                   15112900        
+ $ POP OMIT                                                             15113000        
+     MIX ~ RDCTABLE[U].[8:6];                                           15113100        
+     TOPIOD ~ PRNTABLE[U].[15:15];                                      15113200        
+     IF (MIX=0) OR (TOPIOD=0) OR TERMSET(MIX) THEN GO ERROROUT;         15113300        
+     JAR[MIX,9] ~ (*P(DUP)) & 1[1:47:1];                                15113400        
+     IF JAR[MIX,9].SYSJOBF = LIBMAINCODE THEN                           15113500        
+     BEGIN                                                              15113700        
+          STREAM(A~TINU[U], T~T2~SPACE(4));                             15113800        
+          BEGIN                                                         15113900        
+               DS ~ 23 LIT"#REEL CHANGE MARKED ON ";                    15114000        
+               SI ~ LOC A; SI ~ SI+5; DS ~ 3 CHR; DS ~ LIT"~";          15114100        
+          END;                                                          15114200        
+          SPOUTER(T2,UNITNO,1);                                         15114300        
+          GO EXIT;                                                      15114400        
+     END;                                                               15114500        
+     IF NOTERMSET(MIX) THEN PRTROW[MIX].[PSF] ~ 2;                      15114600        
+     COMPLEXSLEEP(NOT(STOPSET(MIX)) AND UNIT[U].[FF]=@77777);           15114700        
+     % IF UNIT NOT ASSIGNED AT THIS POINT THEN                          15114800        
+     % WRITEPARITYREELSWITCH HAS ALREADY BEEN RUN.                      15114900        
+     IF RDCTABLE[U].[8:6]=0 OR TERMSET(MIX) THEN GO RESETJAR;           15115000        
+     T2~NFLAG(M[TOPIOD])&TINU[U][3:3:5];                                15115100        
+     P(WRITEPARITYREELSWITCH(T2,1),DEL);                                15115200        
+RESETJAR:                                                               15115300        
+     IF NOTERMSET(MIX) THEN JAR[MIX,9] ~ (*P(DUP)) & 0[1:47:1];         15115400        
+     GO EXIT;                                                           15115500        
+ERROROUT:                                                               15115600        
+     STREAM(T~T2~SPACE(3));                                             15115700        
+          DS ~ 21 LIT"#REEL CHANGE ABORTED~";                           15115800        
+     SPOUTER(T2,UNITNO,1);                                              15115900        
+EXIT:                                                                   15116000        
+     KILL([MKSW]);                                                      15116100        
+END REELCHANGER;                                                        15116200        
