@@ -12135,3 +12135,74 @@ ERROROUT:                                                               15115600
 EXIT:                                                                   15116000        
      KILL([MKSW]);                                                      15116100        
 END REELCHANGER;                                                        15116200        
+ BOOLEAN PROCEDURE CONQUER(C,N,L,S,G);                                  15168000        
+ VALUE C,N,L,S,G;                                                       15168100        
+         REAL C,N,L; ARRAY S[*];                                        15169000        
+ INTEGER G;                                                             15169100        
+         BEGIN ARRAY B=C[*];%                                           15170000        
+              REAL T,I=T;%                                              15171000        
+              LABEL X;%                                                 15172000        
+                   IF G THEN                                            15172500        
+              IF N|L > 512 THEN GO TO X;%                               15173000        
+              IF (T ~ GETSPACE(N|L,2,3)) = 0 THEN%                      15174000        
+                   BEGIN IF NOT G THEN P(0,RTN);                        15175000        
+              X:   IF NOT N THEN                                        15175900        
+                             BEGIN G~CONQUER(C,N~N DIV 2,L,N INX S,1);  15176000        
+                                   G~CONQUER(S INX N,N,L,X,1);          15177000        
+                                   P(1,RTN);                            15177800        
+                                  P(XIT);%                              15178000        
+                             END;%                                      15179000        
+                        T ~ GETSPACE(L,2,1);%                           15180000        
+                   END;%                                                15181000        
+              B ~ [M[T+2]]&L[8:38:10]&C[18:33:15];%                     15182000        
+              N ~ N-1;%                                                 15183000        
+              FOR I ~ 0 STEP 1 UNTIL N DO%                              15184000        
+                   BEGIN S[I] ~ B;%                                     15185000        
+                        B ~ L INX B;%                                   15186000        
+                   END;%                                                15187000        
+              CONQUER~1;                                                15187500        
+         END;%                                                          15188000        
+ BOOLEAN PROCEDURE PRTGAMES(BUFF,MIX); VALUE BUFF,MIX; REAL BUFF,MIX;   15400000        
+    COMMENT PRTGAMES IS THE BUSINESS END OF "IN" OR "OT" MESSAGES;      15401000        
+    BEGIN REAL NX,INDEX,DATA;                                           15402000        
+ $ SET OMIT = NOT(PACKETS)                                              15402499        
+         DEFINE UNITNO = PSEUDOMIX[MIX]#;                               15402500        
+ $ POP OMIT                                                             15402501        
+         LABEL ECH, X;;;                                                15403000        
+         STREAM(BUFF,G~MIX=63,F~BUFF<0,D~[DATA],I~[INDEX]);%       %844-15404000        
+         BEGIN SI~BUFF;                                                 15405000        
+         L:   IF SC=" " THEN BEGIN SI~SI+1; GO L END;                   15406000        
+             G(IF SC!" " THEN IF SC!"~" THEN IF SC!"=" THEN        %844-15406100        
+               BEGIN TALLY~TALLY+1; SI~SI+1 END);                  %844-15406200        
+              4(IF SC!" " THEN IF SC!"~" THEN IF SC!"=" THEN            15407000        
+                BEGIN TALLY~TALLY+1; SI~SI+1; END);                     15408000        
+              I~TALLY; DI~DI+8; DI~DI-I; SI~SI-I; DS~I CHR;             15409000        
+              F(                                                        15410000        
+         M:     IF SC=" " THEN BEGIN SI~SI+1; GO M END;                 15411000        
+                IF SC!"=" THEN BEGIN E:DI~DI-1;DS~LIT""";JUMP OUT END;  15412000        
+                SI~SI+1;                                                15413000        
+         N:     IF SC=" " THEN BEGIN SI~SI+1; GO N END; TALLY~0;        15414000        
+                8(IF SC}"0" THEN BEGIN TALLY~TALLY+1; SI~SI+1 END       15415000        
+                  ELSE JUMP OUT); IF SC!" " THEN IF SC!"~" THEN GO E;   15416000        
+                I~TALLY; DI~D; SI~SI-1; DS~I OCT);                      15417000        
+         END; IF M[X!63 THEN BEGIN % NOT ABSOLUTE CORE ADDRESS     %844-15418000        
+         IF (INDEX AND NOT @1070707)!0 THEN GO ECH;                %844-15418500        
+         IF JARROW[MIX]=0 THEN GO ECH;                                  15419000        
+         IF (NX~INDEX.[45:3]&INDEX[42:39:3]&INDEX[39:33:3]&INDEX[38:29:115420000        
+                                          ]){20 THEN GO ECH;            15421000        
+         IF (PRTROW[MIX] INX NX)>M[PRT[MIX,10].MOM-3].[CF] THEN GO ECH; 15422000        
+         IF BUFF<0 THEN                                                 15423000        
+              IF P(PRT[MIX,NX],TOP,XCH,DEL) THEN PRT[MIX,NX]~DATA ELSE  15424000        
+                   GO ECH ELSE                                          15425000        
+              BEGIN; STREAM(J~JARROW[MIX],MIX,INDEX,R~[PRT[MIX,NX]],    15426000        
+                        D~ DATA~ BUFF.[15:15]-1);                       15427000        
+                   BEGIN SI~J;  SI~SI+1;  DS~LIT" ";%               %WF 15428000        
+                        DS~7 CHR; DS~LIT"/";  SI~SI+1;%             %WF 15428100        
+                        DS~7CHR; DS~LIT"="; SI~LOC MIX; DS~2DEC;        15429000        
+                        MIX~DI; DI~DI-2; DS~FILL; DI~MIX;               15429500        
+                        DS~3LIT":R+"; SI~SI+4; DS~4 CHR; D~DI; DI~DI-4; 15430000        
+                        DS~3 FILL; DI~D; DS~LIT"="; SI~R;               15431000        
+                        IF SB THEN % DESCRIPTOR:TYPE OCTAL              15432000        
+                          16(DS~3 RESET; 3(IF SB THEN DS~SET ELSE DS~   15433000        
+                                           RESET; SKIP SB)) ELSE        15434000        
+                          DS~8 DEC;                                     15435000        
