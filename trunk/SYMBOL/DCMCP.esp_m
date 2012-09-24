@@ -12206,3 +12206,79 @@ END REELCHANGER;                                                        15116200
                           16(DS~3 RESET; 3(IF SB THEN DS~SET ELSE DS~   15433000        
                                            RESET; SKIP SB)) ELSE        15434000        
                           DS~8 DEC;                                     15435000        
+                        DS~LIT"~"; DI~D; DI~DI+1; DS~7 FILL;            15436000        
+                   END;                                                 15437000        
+                   SPOUTER(DATA INX M[BUFF.[15:15]-2],UNITNO,1);        15437100        
+              END; %                                               %844-15438000        
+         END ELSE BEGIN % ABSOLUTE CORE ADDRESS OUTPUT REQUIRED    %844-15438010        
+              IF (INDEX AND NOT @707070707)!0 THEN GO ECH ELSE     %844-15438020        
+              BEGIN %                                              %844-15438030        
+                  NX~INDEX.[45:3]&INDEX[42:39:3]&INDEX[39:33:3]    %844-15438040        
+                     &INDEX[36:27:3]&INDEX[33:21:3];%              %844-15438050        
+                  STREAM(INDEX,R~NX,D~DATA~BUFF.[15:15]-1);%       %844-15438060        
+                  BEGIN DS~15 LIT" CORE LOCATION "; SI~LOC INDEX;% %844-15438070        
+                        SI~SI+3; DS~5 CHR; D~DI; DI~DI-5; DS~4 FILL;%   15438080        
+                        DI~D; DS~LIT"="; SI~R;%                    %844-15438090        
+                        16(DS~3 RESET; 3(IF SB THEN DS~SET ELSE    %844-15438105        
+                           DS~RESET; SKIP SB));                    %844-15438120        
+                        DS~LIT"~"; DS~D; DI~DI+1; DS~15 FILL;      %844-15438130        
+                   END;%                                           %844-15438140        
+                   SPOUT(DATA INX M[BUFF.[15:15]-2]);%             %844-15438150        
+               END %                                               %844-15438160        
+         END; GO X; %                                              %844-15438170        
+    ECH: PRTGAMES~1;                                                    15439000        
+    X:   END;                                                           15440000        
+ $ SET OMIT = NOT(DCLOG AND DATACOM )                                   15440999        
+PROCEDURE WHATMCP(BUFF); REAL BUFF; % FORMATS WM MESSAGE                15500000        
+    BEGIN REAL X;                                                       15501000        
+          DEFINE BUFFSIZE=36#; % INCREASE THIS WITH MORE OPTIONS        15501100        
+    X:=(BUFF:=SPACE(BUFFSIZE+30))+BUFFSIZE;                             15501200        
+    DISKWAIT(-X,30,MCPNAMESEG);                                         15501300        
+    STREAM(ML:=MARKLEVEL,PL:=PATCHLEVEL,LL:=LOCALLEVEL                  15501500        
+           ,N:=X+20+2|SYSNO,A:=BUFF);                                   15501600        
+    BEGIN DS~LIT" "; SI~N; SI~SI+1; DS~7 CHR; DS~LIT"/";                15502000        
+         SI~SI+1; DS~7 CHR; DS~6 LIT" MARK ";                           15502100        
+         SI:=LOC ML; IF SC GEQ " " THEN;                                15502200        
+         8(IF TOGGLE THEN IF SC="0" THEN SI:=SI+1 ELSE DS:=CHR          15502300        
+           ELSE DS:=CHR); DS:=LIT".";                                   15502400        
+         SI:=LOC PL; IF SC GEQ " " THEN;                                15502500        
+         6(IF TOGGLE THEN IF SC="0" THEN SI:=SI+1 ELSE DS:=CHR          15502600        
+           ELSE DS:=CHR); DS:=2CHR;                                     15502700        
+         SI:=LOC LL; IF SC GEQ " " THEN;                                15502800        
+         8(IF TOGGLE THEN IF SC="0" THEN SI:=SI+1 ELSE DS:=CHR          15502900        
+           ELSE DS:=CHR);                                               15503000        
+         DS ~ 10 LIT " INCLUDES ";%                                     15504000        
+ $ SET OMIT = NOT(AUTODUMP)                                             15504999        
+         DS ~ 9 LIT "AUTODUMP,";                                        15505000        
+ $ POP OMIT                                                             15505001        
+ $ SET OMIT = NOT(AUXMEM)                                               15505499        
+ $ SET OMIT = NOT(BREAKOUT)                                             15505999        
+ $ SET OMIT = NOT(B6500LOAD)                                            15506499        
+ $ SET OMIT = NOT(CHECKLINK OR DEBUGGING)                               15506999        
+ $ SET OMIT = NOT(DATACOM)                                              15507499        
+ $ SET OMIT = NOT(DCLOG AND DATACOM)                                    15507999        
+ $ SET OMIT = NOT(DCSPO AND DATACOM)                                    15508499        
+ $ SET OMIT = NOT(DEBUGGING)                                            15508999        
+ $ SET OMIT = NOT(DFX)                                                  15509499        
+ $ SET OMIT = NOT(DISKLOG)                                              15509999        
+ $ SET OMIT = NOT(DKBNODFX)                                             15510499        
+ $ SET OMIT = NOT(DUMP OR DEBUGGING)                                    15510999        
+         DS ~  5 LIT "DUMP,";                                           15511000        
+ $ POP OMIT                                                             15511001        
+ $ SET OMIT = NOT(MONITOR)                                              15511499        
+ $ SET OMIT = NOT(NEWLOGGING)                                           15511999        
+ $ SET OMIT = NOT(PACKETS)                                              15512499        
+         DS ~  8 LIT "PACKETS,";                                        15512500        
+ $ POP OMIT                                                             15512501        
+ $ SET OMIT = NOT(RJE AND DATACOM)                                      15512999        
+ $ SET OMIT = NOT(SAVERESULTS)                                          15513499        
+ $ SET OMIT = NOT(SEPTICTANK)                                           15513999        
+ $ SET OMIT = NOT(SHAREDISK)                                            15514499        
+ $ SET OMIT = NOT(STATISTICS)                                           15514999        
+ $ SET OMIT = NOT(WORKSET)                                              15515499        
+         DS ~  8 LIT "WORKSET,";                                        15515500        
+ $ POP OMIT                                                             15515501        
+ $ SET OMIT = NOT(WORKSETMONITOR)                                       15515999        
+         DS ~ 15 LIT "WORKSETMONITOR,";                                 15516000        
+ $ POP OMIT                                                             15516001        
+         DI ~ DI-1;                                                     15523000        
