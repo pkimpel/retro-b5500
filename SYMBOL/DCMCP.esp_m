@@ -12282,3 +12282,89 @@ PROCEDURE WHATMCP(BUFF); REAL BUFF; % FORMATS WM MESSAGE                15500000
          DS ~ 15 LIT "WORKSETMONITOR,";                                 15516000        
  $ POP OMIT                                                             15516001        
          DI ~ DI-1;                                                     15523000        
+         A~ DI;                                                         15524000        
+         SI~ A;    DI~ A;                                               15525000        
+         IF SC!"," THEN                                                 15526000        
+              DI~ DI- 9;                                                15527000        
+         DS~ LIT "~"                                                    15528000        
+         END;                                                           15529000        
+    IF M[3].[1:1] THEN % CM HAS BEEN DONE                               15530000        
+    BEGIN DISKWAIT(-X,30,0);                                            15530100        
+         STREAM(N~X+10+5|SYSNO,BUFF);                                   15530200        
+         BEGIN SI~BUFF; SI~SI+16;                                       15530300        
+         L:   IF SC NEQ "~" THEN BEGIN SI~SI+1; GO L; END;              15530400        
+              BUFF~SI; DI~BUFF;                                         15530500        
+              DS~18 LIT"-NEXT MCP WILL BE ";                            15530600        
+              SI~N; SI~SI+1; DS~7 CHR; DS~LIT"/";                       15530700        
+              SI~SI+1; DS~7 CHR; DS~LIT"~";                             15530800        
+    END; END;                                                           15530900        
+    END WHATMCP;                                                        15533000        
+PROCEDURE WHATINTRINSIC(BUFF); VALUE BUFF; REAL BUFF;                   15534000        
+    BEGIN                                                               15535000        
+    REAL SIZE,LOC,INTWORD,WI,I;                                         15536000        
+    LABEL EXIT;                                                         15537000        
+    IF INTSIZE=0 THEN                                                   15539000        
+         BEGIN     ;                                                    15540000        
+         STREAM(BUFF);  DS~14 LIT "NO INTRINSICS~";                     15541000        
+         GO EXIT;                                                       15542000        
+         END;                                                           15543000        
+    COMMENT MAKE WI INTRINSIC PRESENT;                                  15544000        
+    SIZE := (INTWORD:=INTRNSC[INTRNSC[0]]) INX 0;                       15545000        
+    LOC := SPACE(SIZE);                                                 15546000        
+ $ SET OMIT = NOT(AUXMEM)                                               15547000        
+    DISKWAIT(-LOC,SIZE,INTWORD.[6:27]);                                 15548000        
+    DISKWAIT(-(I:=SPACE(30)),30,0);                                     15549000        
+    STREAM(X:=I+13+5|SYSNO,LOK:=LOC,BUFF);                              15550000        
+       BEGIN                                                            15551000        
+       SI:=LOK; SI:=SI+8;                                               15552000        
+       10(SI:=SI+1;                                                     15552100        
+       7(IF SC="~" THEN JUMP OUT 2 TO L1;                               15552200        
+         IF SC="@" THEN SI:=SI+1 ELSE DS:=CHR));                        15552300        
+   L1: SI:=X;DS:=3LIT" (";                                              15552400        
+       SI:=SI+1; DS:=7 CHR;DS:=LIT"/";                                  15552500        
+       SI:=SI+1; DS:=7 CHR;DS:=2LIT")~";                                15552600        
+       END STREAM;                                                      15552700        
+   FORGETSPACE(LOC); FORGETSPACE(I);                                    15552800        
+EXIT:                                                                   15554000        
+    END WHATINTRNSIC;                                                   15555000        
+PROCEDURE COREPRINT(Q); VALUE Q; REAL Q;                                15600000        
+    COMMENT : THIS PROCEDURE COMPUTES AND TYPES THE AMOUNTS OF SAVE     15600050        
+              AND OVERLAYABLE CORE IN USE FOR A GIVEN MIX OR ALL MIXES; 15600100        
+    COMMENT : Q.[1:1] = 1 IF ALL MIXES DESIRED                          15600120        
+              Q.[CF] = MIX, Q.[9:9] = REMOTE TU/BU;                     15600140        
+    BEGIN REAL LINK,SIZE,D;%                                            15600300        
+         ARRAY C[*];                                                    15600400        
+         INTEGER A,N;                                                   15600500        
+         LABEL NXT;                                                     15600600        
+         C ~ [M[SPACE(MIXMAX+1)]] & (MIXMAX+1) [8:38:10];               15600800        
+         FOR A ~ 0 STEP 1 UNTIL MIXMAX DO C[A] ~ 0;%                    15600950        
+         C[0].[FF] ~ A ~ MSTART;%                                       15601000        
+    WHILE A!0 DO                  % STEP THROUGH MEMORY LINKS           15601150        
+         BEGIN IF (LINK ~ M[A]).[1:1] THEN GO TO NXT;                   15601200        
+              SIZE ~ LINK.[CF] - A;                                     15601400        
+              IF LINK.[2:1] THEN SIZE ~ 0 & SIZE [CTF];% SAVE           15601500        
+              C[LINK.[9:6]] ~ (*P*DUP)) + SIZE;%                        15601600        
+         NXT: A ~ LINK.[CF];%                                           15602200        
+         END;%                                                          15602300        
+         A ~ -1; WHILE (A~A+1) { MIXMAX DO%                             15602400        
+         BEGIN IF Q.[1:1] OR Q.[CF] = A THEN IF C[A] ! 0 THEN           15602500        
+              BEGIN; STREAM(N~N~C[A].[FF],D~[SIZE]);%                   15602600        
+                   BEGIN SI ~ LOC N; DS ~ 8 DEC; END;%                  15602620        
+                   STREAM(N~N~C[A].[CF],D~[LINK]);%                     15602640        
+                   BEGIN SI ~ LOC N; DS ~ 8 DEC; END;%                  15602660        
+                   JOBMESS(A,Q,":SAVE=",SIZE," OLAY=",LINK);%           15602680        
+              END;%                                                     15602690        
+         END;%                                                          15602700        
+         IF Q.[1:1] THEN% DO TOTAL                                      15603900        
+         BEGIN P(C[0]);                                                 15604000        
+              FOR A~1 STEP 1 UNTIL MIXMAX DO P(C[A],ADD);%              15604100        
+              N ~ P; N ~ N.[FF] + N.[CF];%                              15604200        
+              STREAM(N,D~D~SPACE(4));%                                  15604250        
+              BEGIN SI ~ LOC N; DS ~ 18 LIT "TOTAL MEM IN USE= ";       15604275        
+                   DS ~ 5 DEC; DS ~ LIT "~";                            15604300        
+                   DI ~ DI = 6; DS ~ 4 FILL;%                           15604400        
+              END STREAM;                                               15604500        
+              SPOUT(D & Q[9:9:9]);%                                     15604600        
+         END;                                                           15604700        
+         FORGETSPACE(C INX 0);                                          15604800        
+    END COREPRINT;                                                      15604900        
