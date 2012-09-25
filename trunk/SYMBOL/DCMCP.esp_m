@@ -12368,3 +12368,127 @@ PROCEDURE COREPRINT(Q); VALUE Q; REAL Q;                                15600000
          END;                                                           15604700        
          FORGETSPACE(C INX 0);                                          15604800        
     END COREPRINT;                                                      15604900        
+ $ SET OMIT = NOT(AUXMEM)                                               15604999        
+PROCEDURE LOGCOMMENT (Q); VALUE Q; REAL Q;                              15610000        
+    BEGIN                                                               15611000        
+REAL     I,J,K,L;                                                       15612000        
+ARRAY    LOG[*];                                                        15613000        
+         L ~ SPACE(72);                                                 15614000        
+         STREAM (Q:D~L+5);                                              15615000        
+         BEGIN  SI ~ Q;                                                 15616000        
+         L:   IF SC!"~" THEN BEGIN DS ~ CHR; GO TO L; END;              15617000        
+              5(DS ~ 8 LIT " "); DI ~ DI-32; Q ~ DI;                    15618000        
+         END;                                                           15619000        
+         I ~ P.[33:15]; LOG ~ [M[L]] & (I=L+4)[8:38:10];                15620000        
+         LOG[3] ~ I ~ I-L-5; % NUMBER OF WORDS IN COMMENT               15621000        
+         WHILE (J:=XCLOCK+P(RTR)) GEQ WITCHINGHOUR DO MIDNIGHT;         15622000        
+         LOG[2] ~ DATE.[18:30];                                         15623000        
+         LOG[1] ~ J;                                                    15624000        
+         LOG[0] ~ 99;                                                   15625000        
+         LOGSPACE([LOG[0]],I+9);                                        15626000        
+         FORGETSPACE(LOG);                                              15627000        
+    END;                                                                15628000        
+REAL PROCEDURE KEYINSCAN(KTR,MIX); REAL KTR,MIX;                        16034900        
+   BEGIN                                                                16035000        
+   REAL TYPE=+1, TBLADDR;                                               16035100        
+   % SCANS IN PUT BUFFER FROM SPO                                       16035200        
+   % RETURNS ERROR FLAG IN MIX.[1:3] ...                                16035300        
+   %   MIX.[1:1]=FLAG FOR EMPTY BUFFER (GROUP MARK ONLY)                16035400        
+   %   MIX.[2:1]=FLAG FOR NO INFO AFTER MIX INDEX                       16035500        
+   %   MIX.[3:1]=FLAG FOR QMARK (CC) INPUT AS FIRST CHARACTER           16035600        
+   %   KTR IS INITIALLY THE ADDRESS OF SPO INPUT BUFFER                 16035700        
+   %   KTR IS ASSIGNED NEXT CHARACTER LOCATION AFTER SCAN               16035800        
+   % TYPE.[CF] IS ASSIGNED TABLE LOCATION (MIXMSG OR INFOMSG)           16035900        
+   % TYPE.[1:5] IS ASSIGNED PROCEDURE NUMBER                            16036000        
+   % TYPE.[6:6] IS ASSIGNED MIXCODE                                     16036100        
+   STREAM(MIX:=63, BUFF:=KTR :); % SCAN INPUT BUFFER                    16036200        
+      BEGIN                                                             16036300        
+      SI:=BUFF;                                                         16036400        
+      DI:=BUFF; DI:=DI-1; DS:=LIT"<"; % BACKSPACE CHARACTER             16036500        
+      8(60(IF SC="~" THEN % END OF INPUT STRING                         16036600        
+         BEGIN                                                          16036700        
+         DS:=CHR; JUMP OUT 2 TO L;                                      16036800        
+         END;                                                           16036900        
+      IF SC="<" THEN % BACK SPACE CHARACTER                             16037000        
+         BEGIN                                                          16037100        
+         DI:=DI-1; IF SC NEQ DC THEN DI:=DI-1;                          16037200        
+         END                                                            16037300        
+      ELSE DS:=CHR)); % END OF BACKSPACE CHECK                          16037400        
+   L: SI:=BUFF; DI:=LOC MIX; % CHECK FOR MIX INDEX                      16037500        
+  L1: IF SC=" " THEN                                                    16037600        
+         BEGIN                                                          16037700        
+         SI:=SI+1; GO TO L1;                                            16037800        
+         END;                                                           16037900        
+      IF SC="~"  THEN % EMPTY BUFFER                                    16038000        
+         BEGIN                                                          16038100        
+         SKIP DB; DS:=SET; GO TO XXIT; % MIX.[1:1]=EMPTY BUFFER FLAG    16038200        
+         END;                                                           16038300        
+      IF SC LSS "0" THEN GO TO XXIT; % NO MIX INDEX, SET "MIX"=63       16038400        
+      IF SC GTR "9" THEN % QUESTION MARK, SET MIX.[3:1]                 16038500        
+         BEGIN                                                          16038600        
+         SI:=SI+1; SKIP 3DB; DS:=SET; GO TO XXIT; % MIX.[3:1]=QMARK FLAG16038700        
+         END;                                                           16038800        
+      SI:=SI+1; IF SC LSS "0" THEN GO TO ONE;                           16038900        
+      IF SC LEQ "9" THEN                                                16039000        
+         BEGIN                                                          16039100        
+         SI:=SI-1; DS:=2OCT;                                            16039200        
+         END                                                            16039300        
+      ELSE                                                              16039400        
+         BEGIN                                                          16039500        
+ ONE:    SI:=SI-1; DS:=OCT;                                             16039600        
+         END;                                                           16039700        
+  L2: IF SC=" " THEN % SCAN TO NEXT VISIBLE CHARACTER                   16039800        
+         BEGIN                                                          16039900        
+         SI:=SI+1; GO TO L2;                                            16040000        
+         END;                                                           16040100        
+      IF SC="~" THEN % NO INFORMATION AFTER MIX INDEX                   16040200        
+         BEGIN                                                          16040300        
+         DI:=LOC MIX; SKIP 2DB; DS:=SET; % MIX.[2:1]=ERROR FLAG         16040400        
+         END;                                                           16040500        
+XXIT: DI:=BUFF; DI:=DI-8; DS:=8LIT"INV KBD ";                           16040600        
+      BUFF:=SI; % SAVE LOCATION OF NEXT CHARACTER IN BUFFER             16040700        
+      END STREAM;                                                       16040800        
+   IF P([KTR],STD,[MIX],SND).[1:3]=0 THEN % NOT QMARK,EMPTY OR ERROR    16040900        
+      BEGIN                                                             16041000        
+      TBLADDR:=TYPE:=SPACE(KEYMSGSZ);                                   16041100        
+      DISKWAIT(-TYPE,KEYMSGSZ,MESSAGETABLE[2].[22:26]);                 16041110        
+      STREAM(TBBL:=TYPE, BUFF:=KTR : TOG:=(MIX NEQ 63));                16041200        
+         BEGIN                                                          16041300        
+         SI:=TBBL; SI:=SI+1; DI:=BUFF; DI:=DI+2;                        16041400        
+   NEXT: CI:=CI+TOG; GO TO NOMIX;                                       16041500        
+    MIX: IF SC GEQ 1 THEN GO TO OK ELSE          % MIX SPECIFIED        16041550        
+            BEGIN                                %    BUT THIS IS NOT   16041600        
+            SI:=SI+8; GO TO MIX;                 %    A MIX MESSAGE.    16041650        
+            END;                                                        16041700        
+  NOMIX: IF SC GTR 1 THEN                        % MIX NOT SPECIFIED    16041750        
+            BEGIN                                %    BUT THIS IS A     16041800        
+            SI:=SI+8; GO TO NOMIX;               %    MIX MESSAGE.      16041850        
+            END;                                                        16041900        
+     OK: SI:=SI+1; DI:=DI-2;                                            16042000        
+         IF SC="~" THEN % END OF TABLE                                  16042100        
+            BEGIN                                                       16042200        
+            TBBL:=TALLY; GO TO XT;                                      16042300        
+            END;                                                        16042400        
+         IF 2 SC!DC THEN                         % NOT MATCHING ENTRY   16042450        
+            BEGIN                                                       16042500        
+            SI:=SI+5; GO TO NEXT;                                       16042550        
+            END;                                                        16042600        
+         TOG:=DI; DI:=LOC TBBL; SI:=SI+2; DS:=2 OCT;  % SWITCH VALUE    16042650        
+         SI:=SI-4; DI:=LOC TBBL; DS:=2CHR; % PROCED  & MIXCODE          16042700        
+         SI:=TOG;                                                       16042800        
+      L: IF SC=" " THEN                                                 16042900        
+            BEGIN                                                       16043000        
+            SI:=SI+1; GO TO L;                                          16043100        
+            END;                                                        16043200        
+         BUFF:=SI;                                                      16043300        
+     XT: END STREAM STATEMENT;                                          16043400        
+      P( [KTR],STD, .TYPE,STD);                                         16043500        
+      FORGETSPACE(TBLADDR);                                             16043550        
+      END % IF NOT QMARK, EMPTY OR ERROR                                16043600        
+   ELSE  % QMARK, EMPTY OR ERROR                                        16043620        
+   IF MIX.[3:1] THEN  % QMARK                                           16043640        
+   BEGIN MIX:=63;                                                       16043660        
+      TYPE:=VCC&@104[1:37:11];                                          16043680        
+   END                                                                  16043700        
+   ELSE TYPE:=0;                                                        16043750        
+   END PROCEDURE KEYINSCAN;                                             16043800        
