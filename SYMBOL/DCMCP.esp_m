@@ -12492,3 +12492,100 @@ XXIT: DI:=BUFF; DI:=DI-8; DS:=8LIT"INV KBD ";                           16040600
    END                                                                  16043700        
    ELSE TYPE:=0;                                                        16043750        
    END PROCEDURE KEYINSCAN;                                             16043800        
+PROCEDURE KEYIN0(B,KTRX); VALUE B,KTRX; REAL B,KTRX;                    16044000        
+                                                                        16045000        
+   BEGIN                                                                16046000        
+   INTEGER ZZSTA;                                                       16047000        
+   REAL BUFF, KTR, TYPE, MIX, A, I, J, K;                               16048000        
+   REAL U = A;                                                          16048100        
+   ARRAY BUFA = BUFF[*];                                                16049000        
+                                                                        16050000        
+                                                                        16051000        
+                                                                        16052000        
+   LABEL DSM, CUTY, FORGET, ERROR, EXIT                                 16053000        
+         ,AX   ,IL   ,QT   ,OU   ,WY   ,RY   ,DS   ,TF   ,RM   ,DP      16054000        
+         ,DD   ,ST   ,CM   ,SV   ,CL   ,BK   ,TI   ,PR   ,RO   ,IT      16055000        
+         ,WI   ,RXIT ,RC                                                16056000        
+                                                                        16057000        
+                                                                        16058000        
+                                                                        16059000        
+         ;                                                              16060000        
+   SWITCH S:= ERROR                                                     16061000        
+              ,AX   ,IL   ,IL   ,QT   ,OU   ,WY   ,RY   ,DS   ,DS   ,TF 16062000        
+              ,TF   ,RM   ,DP   ,DD   ,DD   ,DD   ,ST   ,CM   ,SV   ,CL 16063000        
+              ,BK   ,RXIT ,RY   ,RXIT ,RXIT ,RI   ,PR   ,RO   ,RO   ,IT 16064000        
+              ,WI   ,RXIT ,RC                                           16065000        
+                                                                        16066000        
+                                                                        16067000        
+                                                                        16068000        
+              ;                                                         16069000        
+   SUBROUTINE SPOIT; M[BUFF-1]:=B AND @7570000000000;                   16070000        
+                                                                        16071000        
+   BUFF  :=KTRX.[15:15];                                                16072000        
+   MIX   :=KTRX.[ 9:6 ];                                                16073000        
+   TYPE  :=KTRX.[ 2:7 ];                                                16074000        
+   KTR   :=KTRX.[15:33];                                                16075000        
+   ZZSTA :=0 & (M[BUFF-2])[9:9:9];                                      16076000        
+   GO TO S[TYPE];                                                       16077000        
+AX:                                                                     16078000        
+   I := BUFF;                                                           16079000        
+   GO TO RXIT;                                                          16080000        
+IL:                                                                     16081000        
+   IF (I:=ANVIL(TYPE=2,KTR)) GTR PSEUDOMAXT THEN % IL=2, UL=3           16082000        
+      IF I LSS 70 THEN GO TO ERROR;                                     16083000        
+   TYPE := 2; % IL                                                      16084000        
+   IF I GTR PSEUDOMAXT THE BUFF:=1;                                     16085000        
+   GO TO RXIT;                                                          16086000        
+OU:                                                                     16087000        
+   STREAM(A:="LP" : B:="MT", C:="DK", D:="CP", KTR);                    16088000        
+      BEGIN                                                             16089000        
+      SI := KTR;                                                        16090000        
+      DI := LOC A; DI := DI+6;                                          16091000        
+      TALLY:=1; IF SC="~" THEN GO TO XT;                                16092000        
+      TALLY:=2; IF 2 SC=DC THEN GO TO XT;                               16093000        
+      TALLY:=3; SI:=SI-2; DI:=DI+14; IF 2 SC=DC THEN GO TO XT;          16094000        
+      TALLY:=4; SI:=SI-2; DI:=DI+6;  IF 2 SC=DC THEN GO TO XT;          16095000        
+      TALLY:=5; SI:=SI-2; DI:=DI+6;  IF 2 SC=DC THEN GO TO XT;          16096000        
+      TALLY:=0;                                                         16097000        
+  XT: A := TALLY;                                                       16098000        
+      END;                                                              16099000        
+   IF(I:=P) = 0 THEN GO TO ERROR;                                       16100000        
+   GO TO RXIT;                                                          16101000        
+WY:                                                                     16102000        
+   IF MIX LSS 63 THEN GO TO RXIT; % <MIX> WY                            16103000        
+   SPOIT;                                                               16104000        
+   A:=0;                                                                16105000        
+   FOR I:=1 STEP 1 UNTIL MIXMAX DO                                      16106000        
+      IF *[JARROW[I]] NEQ 0 THEN                                        16107000        
+         IF REPLY[I] LSS 0 THEN REPLY[A:=I]:=VWY;                       16108000        
+   IF A!0 THEN GO TO FORGET;                                            16109000        
+   M[BUFF-1]:=FLAG(-"NULL   ");                                         16109500        
+   GO TO ERROR;                                                         16110000        
+DS:                                                                     16111000        
+   IF MIX=63 THEN % "DS A/B"                                            16112000        
+      BEGIN                                                             16113000        
+      NAMEID(J,KTR); NAMEID(K,KTR); NAMEID(K,KTR);                      16114000        
+      FOR MIX:=1 STEP 1 UNTIL MIXMAX DO                                 16115000        
+         IF *[JARROW[MIX]] NEQ 0 THEN                                   16116000        
+            IF (J EQV ABS(JAR[MIX,0]))=(NOT 0) THEN                     16117000        
+               IF (K EQV ABS(JAR[MIX,1]))=NOT 0 THEN                    16118000        
+                  BEGIN                                                 16118100        
+                  TABCNT[MIX]:=TABCNT[MIX]+1;                           16118200        
+                  GO TO DSM;                                            16118300        
+                  END;                                                  16118400        
+      GO TO ERROR; % NOT FOUND                                          16119000        
+      END; % IF MIX NOT GIVEN                                           16120000        
+   IF JARROW[MIX] NEQ 0 THEN                                            16121000        
+      BEGIN                                                             16122000        
+ DSM: JAR[MIX,6].[1:1]:=((TYPE=9) OR (TYPE=20)); % DS=8,SD=9,CL=20      16123000        
+      TERMINATE(MIX&(IF B.[9:9] GTR 0 THEN 61 ELSE 3)[CTF]);            16124000        
+      HALT;                                                             16125000        
+      NOPROCESSTOG:= NOPROCESSTOG-1;                                    16126000        
+      GO TO FORGET;                                                     16127000        
+      END;                                                              16128000        
+   GO TO ERROR;                                                         16129000        
+TF:                                                                     16130000        
+   IF TYPE=11 THEN SPOIT; % SF=11                                       16131000        
+   CHANGEFACTOR(KTR,TYPE=10); % TF=10,SF=11                             16132000        
+   GO TO EXIT;                                                          16133000        
+RM:                                                                     16134000        
