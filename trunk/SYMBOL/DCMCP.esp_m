@@ -12589,3 +12589,110 @@ TF:                                                                     16130000
    CHANGEFACTOR(KTR,TYPE=10); % TF=10,SF=11                             16132000        
    GO TO EXIT;                                                          16133000        
 RM:                                                                     16134000        
+   TYPE:=TYPE&B[9:9:9];                                                 16135000        
+   GO TO RXIT;                                                          16136000        
+DP:                                                                     16137000        
+ $ SET OMIT = NOT(DEBUGGING OR DUMP)                                    16138000        
+   STREAM(A:="LP", KTR : B:="MT");                                      16139000        
+      BEGIN                                                             16140000        
+      SI := KTR;                                                        16141000        
+      DI := LOC A; DI := DI + 6; TALLY:=1;                              16142000        
+      IF 2 SC=DC THEN GO TO XT;                                         16143000        
+      DI := DI + 22; SI := SI - 2; TALLY:=2;                            16144000        
+      IF 2 SC=DC THEN GO TO XT;                                         16145000        
+      TALLY:=0;                                                         16146000        
+  XT: A := TALLY; KTR := SI;                                            16147000        
+      END STREAM STATEMENT;                                             16148000        
+   IF (A:=P([KTR],STD))=0 THEN GO TO ERROR;                             16149000        
+   IF A=1 THEN                                                          16150000        
+ $ SET OMIT = DEBUGGING                                            %763-16150099        
+     GO TO ERROR;                                                  %763-16150100        
+ $ POP OMIT                                                        %763-16150101        
+ $ SET OMIT = NOT DEBUGGING                                        %763-16150999        
+   DUMPCORE(KTR&BUFF[15:33:15]);                                        16154000        
+ $ POP OMIT                                                             16154001        
+   GO TO EXIT;                                                          16155000        
+DD:                                                                     16156000        
+ $ SET OMIT = NOT(DEBUGGING)                                            16157000        
+   GO TO FORGET;                                                        16161000        
+ST:                                                                     16162000        
+   IF -REPLY[MIX] = (VWY&VOK[36:42:6]) OR JARROW[MIX]=0 THEN GO ERROR;  16163000        
+ $ SET OMIT = NOT(WORKSET)                                              16163100        
+   IF JAR[MIX,9].[3:1] THEN GO TO ERROR; % ALREADY ST-ED                16163200        
+ $ POP OMIT % WORKSET                                                   16163300        
+   IF NOTERMSET(MIX) THEN PRTROW[MIX].[PSF]:=2;                         16164000        
+   GO TO FORGET;                                                        16166000        
+CM:                                                                     16167000        
+   CHANGEMCP(KTR);                                                      16168000        
+   GO TO EXIT;                                                          16169000        
+SV:                                                                     16170000        
+   SAVETHEUNIT(KTR);                                                    16171000        
+   GO FORGET;                                                           16172000        
+QT:                                                                     16173000        
+      IF MIX LSS 63 THEN % MIX INDEX SPECIFIED                          16176000        
+   CUTY: IF JAR[MIX,9].SYSJOBF = PRNPBTCODE THEN                        16178000        
+            BEGIN                                                       16180000        
+            REPLY[MIX]:=TYPE;                                           16181000        
+            STREAM(A:=0, B:=0 : KTR);                                   16187000        
+               BEGIN                                                    16188000        
+               SI:=KTR;                                                 16189000        
+               IF SC="+" THEN TALLY:=2 ELSE                             16190000        
+               IF SC="-" THEN TALLY:=3 ELSE GO XT;                      16191000        
+         B2:   SI:=SI+1; IF SC=" " THEN GO TO B2;                       16192000        
+               B:=TALLY; TALLY:=0;                                      16193000        
+               6(IF SC LSS "0" THEN JUMP OUT; SI:=SI+1; TALLY:=TALLY+1);16194000        
+               KTR:=TALLY; DI:=LOC A; SI:=SI-KTR; DS:=KTR OCT;          16195000        
+         XT:   END STREAM STATEMENT;                                    16196000        
+            NT2:=P;                                                     16197000        
+            NT1:=P;                                                     16198000        
+            PRT[MIX,@25]:=5&NT1[9:24:24]&NT2[1:46:2];                   16199000        
+            GO TO FORGET;                                               16200000        
+            END                                                         16201000        
+         ELSE GO TO ERROR;             % NOT PRNPBT                     16202000        
+CL:                                    % MUST FOLLOW QT                 16203000        
+   IF (I:=UNITIN(TINU, KTR)) LSS 64 THEN % UNIT ] MTX                   16204000        
+      IF (MIX:=RDCTABLE[I].[8:6]) NEQ 0 THEN                            16205000        
+         BEGIN                                                          16206000        
+         TABCNT[MIX]:=TABCNT[MIX]+1;                                    16206100        
+         IF TYPE=4 THEN GO TO QT ELSE GO TO DSM;                        16206200        
+         END;                                                           16206300        
+ $ SET OMIT = NOT(SHAREDISK)                                            16207000        
+   IF TYPE=4 OR (I GTR 29) THEN GO TO ERROR; % QT OR PSEUDO UNIT        16215000        
+   LABELTABLE[I] := P(DUP,LOC,SSP);    % MARK IT NOT IN USE             16216000        
+   MIX:=63;                                                             16217000        
+   GO TO RY;                                                            16218000        
+BK:                                                                     16219000        
+ $ SET OMIT = NOT(DATACOM AND DCSPO)                                    16220000        
+      BEGIN                                                             16223000        
+      IF (I:= MESSAGEHOLDER.[CF]) NEQ 0 THEN                            16224000        
+      IF (J:= M[I].[FF]) NEQ 0 THEN                                     16225000        
+         BEGIN                                                          16226000        
+            DO BEGIN                                                    16227000        
+            A:=M[J];                                                    16228000        
+            IF (A.[4:5]=0 AND MIX=63) OR (A.[4:5]=MIX AND MIX NEQ 63)   16229000        
+ $ SET OMIT = NOT(DATACOM AND DCSPO)                                    16230000        
+            THEN                                                        16232000        
+               BEGIN                                                    16233000        
+               M[I]:= P(DUP,LOC)&A[18:18:15];                           16234000        
+               NUMESS:= NUMESS-1;                                       16235000        
+               FORGETSPACE(J+1);                                        16236000        
+               END ELSE I:=J;                                           16237000        
+            END UNTIL (J:= A.[FF])=0;                                   16238000        
+         MESSAGEHOLDER.[FF]:= I;                                        16239000        
+         END;                                                           16240000        
+      END;                                                              16241000        
+   MIX:=63;                                                             16241500        
+   GO TO FORGET;                                                        16242000        
+RY:                                                                     16243000        
+   IF (I:=FORMESS(KTR,TYPE=VFM)) LSS 0 THEN GO TO FORGET;               16244000        
+   IF I GTR 31 THEN GO TO ERROR ELSE GO TO RXIT;                        16245000        
+TI:                                                                     16246000        
+   TIMEUSED(BUFF-1,MIX);                                                16247000        
+   GO TO EXIT;                                                          16248000        
+PR:                                                                     16249000        
+   SPOIT;                                                               16250000        
+   CHANGEPRIORITY(KTR,MIX);                                             16251000        
+   GO TO EXIT;                                                          16252000        
+RO:                                                                     16253000        
+   CHANGEOPTION(KTR,TYPE=28); % RO=28,SO=29                             16254000        
+   GO TO EXIT;                                                          16255000        
