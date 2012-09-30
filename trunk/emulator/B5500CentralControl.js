@@ -554,22 +554,6 @@ B5500CentralControl.prototype.halt = function() {
 };
 
 /**************************************/
-B5500CentralControl.prototype.load = function() {
-    /* Initiates a Load operation to start the system */
-
-    if ((this.PA && this.PA.busy) || (this.PB && this.PB.busy)) {
-        this.clear();
-        if (this.P1) {
-            this.LOFF = 1;
-            if (this.IO1) {             // !! not sure about I/O selection here
-                this.IO1.initiateLoad(this.cardLoadSelect);
-                this.loadComplete();
-            }
-        }
-    }
-};
-
-/**************************************/
 B5500CentralControl.prototype.loadComplete = function loadComplete() {
     /* Monitors an initial load I/O operation for complete status.
     When complete, initiates P1 */
@@ -593,24 +577,106 @@ B5500CentralControl.prototype.loadComplete = function loadComplete() {
 };
 
 /**************************************/
+B5500CentralControl.prototype.load = function() {
+    /* Initiates a Load operation to start the system */
+
+    if ((this.PA && this.PA.busy) || (this.PB && this.PB.busy)) {
+        this.clear();
+        if (this.P1) {
+            this.LOFF = 1;
+            if (this.IO1) {             // !! not sure about I/O selection here
+                this.IO1.initiateLoad(this.cardLoadSelect);
+                this.loadComplete();
+            }
+        }
+    }
+};
+
+/**************************************/
+B5500CentralControl.prototype.loadTest = function(buf, loadAddr) {
+    /* Loads a test codestream into memory starting at B5500 word address
+       "loadAddr" from the ArrayBuffer "buf". Returns the number of B5500
+       words loaded into memory */
+    var addr = loadAddr;            // starting B5500 memory address
+    var bytes = buf.byteLength;
+    var data = new DataView(buf);   // use DataView() to avoid problems with littleendians.
+    var power = 0x10000000000;
+    var word = 0;
+    var x = 0;
+
+    function store(addr, word) {
+        /* Stores a 48-bit word at the specified B5500 address.
+           Invalid addresses and parity errors are ignored */
+        var modNr = addr >>> 12;
+        var modAddr = addr & 0x0FFF;
+
+        if (modNr < 8 && cc.MemMod[modNr]) {
+            this.MemMod[modNr][modAddr] = word;
+        }
+    }
+
+    if (!this.poweredOn) {
+        throw "cc.loadTest: Cannot load with system powered off"
+    } else {
+        while (bytes > 6) {
+            store(addr, data.getUint32(x, false)*0x10000 + data.getUint16(x+4, false));
+            x += 6;
+            bytes -= 6;
+            if (++addr > 0x7FFF) {
+                break;
+            }
+        }
+        // Store any partial word that may be left
+        while (bytes > 0) {
+            word += data.getUint8(x, false)*power;
+            x++;
+            bytes--;
+            power /= 0x100;
+        }
+        store(addr, word);
+    }
+    return addr-loadAddr+1;
+};
+
+/**************************************/
+B5500CentrolControl.prototype.runTest(runAddr) {
+    /* Executes a test program previously loaded by this.loadTest on processor
+       P1. "runAddr" is the B5500 word address at which execution will begin
+       (typically 0x10 [octal 20]) */
+
+    this.clear();
+    this.loadTimer = null;
+    this.LOFF = 0;
+    this.P1.C = runAddr;                // starting execution address
+    this.P1.access(0x30);               // P = [C]
+    this.P1.T = this.fieldIsolate(this.P1.P, 0, 12);
+    this.P1.TROF = 1;
+    this.P1.L = 1;                      // advance L to the next syllable
+
+    // Now start scheduling P1 on the Javascript thread
+    this.P1.procTime = new Date().getTime()*1000;
+    this.P1.scheduler = setTimeout(this.P1.schedule, 0);
+}
+
+/**************************************/
 B5500CentralControl.prototype.configureSystem = function() {
     /* Establishes the hardware module configuration from the
     B5500SystemConfiguration module */
     var cfg = B5500SystemConfiguration;
     var x;
 
-    // !! inhibit for now // this.DD = new B5500DistributionAndDisplay();
+    // !! inhibit for now // this.DD = new B5500DistributionAndDisplay(this);
 
-    if (cfg.PA) {this.PA = new B5500Processor("A")};
-    if (cfg.PB) {this.PB = new B5500Processor("B")};
+    if (cfg.PA) {this.PA = new B5500Processor("A", this)};
+    if (cfg.PB) {this.PB = new B5500Processor("B", this)};
 
     this.PB1L = (cfg.PB1L ? 1 : 0);
 
     /*** enable once I/O exists ***
-    if (cfg.IO1) {this.IO1 = new B5500IOUnit("1")};
-    if (cfg.IO2) {this.IO2 = new B5500IOUnit("2")};
-    if (cfg.IO3) {this.IO3 = new B5500IOUnit("3")};
-    if (cfg.IO4) {this.IO4 = new B5500IOUnit("4")};
+    if (cfg.IO1) {this.IO1 = new B5500IOUnit("1", this)};
+    if (cfg.IO2) {this.IO2 = new B5500IOUnit("2", this)};
+    if (cfg.IO3) {this.IO3 = new B5500IOUnit("3", this)};
+    if (cfg.IO4) {this.IO4 = new B5500IOUnit("4", this)};
     ***/
 
     for (x=0; x<8; x++) {

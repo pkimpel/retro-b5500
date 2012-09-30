@@ -12767,3 +12767,171 @@ SS:                                                                     16391000
 BS:                                                                     16395000        
  $ SET OMIT = NOT(DCSPO AND DATACOM)                                    16396000        
    GO EXIT;                                                             16406000        
+SC:                                                                     16407000        
+ $ SET OMIT = NOT(DCSPO AND DATACOM)                                    16408000        
+    GO TO EXIT;                                                         16410000        
+RR:                                                                     16411000        
+ $ SET OMIT = NOT(DATACOM)                                              16412000        
+VQ:                                                                     16456000        
+ $ SET OMIT = NOT(DCSPO AND DATACOM)                                    16457000        
+   GO TO EXIT;                                                          16485000        
+CA:                                                                     16486000        
+ $ SET OMIT = NOT(AUXMEM)                                               16487000        
+   GO TO ERROR; % SPOUT AUX MESSAGE OR ERROR MESSAGE                    16489000        
+DT:                                                                     16490000        
+   SETDATE(KTR);                                                        16491000        
+   GO TO EXIT;                                                          16492000        
+WD:                                                                     16493000        
+   GIMEDATE(BUFF-1,1);                                                  16494000        
+   GO TO EXTI;                                                          16495000        
+TR:                                                                     16496000        
+   SETIMER(KTR);                                                        16497000        
+   GO TO EXIT;                                                          16498000        
+WT:                                                                     16499000        
+   TIMEOUT (BUFF-1);                                                    16500000        
+   GO TO EXIT;                                                          16501000        
+WM:                                                                     16502000        
+   FORGETSPACE(BUFF-1);                                                 16503000        
+   WHATMCP(BUFF);                                                       16503100        
+   BUFF:=BUFF+1; % FAKE OUT ERROR                                       16503200        
+   GO TO ERROR; % SPOUT MESSAGE                                         16504000        
+CC:                                                                     16505000        
+   A:=M[BUFF-3].[CF]-BUFF; % WDS IN MESSAGE                             16505100        
+   STREAM(BUFF, BL:=A>8, KTR:=(KTR:=SPACE(A+2)+2));                     16506000        
+      BEGIN                                                             16507000        
+      SI:=BUFF;                                                         16508000        
+      BL(36(DS:=2LIT" "); DI:=KTR);                                     16508100        
+      IF SC NEQ "~" THEN                                                16509000        
+         BEGIN                                                          16510000        
+         DS:=CHR;                                                       16511000        
+     L:  IF SC NEQ "~" THEN                                             16512000        
+            BEGIN                                                       16513000        
+            IF SC NEQ @14 THEN DS:=CHR ELSE SI:=SI+1;                   16514000        
+            GO TO L;                                                    16515000        
+            END;                                                        16516000        
+         END;                                                           16517000        
+      DS:=CHR;                                                          16518000        
+      END;                                                              16519000        
+   M[KTR-4].[9:6]:=0;                                                   16520000        
+   IF ABS(B) GTR 1 THEN                                                 16521000        
+      INDEPENDENTRUNNER(P(.CONTROLCARD),KTR&30[2:42:6]&ZZSTA[9:9:9],    16522000        
+                        192)                                            16522100        
+   ELSE INDEPENDENTRUNNER(P(.CONTROLCARD),KTR&25[2:42:6],192);          16523000        
+   GO TO FORGET;                                                        16524000        
+OL:                                                                     16525000        
+   OUTPUTLABEL(KTR);                                                    16526000        
+   GO TO EXIT;                                                          16527000        
+PB:                                                                     16528000        
+   PRINTBACKUP(KTR&[6:9:9]);                                            16529000        
+   GO TO EXIT;                                                          16530000        
+RN:                                                                     16531000        
+   SPOIT;                                                               16532000        
+   RUNTHEDECK(KTR);                                                     16533000        
+   GO TO EXIT;                                                          16534000        
+LD:                                                                     16535000        
+   STARTLOADN(KTR);                                                     16536000        
+   GO TO EXIT;                                                          16537000        
+RD:                                                                     16538000        
+   DECKREMOVER(KTR);                                                    16539000        
+   GO TO EXIT;                                                          16540000        
+FD:                                                                     16541000        
+   EXTERNALEND(KTR);                                                    16542000        
+   GO TO EXIT;                                                          16543000        
+SI:                                                                     16544000        
+ $ SET OMIT = NOT(STATISTICS)                                           16545000        
+   GO TO ERROR; % SPOUT MESSAGE                                         16576000        
+LR:                                                                     16577000        
+ $ SET OMIT = NOT(DCLOG AND DATACOM)                                    16578000        
+   GO TO FORGET;                                                        16580000        
+IN:                                                                     16580600        
+   KTR:=-KTR;                                                           16580800        
+OT:                                                                     16581000        
+ $ SET OMIT = NOT(BREAKOUT)                                             16582000        
+   IF PRTGAMES(KTR,MIX) THEN GO ERROR ELSE                              16588000        
+      IF KTR LSS 0 THEN GO FORGET ELSE GO EXIT;                         16589000        
+FE:                                                                     16590000        
+   J:= GETSPACE(35,9,0)+2;                                              16591000        
+   STREAM(KTR:D:=J+2);                                                  16592000        
+      BEGIN                                                             16593000        
+      SI:=KTR;                                                          16594000        
+      4(63(IF SC NEQ "~" THEN DS:=CHR ELSE JUMP OUT 2 TO LL));          16595000        
+  LL: DS:=LIT"~"; DI:=DI-1; KTR:=DI;                                    16596000        
+      END;                                                              16597000        
+   I:= P INX 0;                                                         16598000        
+   M[J]:= (I-J) DIV 5;                                                  16599000        
+   STREAM(DATE, A:=J+1);                                                16600000        
+      BEGIN                                                             16601000        
+      SI:=LOC DATE; DS:=8 OCT;                                          16602000        
+      END;                                                              16603000        
+   LINKUP(19,J);                                                        16604000        
+   GO TO FORGET;                                                        16605000        
+OC:                                                                     16606000        
+   LOGCOMMENT(KTR);                                                     16607000        
+   GO TO FORGET;                                                        16608000        
+SQ:                                                                     16609000        
+   STREAM(TYPE:=0:INFO1:="STOP0KN",INFO2:=@2567630000000000,            16609100        
+          KTR);                                                         16609200        
+   BEGIN                                                                16609300        
+        SI:=KTR; DI:=LOC INFO1; DI:=DI+1; TALLY:=1;                     16609400        
+        IF 4 SC=DC THEN GO TO EXT;                                      16609500        
+        SI:=SI-4; TALLY:=TALLY+1;                                       16609600        
+        IF 2 SC=DC THEN GO EXT;                                         16609700        
+        SI:=SI-2; TALLY:=TALLY+2;                                       16609800        
+        IF 4 SC=DC THEN GO TO EXT;                                      16609900        
+        TALLY:=TALLY+4;                                                 16610000        
+   EXT: TYPE:=TALLY;                                                    16610100        
+   END;                                                                 16610200        
+   IF P(M[P(.DISKSQUASH)],TOP) THEN IF P(P.[FF] AND P,DUP)!0 THEN       16610300        
+   P(.DISKSQUASH,STD) ELSE GO TO ERROR ELSE IF P(XCH)=8 THEN            16610400        
+   BEGIN                                                                16610500        
+        INDEPENDENTRUNNER(P(.DISKSQUASH),KTR,128);                      16610600        
+        GO TO EXIT;                                                     16610700        
+   END ELSE GO TO ERROR;                                                16610800        
+   GO TO FORGET;                                                        16610900        
+HS:                                                                     16611000        
+ $ SET OMIT = NOT SEPTICTANK                                            16611990        
+CS:                                                                     16613000        
+ $ SET OMIT = NOT SEPTICTANK                                            16613990        
+    GO TO EXIT;                                                         16615000        
+WK: % WORKSET REQUESTS                                                  16615100        
+ $ SET OMIT = NOT(WORKSET)                                              16615110        
+   WKSETVALUES(KTRX); GO TO EXIT;                                       16615200        
+ $ POP OMIT % WORKSET                                                   16615210        
+FORGET:                                                                 16689000        
+   STREAM(T:=BUFF-1);  DS:= LIT "~";                                    16689100        
+ERROR:                                                                  16689200        
+   SPOUT((BUFF-1) INX (0&ZZSTA[9:9:9]));                                16689300        
+EXIT:                                                                   16689400        
+   IF(MIX>0)AND(MIX{MIXMAX)THEN TABCNT[MIX]~TABCNT[MIX]-1;         %113-16689450        
+   END PROCEDURE KEYIN1;                                                16689500        
+PROCEDURE KEYIN2(KTRX); VALUE KTRX; REAL KTRX;                          16690000        
+                                                                        16690500        
+   BEGIN                                                                16691000        
+   REAL    RCW   =       + 0;                                           16691500        
+           REAL MSCW=-2;                                                16691550        
+   INTEGER ZZSTA = RCW   + 1;                                           16692000        
+   REAL    BUFF  = ZZSTA + 1,                                           16692500        
+           KTR   = BUFF  + 1,                                           16693000        
+           TYPE  = KTR   + 1,                                           16693500        
+           MIX   = TYPE  + 1,                                           16694000        
+           A     = MIX   + 1,                                           16694500        
+           I     = A     + 1,                                           16695000        
+           J     = I     + 1,                                           16695500        
+           K     = J     + 1,                                           16696000        
+           B     = K     + 1,                                           16696100        
+           R     = B     + 1,                                           16696200        
+           R1    = R     + 1,                                           16696300        
+           R2    = R1    + 1,                                           16696400        
+           R3    = R2    + 1,                                           16696500        
+           R4    = R3    + 1;                                           16696600        
+   REAL    UNITNO= R4    + 1;                                           16696650        
+   INTEGER INT1  = NT1      ,                                           16696700        
+           INT2  = A        ,                                           16696800        
+           INT3  = J        ,                                           16696900        
+           INT4  = R4       ;                                           16697000        
+   ARRAY   BUFA  = BUFF[*]  ,                                           16697100        
+           UT    = R3[*]                                                16697200        
+ $ SET OMIT = NOT SHAREDISK                                             16697300        
+           ;                                                            16697600        
+ $ SET OMIT = SHAREDISK                                                 16697700        
+   DEFINE  U     = AVTABLE# ;                                           16697800        
