@@ -12,8 +12,10 @@
 "use strict";
 
 /**************************************/
-function B5500DistributionAndDisplay() {
+function B5500DistributionAndDisplay(cc) {
     /* Constructor for the Distribution And Display module object */
+
+    this.cc = cc;                       // Reference back to Centrol Control module
 
     /* Global system modules */
 

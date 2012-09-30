@@ -29,10 +29,11 @@
 "use strict";
 
 /**************************************/
-function B5500Processor(procID) {
+function B5500Processor(procID, cc) {
     /* Constructor for the Processor module object */
 
     this.processorID = procID;          // Processor ID ("A" or "B")
+    this.cc = cc;                       // Reference back to Central Control module
     this.scheduler = null;              // Reference to current setTimeout id
     this.accessor = {                   // Memory access control block
         requestorID: procID,               // Memory requestor ID
@@ -122,65 +123,65 @@ B5500Processor.prototype.access = function(eValue) {
     case 0x02:                          // A = [S]
         acc.addr = this.S;
         acc.MAIL = (this.S < 0x0200 && this.NCSF);
-        cc.fetch(acc);
+        this.cc.fetch(acc);
         this.A = acc.word;
         this.AROF = 1;
         break;
     case 0x03:                          // B = [S]
         acc.addr = this.S;
         acc.MAIL = (this.S < 0x0200 && this.NCSF);
-        cc.fetch(acc);
+        this.cc.fetch(acc);
         this.B = acc.word;
         this.BROF = 1;
         break;
     case 0x04:                          // A = [M]
         acc.addr = this.M;
         acc.MAIL = (this.M < 0x0200 && this.NCSF);
-        cc.fetch(acc);
+        this.cc.fetch(acc);
         this.A = acc.word;
         this.AROF = 1;
         break;
     case 0x05:                          // B = [M]
         acc.addr = this.M;
         acc.MAIL = (this.M < 0x0200 && this.NCSF);
-        cc.fetch(acc);
+        this.cc.fetch(acc);
         this.B = acc.word;
         this.BROF = 1;
         break;
     case 0x06:                          // M = [M].[18:15]
         acc.addr = this.M;
         acc.MAIL = (this.M < 0x0200 && this.NCSF);
-        cc.fetch(acc);
+        this.cc.fetch(acc);
         this.M = ((acc.word % 0x40000000) >>> 15) & 0x7FFF;
         break;
     case 0x0A:                          // [S] = A
         acc.addr = this.S;
         acc.MAIL = (this.S < 0x0200 && this.NCSF);
         acc.word = this.A;
-        cc.store(acc);
+        this.cc.store(acc);
         break;
     case 0x0B:                          // [S] = B
         acc.addr = this.S;
         acc.MAIL = (this.S < 0x0200 && this.NCSF);
         acc.word = this.B;
-        cc.store(acc);
+        this.cc.store(acc);
         break;
     case 0x0C:                          // [M] = A
         acc.addr = this.M;
         acc.MAIL = (this.M < 0x0200 && this.NCSF);
         acc.word = this.A;
-        cc.store(acc);
+        this.cc.store(acc);
         break;
     case 0x0D:                          // [M] = B
         acc.addr = this.M;
         acc.MAIL = (this.M < 0x0200 && this.NCSF);
         acc.word = this.B;
-        cc.store(acc);
+        this.cc.store(acc);
         break;
     case 0x30:                          // P = [C]
         acc.addr = this.C;
         acc.MAIL = (this.C < 0x0200 && this.NCSF);
-        cc.fetch(acc);
+        this.cc.fetch(acc);
         this.P = acc.word;
         this.PROF = 1;
         break;
@@ -192,15 +193,15 @@ B5500Processor.prototype.access = function(eValue) {
     this.cycleCount += 6;               // assume 6 us memory cycle time (the other option is 4 usec)
     if (acc.MAED) {
         this.I |= 0x02;                 // set I02F - memory address/inhibit error
-        if (this.NCSF || this !== cc.P1) {
-            cc.signalInterrupt();
+        if (this.NCSF || this !== this.cc.P1) {
+            this.cc.signalInterrupt();
         } else {
             this.busy = 0;              // P1 invalid address in control state stops the proc
         }
     } else if (acc.MPED) {
         this.I |= 0x01;                 // set I01F - memory parity error
-        if (this.NCSF || this !== cc.P1) {
-            cc.signalInterrupt();
+        if (this.NCSF || this !== this.cc.P1) {
+            this.cc.signalInterrupt();
         } else {
             this.busy = 0;              // P1 memory parity in control state stops the proc
         }
@@ -216,7 +217,7 @@ B5500Processor.prototype.adjustAEmpty = function() {
         if (this.BROF) {
             if ((this.S >>> 6) == this.R || !this.NCSF) {
                 this.I |= 0x04;         // set I03F: stack overflow
-                cc.signalInterrupt();
+                this.cc.signalInterrupt();
             } else {
                 this.S++;
                 this.access(0x0B);      // [S] = B
@@ -255,7 +256,7 @@ B5500Processor.prototype.adjustBEmpty = function() {
     if (this.BROF) {
         if ((this.S >>> 6) == this.R || !this.NCSF) {
             this.I |= 0x04;             // set I03F: stack overflow
-            cc.signalInterrupt();
+            this.cc.signalInterrupt();
         } else {
             this.S++;
             this.access(0x0B);          // [S] = B
@@ -401,7 +402,7 @@ B5500Processor.prototype.streamSourceToDest = function(count, transform) {
         aBit = this.G*6;                // A-bit number
         bBit = this.K*6;                // B-bit number
         while (count) {
-            this.Y = cc.fieldIsolate(this.A, aBit, 6);
+            this.Y = this.cc.fieldIsolate(this.A, aBit, 6);
             transform(bBit, count)
             count--;
             if (bBit < 42) {
@@ -484,7 +485,7 @@ B5500Processor.storeForInterrupt = function(forTest) {
     if (this.CWMF) {
         temp = this.S;                  // get the correct TOS address from X
         this.S = (this.X % 0x40000000) >>> 15;
-        this.X = cc.fieldInsert(this.X, 18, 15, temp);
+        this.X = this.cc.fieldInsert(this.X, 18, 15, temp);
         if (this.AROF || forTest) {
             this.S++;
             this.access(0x0A);          // [S] = A
@@ -537,7 +538,7 @@ B5500Processor.storeForInterrupt = function(forTest) {
         this.access(0x03);              // B = [S]: get last RCW
         this.S = ((this.B % 0x40000000) >>> 15) & 0x7FFF;
         this.access(0x03);              // B = [S]: get last MSCW
-        this.R = cc.fieldIsolate(this.B, 6, 9);
+        this.R = this.cc.fieldIsolate(this.B, 6, 9);
         this.S = this.F;
     }
 
@@ -564,24 +565,24 @@ B5500Processor.storeForInterrupt = function(forTest) {
     this.BROF = 0;
     this.AROF = 0;
     if (forced) {
-        if (this === cc.P1) {
+        if (this === this.cc.P1) {
             this.T = 0x89;              // inject 0211=ITI into T register
         } else {
             this.T = 0;                 // idle the processor
             this.TROF = 0;
             this.PROF = 0;
             this.busy = 0;
-            cc.HP2F = 1;
-            cc.P2BF = 0;
-            if (cc.P2.scheduler) {
-                clearTimeout(cc.P2.scheduler);
-                cc.P2.scheduler = null;
+            this.cc.HP2F = 1;
+            this.cc.P2BF = 0;
+            if (this.cc.P2.scheduler) {
+                clearTimeout(this.cc.P2.scheduler);
+                this.cc.P2.scheduler = null;
             }
         }
         this.CWMF = 0;
     } else if (forTest) {
         this.CWMF = 0;
-        if (this === cc.P1) {
+        if (this === this.cc.P1) {
             this.access(0x05);          // B = [M]: load DD for test
             this.C = this.B % 0x7FFF;
             this.L = 0;
@@ -595,11 +596,11 @@ B5500Processor.storeForInterrupt = function(forTest) {
             this.TROF = 0;
             this.PROF = 0;
             this.busy = 0;
-            cc.HP2F = 1;
-            cc.P2BF = 0;
-            if (cc.P2.scheduler) {
-                clearTimeout(cc.P2.scheduler);
-                cc.P2.scheduler = null;
+            this.cc.HP2F = 1;
+            this.cc.P2BF = 0;
+            if (this.cc.P2.scheduler) {
+                clearTimeout(this.cc.P2.scheduler);
+                this.cc.P2.scheduler = null;
             }
         }
     }
@@ -764,11 +765,11 @@ B5500Processor.prototype.indexDescriptor = function() {
     this.adjustBFull();
     bw = this.B;
     xm = (bw % 0x8000000000);
-    xe = cc.fieldIsolate(bw, 3, 6);
+    xe = this.cc.fieldIsolate(bw, 3, 6);
 
     // Normalize the index, if necessary
     if (xe > 0) {                       // index is not an integer
-        if (cc.bit(bw, 2)) {            // index exponent is negative
+        if (this.cc.bit(bw, 2)) {            // index exponent is negative
             do {
                 xo = xm % 8;
                 xm = (xm - xo)/8;
@@ -786,7 +787,7 @@ B5500Processor.prototype.indexDescriptor = function() {
                     interrupted = 1;
                     if (this.NCSF) {
                         this.I = (this.I & 0x0F) | 0xC0;        // set I07/8: int-overflow
-                        cc.signalInterrupt();
+                        this.cc.signalInterrupt();
                     }
                 }
                 this.cycleCount++;
@@ -796,20 +797,20 @@ B5500Processor.prototype.indexDescriptor = function() {
 
     // Now we have an integerized index value in xm
     if (!interrupted) {
-        if (xm && cc.bit(bw, 1)) {      // oops... negative index
+        if (xm && this.cc.bit(bw, 1)) {      // oops... negative index
             interrupted = 1;
             if (this.NCSF) {
                 this.I = (this.I & 0x0F) | 0x90;                // set I05/8: invalid-index
-                cc.signalInterrupt();
+                this.cc.signalInterrupt();
             }
-        } else if (xm >= cc.fieldIsolate(bw, 8, 10)) {
+        } else if (xm >= this.cc.fieldIsolate(bw, 8, 10)) {
             interrupted = 1;            // oops... index out of bounds
             if (this.NCSF) {
                 this.I = (this.I & 0x0F) | 0x90;                // set I05/8: invalid-index
-                cc.signalInterrupt();
+                this.cc.signalInterrupt();
             }
         } else {                        // we finally have a valid index
-            this.A = cc.fieldInsert(aw, 33, 15, aw % 0x8000 + xm % 0x400);
+            this.A = this.cc.fieldInsert(aw, 33, 15, aw % 0x8000 + xm % 0x400);
             this.BROF = 0;
         }
     }
@@ -827,7 +828,7 @@ B5500Processor.prototype.presenceTest = function(word) {
     } else {
         if (this.NCSF) {
             this.I = (this.I & 0x0F) | 0x70;    // set I05/6/7: p-bit
-            cc.signalInterrupt();
+            this.cc.signalInterrupt();
         }
         return 0;
     }
@@ -941,7 +942,7 @@ B5500Processor.prototype.enterCharModeInline = function() {
             if (!this.NCSF) {
                 // NOTE: docs do not mention if this is inhibited in control state, but we assume it is
                 this.I = (this.I & 0x0F) | 0x70;    // set I05/6/7: p-bit
-                cc.signalInterrupt();
+                this.cc.signalInterrupt();
             }
         } else {
             this.S = bw % 0x8000;
@@ -955,8 +956,8 @@ B5500Processor.prototype.enterSubroutine = function(descriptorCall) {
     of an OPDC or DESC syllable. Also handles accidental entry */
     var aw = this.A;                    // local copy of word in A reg
     var bw;                             // local copy of word in B reg
-    var arg = cc.bit(aw, 5);            // descriptor argument bit
-    var mode = cc.bit(aw, 4);           // descriptor mode bit (1-char mode)
+    var arg = this.cc.bit(aw, 5);            // descriptor argument bit
+    var mode = this.cc.bit(aw, 4);           // descriptor mode bit (1-char mode)
 
     if (arg && !this.MSFF) {
         ; // just leave the PD on TOS
@@ -984,7 +985,7 @@ B5500Processor.prototype.enterSubroutine = function(descriptorCall) {
         if (arg) {
             this.F = this.S;
         } else {
-            this.F = cc.fieldIsolate(aw, 18, 15);
+            this.F = this.cc.fieldIsolate(aw, 18, 15);
         }
         this.AROF = 0;
         this.BROF = 0;
@@ -993,7 +994,7 @@ B5500Processor.prototype.enterSubroutine = function(descriptorCall) {
         if (mode) {
             this.CWMF = 1;
             this.R = 0;
-            this.X = cc.fieldInsert(this.X, 18, 15, this.S);
+            this.X = this.cc.fieldInsert(this.X, 18, 15, this.S);
             this.S = 0;
         }
     }
@@ -1019,7 +1020,7 @@ B5500Processor.prototype.exitSubroutine = function(inline) {
         result = 2;
         if (this.NCSF) {
             this.I = (this.I & 0x0F) | 0x80;    // set I08: flag-bit
-            cc.signalInterrupt();
+            this.cc.signalInterrupt();
         }
     } else {                            // flag bit is set
         result = this.applyRCW(this.B, inline);
@@ -1055,11 +1056,11 @@ B5500Processor.prototype.operandCall = function() {
     aw = this.A;
     if (aw >= 0x800000000000) {
         // It's not a simple operand
-        switch (cc.fieldIsolate(aw, 1, 3)) {
+        switch (this.cc.fieldIsolate(aw, 1, 3)) {
         case 2:
         case 3:
             // Present data descriptor
-            if (cc.fieldIsolate(aw, 8, 10)) {
+            if (this.cc.fieldIsolate(aw, 8, 10)) {
                 interrupted = this.indexDescriptor();
             // else descriptor is already indexed (word count 0)
             }
@@ -1069,7 +1070,7 @@ B5500Processor.prototype.operandCall = function() {
                 if (this.A >= 0x800000000000 && this.NCSF) {
                     // Flag bit is set
                     this.I = (this.I & 0x0F) | 0x80;        // set I08: flag-bit interrupt
-                    cc.signalInterrupt();
+                    this.cc.signalInterrupt();
                 }
             }
             break;
@@ -1085,7 +1086,7 @@ B5500Processor.prototype.operandCall = function() {
             // Absent data or program descriptor
             if (this.NCSF) {
                 this.I = (this.I & 0x0F) | 0x70;        // set I05/6/7: p-bit
-                cc.signalInterrupt();
+                this.cc.signalInterrupt();
             // else if control state, we're done
             }
             break;
@@ -1117,13 +1118,13 @@ B5500Processor.prototype.descriptorCall = function() {
         this.A = this.M + 0xA00000000000;
     } else {
         // It's not a simple operand
-        switch (cc.fieldIsolate(aw, 1, 3)) {
+        switch (this.cc.fieldIsolate(aw, 1, 3)) {
         case 2:
         case 3:
             // Present data descriptor
-            if (cc.fieldIsolate(aw, 8, 10)) {
+            if (this.cc.fieldIsolate(aw, 8, 10)) {
                 interrupted = this.indexDescriptor();
-                this.A = cc.fieldInsert(this.A, 8, 10, 0);  // set word count to zero
+                this.A = this.cc.fieldInsert(this.A, 8, 10, 0);  // set word count to zero
             // else descriptor is already indexed (word count 0)
             }
             break;
@@ -1139,7 +1140,7 @@ B5500Processor.prototype.descriptorCall = function() {
             // Absent data or program descriptor
             if (this.NCSF) {
                 this.I = (this.I & 0x0F) | 0x70;        // set I05/6/7: p-bit
-                cc.signalInterrupt();
+                this.cc.signalInterrupt();
             // else if control state, we're done
             }
             break;
@@ -1245,7 +1246,7 @@ B5500Processor.prototype.run = function() {
                 case 0x0A:              // XX12: TBN=Transfer blank for numeric
                     this.MSFF = 1;                      // initialize true-false FF
                     this.streamToDest(variant, function(bb, count) {
-                        var c = this.Z = cc.fieldIsolate(this.B, bb, 6);
+                        var c = this.Z = this.cc.fieldIsolate(this.B, bb, 6);
                         var result = 0;
 
                         if (c > 0 && c <= 9) {
@@ -1253,7 +1254,7 @@ B5500Processor.prototype.run = function() {
                             this.Q |= 0x04;             // set Q03F (display only)
                             result = 1;                 // terminate, pointing at this char
                         } else {
-                            this.B = cc.fieldInsert(this.B, bb, 6, 0x30);   // replace with blank
+                            this.B = this.cc.fieldInsert(this.B, bb, 6, 0x30);   // replace with blank
                         }
                         return result;
                     });
@@ -1299,7 +1300,7 @@ B5500Processor.prototype.run = function() {
                     if (!this.AROF) {
                         this.access(0x04);              // A = [M]
                     }
-                    t1 = B5500Processor.collate[cc.fieldIsolate(this.A, this.G*6, 6)];
+                    t1 = B5500Processor.collate[this.cc.fieldIsolate(this.A, this.G*6, 6)];
                     t2 = B5500Processor.collate[variant];
                     this.MSFF = (t1 == t2 ? 1 : 0);
                     break;
@@ -1309,7 +1310,7 @@ B5500Processor.prototype.run = function() {
                     if (!this.AROF) {
                         this.access(0x04);              // A = [M]
                     }
-                    t1 = B5500Processor.collate[cc.fieldIsolate(this.A, this.G*6, 6)];
+                    t1 = B5500Processor.collate[this.cc.fieldIsolate(this.A, this.G*6, 6)];
                     t2 = B5500Processor.collate[variant];
                     this.MSFF = (t1 != t2 ? 1 : 0);
                     break;
@@ -1319,7 +1320,7 @@ B5500Processor.prototype.run = function() {
                     if (!this.AROF) {
                         this.access(0x04);              // A = [M]
                     }
-                    t1 = B5500Processor.collate[cc.fieldIsolate(this.A, this.G*6, 6)];
+                    t1 = B5500Processor.collate[this.cc.fieldIsolate(this.A, this.G*6, 6)];
                     t2 = B5500Processor.collate[variant];
                     this.MSFF = (t1 >= t2 ? 1 : 0);
                     break;
@@ -1329,7 +1330,7 @@ B5500Processor.prototype.run = function() {
                     if (!this.AROF) {
                         this.access(0x04);              // A = [M]
                     }
-                    t1 = B5500Processor.collate[cc.fieldIsolate(this.A, this.G*6, 6)];
+                    t1 = B5500Processor.collate[this.cc.fieldIsolate(this.A, this.G*6, 6)];
                     t2 = B5500Processor.collate[variant];
                     this.MSFF = (t1 > t2 ? 1 : 0);
                     break;
@@ -1351,7 +1352,7 @@ B5500Processor.prototype.run = function() {
                     if (!this.AROF) {
                         this.access(0x04);              // A = [M]
                     }
-                    t1 = B5500Processor.collate[cc.fieldIsolate(this.A, this.G*6, 6)];
+                    t1 = B5500Processor.collate[this.cc.fieldIsolate(this.A, this.G*6, 6)];
                     t2 = B5500Processor.collate[variant];
                     this.MSFF = (t1 <= t2 ? 1 : 0);
                     break;
@@ -1361,7 +1362,7 @@ B5500Processor.prototype.run = function() {
                     if (!this.AROF) {
                         this.access(0x04);              // A = [M]
                     }
-                    t1 = B5500Processor.collate[cc.fieldIsolate(this.A, this.G*6, 6)];
+                    t1 = B5500Processor.collate[this.cc.fieldIsolate(this.A, this.G*6, 6)];
                     t2 = B5500Processor.collate[variant];
                     this.MSFF = (t1 < t2 ? 1 : 0);
                     break;
@@ -1371,7 +1372,7 @@ B5500Processor.prototype.run = function() {
                     if (!this.AROF) {
                         this.access(0x04);              // A = [M]
                     }
-                    this.Y = t1 = cc.fieldIsolate(this.A, this.G*6, 6);
+                    this.Y = t1 = this.cc.fieldIsolate(this.A, this.G*6, 6);
                     this.Z = variant;                   // for display only
                     if (B5500Processor.collate[t1] > B5500Processor.collate[variant]) {                      // alphanumeric unless | or !
                         this.MSFF = (t1 == 0x20 ? 0 : (t1 == 0x3C ? 0 : 1));
@@ -1385,7 +1386,7 @@ B5500Processor.prototype.run = function() {
                     if (!this.AROF) {
                         this.access(0x04);              // A = [M]
                     }
-                    t1 = (this.Y = cc.fieldIsolate(this.A, this.G*6, 6)) >>> 5-this.H;
+                    t1 = (this.Y = this.cc.fieldIsolate(this.A, this.G*6, 6)) >>> 5-this.H;
                     this.MSFF = ((t1 & 0x01) == (variant & 0x01) ? 1 : 0);
                     break;
 
@@ -1415,7 +1416,7 @@ B5500Processor.prototype.run = function() {
                     this.BROF = this.AROF;
                     this.AROF = 0;
                     noSECL = 1;                         // override normal instruction fetch
-                    opcode = cc.fieldIsolate(this.P, this.L*12, 12);
+                    opcode = this.cc.fieldIsolate(this.P, this.L*12, 12);
                     if (variant) {
                         this.T = opcode & 0x3F + variant*64;    // use repeat count from parameter
                     } else {
@@ -1510,8 +1511,8 @@ B5500Processor.prototype.run = function() {
                         t1 = (this.L*2 + variant & 0x01)*6;     // P-bit number
                         t2 = this.K*6;                  // B-bit number
                         while (variant--) {
-                            this.Y = cc.fieldIsolate(this.P, t1, 6);
-                            this.B = cc.fieldInsert(this.B, t2, 6, this.Y)
+                            this.Y = this.cc.fieldIsolate(this.P, t1, 6);
+                            this.B = this.cc.fieldInsert(this.B, t2, 6, this.Y)
                             if (t2 < 42) {
                                 t2 += 6;
                                 this.K++;
@@ -1547,19 +1548,19 @@ B5500Processor.prototype.run = function() {
                         if (count == 1 && (c & 0x30) == 0x20) {
                             this.MSFF = 1;              // neg. sign
                         }
-                        this.B = cc.fieldInsert(this.B, bb, 6, c & 0x0F);
+                        this.B = this.cc.fieldInsert(this.B, bb, 6, c & 0x0F);
                     });
                     break;
 
                 case 0x3E:              // XX76: TRZ=Transfer zones
                     this.streamSourceToDest(variant, function(bb, count) {
-                        this.B = cc.fieldInsert(this.B, bb, 2, this.Y);
+                        this.B = this.cc.fieldInsert(this.B, bb, 2, this.Y);
                     });
                     break;
 
                 case 0x3F:              // XX77: TRS=Transfer source characters
                     this.streamSourceToDest(variant, function(bb, count) {
-                        this.B = cc.fieldInsert(this.B, bb, 6, this.Y);
+                        this.B = this.cc.fieldInsert(this.B, bb, 6, this.Y);
                     });
                     break;
 
@@ -1648,24 +1649,24 @@ B5500Processor.prototype.run = function() {
                             this.access(0x0C);  // [M] = A
                             this.AROF = 0;
                             this.I = (this.I & 0x0F) | 0x40;    // set I07
-                            cc.signalInterrupt();
+                            this.cc.signalInterrupt();
                         }
                         break;
 
                     case 0x02:          // 0211: ITI=Interrogate Interrupt
-                        if (cc.IAR && !this.NCSF) {
-                            this.C = cc.IAR;
+                        if (this.cc.IAR && !this.NCSF) {
+                            this.C = this.cc.IAR;
                             this.L = 0;
                             this.S = 0x40;      // address @100
-                            cc.clearInterrupt();
-                            cc.access(0x30);    // P = [C]
+                            this.cc.clearInterrupt();
+                            this.cc.access(0x30);    // P = [C]
                         }
                         break;
 
                     case 0x04:          // 0411: RTR=Read Timer
                         if (!this.NCSF) {      // control-state only
                             this.adjustAEmpty();
-                            this.A = cc.CCI03F*64 + cc.TM;
+                            this.A = this.cc.CCI03F*64 + this.cc.TM;
                         }
                         break;
 
@@ -1673,10 +1674,10 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x12:          // 2211: HP2=Halt Processor 2
-                        if (!this.NCSF && cc.P2 && cc.P2BF) {
-                            cc.HP2F = 1;
+                        if (!this.NCSF && this.cc.P2 && this.cc.P2BF) {
+                            this.cc.HP2F = 1;
                             // We know P2 is not currently running on this thread, so save its registers
-                            cc.P2.storeForInterrupt(0);
+                            this.cc.P2.storeForInterrupt(0);
                         }
                         break;
 
@@ -1703,7 +1704,7 @@ B5500Processor.prototype.run = function() {
                             this.M = 8;             // INCW is stored in @10
                             this.access(0x0C);      // [M] = A
                             this.AROF = 0;
-                            cc.initiateP2();
+                            this.cc.initiateP2();
                             this.cycleLimit = 0;    // give P2 a chance to run
                         }
                         break;
@@ -1720,59 +1721,59 @@ B5500Processor.prototype.run = function() {
                     switch (variant) {
                     case 0x01:          // 0115: LNG=logical negate
                         // assert(this.AROF == 1);
-                        flagBit = cc.bit(this.A, 0);    // save flag bit
+                        flagBit = this.cc.bit(this.A, 0);    // save flag bit
                         aHi = this.A / w32;
                         aLo = this.A % w32;
                         this.A = (~aHi) * w32 + (~aLo); // negate as two chunks
-                        this.A = cc.fieldInsert(this.A, 0, 1, flagBit); // restore flag bit
+                        this.A = this.cc.fieldInsert(this.A, 0, 1, flagBit); // restore flag bit
                         this.AROF == 1;
                         break;
 
                     case 0x02:          // 0215: LOR=logical OR
                         // assert(this.AROF == 1 && this.BROF == 1);
-                        flagBit = cc.bit(this.B, 0); // save B flag bit
+                        flagBit = this.cc.bit(this.B, 0); // save B flag bit
                         aHi = this.A / w32;
                         aLo = this.A % w32;
                         bHi = this.B / w32;
                         bLo = this.B % w32;
                         this.A = (aHi | bHi) * w32 + (aLo | bLo);
-                        this.A = cc.fieldInsert(this.A, 0, 1, flagBit); // restore flag bit to A
+                        this.A = this.cc.fieldInsert(this.A, 0, 1, flagBit); // restore flag bit to A
                         this.AROF = 1;
                         this.BROF = 0;
                         break;
 
                     case 0x04:          // 0415: LND=logical AND
                         // assert(this.AROF == 1 && this.BROF == 1);
-                        flagBit = cc.bit(this.B, 0); // save flag bit
+                        flagBit = this.cc.bit(this.B, 0); // save flag bit
                         aHi = this.A / w32;
                         aLo = this.A % w32;
                         bHi = this.B / w32;
                         bLo = this.B % w32;
                         this.A = (aHi & bHi) * w32 + (aLo & bLo);
-                        this.A = cc.fieldInsert(this.A, 0, 1, flagBit); // restore flag bit to A
+                        this.A = this.cc.fieldInsert(this.A, 0, 1, flagBit); // restore flag bit to A
                         this.AROF = 1;
                         this.BROF = 0;
                         break;
 
                     case 0x08:          // 1015: LQV=logical EQV
                         // assert(this.AROF == 1 && this.BROF == 1);
-                        flagBit = cc.bit(this.B, 0); // save B flag bit
+                        flagBit = this.cc.bit(this.B, 0); // save B flag bit
                         aHi = this.A / w32;
                         aLo = this.A % w32;
                         bHi = this.B / w32;
                         bLo = this.B % w32;
                         this.B = (~(aHi ^ bHi)) * w32 + (~(aLo ^ bLo));
-                        this.B = cc.fieldInsert(this.B, 0, 1, flagBit); // restore B flag bit
+                        this.B = this.cc.fieldInsert(this.B, 0, 1, flagBit); // restore B flag bit
                         this.AROF = 0;
                         this.BROF = 1;
                         break;
 
                     case 0x10:          // 2015: MOP=reset flag bit (make operand)
-                        this.A = cc.bitReset(this.A, 0);
+                        this.A = this.cc.bitReset(this.A, 0);
                         break;
 
                     case 0x20:          // 4015: MDS=set flag bit (make descriptor)
-                        this.A = cc.bitSet(this.A, 0);
+                        this.A = this.cc.bitSet(this.A, 0);
                         break;
                     }
                     break;
@@ -1877,23 +1878,23 @@ B5500Processor.prototype.run = function() {
 
                     case 0x04:          // 0431: SSN=set sign bit (set negative)
                         // assert(this.AROF == 1);
-                        this.A = cc.bitSet(this.A, 1);
+                        this.A = this.cc.bitSet(this.A, 1);
                         this.AROF = 1;
                         break;
 
                     case 0x08:          // 1031: CHS=change sign bit
                         // the sign-bit is bit 1
                         // assert(this.AROF == 1);
-                        if (cc.bit(this.A, 1)) {
-                            this.A = cc.bitReset(this.A, 1);
+                        if (this.cc.bit(this.A, 1)) {
+                            this.A = this.cc.bitReset(this.A, 1);
                         } else {
-                            this.A = cc.bitSet(this.A, 1);
+                            this.A = this.cc.bitSet(this.A, 1);
                         }
                         this.AROF = 1;
                         break;
 
                     case 0x10:          // 2031: TOP=test flag bit (test for operand)
-                        if (cc.bit(this.B, 1)) {
+                        if (this.cc.bit(this.B, 1)) {
                             this.A = 0;
                         } else {
                             this.A = 1;
@@ -1919,7 +1920,7 @@ B5500Processor.prototype.run = function() {
                     case 0x24:          // 4431: SSP=reset sign bit (set positive)
                         // the sign-bit is bit 1
                         // assert(this.AROF == 1);
-                        this.A = cc.bitReset(this.A, 1);
+                        this.A = this.cc.bitReset(this.A, 1);
                         this.AROF = 1;
                         break;
 
@@ -2023,7 +2024,7 @@ B5500Processor.prototype.run = function() {
 
                     case 0x02:          // 0241: COC=construct operand call
                         this.exchangeTOS();
-                        this.A = cc.bitSet(this.A, 0);
+                        this.A = this.cc.bitSet(this.A, 0);
                         this.operandCall();
                         break;
 
@@ -2044,7 +2045,7 @@ B5500Processor.prototype.run = function() {
 
                     case 0x0A:          // 1241: CDC=construct descriptor call
                         this.exchangeTOS();
-                        this.A = cc.bitSet(this.A, 0);
+                        this.A = this.cc.bitSet(this.A, 0);
                         this.descriptorCall();
                         break;
 
@@ -2067,11 +2068,11 @@ B5500Processor.prototype.run = function() {
                         t1 = this.G*6 + this.H;                 // starting source bit position
                         t2 = t2*6 - (variant & 7);              // number of bits
                         if (t1+t2 <= 48) {
-                            this.A = cc.fieldIsolate(this.A, t1, t2);
+                            this.A = this.cc.fieldIsolate(this.A, t1, t2);
                         } else {                                // handle wrap-around in the source value
-                            this.A = cc.fieldInsert(
-                                    cc.fieldIsolate(this.A, 96-t1-t2, t1+t2-48), 48-t2, 48-t1,
-                                    cc.fieldIsolate(this.A, 0, 48-t1));
+                            this.A = this.cc.fieldInsert(
+                                    this.cc.fieldIsolate(this.A, 96-t1-t2, t1+t2-48), 48-t2, 48-t1,
+                                    this.cc.fieldIsolate(this.A, 0, 48-t1));
                         }
                         // approximate the shift cycle counts
                         this.cycleCount += (variant >>> 3) + (variant & 7) + this.G + this.H;
@@ -2135,7 +2136,7 @@ B5500Processor.prototype.run = function() {
                         variant = 48-t2;
                     }
                     if (variant > 0) {
-                        this.B = cc.fieldTransfer(this.B, t2, variant, this.A, t1);
+                        this.B = this.cc.fieldTransfer(this.B, t2, variant, this.A, t1);
                     }
                     this.AROF = 0;
                     this.cycleCount += variant + this.G + this.K;       // approximate the shift counts
@@ -2151,7 +2152,7 @@ B5500Processor.prototype.run = function() {
                     if (t2+variant > 48) {
                         variant = 48-t2;
                     }
-                    if (variant > 0 && (cc.fieldIsolate(this.B, t2, variant) < cc.fieldIsolate(this.A, t1, variant))) {
+                    if (variant > 0 && (this.cc.fieldIsolate(this.B, t2, variant) < this.cc.fieldIsolate(this.A, t1, variant))) {
                         this.A = 1;
                     } else {
                         this.A = 0;
@@ -2169,7 +2170,7 @@ B5500Processor.prototype.run = function() {
                     if (t2+variant > 48) {
                         variant = 48-t2;
                     }
-                    if (variant > 0 && (cc.fieldIsolate(this.B, t2, variant) == cc.fieldIsolate(this.A, t1, variant))) {
+                    if (variant > 0 && (this.cc.fieldIsolate(this.B, t2, variant) == this.cc.fieldIsolate(this.A, t1, variant))) {
                         this.A = 1;
                     } else {
                         this.A = 0;
@@ -2187,7 +2188,7 @@ B5500Processor.prototype.run = function() {
         /***************************************************************
         *   SECL: Syllable Execution Complete Level                    *
         ***************************************************************/
-        if ((this === cc.P1 ? cc.IAR : this.I) && this.NCSF) {
+        if ((this === this.cc.P1 ? this.cc.IAR : this.I) && this.NCSF) {
             // there's an interrupt and we're in normal state
             this.T = 0x0609;            // inject 3011=SFI into T
             this.Q |= 0x40              // set Q07F to indicate hardware-induced SFI
