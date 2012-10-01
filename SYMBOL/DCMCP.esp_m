@@ -12935,3 +12935,107 @@ PROCEDURE KEYIN2(KTRX); VALUE KTRX; REAL KTRX;                          16690000
            ;                                                            16697600        
  $ SET OMIT = SHAREDISK                                                 16697700        
    DEFINE  U     = AVTABLE# ;                                           16697800        
+ $ POP OMIT                                                             16697900        
+   REAL    HN1   = MIX       ,                                          16698000        
+           HN2   = TYPE      ;                                          16698100        
+REAL       SEG   = I,                                                   16698200        
+           ADR   = J,                                                   16698210        
+           LOCN  = K,                                                   16698220        
+           HALTED= R1;                                                  16698230        
+NAME       SEGDICT = R3;                                                16698240        
+   LABEL RR, PGA, FERGIT, FORGET, ERROR, EXIT                           16698500        
+         ,WU  ,WP  ,WR  ,MX  ,TS  ,LF  ,LC  ,LS  ,EX  ,PD               16699000        
+         ,SM  ,PO  ,PG  ,AU  ,MS  ,LN  ,CD  ,CU  ,SY  ,SL               16699500        
+         ,RW  ,CI  ,CT  ,XD  ,MC  ,RS  ,HD  ,RA  ,EI               %139-16700000        
+                                                                        16700500        
+                                                                        16701000        
+                                                                        16701500        
+         ;                                                              16702000        
+   SWITCH S := ERROR                                                    16702500        
+               ,WU  ,WP  ,WR  ,MX  ,TS  ,TS  ,TS  ,TS  ,LF  ,LC         16703000        
+               ,LX  ,EX  ,PD  ,SM  ,PO  ,PO  ,PG  ,AU  ,MS  ,LN         16703500        
+               ,CD  ,CD  ,CD  ,CU  ,SY  ,SL  ,RW  ,CI  ,CT  ,CT         16704000        
+               ,CT  ,XD  ,XD  ,MC  ,RS  ,HD  ,RA  ,EI              %139-16704500        
+                                                                        16705000        
+                                                                        16705500        
+                                                                        16706000        
+                                                                        16706500        
+               ;                                                        16707000        
+                                                                        16707500        
+   SUBROUTINE SPOIT; M[BUFF-2]:=B AND @7570000000000;                   16708000        
+                                                                        16708500        
+   P(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);                                     16710000        
+   P(0, 0, 0, 0, 0, 0);                                                 16710100        
+   BUFF  :=KTRX.[15:15];                                                16710500        
+   MIX   :=KTRX.[ 9:6 ];                                                16711000        
+   TYPE  :=KTRX.[ 2:7 ];                                                16711500        
+   KTR   :=KTRX.[15:33];                                                16712000        
+   ZZSTA :=0 & (M[BUFF-2])[9:9:9];                                      16712500        
+   B     := M[BUFF-1];                                                  16713000        
+ $ SET OMIT = NOT(PACKETS)                                              16713499        
+   IF MIX!63 THEN UNITNO:=PSEUDOMIX[MIX];                               16713500        
+ $ POP OMIT                                                             16713501        
+   STREAM(B:=BUFF-1); DS:=8LIT"INV KBD ";                               16714000        
+   GO TO S[TYPE];                                                       16714500        
+WU:                                                                     16715000        
+ $ SET OMIT = NOT(DCSPO AND DATACOM)                                    16715500        
+WP:                                                                     16719500        
+ $ SET OMIT = NOT(DCSPO AND DATACOM)                                    16720000        
+RR:                                                                     16721500        
+ $ SET OMIT = NOT(DCSPO AND DATACOM)                                    16722000        
+   GO TO EXIT;                                                          16737000        
+WR:                                                                     16737500        
+ $ SET OMIT = NOT(DCSPO AND DCLOG AND DATACOM)                          16738000        
+MX:                                                                     16739000        
+   MIXPRINT(ZZSTA);                                                     16739500        
+   GO TO FORGET;                                                        16740000        
+TS:                                                                     16740500        
+   SHEETDIDDLER(KTR,TYPE,MIX); % TS=5, PS=6, ES=7, XS=8                 16741000        
+   MIX:=63;                                                             16741250        
+   GO TO EXIT;                                                          16741500        
+LF:                                                                     16742000        
+   I:=3; GO TO PD;                                                      16742500        
+LC:                                                                     16743000        
+   I:=2; GO TO PD;                                                      16743500        
+LS:                                                                     16744000        
+   I:=4; GO TO PD;                                                      16744500        
+EX:                                                                     16745000        
+   KTR:= -KTR; I:=1;                                                    16745500        
+PD:                                                                     16746000        
+   PRINTDIRECTORY(KTR,I);                                               16746500        
+   GO TO EXIT;                                                          16747000        
+SM:                                                                     16747500        
+ $ SET OMIT = NOT(DCSPO AND DATACOM)                                    16748000        
+   GO TO EXIT;                                                          16749000        
+PO:                                                                     16749500        
+   TYPOP(KTR,TYPE=16); % TO=15, PO=16                                   16750000        
+   GO TO EXIT;                                                          16750500        
+PG:                                                                     16751000        
+   STREAM(Y:=KTR);                                                      16751500        
+      BEGIN                                                             16752000        
+      SI:=Y;                                                            16752500        
+  LA: IF SC NEQ "~" THEN                                                16753000        
+         BEGIN                                                          16753500        
+         SI:=SI+1; DI:=DI+1; GO TO LA;                                  16754000        
+         END                                                            16754500        
+      ELSE DS:=4LIT"~~~~";                                              16755000        
+      END;                                                              16755500        
+PGA: STREAM(Y:=0, KTR: A:=A:=SPACE(12)+1);                              16756000        
+      BEGIN                                                             16756500        
+      SI:=KTR;                                                          16757000        
+  L:  IF SC=" " THEN                                                    16757500        
+         BEGIN                                                          16758000        
+         SI:=SI+1; GO TO L;                                             16758500        
+         END;                                                           16759000        
+      IF SC="~" THEN TALLY := 1 ELSE                                    16759500        
+      IF SC="0" THEN TALLY := 1 ELSE                                    16760000        
+         BEGIN                                                          16760500        
+         DS:=3CHR;                                                      16761000        
+         IF SC="-" THEN                                                 16761500        
+            BEGIN                                                       16762000        
+            DS:=CHR;                                                    16762500        
+  LL:       IF SC=" " THEN                                              16763000        
+               BEGIN                                                    16763500        
+               SI:=SI+1; GO TO LL;                                      16764000        
+               END;                                                     16764500        
+            5(IF SC GEQ 0 THEN DS:=CHR ELSE JUMP OUT);                  16765000        
