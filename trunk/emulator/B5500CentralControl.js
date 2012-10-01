@@ -596,7 +596,10 @@ B5500CentralControl.prototype.load = function() {
 B5500CentralControl.prototype.loadTest = function(buf, loadAddr) {
     /* Loads a test codestream into memory starting at B5500 word address
        "loadAddr" from the ArrayBuffer "buf". Returns the number of B5500
-       words loaded into memory */
+       words loaded into memory. Note that when loading an ESPOL "DISK" file,
+       the first executable location is @20, so you will typically want to load
+       to address 0 and call cc.runTest(0x10) [where 0x10 = @20]. This routine
+       should not be used to load ESPOL "DECK" files */
     var addr = loadAddr;            // starting B5500 memory address
     var bytes = buf.byteLength;
     var data = new DataView(buf);   // use DataView() to avoid problems with littleendians.
