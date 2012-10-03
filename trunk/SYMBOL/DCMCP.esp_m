@@ -13039,3 +13039,108 @@ PGA: STREAM(Y:=0, KTR: A:=A:=SPACE(12)+1);                              16756000
                SI:=SI+1; GO TO LL;                                      16764000        
                END;                                                     16764500        
             5(IF SC GEQ 0 THEN DS:=CHR ELSE JUMP OUT);                  16765000        
+            END;                                                        16765500        
+         DS:=LIT"~"; KTR:=SI;                                           16766000        
+         END;                                                           16766500        
+      Y:= TALLY;                                                        16767000        
+      END STREAM STATEMENT;                                             16767500        
+   IF P([KTR],STD) THEN                                                 16768000        
+      BEGIN                                                             16768500        
+      FORGETSPACE(A-1); GO TO FORGET;                                   16769000        
+      END;                                                              16769500        
+   A:=A&A[15:33:15];                                                    16770000        
+   TAPEPURGE(A);                                                        16770500        
+   GO TO PGA;                                                           16771000        
+AU:                                                                     16771500        
+ $ SET OMIT = NOT(AUXMEM)                                               16772000        
+   GO TO FORGET;                                                        16773000        
+MS:                                                                     16773500        
+ $ SET OMIT = NOT MONITOR                                               16774000        
+   GO TO FORGET;                                                        16779500        
+LN:                                                                     16780000        
+   STREAM(A:=0:KTR);                                                    16780500        
+      BEGIN SI:=KTR; DI:=LOC A; DI:=DI+6;                               16781000        
+      DS:=2 CHR;                                                        16781500        
+      END;                                                              16782000        
+   IF (I:=P).[36:6]=@37 THEN                                            16782500        
+   LOGOUT(0) ELSE                                                       16783000        
+ $ SET OMIT = NOT(DISKLOG)                                              16783500        
+   IF I="ML" THEN INDEPENDENTRUNNER(P(.LOGOUTMAINT),0,128) ELSE         16784500        
+   GO TO ERROR;                                                         16785000        
+   GO TO FORGET;                                                        16785500        
+CD:                                                                     16786000        
+   TABLEOFCONTENTS(KTR, TYPE=23); % CD=21, PP=22, PC=23                 16786500        
+   GO TO FORGET;                                                        16787000        
+CU:                                                                     16787500        
+   COREPRINT((IF MIX=63 THEN -0 ELSE MIX)&ZZSTA[9:9:9]);                16788000        
+   GO TO FORGET;                                                        16788500        
+SY:                                                                     16789000        
+ $ SET OMIT = NOT(STATISTICS)                                           16789500        
+   GO TO FORGET;                                                        16792000        
+SL:                                                                     16792500        
+ $ SET OMIT = NOT(STATISTICS)                                           16793000        
+   GO TO FORGET;                                                        16795500        
+RW:                                                                     16796000        
+   SPOIT;                                                               16796500        
+   REWINDANDLOCK(KTR);                                                  16797000        
+   GO TO EXIT;                                                          16797500        
+CI:                                                                     16798000        
+ $ SET OMIT = NOT(BREAKOUT)                                             16798500        
+   CHANGEINTRINSICFILE(KTR);                                            16801500        
+   GO TO EXIT;                                                          16802000        
+CT:                                                                     16802500        
+   TIMRELAXER(KTR,TYPE,MIX); % CT=29, XT=30, TL=31                      16803000        
+   GO TO EXIT;                                                          16803500        
+XD:                                                                     16804000        
+   IF TYPE=33 THEN KTR.[CF]:=0; % XD=32, MR=33                          16804500        
+   DKBUSINESS(P(1,KTR));                                                16805000        
+   GO TO EXIT;                                                          16805500        
+MC:                                                                     16806000        
+   NAMID(1,KTR); NAMID(J,KTR); NAMEID(J,KTR);                           16806500        
+   IF J.[6:6]="~" THEN GO TO ERROR;                                     16807000        
+   IF (A:=DIRECTORYSEARCH(I,-J,4)) GEQ 64 THEN                          16807500        
+      BEGIN                                                             16808000        
+      IF J NEQ "DISK   " THEN                                           16808500        
+      IF(K:=DIRECTORYSEARCH(I,"DISK   ",5)) NEQ 0 THEN                  16809000        
+         BEGIN                                                          16809500        
+         P(DIRECTORYSEARCH(-I,J,14),DEL);                               16810000        
+         FORGETSPACE(A);                                                16810500        
+         FORGETSPACE(K);                                                16811000        
+         LPMESS(I,J,-9,29,0,0,1);                                       16811500        
+         GO FERGIT;                                                     16812000        
+         END                                                            16812500        
+      ELSE                                                              16813000        
+         BEGIN                                                          16813500        
+         M[A INX 4]:=(*P(DUP))&2[1:46:2]&1[8:47:1];                     16814000        
+         A:=A&EUF(-I,"DISK   ",A INX 0-1)[18:33:15];                    16815000        
+         FORGETSPACE(DIRECTORYSEARCH(I,J,8));                           16815500        
+         END ELSE M[A INX 4]:=(*P(DUP))&2[1:46:2]&1[8:47:1];            16816000        
+      HEADERUNLOCK(I,"DISK   ",A);                                      16816500        
+      LBMESS(I,J,54,I,"DISK   ",0,1);                                   16817000        
+      END                                                               16817500        
+   ELSE LBMESS(I,J,-9,IF A=1 THEN 45 ELSE 15,0,0,1);                    16818000        
+FERGIT:                                                                 16819300        
+   FORGETSPACE(BUFF-1);                                                 16819400        
+   GO TO EXIT;                                                          16819500        
+RS:                                                                     16820000        
+ $ SET OMIT = NOT(BREAKOUT)                                             16820500        
+   GO TO EXIT;                                                          16822000        
+HD:                                                                     16823000        
+   STREAM(EU:=-1,ERRTOG:=0:EULIT:=@2564000000000000,CX:=0,              16823100        
+          K:=KTR);                                                      16823200        
+   BEGIN                                                                16823300        
+        SI:=K; DO GO L1;                                                16823400        
+   L0:  IF SC=" " THEN BEGIN SI:=SI+1; GO TO L0 END; CI:=CX;            16823500        
+   L1:  CS:=CI; GO TO L0;                                               16823600        
+        IF SC="~" THEN GO EXT;                                          16823700        
+        DI:=LOC EULIT; TALLY:=1;                                        16823800        
+        IF 2 SC=DC THEN % AN EU SPECIFIED                               16823900        
+        BEGIN                                                           16824000        
+             CS:=CI; GO TO L0;                                          16824100        
+             IF SC GEQ 0 THEN IF SC<12 THEN                             16824200        
+             BEGIN                                                      16824300        
+                  SI:=SI+1; DI:=LOC EU;                                 16824400        
+                  IF SC GEQ 0 THEN IF SC<12 THEN                        16824500        
+                  TALLY:=2 ELSE GO TO ERR;                              16824600        
+                  SI:=SI-1; CX:=TALLY;                                  16824700        
+                  DS:=CX OCT; GO TO EXT;                                16824800        
