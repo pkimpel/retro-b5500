@@ -13144,3 +13144,106 @@ HD:                                                                     16823000
                   TALLY:=2 ELSE GO TO ERR;                              16824600        
                   SI:=SI-1; CX:=TALLY;                                  16824700        
                   DS:=CX OCT; GO TO EXT;                                16824800        
+             END ;                                                      16824900        
+         END;                                                           16825000        
+   ERR:  ERRTOG:=TALLY;                                                 16825100        
+   EXT:                                                                 16825200        
+   END;                                                                 16825300        
+   IF P THEN GO TO  ERROR;                                              16825400        
+   IF (HN1:=P+1)>0 THEN IF HN1 LEQ NEUP.[FF] THEN                       16825500        
+   HN2:=HN1 ELSE GO TO ERROR ELSE                                       16825600        
+   BEGIN                                                                16825700        
+        HN1:=1;                                                         16825800        
+        HN2:=NEUP.[FF];                                                 16825900        
+   END;                                                                 16826000        
+ $ SET OMIT = NOT SHAREDISK                                             16826100        
+   FOR I:=HN1 STEP 1  UNTIL HN2 DO                                      16826500        
+   IF NOT (NT2:=U[I]).EUNP THEN  % NOT A DUMMY EU                       16826600        
+   BEGIN                                                                16826700        
+        INT4:=(INT1:=NT2.STARTWRD) MOD 30;                              16826800        
+        INT2:=30-(K:=(NT2 AND NUMENTM)+R4) MOD 30+K;                    16826900        
+        J:=NT1 DIV 30+USERDISKBOTTOM;                                   16827000        
+        FIXARRAY(UT,R,A);                                               16827100        
+ $ SET OMIT = NOT SHAREDISK                                             16827200        
+        DISKWAIT(-R,A,J); J:=0;                                         16827900        
+        FOR NT1:=K-2 STEP -1 UNTIL R4 DO INT3:=J+UT[NT1].[3:19];        16828000        
+        STREAM(A:=I-1,B:=IF U[I].SPEED=1 THEN "F" ELSE "S",             16828100        
+               C:=U[I].[38:10]-1,D:=J,E:=U[I].[1:20],                   16828200        
+               F:=A:=SPACE(10));                                        16828300        
+        BEGIN                                                           16828400        
+             SI:=LOC A; DS:=4 LIT" EU "; DS:=2 DEC;                     16828500        
+             A:=DI; DI:=DI-2; DS:=FILL; DI:=A;                          16828600        
+             DS:=LIT"("; SI:=SI+7; DS:=CHR;                             16828700        
+             DS:=10 LIT"), NO. AV="; DS:=3 DEC;                         16828800        
+             A:=DI; DI:=DI-3; DS:=2 FILL; DI:=A;                        16828900        
+             DS:=11 LIT", TOTAL AV="; DS:=6 DEC;                        16829000        
+             A:=DI; DI:=DI-6; DS:=5 FILL; DI:=A;                        16829100        
+             DS:=14 LIT" SEGS, MAX AV="; DS:=6 DEC;                     16829200        
+             A:=DI; DI:=DI-6; DS:=5 FILL; DI:=A;                        16829300        
+             DS:=6 LIT" SEGS~";                                         16829400        
+        END;                                                            16829500        
+         FORGETSPACE(R);                                                16829550        
+        SPOUT(A&ZZSTA[9:9:9]);                                          16829600        
+   END; % ELSE IF HN1=HN2 THEN GO TO ERROR;                             16829700        
+ $ SET OMIT = NOT SHAREDISK                                             16829800        
+   HN1:=KTRX.[9:6]; % SET "MIX" BACK TO ORIGINAL VALUE                  16830100        
+   GO TO FORGET;                                                        16830200        
+RA:                                                                     16830300        
+   IF MIX=P2MIX THEN                                                    16830700        
+      BEGIN                                                             16830800        
+      HALT; HALTED := TRUE;                                             16830900        
+      END;                                                              16831000        
+   SEGDICT := PRT[MIX,4];                                               16831100        
+   IF P( M[LOCN:=PRT[MIX,8].[CF]], TOP, XCH, DEL ) THEN SEG:=ADR:=0     16831200        
+   ELSE                                                                 16831300        
+      DO BEGIN                                                          16831400        
+      IF P(M[LOCN], TOP, XCH, 0, INX, .ADR, STD) THEN % OVERLAID RCW    16831500        
+         BEGIN                                                          16831600        
+         IF NOT M[LOCN].[33:1] THEN % NOT TYPE 13 INTRINSIC             16831700        
+            BEGIN                                                       16831800        
+            SEG:=ADR; % SEGNO IN RCW                                    16831900        
+            R:=0; % ADJUST FOR SUBSTRACTION BELOW                       16832000        
+            ADR:=M[M[LOCN].MOM].[CF];  % REL.ADR.IN MSCW                16832100        
+            END                                                         16832200        
+         ELSE SEG := (-1);                                              16832300        
+         END                                                            16832400        
+      ELSE                                                              16832500        
+         BEGIN % PRESENT RCW, CHECK THE LINKS                           16832600        
+         R:=0;                                                          16832700        
+         WHILE (SEG:=M[R].[CF]) LSS ADR DO                              16832800        
+         IF SEG GTR R THEN R:= SEG ELSE PUNT([PUNTER[25]]);             16832900        
+         SEG:=IF M[R].AREATYPEF=CODEAREAV THEN M[R+1].[CF] ELSE 0; %    16833000        
+         IF P(PRTROW[MIX],0,INX,DUP) GTR R AND P(XCH) LSS M[R].[CF] THEN16833100        
+         R4 := "PRT    ";                                               16833200        
+         R:=R+2;                                                        16833300        
+         END;                                                           16833400        
+      IF PRT[MIX,8].[CF] NEQ LOCN OR M[LOCN-1].MSFF THEN % MARKED       16833500        
+      DO LOCN:=M[LOCN].MOM UNTIL NOT M[LOCN].MSFF; % GET LAST MSCW      16833600        
+      LOCN:=M[LOCN].MOM; % POINT LOCN TO NEXT RCW,JUST IN CASE.         16833700        
+      END                                                               16833800        
+   UNTIL                                                                16833900        
+   (IF SEG NEQ 0 THEN IF SEG = (-1) THEN 0                              16834000        
+   ELSE (SEGDICT[0] LSS SEG OR NOT SEGDICT[SEG].PBIT)                   16834100        
+   ELSE P(M[R-2].[3:12], DUP) NEQ @700 AND P(XCH) NEQ @1500)            16834200        
+   OR LOCN=0;                                                           16834300        
+   ADR := ADR-R;                                                        16834400        
+   STREAM(MIX, NAM:=[JAR[MIX,0]], T:=0, SEG, ADR,                       16834600        
+          SYL:=M[PRT[MIX,8]].[10:2], TOG1:=(R4 NEQ 0), R4,              16834700        
+          TOG2:=(SEG LEQ 0), D:=BUFF-1);                                16834800        
+      BEGIN                                                             16834900        
+      DS:=LIT" ";                                                       16835000        
+      SI:=NAM; 2(SI:=SI+1; DS:=7CHR; DS:=LIT"/"); DI:=DI-1;             16835100        
+      DS:=2LIT" ="; SI:=LOC MIX; DS:=2DEC;                              16835200        
+      TOG1(SI:=LOC R4; SI:=SI+1; DS:=LIT" "; DS:=7CHR;JUMP OUT TO XXIT);16835300        
+      TOG2(DS:=14LIT" NOT AVAILABLE"; JUMP OUT TO XXIT);                16835400        
+      DS:=5LIT" SEG="; SI:=LOC SEG; DS:=4DEC;                           16835500        
+      T:=DI; DI:=DI-4; DS:=3FILL; DI:=T;                                16835600        
+      DS:=5LIT" ADR="; DS:=4DEC;                                        16835700        
+      T:=DI; DI:=DI-4; DS:=3FILL; DI:=T;                                16835800        
+      DS:=LIT":"; SI:=SI+7; DS:=CHR;                                    16835900        
+XXIT: DS:=LIT"~";                                                       16836000        
+      END STREAM STATEMENT;                                             16836100        
+   IF HALTED THEN NOPROCESSTOG := NOPROCESSTOG -1;                      16836200        
+   GO TO ERROR;                                                         16836300        
+EI:                                                                %139-16836400        
+ $ SET OMIT = NOT(BREAKOUT)                                        %139-16836405        
