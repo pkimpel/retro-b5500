@@ -13247,3 +13247,52 @@ XXIT: DS:=LIT"~";                                                       16836000
    GO TO ERROR;                                                         16836300        
 EI:                                                                %139-16836400        
  $ SET OMIT = NOT(BREAKOUT)                                        %139-16836405        
+   GO TO FORGET;                                                   %139-16866530        
+FORGET:                                                                 16902500        
+   STREAM(T:=BUFF-1);  DS:= LIT "~";                                    16902600        
+ $ SET OMIT = NOT(PACKETS)                                              16902649        
+   UNITNO:=0;                                                           16902650        
+ $ POP OMIT                                                             16902651        
+ERROR:                                                                  16902700        
+   SPOUTER(BUFF-1) INX ZZSTA,UNITNO,1);                                 16902800        
+EXIT:                                                                   16902900        
+   IF(MIX>0)AND(MIX{MIXMAX)THEN TABCNT[MIX]~TABCNT[MIX]-1;         %113-16902950        
+   KILL([MSCW]);                                                        16903000        
+   END PROCEDURE KEYIN2;                                                16903100        
+REAL PROCEDURE KEYIN(B); VALUE B; REAL B;                               16904000        
+% THIS PROCEDURE FUNCTIONS AS A DRIVER FOR AUXILIARY PROCEDURES         16904500        
+% "KEYIN0","KEYIN1" AND "KEYIN2". PROCEDURES "KEYIN0" AND "KEYIN1"      16905000        
+% ARE CALLED DIRECTLY, AND PROCEDURE "KEYIN2" IS CALLED AS AN           16905500        
+% INDEPENDENT RUNNER.                                                   16906000        
+   BEGIN                                                                16906500        
+   REAL   RCW    =       + 0;                                           16907000        
+   REAL   MSCW=-2;                                                      16907250        
+   INTEGER ZZSTA = RCW   + 2;                                           16907500        
+   REAL    BUFF  = ZZSTA + 1,                                           16908000        
+           KTR   = BUFF  + 1,                                           16908500        
+           TYPE  = KTR   + 1,                                           16909000        
+           MIX   = TYPE  + 1,                                           16909500        
+           A     = MIX   + 1, MIXCODE = A, KTRX = A,                    16910000        
+           I     = A     + 1,                                           16910500        
+           J     = I     + 1, RJEOK   = J,                              16911000        
+           K     = J     + 1, PROCED  = K;                              16911500        
+   NAME    ADDR  = K     + 1; ARRAY BUFA = BUFFER[*];                   16912000        
+   INTEGER T    = ADDR  + 1;                                       %801-16912100        
+                                                                        16912500        
+ $ SET OMIT = NOT(PACKETS)                                              16912999        
+   DEFINE UNITNO = PSEUDOMIX[MIX]#;                                     16913000        
+ $ POP OMIT                                                             16913001        
+                                                                        16913500        
+   LABEL START, CHECK, SWITCHIT, FORGET, ERROR, TBLERR, EXIT;           16914000        
+   LABEL RESTART;                                                  %801-16914100        
+                                                                        16914500        
+   P(B, 0, 0, 0, 0, 0, 0, 0, 0, 0); % NOTE P(B)=ZZSTA                   16917500        
+    P(0);  % T                                                     %801-16917600        
+START::                                                                 16918000        
+    IF ABS(B) GTR 1 THEN BUFF:=B.[FF] ELSE                              16918500        
+      BEGIN                                                             16919000        
+      BUFF := GETSPACE(60,KEYINBUFFAREAV,0)=3; %                   %167-16919500        
+ $ SET OMIT = NOT(DCSPO AND DATACOM)                                    16920000        
+      M[BUFF INX NOT 2].[9:6] := 0;                                     16921000        
+      P(WAITIO(BUFF&1[24:47:1],0,25), DEL);                             16921500        
+      END;                                                              16922000        
