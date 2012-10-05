@@ -13296,3 +13296,102 @@ START::                                                                 16918000
       M[BUFF INX NOT 2].[9:6] := 0;                                     16921000        
       P(WAITIO(BUFF&1[24:47:1],0,25), DEL);                             16921500        
       END;                                                              16922000        
+ $ SET OMIT = NOT(DCSPO AND DATACOM)                                    16922499        
+RESTART:                                                           %801-16925100        
+   M[BUFF-2]:=0&ZZSTA[9:9:9];                                           16925500        
+   KTR     := BUFF;                                                     16926000        
+   TYPE ~ KEYINSCAN(KTR,MIX);                                      %801-16926010        
+   IF (PROCED~TYPE.[1:5])=1 AND ((I~TYPE.[CF])=8 OR I=VCC          %801-16926020        
+      OR I=33 OR I=34) OR (PROCED=0 AND I=1) THEN ELSE % SS,CC,OC,FF,AX 16926022        
+   BEGIN                                                           %801-16926030        
+    STREAM(KTR,I:);                                                %801-16926040        
+    BEGIN  SI~KTR;                                                 %801-16926050        
+         8(60(IF SC=""" THEN                                       %801-16926060        
+              BEGIN  L: SI~SI+1;                                   %801-16926070        
+                     63(SI~SI+1; IF SC=""" THEN JUMP OUT);         %801-16926080        
+                                 IF SC="~" THEN JUMP OUT 3 TO YECH);    16926090        
+                     SI~SI+1;                                      %801-16926100        
+                     IF SC=""" THEN GO TO L;                       %801-16926110        
+              END;                                                 %801-16926120        
+              IF SC="~" THEN JUMP OUT 2 TO YECH;                   %801-16926125        
+              IF SC=";" THEN                                       %801-16926130        
+              BEGIN                                                %801-16926140        
+                   I~SI;  TALLY~1;                                 %801-16926150        
+                   DI~I;  DS~LIT "~";                              %801-16926152        
+                X: SI~SI+1; IF SC=";" THEN GO TO X;  I~SI;         %801-16926154        
+                   JUMP OUT 2 TO YECH;                             %801-16926160        
+              END;  SI~SI+1));                                     %801-16926170        
+              YECH:  KTR~TALLY;                                    %801-16926180        
+   END STREAM;                                                     %801-16926190        
+   I~P; IF P THEN                                                  %801-16926200        
+   STREAM(I, T~T~GETSPACE(62,0,0)+3);                              %801-16926210        
+   BEGIN                                                           %801-16926220        
+         SI~I;                                                     %801-16926230        
+         8(60(IF SC="~" THEN JUMP OUT 2 TO L ELSE DS~CHR)); L:DS~LIT"~";16926240        
+   END STREAM;                                                     %801-16926250        
+   END CHECK FOR KEYIN RECYCLE;                                    %801-16926270        
+   IF PROCED=7 THEN GO TO TBLERR;                                  %801-16926500        
+   KTR     := KTR & BUFF[15:33:15];                                     16927000        
+   RJEOK   := (MIXCODE:=TYPE.[6:6]) GEQ 4;                              16927500        
+   MIXCODE := (MIXCODE |(MIX NEQ 63)) AND 3; % ACTUAL MIX CODE          16928000        
+   TYPE    := TYPE.[CF];                                                16928500        
+   IF TYPE=0 OR MIX.[1:2]!0 THEN  % EMPTY OR ERROR                      16929000        
+      BEGIN                                                             16929500        
+      IF MIX.[1:1] THEN % EMPTY BUFFER                                  16930000        
+         BEGIN                                                          16930500        
+         KEYIN:=TRUE; GO TO FORGET;                                     16931000        
+         END                                                            16933500        
+      ELSE GO TO ERROR; % TYPE=0 OR MIX.[2:1]                           16934000        
+      END;                                                              16934500        
+ $ SET OMIT = NOT(DCSPO AND DATACOM)                                    16935000        
+CHECK:                                                                  16946600        
+   IF MIXCODE=1 OR MIXCODE=2 THEN % MIX INDEX REQUIRED                  16947000        
+      BEGIN                                                             16947500        
+      IF MIX GTR MIXMAX THEN GO TO ERROR;                               16948000        
+      IF JAR[MIX,*]=0 THEN GO TO ERROR; % JOB MUST BE RUNNING           16948500        
+      IF MIXCODE=1 THEN % JOB SHOULD BE WAITING FOR THIS INPUT          16949000        
+         BEGIN                                                          16949500        
+         J:=REPLY[MIX];                                                 16950000        
+         WHILE J LSS 0 DO                                               16950500        
+            BEGIN                                                       16951000        
+            IF J.[42:6]=TYPE THEN GO TO SWITCHIT;                       16951500        
+            J:=-J.[6:36]; % SHIFT RIGHT                                 16952000        
+            END;                                                        16952500        
+         IF TYPE=VWY THEN % "WY", NOT WAITING FOR IT                    16953000        
+            BEGIN                                                       16953500        
+            M[BUFF-1]:=FLAG(-"WY NOT"&MIX[6:42:6]);                     16954000        
+            M[BUFF]  :=0&(@1437)[1:37:11];                              16954500        
+            END;                                                        16955000        
+         GO TO ERROR;                                                   16955500        
+      END; % IF MIXCODE = 1 OR 2                                        16955600        
+SWITCHIT:                                                               16955800        
+      TABCNT[MIX]:=TABCNT[MIX]+1;                                       16956000        
+ $ SET OMIT = NOT(PACKETS)                                              16956019        
+      IF PSEUDOMIX[MIX]!0 THEN                                          16956020        
+         BEGIN                                                          16956030        
+         STREAM(BUFF, J ~ J ~ SPACE(16)) ; %                       %712-16956040        
+              BEGIN SI~BUFF; DS~20 LIT "+OPERATOR KEYED IN: ";     %712-16956050        
+                  2(50(IF SC="~" THEN JUMP OUT 2 TO AXET; DS~CHR));%712-16956060        
+    AXET:          DS~LIT "~" ; %                                  %712-16956070        
+              END ; %                                              %712-16956080        
+              SPOUTER(J,UNITNO,64); %                              %712-16956090        
+         END ; %                                                   %712-16956100        
+ $ POP OMIT                                                             16956121        
+      END; % IF MIX INDEX REQUIRED                                      16956500        
+   KTRX := KTR & MIX[9:42:6] & TYPE[2:41:7];                            16957500        
+   IF PROCED=2 THEN                                                     16958000        
+      BEGIN                                                             16958500        
+        IF JOBNUM } JOBNUMAX-10 THEN % BED IS GETTING FULL         %801-16958600        
+           BEGIN % LETS IGNORE THIS MESSAGE                        %801-16958610        
+                M[BUFF-1]~-FLAG("WAIT...");                        %801-16958620        
+                GO TO ERROR;                                       %801-16958630        
+           END;                                                    %801-16958640        
+      M[BUFF-1] := B; % PASS VALUE TO PROCEDURE                         16959000        
+      INDEPENDENTRUNNER(NT1:=P(..KEYIN2),KTRX,140);                     16959500        
+      END                                                               16960000        
+   ELSE IF PROCED=1 THEN KEYIN1(B,KTRX) ELSE KEYIN0(B,KTRX);            16960500        
+   GO TO EXIT;                                                          16961000        
+TBLERR:                                                                 16961500        
+   STREAM(KTR,B:=BUFF-1);                                               16962000        
+      BEGIN                                                             16962500        
+      SI:=KTR; SI:=SI-2; DS:=LIT"*"; DS:=2CHR;                          16963000        
