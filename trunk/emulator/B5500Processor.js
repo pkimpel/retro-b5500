@@ -215,7 +215,7 @@ B5500Processor.prototype.adjustAEmpty = function() {
 
     if (this.AROF) {
         if (this.BROF) {
-            if ((this.S >>> 6) == this.R || !this.NCSF) {
+            if ((this.S >>> 6) == this.R && this.NCSF) {
                 this.I |= 0x04;         // set I03F: stack overflow
                 this.cc.signalInterrupt();
             } else {
@@ -254,7 +254,7 @@ B5500Processor.prototype.adjustBEmpty = function() {
     contents of B into memory, as necessary. */
 
     if (this.BROF) {
-        if ((this.S >>> 6) == this.R || !this.NCSF) {
+        if ((this.S >>> 6) == this.R && this.NCSF) {
             this.I |= 0x04;             // set I03F: stack overflow
             this.cc.signalInterrupt();
         } else {
@@ -574,7 +574,7 @@ B5500Processor.storeForInterrupt = function(forTest) {
             this.busy = 0;
             this.cc.HP2F = 1;
             this.cc.P2BF = 0;
-            if (this.cc.P2.scheduler) {
+            if (this.cc.P2 && this.cc.P2.scheduler) {
                 clearTimeout(this.cc.P2.scheduler);
                 this.cc.P2.scheduler = null;
             }
@@ -598,7 +598,7 @@ B5500Processor.storeForInterrupt = function(forTest) {
             this.busy = 0;
             this.cc.HP2F = 1;
             this.cc.P2BF = 0;
-            if (this.cc.P2.scheduler) {
+            if (this.cc.P2 && this.cc.P2.scheduler) {
                 clearTimeout(this.cc.P2.scheduler);
                 this.cc.P2.scheduler = null;
             }
@@ -939,9 +939,9 @@ B5500Processor.prototype.enterCharModeInline = function() {
         this.K = (bw % 0x40000) >>> 15;
     } else {                                    // B contains a descriptor
         if (bw % 0x400000000000 < 0x200000000000) { // it's an absent descriptor
-            if (!this.NCSF) {
+            if (this.NCSF) {
                 // NOTE: docs do not mention if this is inhibited in control state, but we assume it is
-                this.I = (this.I & 0x0F) | 0x70;    // set I05/6/7: p-bit
+                this.I = (this.I & 0x0F) | 0x70;    // set I05/6/7: P-bit
                 this.cc.signalInterrupt();
             }
         } else {
@@ -1085,7 +1085,7 @@ B5500Processor.prototype.operandCall = function() {
         case 5:
             // Absent data or program descriptor
             if (this.NCSF) {
-                this.I = (this.I & 0x0F) | 0x70;        // set I05/6/7: p-bit
+                this.I = (this.I & 0x0F) | 0x70;        // set I05/6/7: P-bit
                 this.cc.signalInterrupt();
             // else if control state, we're done
             }
@@ -1575,7 +1575,7 @@ B5500Processor.prototype.run = function() {
             this.M = 0;
             this.N = 0;
             this.X = 0;
-            switch (opcode & 3) {
+            switch (opcode & 0x03) {
             case 0:                     // LITC: Literal Call
                 this.adjustAEmpty();
                 this.A = opcode >>> 2;
@@ -1654,7 +1654,7 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x02:          // 0211: ITI=Interrogate Interrupt
-                        if (this.cc.IAR && !this.NCSF) {
+                        if (this.cc.IAR && !this.NCSF) {        // control-state only
                             this.C = this.cc.IAR;
                             this.L = 0;
                             this.S = 0x40;      // address @100
@@ -1674,7 +1674,7 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x12:          // 2211: HP2=Halt Processor 2
-                        if (!this.NCSF && this.cc.P2 && this.cc.P2BF) {
+                        if (!this.NCSF && this.cc.P2 && this.cc.P2BF) { // control-state only
                             this.cc.HP2F = 1;
                             // We know P2 is not currently running on this thread, so save its registers
                             this.cc.P2.storeForInterrupt(0);
@@ -1693,13 +1693,13 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x21:          // 4111: IP1=Initiate Processor 1
-                        if (!this.NCSF) {
+                        if (!this.NCSF) {                       // control-state only
                             this.initiate(0);
                         }
                         break;
 
                     case 0x22:          // 4211: IP2=Initiate Processor 2
-                        if (!this.NCSF) {
+                        if (!this.NCSF) {                       // control-state only
                             this.adjustAFull();
                             this.M = 8;             // INCW is stored in @10
                             this.access(0x0C);      // [M] = A

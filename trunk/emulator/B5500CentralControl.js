@@ -349,10 +349,13 @@ B5500CentralControl.prototype.signalInterrupt = function() {
              : this.CCI16F      ? 0x1F  // @37: Disk file 2 read check finished
              : p1.I & 0x04      ? 0x32  // @62: P1 stack overflow
              : p1.I & 0xF0      ? (p1.I >>> 4) + 0x30   // @64-75: P1 syllable-dependent
-             : p2.I & 0x01      ? 0x20  // @40: P2 memory parity error
-             : p2.I & 0x02      ? 0x21  // @41: P2 invalid address error
-             : p2.I & 0x04      ? 0x22  // @42: P2 stack overflow
-             : p2.I & 0xF0      ? (p2.I >>> 4) + 0x20   // @44-55: P2 syllable-dependent
+             : p2 ?
+                  ( p2.I & 0x01 ? 0x20  // @40: P2 memory parity error
+                  : p2.I & 0x02 ? 0x21  // @41: P2 invalid address error
+                  : p2.I & 0x04 ? 0x22  // @42: P2 stack overflow
+                  : p2.I & 0xF0 ? (p2.I >>> 4) + 0x20   // @44-55: P2 syllable-dependent
+                  : 0
+                  )
              : 0;                       // no interrupt set
 };
 
@@ -409,13 +412,13 @@ B5500CentralControl.prototype.clearInterrupt = function() {
         break;
 
     case 0x20:                          // @40: P2 memory parity error
-        p2.I &= 0xFE;
+        if (p2) {p2.I &= 0xFE}
         break;
     case 0x21:                          // @41: P2 invalid address error
-        p2.I &= 0xFD;
+        if (p2) {p2.I &= 0xFD}
         break;
     case 0x22:                          // @42: P2 stack overflow
-        p2.I &= 0xFB;
+        if (p2) {p2.I &= 0xFB}
         break;
     case 0x24:                          // @44-55: P2 syllable-dependent
     case 0x25:
@@ -427,7 +430,7 @@ B5500CentralControl.prototype.clearInterrupt = function() {
     case 0x2B:
     case 0x2C:
     case 0x2D:
-        p2.I &= 0x0F;
+        if (p2) {p2.I &= 0x0F}
         break;
 
     case 0x30:                          // @60: P1 memory parity error
@@ -613,16 +616,16 @@ B5500CentralControl.prototype.loadTest = function(buf, loadAddr) {
         var modNr = addr >>> 12;
         var modAddr = addr & 0x0FFF;
 
-        if (modNr < 8 && cc.MemMod[modNr]) {
+        if (modNr < 8 && this.MemMod[modNr]) {
             this.MemMod[modNr][modAddr] = word;
         }
     }
 
-    if (!this.poweredOn) {
+    if (!this.poweredUp) {
         throw "cc.loadTest: Cannot load with system powered off"
     } else {
         while (bytes > 6) {
-            store(addr, data.getUint32(x, false)*0x10000 + data.getUint16(x+4, false));
+            store.call(this, addr, data.getUint32(x, false)*0x10000 + data.getUint16(x+4, false));
             x += 6;
             bytes -= 6;
             if (++addr > 0x7FFF) {
@@ -636,13 +639,13 @@ B5500CentralControl.prototype.loadTest = function(buf, loadAddr) {
             bytes--;
             power /= 0x100;
         }
-        store(addr, word);
+        store.call(this, addr, word);
     }
     return addr-loadAddr+1;
 };
 
 /**************************************/
-B5500CentrolControl.prototype.runTest(runAddr) {
+B5500CentralControl.prototype.runTest = function(runAddr) {
     /* Executes a test program previously loaded by this.loadTest on processor
        P1. "runAddr" is the B5500 word address at which execution will begin
        (typically 0x10 [octal 20]) */
@@ -657,9 +660,10 @@ B5500CentrolControl.prototype.runTest(runAddr) {
     this.P1.L = 1;                      // advance L to the next syllable
 
     // Now start scheduling P1 on the Javascript thread
+    this.busy = 1;
     this.P1.procTime = new Date().getTime()*1000;
     this.P1.scheduler = setTimeout(this.P1.schedule, 0);
-}
+};
 
 /**************************************/
 B5500CentralControl.prototype.configureSystem = function() {
