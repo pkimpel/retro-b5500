@@ -13395,3 +13395,71 @@ TBLERR:                                                                 16961500
    STREAM(KTR,B:=BUFF-1);                                               16962000        
       BEGIN                                                             16962500        
       SI:=KTR; SI:=SI-2; DS:=LIT"*"; DS:=2CHR;                          16963000        
+      DS:=21LIT" NOT COMPILED IN MCP~";                                 16963500        
+      END;                                                              16964000        
+ERROR:                                                                  16964500        
+   SPOUT( (BUFF-1) INX (0&ZZSTA[9:9:9]));                               16965000        
+   KEYIN := TRUE;                                                       16965500        
+   GO TO EXIT;                                                          16966000        
+FORGET:                                                                 16966500        
+   STREAM(T:=BUFF:=BUFF-1); DS:=LIT"~";                                 16967000        
+   SPOUT(BUFF INX (0&ZZSTA[9:9:9]));                                    16967500        
+EXIT:                                                                   16968000        
+   IF T>0 THEN % ANOTHER MESSAGE                                   %801-16968100        
+   BEGIN                                                           %801-16968110        
+         BUFF~T; T~0;                                              %801-16968120        
+         GO RESTART;                                               %801-16968130        
+   END;                                                            %801-16968140        
+   IF ABS(B) LEQ 1 THEN                                                 16968500        
+      BEGIN                                                             16969000        
+      IF (KEYBOARDCOUNTER:=KEYBOARDCOUNTER-1) GTR 0 THEN GO TO START;   16969500        
+      KEYBOARDCOUNTER:=0;                                               16970000        
+      END;                                                              16970500        
+   IF B THEN KILL([MSCW]);                                              16971000        
+   END PROCEDURE KEYIN;                                                 16971500        
+REAL LBMSGCONTROL;                                                      16995000        
+PROCEDURE LBMESS(EN,SN,I1,I2,E,UNITNO,X);                               17000000        
+     VALUE FN,SN,I1,I2,E,UNITNO,X;                                      17000200        
+     REAL  FN,SN,I1,I2,E,UNITNO,X;                                      17000400        
+%********************************************************************** 17000405        
+%          PARAMETERS                                                   17000410        
+%       I1     I2     E              FORM OF MESSAGE                    17000420        
+%     ------ ------ ------           ---------------                    17000430        
+%     LSS 0    0                     . FN/SN I1                         17000440        
+%     LSS 0  GTR 0    0              . FN/SN NOT I1(I2)                 17000450        
+%     LSS 0  GTR 0  NEQ 0            . FN/SN NOT I1(I2), E              17000460        
+%     GTR 0    0      0                FN/SN I1                         17000470        
+%     GTR 0    0    NEQ 0              FN/SN I1, E                      17000480        
+%     GTR 0  GTR 0                     FN/SN I1 I2                      17000490        
+%    52 OR 54                          FN/SN I1 I2/E                    17000500        
+%NOTE: IF I1 IS NEITHER 52 NOR 54 THEN I1 AND I2 ARE INDICES INTO TABL  17000510        
+%                                 ELSE I2 AND E ARE MFID AND FID.       17000520        
+%*********************************************************************  17000530        
+  BEGIN                                                                 17000600        
+     REAL T, A, COUNT;                                                  17000800        
+     LBMSGCONTROL.[FF] := COUNT := LBMSGCONTROL.[FF] + 1;               17000900        
+     IF NOT (LBMSGCONTROL.[2:1]) THEN   % ITS NOT IN CORE --            17001000        
+        IF COUNT > 1 THEN BEGIN                                         17001300        
+           SLEEP([LBMSGCONTROL], @1000000000000000);                    17001400        
+            % WAIT - SOMEONE ELSE IS GETTING IT                         17001500        
+        END ELSE BEGIN   % GET IT YOURSELF                              17001600        
+           A := MESSAGETABLE[4].[8:10];                                 17002000        
+           LBMSGCONTROL := (GETSPACE(A,2,0)+2) & LBMSGCONTROL[FTF];     17002600        
+ $ VOID                                                                 17002800        
+           DISKWAIT(-(LBMSGCONTROL,[CF]), A, MESSAGETABLE[4].[22:26]);  17003000        
+           LBMSGCONTROL.[2:1] := 1;  %  MARK PRESENT                    17003050        
+           M[LBMSGCONTROL-1] := P(..LBMSGCONTROL) & A[CTF]; %LINK WD 2  17003100        
+           M[LBMSGCONTROL-2] := (*P(DUP)) & @200[2:35:13];% LINK WORD 1 17003130        
+        END;                                                            17003150        
+     STREAM                                                             17003200        
+        (A := [FN], I := I1<0, TBL1 := LBMSGCONTROL INX ABS(I1), E,     17003250        
+         L := I1 < 0 AND I2 ! 0, J := I1=52 OR I1=54,                   17003300        
+         B := IF P(DUP) THEN [I2] ELSE (LBMSGCONTROL INX I2),           17003400        
+         T := T := SPACE(10));                                          17003450        
+     BEGIN I(DS:=LIT","); DS:=LIB" "; SI:=A;                            17003500        
+        IF SC="+" THEN BEGIN DS:=LIT"="; SI:=SI+8; END                  17003550        
+                  ELSE BEGIN SI:=SI+1; DS:=7CHR; END; DS:=LIT"/";       17003600        
+        IF SC="+" THEN BEGIN DS:=LIT"="; SI:=SI+8; END                  17003700        
+                  ELSE BEGIN SI:=SI+1; DS:=7CHR; END;                   17003750        
+        DS:=LIT" "; L(DS:=4LIT"NOT "); SI:=TBL1;                        17003800        
+        63(SI:=SI+1; 7(IF SC="~" THEN JUMP OUT 2 TO L1 ELSE DS:=CHR));  17003850        
