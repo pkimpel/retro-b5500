@@ -7875,7 +7875,7 @@ PRNPBT:::         "PRNPBT ";                                            08276580
   DISK:::         "DISK   ";                                            08276590        
                   END;                                                  08276600        
               END;                                                      08277000        
-              PRINTORPUNCHWIAT:=P;                                      08277500        
+              PRINTORPUNCHWAIT:=P;                                      08277500        
          END ELSE                                                       08278000        
                                                                         08279000        
 QUIT:    IF V NEQ 0 THEN                                                08280000        
@@ -7885,7 +7885,7 @@ QUIT:    IF V NEQ 0 THEN                                                08280000
     PROCEDURE PRINTBACKUP(BUFF); VALUE BUFF; REAL BUFF;              %P 08282000        
 %                                                                       08282100        
 %   THIS PROCEDURE HANDLES THE PB MESSAGE, MAKING THE NECESSARY CHECKS  08282110        
-%   AND THEN CALLING PRINTORPUNCHWIAT. THE SYNTAX OF THE MESSAGE IS:    08282120        
+%   AND THEN CALLING PRINTORPUNCHWAIT. THE SYNTAX OF THE MESSAGE IS:    08282120        
 %   <PB MSG> ::= PB<INPUT FILE><PB SPECS>                               08282140        
 %     <INPUT FILE> ::= <TAPE UNIT> / <DISK FILE NUMBER>                 08282150        
 %     <PB SPECS> ::= <PB ELEMENT> / <PB ELEMENT><PB SPECS> / <EMPTY>    08282160        
@@ -9963,7 +9963,7 @@ BEGIN                                                                   12501000
 RD:      IF DSED OR PRT[P1MIX,@25]=5 THEN BEGIN P(5); GO TO RED END;    12545000        
          IF WAITIO(B,@2000040,UNIT).[42:1] THEN                         12545500        
          BEGIN                                                          12546000        
-              P(WIATIO(B,@3000040,UNIT),DEL);                           12546500        
+              P(WAITIO(B,@3000040,UNIT),DEL);                           12546500        
               IF M[B INX 3] THEN                                        12547000        
                 IF LOOKFORTAPE THEN GO TO RD;                           12547500        
               P(3);                                                     12548000        
@@ -10074,7 +10074,7 @@ AUT:                                                                    12594500
     SUBROUTINE WRITER;                                                  12603000        
     BEGIN                                                               12603500        
  $ SET OMIT = NOT RJE                                                   12604000        
-         P(WIATIO(B INX @210104000000,0,V), DEL);                       12607000        
+         P(WAITIO(B INX @210104000000,0,V), DEL);                       12607000        
     END;                                                                12607500        
                                                                         12608000        
 %***********************************************************************12608500        
@@ -13463,3 +13463,176 @@ PROCEDURE LBMESS(EN,SN,I1,I2,E,UNITNO,X);                               17000000
                   ELSE BEGIN SI:=SI+1; DS:=7CHR; END;                   17003750        
         DS:=LIT" "; L(DS:=4LIT"NOT "); SI:=TBL1;                        17003800        
         63(SI:=SI+1; 7(IF SC="~" THEN JUMP OUT 2 TO L1 ELSE DS:=CHR));  17003850        
+   L1:  SI:=B;                                                          17003900        
+        J(IF SC="+" THEN BEGIN DS:=LIT"="; SI:=SI+8; END                17003950        
+                    ELSE BEGIN SI:=SI+1; DS:=7CHR END; DS:=LIT"/";      17004000        
+          IF SC="+" THEN BEGIN DS:=LIT"="; SI:=SI+8; END                17004050        
+                    ELSE BEGIN SI:=SI+1; DS:=7CHR END; JUMP OUT TO L3); 17004100        
+        L(DS:=LIT"(");                                                  17004150        
+        63(SI:=SI+1; 7(IF SC="~" THEN JUMP OUT 2 TO L2 ELSE DS:=CHR));  17004200        
+   L2:  L(DS:=LIT")"); SI:=LOC E; SI:=SI+5;                             17004250        
+        IF SC NEQ "0" THEN BEGIN DS:=2LIT", "; DS:=3CHR; END;           17004300        
+   L3:  DS:=LIT"~";                                                     17004600        
+     END; %STREAM                                                       17005200        
+     SPOUTER(T&UNITNO[9:9:9],UNITNO,X);                                 17005400        
+     LBMSGCONTROL.[FF] := LBMSGCONTROL.[FF] - 1;                        17005600        
+  END; %LIBMSG                                                          17006000        
+PROCEDURE STOPM(NCS); VALUE NCS; REAL NCS;                              17900000        
+                                                                        17900500        
+   BEGIN                                                                17901000        
+   INTEGER PROTY;                                                       17901500        
+   REAL B;                                                              17902000        
+   LABEL AROUND,OUTIT;                                                  17902500        
+ $ SET OMIT = NOT(WORKSET)                                              17903000        
+   REAL N, AUTOSTOP;                                                    17903500        
+   AUTOSTOP := (WKSETSTOPJOBS AND TWO(P1MIX)) NEQ 0;                    17904000        
+   JAR[P1MIX,9].[3:1]:=1; % MARK IT STOPPED                             17904500        
+   WKSETSWITCHTIME := CLOCK + P(RTR);                                   17904600        
+ $ POP OMIT % WORKSET                                                   17905000        
+   PROTY := PRYOR[P1MIX]; % SAVE THE PRIORITY LEVEL                     17905500        
+    PRYOR[P1MIX]:=@1777;                                                17906000        
+    IF NOTERMSET(P1MIX) THEN PRTROW[P1MIX].[PSF]:=0;                    17906100        
+   IF JAR[P1MIX,9].[1:1] THEN                                           17906150        
+   BEGIN                                                                17906200        
+        COMPLEXSLEEP((TERMSET(P1MIX) OR JAR[P1MIX,9].[1:1]=0));         17906250        
+        GO OUTIT;                                                       17906300        
+   END;                                                                 17906350        
+AROUND:                                                                 17906500        
+   STREAM(J:=JARROW[P1MIX], P1MIX,                                      17907000        
+ $ SET OMIT = NOT(WORKSET)                                              17907500        
+          AUTOSTOP,                                                     17908000        
+ $ POP OMIT % WORKSET                                                   17908500        
+          B := B := SPACE(10));                                         17909000        
+      BEGIN                                                             17909500        
+ $ SET OMIT = NOT(WORKSET)                                              17910000        
+      AUTOSTOP(DS:=11LIT"#AUTO-STOP "; JUMP OUT TO L1);                 17910500        
+ $ POP OMIT % WORKSET                                                   17911000        
+      DS:=13LIT"#OPRTR ST-ED ";                                         17911500        
+ L1:  SI:=J; 2(SI:=SI+1; DS:=7CHR; DS:=LIT"/");                         17912000        
+      DI:=DI-1; DS:=LIT"="; SI:=LOC P1MIX; DS:=2DEC;                    17912500        
+      DS:=LIT"~"; DI:=DI-3; DS:=FILL;                                   17913000        
+      END STREAM STATEMENT;                                             17913500        
+   SPOUT(B);                                                            17914000        
+   IF AUTODS THEN REPLY[P1MIX]~VOK ELSE                            %747-17914100        
+   BEGIN                                                           %747-17914200        
+   REPLY[P1MIX]:= -VWY & VOK[36:42:6];                                  17914500        
+    COMPLEXSLEEP((TERMSET(P1MIX) OR REPLY[P1MIX] GEQ 0));               17915000        
+   END;                                                            %747-17915100        
+    IF NOTERMSET(P1MIX) THEN % MUST BE "WY" OR "OK"                     17915500        
+      BEGIN                                                             17916000        
+ $ SET OMIT = NOT(WORKSET)                                              17916500        
+      IF AUTOSTOP THEN                                                  17917000        
+         IF REPLY[P1MIX]=VWY THEN GO AROUND ELSE ELSE                   17917500        
+ $ POP OMIT % WORKSET                                                   17918000        
+      IF NOT WHYSLEEP(VWY&VOK[36:42:6]) THEN GO AROUND;                 17918500        
+      REPLY[P1MIX]:=0;                                                  17919000        
+OUTIT:                                                                  17919100        
+      PRYOR[P1MIX]:=PROTY;                                              17919500        
+ $ SET OMIT = WORKSET                                                   17920000        
+ $ SET OMIT = NOT(WORKSET)                                              17921500        
+      JAR[P1MIX,9].[3:1]:=0; % MARK IT RUNNING                          17922000        
+      OLAYTIME[P1MIX]:= (*P(DUP)) | 0.80;                               17922500        
+      % SET THE OLAY TIME BACK NOW TO PREVENT THIS                      17923500        
+      % JOB FROM BEING IMMEDIATELY ST-ED AGAIN                          17924000        
+      END                                                               17924500        
+   ;                                                               %138-17925000        
+   FOR N:=0 STEP 1 UNTIL STQUEMAX DO                                    17925500        
+      IF STQUE[N] = P1MIX THEN STQUE[N] := 0; % REMOVE FROM QUEUE       17926000        
+   WKSETSWITCHTIME := CLOCK+P(RTR);                                     17926100        
+   WKSETSTOPJOBS:=WKSETSTOPJOBS AND NOT(TWO(P1MIX));                    17926500        
+ $ POP OMIT % WROKSET                                                   17927000        
+   IF NCS THEN GO TO INITIATE;                                          17927500        
+   END PROCEDURE STOPM;                                                 17928000        
+PROCEDURE TISKTASK; FORWARD;                                            17928500        
+PROCEDURE FILEHOLD(A,B,TOG,LOC,HOLD);                                   18000000        
+    VALUE LOC,HOLD;                                                     18001000        
+    REAL A,B,TOG,LOC,HOLD;                                              18002000        
+BEGIN                                                                   18003000        
+    REAL SZ,Y,T;                                                        18004000        
+ $ SET OMIT = NOIT SHAREDISK                                            18004490        
+    ARRAY HOLDLIST[*];                                                  18005000        
+    LABEL SLEPE;                                                        18006000        
+    DEFINE DSED=TERMSET(P1MIX)#;                                        18007000        
+    IF HOLD THEN                                                        18008000        
+    BEGIN                                                               18009000        
+         IF TOG THEN TOG~TOG+1 ELSE                                     18010000        
+         BEGIN % MAKE AN ENTRY INTHE HOLDLIST                           18011000        
+ $ SET OMIT = NOT SHAREDISK                                             18011490        
+              IF (SZ:=(Y:=HOLDER.[FF])+1) GTR HOLDMAX THEN              18012000        
+              BYBY("HOLD LIST OVERFLOW~",19);                           18013000        
+              HOLDLIST:=[M[SPACE(SZ)]]&SZ[8:38:10];                     18014000        
+              IF Y!0 THEN                                               18014100        
+              DISKWAIT(-(HOLDLIST INX 0),Y,HOLDER.[CF]);                18015000        
+              HOLDER.[FF]:=SZ;                                          18016000        
+              HOLDLIST[Y]:=LOC.[FF]&[TOG][CTF]&SYSNO[2:46:2];           18017000        
+              DISKWAIT(HOLDLIST INX 0,SZ,HOLDER.[CF]);                  18018000        
+ $ SET OMIT = NOT SHAREDISK                                             18018490        
+              FORGETSPACE(HOLDLIST);                                    18019000        
+         END;                                                           18019500        
+         IF M[LOC+4].[3:1] THEN                                         18020000        
+ $ SET OMIT = NOT SHAREDISK                                             18020490        
+         ELSE                                                           18021000        
+         BEGIN M[LOC+4].[3:1]:=1;                                       18021500        
+              DISKWAIT(LOC.[CF],-30,LOC.[FF]);                          18022000        
+         END;                                                           18022500        
+ $ SET OMIT = SHAREDISK                                                 18022990        
+         UNLOCKDIRECTORY;                                               18023000        
+ $ POP OMIT                                                             18023010        
+         IF P1MIX!0 THEN                                                18024000        
+         BEGIN T:=VWY&(VIF|A.[3:1])[36:42:6];                           18025000        
+              IF TOG=0 THEN                                             18026000        
+SLEPE:        FILEMESS("#      ",A,B," IN USE",0,0,0);                  18027000        
+              REPLY[P1MIX]:=-T;                                         18028000        
+              COMPLEXSLEEP(REPLY[P1MIX]}0 OR DSED OR TOG);              18029000        
+              IF NOT WHYSLEEP(T) THEN GO TO SLEPE;                      18030000        
+         END ELSE                                                       18031000        
+         WHILE NOT TOG DO                                          %815-18031400        
+         BEGIN LBMESS(ABS(A),B,45,0,"MCP",0,1);                         18031500        
+              COMPLEXSLEEP((CLOCK AND @17777)=0 OR TOG);           %815-18032000        
+              SLEEP([CLOCK],NOT CLOCK);                            %815-18032010        
+         END;                                                           18032500        
+ $ SET OMIT = SHAREDISK                                                 18032990        
+         LOCKDIRECTORY;                                                 18033000        
+ $ POP OMIT                                                             18033010        
+         TOG:=TRUE;                                                     18033500        
+         IF P((P1MIX NEQ 0 AND DSED),DUP)                               18034000        
+           THEN FILEHOLD(A,B,TOG,LOC,2);                                18035000        
+         P(RTN); % 1 ON TOP OF STACK IF DSED                            18037000        
+    END;                                                                18045000        
+ $ SET OMIT = NOT SHAREDISK                                             18045490        
+    IF (SZ:=HOLDER.[FF])=0 THEN                                         18046000        
+ $ SET OMIT = NOT SHAREDISK                                             18046490        
+    ELSE                                                                18047000        
+    BEGIN IF HOLD=2 THEN DISKWAIT(-LOC.[CF],-30,LOC.[FF]);              18047500        
+         HOLDLIST:=[M[SPACE(SZ)]]&SZ[8:38:10];                          18048000        
+         DISKWAIT(-(HOLDLIST INX 0),SZ,HOLDER.[CF]);                    18049000        
+         IF TOG THEN FOR T:=0 STEP 1 UNTIL SZ-1 DO                      18050000        
+ $ SET OMIT = NOT(SHAREDISK)                                            18051000        
+         IF HOLDLIST[T].[FF]=[TOG].[CF] THEN                            18053000        
+         IF (SZ:=SZ-1) ! T THEN                                         18054000        
+         BEGIN                                                          18055000        
+              MOVE(SZ-T,[HOLDLIST[T+1]],[HOLDLIST[T]]);                 18056000        
+              T:=SZ;                                                    18057000        
+         END;                                                           18058000        
+         HOLDER.[FF]:=Y:=SZ;                                            18059000        
+         IF SZ!0 THEN                                                   18060000        
+         BEGIN                                                          18061000        
+              FOR Y~0 STEP 1 UNTIL SZ-1 DO                              18062000        
+              IF HOLDLIST[Y].[CF]=LOC.[FF] THEN                         18063000        
+              BEGIN                                                     18064000        
+ $ SET OMIT = NOT(SHAREDISK)                                            18065000        
+                   M[HOLDLIST[Y].[FF]]~1;                               18068000        
+                   Y:=SZ;                                               18069000        
+              END;                                                      18070000        
+              DISKWAIT(HOLDLIST INX 0,SZ,HOLDER.[CF]);                  18071000        
+         END;                                                           18072000        
+ $ SET OMIT = NOT SHAREDISK                                             18072490        
+         IF SZ=Y THEN                                                   18073000        
+         BEGIN                                                          18074000        
+              M[LOC+4].[3:1]:=0;                                        18075000        
+              IF HOLD=2 THEN DISKWAIT(LOC.[CF],-30,LOC.[FF]);           18075500        
+ $ SET OMIT = NOT SHAREDISK                                             18075990        
+         END;                                                           18077500        
+         FORGETSPACE(HOLDLIST);                                         18078000        
+    END;                                                                18079000        
+END; % OF FILEHOLDER                                                    18080000        
