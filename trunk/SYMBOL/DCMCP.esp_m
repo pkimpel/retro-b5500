@@ -13636,3 +13636,116 @@ SLEPE:        FILEMESS("#      ",A,B," IN USE",0,0,0);                  18027000
          FORGETSPACE(HOLDLIST);                                         18078000        
     END;                                                                18079000        
 END; % OF FILEHOLDER                                                    18080000        
+%COMMENT THE DISK FILE HEADER CONTAINS THE FOLLOWING INFORMATION:       18081000        
+%H[0].[0:15]      RECORD LENGTH                                         18083000        
+%    .[15:15]     BLOCK LENGTH                                          18084000        
+%    .[30:12]     RECORD/BLOCK                                          18085000        
+%    .[42:6]      SEGMENTS/BLOCK                                        18086000        
+%H[1].[6:18]      CREATION DATE FOR LOGGING (WHEN ON DISK)              18087000        
+%    .[25:23]     CREATION TIME FOR LOGGING (WHEN ON DISK)              18088000        
+%    .[1:47]      NUMBER OF LOGICAL RECORDS PER ROW (WHEN IN CORE)      18089000        
+%H[2].[0:48]      =0  FREE FILE                                         18090000        
+%    .[1:1]       =0  SOLE USER, PUBLIC OR PRIVATE FILE                 18091000        
+%    .[1:1]       =1  SECURITY FILE                                     18092000        
+%    .[6:42]      PRIMARY USER"S CODE                                   18093000        
+%H[3].[1:1]       =1  NEW FILE HEADER FORMAT                            18094000        
+%    .[2:10]      SAVE FACTOR (BINARY)                                  18095000        
+%    .[12:18]     DATE OF LAST ACCESS (BINARY)                          18096000        
+%    .[30:18]     CREATION DATE (BINARY)                                18097000        
+%H[4].[1:1]       =1   FILE IS BEING LOADED OR NAME IS BEING CHANGED    18098000        
+%    .[2:1]       =1   FILE IS OPENED BY AN EXCLUSIVE USER              18099000        
+%    .[3:1]       =1   A PROGRAM IS WAITING TO USE THE FILE             18100000        
+%    .[4:2]       SYSTEM NUMBER OF EXCLUSIVE USER                       18101000        
+%    .[6:1]       USED BY AUTOPRINT TO MARK A PBD FILE                  18102000        
+%    .[7:1]       USED TO MARK PSEUDO DECKS THAT WERE CREATD ON         18103000        
+%    .[8:1]       USED TO MARK SPECIAL COMPILERS                        18104000        
+%    .[9:2]       =2  FILE IS DATA                                      18105000        
+%                 =3  FILE IS PROGRAM                                   18106000        
+%                 =0  DON"T KNOW IF DATA OR PROGRAM                     18107000        
+%    .[11:1]      FILE ACCESSED BIT                                     18108000        
+%    .[12:4]      FILE SYSTEM TOGGLES                                   18109000        
+%    .[16:5]      OPEN COUNT 2 FOR SYSTEM 0 (A)                         18110000        
+%    .[21:5]      OPEN COUNT 2 FOR SYSTEM 1 (B)                         18111000        
+%    .[26:5]      OPEN COUNT 2 FOR SYSTEM 2 (C)                         18112000        
+%    .[31:5]      OPEN COUNT 2 FOR SYSTEM 3 (D)                         18113000        
+%    .[36:6]      =0 TYPE IS UNKNOWN                                    18114000        
+%                 =1  BASIC                                             18115000        
+%                 =2  ALGOL                                             18116000        
+%                 =3  COBOL                                             18117000        
+%                 =4  FORTRAN                                           18118000        
+%                 =5  TSPOL                                             18119000        
+%                 =6  XALGOL                                            18120000        
+%                 =7  SEQ                                               18121000        
+%                 =8  DATA                                              18122000        
+%                 =9  LOCK                                              18123000        
+%    .[42:1]     USED TO MARK FILES WHICH CANT BE MOVED                 18123100        
+%    .[43:2]      SENSITIVE DATA - ZEROING BITS                         18124000        
+%    .[45:1]      COLD START FILE                                       18124100        
+%    .[46:2]      NOT USED                                              18124200        
+%H[5].[0:48]      =0  SOLE USER FILE                                    18125000        
+%    .[1:1]       =1  PRIVATE FILE                                      18126000        
+%                 =12 IF H[6]=12 THEN INFO FILE ELSE PUBLIC FILE        18127000        
+%H[7]             NUMBER OF LOGICAL RECORDS (EOF POINTER)               18128000        
+%H[8]             NUMBER OF SEGMENTS PER ROW                            18129000        
+%H[9].[1:1]       TOGGLE 1 FOR SYSTEM 0 (A)                             18130000        
+%    .[2:1]       TOGGLE 1 FOR SYSTEM 1 (B)                             18131000        
+%    .[3:1]       TOGGLE 1 FOR SYSTEM 2 (C)                             18132000        
+%    .[4:1]       TOGGLE 1 FOR SYSTEM 3 (D)                             18133000        
+%    .[5:1]       TOGGLE 2 FOR SYSTEM 0 (A)                             18134000        
+%    .[6:1]       TOGGLE 2 FOR SYSTEM 1 (B)                             18135000        
+%    .[7:1]       TOGGLE 2 FOR SYSTEM 2 (C)                             18136000        
+%    .[8:1]       TOGGLE 2 FOR SYSTEM 3 (D)                             18137000        
+%    .[9:5]       OPEN COUNT 1 FOR SYSTEM 0 (A)                         18138000        
+%    .[14:5]      OPEN COUNT 1 FOR SYSTEM 1 (B)                         18139000        
+%    .[19:5]      OPEN COUNT 1 FOR SYSTEM 2 (C)                         18140000        
+%    .[24:5]      OPEN COUNT 1 FOR SYSTEM 3 (D)                         18141000        
+%    .[29:14]     NOT USED                                              18142000        
+%    .[43:5]      MAXIMUM NUMBER OF ROWS                                18143000        
+%H[10]-H[29]      DISK ADDRESSES OF ROWS (0 IF NOT ASSIGNED)            18144000        
+%                                                                       18145000        
+%                                                                       18146000        
+%THE OPEN COUNTS AND TOGGLES ARE USED IN THE FOLLOWING MANNER:          18147000        
+%                                                                       18148000        
+%    TOGGLE 1     TOGGLE 2     OPEN COUNT 1     OPEN COUNT 2            18149000        
+%      0            0           INPUT ONLY         INPUT                18150000        
+%      0            1 (OUTPUT)  NOT USED           INPUT                18151000        
+%      1            0           SHARED             INPUT                18152000        
+%      1            1           PROTECT            INPUT                18152100        
+%                                                                       18153000        
+%END COMMENT;                                                           18154000        
+    REAL  PROCEDURE  DIRECTORYSEARCH(A,B,OPTN);%                        18155000        
+         VALUE  A,B,OPTN;  REAL  A,B,OPTN;%                             18156000        
+%   OPTN= 0   OPENS FOR SHARED USE                                      18157000        
+%   OPTN= 1   OPENS FOR INPUT                                           18158000        
+%   OPTN= 2   OPENS FOR OUTPUT                                          18159000        
+%   OPTN= 3   OPENS FOR WRITELOCK                                       18160000        
+%   OPTN= 4   OPENS FOR EXCLUSIVE USE                                   18161000        
+%   OPTN= 5   RETURNS FILE HEADER (UNCHANGED)                           18162000        
+%   OPTN= 6   REMOVES FILE FROM DISK UNCONDITIONALLY                    18163000        
+%   OPTN= 7   REMOVES FILE FROM DISK AS SOON AS IT IS NOT IN USE        18164000        
+%   OPTN= 8   REMOVES FILE HEADER ONLY                                  18165000        
+%   OPTN= 9   HEADERUNLOCK--WRITES HEADER POINTED TO BY (F-4).[CF]      18166000        
+%             BACK OUT ON (F-4).[FF], TURNS OFF INTERLOCK & DOES        18167000        
+%             FORGETSPACE(F-4).                                         18168000        
+%   OPTN=10   CLOSE SHARED                                              18169000        
+%   OPTN=11   CLOSE INPUT                                               18170000        
+%   OPTN=12   CLOSE OUTPUT                                              18171000        
+%   OPTN=13   CLOSE WRITELOCK                                           18172000        
+%   OPTN=14   CLOSE EXCLUSIVE                                           18173000        
+%   OPTN=15   LOGS THE FILE AND RESETS ITS CREATION DATE AND TIME       18174000        
+%   OPTN=16   MAKES THE FILE NOT A SYSTEM FILE                          18175000        
+%   OPTN=17   MAKES THE FILE A SYSTEM FILE                              18176000        
+%   OPTN=18   WILL INTERLOCK SYSTEM FILES                               18177000        
+%   OPTN=19   RETURNS FILE HEADER (UNCHANGED AND LOCKED...IT IS UP TO   18178000        
+%                                  THE CALLING ROUTINE TO CLEAN UP)     18178100        
+%   OPTN=20   CLOSE A FILE GIVEN JUST THE DISK ADDRESS OF ITS HEADER    18179000        
+%             A CONTAINS THE DISK ADDRESS                               18179010        
+%             B CONTAINS THE OPTN NUMBER OF THE DESIRED CLOSE           18179020        
+%   OPTN=21   OPENS PROTECT                                             18179100        
+%   OPTN=22   CLOSE PROTECT                                             18179200        
+%   OPTN>512  FILECLOSE--ADDRESS OF HEADER IN OPTN.[CF]                 18180000        
+%                        CLOSE OPTION-10 IS IN OPTN.[FF]                18181000        
+%   OPTN< 0   RETURNS AN AREA OF USER DISK AND UPDATES CORE COPY        18182000        
+%             OF FILE HEADER--ADDRESS OF HEADER IS IN OPTN.[CF]--       18183000        
+%             NUMBER OF THE ROW TO BE FILLED IS IN OPTN.[FF]            18184000        
+%             IS IN OPTN.[CF]                                           18185000        
