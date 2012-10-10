@@ -13749,3 +13749,96 @@ END; % OF FILEHOLDER                                                    18080000
 %             OF FILE HEADER--ADDRESS OF HEADER IS IN OPTN.[CF]--       18183000        
 %             NUMBER OF THE ROW TO BE FILLED IS IN OPTN.[FF]            18184000        
 %             IS IN OPTN.[CF]                                           18185000        
+%   A.[1:1]   DIRECTORYSEARCH WILL FORGET THE MEMORY SPACE              18186000        
+%             OCCUPIED BY THE FILE HEADER                               18187000        
+%   A.[2:1]   IS DIALED INTO FH[4].[1:1] WHEN OPTN=4                    18188000        
+%   A.[3:1]   IF A CONFLICT OCCURS, AN "IF" WILL BE ENABLED. IF THE     18189000        
+%             OPERATOR ENTERS AN "IF", DIRECTORYSEARCH WILL RETURN A    18190000        
+%             VALUE OF 1.  CURRENTLY, THIS IS USED ONLY BY LIBMAIN.     18191000        
+%   B.[1:1]   DIRECTORYSEARCH WILL RETURN A VALUE OF 1 IF THE           18192000        
+%             FILE IS IN USE                                            18193000        
+%   B.[2:1]   WILL NOT UPDATE DATE OF LAST ACCESS                       18194000        
+%   B.[3:1]   WILL SET FILE ACCESSED BIT FOR CLOSE                      18195000        
+BEGIN                                                                   18196000        
+         REAL OLDONE=-4;                                                18197000        
+         REAL TEMP,I,T,TOG,J,K,N,F,X;                                   18198000        
+         INTEGER S,I1,I2,I3;                                            18199000        
+         REAL UNITNO;                                                   18199100        
+         ARRAY FH[*],NB[*];                                             18200000        
+ $ SET OMIT = NOT SHAREDISK                                             18200490        
+         DEFINE DSED=TERMSET(P1MIX)#;                                   18201000        
+ $ SET OMIT = SHAREDISK                                                 18201490        
+         DEFINE UNLOCKHDR = EXIT#;                                      18201500        
+ $ POP OMIT                                                             18201510        
+         LABEL LL,EXT,CHECK,LWS;                                        18202000        
+         LABEL OPENSHARED,OPENINPUT,OPENOUTPUT,OPENWRITELOCK,           18203000        
+              OPENEXCLUSIVE,L6,L7,L8,EXIT,LWRITE,FOUND,                 18204000        
+              THU,CLOSE,LW,BOMB,GETAROW,EX,                             18205000        
+              CLOSESHARED,CLOSEINPUT,CLOSEOUTPUT,CLOSEWRITELOCK,        18206000        
+              CLOSEXCLUSIVE,ZER,UNSYS,SYS,                              18207000        
+              SEE,LOCKSYS,DONTWAIT,NOFILE,COMPLETE,LEAVLKD,UNUSED;      18208000        
+ $ SET OMIT = NOT(DISKLOG)                                              18209000        
+         LABEL OPENPROTECT,CLOSEPROTECT;                                18210300        
+         SWITCH Q~OPENSHARED,OPENINPUT,OPENOUTPUT,OPENWRITELOCK,        18211000        
+              OPENEXCLUSIVE,EXIT,L6,L7,L8,EXIT,                         18212000        
+              CLOSESHARED,CLOSEINPUT,                                   18213000        
+              CLOSEOUTPUT,CLOSEWRITELOCK,CLOSEEXCLUSIVE                 18214000        
+ $ SET OMIT = NOT(DISKLOG)                                              18215000        
+ $ SET OMIT = DISKLOG                                                   18217000        
+              ,EXIT                                                     18218000        
+ $ POP OMIT                                                             18218001        
+              ,UNSYS,SYS                                                18219000        
+              ,LOCKSYS,LEAVELKD,UNUSED,OPENPROTECT,CLOSEPROTECT         18220000        
+              ;                                                         18221000        
+    %*************************************************                  18222000        
+    REAL SUBROUTINE SEARCH;                                             18223000        
+    BEGIN                                                               18224000        
+ $ SET OMIT = NOT SHAREDISK                                             18224490        
+         S:=SCRAMBLE(A,B);                                              18225000        
+         DISKWAIT(-N,-60,S);                                            18226000        
+    LL:  FOR X:=0 STEP 3 UNTIL 57 DO                                    18227000        
+              IF (NB[X] EQV A.[6:42]) = NOT 0 THEN                      18227500        
+              IF (NB[X+1] EQV B.[6:42]) = NOT 0 THEN GO TO FOUND;       18228000        
+         IF (S:=NB[2].[FF])!0 THEN                                      18228500        
+         BEGIN DISKWAIT(-N,60,S);                                       18229000        
+              GO TO LL;                                                 18229500        
+         END ELSE                                                       18230000        
+ $ SET OMIT = NOT SHAREDISK                                             18230490        
+         GO TO EXT;                                                     18231000        
+    FOUND: I~(K~NB[X+2].[CF]-DIRECTORYTOP-4).[44:4]|2;                  18232000        
+         J ~(K AND NOT 15)+DIRECTORYTOP+19;                             18233000        
+         K ~ K+DIRECTORYTOP+4;                                          18234000        
+    EXT: SEARCH ~ S;                                                    18235000        
+    END;                                                                18236000        
+    %*************************************************                  18237000        
+    SUBROUTINE HEADER;                                                  18238000        
+    BEGIN                                                               18239000        
+         DISKWAIT(-F,30                                                 18240000        
+ $ SET OMIT = NOT SHAREDISK                                             18240090        
+              ,K);                                                      18240200        
+ $ SET OMIT = NOT SHAREDISK                                             18240490        
+         TEMP:=F&K[CTF]&I[8:38:10];                                     18241000        
+    END;                                                                18242000        
+    %*************************************************                  18243000        
+    SUBROUTINE REMOVER;      % CANT BE CALLED FROM OTHER SUBROUTINES.   18244000        
+    BEGIN NB[X]~@14;                                                    18245000        
+         DISKWAIT(N,-60,S);                                             18245500        
+ $ SET OMIT = NOT SHAREDISK                                             18245990        
+         DISKWAIT(-N,-30,J);                                            18247500        
+         NB[I]~@14; NB[I+1]~NEXTSLOT; NEXTSLOT~K;                       18248000        
+         DISKWAIT(N,-30,J);                                             18248500        
+ $ SET OMIT = NOT SHAREDISK                                             18248990        
+    END;                                                                18250000        
+    %*************************************************                  18251000        
+    SUBROUTINE HOLD;                                                    18252000        
+    BEGIN                                                               18253000        
+ $ SET OMIT = NOT SHAREDISK                                             18253490        
+         IF B.[1:1] THEN GO DONTWAIT;                                   18254000        
+ $ POP OMIT OMIT                                                        18254010        
+         FILEHOLD(A,B,TOG,TEMP,1);                                      18255000        
+         IF P THEN % 0 OR 1 IS LEFT ON TOP OF STACK IN FILEHOLD         18255100        
+           BEGIN TEMP:=3; A:=-1; GO EXIT; END % DS-ED IN FILEHOLD       18255200        
+              ELSE                                                      18255300        
+         IF P1MIX!0 THEN                                                18256000        
+         IF REPLY[P1MIX]=VIF THEN                                       18258000        
+         BEGIN                                                          18259000        
