@@ -13842,3 +13842,103 @@ BEGIN                                                                   18196000
          IF P1MIX!0 THEN                                                18256000        
          IF REPLY[P1MIX]=VIF THEN                                       18258000        
          BEGIN                                                          18259000        
+              FILEHOLD(A,B,TOG,TEMP,2);                                 18260000        
+    DONTWAIT:                                                           18260500        
+              TEMP:=1; % IN USE                                         18261000        
+              GO TO FXIT;                                               18262000        
+         END;                                                           18263000        
+         IF SEARCH=0 THEN                                               18264000        
+         BEGIN FILEHOLD(A,B,TOG,TEMP,0);                                18265000        
+    NOFILE:   TEMP:=0; A:=-1; GO EXIT;                                  18266000        
+         END;                                                           18269000        
+         HEADER;                                                        18270000        
+    END; % OF HOLD                                                      18271000        
+    %*************************************************                  18272000        
+ $ SET OMIT = NOT(PACKETS)                                              18272199        
+         IF OPTN.[CF] LSS 512 THEN                                      18272200        
+         BEGIN UNITNO:=OPTN.[9:21]; OPTN:=OPTN INX 0; END;              18272300        
+ $ POP OMIT                                                             18272301        
+ $ SET OMIT = SHAREDISK                                                 18272990        
+         LOCKDIRECTORY;                                                 18273000        
+ $ POP OMIT                                                             18273010        
+         IF OPTN=20 THEN                                                18273020        
+          BEGIN OPTN:=B.[CF];                                           18273030        
+          DISKWAIT(-(F:=SPACE(30)),-30,(K:=A.[CF]));                    18273040        
+          FH:=[M[F]]&30[8:38:10];                                       18273050        
+          TEMP := F & K [CTF];                                     %155-18273055        
+          GO Q[OPTN];                                                   18273060        
+          END;                                                          18273070        
+         IF OPTN=9 THEN                                                 18274000        
+         BEGIN                                                          18275000        
+              DISKWAIT(-(N:=SPACE(30)),-30,(K:=OLDONE.[FF]));           18276000        
+              FH:=[M[F:=(TEMP:=OLDONE).[CF]]]&30[8:38:10];              18276500        
+              A:=NABS(A);                                               18277000        
+              FH[4]:=(*P(DUP))&M[N+4][3:3:1];                           18277500        
+              GO TO CLOSEEXCLUSIVE;                                     18278000        
+         END;                                                           18279000        
+         NB:=[M[N:=SPACE(60)]]&60[8:38:10];                             18280000        
+         IF SEARCH=0 THEN                                               18281000        
+         BEGIN                                                          18282000        
+              A:=0;                                                     18283000        
+              GO TO EXIT;                                               18284000        
+         END;                                                           18285000        
+ $ SET OMIT = NOT SHAREDISK                                             18285099        
+ $ SET OMIT = SHAREDISK                                                 18285999        
+         FH:=[M[F:=TYPEDSPACE(30,DISKHEADERAREAV)]]&30[8:38:10]; % %167-18286000        
+ $ POP OMIT                                                             18286001        
+         HEADER;                                                        18287000        
+         IF OPTN<0 THEN GO GETAROW;                                     18288000        
+         IF OPTN}512 THEN GO TO Q[OPTN.[FF]+10];                        18289000        
+ $ SET OMIT = SHAREDISK                                                 18289999        
+         IF OPTN LSS 5 OR OPTN=17 OR OPTN=7 THEN                        18290000        
+ $ POP OMIT                                                             18290001        
+ $ SET OMIT = NOT SHAREDISK                                             18290099        
+    CHECK:                                                              18291000        
+         BEGIN                                                          18292000        
+              IF FH[4].[44:1] AND OPTN LSS 5 THEN                       18292100        
+              BEGIN % TRYING TO OPEN WHILE FILE IS BEING BLANKED        18292200        
+ $ SET OMIT = NOT SHAREDISK                                             18292300        
+              GO NOFILE;                                                18292600        
+              END;                                                      18292700        
+ $ SET OMIT = SHAREDISK                                                 18292999        
+              IF NOT OPTN OR OPTN=7 THEN                                18293000        
+ $ POP OMIT                                                             18293001        
+ $ SET OMIT = NOT SHAREDISK                                             18293099        
+              IF FH[4].[12:4]! 0 THEN                                   18293200        
+              BEGIN   %   IT IS A SYSTEM FILE                           18294000        
+                   TEMP:=2; % SYSTEM FILE                               18295000        
+ $ SET OMIT = NOT SHAREDISK                                             18295490        
+                   GO TO EXIT;                                          18296000        
+              END;                                                      18297000        
+    SEE:                                                                18298000        
+         IF (FH[4].[2:2] AND (NOT TOG OR 2))!0 THEN                     18299000        
+              BEGIN                                                     18300000        
+                   HOLD;                                                18301000        
+                   GO CHECK;                                            18302000        
+              END;                                                      18303000        
+         END;                                                           18305000        
+         GO TO Q[OPTN];                                                 18306000        
+    OPENSHARED:                                                         18307000        
+         IF FH[9].[5:4]=0 THEN                                          18308000        
+         IF FH[9].[1:4]!0 OR FH[9].[9:20]=0 THEN                        18309000        
+         BEGIN                                                          18310000        
+ $ SET OMIT = NOT(SHAREDISK)                                            18310999        
+ $ SET OMIT = SHAREDISK                                                 18314099        
+              FH[9].[9:5]:=P(DUP).[9:5]+1;                              18314100        
+              FH[9].[1:1]:=1;                                           18314200        
+ $ POP OMIT                                                             18314201        
+              GO TO LWRITE;                                             18315000        
+         END;                                                           18316000        
+         HOLD;                                                          18317000        
+         GO TO OPENSHARED;                                              18318000        
+    OPENINPUT:                                                          18319000        
+ $ SET OMIT = NOT(SHAREDISK)                                            18319999        
+ $ SET OMIT = SHAREDISK                                                 18321099        
+         FH[4].[16:5]:=P(DUP).[16:5]+1;                                 18321100        
+ $ POP OMIT                                                             18321101        
+         GO TO LWRITE;                                                  18322000        
+    OPENOUTPUT:                                                         18323000        
+         IF FH[9].[5:24]=0 THEN                                         18324000        
+         BEGIN                                                          18325000        
+ $ SET OMIT = NOT(SHAREDISK)                                            18325999        
+ $ SET OMIT = SHAREDISK                                                 18327099        
