@@ -14128,3 +14128,86 @@ UNUSED:                                                                 18466101
          IF N NEQ 0 THEN FORGETSPACE(N);                                18466200        
          DIRECTORYSEARCH~TEMP;                                          18467000        
 END; % OF DIRECTORYSEARCH                                               18468000        
+PROCEDURE PICKTHELOCK; FORWARD;                                         18468100        
+PROCEDURE EVENTANDINTERRUPT; FORWARD;                                   18468200        
+PROCEDURE COMMUNICATE1;                                                 18500000        
+BEGIN REAL R4=-4,R5=-5,R6=-6,R7=-7,R8=-8;                               18500100        
+      INTEGER I4=-4,I5=-5,I6=-6;                                        18500200        
+      ARRAY A4=-4[*],A5=-5[*],A6=-6[*];                                 18500300        
+      ARRAY A7=-7[*];                                                   18500400        
+      NAME N4=-4,N5=-5,N6=-6;                                           18500500        
+      LABEL C0,C1,C2,C3,C4,C5,C6,C7,C8,C9,C10,C11,C12,C13,C14,C15,C16,  18500600        
+            C17,C18,C19,C20,C21,C22,C23,C24,C25,C26;                    18500700        
+      LABEL C27,C28,C29,C30,C31,C32;                                    18500800        
+      LABEL C33,C34,C35,C36,C37,C38,C39,C45,C47,C48,C49,                18500900        
+            C30A,C30B,C49A,                                             18501000        
+            INIT,AC0,AC1,AC2,AC3,AC4,AC5,CHANGENAME;                    18501100        
+ $ SET OMIT = NOT SHAREDISK                                             18501200        
+      SWITCH AC:=AC0,AC1,AC2,AC3,AC4,AC5;                               18501700        
+      SWITCH C:=C0,INIT,INIT,INIT,C4,INIT,INIT,INIT,INIT,INIT,INIT,     18501800        
+                INIT,INIT,INIT,INIT,C15,C16,INIT,INIT,INIT,INIT,        18501900        
+                INIT,INIT,INIT,INIT,INIT,INIT,INIT,INIT,INIT,C30,       18502000        
+                C31,C32,C33,INIT,INIT,INIT,INIT,INIT,INIT,INIT,         18502100        
+                INIT,INIT,INIT,INIT,C45,INIT,INIT,INIT,C49;             18502200        
+      REAL RCW=+0,O,I,J,T;                                              18502300        
+      ARRAY A[*],FIB=A[*],FPB[*],H[*];                                  18502400        
+      BOOLEAN SUBROUTINE DELAYOK;                                       18503000        
+%     CHECKS FOR TIMEOUT, DS, OR CONDITION SATISFIED FOR COMMUNICATE 31.18503100        
+      BEGIN                                                             18503200        
+            DELAYOK := CLOCK+P(RTR)>I4 OR TERMSET(P1MIX) OR             18503300        
+              (I := NOT(M[A6] AND R5)!NOT(0));                          18503400        
+      END;                                                              18503500        
+%                                                                       18503600        
+      GO TO C[PRT[P1MIX,9]];                                            18504000        
+INIT: GO TO INITIATE;                                                   18505000        
+%     COBOL INVALID EOJ                                                 18510000        
+C0:   TERMINATE(P1MIX); TERMINALMESSAGE(28);                            18510100        
+%     GENERALIZED ZIP                                                   18520000        
+C4:   IF (I~A4.[8:10]!0 THEN BEGIN                                      18520100        
+ $ SET OMIT = PACKETS                                                   18520200        
+ $ SET OMIT = NOT(PACKETS)                                              18520500        
+      M[(T:=TYPEDSPACE(I+5,CONTROLCARDAREAV)+2)-4].[AREAMIXF]:=0;% %167-18520600        
+ $ POP OMIT                                                             18520700        
+      IF NOT A.[2:1] THEN MAKEPRESENT(NFLAG(NOT 3 INX [RCW]));          18520800        
+      IF (J~USERCODE[P1MIX])=NOT(-0) THEN J~0;                          18520900        
+      STREAM(C~J,A4,I1~I.[36:6],I,Q~0,T);                               18521000        
+      BEGIN SI:=A4; SI:=SI-1;                                           18521100        
+      L:    SI:=SI+1; IF SC=" " THEN GO TO L; Q:=SI; DI:=Q;             18521200        
+            IF SC=@14 THEN DS:=LIT" " ELSE DS:=2LIT"  "; DI:=T;         18521300        
+            DS:=8LIT"CC USER="; SI:=LOC C; SI:=SI+1; DS:=7 CHR;         18521400        
+            DS:= LIT";" ; SI:=A4;                                       18521500        
+            I1(DS:=32WDS; DS:=32WDS);  DS:= I WDS;                      18521600        
+ $ SET OMIT = NOT(PACKETS)                                              18521700        
+            DS:=8 LIT"~";                                               18521800        
+ $ POP OMIT                                                             18521900        
+                    TALLY:=12;I:=TALLY;                                 18522000        
+                    DI:=Q;SI:=LOC I;SI:=SI+7;DS:=CHR;                   18522100        
+      END STREAM;                                                       18522200        
+      J!IF USERCODE[P1MIX]=MCP  THEN 31 ELSE 26;                        18522300        
+ $ SET OMIT = NOT(PACKETS)                                              18522400        
+         IF PSEUDOMIX[P1MIX] NEQ 0 THEN NYLONZIPPER[P1MIX].[2:1]:=0;    18522500        
+ $ POP OMIT                                                             18522600        
+         INDEPENDENTRUNNER(P(.CONTROLCARD),T&P1MIX[18:42:6]             18522700        
+ $ SET OMIT = NOT(DATACOM AND RJE )                                     18522800        
+                                        &J[3:43:5],192);                18523100        
+ $ SET OMIT = NOT(PACKETS)                                              18523200        
+         IF PSEUDOMIX[P1MIX] NEQ 0 THEN                                 18523300        
+             SLEEP([NYLONZIPPER[P1MIX]],@1000000000000000);             18523400        
+ $ POP OMIT                                                             18523500        
+         END ELSE                                                       18523600        
+         BEGIN FIB~N4[NOT 2];                                           18523700        
+              FPB~PRT[P1MIX,3];                                         18523800        
+              I~IF FIB[4].[12:1] THEN FIB[4].[13:11]                    18523900        
+                                 ELSE (FIB[4].[13:11]-1)|ETRLNG;        18524000        
+              T~FPB[I+3].[43:5];                                        18524100        
+              IF T=10 OR T=12 OR T=13 OR T=26 THEN                      18524200        
+              BEGIN                                                     18524300        
+                   IF FIB[5].[42:1] THEN GO TO CHANGENAME;              18524400        
+                   H~FIB[14];                                           18524500        
+ $ SET OMIT = DATACOM AND RJE                                           18524600        
+                   H[6]:=0;                                             18524700        
+ $ POP OMIT                                                             18524800        
+                   H[5]:=USERCODE[P1MIX];                               18524900        
+ $ SET OMIT = NOT(DATACOM AND RJE )                                     18525000        
+                   H[6]~(*P(DUP))&3[2:42:6];                            18525300        
+ $ RESET OMIT                                                           18525400        
