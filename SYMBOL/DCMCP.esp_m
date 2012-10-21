@@ -14211,3 +14211,178 @@ C4:   IF (I~A4.[8:10]!0 THEN BEGIN                                      18520100
  $ SET OMIT = NOT(DATACOM AND RJE )                                     18525000        
                    H[6]~(*P(DUP))&3[2:42:6];                            18525300        
  $ RESET OMIT                                                           18525400        
+                   IF H[4] THEN                                         18525500        
+                   BEGIN FILECLOSE(N4.[33:15]);                         18525600        
+    CHANGENAME:          IF (T~DIRECTORYSEARCH(FPB[I],FPB[I+1],4))      18525700        
+                            LSS 64                                      18525750        
+                            THEN GO TO INITIATE;                        18525800        
+                         H~[M[T]]&30[8:38:10];                          18525900        
+ $ SET OMIT = NOT(SHAREDISK)                                            18526000        
+                         H[5]:=USERCODE[P1MIX];                         18526300        
+ $ SET OMIT = NOT(PACKETS)                                              18526400        
+                   H[6]~(*P(DUP))&3[2:42:6];                            18526500        
+ $ POP OMIT                                                             18526600        
+                         ENTERCONTROLDECK(H);                           18526700        
+                         P(DIRECTORYSEARCH(-FPB[I],FPB[I+1],8),DEL);    18526800        
+                         J~H[2]; % SAVED LASTCDNUM                      18527000        
+                         FORGETSPACE(H);                                18527100        
+                   END ELSE                                             18527200        
+                   BEGIN FILECLOSE((N4.[33:15])&6[18:33:15]);           18527300        
+                         ENTERCONTROLDECK(H);                           18527400        
+                         J~H[2]; % SAVED LASTCDNUM                      18527500        
+                         FOR T~10 STEP 1 UNTIL 29 DO H[T]~0;            18527600        
+                         FILECLOSE(N4.[33:15]);                         18527700        
+                   END;                                                 18527800        
+                   IF RUNUMBER LEQ 0 THEN                               18527900        
+                   BEGIN                                                18528000        
+                   STREAM(A~[HAR[P1MIX,0]], B~H~USERCODE[P1MIX],        18528100        
+                          F~H!MCP AND H!0, P1MIX, J, T~T~SPACE(10));    18528200        
+                   BEGIN SI~A; DS~LIT"#";                               18528300        
+                        2(SI~SI+1; DS~7 CHR; DS~LIT"/"); DI~DI-1;       18528400        
+                        F(SI~LOC B; SI~SI+1; DI~DI+1; DS~7 CHR);        18528500        
+                        SI~LOC P1MIX; DS~LIT"="; A~DI;                  18528600        
+                        DS~2 DEC; DS~14 LIT" ZIPPED DECK #";            18528700        
+                        SI~LOC J; DS~4 DEC; DS~LIT"~";                  18528800        
+                        DI~DI-5; DS~3 FILL; DI~A; DS~FILL;              18528900        
+                   END;                                                 18529000        
+                   SPOUT(T);                                            18529100        
+                   END;                                                 18529200        
+              END;                                                      18529300        
+         END;                                                           18529400        
+      GO TO INITIATE;                                                   18529500        
+%     DISPLAY (COBOL)                                                   18530000        
+C15:  DISPLAY(A4 INX 1); GO TO INITIATE;                                18530100        
+%     COBOL ACCEPT                                                      18540000        
+C16:  DISPLAY(A4 INX 2);                                           %747-18540100        
+      IF AUTODS THEN TERMINATE(P1MIX&61[CTF]) ELSE                 %747-18540120        
+      BEGIN REPLY[P1MIX]:=-VWY&VAX[36:42:6];                       %747-18540140        
+      COMPLEXSLEEP((TERMSET(P1MIX) OR REPLY[P1MIX] GTR 0));             18540200        
+       END;                                                        %747-18540220        
+      IF TERMSET(P1MIX) THEN GO INITIATE;                               18540300        
+      IF NOT WHYSLEEP(VWY&VAX[36:42:6]) THEN GO TO C16;                 18540400        
+      T~REPLY[P1MIX].[18:15]; REPLY[P1MIX]~0;                           18540500        
+      STREAM(T,S~A4 INX 2);                                             18540600        
+            BEGIN SI~T;                                                 18540700        
+            L:    IF SC!"X" THEN BEGIN SI~SI+1; GO TO L END;            18540800        
+                  SI~SI+1; 2(DS~40 CHR);                                18540900        
+            END;                                                        18541000        
+      FORGETSPACE(T-1); GO TO INITIATE;                                 18541100        
+%   DIRECTORYSEARCH AND UN-FILL FILE ID FOR NORMAL STATE PROGRAMS       18550000        
+C30:     COMMENT SEARCHES DISK DIRECTORY AND RETURNS DATA IN ARRAY.     18550100        
+              [0] IS USER-TYPE OR NOT-PRESENT FLAG                      18550200        
+              [1] IS MULTI-FILE ID                                      18550300        
+              [2] IS FILE ID                                            18550400        
+              IF NOT PRESENT, [3] => [5] ARE -1                         18550500        
+              IF INVALID USER, [3] => [5] ARE 0                         18550600        
+              IF PRIMARY, SECONDARY, OR TERTIARY USER:                  18550700        
+              [3] IS RECORD LENGTH                                      18550800        
+              [4] IS BLOCK LENGTH                                       18550900        
+              [5] IS END OF FILE POINTER                                18551000        
+              [6] IS OPEN COUNT                                         18551100        
+              IF ARRAY SIZE IS GREATER THAN 9:                          18551200        
+                 [7] = FILETYPE (FROM HEADER)                           18551300        
+                 [8] = HEADER[3] (CREATION/ACCESS DATE,SAVE FACTOR)     18551400        
+                 [9] = HEADER[1] ( LOGGING DATES)                       18551500        
+              IF ARAY SIZE IS GREATER THAN 10:                          18551600        
+                 [10]= SYSTEM NUMBER (SHAREDISK)                        18551700        
+              NOT-PRESENT    FLAG IS  -1                                18551800        
+              INVALID   USER FLAG IS   0                                18551900        
+              PRIMARY   USER FLAG IS   7 (LM,INPUT, AND OUTPUT BITS)    18552000        
+              SECONDARY USER FLAG IS   3 (INPUT AND OUTPUT BITS)        18552100        
+              TERTIARY  USER FLAG IS   2 (INPUT BIT ONLY)               18552200        
+      ;                                                                 18552300        
+      IF A4.[8:10]<7 THEN BEGIN TERMINATE(P1MIX);%                      18552400        
+                                TERMINALMESSAGE(7);  END;%              18552500        
+      IF NOT A4.[2:1] THEN MAKEPRESENT(NFLAG(NOT 3 INX [RCW]));%        18552600        
+      P([M[A4 INX NOT 1]],DUP,DUP,LOD,XCH,CCX,.J,STD,IOR);%             18552700        
+      FIB ~ N5[NOT 2];  FPB ~ PRT[P1MIX,3];                             18552800        
+      I ~ IF FIB[4].[12:1] THEN FIB[4].[13:11]%                         18552900        
+            ELSE (FIB[4].[13;11]-1)|ETRLNG;                             18553000        
+      A4[I] ~ FPB[I];  A4[2] ~ FPB[I+1];                                18553100        
+      IF P(FPB[I+3].[43:5],DUP,DUP)=10         %RANDOM                  18553200        
+         OR (P(XCH) OR 1)=13 OR P(XCH)=26 THEN %SERIAL,UPDATE,PROTECT   18553300        
+  IF ((T:=DIRECTORYSEARCH(A4[1],A4[2],5) ) NEQ 0                   %207-18553400        
+    AND M[T+4].[12:4] EQL 0 ) THEN                                 %207-18553410        
+      BEGIN IF (A4[0] ~ SECURITYCHECK(A4[1],A4[2],USERCODE[P1MIX],T))!0 18553500        
+            AND M[T+4].[12:4]=0                                         18553600        
+            THEN BEGIN A4[3] ~ M[T].[1:14];%                            18553700        
+                  A4[4] ~ M[T].[15:15];  A4[5] ~ M[T+7];%               18553800        
+ $ SET OMIT = SHAREDISK                                                 18553900        
+                  A4[6]:=M[T+4].[16:5]+M[T+9].[9:5];                    18554000        
+ $ POP OMIT                                                             18554100        
+ $ SET OMIT = NOT(SHAREDISK)                                            18554200        
+                  IF A4.[8:10] GTR 9 THEN                               18554600        
+                  BEGIN A4[7]:=M[T+4].[36:6];  A4[8]:=M[T+3];           18554700        
+                        A4[9]:=M[T+1];                                  18554800        
+                  END;                                                  18554900        
+              IF A4.[8:10] GTR 10 THEN A4[10]:=SYSNO;                   18555000        
+            END ELSE A4[3]:=A4[4]:=A4[5]:=A4[6]:=0;                     18555100        
+            FORGETSPACE(T);                                             18555200        
+            GO TO C30B                                                  18555300        
+      END ELSE GO C30A ELSE                                             18555400        
+      BEGIN                                                             18555500        
+           T:=-1;                                                       18555600        
+           IF (T:=FINDINPUT(A4[1],A4[2],FPB[I+2].[1;17],                18555700        
+                  FPB[I+2].[18:30],FPB[I+3].[1:5],[A4[3]] INX 0,        18555800        
+                  T,0,0,0))=NABS(1) THEN GO TO C30A ELSE                18555900        
+           IF T GEQ 0 THEN                                              18556000        
+           BEGIN                                                        18556100        
+                A4[0]:=4; A4[3]:=(I:=RDCTABLE[T]).[14:10];              18556200        
+                A4[4]:=I.[24:17]; A4[5]:=I.[41:7];                      18556300        
+                A4[6]:=TINU[T].[30:18]; IF T<16 THEN                    18556400        
+                A4[6]:=(*P(DUP))&PRNTABLE[T][12:30:18]; GO C30B;        18556500        
+           END ELSE                                                     18556600        
+           BEGIN                                                        18556700        
+                A4[0]:=5; A4[3].[1:5]:=ABS(T); GO C30B                  18556800        
+           END;                                                         18556900        
+      END;                                                              18557000        
+C30A: A4[0]:=A4[3]:=A4[4]:=A4[5]:=A4[6]:=-1;                            18557100        
+C30B:                                                                   18557200        
+      IF NOT J.[2:1] THEN P([M[J]],PRL);%                               18557300        
+      GO TO INITIATE;%                                                  18557400        
+%     ALGOL "DELAY" FUNCTION -- WAIT WITH TIMEOUT                       18558990        
+C31:  IF A6.[CF]<512 THEN    % CAUGHT SOMEONE BEING SNEAKY              18559000        
+      BEGIN TERMINATE(P1MIX);                                           18559100        
+            TERMINALMESSAGE(17);                                        18559200        
+      END;                                                              18559300        
+      I4:=60|I4+CLOCK+P(RTR);                                           18559400        
+      IF NOT DELAYOK THEN COMPLEXSLEEP(DELAYOK);                        18559500        
+      I6:=I;                                                            18559600        
+      GO TO INITIATE;                                                   18559700        
+C32::                                                                   18560000        
+ $ SET OMIT = NOT(DATACOM )                                             18560100        
+     GO TO INITIATE;                                                    18565600        
+C33:: STREAM(R4,A~(R4!0),J~JARROW[P1MIX],P1MIX,%                        18570000        
+                        T~T~SPACE(10));%                                18570100        
+      BEGIN DS~10 LIT " PAUSE # 0";%                                    18570200        
+             A(DI~DI-1;  DI~LOC R4;  SI~SI+2;  DS~6 CHR);               18570300        
+             DS~5 LIT " FOR";  SI~J;  SI~SI+1;  DS~7 CHR;%              18570400        
+             DS~LIT "/";  SI~SI+1;  DS~7 CHR;  DS~LIT "=";%             18570500        
+             SI~LOC P1MIX;  DS~2 DEC;  DS~LIT "~";  DI~DI-3;  DS~FILL;% 18570600        
+      END;%                                                             18570700        
+      SPOUT(T);%                                                        18570800        
+      IF NOTERMSET(P1MIX) THEN PRTROW[P1MIX].[PSF]:=2;                  18570900        
+      GO TO INITIATE;% DON"T KEEP COMMUNICATE AROUND NEEDLESSLY         18571200        
+C45:     IF R4 THEN  % COBOL68 EXIT PROGRAM/ EXIT PROGRAM RETURN HERE   18580000        
+              BEGIN     IF A5.PBIT THEN     % IF THERE IS A TASK ARRAY  18580100        
+                             IF A5[6]=1 THEN  % TYPE = CALLED           18580200        
+                                  BEGIN     A5[7] ~ 1;                  18580300        
+                                            COMPLEXSLEEP(A5[7].[46:1]   18580400        
+                                               OR (TERMSET(P1MIX)));    18580410        
+                                            A5 ~ 1;                     18580500        
+                                  END ELSE A5 ~ 0                       18580600        
+                                      ELSE A5 ~ 0;                      18580700        
+                        GO TO INITIATE;                                 18580800        
+              END;                                                      18580900        
+        % DETACH TASK ARRAY: DS OR FS JOB RUNNING OR SCHEDULED          18581000        
+         IF N5[6]=2 THEN GO TO INITIATE;                                18581100        
+         IF N5[3]=1 THEN SHEETDIDDLER(0,20,N5[4]);                      18581200        
+         IF N5[3]=2 THEN                                                18581300        
+              BEGIN     TERMINATE(N5[4]&61[CTF]); HALT;                 18581400        
+                        NOPROCESSTOG ~ NOPROCESSTOG-1;                  18581500        
+              END;                                                      18581600        
+         GO TO INITIATE;                                                18581700        
+C49::                                                                   18590000        
+ $ SET OMIT = NOT SHAREDISK                                             18590100        
+      GO INITIATE;                                                      18593300        
+END OF COMMUNICATE1;                                                    18599000        
