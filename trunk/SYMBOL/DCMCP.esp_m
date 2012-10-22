@@ -14386,3 +14386,91 @@ C49::                                                                   18590000
  $ SET OMIT = NOT SHAREDISK                                             18590100        
       GO INITIATE;                                                      18593300        
 END OF COMMUNICATE1;                                                    18599000        
+PROCEDURE COMMUNICATE0;                                                 18700000        
+BEGIN REAL R4=-4,R5=-5,R6=-6,R7=-7,R8=-8;                               18700100        
+      INTEGER I4=-4,I5=-5,I6=-6;                                        18700200        
+      ARRAY A4=-4[*],A5=-5[*],A6=-6[*];                                 18700300        
+      ARRAY A7=-7[*];                                                   18700400        
+      NAME N4=-4,N5=-5,N6=-6;                                           18700500        
+      LABEL C0,C1,C2,C3,C4,C5,C6,C7,C8,C9,C10,C11,C12,C13,C14,C15,C16,  18700600        
+            C17,C18,C19,C20,C21,C22,C23,C24,C25,C26;                    18700700        
+      LABEL C27,C28,C29,C30,C31,C32;                                    18700800        
+      LABEL C33,C34,C35,C36,C37,C38,C39,C45,C47,C48,C49,                18700900        
+            C21A,C3A,INIT,US,D,TD,PR,IOT,TMR,IT,AD,WD;                  18701000        
+      LABEL PE,TE,PA;                                              %145-18701010        
+      DEFINE CN=DIFFCOM#;                                               18701100        
+      SWITCH S:=PA,PE,TE,IT,US,D ,TD,PR,IOT,TMR,AD,WD;             %145-18701200        
+      SWITCH C:=INIT,C1,INIT,C3,INIT,INIT,C6,C7,C8,INIT,INIT,           18701300        
+                INIT,C12,INIT,INIT,INIT,INIT,C17,INIT,INIT,C20,         18701400        
+                C21,C22,INIT,INIT,C25,C26,INIT,INIT,C29,INIT,           18701500        
+                INIT,INIT,INIT,INIT,INIT,INIT,INIT,C38,C39,INIT,        18701600        
+                INIT,INIT,INIT,INIT,INIT,INIT,C47,C48,INIT;             18701700        
+      REAL I,J,T;                                                       18701800        
+      ARRAY AIT[*]; REAL AITL=AIT; ARRAY A=AIT[*];                      18701900        
+      NAME ADDR;                                                        18702000        
+      GO TO C[PRT[P1MIX,9]];                                            18702200        
+INIT: GO TO INITIATE;                                                   18702300        
+%     TIME INTRINSIC                                                    18710000        
+C1:   IF (I4:=I4) GEQ (-5) AND I4 LEQ 6 THEN                       %145-18710100        
+      BEGIN GO TO S[I4+5];                                         %145-18710200        
+      PA:                                                          %145-18710240        
+ $ SET OMIT = NOT(PACKETS)                                         %145-18710242        
+           IF (I:=PSEUDOMIX[P1MIX]) GEQ 32 THEN                    %145-18710244        
+              I4:=PACKETACT[I-32];                                 %145-18710246        
+ $ POP OMIT                                                        %145-18710248        
+           GO TO INITIATE;                                         %145-18710249        
+      PE:                                                          %145-18710250        
+ $ SET OMIT = NOT(PACKETS)                                         %145-18710252        
+           IF (I:=PSEUDOMIX[P1MIX]) GEQ 32 THEN                    %145-18710254        
+              BEGIN                                                %145-18710256        
+              I4:=PACKETERR[I-32];                                 %145-18710258        
+              PACKETERR[I-32]:=TRUE;                               %145-18710260        
+              END;                                                 %145-18710262        
+ $ POP OMIT                                                        %145-18710264        
+           GO TO INITIATE;                                         %145-18710266        
+      TF:                                                          %145-18710268        
+ $ SET OMIT = NOT PACKETS                                          %145-18710270        
+           IF (I:=PSEUDOMIX[P1MIX]) GEQ 32 THEN                    %145-18710272        
+              T4:=PACKETERR[I-32];                                 %145-18710274        
+ $ POP OMIT                                                        %145-18710276        
+           GO TO INITIATE;                                         %145-18710278        
+      IT:  I4~JAR[P1MIX,9].[5:1];                                       18710300        
+           JAR[P1MIX,9]~(*P(DUP)) & 2[4:46:2];                          18710400        
+           GO INITIATE;                                                 18710500        
+      US:  R4:=USERCODE[P1MIX]; GO TO INITIATE;                         18710600        
+      D:    I4~DATE; GO TO INITIATE;                                    18710700        
+      TD:   I4~XCLOCK+P(RTR); GO TO INITIATE;                           18710800        
+      PR:   I4~JAR[P1MIX,3]+PROCTIME[P1MIX]+CLOCK+P(RTR);               18710900        
+            GO TO INITIATE;                                             18711000        
+      IOT:  I4~IOTIME[P1MIX]+JAR[P1MIX,4];                              18711100        
+            WHILE I4<0 DO I4~I4+CLOCK+P(RTR);                           18711200        
+            GO TO INITIATE;                                             18711300        
+      TMR:  I4~P(RTR);  GO TO INITIATE;                                 18711400        
+      AD:   I4~ACTDATE; GO TO INITIATE;                                 18711500        
+      WD:   I4~WEEKDAY; GO TO INITIATE;                            %753-18711600        
+      END;                                                              18711700        
+      IF I4 = (-6) THEN I4~P1MIX;                                  %753-18711790        
+      GO TO INITIATE;                                                   18711800        
+%     RETURN SPECIFIC ARRAY                                             18720000        
+C3:   ARTN(N4[0],1);          % REMOVE 1 DIM ARRAY                      18720100        
+C3A:: T~[AITL].[CF];          % REMOVE FROM AIT                         18720200        
+      IF NOT(AIT~PRT[P1MIX,6]).[2:1] THEN MAKEPRESENT(T);               18720300        
+         J ~ AIT[0]; T ~ N4.[CF];                                       18720400        
+      FOR I~1 STEP 1 UNTIL J-1 DO                                       18720500        
+            IF AIT[I].[18:15]=T THEN                                    18720600        
+                  BEGIN MOVE(J-I,[AIT[I+1]],[AIT[I]]); J~0 END;         18720700        
+         IF J=0 OR AIT[J].[FF]=T THEN AIT[0] ~ *P(DUP)-1;               18720800        
+      N4[0]~0;                                                          18720900        
+      GO TO INITIATE;                                                   18721000        
+%     WHEN                                                              18730000        
+C6:   I4~60|I4+P(RTR)+CLOCK;                                            18730100        
+      WHILE NOTERMSET(P1MIX) AND CLOCK+P(RTR) LSS I4 DO                 18730200        
+            SLEEP([CLOCK],NOT CLOCK);                                   18730300        
+      GO TO INITIATE;                                                   18730400        
+%     FILL                                                              18740000        
+C7:   IF NOT A5.[2:1] THEN MAKEPRESENT(NFLAG(NOT 0 INX [I4]));          18740100        
+      I~M[A5 INX NOT 0]; J~M[A5 INX NOT 1];                             18740200        
+      P([M[A5 INX NOT 1]],IOR);                                         18740300        
+      IF (NT2~(NT1~*(I4 INX PRT[P1MIX,4])).[18:15])>NT3~A5.[8:10] THEN  18740400        
+            NT2~NT3;                                                    18740500        
+      I4~(IF JAR[P1MIX,10]!0 THEN JAR[P1MIX,(NT1~NT1.[CF])              18740600        
