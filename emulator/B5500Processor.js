@@ -1168,7 +1168,7 @@ B5500Processor.prototype.run = function() {
     current program word must be in P with PROF set, and the C & L registers
     must point to the next syllable to be executed.
     This routine will run until cycleCount >= cycleLimit or !this.busy */
-    var noSECL = 0;                     // to support char mode dynamic count from CRF
+    var noSECL = 0;                     // to support char mode dynamic count from CRF syllable
     var opcode;
     var t1;
     var t2;
@@ -1374,7 +1374,7 @@ B5500Processor.prototype.run = function() {
                     }
                     this.Y = t1 = this.cc.fieldIsolate(this.A, this.G*6, 6);
                     this.Z = variant;                   // for display only
-                    if (B5500Processor.collate[t1] > B5500Processor.collate[variant]) {                      // alphanumeric unless | or !
+                    if (B5500Processor.collate[t1] > B5500Processor.collate[variant]) {       // alphanumeric unless | or !
                         this.MSFF = (t1 == 0x20 ? 0 : (t1 == 0x3C ? 0 : 1));
                     } else {                            // alphanumeric if equal
                         this.Q |= 0x04;                 // set Q03F (display only)
