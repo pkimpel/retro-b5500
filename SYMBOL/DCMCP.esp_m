@@ -14474,3 +14474,109 @@ C7:   IF NOT A5.[2:1] THEN MAKEPRESENT(NFLAG(NOT 0 INX [I4]));          18740100
       IF (NT2~(NT1~*(I4 INX PRT[P1MIX,4])).[18:15])>NT3~A5.[8:10] THEN  18740400        
             NT2~NT3;                                                    18740500        
       I4~(IF JAR[P1MIX,10]!0 THEN JAR[P1MIX,(NT1~NT1.[CF])              18740600        
+      DIV (NT3~JAR[P1MIX,8])+10]+NT1 MOD NT3                            18740700        
+      ELSE DALOC[P1MIX,NT1.[33:6]+P(DUP)-1]+NT1.[39:9]);                18740800        
+      DISKWAIT(-A5.[CF],NT2,I4);                                        18740900        
+      M[A5 INX NOT 0]~*P(.I);                                           18741000        
+      IF NOT (*P(.J)).[2:1] THEN P([M[A5 INX NOT 1]],PRL);              18741100        
+      GO TO INITIATE;                                                   18741200        
+%     PLAIN ZIP                                                         18750000        
+C8:   ZIPPER(R5,R4,0);                                                  18750100        
+      GO TO INITIATE;                                                   18750200        
+%     BREAKOUT                                                          18760000        
+C12:                                                                    18760100        
+ $ SET OMIT = NOT(BREAKOUT)                                             18760200        
+      GO TO INITIATE;                                                   18760500        
+%     COBOL I/O ERROR                                                   18770000        
+C17:  A5~*A5; A~PRT[P1MIX,3]; I~"I/O ERR";                              18770100        
+      IF A5[5].[1:1] THEN                                               18770200        
+         BEGIN I:= "INVALID";J:="   USER"; R6:=1 END ELSE               18770300        
+      STREAM(R4,N~[J]); BEGIN SI~LOC R4; DI~DI+1; DS~7 DEC;             18770400        
+                              DI~DI-7; DS~5 FILL;                       18770500        
+                        END;                                            18770600        
+      FILEMESS(I&R6[1:47:1],J,A[T~A5[4].[13:11]],A[T+1],                18770700        
+              IF R4~(R4=16 OR R4=17 OR R4=82) THEN R8 ELSE 0,           18770800        
+               IF R4 THEN R7 ELSE 0,0);                                 18770900        
+      GO TO INITIATE;                                                   18771000        
+%     TAPE SWAP FOR TAPE SORT                                           18780000        
+C20:  SLEEP([N4[3]],IOMASK); SLEEP([N4[4]],IOMASK);                     18780100        
+      FOR I~3 STEP 1 UNTIL 4 DO                                         18780200        
+      BEGIN N5[I].[33:15]~N4[I];                                        18780300        
+            M[N4[I] INX NOT 1]~(*P(DUP))&N5[3][14:3:4]&[N5[3]][33:33:15]18780400        
+      END;                                                              18780500        
+      A~N4[0]; A[5].[39:4]~2; A[16]~0; A[18]~NABS(*P(DUP));             18780600        
+      NT4~A[10].[3:15]; A[10].[3:15]~0;                                 18780700        
+      A~N5[0]; A[5]~0; A[16]~NFLAG(N5[3]); A[18]~ABS(*P(DUP));          18780800        
+      A[10].[3:15]~NT4;                                                 18780900        
+      GO TO INITIATE;                                                   18781000        
+%     SORT STORAGE ASSIGNMENT                                           18790000        
+C21:  A~[M[GETSPACE(R6+R5,2,1)+2]]&R5[8:38:10];                         18790100        
+      A[0]~(R5 INX A)&R6[8:38:10];                                      18790200        
+      N4[0]~A;                                                          18790300        
+      IF NOT CONQUER(0,R5-1,R6,1 INX A,J) THEN                          18790400        
+      BEGIN FORGETSPACE(A);                                             18790500        
+C21A: STREAM(P1MIX,T~R5|R6,A~I~GETSPACE(7));                            18790600        
+      BEGIN DS~LIT "#"; SI~LOC P1MIX;                                   18790700        
+            DS~2 DEC; DS~ 13 LIT " NO SORT MEM:";                       18790800        
+            DS~5 DEC; DS~9 LIT " WDS RQD~";                             18790900        
+      END;                                                              18791000        
+ $ SET OMIT = PACKETS                                              %713-18791099        
+ $ SET OMIT = NOT PACKETS                                          %713-18791609        
+      SPOUTER(I,0,0); % JOB MESSAGE PAGE ONLY                      %713-18791610        
+      STREAM(P1MIX, A~I~SPACE(6)); % SIMULATE OPERATORS REPLY      %713-18791620        
+      BEGIN DS~20 LIT "+OPERATOR KEYED IN: ";                      %713-18791630        
+            SI~LOC P1MIX; DS~2 DEC;                                %713-18791640        
+            DS~26 LIT " OU DK.... TRY DISK SORT~~";                %713-18791650        
+            DI~DI-28; DS~2 FILL;                                   %713-18791655        
+      END; % OF STREAM                                             %713-18791660        
+      SPOUTER(I,0,0); % MESSAGE PAGE ONLY                          %713-18791670        
+      J~1; % ASSUME "OU DK" IS OPERATORS RESPONSE                  %713-18791680        
+ $ POP OMIT                                                        %713-18791681        
+      GO TO C21;                                                        18791700        
+      END;                                                              18791800        
+      GO TO INITIATE;                                                   18791900        
+%     SORT STORAGE RETURN                                               18800000        
+C22:: I~N4[0] INX 1;                                                    18800100        
+      DO FORGETSPACE(M[I]) UNTIL (I~M[I].[18:15])=0;                    18800200        
+      FORGETSPACE(N4[0]); N4[0]~0;                                      18800300        
+      GO TO INITIATE;                                                   18800400        
+%     RETURN OLD COPY OF OWN ARRAY                                      18810000        
+C25:: ARTN(A5,R4);                                                      18810100        
+      M[A5.[FF]]~A~PRT[P1MIX,17]&P(.A5,LOC)[18:18:15];                  18810200        
+     IF A.[2:1] THEN M[A.[CF]-1].[CF]~A5.[FF];                          18810300        
+      GO TO INITIATE;                                                   18810400        
+%     INVALID ARGUMENTS TO ALGOL INTRINSICS                         %WF 18820000        
+C26:: IF (I ~ R4)}0 THEN                                                18820100        
+      STREAM(A ~R4, I~I~SPACE(10));                                     18820200        
+      BEGIN DS~LIT "-";  %                                         %740-18820300        
+            CI~CI+A;                                                %WF 18820700        
+            GO LOG;  GO ROOT;  GO LOG;  GO EXP;  GO SIN;            %WF 18820800        
+            DS~3 LIT "COS";    GO EXIT;                             %WF 18820900        
+      LOG:  DS~2 LIT "LN";     GO EXIT;                             %WF 18821000        
+      ROOT: DS~4 LIT "SQRT";   GO EXIT;                             %WF 18821100        
+      EXP:  DS~3 LIT "EXP";    GO EXIT;                             %WF 18821200        
+      SIN:  DS~3 LIT "SIN";                                         %WF 18821300        
+      EXIT: DS~8 LIT " ARGMNT ";  SI~LOC A;  SI~SI+7;  %           %740-18821400        
+            IF SC}@3 THEN DS~5 LIT "> 158" ELSE                    %740-18821410        
+            IF SC<@2 THEN DS~5 LIT "NEGTV" ELSE DS~4 LIT "ZERO";   %740-18821420        
+            DS~2 LIT " ~";  %                                      %740-18821430        
+      END;                                                              18821500        
+         IF I = (-7) THEN         % COBOL INVALID INDEX                 18821600        
+              BEGIN                                                     18821700        
+              R4 ~ R5;  R5 ~ R6;                                        18821800        
+              ERRORFIXER(4);      % INVALID INDEX CHECK                 18821900        
+              END;                                                      18822000        
+      TERMINATE(P1MIX); TERMINALMESSAGE(-I);                        %WF 18822100        
+C29:: COMMENT THIS COMMUNICATE PROVIDES FOR DS-ING AN OBJECT PROGRAM    18830000        
+              AND/OR SPOUTING A MESSAGE ABOUT A PROGRAM.                18830100        
+              R4 IS USED TO SPECIFY THE  MESSAGE REQUIRED.              18830200        
+              R5 SET TO TRUE SPECIFIES P1MIX IS TO BE DS-ED.            18830300        
+              T IS THE ADDRESS OF THE MESSAGE(WHICH ENDS WIH A "~").    18830400        
+              REMAINING VARIABLES MAY BE USED AS DESIRED;               18830500        
+    T ~ SPACE(12);                                                      18830600        
+    IF R4 { 2 THEN                                                      18830700        
+         BEGIN;              % 29-1                                     18830800        
+         STREAM(J:T);                                                   18830900        
+              BEGIN          % 29-2                                     18831000        
+              DS ~  9 LIT "-DEC ERR:";                                  18831100        
+              J ~ DI;                                                   18831200        
