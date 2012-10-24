@@ -1509,7 +1509,7 @@ ARRAY CIDROW[*],CIDTABLE=CIDROW[*,*];                                   02187500
          IF LUN GEQ 32 THEN                                             02195100        
  $ SET OMIT = PACKETS                                                   02195199        
          ELSE                                                           02195300        
-         BEGIN SLEEP([TOGGLE],STATUSMASK);                              02196000        
+         BEGIN SLEEP([TOGLE],STATUSMASK);                               02196000        
               READY ~ NOT (I ~ TWO(LUN)) AND READY;%                    02197000        
               RRRMECH ~ NOT I AND RRRMECH OR I AND SAVEWORD;%           02198000        
               LABELTABLE[LUN] ~ @114;%                                  02199000        
@@ -4252,7 +4252,7 @@ DEFINE GETUSERDISK=PETUSERDISK#;%***************************************05841700
     IF N=0 THEN GO W ;                                                  05842100        
     P(T.[2:1],ABS(N),1,0,0,0,0) ;                                       05842200        
  $ SET OMIT = NOT(SHAREDISK )                                           05842205        
-A: SLEEP([TOGGLE],USERDISKMASK); LOCKTOG(USERDISKMASK);                 05842300        
+A: SLEEP([TOGLE],USERDISKMASK); LOCKTOG(USERDISKMASK);                  05842300        
  $ SET OMIT = NOT(SHAREDISK )                                           05842390        
  $ SET OMIT = SHAREDISK                                                 05842405        
     M1:=M2:=P(D) ;                                                      05842410        
@@ -14580,3 +14580,112 @@ C29:: COMMENT THIS COMMUNICATE PROVIDES FOR DS-ING AN OBJECT PROGRAM    18830000
               BEGIN          % 29-2                                     18831000        
               DS ~  9 LIT "-DEC ERR:";                                  18831100        
               J ~ DI;                                                   18831200        
+              END;           % 29-2                                     18831300        
+         J ~ P;                                                         18831400        
+         IF R4=1 THEN                                                   18831500        
+              BEGIN;         % 29-3                                     18831600        
+              STREAM(T1~(R6<0),R6~ABS(R6),J);                           18831700        
+                   BEGIN     % 29-4                                     18831800        
+                   DS~17 LIT "ARRAY DIMINSION= ";T1(DS~1 LIT "-";);     18831900        
+                   SI ~ LOC R6;                                         18832000        
+                   DS ~ 8 DEC;  J  ~DI;                                 18832100        
+                   DI ~ DI-8;                                           18832200        
+                   DS ~ 7 FILL; DI ~ J;                                 18832300        
+                   DS ~ 2 LIT " ~";                                     18832400        
+                   END;      % 29-4                                     18832500        
+              END            % 29-3                                     18832600        
+         ELSE                                                           18832700        
+              BEGIN;         % 29-5                                     18832800        
+              STREAM(R6,7);                                             18832900        
+                   BEGIN     % 29-6                                     18833000        
+                   DS ~15 LIT "NO. DISK ROWS= ";                        18833100        
+                   SI ~ LOC R6;                                         18833200        
+                   DS ~ 8 DEC;    J ~ DI;                               18833300        
+                   DI ~ DI-8;                                           18833400        
+                   DS ~ 7 FILL;  DI ~ J;                                18833500        
+                   DS ~ 2 LIT " ~";                                     18833600        
+                   END;      % 29-6                                     18833700        
+              END;           % 29-5                                     18833800        
+         END;                % 29-1                                     18833900        
+         IF R4=3 THEN                                                   18834000        
+              BEGIN                                                     18834100        
+              ;STREAM(T);                                               18834200        
+                   BEGIN                                                18834300        
+                   DS ~ 18 LIT "-EXP ARGMNT >158:~; %              %740-18834400        
+                   END;                                                 18834500        
+              END;                                                      18834600        
+         IF R4 = 4 THEN STREAM(R); BEGIN                                18834700        
+                   DS:=37 LIT"ILLEGAL PERFORM - RETURN OR RELEASE:~";   18834800        
+         END;                                                           18834900        
+         IF R5 THEN                                                     18835000        
+         BEGIN               % 29-7                                     18835100        
+              TERMINATE(P1MIX);                                         18835200        
+              TERMINALMESSAGE(-T);                                      18835300        
+         END                 % 29-7                                     18835400        
+    ELSE                                                                18835500        
+         SPOUT(T);                                                      18835600        
+    GO TO INITIATE;                                                     18835700        
+ C38:: % RETURN STORAGE AND AUXILIARY MEMORY FOR CODE OR DATA SEGMENT   18840000        
+      IF A4.[1:1] THEN % CODE SEGMENT                                   18840100        
+      BEGIN A ~ PRT[P1MIX,*];  T ~ NFLAG(A4 & (I~0)[5:5:1]);            18840200        
+            DO IF T.[5:1] THEN I ~ T.[FF]   ELSE                        18840300        
+               IF T.[6:1] THEN I ~ T.[7:11] ELSE                        18840400        
+                               T ~ NFLAG(A[T.[7:11]])                   18840500        
+            UNTIL I!0;                                                  18840600        
+            ADDR ~ I INX A[4];                                          18840700        
+                  IF ADDR[0].[3:1] THEN                                 18840800        
+                              COMPLEXSLEEP((NOT ADDR[0].[3:1]));        18840900        
+                  ADDR[0].[3:2] ~ 2;                                    18841000        
+                  COMMENT TURN OFF AUXILIARY MEMORY FLAG, AND TURN      18841100        
+                              ON THE "DO NOT TOUCH" FLAG FOR            18841200        
+                              RE-ENTRANT PRESENCE-BIT PROTECTION;       18841300        
+                  IF NOT STOREDY THEN SLEEP([TOGLE], STOREMASK);        18841400        
+                  LOCKTOG(STOREMASK);                                   18841500        
+                  IF (I ~ (T ~ ADDR[0]).[FF])>1023 THEN % PRESENT       18841600        
+                  BEGIN J ~ M[I-1];  P(OLAY(I-2), DEL) END              18841700        
+ $ SET OMIT = NOT(AUXMEM)                                               18841800        
+ $ SET OMIT = AUXMEM                                                    18842200        
+            ;                                                           18842300        
+ $ POP OMIT                                                             18842400        
+ $ SET OMIT = NOT(AUXMEM)                                               18842500        
+                  ADDR[0].[3;1]~0;                                      18843400        
+                  COMMENT 3:1 =0, NOT BEING MASSAGED BY PRESENCE BIT    18843500        
+                          4:2 =2, ASSIGN AUXILIARY MEMORY NEXT OVELAY;  18843600        
+                  UNLOCKTOG(STOREMASK);                                 18843700        
+            GO TO INITIATE                                              18843800        
+      END; % OF CODE SEGMENTS                                           18843900        
+      IF NOT STOREDY THEN SLEEP([TOGLE], STOREMASK);                    18844000        
+      LOCKTOG(STOREMASK);                                               18844100        
+      IF (T ~ NFLAG(M[J ~ A4.[FF]])).[2:1] THEN                         18844200        
+      BEGIN M[J].[3:3]+7; %MARK AS "READ-ONLY", ALREADY WRITTEN         18844300        
+            M[T INX NOT 0] ~ (*P(DUP)) & ((I~P(DUP).[FF]) OR 1)[CTF];   18844400        
+            AITL ~ M[T INX NOT 1].[2:1];                                18844500        
+            P(OLAY(T.[CF]-2));                                          18844600        
+ $ SET OMIT = NOT(DEBUGGING)                                            18844700        
+            P(DEL)                                                      18845100        
+      END ELSE AITL~((I~T.[CF])=1);                                     18845200        
+      IF I>511 THEN DISKRTN(I, T.[8:10]);                               18845300        
+      M[J] ~ FLAG(T&0[2;42:6]&AITL[CTC]);                               18845400        
+      UNLOCKTOG(STOREMASK);                                             18845500        
+      GO TO INITIATE;                                                   18845600        
+C39:: % BASIC ARRAY RETURN                                              18850000        
+      ARTN(N4[0],R5);         % RETURN R5 DIM ARRAY                     18850100        
+      GO TO C3A;              % TO REMOVE FROM AIT                      18850200        
+C47::    PRT[P1MIX,8] ~ FLAG(R8);%DONE ONLY AT END OF INTERRUPTER INTRIN18860000        
+         P(8 INX PRT[P1MIX,TSX],DUP,LOD,0,FFX,XCH,STD);                 18860100        
+         GO TO INITIATE;                                                18860200        
+% MEMORY DUMP OR TRACE FROM THE INTRINSICS                              18870000        
+C48: %                                                                  18870100        
+ $ SET OMIT = NOT(DUMP OR DEBUGGING)                                    18870200        
+      IF I4 NEQ 0 THEN                                                  18870300        
+ $ SET OMIT = NOT(DEBUGGING) OR OMIT                                    18870400        
+      ELSE DUMPNOW(R5);                                                 18870700        
+ $ POP OMIT                                                             18870800        
+      GO TO INITIATE;%                                                  18870900        
+END OF COMMUNICATE0;                                                    18872000        
+SAVE PROCEDURE COM2;                                               %721-19300000        
+BEGIN                                  % SLEEP FUNCTION  (ALGOL WAIT)   19301000        
+    REAL R4=-4; ARRAY A5=-5[*];                                    %721-19302000        
+    SLEEP([M[A5]],R4);                                             %721-19303000        
+    GO TO RETURN;                                                  %721-19304000        
+END COM2;                                                          %721-19305000        
