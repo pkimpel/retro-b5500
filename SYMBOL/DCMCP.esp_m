@@ -14689,3 +14689,84 @@ BEGIN                                  % SLEEP FUNCTION  (ALGOL WAIT)   19301000
     SLEEP([M[A5]],R4);                                             %721-19303000        
     GO TO RETURN;                                                  %721-19304000        
 END COM2;                                                          %721-19305000        
+PROCEDURE SHORTCOMMUNICATE;                                             19500000        
+BEGIN REAL R4=-4,R5=-5,R6=-6,R7=-7,R8=-8,R9=-9;                  % (SHM)19501000        
+      INTEGER I4=-4,I5=-5,I6=-6;                                        19502000        
+      ARRAY A4=-4[*],A5=-5[*],A6=-6[*];                                 19503000        
+      ARRAY A7=-7[*];                                                   19504000        
+      NAME N4=-4,N5=-5,N6=-6;                                           19505000        
+    LABEL C0,C1,C2,C3,C4,C5,C6,C7,C8,C9,C10,C11,C12,C13,C14,C15,        19506000        
+          C16,C17,C18,C19,C20,C21,C22,C23,C24,C25,C26,C27,C28,          19507000        
+         C29,C30,C31,C32,C33,C34,C35,C36,C37,C38,C39,C40,C41,C42,C43,C4419508000        
+     ,C46,SL,TW;                                                        19508010        
+    SWITCH C:=SL,TW,C2,TW,SL,C5,TW,TW,TW,C9,C10,C11,TW,C13,C14,         19511000        
+              SL,SL,TW,C18,C19,TW,TW,TW,C23,C24,TW,TW,C27,C28,          19512000        
+              TW,SL,SL,SL,SL,C34,C35,C36,C37,TW,TW,C40,C41,             19513000        
+              C42,C43,C44,SL,C46,TW,TW,SL;                              19513010        
+      DEFINE CN=DIFFCOM#;                                               19515000        
+      LABEL AC0,AC1,AC2,AC3,AC4,AC5;                                    19517000        
+     SWITCH AC ~ AC0,AC1,AC2,AC3,AC4,AC5;                               19518000        
+      REAL I,J,T,RCW=+0;                                                19519000        
+      ARRAY AIT[*]; REAL AITL=AIT; ARRAY A=AIT[*];                      19520000        
+          ARRAY FIB=AIT[*],FPB[*],H[*];LABEL CHANGENAME;                19521000        
+      NAME ADDR;                                                        19522000        
+      DEFINE BITS=(IF SB THEN DS~SET ELSE DS~RESET; SKIP SB)#;          19523000        
+      CHECKSTACKSPACE;%                                             %WF 19525000        
+         IF P(PRT[P1MIX,9],DUP) < 0 THEN                                19525100        
+         BEGIN P(DEL); TERMINATE(P1MIX); TERMINALMESSAGE(81) END;       19525200        
+         GO TO C[P];                                                    19526000        
+SL: P(.COMMUNCATE1); GO DIFFCOM;                                        19526100        
+TW: P(.COMMUNICATE0); GO DIFFCOM;                                       19526200        
+%      SLEEP                                                            19541100        
+C2:   P(.COM2); GO TO CN;                                          %721-19542000        
+%     RETURN SPECIFIC ARRAY                                             19543000        
+%     EOJ                                                               19552000        
+C5:   P(.COM5); GO TO CN;                                               19553000        
+%     FILL WITH INQUIRY                                                 19559000        
+C9:                                                                     19560000        
+ $ SET OMIT = NOT(DATACOM)                                              19561000        
+%     BLOCK EXIT                                                        19565000        
+C10:  P(.ASR); GO TO CN;                                                19566000        
+%     ALGOL I/O FUNCTIONS                                               19567000        
+C11:                                                             % (SHM)19568000        
+       IF R4=0 THEN FILEOPEN(0,A5,[CF]);                         % (SHM)19569000        
+       IF R4=6 THEN                                              % (SHM)19570000        
+          BEGIN FILECLOSE(NFLAG(A5)); GO TO INITIATE END;        % (SHM)19571000        
+       IF R4=4 THEN                                              % (SHM)19572000        
+          BEGIN                                                  % (SHM)19573000        
+          IF A5[4] THEN % FILE IS IN DIRECTORY                   % (SHM)19574000        
+          FORGETSPACE(DIRECTORYSEARCH(R8,R7,-(A5,[CF])&R6[CTF]) ELSE    19575000        
+             BEGIN                                               % (SHM)19576000        
+             IF (T:=R9.[18:5]) GTR 0 THEN % EU SPECIFIED         % (SHM)19576100        
+                T:=(IF T GTR 20 THEN 0 ELSE -T) ELSE             % (SHM)19576200        
+             IF (T:=R9.[16:2]) GTR 0 THEN % SPEED SPECIFIED      % (SHM)19576300        
+                T:=(IF T GTR 2 THEN 0 ELSE T) ELSE               % (SHM)19576400        
+             T:=0; % NO SPEED OR EU SPECIFIED                    % (SHM)19576500        
+             A5[R6]:=PETUSERDISK(A5[8],T);                       % (SHM)19576600        
+             END;                                                % (SHM)19576700        
+          GO TO INITIATE;                                        % (SHM)19577000        
+          END;                                                   % (SHM)19577100        
+       P(.COM11); GO TO DIFFCOM;                                 % (SHM)19578000        
+%     COBOL I/O FUNCTIONS                                               19579000        
+C13:  P(.COM13); GO TO CN;                                              19580000        
+%     INVERT OVERLAYABLE STATUS                                         19581000        
+C14:  IF NOT N4[0].[2:1] THEN MAKEPRESENT([N4[0]] INX 0);               19582000        
+      M[N4[0] INX NOT 1]~P(DUP,LOD)&P(DUP,LNG)[2:2:1];                  19583000        
+      GO TO INITIATE;                                                   19584000        
+%     ERROR - INQUIRY WRITE                                             19584200        
+C18:                                                                    19584300        
+ $ SET OMIT = NOT(DATACOM)                                              19584400        
+      GO TO INITIATE;                                                   19584700        
+%     PRINT BACK-UP                                                     19585000        
+C19:  P(.COM19); GO TO CN;                                              19586000        
+%     LOAD CONTROL                                                      19587000        
+C23:: P(.COM23); GO TO CN;                                              19588000        
+%     RETURN ONE ROW OF A DISK FILE                                     19589000        
+C24:: T:=A4[R5]; A4[R5]:=0;                                             19590000        
+ $ SET OMIT = SHAREDISK                                                 19591000        
+      FORGETUSERDISK(T,A4[8]);                                          19592000        
+ $ POP OMIT                                                             19592001        
+ $ SET OMIT = NOT(SHAREDISK)                                            19593000        
+      GO TO INITIATE;                                                   19595000        
+%     COBOL DATACOM I INTERROGATE                                       19601000        
+C27::                                                                   19602000        
