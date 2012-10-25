@@ -212,6 +212,7 @@ window.onload = function() {
         var done;
         var fid;
         var lab;
+        var lab2;
         var mfid;
         var rec;
         var w;
@@ -229,6 +230,7 @@ window.onload = function() {
             if (!ctl.eof) {
                 appendLine("TapeDir: EOF expected after starting label, block=" + ctl.blockCount);
             }
+            
             do {
                 rec = readTextBlock(ctl);
                 if (!ctl.eof) {
@@ -252,6 +254,13 @@ window.onload = function() {
                     } while (!done);
                 }
             } while (!ctl.eof);
+            
+            lab2 = readTapeLabel(ctl);
+            if (!lab2.isLabel) {
+                appendLine("TapeDir: Tape label expected after directory, block=" + ctl.blockCount);
+            } else if (lab2.mfid != lab.mfid || lab2.fid != lab.fid) {
+                appendLine("TapeDir: Directory ending label mismatch, block=" + ctl.blockCount);
+            }
         }
         return dir;
     }
@@ -277,30 +286,6 @@ window.onload = function() {
         for (x=0; x<v.length; x++) {
             appendLine(v[x]);
         }
-        
-        /***************************************************************        
-        do {
-            v = data.getUint8(x);
-            if (v & 0x80) {
-                appendLine(text);
-                panel.appendChild(document.createElement("hr"));
-                if (v == tapeMark) {
-                    text = "\\\\\\\\\\ [EOF] /////";
-                } else {
-                    text = BICtoANSI[v & 0x3F];
-                }
-            } else {
-                if (text.length >= 80) {
-                    appendLine(text);
-                    text = "";
-                }
-                text += BICtoANSI[v & 0x3F];
-            }
-        } while (++x < bytes);
-        appendLine(text);
-        ***************************************************************/
-
-        //document.getElementById("RunBtn").disabled = false;
     }
 
     function fileSelector_onChange(ev) {
@@ -310,17 +295,12 @@ window.onload = function() {
 
         document.getElementById("GoBtn").disabled = true;
         
-        alert("File selected: " + f.name + 
-                "\nModified " + f.lastModifiedDate +
-                "\nType=" + f.type + ", Size=" + f.size + " octets");
+        //alert("File selected: " + f.name + 
+        //        "\nModified " + f.lastModifiedDate +
+        //        "\nType=" + f.type + ", Size=" + f.size + " octets");
 
         reader.onload = fileLoader_onLoad;
         reader.readAsArrayBuffer(f);
-    }
-
-    function goBtn_onClick(ev) {
-        /* Driver to process the data file */
-
     }
 
     function checkBrowser() {
@@ -360,8 +340,6 @@ window.onload = function() {
     </div>
     <div style="position:absolute; top:0; right:0; width:auto">
         <input id=FileSelector type=file size=60>
-        &nbsp;
-        <input id=GoBtn type=button value=Go disabled>
     </div>
     
 </div>
