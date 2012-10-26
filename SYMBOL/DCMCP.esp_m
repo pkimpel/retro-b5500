@@ -14770,3 +14770,61 @@ C24:: T:=A4[R5]; A4[R5]:=0;                                             19590000
       GO TO INITIATE;                                                   19595000        
 %     COBOL DATACOM I INTERROGATE                                       19601000        
 C27::                                                                   19602000        
+ $ SET OMIT = NOT(DATACOM )                                             19603000        
+      GO INITIATE;                                                      19637000        
+%     ALGOL DATACOM I INTERROGATE                                       19638000        
+C28::                                                                   19639000        
+ $ SET OMIT = NOT(DATACOM )                                             19640000        
+      GO INITIATE;                                                      19668000        
+C34:: IF (T~R4) > 0 THEN STREAM(R4,T~T~SPACE(17));                      19680200        
+      BEGIN SI~R4; DS~17 WDS END;                                       19680300        
+      TERMINATE(P1MIX);%                                                19680400        
+      TERMINALMESSAGE(-T);%                                             19680500        
+C35::    IF R4.[18:4]=1 THEN P(.LIBRARYZERO)                            19681000        
+                        ELSE P(.LIBRARYCOPY);                           19681100        
+         GO TO CN;                                                      19682000        
+C36::    % TYPE 19 DATACOM I/O INTERFACE                                19683000        
+ $ SET OMIT = DATACOM                                                   19683499        
+         GO TO INITIATE;                                                19683500        
+ $ POP OMIT                                                             19683501        
+ $ SET OMIT = NOT(DATACOM )                                             19684000        
+C37::                                                                   19685010        
+         AIT~JARROW[P1MIX];                                             19685015        
+       IF AIT[9].[FF]=0 THE NAIT[9].[FF]~GETESPDISK;                    19685020        
+       H~[M[SPACE(5)]]&5[8:38:10];                                      19685025        
+       H[1]~R5;H[2]~R4;                                                 19685030        
+ $ SET OMIT = NOT(DATACOM )                                             19685035        
+ $ SET OMIT = DATACOM                                                   19685050        
+       H[3]~0;                                                          19685055        
+ $ POP OMIT                                                             19685060        
+       DISKWAIT(H INX 0,5,AIT[9].[FF]);                                 19685065        
+       FORGETSPACE(H);                                                  19685070        
+       GO TO INITIATE;                                                  19685075        
+C40:: IF R5.[8:10]=1023 THEN                                            19685340        
+      BEGIN M[R5.[CF]]:=PRNTABLE[R5.[FF]];GO INITIATE;END ELSE          19685350        
+      IF R5.[CF]=0 THEN                                                 19685360        
+      BEGIN LINKUP(R6,R5:=R5.[FF]);                                     19685370        
+            SLEEP([M[R5]],@1000000000000000); GO RETURN;                19685380        
+      END ELSE                                                          19685390        
+      IF R5.[15:15]=0 THEN                                              19685400        
+      BEGIN                                                             19685410        
+ $ SET OMIT = NOT(DATACOM )                                             19685419        
+ $ SET OMIT = DATACOM                                                   19685429        
+            M[R5]:=0;                                                   19685430        
+ $ POP OMIT                                                             19685431        
+            GO INITIATE;                                                19685440        
+      END ELSE                                                          19685450        
+      IF R5.[FF]=@77777 THEN                                            19685452        
+      BEGIN M[R5]:=MOD3IOS; GO INITIATE; END ELSE                       19685456        
+      BEGIN INDEPENDENTRUNNER(P(.DKBUSINESS),R5,128); SLEEP([M[R5]],1); 19685460        
+            GO RETURN;                                                  19685470        
+      END;                                                              19685480        
+C41:: IOREQUEST(R7,R6,FLAG(R5)); GO INITIATE;                           19685550        
+C42:: P(..TISKTASK); GO TO CN;                                          19685560        
+C43::    H ~ PRT[P1MIX,TSX]; % SET TASK ATTRIBUTES                      19685570        
+         H[1] ~ JAR[P1MIX,0]; H[2] ~ JAR[P1MIX,1];                      19685580        
+         H[3] ~ 2;            H[4] ~ P1MIX;            H[6] ~ 2;        19685585        
+         GO TO INITIATE;                                                19685590        
+C44:: P(..PICKTHELOCK); GO TO CN;                                       19685595        
+C46:: P(..EVENTANDINTERRUPT); GO TO CN;   % ATTACH, DETACH, CAUSE STMTS 19685596        
+END OF SHORT COMMUNICATE;%                                              19686000        
