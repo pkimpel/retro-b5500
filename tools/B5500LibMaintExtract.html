@@ -27,11 +27,18 @@
 * at the start of a physical tape block. Tape marks (EOF) are indicated by a
 * block containing a single 0x8F byte.
 *
+* The extraction process is driven by the tape directory at the beginning of
+* the tape volume. Continuation "reels" are not currently supported.
+*
 * To use, select the .bcd file using the file selection control on the page.
 * The script writes a log of activity to the web page.
 *
-* The extraction process is driven by the tape directory at the beginning of
-* the tape volume. Continuation "reels" are not currently supported.
+* This version outputs the converted data by opening a browser window for 
+* each file and inserting the converted text into a <textarea> element in 
+* that window. From there you can copy the text and paste into another 
+* program that can save the data to a local filesystem. This approach is
+* being used until we can figure out a better way to get data out of a 
+* browser environment and into a local filesystem. Ugh.
 ************************************************************************
 * 2012-10-22  P.Kimpel
 *   Original version, from thin air.
@@ -42,6 +49,15 @@ window.onload = function() {
     var panel = document.getElementById("TextPanel");
     var tapeMark = 0x8F;
     var tapeDir = [];
+        
+    var tapeCtl = {
+        data:           null,
+        offset:         0,
+        dataLength:     -1,
+        eof:            false,
+        eot:            false,
+        blockCount:     0,
+        blockLength:    0};
     
     var BICtoANSI = [ 
             "0", "1", "2", "3", "4", "5", "6", "7", 
@@ -52,15 +68,6 @@ window.onload = function() {
             "Q", "R", "$", "*", "-", ")", ";", "{", 
             " ", "/", "S", "T", "U", "V", "W", "X", 
             "Y", "Z", ",", "%", "!", "=", "]", "\""];
-        
-    var tapeCtl = {
-        data:           null,
-        offset:         0,
-        dataLength:     -1,
-        eof:            false,
-        eot:            false,
-        blockCount:     0,
-        blockLength:    0};
         
     var pow2 = [ // powers of 2 from 0 to 52
                      0x1,              0x2,              0x4,              0x8, 
@@ -374,19 +381,73 @@ window.onload = function() {
         return header;
     }
     
+    function extractFileRow(ctl, header, box, recs) {
+        /* Extracts the next row from the tape blob and writes it one record at a time to
+           the "box" textarea object. "recs" is the number of records converted at entry to the
+           routine. Returns the number of records converted */
+        var block;
+        var blockChars = header.blockLength*8;
+        var blockRecs = 0;
+        var bx = 0;
+        var done = false; 
+        var recChars = header.recordLength*8;
+        var rowRecs = 0;
+        var rx = 0;
+        var segs = 0;
+        var text = "";
+        var value = "";
+        
+        // Assemble the row data from tape blocks
+        do {
+            block = readTextBlock(ctl);
+            if (ctl.eof) {
+                done = true;
+            } else {
+                text += block;
+                segs += Math.floor((block.length+239)/240);
+                if (segs >= header.segmentsPerRow) {
+                    done = true;
+                }
+            }
+        } while (!done);
+        
+        // Loop through the file blocks within the row data
+        while (bx < text.length) {
+            rx = bx;
+            blockRecs = header.recordsPerBlock;
+            while (blockRecs > 0) {
+                if (rx >= text.length) {
+                    blockRecs = 0;
+                } else if (recs+rowRecs > header.recordCount) {
+                    blockRecs = 0;
+                    bx = text.length;
+                } else {
+                    value += (text.substring(rx, rx+recChars) + "\n");
+                    rx += recChars;
+                    rowRecs++;
+                    blockRecs--;
+                }
+            }
+            bx += blockChars;
+        }
+        box.value += value;
+        return rowRecs;
+    }
+    
     function extractFile(ctl, fileNr, fileName) {
         /* Extracts the next file in sequence from the tape blob, converts the data
-           from BIC to ASCII, and writes it to a file on the host filesystem */
+           from BIC to ASCII, and writes it to a new window object within the browser */
         var block;
-        var blockCount = 0;
-        var blockMax = 0;
-        var blockMin = 1024;
+        var box;
         var header;
         var lab;
         var lab2;
+        var recs = 0;
         var rowCount = 0;
         var text;
+        var win;
         var x;
+        var y;
         
         spout(" ");
         spout("Extracting #" + fileNr + ": " + fileName);
@@ -416,7 +477,8 @@ window.onload = function() {
                   ", CNT=" + header.recordCount +
                   ", SPR=" + header.segmentsPerRow +
                   ", MXR=" + header.maxRows);
-            text = "        Rows=[";
+                  
+            text = "        Rows @ [";
             for (x=0; x<header.rowAddress.length; x++) {
                 if (x>0) {
                     text += ", ";
@@ -428,27 +490,34 @@ window.onload = function() {
             }
             spout(text + "], allocated=" + rowCount);
             
+            text = "Tape " + rtrim(lab.mfid) + "/" + rtrim(lab.fid) + ": " + fileName;
+            win = window.open("", lab.fid, "width=800,height=600,status,scrollbars");
+            win.status = text;
+            x = (Math.floor((fileNr-1)/10)+1)*100 + ((fileNr-1)%10)*30;
+            y = ((fileNr-1)%10+1)*30;
+            win.moveTo(x, y);
+            win.focus();
+            
+            win.document.body.appendChild(
+                win.document.createElement("tt").appendChild(
+                    win.document.createTextNode(text)));
+            win.document.body.appendChild(win.document.createElement("br"));
+            box = win.document.createElement("textarea");
+            box.cols = 90;
+            box.rows = 30;
+            win.document.body.appendChild(box);
+            
             while (!ctl.eof) {
-                block = readWordBlock(ctl);
-                if (!ctl.eof) {
-                    blockCount++;
-                    if (block.length > blockMax) {
-                        blockMax = block.length
-                    };
-                    if (block.length < blockMin) {
-                        blockMin = block.length
-                    };
-                }
+               recs += extractFileRow(ctl, header, box, recs);                
             }
+            
             lab2 = readTapeLabel(ctl);
             if (!lab2.isLabel) {
                 spout("Extract: Tape label expected after file data, block=" + ctl.blockCount);
             } else if (lab2.mfid != lab.mfid || lab2.fid != lab.fid) {
                 spout("Extract: File ending label mismatch, block=" + ctl.blockCount);
             }
-            spout("    " + lab2.mfid + "/" + lab2.fid + 
-                  ": blocks=" + blockCount +
-                  ", min=" + blockMin + ", max=" + blockMax + " [words]");
+            spout("    " + lab2.mfid + "/" + lab2.fid + ": records=" + recs);
         }
     }
 
