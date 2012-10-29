@@ -436,18 +436,19 @@ window.onload = function() {
     
     function extractFile(ctl, fileNr, fileName) {
         /* Extracts the next file in sequence from the tape blob, converts the data
-           from BIC to ASCII, and writes it to a new window object within the browser */
+           from BIC to ASCII, and writes it to a new window object within the browser.
+           Returns true if no more files should be converted */
         var block;
         var box;
         var header;
         var lab;
         var lab2;
         var recs = 0;
+        var result = false;
         var rowCount = 0;
         var text;
         var win;
         var x;
-        var y;
         
         spout(" ");
         spout("Extracting #" + fileNr + ": " + fileName);
@@ -493,9 +494,7 @@ window.onload = function() {
             text = "Tape " + rtrim(lab.mfid) + "/" + rtrim(lab.fid) + ": " + fileName;
             win = window.open("", lab.fid, "width=800,height=600,status,scrollbars");
             win.status = text;
-            x = (Math.floor((fileNr-1)/10)+1)*100 + ((fileNr-1)%10)*30;
-            y = ((fileNr-1)%10+1)*30;
-            win.moveTo(x, y);
+            win.moveTo((screen.availWidth - 800)/2, (screen.availHeight - 600)/2);
             win.focus();
             
             win.document.body.appendChild(
@@ -518,7 +517,14 @@ window.onload = function() {
                 spout("Extract: File ending label mismatch, block=" + ctl.blockCount);
             }
             spout("    " + lab2.mfid + "/" + lab2.fid + ": records=" + recs);
+            
+            box.focus();
+            box.select();
+            result = !confirm("Copy and save " + fileName + " from the sub-window.\n" + 
+                              "Then click OK to continue or Cancel to quit.");
+            win.close();
         }
+        return result;
     }
 
     function fileLoader_onLoad(ev) {
@@ -543,7 +549,9 @@ window.onload = function() {
         }
         
         for (x=1; x<tapeDir.length; x++) {
-            extractFile(tapeCtl, x, tapeDir[x]);
+            if (extractFile(tapeCtl, x, tapeDir[x])) {
+                break;
+            }
         }
     }
 
