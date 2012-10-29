@@ -14828,3 +14828,86 @@ C43::    H ~ PRT[P1MIX,TSX]; % SET TASK ATTRIBUTES                      19685570
 C44:: P(..PICKTHELOCK); GO TO CN;                                       19685595        
 C46:: P(..EVENTANDINTERRUPT); GO TO CN;   % ATTACH, DETACH, CAUSE STMTS 19685596        
 END OF SHORT COMMUNICATE;%                                              19686000        
+PROCEDURE TISKTASK;                                                     19687000        
+ % A  COBOL OR ALGOL PROGRAM WHICH EITHER CONTAINS OR IS INVOKED BY A   19687100        
+ % PROCESS, CALL, OR RUN/EXECUTE STATEMENT, OR MANIPULATES LOCKS (COBOL)19687120        
+ % OR EVENTS (ALGOL), WILL BE FLAGGED IN SEGMENT 0 (WORD 2 [3:1]=1) OF  19687140        
+ % ITS CODE FILE AS HAVING A TASK ARRAY.                                19687150        
+ % THE FORMAT OF THE TASK ARRAY (MYSELF AT PRT[TSX]) IS AS FOLLOWS      19687200        
+ %      TSKA[0]         = TASKVALUE: PROVIDED FOR USER                  19687300        
+ %      TSKA[1]         = 7 CHR MFID OF CODE FILE                       19687400        
+ %      TSKA[2]         = 7 CHR FID OF CODE FILE                        19687500        
+ %      TSKA[3]         = STATUS: 1=SCHEDULED                           19687600        
+ %                                2=ACTIVE                              19687610        
+ %                               -1=TERMINATED (DS-ED OR EOJ)           19687650        
+ %                               -2=INITIATION ATTEMPTED BUT FAILED     19687680        
+ %      TSKA[4]         = STACKNO: MIX INDEX IF RUNNING                 19687700        
+ %                                 SCHEDULE-ID IF SCHEDULED             19687750        
+ %      TSKA[5]         =HEAD OF LIST OF LOCK-ITEMS IN CONTROL OR QUEUED19687780        
+ %      TSKA[6]         = TYPE: 0=ASYNCHRONOUS DEPENDENT (PROCESS)      19687800        
+ %                              1=SYNCHRONOUS DEPENDENT  (CALL)         19687840        
+ %                              2=INDEPENDENT            (RUN/EXECUTE)  19687850        
+ %      TSKA[7]         = CALL STATE: 0=INITIAL                         19687860        
+ %                                    1= EXIT PROGRAM/                  19687870        
+ %                                       EXIT PROGRAM RETURN HERE       19687872        
+ %                                    2=CONTINUED OR RE-CALLED          19687874        
+ %      TSKA[8]         : [1:1]=1 IFF JUST EXECUTED INTERRUPTER INTRINSC19687876        
+ %                                AND SFINTQ IS NON-EMPTY               19687878        
+ %                        [2:1]=1 IFF SFINTQ IS NON-EMPTY               19687880        
+ %                        [3:1]=1 IFF INTERRUPTER INTRINSIC IS RUNNING  19687882        
+ %                        [4:1] = SFINTQ INTERLOCK BIT (ON TO START)    19687883        
+ %                        [FF] = ABSOLUTE ADDRESS OF OLD IRCW           19687884        
+ %                        [CF] = HEAD OF LIST OF DECLARED INTERRUPTS    19687885        
+ % SEGMENT 0 FOR IPC PROGRAM FILES:                                     19687886        
+ %       S[2].[2:1]          =1 IF THERE ARE DECLARED INTERRUPTS        19687887        
+ %       S[2].[3:1]          =1 FOR AN IPC PROGRAM FILE                 19687888        
+ %                           (EITHER INVOKING OR INVOKED)               19687889        
+ %       S[2].[4:1]          =1 FOR AN INVOKED IPC PROGRAM FILE         19687890        
+ % NOTE: S[2].[2:3] = JAR[2].[5:3]. JAR[2].[6:1]=1 INDICATES TO COM5    19687892        
+ %        THAT THIS JOB MAY HAVE DEPENDENT TASK DESCENDENTS TO BE DS-ED 19687894        
+ %        OR ES-ED AND LOCK QUEUES TO BE CLEANED UP WHEN IT TERMINATES. 19687896        
+ %       S[8]                NUMBER OF TASK PARAMETERS TO BE RECEIVED   19687898        
+ %                           ( = N BELOW).                              19687900        
+ %       S[9]                DISK ADDRESS OF PARAMETER DESCRIPTION SEG  19687910        
+ %  FORMAT OF ENTRY IN PARAMETER DESCRIPTION SEGMENT:                   19687920        
+ %       (BEGINNING IN WORD 1)                                          19687925        
+ %       [18:15] : TYPE -   0  TASK ARRAY     - NAME                    19687930        
+ %                          1  EVENT/LOCK     - NAME                    19687935        
+ %                          2  PRT CELL       - NAME                    19687940        
+ %                          3  PRT CELL       - VALUE                   19687945        
+ %                          4  (SAVE) ARRAY   - NAME                    19687950        
+ %                          5  ARRAY          - VALUE                   19687955        
+ % (ONLY 1-DIMENSIONAL ARRAYS CAN BE PASSED AS TASK PARAMETERS).        19687957        
+ %       [8:10]  : SIZE  -  SIZE OF ARRAY FOR TYPES 4 AND 5, ELSE 0     19687960        
+ %       [33:15] : LOCATION-PRT LOCATION FOR TYPES 0-4, FOR TYPE 5:     19687965        
+ %                         -RELATIVE DISK ADDRESS OF TYPE-2 SEGMENT     19687970        
+ % TISTASK MAKES A TEST FOR AGREEMENT BETWEEN THE TASK PARAMETERS       19687975        
+ % SPECIFIED IN THE PARAMETER DESCRIPTION SEGMENT AND THOSE SPECIFIED BY19687977        
+ % THE F- CELLS (SEE BELOW). LACK OF AGREEMENT EITHER DS-ES THE PARENT  19687980        
+ % OR CAUSES A 1 TO BE RETURNED (IN THE CASE OF A COBOL PROGRAM WHICH   19687982        
+ % CONTAINS AN "ON EXCEPTION" CLAUSE).                                  19687984        
+ % TISKTASK COPIES THE CODE FILE, FILLING NAME AND VALUE PARAMETERS INTO19687990        
+ % THE NEW PRT AND WRITING OUT VALUE ARRAYS AS TYPE-2 SEGMENTS. THE JOB 19687995        
+ % IS ENTERED IN THE SCHEDULE AND THE SCHEDULE-ID IS ENTERED IN THE     19687997        
+ % TASK ARRAY. THE NEW SHEET ENTRY IS FLAGGED A GO JOB (AS FROM A       19687998        
+ % COMPILE-AND-GO).                                                     19687999        
+BEGIN                                                                   19688000        
+    REAL MFID=-4,FID=-5,     % FILE ID OF CODE FILE TO BE INVOKED       19688050        
+                             % MFID<0  IF ON EXCEPTION CLAUSE IS PRESENT19688060        
+                             % FID<0   IF CALL OR CONTINUE STATEMENT    19688070        
+         N=-6;               % NUMBER OF F- PARAMS BETWEEN F-7 AND MKSCW19689000        
+                             %    THERE WILL BE A PAIR OF F- CELLS FOR  19689010        
+                             %    EACH TASK PARAMETER. F(-I) CONTAINS   19689020        
+                             %    THE NAME OR VALUE OF THE PARAMETER.   19689030        
+                             %    F(-(I+1)) CONTAINS THE TYPE           19689040        
+                             %    (AS IN SEGMENT 0).                    19689050        
+                             %    (TSKA IS THE FIRST TASK PARAMETER)    19689060        
+                             % N<0 IF CONTINUE STATEMENT                19689070        
+    ARRAY NAME PARM;                                                    19691000        
+    ARRAY S[*],R[*],H[*],D[*],W[*],                                     19692000        
+         TSKA=-7[*];         % TASK ARRAY DESCRIPTOR FOR PROCESS, CALL  19692100        
+                             % INTEGER = TASK ARRAY LENGTH FOR RUN      19692200        
+    REAL T,T1,T2,T3,T4,ONEXCEPTION,CALLEDORCONT,                        19693000        
+         VARRAY,IOD,IOD1,NR,SR,HADDR,PRTRLOC,PRTSZ,ERR,SZ,S1,CR,PRTS;   19694000        
+    LABEL L1,ERROR,NEXTROW,L2,XYT;                                      19695000        
+    INTEGER PADDR,ADDR;                                                 19696000        
