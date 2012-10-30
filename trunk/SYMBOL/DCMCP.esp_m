@@ -14911,3 +14911,100 @@ BEGIN                                                                   19688000
          VARRAY,IOD,IOD1,NR,SR,HADDR,PRTRLOC,PRTSZ,ERR,SZ,S1,CR,PRTS;   19694000        
     LABEL L1,ERROR,NEXTROW,L2,XYT;                                      19695000        
     INTEGER PADDR,ADDR;                                                 19696000        
+REAL COMMON,F,ESTPROC,ESTIO,STKSZ;                                 %110-19696100        
+    DEFINE CONTINUED = VARRAY#, SAVEBIT = IOD1#;                        19696500        
+         ONEXCEPTION ~ MFID<0; MFID ~ ABS(MFID);                        19696600        
+         CALLEDORCONT ~ FID<0; FID ~ ABS(FID);                          19696700        
+         CONTINUED ~ N<0; N ~ ABS(N);                                   19696800        
+         PARM ~ [N];                                                    19697000        
+         IF CALLEDORCONT THEN          % CALL OR CONTINUE STATEMENT     19697200        
+    BEGIN     IF CONTINUED THEN IF TSKA[3]!2 OR TSKA[7]!1 THEN          19697300        
+                   BEGIN     ERR ~ 1; TERMINATE(P1MIX&98[CTF]); GO XYT; 19697400        
+                   END;                                                 19697500        
+              IF TSKA[3]=2 THEN IF TSKA[7]=1 THEN                       19697600        
+                   BEGIN     TSKA[7] ~ 2; GO XYT;                       19697700        
+                   END ELSE ELSE TSKA[7] ~ 0;                           19697800        
+    END;                                                                19697900        
+         IF (T:=DIRECTORYSEARCH(MFID,FID,3)) GEQ 64 THEN                19698000        
+    BEGIN     IF SECURITYCHECK(MFID,FID,USERCODE[P1MIX],T)=0 THEN       19699000        
+L1:      BEGIN     ERR ~ 1;                                             19700000        
+                   IF T GEQ 64 THEN FORGETSPACE(T);                     19700500        
+                   GO ERROR;                                            19701000        
+         END;                                                           19702000        
+              IF M[T INX 4].[9:2]!3 THEN GO L1; % NOT EXECUTABLE CODE   19703000        
+    END ELSE GO L1;                                                     19704000        
+         IF TSKA.PBIT THEN IF TSKA[3]}1 THEN GO L1;                     19704100        
+         S ~ [M[GETSPACE(30,2,0)+2]]&30[8:38:10];                       19705000        
+% READ SEGMENT ZERO INTO S                                              19706000        
+         DISKWAIT(-S.[CF],30,M[T INX 10]);                              19707000        
+         IF S[8]!N THEN                                                 19708000        
+L2: BEGIN     FORGETSPACE(S);                                           19709000        
+              GO L1;                                                    19710000        
+    END;                                                                19711000        
+         W ~ [M[GETSPACE(T3~N DIV 2+1,2,0)+2]]&T3[8:38:10];             19711100        
+% READ IPC PARAMETER DESCRIPTION SEGMENT INTO W                         19711200        
+         DISKWAIT(-W.[CF],T3,ADDR ~ M[T INX (10+((T2~S[9])              19711300        
+                   DIV (SR~M[T INX 8])))] + (T2 MOD SR));               19711400        
+         FOR T1 ~ 2 STEP 2 UNTIL N DO                                   19713000        
+              IF PARM[NOT(T1-1)]!W[T1 DIV 2].[FF] THEN                  19714000        
+                   BEGIN     FORGETSPACE(W);                            19714100        
+                             GO L2;                                     19714200        
+                   END;                                                 19714300        
+% READ PRT INTO R                                                       19718000        
+         R ~ [M[GETSPACE(S[3],2,0)+2]]&S[3][8:38:10];                   19719000        
+         DISKWAIT(-R.[CF],S[3],PADDR ~ M[T INX (10+((PRTS~S[2].[CF])    19720000        
+                   DIV SR))] + (PRTS MOD SR));                          19721000        
+         FOR T1 ~ 2 STEP 2 UNTIL N DO                                   19722000        
+              IF PARM[NOT(T1-1)]=5 THEN        % PASS-BY-VALUE ARRAY    19723000        
+    BEGIN     PARM[NOT(T1-1)] ~ W[T1 DIV 2].[CF];  % RELATIVE DISK LOCA-19724000        
+              VARRAY ~ VARRAY+1;                   % TION OF TYPE-2 SEG 19725000        
+    END ELSE                                                            19726000        
+    BEGIN     R[W[T1 DIV 2].[CF]] ~ *[PARM[NOT(T1-2)]];% PLACE NAME     19727000        
+              PARM[NOT(T1-1)] ~ -@77777;               % OR VALUE IN PRT19728000        
+    END;                                                                19729000        
+% BUILD HEADER FOR NEW CODE FILE IN H                                   19730000        
+         H ~ [M[GETSPACE(30,2,0)+2]]&30[8:38:10];                       19731000        
+         MOVE[30,T INX 0,[H]);                                          19732000        
+         H[2] ~ H[5] ~ H[6] ~ 0;                                        19733000        
+         T4 ~ M[T INX 9].[43:5]-1;                                      19733400        
+         WHILE M[T INX (10+NR)]!0 AND NR{T4 DO NR ~ NR+1; % NR = # ROWS 19733600        
+         T4 ~ NR+9;                                                     19734000        
+         H[4].[16:20] ~ 0;                                              19735000        
+         H[9] ~ NR;                                                     19735050        
+         FOR T1 ~ 10 STEP 1 UNTIL T4 DO H[T1] ~ GETUSERDISK(SR);        19736000        
+         HADDR ~ GETESPDISK;                                            19737000        
+         DISKIO(IOD,H INX 0-1,30,HADDR);                                19738000        
+         F ~ S[15];            % SAVE LABEL EQUATION ENTRIES       %110-19738100        
+         ESTPROC:=S[16];       % SAVE ESTIMATED PROCESSOR TIME     %110-19738110        
+         ESTIO:=  S[17];       % SAVE ESTIMATED I/O TIME           %110-19738120        
+         COMMON ~ S[19];       % SAVE COMMON VALUE                 %110-19738200        
+         STKSZ:=  S[21];       % SAVE STACK SIZE                   %110-19738210        
+         CR ~ S[7],[FF];            % SAVE CORE REQ.                    19739000        
+         PRTRLOC ~ PRTS DIV SR;     % ROW PRT IS LOCATED IN             19740000        
+         PADDR !(PRTS MOD SR);      % WHICH SEGMENT IN ROW              19741000        
+         PRTSZ ~((S[3]+29) DIV 30); % NUMBER OF SEGMENTS IT OCCUPIES    19742000        
+         SLEEP([IOD],IOMASK);                                           19743000        
+         S1 ~ SR-1;                 % NO. OF SEGS/ROW - 1               19744000        
+         FOR T1 := 10 STEP 1 UNTIL T4 DO % COPY CODE FILE CHANGEING%110-19746000        
+            BEGIN                          % PRT & PASS-BY-VALUE SEGMENT19747000        
+            FOR T3 := 0 STEP 1 UNTIL S1 DO % COPY ROW              %171-19748000        
+               BEGIN                                               %110-19749000        
+               DISKWAIT(-S.[CF],30,M[T INX T1]+T3); % READ SEGMENT %110-19750000        
+               IF(T1=10) THEN IF(T3=0) THEN S[2].[3:2] ~ 3; % INVOKED   19750100        
+               DISKWAIT( S.[CF],30,H[T1]      +T3); % WRITE IT BACK%110-19751000        
+               END;                                                %110-19752000        
+            IF(T1-10)=PRTRLOC THEN % PRT IS IN THIS ROW            %110-19753000        
+               DISKWAIT(R.[CF],PRTSZ|30,H[T1]+PADDR); % WRITE OUT PRT   19754000        
+            IF VARRAY > 0 THEN % LOOK FOR TYPE-2 SEGMENTS IN THIS ROW   19755000        
+            FOR T2:=2 STEP 2 UNTIL N DO                            %110-19756000        
+            IF(T1-10)=(PARM[NOT(T2-1__DIV SR) THEN                 %110-19757000        
+            % WE HAVE A TYPE-2 SEGMENT IN THIS ROW                 %110-19758000        
+               BEGIN % MOVE SEGMENT TO CODE FILE ROW               %110-19759000        
+               SZ:=(W[T2 DIV 2].[8:10]+29) DIV 30;                 %110-19760000        
+               D:=PARM[NOT(T2-2)];                                 %110-19761000        
+               ADDR:=(PARM[NOT(T2-1)]MOD SR);                      %110-19762000        
+               VARRAY:=VARRAY-1;                                   %110-19763000        
+               WHILE D.PBIT=0 DO                                   %110-19764000        
+                  MAKEPRESENT([T] INX(NOT 1)); % ADDRESS OF D      %110-19765000        
+               SAVEBIT:=M[D INX (NOT 1)].[2:1];                    %110-19766000        
+               P(M[D INX (NOT 0)]);                                %110-19766100        
