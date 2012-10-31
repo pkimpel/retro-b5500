@@ -15008,3 +15008,92 @@ L2: BEGIN     FORGETSPACE(S);                                           19709000
                   MAKEPRESENT([T] INX(NOT 1)); % ADDRESS OF D      %110-19765000        
                SAVEBIT:=M[D INX (NOT 1)].[2:1];                    %110-19766000        
                P(M[D INX (NOT 0)]);                                %110-19766100        
+               M[D INX (NOT 1)].[2:1]:=1;                          %110-19766200        
+               DISKWAIT(D.[CF],SZ|30,H[T1]+ADDR);                  %110-19766300        
+               M[D INX (NOT 0)]:=P(XCH);                           %110-19766400        
+               M[D INX (NOT 1)].[2:1]:=SAVEBIT;                    %110-19766500        
+               END;                                                %110-19766600        
+            END;                                                   %110-19766700        
+            FORGETSPACE(R); FORGETSPACE(T); FORGETSPACE(W);        %110-19766800        
+% BUILD SHEET SKELETON IN S                                             19767700        
+         STREAM(S);BEGIN  30(DS ~ 8 LIT "0"); END;                      19767750        
+         S[20] ~ CR;                                                    19767760        
+         S[25] ~ MADDR;                                                 19767800        
+         S[0] ~ MFID;                                                   19767900        
+         S[1] ~ FID;                                                    19768000        
+         S[2] ~ S[18] ~ PRYOR[P1MIX];                                   19768050        
+% WRITE OUT DUMMY CONTROL CARD FOR LOGGING ROUTINE                      19768100        
+         STREAM(X~S[24]~USERCODE[P1MIX], MFID, FID, T~[H[2]] );    %722-19768200        
+         BEGIN SI~LOC X; DS~9 LIT "CC USER =";                     %722-19768300        
+                SI!SI+1; DS~7 CHR; DS~9 LIT ";EXECUTE ";           %722-19768400        
+                2(SI~SI+1; DS~7 CHR; DS~LIT "/"); DI~DI-1;         %722-19768450        
+                DS~6 LIT ";END.~"; DS~16 LIT " ";                  %722-19768500        
+         END STREAM;                                                    19768550        
+         H[0] ~ 0;                                                      19768600        
+         H[1] ~ 10;                                                     19768650        
+         S[6] ~ GETESPDISK & 10 [CTF];                                  19768700        
+         DISKWAIT(H.[CF],11,S[6] INX 0);                                19768750        
+ $ SET OMIT = NOT PACKETS                                          %110-19768760        
+% PUT DUMMY CONTROL CARD IN PACKET PAGE ALSO                       %110-19768762        
+         IF (T~PSEUDOMIX[P1MIX]) GEQ 32 THEN % ITS A PACKET JOB    %110-19768764        
+            BEGIN                                                  %110-19768766        
+            STREAM(A~[JAR[P1MIX,0]],M~P1MIX,B~[H[2]],T1~T1~SPACE(10));  19768768        
+            BEGIN                                                  %110-19768770        
+            DS~2 LIT">>>"; SI~B; DS~30 CHR; DS~14 CHR;             %722-19768772        
+            DS~13 LIT". INVOKED BY "; SI~A; SI~SI+1; DS~7 CHR;DS~LIT"/";19768774        
+            SI~SI+1; DS~7 CHR; DS~LIT"="; SI~LOC M; DS~2 DEC;      %110-19768776        
+            DS~LIT LEFTARROW; DI~DI-3; DS~FILL;                    %110-19768778        
+            END;                                                   %110-19768780        
+            SPOUTER(T1,T,0);                                       %110-19768782        
+            END;                                                   %110-19768784        
+ $ POP OMIT                                                        %110-19768786        
+         SLEEP([TOGLE],SHEETMASK); LOCKTOG(SHEETMASK);                  19768800        
+         STREAM(A~0:B~P(.SCHEDULEIDS));                                 19768900        
+         BEGIN SI~B;                                                    19768950        
+              47(SKIP SB; SKIP DB; TALLY~TALLY+1;                       19769000        
+                 IF SB THEN BEGIN END ELSE JUMP OUT);                   19770000        
+              DS~SET; A~TALLY;                                          19771000        
+         END STREAM;                                                    19772000        
+         T1 ~ P; S[3] ~ D&T1[8:38:10];                                  19773000        
+         S[23]:=0&(                                                %110-19774000        
+ $ SET OMIT = NOT PACKETS                                          %110-19774050        
+                   IF(T~PSEUDOMIX[P1MIX])!0 THEN T                 %110-19774100        
+                   ELSE                                            %110-19774150        
+ $ POP OMIT                                                        %110-19774200        
+ $ SET OMIT = NOT DATACOM                                          %110-19774250        
+                   26][2:42:6]                                     %110-19774450        
+ $ SET OMIT = NOT DATACOM                                          %110-19774500        
+                 &((CLOCK+P(RTR)) DIV 60)[24:24:24];               %110-19774650        
+ $ SET OMIT = NOT PACKETS                                          %110-19774700        
+         IF T GEQ 32 THEN PACKETACT[T-32]~PACKETACT[T-32]+1;       %110-19774750        
+ $ POP OMIT                                                        %110-19774800        
+         S[24]:=USERCODE[P1MIX];                                   %110-19774850        
+         S[12]:=512;                                               %110-19775000        
+         S[15] ~ F; % PUT LABEL EQUATION ENTRIES IN SHEET          %110-19775100        
+         S[16]:=ESTPROC;                                           %110-19776000        
+         S[17]:=ESTIO;                                             %110-19776010        
+         S[19] ~ COMMON; % AND COMMON                              %110-19776100        
+         S[21]:=STKSZ;                                             %110-19776110        
+         HADDR ~ GETESPDISK;                                            19777000        
+         IF SHEET[0].[CF]!0 THEN                                        19778000        
+    BEGIN     DISKWAIT(-H.[CF],30,T2 ~ SHEET[0].[FF]);                  19779000        
+              H[29] ~ HADDR;                                            19780000        
+              DISKWAIT(H.[CF],30,T2);                                   19781000        
+    END ELSE SHEET[0] ~ HADDR;                                          19782000        
+         SHEET[0].[FF] ~ HADDR;                                         19783000        
+         S[29] ~ 0;                                                     19784000        
+         DISKWAIT(S.[CF],30,HADDR);                                     19785000        
+         UNLOCKTOG(SHEETMASK); FORGETSPACE(S); FORGETSPACE(H);          19786000        
+ERROR:                                                                  19787000        
+         IF TSKA.PBIT THEN                                              19788000        
+    BEGIN     TSKA[3] ~ 1-3|ERR;            % STATUS: SCHEDULED OR ERROR19791000        
+              IF NOT ERR THEN TSKA[4] ~ T1; % SCHEDLE-ID                19792000        
+    END;                                                                19793000        
+         IF ERR AND NOT ONEXCEPTION THEN TERMINATE(P1MIX&94[CTF]) ELSE  19796000        
+         PARM[NOT(N+1)] ~ ERR; % PLACE BOOLEAN IN WORD BELOW MKSCW FOR  19797000        
+                               % ON EXCEPTION BRANCH IN COBOL           19798000        
+         P(DIRECTORYSEARCH(NABS(MFID),FID,13),DEL);%CLOSE,FORGET HEADER 19799000        
+         IF NOT ERR THEN SELECTION;                                     19799050        
+XYT::  IF CALLEDORCONT AND NOT ERR THEN COMPLEXSLEEP((TSKA[7] AND 1)    19799060        
+                   OR (TERMSET(P1MIX)));                                19799070        
+END TISKTASK;                                                           19800000        
