@@ -15097,3 +15097,94 @@ ERROR:                                                                  19787000
 XYT::  IF CALLEDORCONT AND NOT ERR THEN COMPLEXSLEEP((TSKA[7] AND 1)    19799060        
                    OR (TERMSET(P1MIX)));                                19799070        
 END TISKTASK;                                                           19800000        
+PROCEDURE PICKTHELOCK;                                                  19900000        
+BEGIN COMMENT THIS PROCEDURE HANDLES LOCKING/UNLOCKING OF               19900010        
+              LOCK-ITEMS FOR TASKING. IT ALSO HANDLES THE MAINTENANCE   19900020        
+              OF A WAIT QUEUE AND PASSING CONTROL OF THE LOCK TO THE    19900030        
+              FIRST PROCESS IN THE WAIT QUEUE. AFTER IT HAS BEEN        19900040        
+              RELEASED BY ANOTHER PROCESS, THE HEAD OF THE QUEUE IS     19900050        
+              THE LOCK-ITEM OF THE PROCESS CURRENTLY IN CONTROL AND     19900060        
+              ENTRIES ARE MADE AT THE END OF THE QUEUE. LOCK-ITEMS      19900070        
+              ARE IN THE PRT AND HAVE THE FOLLOWING FORMAT:             19900080        
+               [1:1]=1, MEANS LOCKED(LOCK BIT,ORIGINAL ONLY)            19900090        
+               [2:1]=1, IN CONTROL(CONTROL BIT)                         19900100        
+               [3:1]=1, ORIGINAL LOCK-ITEM(ORIGINAL BIT)                19900110        
+                    =0, A COPY                                          19900120        
+               [4:1]= QUEUE INTERLOCK(ORIGINAL ONLY)                    19900130        
+               [8:10]=MIX INDEX OF PROGRAM IN CONTROL(ORIGINAL)         19900140        
+                     =RELATIVE PRT ADDRESS USED TO LINK ALL LOCK-ITEMS  19900150        
+                      IN CONTROL OR IN WAIT QUEUES(COPY)                19900160        
+               [18:15]=POINTER TO NEXT PROCESS IN WAIT QUEUE, ELSE 0    19900170        
+               [33:15]=POINTER TO HEAD OF QUEUE(ORIGINAL)               19900180        
+                      =POINTER TO ORIGINAL LOCK-ITEM(COPY)              19900190        
+              "LOCKPTR" IS THE PARAMETER PASSED AND HAS THE FORMAT:     19900200        
+               [1:1]=0, MEANS LOCK, ELSE UNLOCK                         19900210        
+               [2:1]=1,   "   TEST LOCK BIT, LOCK IF UNLOCKED AND       19900220        
+                        RETURN A 0, ELSE RETURN 1                       19900230        
+               [33:15]=RELATIVE PRT ADDRESS OF LOCK-ITEM;               19900240        
+ REAL LOCKPTR=-4;%PARAMETER                                             19900250        
+ REAL Q,R,S,T,U,V;                                                      19900260        
+ ARRAY A[*];                                                            19900270        
+ DEFINE DSED=TERMSET(P1MIX)#, IMASK=@200000000000000#;                  19900280        
+ SUBROUTINE LINKIT;                                                     19900290        
+ BEGIN IF(V:=A[5])=0 THEN A[5]:=LOCKPTR INX 0                           19900300        
+       ELSE BEGIN WHILE PRT[P1MIX,V].[8:10] NEQ 0 DO                    19900310        
+                   V:=PRT[P1MIX,V].[8:10];                              19900320        
+                  PRT[P1MIX,V].[8:10]:=LOCKPTR INX 0;                   19900330        
+            END;                                                        19900340        
+ END;                                                                   19900360        
+    Q:=[PRT[P1MIX,LOCKPTR INX 0]] INX 0;                                19900370        
+    R~NFLAG(M[U+Q]);                                                    19900380        
+    S~IF R.[3:1] THEN Q ELSE (R INX 0); %ADDR OF ORIGINAL               19900390        
+    A:=PRT[P1MIX,TSX];%TASK ARRAY                                       19900395        
+    IF NOT M[S].[4:1] THEN SLEEP([M[S]],IMASK);                         19900400        
+    M[S].[4:1]:=0;                                                      19900410        
+    IF LOCKPTR.[2:1] THEN %TEST & LOCK                                  19900420        
+    BEGIN IF NOT M[S].[1:1] THEN %UNLOCKED                              19900430        
+          BEGIN M[S]:=NABS(M[S])&U[CTC]&P1MIX[8:38:10];                 19900440        
+                  M[U]:=(M[U] OR M)&0[CTF];                             19900450        
+                  IF U!S THEN BEGIN M[U].[8:10]~0;                      19900455        
+                                    LINKIT;                             19900460        
+                              END;                                      19900465        
+                  LOCKPTR:=0;                                           19900470        
+          END ELSE LOCKPTR:=1;                                          19900480        
+    M[S]:=(*P(DUP)) OR IMASK;                                           19900490        
+    P(XIT);                                                             19900500        
+    END;                                                                19900510        
+    IF LOCKPTR GTR 0 THEN%LOCK                                          19900520        
+    IF NOT M[U].[2:1] THEN%NOT IN CONTROL                               19900530        
+    BEGIN IF NOT M[S].[1:1] THEN                                        19900540        
+          BEGIN M[S]:=NABS(M[S])&U[CTC]&P1MIX[8:38:10];                 19900550        
+                M[U]:=((*P(DUP)) OR M)&0[CTF];                          19900560        
+                IF U!S THEN BEGIN M[U].[8:10]~0;                        19900565        
+                                  LINKIT;                               19900570        
+                            END;                                        19900575        
+          END ELSE                                                      19900580        
+          BEGIN                                                         19900590        
+          T:=M[S] INX 0;                                                19900600        
+          WHILE M[T].[FF] NEQ 0 DO T:=M[T].[FF];                        19900610        
+          M[T].[FF]:=U;                                                 19900620        
+          M[U].[FF]:=0;                                                 19900630        
+          IF U!S THEN BEGIN M[U].[8:10]~0; LINKIT END;                  19900650        
+          M[S]:=(*P(DUP)) OR IMASK;                                     19900660        
+          COMPLEXSLEEP(DSED OR M[U].[2:1]);                             19900670        
+          IF M[U].[2:1] THEN                                            19900675        
+          M[S]~((*P(DUP))&P1MIX[8:38:10]) OR IMASK;                     19900680        
+          P(XIT);                                                       19900690        
+          END;                                                          19900700        
+    END ELSE ELSE %UNLOCK                                               19900710        
+    BEGIN IF M[S].[1:1] THEN%LOCKED                                     19900720        
+          BEGIN M[T:=M[S] INX 0].[2:1]:=0;%TURN OFF CONTROL             19900730        
+                IF T!S THEN                                             19900735        
+                BEGIN                                                   19900740        
+                A:=PRT[V:=M[S].[8:10],TSKX];                            19900745        
+                R:=A[5];                                                19900750        
+                IF T NEQ ([PRT[V,R]] INX 0) THEN                        19900755        
+                BEGIN                                                   19900758        
+                WHILE M[S].[CF] NEQ ([PRT[V,R]] INX 0) DO               19900760        
+                BEGIN U:=R;                                             19900770        
+                      R:=PRT[V,R].[8:10];                               19900780        
+                END;                                                    19900790        
+                PRT[V,U].[8:10]:=PRT[V,R].[8:10];%DELINK                19900800        
+                END  ELSE A[5]:=M[T].[8:10;                             19900805        
+                END;                                                    19900810        
