@@ -15188,3 +15188,50 @@ BEGIN COMMENT THIS PROCEDURE HANDLES LOCKING/UNLOCKING OF               19900010
                 PRT[V,U].[8:10]:=PRT[V,R].[8:10];%DELINK                19900800        
                 END  ELSE A[5]:=M[T].[8:10;                             19900805        
                 END;                                                    19900810        
+                M[S].[CF]:=(T:=M[T].[FF]);                              19900815        
+                IF T NEQ 0 THEN                                         19900820        
+                BEGIN M[T]~(*P(DUP)) OR M; P(XIT) END                   19900830        
+                ELSE M[S]:=ABS(M[S]);                                   19900840        
+          END;                                                          19900850        
+    END;                                                                19900855        
+    M[S]:=(*P(DUP)) OR IMASK;                                           19900860        
+PROCEDURE EVENTANDINTERRUPT;                                            19900900        
+BEGIN                                                                   19901000        
+    REAL TYPE=-4,       % TYPE: 1=ATTACH INTERRUPT (AT REL.ADDR RELINT) 19901100        
+         RELINT=-5,     %         TO EVENT (AT ABSOLUTE ADDR ABSEVT)    19901200        
+         ABSEVT=-6;     %       2=DETACH INTERRUPT (AT REL.ADDR RELINT) 19901300        
+                        %       3=CAUSE EVENT (AT ABSOLUTE ADDR ABSEVT) 19901400        
+         REAL K,R,A,SIZE,MIX,J,I,ABSOLD=J;                              19901500        
+         LABEL ATTACHL,DETACHL,CAUSEL,ON,L1,L2,L3,L4,DONE;              19901600        
+         SWITCH S ~ ATTACHL,DETACHL,CAUSEL;                             19901700        
+         ARRAY SFINTQ[*],TSKA[*];                                       19901800        
+         NAME BIGGERQ;                                                  19901840        
+    DEFINE TMASK = @200000000000000#,EMASK = @2000000000000000#;        19901850        
+SUBROUTINE DETACHINT;                                                   19901900        
+BEGIN  IF (ABSOLD~PRT[P1MIX,RELINT].[FF])!0 THEN                        19902000        
+              BEGIN     WHILE NOT M[ABSOLD].[5:1] DO                    19902100        
+                             ABSOLD ~ M[ABSOLD].[FF];                   19902120        
+                        IF M[ABSOLD]}0 THEN SLEEP([M[ABSOLD]],EMASK);   19902130        
+                        M[ABSOLD] ~ P(DUP,LOD,SSP);                     19902140        
+                        K ~ T ~ PRT[P1MIX,RELINT].[FF];                 19902150        
+                        A ~[PRT[P1MIX,RELINT]] INX 0;                   19902190        
+                        WHILE M[T].[FF]!A DO T ~ M[T].[FF];             19902200        
+                        M[T].[FF] ~ IF T=K THEN 0 ELSE K;               19902300        
+                        PRT[P1MIX,RELINT].[FF] ~ 0;                     19902350        
+                        M[ABSOLD] ~ P(DUP,LOD,SSN);                     19902360        
+              END;                                                      19902400        
+END DETACHINT;                                                          19902500        
+                   % FORMAT OF INTERRUPT (IN PRT):                      19902501        
+                   %    UPPER WORD (LINK WORD):                         19902502        
+                   %         [1:1]=1 IFF INTERRUPT IS DISALLOWED        19902503        
+                   %         [FF]: ABSOLUTE ADDRESS OF NEXT INTERRUPT ON19902504        
+                   %               EVENTS ATTACH LIST OR OF THE EVENT IF19902505        
+                   %               THIS INTERRUPT IS THE LAST ON LIST   19902506        
+                   %         [CF]: RELATIVE PRT ADDRESS OF NEXT DECLARED19902507        
+                   %               INTERRUPT FOR THIS PROCESS           19902508        
+                   %    LOWER WORD: PROCEDURE DESCRIPTOR FOR INTERRUPT  19902509        
+                   % FORMAT OF EVENT (IN PRT):                          19902510        
+                   %    "ORIGINAL" EVENT-ITEM (AT ABSOLUTE ADDR ABSEVT):19902511        
+                   %         [1:1]: EVENT INTERLOCK BIT (ON TO START)   19902512        
+                   %         [5:1]=1 DISTINGUISHES THE EVENT FROM       19902514        
+                   %                 ATTACHED INTERRUPTS                19902516        
