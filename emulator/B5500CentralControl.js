@@ -200,8 +200,8 @@ B5500CentralControl.prototype.fieldIsolate = function(word, start, width) {
 
 /**************************************/
 B5500CentralControl.prototype.fieldInsert = function(word, start, width, value) {
-    /* Inserts a bit field from value.[48-width:width] into word.[start:width] and
-    returns the updated word */
+    /* Inserts a bit field from the low-order bits of value ([48-width:width]) 
+    into word.[start:width] and returns the updated word */
     var ue = 48-start;                  // word upper power exponent
     var le = ue-width;                  // word lower power exponent
     var bpower = 1;                     // bottom portion of word power of 2

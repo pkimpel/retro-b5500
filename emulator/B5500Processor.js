@@ -340,6 +340,26 @@ B5500Processor.prototype.exchangeTOS = function() {
 };
 
 /**************************************/
+B5500Processor.prototype.jump = function(count, byWords) {
+    /* Adjusts the C and L registers by "count"  (which may be negative).
+    If "byWords" is true, the adjustment is by words and L is set to 0.
+    Initiates a fetch to reload the P register after C and L are adjusted.
+    On entry, C and L are assumed to be pointing to the next instruction
+    to be executed, not the current one */
+    var addr;
+    
+    if (byWords) {
+        this.C += count;
+        this.L = 0;
+    } else {
+        addr = this.C*4 + this.L + count;
+        this.C = addr >>> 2;
+        this.L = addr & 0x03;
+    }
+    this.access(0x30);                  // P = [C]
+}
+
+/**************************************/
 B5500Processor.prototype.streamAdjustSourceChar = function() {
     /* Adjusts the character-mode source pointer to the next character
     boundary, as necessary. If the adjustment crosses a word boundary,
@@ -371,7 +391,7 @@ B5500Processor.prototype.streamAdjustDestChar = function() {
         } else {
             this.K = 0;
             if (this.BROF) {
-                this.access(0x0B);
+                this.access(0x0B);      // [S] = B
                 this.BROF = 0;
             }
             this.S++;
@@ -380,14 +400,272 @@ B5500Processor.prototype.streamAdjustDestChar = function() {
 };
 
 /**************************************/
+B5500Processor.prototype.compareSourceWithDest = function(count) {
+    /* Compares source characters to destination characters according to the 
+    processor collating sequence. 
+    "count" is the number of source characters to process.
+    The result of the comparison is left in two flip-flops:
+        Q03F=1: an inequality was detected
+        MSFF=1: the inequality was source > destination
+    If the two strings are equal, Q03F and MSFF will both be zero. Once an 
+    inequality is encountered, Q03F will be set to 1 and MSFF (also known as 
+    TFFF) will be set based on the nature of inequality. After this point, the 
+    processor merely advances its address pointers to exhaust the count and does 
+    not fetch additional words from memory. Note that the processor uses Q04F to 
+    inhibit storing the B register at the end of a word boundary. This store 
+    may be required only for the first word in the destination string, if B may 
+    have been left in an updated state by a prior syllable */
+    var aBit;                           // A register bit nr
+    var bBit;                           // B register bit nr
+
+    this.MSFF = 0;
+    this.streamAdjustSourceChar();
+    this.streamAdjustDestChar();
+    if (count) {
+        if (this.BROF) {
+            if (this.K == 0) {
+                this.Q |= 0x80;         // set Q04F -- at start of word, no need to store B later
+            }
+        } else {
+            this.access(0x03);          // B = [S]
+            this.Q |= 0x80;             // set Q04F -- just loaded B, no need to store it later
+        }
+        if (!this.AROF) {
+            this.access(0x04);          // A = [M]
+        }
+        
+        // setting Q06F and saving the count in H & V is only significant if this
+        // routine is executed as part of Field Add (FAD) or Field Subtract (FSU).
+        this.Q |= 0x20;                 // set Q06F
+        this.H = count >>> 3;
+        this.V = count & 0x07;
+        
+        aBit = this.G*6;                // A-bit number
+        bBit = this.K*6;                // B-bit number
+        do {
+            this.cycleCount++;          // approximate the timing
+            if (this.Q & 0x04) {        // inequality already detected -- just count down
+                if (count >= 8) {
+                    count -= 8;
+                    if (!(this.Q & 0x80)) {     // test Q04F to see if B may be dirty
+                        this.access(0x0B);      // [S] = B
+                        this.Q |= 0x80;         // set Q04F so we won't store B anymore
+                    }
+                    this.BROF = 0;
+                    this.S++;
+                    this.AROF = 0;
+                    this.M++;
+                } else {
+                    count--;
+                    if (this.K < 7) {
+                        this.K++;
+                    } else {
+                        if (!(this.Q & 0x80)) { // test Q04F to see if B may be dirty
+                            this.access(0x0B);  // [S] = B
+                            this.Q |= 0x80;     // set Q04F so we won't store B anymore
+                        }
+                        this.K = 0;
+                        this.BROF = 0;
+                        this.S++;
+                        }
+                    }
+                    if (this.G < 7) {
+                        this.G++;
+                    } else {
+                        this.G = 0;
+                        this.AROF = 0;
+                        this.M++;
+                    }
+                }
+            } else {                    // check this character
+                if ((this.Y = this.cc.fieldIsolate(this.A, aBit, 6)) != (this.Z = this.cc.fieldIsolate(this.B, bBit, 6)) {
+                    this.Q |= 0x04;     // set Q03F to stop further comparison
+                    this.MSFF = (B5500Processor.collate[this.Y] > B5500Processor.collate[this.Z] ? 1 : 0);
+                } else {                // strings still equal -- advance to next character
+                    count--;
+                    if (bBit < 42) {
+                        bBit += 6;
+                        this.K++;
+                    } else {
+                        bBit = 0;
+                        this.K = 0;
+                        if (!(this.Q & 0x80)) { // test Q04F to see if B may be dirty
+                            this.access(0x0B);  // [S] = B
+                            this.Q |= 0x80;     // set Q04F so we won't store B anymore
+                        }
+                        this.S++;
+                        this.access(0x03);      // B = [S]
+                        }
+                    }
+                    if (aBit < 42) {
+                        aBit += 6;
+                        this.G++;
+                    } else {
+                        aBit = 0;
+                        this.G = 0;
+                        this.M++;
+                        this.access(0x04);      // A = [M]
+                    }
+                }
+            }
+        } while (count);
+    }
+};
+
+/**************************************/
+B5500Processor.prototype.fieldArithmetic = function(count, subtract) {
+    /* Handles the Field Add (FAD) or Field Subtract (FSU) syllables.
+    "count" indicates the length of the fields to be operated upon.
+    "subtract" will be true if this call is for FSU, otherwise it's for FAD */
+    var aBit;                           // A register bit nr
+    var bBit;                           // B register bit nr
+    var carry = 0;                      // carry/borrow bit
+    var compl = false;                  // complement addition (i.e., subtract the digits)
+    var MSFF = (this.MSFF != 0);        // get TFFF as a Boolean
+    var Q03F = (this.Q & 0x04 != 0);    // get Q03F as a Boolean
+    var resultNegative;                 // sign of result is negative
+    var sd;                             // digit sum
+    var ycompl = false;                 // complement source digits
+    var yd;                             // source digit
+    var zcompl = false;                 // complement destination digits
+    var zd;                             // destination digit
+    
+    this.compareSourceWithDest(count);
+    this.cycleCount += 2;           // approximate the timing thus far
+    if (this.Q & 0x20) {                // Q06F => count > 0, so there's characters to add
+        this.Q &= ~(0x28);              // reset Q06F and Q04F
+        
+        // Back down the pointers to the last characters of their respective fields
+        if (this.K > 0) {
+            this.K--;
+        } else {
+            this.K = 7;
+            this.BROF = 0;
+            this.S--;
+        }
+        if (this.G > 0) {
+            this.G--;
+        } else {
+            this.G = 7;
+            this.AROF = 0;
+            this.M--;
+        }
+        
+        if (!this.BROF) {
+            this.access(0x03);          // B = [S]
+        }
+        if (!this.AROF) {
+            this.access(0x04);          // A = [M]
+        }
+        
+        this.Q |= 0x80;                 // set Q08F (for display only)
+        aBit = this.G*6;                // A-bit number
+        bBit = this.K*6;                // B-bit number
+        yd = this.cc.fieldIsolate(this.A, aBit, 2);             // get the source sign
+        zd = this.cc.fieldIsolate(this.B, bBit, 2);             // get the dest sign
+        compl = (yd == zd ? subtract : !subtract );             // determine if complement needed
+        resultNegative = !(                                     // determine sign of result
+                (zd == 0 && !compl) || 
+                (zd == 0 && Q03F && !MSFF) ||
+                (zd != 0 && compl && Q03F && MSFF ) ||
+                (compl && !Q03F));
+        if (compl) {
+            this.Q |= 0x42;             // set Q07F and Q02F (for display only)
+            carry = 1;                  // preset the carry/borrow bit (Q07F)        
+            if (MSFF) {
+                this.Q |= 0x08;         // set Q04F (for display only)
+                zcompl = true;
+            } else {
+                ycompl = true;
+            }
+        }
+        
+        this.MSFF = 0;                  // reset TFFF so it can ultimately indicate overflow
+        this.cycleCount += 4;
+        do {
+            count--;
+            this.cycleCount += 2;
+            yd = this.cc.fieldIsolate(this.A, aBit+2, 4);             // get the source sign
+            zd = this.cc.fieldIsolate(this.B, bBit+2, 4);             // get the dest sign
+            sd = (ycompl ? 9-yd : yd) + (zcompl ? 9-zd : zd) + carry; // develop binary digit sum
+            if (sd <= 9) {
+                carry = this.MSFF = 0;
+            } else {
+                carry = this.MSFF = 1;
+                sd -= 10;
+            }
+            if (resultNegative) {
+                sd += 0x20;             // set sign (BA) bits in char to binary 10
+                resultNegative = false;
+            }
+            
+            this.cc.fieldInsert(this.B, bBit, 6, sd);
+            
+            if (count == 0) {
+                this.access(0x0B);      // [S] = B, store final dest word
+            } else {
+                if (bBit > 0) {
+                    bBit -= 6;
+                    this.K--;
+                } else {
+                    bBit = 42;
+                    this.K = 7;
+                    this.access(0x0B);  // [S] = B
+                    this.S--;
+                    this.access(0x03);  // B = [S]
+                }
+                if (aBit > 0) {
+                    aBit -= 6;
+                    this.G--;
+                } else {
+                    aBit = 42;
+                    this.G = 7;
+                    this.M--;
+                    this.access(0x04);  // A = [M]
+                }
+            }
+        } while (count);
+        
+        // Now restore the character pointers
+        count = this.H*8 + this.V;
+        while (count >= 8) {
+            count -= 8;
+            this.cycleCount++;
+            this.S++;
+            this.M++;
+        } 
+        this.cycleCount += count;
+        while (count > 0) {
+            count--;
+            if (this.K < 7) {
+                this.K++;
+            } else {
+                this.K = 0;
+                this.S++;
+                }
+            }
+            if (this.G < 7) {
+                this.G++;
+            } else {
+                this.G = 0;
+                this.M++;
+            }
+        }
+        this.AROF = this.BROF = 0;
+        this.H = this.V = this.N = 0;
+    }
+}
+
+/**************************************/
 B5500Processor.prototype.streamSourceToDest = function(count, transform) {
     /* General driver for character-mode character transfers from source to
-    destination. "count" is the number of source characters to transfer.
-    "transform" is a function(bBit, count) that determines how the
-    characters are transferred from the source (A) to destination (B). The
-    Y register will contain the current char during this call */
-    var aBit;
-    var bBit;
+    destination, such as TRS or TRZ. 
+    "count" is the number of source characters to transfer.
+    "transform" is a function(bBit, count) that determines how the characters 
+    are transferred from the source (A) to destination (B). The Y register will 
+    contain the current char during this call */
+    var aBit;                           // A register bit nr
+    var bBit;                           // B register bit nr
 
     this.streamAdjustSourceChar();
     this.streamAdjustDestChar();
@@ -401,7 +679,7 @@ B5500Processor.prototype.streamSourceToDest = function(count, transform) {
         this.cycleCount += count;       // approximate the timing
         aBit = this.G*6;                // A-bit number
         bBit = this.K*6;                // B-bit number
-        while (count) {
+        do {
             this.Y = this.cc.fieldIsolate(this.A, aBit, 6);
             transform(bBit, count)
             count--;
@@ -413,7 +691,7 @@ B5500Processor.prototype.streamSourceToDest = function(count, transform) {
                 this.K = 0;
                 this.access(0x0B);      // [S] = B
                 this.S++;
-                if (count < 8) {      // just a partial word left
+                if (count < 8) {        // only need to load B if a partial word is left
                     this.access(0x03);  // B = [S]
                 }
             }
@@ -426,19 +704,19 @@ B5500Processor.prototype.streamSourceToDest = function(count, transform) {
                 this.M++;
                 this.access(0x04);      // A = [M]
             }
-        }
+        } while (count)
     }
 };
 
 /**************************************/
 B5500Processor.prototype.streamToDest = function(count, transform) {
-    /* General driver for character-mode character operations on the
-    destination from a non-A register source. "count" is the number of
-    characters to transfer. "transform" is a function(bBit, count) that
-    determines how the characters are stored to the destination (B).
-    Returning truthy terminates the process without incrementing the
-    destination address */
-    var bBit;
+    /* General driver for character-mode character operations on the destination 
+    from a non-A register source, such as TBN. 
+    "count" is the number of characters to transfer. 
+    "transform" is a function(bBit, count) that determines how the characters 
+    are stored to the destination (B). Returning truthy terminates the process 
+    without incrementing the destination address */
+    var bBit;                           // B register bit nr
 
     this.streamAdjustDestChar();
     if (count) {
@@ -447,7 +725,7 @@ B5500Processor.prototype.streamToDest = function(count, transform) {
         }
         this.cycleCount += count;       // approximate the timing
         bBit = this.K*6;                // B-bit number
-        while (count) {
+        do {
             if (transform(bBit, count)) {
                 count = 0;
             } else {
@@ -458,14 +736,14 @@ B5500Processor.prototype.streamToDest = function(count, transform) {
                 } else {
                     bBit = 0;
                     this.K = 0;
-                    this.access(0x0B);   // [S] = B
+                    this.access(0x0B);  // [S] = B
                     this.S++;
-                    if (count < 8) {     // just a partial word left
+                    if (count < 8) {    // only need to load B if a partial word is left
                         this.access(0x03);  // B = [S]
                     }
                 }
             }
-        }
+        } while (count)
     }
 };
 
@@ -1393,7 +1671,7 @@ B5500Processor.prototype.run = function() {
                 case 0x20:              // XX40: INC=Increase TALLY
                     if (variant) {
                         this.R = (this.R + variant) & 0x3F;
-                // else it's a character-mode no-op
+                    // else it's a character-mode no-op
                     }
                     break;
 
@@ -1414,7 +1692,7 @@ B5500Processor.prototype.run = function() {
                     this.S = t1;                        // restore S
                     this.B = this.A;                    // restore B
                     this.BROF = this.AROF;
-                    this.AROF = 0;
+                    this.AROF = 0;                      // invalidate A
                     noSECL = 1;                         // override normal instruction fetch
                     opcode = this.cc.fieldIsolate(this.P, this.L*12, 12);
                     if (variant) {
@@ -1424,7 +1702,7 @@ B5500Processor.prototype.run = function() {
                             this.T = opcode;
                             variant = opcode >>> 6;     // execute next syl as is
                         } else {
-                            this.T = opcode = 0x27;     // inject JFW 0 into T (effectively a no-op)
+                            this.T = opcode = 0x0027;   // inject JFW 0 into T (effectively a no-op)
                         }
                     }
                     break;
@@ -1433,12 +1711,18 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x25:              // XX45: JFC=Jump forward conditional
+                    if (!this.MSFF) {                   // conditional on TFFF
+                        this.cycleCount += (variant >>> 2) + (variant & 0x03);
+                        this.jump(variant, false);
+                    }
                     break;
 
                 case 0x26:              // XX46: JNS=Jump out of loop
                     break;
 
                 case 0x27:              // XX47: JFW=Jump forward unconditional
+                    this.cycleCount += (variant >>> 2) + (variant & 0x03);
+                    this.jump(variant, false);
                     break;
 
                 case 0x28:              // XX50: RCA=Recall control address
@@ -1457,24 +1741,38 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x2D:              // XX55: JRC=Jump reverse conditional
+                    if (!this.MSFF) {                   // conditional on TFFF
+                        this.cycleCount += (variant >>> 2) + (variant & 0x03);
+                        this.jump(-variant, false);
+                    }
                     break;
 
                 case 0x2E:              // XX56: TSA=Transfer source address
                     break;
 
                 case 0x2F:              // XX57: JRV=Jump reverse unconditional
+                    this.cycleCount += (variant >>> 2) + (variant & 0x03);
+                    this.jump(-variant, false);
                     break;
 
                 case 0x30:              // XX60: CEQ=Compare equal
+                    this.compareSourceWithDest(variant);
+                    this.MSFF = (this.Q & 0x04 ? 0 : 1);                // if !Q03F, S=D
                     break;
 
                 case 0x31:              // XX61: CNE=Compare not equal
+                    this.compareSourceWithDest(variant);
+                    this.MSFF = (this.Q & 0x04 ? 1 : 0);                // if Q03F, S!=D
                     break;
 
                 case 0x32:              // XX62: CEG=Compare greater or equal
+                    this.compareSourceWithDest(variant);
+                    this.MSFF = (this.Q & 0x04 ? this.MSFF : 1);        // if Q03F&MSFF, S>D; if !Q03F, S=D
                     break;
 
                 case 0x33:              // XX63: CGR=Compare greater
+                    this.compareSourceWithDest(variant);
+                    this.MSFF = (this.Q & 0x04 ? this.MSFF : 0);        // if Q03F&MSFF, S>D
                     break;
 
                 case 0x34:              // XX64: BIS=Set bit
@@ -1490,27 +1788,33 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x38:              // XX70: CEL=Compare equal or less
+                    this.compareSourceWithDest(variant);
+                    this.MSFF = (this.Q & 0x04 ? 1-this.MSFF : 1);      // if Q03F&!MSFF, S<D; if !Q03F, S=D
                     break;
 
                 case 0x39:              // XX71: CLS=Compare less
+                    this.compareSourceWithDest(variant);
+                    this.MSFF = (this.Q & 0x04 ? 1-this.MSFF : 0);      // if Q03F&!MSFF, S<D
                     break;
 
                 case 0x3A:              // XX72: FSU=Field subtract
+                    this.fieldArithmetic(variant, true);
                     break;
 
                 case 0x3B:              // XX73: FAD=Field add
+                    this.fieldArithmetic(variant, false);
                     break;
 
                 case 0x3C:              // XX74: TRP=Transfer program characters
                     this.streamAdjustDestChar();
-                    if (variant) {                  // count > 0
+                    if (variant) {                      // count > 0
                         if (!this.BROF) {
                             this.access(0x03);          // B = [S]
                         }
                         this.cycleCount += variant;     // approximate the timing
-                        t1 = (this.L*2 + variant & 0x01)*6;     // P-bit number
-                        t2 = this.K*6;                  // B-bit number
-                        while (variant--) {
+                        t1 = (this.L*2 + variant & 0x01)*6;     // P-reg bit number
+                        t2 = this.K*6;                          // B-reg bit number
+                        do {
                             this.Y = this.cc.fieldIsolate(this.P, t1, 6);
                             this.B = this.cc.fieldInsert(this.B, t2, 6, this.Y)
                             if (t2 < 42) {
@@ -1536,11 +1840,11 @@ B5500Processor.prototype.run = function() {
                                 this.C++;
                                 this.access(0x30);      // P = [C]
                             }
-                        }
+                        } while (--variant);
                     }
                     break;
 
-                case 0x3D:              // XX75: TRN=Transfer numerics
+                case 0x3D:              // XX75: TRN=Transfer source numerics
                     this.MSFF = 0;                      // initialize true-false FF
                     this.streamSourceToDest(variant, function(bb, count) {
                         var c = this.Y;
@@ -1552,7 +1856,7 @@ B5500Processor.prototype.run = function() {
                     });
                     break;
 
-                case 0x3E:              // XX76: TRZ=Transfer zones
+                case 0x3E:              // XX76: TRZ=Transfer source zones
                     this.streamSourceToDest(variant, function(bb, count) {
                         this.B = this.cc.fieldInsert(this.B, bb, 2, this.Y);
                     });
@@ -1568,7 +1872,9 @@ B5500Processor.prototype.run = function() {
                     break;
                 } // end switch for character mode operators
             } while (noSECL);
+            
         } else {
+        
             /***********************************************************
             *  Word Mode Syllables                                     *
             ***********************************************************/
