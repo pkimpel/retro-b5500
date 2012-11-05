@@ -341,7 +341,7 @@ B5500Processor.prototype.exchangeTOS = function() {
 
 /**************************************/
 B5500Processor.prototype.jump = function(count, byWords) {
-    /* Adjusts the C and L registers by "count"  (which may be negative).
+    /* Adjusts the C and L registers by "count" (which may be negative).
     If "byWords" is true, the adjustment is by words and L is set to 0.
     Initiates a fetch to reload the P register after C and L are adjusted.
     On entry, C and L are assumed to be pointing to the next instruction
@@ -357,6 +357,26 @@ B5500Processor.prototype.jump = function(count, byWords) {
         this.L = addr & 0x03;
     }
     this.access(0x30);                  // P = [C]
+}
+
+/**************************************/
+B5500Processor.prototype.jumpOutOfLoop = function(count) {
+    /* Terminates the current character-mode loop by restoring the prior LCW 
+    (or RCW) from the stack to X. If "count" is not zero, adjusts C & L forward
+    by that number of syllables and reloads P to branch to the jump-out location,
+    otherwise continues in sequence. Uses A to restore X and invalidates A */
+    var t1 = this.S;                    // save S (not the way the hardware did it)
+
+    this.cycleCount += 2;
+    this.S = this.cc.fieldIsolate(this.X, 18, 15);      // get prior LCW addr from X value
+    this.access(0x02);                  // A = [S], fetch prior LCW from stack
+    if (count) {
+        this.cycleCount += (count >>> 2) + (count & 0x03);
+        this.jump(count, false);
+    }
+    this.X = this.A % 0x8000000000;     // store prior LCW (39 bits: less control bits) in X
+    this.S = t1;                        // restore S
+    this.AROF = 0;                      // invalidate A
 }
 
 /**************************************/
@@ -1480,12 +1500,46 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x02:              // XX02: BSD=Skip bit destination
+                    this.cycleCount += variant;
+                    t1 = this.K*6 + this.V + variant; 
+                    while (t1 >= 48) {                  
+                        if (this.BROF) {                // skipped off initial word, so
+                            this.access(0x0B);          // [S] = B
+                            this.BROF = 0;              // invalidate B
+                        }
+                        this.S++;                       
+                        t1 -= 48;
+                    }
+                    this.K = (t1 - (this.V = t1 % 6))/6;
                     break;
 
                 case 0x03:              // XX03: BSS=Skip bit source
+                    this.cycleCount += variant;
+                    t1 = this.G*6 + this.H + variant; 
+                    while (t1 >= 48) {
+                        this.M++;                       // skipped off initial word, so
+                        this.AROF = 0;                  // invalidate A
+                        t1 -= 48;
+                    }
+                    this.G = (t1 - (this.H = t1 % 6))/6;
                     break;
 
                 case 0x04:              // XX04: RDA=Recall destination address
+                    this.cycleCount += variant;
+                    if (this.BROF) {
+                        this.access(0x0B);              // [S] = B
+                        this.BROF = 0;
+                    }
+                    this.S = this.F - variant;
+                    this.access(0x03);                  // B = [S]
+                    this.S = this.B % 0x8000;
+                    this.V = 0;
+                    if (this.B >= 0x800000000000) {     // if it's a descriptor, 
+                        this.K = 0;                     // force K to zero and
+                        this.presenceTest(this.B);      // just take the side effect of any p-bit interrupt
+                    } else {
+                        this.K = this.cc.fieldIsolate(this.B, 18, 3);
+                    }
                     break;
 
                 case 0x05:              // XX05: TRW=Transfer words
@@ -1516,10 +1570,65 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x06:              // XX06: SED=Set destination address
+                    this.cycleCount += variant;
+                    if (this.BROF) {
+                        this.access(0x0B);              // [S] = B
+                        this.BROF = 0;
+                    }
+                    this.S = this.F - variant;
+                    this.K = this.V = 0;
                     break;
 
                 case 0x07:              // XX07: TDA=Transfer destination address
+                    this.cycleCount += 6;
+                    this.streamAdjustDestChar();
+                    if (this.BROF) {
+                        this.access(0x0B);              // [S] = B, store B at dest addresss
+                    }
+                    t1 = this.M;                        // save M (not the way the hardware did it)
+                    t2 = this.G;                        // save G (ditto)
+                    this.M = this.S;                    // copy dest address to source address
+                    this.G = this.K;
+                    this.A = this.B;                    // save B
+                    this.AROF = this.BROF;
+                    if (!this.AROF) {
+                        this.access(0x04);              // A = [M], load A from source address
+                    }
+                    for (variant=3; variant>0; variant--) {
+                        this.B = (this.B % 0x100000000000000)*0x40 + (this.Y = this.cc.fieldIsolate(this.A, this.G*6, 6));
+                        if (this.G < 7) {
+                            this.G++;
+                        } else {
+                            this.G = 0;
+                            this.M++;
+                            this.access(0x04);          // A = [M]
+                        }
+                    } 
+                    this.S = this.B % 0x8000;
+                    this.K = this.fieldIsolate(this.B, 18, 3);
+                    this.M = t1;                        // restore M & G
+                    this.G = t2;
+                    this.AROF = this.BROF = 0;          // invalidate A & B
                     break;
+
+                case 0x09:              // XX11: control state ops
+                    switch (variant) {
+                    case 0x14:          // 2411: ZPI=Conditional Halt
+                        // TODO: this needs to test for the STOP OPERATOR switch
+                        // TODO: on the maintenance panel otherwise it is a NOP.
+                        break;
+
+                    case 0x18:          // 3011: SFI=Store for Interrupt
+                        this.storeForInterrupt(0);
+                        break;
+
+                    case 0x1C:          // 3411: SFT=Store for Test
+                        this.storeForInterrupt(1);
+                        break;
+
+                    default:            // Anything else is a no-op
+                        break;
+                    } // end switch for XX11 ops
 
                 case 0x0A:              // XX12: TBN=Transfer blank for numeric
                     this.MSFF = 1;                      // initialize true-false FF
@@ -1539,42 +1648,69 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x0C:              // XX14: SDA=Store destination address
+                    this.cycleCount += variant;
+                    this.streamAdjustDestChar();
+                    this.A = this.B;                    // save B
+                    this.AROF = this.BROF;
+                    this.B = this.K*0x8000 * this.S;
+                    t1 = this.S;                        // save S (not the way the hardware did it)
+                    this.S -= variant;
+                    this.access(0x0B);                  // [S] = B
+                    this.S = t1;                        // restore S
+                    this.B = this.A;                    // restore B from A
+                    this.BROF = this.AROF;
+                    this.AROF = 0;                      // invalidate A
                     break;
 
                 case 0x0D:              // XX15: SSA=Store source address
+                    this.cycleCount += variant;
+                    this.streamAdjustSourceChar();
+                    this.A = this.B;                    // save B
+                    this.AROF = this.BROF;
+                    this.B = this.G*0x8000 * this.M;
+                    t1 = this.M;                        // save M (not the way the hardware did it)
+                    this.M -= variant;
+                    this.access(0x0D);                  // [M] = B
+                    this.M = t1;                        // restore M
+                    this.B = this.A;                    // restore B from A
+                    this.BROF = this.AROF;
+                    this.AROF = 0;                      // invalidate A
                     break;
 
                 case 0x0E:              // XX16: SFD=Skip forward destination
+                    this.cycleCount += (variant >>> 3) + (variant & 0x07);
+                    this.streamAdjustDestChar();
+                    if (this.BROF && this.K + variant >= 8) {
+                        this.access(0x0B);              // will skip off the current word,
+                        this.BROF = 0;                  // so store and invalidate B
+                    }
+                    t1 = this.S*8 + this.K - variant;
+                    this.S = t1 >>> 3;
+                    this.K = t1 & 0x07;
                     break;
 
                 case 0x0F:              // XX17: SRD=Skip reverse destination
+                    this.cycleCount += (variant >>> 3) + (variant & 0x07);
+                    this.streamAdjustDestChar();
+                    if (this.BROF && this.K < variant) {
+                        this.access(0x0B);              // will skip off the current word,
+                        this.BROF = 0;                  // so store and invalidate B
+                    }
+                    t1 = this.S*8 + this.K - variant;
+                    this.S = t1 >>> 3;
+                    this.K = t1 & 0x07;
                     break;
-
-                case 0x11:              // XX11: control state ops
-                    switch (variant) {
-                    case 0x14:          // 2411: ZPI=Conditional Halt
-                        // TODO: this needs to test for the STOP OPERATOR switch
-                        // TODO: on the maintenance panel otherwise it is a NOP.
-                        break;
-
-                    case 0x18:          // 3011: SFI=Store for Interrupt
-                        this.storeForInterrupt(0);
-                        break;
-
-                    case 0x1C:          // 3411: SFT=Store for Test
-                        this.storeForInterrupt(1);
-                        break;
-
-                    default:            // Anything else is a no-op
-                        break;
-                    } // end switch for XX11 ops
                     break;
 
                 case 0x12:              // XX22: SES=Set source address
+                    this.cycleCount += variant;
+                    this.M = this.F - variant;
+                    this.G = this.H = 0;
+                    this.AROF = 0;
                     break;
 
                 case 0x14:              // XX24: TEQ=Test for equal
-                    this.streamAdjustSource();
+                    this.streamAdjustSourceChar();
                     if (!this.AROF) {
                         this.access(0x04);              // A = [M]
                     }
@@ -1584,7 +1720,7 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x15:              // XX25: TNE=Test for not equal
-                    this.streamAdjustSource();
+                    this.streamAdjustSourceChar();
                     if (!this.AROF) {
                         this.access(0x04);              // A = [M]
                     }
@@ -1594,7 +1730,7 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x16:              // XX26: TEG=Test for equal or greater
-                    this.streamAdjustSource();
+                    this.streamAdjustSourceChar();
                     if (!this.AROF) {
                         this.access(0x04);              // A = [M]
                     }
@@ -1604,7 +1740,7 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x17:              // XX27: TGR=Test for greater
-                    this.streamAdjustSource();
+                    this.streamAdjustSourceChar();
                     if (!this.AROF) {
                         this.access(0x04);              // A = [M]
                     }
@@ -1614,9 +1750,25 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x18:              // XX30: SRS=Skip reverse source
+                    this.cycleCount += (variant >>> 3) + (variant & 0x07);
+                    this.streamAdjustSourceChar();
+                    if (this.G < variant) {
+                        this.AROF = 0;                  // will skip off the current word
+                    }
+                    t1 = this.M*8 + this.G - variant;
+                    this.M = t1 >>> 3;
+                    this.G = t1 & 0x07;
                     break;
 
                 case 0x19:              // XX31: SFS=Skip forward source
+                    this.cycleCount += (variant >>> 3) + (variant & 0x07);
+                    this.streamAdjustSourceChar();
+                    if (this.G + variant >= 8) {        // will skip off the current word
+                        this.AROF = 0;
+                    }
+                    t1 = this.M*8 + this.G + variant;
+                    this.G = t1 & 0x07;
+                    this.M = t1 >>> 3;
                     break;
 
                 case 0x1A:              // XX32: ---=Field subtract (aux)       !! ??
@@ -1626,7 +1778,7 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x1C:              // XX34: TEL=Test for equal or less
-                    this.streamAdjustSource();
+                    this.streamAdjustSourceChar();
                     if (!this.AROF) {
                         this.access(0x04);              // A = [M]
                     }
@@ -1636,7 +1788,7 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x1D:              // XX35: TLS=Test for less
-                    this.streamAdjustSource();
+                    this.streamAdjustSourceChar();
                     if (!this.AROF) {
                         this.access(0x04);              // A = [M]
                     }
@@ -1646,7 +1798,7 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x1E:              // XX36: TAN=Test for alphanumeric
-                    this.streamAdjustSource();
+                    this.streamAdjustSourceChar();
                     if (!this.AROF) {
                         this.access(0x04);              // A = [M]
                     }
@@ -1683,6 +1835,7 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x23:              // XX43: CRF=Call repeat field
+                    this.cycleCount += variant;
                     this.A = this.B;                    // save B in A
                     this.AROF = this.BROF;
                     t1 = this.S;                        // save S (not the way the hardware did it)
@@ -1690,24 +1843,22 @@ B5500Processor.prototype.run = function() {
                     this.access(0x03);                  // B = [S]
                     variant = this.B % 0x40;            // dynamic repeat count is low-order 6 bits
                     this.S = t1;                        // restore S
-                    this.B = this.A;                    // restore B
+                    this.B = this.A;                    // restore B from A
                     this.BROF = this.AROF;
                     this.AROF = 0;                      // invalidate A
-                    noSECL = 1;                         // override normal instruction fetch
+                    noSECL = 1;                         // >>> override normal instruction fetch <<<
                     opcode = this.cc.fieldIsolate(this.P, this.L*12, 12);
-                    if (variant) {
-                        this.T = opcode & 0x3F + variant*64;    // use repeat count from parameter
-                    } else {
-                        if (opcode & 0xFC) {            // repeat field in next syl > 0
-                            this.T = opcode;
-                            variant = opcode >>> 6;     // execute next syl as is
-                        } else {
-                            this.T = opcode = 0x0027;   // inject JFW 0 into T (effectively a no-op)
-                        }
+                    if (variant) {                      // if repeat count from parameter > 0
+                        this.T = opcode & 0x3F + variant*0x40;  // apply it to the next syl
+                    } else {                            // otherwise construct JFW (XX47) using
+                        this.T = (opcode & 0xFC0) + 0x27;       // repeat count from next syl (whew!)
                     }
                     break;
 
                 case 0x24:              // XX44: JNC=Jump out of loop conditional
+                    if (!this.MSFF) {
+                        this.jumpOutOfLoop(variant);
+                    }
                     break;
 
                 case 0x25:              // XX45: JFC=Jump forward conditional
@@ -1718,6 +1869,7 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x26:              // XX46: JNS=Jump out of loop
+                    this.jumpOutOfLoop(variant);
                     break;
 
                 case 0x27:              // XX47: JFW=Jump forward unconditional
@@ -1726,18 +1878,111 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x28:              // XX50: RCA=Recall control address
+                    this.cycleCount += variant;
+                    this.A = this.B;                    // save B in A 
+                    this.AROF = this.BROF;
+                    t1 = this.S;                        // save S (not the way the hardware did it)
+                    this.S = this.F - variant;
+                    this.access(0x03);                  // B = [S]
+                    this.S = t1;
+                    this.C = this.B % 0x8000;
+                    if (this.B >= 0x800000000000) {     // if it's a descriptor, 
+                        this.L = 0;                     // force L to zero and
+                        if (this.presenceTest(this.B)) {// if present, initiate a fetch to P
+                            this.access.(0x30);         // P = [C]
+                    } else {
+                        t1 = this.cc.fieldIsolate(this.B, 10, 2);
+                        if (t1 < 3) {                   // if not a descriptor, increment the address
+                            this.L = t1+1;
+                        } else {
+                            this.L = 0;
+                            this.C++;
+                        }
+                        this.access(0x30);              // P = [C]
+                    }
+                    this.B = this.A;                    // restore B
+                    this.BROF = this.AROF
+                    this.AROF = 0;                      // invalidate A
                     break;
 
                 case 0x29:              // XX51: ENS=End loop
+                    this.cycleCount += 4;
+                    this.A = this.B;                    // save B in A 
+                    this.AROF = this.BROF;
+                    t1 = this.X;
+                    variant = this.cc.fieldIsolate(t1, 12, 6);  // get repeat count
+                    if (variant) {                      // loop count exhausted?
+                        this.C = this.cc.fieldIsolate(t1, 33, 15);      // no, restore C, L, and P to loop again
+                        this.L = this.cc.fieldIsolate(t1, 10, 2);
+                        this.access(0x30);              // P = [C]
+                        this.X = this.cc.fieldInsert(t1, 12, 6, variant-1);     // store decremented count in X
+                    } else {
+                        t2 = this.S;                    // save S (not the way the hardware did it)
+                        this.S = this.cc.fieldIsolate(t1, 18, 15);      // get prior LCW addr from X value
+                        this.access(0x03);              // B = [S], fetch prior LCW from stack
+                        this.S = t2;                    // restore S
+                        this.X = this.cc.fieldIsolate(this.B, 9, 39);   // store prior LCW (less control bits) in X
+                    }
+                    this.B = this.A;                    // restore B
+                    this.BROF = this.AROF
+                    this.AROF = 0;                      // invalidate A
                     break;
 
                 case 0x2A:              // XX52: BNS=Begin loop
+                    this.cycleCount += 4;
+                    this.A = this.B;                    // save B in A (note that BROF is not altered)
+                    t1 = this.cc.fieldInsert(           // construct new LCW: insert repeat count
+                            this.cc.fieldInsert(        // insert L
+                                this.cc.fieldInsert(this.X, 33, 15, this.C), // insert C
+                                10, 2, this.L)
+                            12, 6, (variant ? variant-1 : 0));  // decrement count for first iteration
+                    this.B = this.cc.fieldInsert(this.X, 0, 2, 3);      // set control bits [0:2]=3
+                    t2 = this.S;                        // save S (not the way the hardware did it)
+                    this.S = this.cc.fieldIsolate(t1, 18, 15)+1;        // get F value from X value and ++
+                    this.access(0x0B);                  // [S] = B, save prior LCW in stack
+                    this.X = this.cc.fieldInsert(t1, 18, 15, this.S);   // update F value in X
+                    this.S = t2;                        // restore S
+                    this.B = this.A;                    // restore B (note that BROF is still relevant)
+                    this.AROF = 0;                      // invalidate A
                     break;
 
                 case 0x2B:              // XX53: RSA=Recall source address
+                    this.cycleCount += variant;
+                    this.A = this.B;                    // save B
+                    this.AROF = this.BROF;
+                    this.M = this.F - variant;
+                    this.access(0x05);                  // B = [M]
+                    this.M = this.B % 0x8000;
+                    this.H = 0;
+                    if (this.B >= 0x800000000000) {     // if it's a descriptor, 
+                        this.G = 0;                     // force G to zero and
+                        this.presenceTest(this.B);      // just take the side effect of any p-bit interrupt
+                    } else {
+                        this.G = this.cc.fieldIsolate(this.B, 18, 3);
+                    }
+                    this.B = this.A;                    // restore B from A
+                    this.BROF = this.AROF;
+                    this.AROF = 0;                      // invalidate A
                     break;
 
                 case 0x2C:              // XX54: SCA=Store control address
+                    this.cycleCount += variant;
+                    this.A = this.B;                    // save B
+                    this.AROF = this.BROF;
+                    t2 = this.S;                        // save S (not the way the hardware did it)
+                    this.S = this.F - variant;          // compute store address
+                    this.B = this.fieldInsert(          // construct control address: reset flag bit
+                            this.cc.fieldInsert(        // insert F (as saved in t2)
+                                this.cc.fieldInsert(    // insert L
+                                    this.cc.fieldInsert(this.B, 33, 15, this.C), // insert C
+                                    10, 2, this.L)
+                                18, 15, t2),  
+                            0, 1, 0);      
+                    this.access(0x0B);                  // [S] = B
+                    this.S = t2;                        // restore S
+                    this.B = this.A;                    // restore B from A
+                    this.BROF = this.AROF;
+                    this.AROF = 0;                      // invalidate A
                     break;
 
                 case 0x2D:              // XX55: JRC=Jump reverse conditional
@@ -1748,6 +1993,26 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x2E:              // XX56: TSA=Transfer source address
+                    this.streamAdjustSourceChar();
+                    if (this.BROF) {
+                        this.access(0x0B);              // [S] = B, store B at dest addresss
+                        this.BROF = 0;
+                    }
+                    if (!this.AROF) {
+                        this.access(0x04);              // A = [M], load A from source address
+                    }
+                    for (variant=3; variant>0; variant--) {
+                        this.B = (this.B % 0x100000000000000)*0x40 + (this.Y = this.cc.fieldIsolate(this.A, this.G*6, 6));
+                        if (this.G < 7) {
+                            this.G++;
+                        } else {
+                            this.G = 0;
+                            this.M++;
+                            this.access(0x04);          // A = [M]
+                        }
+                    } 
+                    this.M = this.B % 0x8000;
+                    this.G = this.fieldIsolate(this.B, 18, 3);
                     break;
 
                 case 0x2F:              // XX57: JRV=Jump reverse unconditional
@@ -1949,10 +2214,10 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x10:          // 1011: COM=Communicate
-                        if (this.NCSF) {        // no-op in control state
+                        if (this.NCSF) {                        // no-op in control state
                             this.adjustAFull();
                             this.M = (this.R*64) + 0x09;        // address = R+@11
-                            this.access(0x0C);  // [M] = A
+                            this.access(0x0C);                  // [M] = A
                             this.AROF = 0;
                             this.I = (this.I & 0x0F) | 0x40;    // set I07
                             this.cc.signalInterrupt();
@@ -1963,9 +2228,9 @@ B5500Processor.prototype.run = function() {
                         if (this.cc.IAR && !this.NCSF) {        // control-state only
                             this.C = this.cc.IAR;
                             this.L = 0;
-                            this.S = 0x40;      // address @100
+                            this.S = 0x40;                      // stack address @100
                             this.cc.clearInterrupt();
-                            this.cc.access(0x30);    // P = [C]
+                            this.cc.access(0x30);               // P = [C]
                         }
                         break;
 
