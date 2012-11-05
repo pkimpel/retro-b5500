@@ -15235,3 +15235,90 @@ END DETACHINT;                                                          19902500
                    %         [1:1]: EVENT INTERLOCK BIT (ON TO START)   19902512        
                    %         [5:1]=1 DISTINGUISHES THE EVENT FROM       19902514        
                    %                 ATTACHED INTERRUPTS                19902516        
+                   %         [FF]: ABSOULTE ADDRESS OF FIRST INTERRUPT  19902520        
+                   %               ON ATTACH LIST                       19902522        
+                   %         [47:1]: HAPPEN BIT                         19902524        
+                   %    "COPY" EVENT-ITEM (RECEIVED AS A PARAMETER):    19902526        
+                   %         [CF]: ABSOLUTE ADDRESS OF ORIGINAL EVENT   19902527        
+                   % CONTENTS OF TSKA[8]:                               19902528        
+                   %    [1:1]=1 IFF INTERRUPTER HAS JUST RUN AND        19902529        
+                   %                SFINTQ IS NON-EMPTY                 19902530        
+                   %    [2:1]=1 IFF SFINTQ IS NON-EMPTY                 19902540        
+                   %    [3:1]=1 IFF INTERRUPTER IS RUNNING              19902550        
+                   %    [4:1]: SFINTQ INTERLOCK BIT (ON TO START)       19902560        
+                   %    [FF] = ADDRESS OF OLD IRCW                      19902570        
+                   %    [CF] = RELATIVE PRT ADDRESS OF FIRST IN LINKED  19902580        
+                   %           LIST OF DECLARED INTERRUPTS              19902593        
+ % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %19902600        
+         GO TO S[TYPE-1];                                               19902700        
+ATTACHL: DETACHINT;     % AN ATTACH DOES AN IMPLICIT DETACH             19902800        
+         IF M[ABSEVT]}0 THEN SLEEP([M[ABSEVT]],EMASK);                  19902850        
+         M[ABSEVT] ~ P(DUP,LOD,SSP);                                    19902860        
+         IF (T~M[ABSEVT].[FF])=0 THEN T ~ ABSEVT;                       19902900        
+         PRT[P1MIX,RELINT] ~ PRT[P1MIX,RELINT]&T [CTF]&P1MIX [8:38:10]; 19903100        
+         M[ABSEVT] ~ P(DUP,LOD,[PRT[P1MIX,RELINT]],CFX,SSN);            19903200        
+         P(XIT);                                                        19903300        
+DETACHL: DETACHINT; P(XIT);                                             19903400        
+CAUSEL:  M[ABSEVT].[47:1] - 1;   %SET HAPPEN BIT: AWAKEN ALL YE WHO WAIT19903500        
+         IF M[ABSEVT].[FF]!0 THEN% IF THERE ARE INTERRUPTS ATTACHED     19903600        
+    BEGIN     IF M[ABSEVT]}0 THEN SLEEP([M[ABSEVT]],EMASK);             19903650        
+              M[ABSEVT] ~ P(DUP,LOD,SSP);                               19903660        
+              A ~ M[ABSEVT].[FF];                                       19903670        
+              WHILE A!ABSEVT DO  % INSERT ATTACHED INTERRTUPS IN THE    19903700        
+         BEGIN                   % RELEVANT SFINTQS                     19903800        
+                   MIX ~ (T~M[A]).[8:10];                               19903810        
+                   IF TERMSET(MIX) THEN                                 19903820        
+                   BEGIN IF T.[FF]!ABSEVT THEN                          19903825        
+                          DO MIX ~ (T~M[A~T.[FF]]).[8:10]               19903830        
+                          UNTIL NOTERMSET(MIX) OR T.[FF]=ABSEVT;        19903850        
+                          IF TERMSET(MIX) THEN                          19903860        
+                             BEGIN M[ABSEVT]~P(DUP,LOD,SSN); P(XIT);END;19903865        
+                   END;                                                 19903870        
+                   TSKA ~ PRT[MIX,TSX];                                 19903900        
+                   IF NOT TSKA[8].[4:1] THEN SLEEP([TSKA[8]],IMASK);    19903907        
+                   TSKA[8].[4:1] ~ 0;                                   19903908        
+                   SIZE ~ (SFINTQ~PRT[MIX,SFINTX]).[8:10]-1;            19903910        
+                   J ~ K ~ 0;                                           19903915        
+         IF NOT TSKA[8].[3:1] THEN% IF INTERRUPTER INTRINSIC NOT RUNNING19903917        
+         WHILE J{SIZE DO      % COMPACT SFINTQ, PUSHING ALL NON-ZERO    19903920        
+    BEGIN                     % ENTRIES TOWARD THE FRONT OF THE ARRAY   19903930        
+         IF SFINTQ[J]=0 THEN  % AND ZEROING OUT REMAINDER               19903940        
+              BEGIN                                                     19903950        
+                   I ~ IF K!0 THEN K+2 ELSE J+1;                        19903960        
+         L1:       IF I>SIZE THEN GO DONE;                              19903970        
+                   IF SFINTQ[I]=0 THEN BEGIN I ~ I+1; GO TO L1; END;    19903980        
+                   K ~ I; GO TO L3;                                     19903990        
+         L2:       IF K>SIZE THEN GO TO L4;                             19904000        
+                   IF SFINTQ[K]!0 THEN                                  19904010        
+         L3:            BEGIN    SFINTQ[J] ! SFINTQ[K];                 19904020        
+                                 J ~ J+1; K ~ K+1; GO TO L2;            19904030        
+                        END;                                            19904040        
+         L4:       K ~ K-1;                                             19904050        
+                   FOR I ~ J STEP 1 UNTIL K DO SFINTQ[I] ~ 0;           19904060        
+              END ELSE J ~ J+1;                                         19904070        
+    END;                                                                19904100        
+         DONE:     IF SFINTQ[SIZE]!0 THEN   % QUEUE FULL--GET MORE SPACE19904300        
+                   IF SIZE+6>1023 THEN                                  19904340        
+              BEGIN  TERMINATE(MIX&103[CTF]);                           19904350        
+                     TSKA[8] ~ *P(DUP) OR IMASK; A ~ T.[FF]; GO ON;     19904360        
+              END ELSE                                                  19904370        
+              BEGIN  PRT[MIX,SFINTX] ~ BIGGERQ ~FLAG(1&[PRT[MIX,SFINTX]]19904400        
+                             [CTF]&(SIZE+6) [TOSIZE]);                  19904450        
+                     MAKEPRESENT([I] INX 3);%GETS SPACE AND ZEROS IT OUT19904600        
+                     M[BIGGERQ INX NOT 1].[9:6] ~ MIX;                  19904650        
+                     MOVE(SIZE+1,SFINTQ,BIGGERQ);                       19904700        
+                     FORGETSPACE(SFINTQ INX 0);                         19904850        
+                     SFINTQ ~ BIGGERQ;                                  19904860        
+              END;                                                      19904900        
+                   K ~ 0; WHILE SFINTQ[K]!0 DO K ~ K+1;                 19905000        
+                   SFINTQ[K] ~ A-1; % ABSOLUTE ADDRESS OF INTERRUPT PD  19905100        
+                   A ~ T.[FF];                                          19905200        
+                   TSKA[8] ~ *P(DUP) OR @1200000000000000;              19905300        
+                   IF MIX=P2MIX THEN                                    19905310        
+                        BEGIN  HALT; NOPROCESSTOG ~ NOPROCESSTOG-1;     19905320        
+                        END;                                            19905330        
+         ON:                                                            19905340        
+         END;                                                           19905350        
+         M[ABSEVT] ~ P(DUP,LOD,SSN);                                    19905360        
+    END;                                                                19906100        
+END EVENTANDINTERRUPT;                                                  19906300        
