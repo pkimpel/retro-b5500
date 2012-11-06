@@ -15322,3 +15322,78 @@ CAUSEL:  M[ABSEVT].[47:1] - 1;   %SET HAPPEN BIT: AWAKEN ALL YE WHO WAIT19903500
          M[ABSEVT] ~ P(DUP,LOD,SSN);                                    19905360        
     END;                                                                19906100        
 END EVENTANDINTERRUPT;                                                  19906300        
+ %  THE FORMAT OF SEGMENT ZERO OF PROGRAMS%                             20000000        
+ %       S[0]           =    LOCATION OF SEGMENT DICTIONARY%            20001000        
+ %       S[1]           =    SIZE OF SEGMENT DICTIONARY%                20002000        
+ %       S[2]           =    LOCATION OF PRT%                           20003000        
+ %       S[3]           =    SIZE OF PRT%                               20004000        
+ %       S[4]           =    LOCATION OF FILE PARAMETER BLOCK%          20005000        
+ %       S[5]           =    SIZE OF FILE PARAMETER BLOCK%              20006000        
+ %       S[6].[1:1]     =    1 FOR NEW FORMAT SEGMENT 0, ELSE 0         20006500        
+ %       S[6]           =    STARTING SEGMENT NUMBER%                   20007000        
+ %       S[7].[2:1]     =    FORTRAN FAULT FLAG                         20007100        
+ %       S[7].[33:15]   =    NUMBER OF FILES%                           20008000        
+ %       S[7].[18:15]   =    CORE REQUIREMENT / 64%                     20009000        
+ %       IF S[2] < 0 THEN THE JOB WAS COMPILED BY COBOL%                20010000        
+ %       S[15]          =    DISK ADDRESS OF LABEL EQUATION ENTRIES     20010100        
+ %                           PRESENTED WHEN PROGRAM WAS COMPILED AND    20010200        
+ %                           APPLICABLE TO ALL EXECUTIONS               20010300        
+ %       S[16]          =    ESTIMATED PROCESSOR TIME   (FROM COMPILATN)20010400        
+ %       S[17]          =    ESTIMATED I/O TIME         (FROM COMPILATN)20010500        
+ %       S[18]          =    PRIORITY                   (FROM COMPILATN)20010600        
+ %       S[19]          =    COMMON VALUE               (FROM COMPILATN)20010700        
+ %       S[20]          =    ESTIMATED CORE REQUIREMENTS(FROM COMPILATN)20010800        
+ %       S[21]          =    STACK SIZE                 (FROM COMPILATN)20010900        
+                                                                        20011000        
+                                                                        20011100        
+PROCEDURE SELECTRUN1;                                                   20011200        
+    BEGIN                                                               20011300        
+                                                                        20011400        
+    REAL    MSCW         =  -2,                                         20011500        
+            F            =  -1,                                         20011600        
+            MYMSCW       =  -1,                                         20011700        
+            RCW          =  +0,                                         20011800        
+            I            =  +1,                                         20011900        
+            T            =  +2,                                         20012000        
+            L            =  +3,                                         20012100        
+            DT           =  +4,                                         20012200        
+            MIX          =  +5,                                         20012300        
+            HDR          =  +6,                                         20012400        
+            LEVEL        =  +7,                                         20012500        
+            MCPJOB       =  +8,                                         20012600        
+            OLAYDISK     =  +9,                                         20012700        
+            THISLINK     =  +10,                                        20012800        
+            NEXTLINK     =  +11,                                        20012900        
+            PREVLINK     =  +12,                                        20013000        
+            TYPE         =  +13,                                        20013100        
+            STACKLOC     =  +14,                                        20013200        
+            SHEETLOCKED  =  +15;                                        20013300        
+                                                                        20013400        
+    ARRAY   S            =  +16[*],                                     20013500        
+            SEG0         =  +17[*],                                     20013600        
+            TRP          =  +18[*],                                     20013700        
+            LBL          =  +19[*],                                     20013800        
+            SD           =  NT2[*],                                     20013900        
+            TSKA         =  NT2[*];                                     20014000        
+                                                                        20014100        
+    NAME    ADDR         = LBL +1;                                      20014300        
+    REAL    PASSLEVEL    = ADDR + 1,                                    20014400        
+            SVALUE       = PASSLEVEL,                                   20014500        
+            RETURNMSCW   = PASSLEVEL + 1,                               20014600        
+            RETURNRCW    = RETURNMSCW + 1;                              20014700        
+                                                                        20014800        
+    DEFINE SHEETMAX = MIXMAX#;                                          20014900        
+                                                                        20015000        
+                                                                        20016100        
+    %%%%                     ***NOTE****                                20016200        
+    %%%% THE VARIABLES DECLARED ABOVE MUST CORRESPOND EXACTLY TO        20016300        
+    %%%% THOSE DECLARED IN PROCEDURE SELECTRUN.                         20016400        
+                                                                        20016500        
+    REAL    EUVAL        = RETURNRCW + 1,                               20016600        
+            FBADRS       = EUVAL     + 1,                               20016700        
+            FPBVERSION   = FBADRS    + 1,                               20016800        
+            FT           = FPBVERSION+ 1,                               20016900        
+            LINDX        = FT        + 1,                               20017000        
+            LINK         = LINDX     + 1,                               20017100        
+            SENSEVAL     = LINK      + 1,                               20017200        
+            SPDVAL       = SENSEVAL  + 1,                               20017300        
