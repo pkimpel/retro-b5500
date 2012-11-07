@@ -15397,3 +15397,105 @@ PROCEDURE SELECTRUN1;                                                   20011200
             LINK         = LINDX     + 1,                               20017100        
             SENSEVAL     = LINK      + 1,                               20017200        
             SPDVAL       = SENSEVAL  + 1,                               20017300        
+            S2           = SPDVAL    + 1,                               20017400        
+            FB           = S2        + 1,                               20017500        
+            FPB          = FB        + 1;                               20017600        
+                                                                        20017700        
+    REAL    FT1          = NT1,                                         20017800        
+            TYPEDISK     = NT3;                                         20017900        
+                                                                        20018000        
+    COMMENT THE VALUE OF "TYPE" DETERMINES WHICH PORTIONS OF            20018100        
+    THIS PROCEDURE WILL BE EXECUTED. THIS PROCEDURE CAN ALSO            20018200        
+    DETERMINE WHICH PORTIONS OF PROCEDURE "SELECTRUN" WILL BE           20018300        
+    EXECUTED BY ASSIGNING A NEGATIVE VALUE TO "TYPE" BEFORE             20018400        
+    RETURNING TO THAT PROCEDURE.                                        20018500        
+    END OF COMMENT;                                                     20018600        
+                                                                        20018700        
+    DEFINE STARTING      =  1#,                                         20018800        
+           CONTINUEING   =  2#,                                         20018900        
+           QUITTING      =  3#,                                         20019000        
+           RUNING        =  4#,                                         20019100        
+           PASSING       =  5#,                                         20019200        
+           EQUATING      =  6#;                                         20019300        
+                                                                        20019400        
+    DEFINE XCLOCKTIME =                                                 20019500        
+        (((NT2:=(XCLOCK DIV 3600)) MOD 60 + (NT2 DIV 60)|100 +          20019600        
+         0.5 ) DIV 1)#;                                                 20019700        
+                                                                        20019800        
+    DEFINE ACTUALDISKADDRESS(ACTUALDISKADDRESS1) =                      20019900        
+        ((JAR[MIX,((NT4:=ACTUALDISKADDRESS1) DIV (NT3:=JAR[MIX,8]))+10] 20020000        
+         + (NT4 MOD NT3) + 0.5) DIV 1)#;                                20020100        
+                                                                        20020110        
+ $ SET OMIT = NOT(PACKETS)                                              20020119        
+    DEFINE UNITNO = S[23].[2:6]#; % ORIGINATING UNIT                    20020120        
+ $ POP OMIT                                                             20020121        
+                                                                        20020200        
+    LABEL CONTINUE,  DLX,  EXIT,  LEM,  RMSG,  UNBLK,  STOP;            20020300        
+                                                                        20020400        
+    SUBROUTINE DELINK;                                                  20020500        
+    % DELINKS THE SHEET ENTRY AND RETURNS SHEET DISK SPACE              20020600        
+        BEGIN                                                           20020700        
+        STREAM(A:=S[3].[8:10],B:=P(.SCHEDULEIDS));                      20020800        
+            BEGIN % MARK SCHEDULE SLOT "OPEN"                           20020900        
+            SKIP A DB; DS:=RESET;                                       20021000        
+            END;                                                        20021100        
+        IF F = 0 THEN % SHEET ENTRY NOT PASSED AS PARAMETER             20021200        
+            BEGIN                                                       20021300        
+            IF NEXTLINK=0 THEN SHEET[LEVEL].[FF]:=PREVLINK;             20021400        
+            IF PREVLINK=0 THEN                                          20021500        
+                BEGIN                                                   20021600        
+                SHEET[LEVEL].[CF]:=NEXTLINK; DO DLX;                    20021700        
+                END;                                                    20021800        
+            IF LBL=0 THEN                                               20021900        
+            BEGIN                                                       20021910        
+            M[(LBL:=[M[SPACE(30)]]&30[8:38:10]) INX NOT 1].[9:6]:=0;    20021920        
+            END;                                                        20021930        
+            DISKWAIT(-(LBL INX 0), 30, PREVLINK);                       20022000        
+            LBL[29]:=NEXTLINK;                                          20022100        
+            DISKWAIT( (LBL INX 0), 30, PREVLINK);                       20022200        
+DLX:        FORGETESPDISK(THISLINK);                                    20022300        
+            END; % IF SHEET ENTRY NOT A PARAMETER                       20022400        
+        END DELINK;                                                     20022500        
+                                                                        20022600        
+    P(MYMSCW, STF);                                                     20022700        
+                                                                        20022800        
+    P(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0); % FOR VARIABLES LOCAL TO THIS   20022900        
+                                        % PROCEDURE ONLY                20023000        
+                                                                        20023100        
+IF TYPE=CONTINUEING THEN GO TO CONTINUE;                                20023200        
+IF TYPE=STARTING THEN % SEARCH THE SHEET QUEUE TO FIND A CANDIDATE      20023300        
+                      % FOR SELECTION                                   20023400        
+    BEGIN                                                               20023500        
+    PASSLEVEL:=RESTARTING;                                              20023800        
+    COMMENT "PASSLEVEL" WILL BE NEGATIVE WHEN A JOB IS BEING RE-STARTED.20023900        
+    UNDER THIS CONDITION, THE TEST FOR "LEVEL GEQ PASSLEVEL" WILL       20024000        
+    FAIL AND NO OTHER JOBS WILL BE SELECTED UNTIL THE RE-START JOB      20024100        
+    HAS BEEN INITIATED.                                                 20024200        
+    END OF COMMENT;                                                     20024300        
+    FOR LEVEL:=0 STEP 1 UNTIL SHEETMAX DO % FOR ALL "SHEET PRIORITIES"  20024600        
+        BEGIN                                                           20024700        
+        PREVLINK:=NEXTLINK:=; % RESET FOR EACH "LEVEL"                  20024800        
+        % IF THERE IS AN ENTRY IN THE SHEET, SEE IF IT WILL FIT         20024900        
+        IF(THISLINK:=SHEET[LEVEL].[CF]) NEQ 0 THEN GO TO LEM;           20025000        
+                                                                        20025100        
+CONTINUE:                                                               20025200        
+                                                                        20025300        
+        % "NEXTLINK" OBTAINED FROM "SHEET[29]" BELOW                    20025400        
+        % IF THERE IS ANOTHER ENTRY AT THIS LEVEL, PROCESS IT NOW       20025500        
+        IF(THISLINK:=NEXTLINK) NEQ 0 THEN GO TO LEM;                    20025600        
+        END;                                                            20025700        
+    TYPE := -QUITTING; % END OF SHEET SEARCH                            20025800        
+    GO TO EXIT;                                                         20025900        
+                                                                        20026000        
+LEM:                                                                    20026100        
+                                                                        20026200        
+    % AT THIS POINT, THERE IS A CANDIDATE FOR SELECTION                 20026300        
+    IF S = 0 THEN % NO SHEET SPACE OBTAINED YET                         20026400        
+        BEGIN                                                           20026500        
+        S := [M[TYPEDSPACE(31,SHEETAREAV)]] & 30[SIZE];%           %167-20026600        
+        END;                                                            20026700        
+                                                                        20026800        
+%  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  20026900        
+% READ SHEET ENTRY INTO CORE AT "S"                                     20027000        
+%  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  20027100        
+                                                                        20027200        
