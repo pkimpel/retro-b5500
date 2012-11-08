@@ -15499,3 +15499,107 @@ LEM:                                                                    20026100
 % READ SHEET ENTRY INTO CORE AT "S"                                     20027000        
 %  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  20027100        
                                                                         20027200        
+    DISKWAIT(-(S INX 0), 30, THISLINK);                                 20027300        
+    NEXTLINK:=S[29]; % NEXT ENTRY IN SHEET QUEUE AT THIS LEVEL          20027400        
+                                                                        20027500        
+%  *****   ***   *      *****     *   *  ****   *****                   20027600        
+%  *        *    *      *         *   *  *   *  *   *                   20027700        
+%  ***      *    *      *****     *****  *   *  *****                   20027800        
+%  *        *    *      *         *   *  *   *  *  *                    20027900        
+%  *       ***   *****  *****     *   *  *  *   *   * 0                 20028000        
+                                                                        20028100        
+    HDR:=GETSPACE(30+(S[0]<0),DISKHEADERAREAV,1)+2; % S[0]<0 COMPILE    20028300        
+    % THE EXTRA WORD IS FOR COMPILATIONS (JAR[30]=FID OF OBJECT FILE)   20028400        
+    DISKWAIT(-HDR, 30, S[25]); % READ FILE HEADER INTO CORE AT "HDR"    20028900        
+    GO TO EXIT;                                                         20029000        
+    END; % IF TYPE = STARTING OR CONTINUEING                            20029100        
+                                                                        20029200        
+IF TYPE=PASSING THEN % PASS THIS ENTRY WITHOUT DELINKING                20029300        
+    BEGIN                                                               20029400        
+                                                                        20029500        
+%   *****  *****  *****  *****                                          20029600        
+%   *   *  *   *  *      *                                              20029700        
+%   *****  *****  *****  *****                                          20029800        
+%   *      *   *      *      *                                          20029900        
+%   *      *   *  *****  *****                                          20030000        
+                                                                        20030100        
+    IF (I:=S[2]<0) OR S[3]>0 THEN      % XS/ES OR FIRST TIME THROUGH    20030200        
+        BEGIN                                                           20030300        
+        S[2]:=ABS(S[2]);  % MARK IT NOT XS-ED OR ES-ED.                 20030350        
+        S[3]:=NABS(S[3]); % MARK IT SCHEDULED                           20030400        
+        IF F=0 THEN % SHEET ENTRY NOT PASSED AS PARAMETER               20030500        
+        % WRITE THE SHEET ENTR BACK OUT WITH S[3] "MARKED"              20030600        
+        DISKWAIT((S INX 0), 30, THISLINK);                              20030700        
+        IF SCHEDMSG OR I OR (S[23].[9:4] NEQ 0) THEN               %166-20030760        
+        BEGIN                                                           20030780        
+        STREAM(I, L, C:=LEVEL, A:=S[*], ID:=S[3].[8:10],                20030800        
+ $ SET OMIT = NOT(DCSPO AND DATACOM)                                    20031000        
+               Q:=XCLOCKTIME, W:=S[20]|64, B:=HDR);                     20031500        
+            BEGIN                                                       20031600        
+            SI:=LOC C; DS:=6DEC; DI:=DI-6; DS:=5FILL;         % PRIORITY20031700        
+            DI:=B; DI:=DI+6; DS:=LIT":";                                20031800        
+            SI:=A; SI:=SI+1; DS:=7CHR;                        % MFID    20031900        
+            SI:=SI+1; DS:=LIT"/"; DS:=7CHR;                   % FID     20032000        
+            DS:=LIT"="; SI:=LOC ID; DS:=2DEC;                 % SCH.NO. 20032100        
+            CI:=CI+I; GO TO SCHD;                                       20032150        
+            DS:=10 LIT" NOT XS-ED"; GO TO REASON;                       20032200        
+    SCHD:   DS:=11 LIT" SCHEDULED "; SI:=LOC Q; DS:=4 DEC;    % TIME    20032250        
+ $ SET OMIT = NOT(DCSPO AND DATACOM)                                    20032400        
+    REASON: DS:=2 LIT", ";                                              20032725        
+            CI:=CI+L; GO TO L0; CO TO L1;                               20032750        
+ $ SET OMIT = NOT BREAKOUT                                              20032775        
+    L2:     DS:=14 LIT"TOO MANY JOBS~"; GO TO EXIT;                     20032875        
+    L1:     DS:=13 LIT"NO OLAY DISK~"; GO TO EXIT;                      20032900        
+    L0:     DS:= 5 LIT"NEEDS"; SI:=LOC W; DS:=6 DEC; DS:=LIT"~";        20032925        
+            DI:=DI-7; DS:=5 FILL;                                       20032930        
+    EXIT:                                                               20032950        
+            END STREAM;                                                 20033000        
+ $ SET OMIT = NOT( DATACOM )                                            20033200        
+        SPOUTER(HDR,UNITNO,SCHEDMSG OR I);                              20034000        
+        END   % IF SCHEDULE MESSAGE IS SPOUTED                          20034050        
+        ELSE FORGETSPACE(HDR);                                     %166-20034060        
+        END   % IF XS/ES OR FIRST TIME                                  20034100        
+    ELSE FORGETSPACE(HDR);                                              20034200        
+    IF F NEQ 0 THEN % SHEET ENTRY PASSED AS A PARAMETER                 20034300        
+        BEGIN                                                           20034400        
+        DISKWAIT(F.[CF],30,T:=GETESPDISK); % WRITE SHEET ENTRY TO DISK  20034500        
+        FORGETSPACE(S[7]); % CORE ADDRESS OF SEGMENT ZERO IN S[7]       20034600        
+        IF SEG0=S[7] THEN SEG0:=0; % AVOID "DOUBLE "FORGETSPACE"        20034610        
+        IF NOT SHEETLOCKED THEN                                         20034700        
+            BEGIN                                                       20034800        
+            SLEEP([TOGLE],SHEETMASK);                                   20034900        
+            LOCKTOG(SHEETMASK);                                         20035000        
+            SHEETLOCKED := 1;                                           20035100        
+            END;                                                        20035200        
+        IF (L:=S[2].[CF]) GTR SHEETMAX THEN L:=SHEETMAX;                20035300        
+        % SHEET[2].[CF] = "SHEET" PRIORITY                              20035400        
+        IF SHEET[L].[CF] NEQ 0 THEN % SHEET QUEUE ALREADY EXISTS        20035500        
+            BEGIN % LINK IN THIS ENTRY                                  20035600        
+            DISKWAIT(-F.[CF],30,I:=SHEET[L].[FF]); %TAIL OF QUEUE       20035700        
+            S[29]:=T; % LINK TO THIS ENTRY                              20035800        
+            DISKWAIT(F.[CF],30,I); % REPLACE ENTRY                      20035900        
+            END                                                         20036000        
+        ELSE SHEET[L]:=T; % ESTABLISH NEW SHEET QUEUE                   20036100        
+        SHEET[L].[FF]:=T; % LINK IN AT END OF QUEUE                     20036200        
+        TYPE := -QUITTING;                                              20036300        
+        GO TO EXIT; % DONT PROCESS ANY MORE ENTRIES                     20036400        
+        END;                                                            20036500        
+    IF PASSLEVEL=1023 THEN PASSLEVEL:=LEVEL;                            20036800        
+    PREVLINK:=THISLINK;                                                 20037100        
+    IF MIX LEQ MIXMAX THEN                                              20037200        
+        BEGIN                                                           20037300        
+        TYPE := -CONTINUEING;                                           20037400        
+        GO TO CONTINUE;                                                 20037500        
+        END                                                             20037600        
+    ELSE                                                                20037700        
+        BEGIN                                                           20037800        
+        TYPE := -QUITTING;                                              20037900        
+        GO TO EXIT;                                                     20038000        
+        END;                                                            20038100        
+    END; % IF TYPE = PASSING                                            20038200        
+                                                                        20038300        
+   IF TYPE=RUNING THEN % SPECIAL HANDLING FOR "RUN" JOBS                20038500        
+                                                                        20038600        
+%   *****  *   *  *    *         *  *****  ****   *****                 20038700        
+%   *   *  *   *  **   *         *  *   *  *   *  *                     20038800        
+%   *****  *   *  * *  *      *  *  *   *  ****   *****                 20038900        
