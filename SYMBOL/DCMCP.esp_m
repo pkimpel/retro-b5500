@@ -15603,3 +15603,109 @@ IF TYPE=PASSING THEN % PASS THIS ENTRY WITHOUT DELINKING                20029300
 %   *****  *   *  *    *         *  *****  ****   *****                 20038700        
 %   *   *  *   *  **   *         *  *   *  *   *  *                     20038800        
 %   *****  *   *  * *  *      *  *  *   *  ****   *****                 20038900        
+%   *  *   *   *  *  * *      *  *  *   *  *   *      *                 20039000        
+%   *   *  *****  *   **      ****  *****  ****   *****                 20039100        
+                                                                        20039200        
+        BEGIN                                                           20039300        
+        IF S[2].[2:1] NEQ 1 THEN % S[2].[2:1]=1 WHEN ES-ED              20039400        
+        FOR I:=1 STEP 1 UNTIL MIXMAX DO                                 20039500        
+        IF JAR[I,*] NEQ 0 THEN % JOB RUNNING AT THIS MIX INDEX          20039600        
+        IF (S[0] EQV JAR[I,0])=(NOT 0) AND                              20039700        
+           (S[1] EQV JAR[I,1])=(NOT 0) AND                              20039800        
+            PRYOR[I] GEQ 0 THEN                                         20039900        
+            BEGIN % JOB IS ALREADY RUNNING                              20040000        
+ $ SET OMIT = NOT(DCSPO AND DATACOM )                                   20040100        
+            IF BOJMESS THEN                                             20043000        
+                BEGIN                                                   20043100        
+ $ SET OMIT = NOT (DCSPO AND DATACOM)                                   20043200        
+RMSG:               BEGIN                                               20043600        
+                    STREAM(C:=S[18], A:=JARROW[1], I, % S[18]=PRIORITY  20043700        
+                           Q := XCLOCKTIME, B := HDR);                  20043800        
+                        BEGIN                                           20043900        
+                        SI:=LOC C; DS:=6DEC; DI:=DI-6; DS:=5FILL; %PRIOR20044000        
+                        DI:=B; DI:=DI+6; DS:=LIT":";                    20044100        
+                        SI:=A; SI:=SI+1; DS:=7CHR; DS:=LIT"/";    % MFID20044200        
+                        SI:=SI+1; DS:=7CHR;                       % FID 20044300        
+                        SI:=LOC I; DS:=LIT"="; DS:=2DEC;          % MIX 20044400        
+                        DS:=9LIT" RUNNING ";                       %161-20044500        
+                        DS:=4DEC; DS:=LIT"~"; DI:=DI-16; DS:=FILL;% TIME20044600        
+                        END STREAM;                                     20044700        
+                    SPOUT(HDR&S[23][9:9:9]);                            20044800        
+                    END % IF BOJ MESSAGE SHOULD BE SENT                 20044900        
+ $ SET OMIT = NOT (DCSPO AND DATACOM)                                   20045000        
+                END % IF BOJMESS                                        20045300        
+            ELSE FORGETSPACE(HDR);                                      20045400        
+            % BUMP OPEN COUNT BACK DOWN                                 20045500        
+            FORGETSPACE(DIRECTORYSEARCH( ABS(S[0]),                     20045600        
+                        IF S[0] LSS 0 THEN "DISK   " ELSE S[1], 13));   20045700        
+            FORGETESPDISK(S[6] INX 0); % CARD IMAGE FOR LOG             20045800        
+            T:=S[13]; % SAVE LINK TO LABEL EQUATION CARDS               20045900        
+            WHILE T NEQ 0 DO % FORGET LABEL EQUATION SEGMENTS           20046000        
+                BEGIN                                                   20046100        
+                DISKWAIT(-(S INX 0), 30, T);                            20046200        
+                FORGETESPDISK(T);                                       20046300        
+                T:=S[29];                                               20046400        
+                END;                                                    20046500        
+            DELINK; % DELINK THE ENTRY FROM THE SHEET QUEUE             20046600        
+            IF F=0 THEN % SHEET ENTRY NOT PASSED AS A PARAMETER         20046700        
+                BEGIN                                                   20046800        
+                TYPE := -CONTINUEING;                                   20046900        
+                GO TO CONTINUE;                                         20047000        
+                END                                                     20047100        
+            ELSE                                                        20047200        
+                BEGIN % SHEET ENTRY PASSED AS A PARAMETER, DONT CONTINUE20047300        
+                TYPE := -QUITTING;                                      20047400        
+                GO TO EXIT;                                             20047500        
+                END;                                                    20047600        
+            END;                                                        20047700        
+        END OF SPECIAL HANDLING OF RUN CARDS;                           20047800        
+                                                                        20048000        
+IF TYPE = EQUATING THEN                                                 20048100        
+    BEGIN                                                               20048200        
+                                                                        20048300        
+%   ******   *****    *****                                             20048400        
+%   *        *    *   *    *                                            20048500        
+%   ****     *****    *****                                             20048600        
+%   *        *        *    *                                            20048700        
+%   *     0  *     0  *****  0                                          20048800        
+                                                                        20048900        
+    FPB:=TYPEDSPACE(SEG0[5] INX 1,FPBAREAV);                       %167-20049000        
+    % SEG0[5] = SIZE OF THE FILE PARAMETER BLOCK ON DISK                20049100        
+    % SEG0[4] = RELATIVE DISK ADDRESS OF THE FILE PARAMETER BLOCK       20049200        
+    % SEG0[7] = NUMBER OF FILES IN THE F.P.B.                           20049300        
+    % ETRLNG  = NUMBER OF WORDS PER FILE USED IN THE F.P.B.             20049400        
+    M[SEG0[5] INX FPB]:=0; % SET TO ZERO TO INSURE THAT STREAM STATEMENT20049500        
+                           % USED TO BUILD "IN-CORE" FPB WILL NOT SKAN  20049600        
+                           % PAST THE END OF THE COMPILER GENERATED FPB.20049700        
+    FB:=GETSPACE(SEG0[7].[CF]|ETRLNG,FPBAREAV,1)+2;                %167-20049800        
+    % "FB" WILL BE "IN-CORE" FILE PARAMETER BLOCK LOCATION              20049900        
+        DISKWAIT(-FPB, SEG0[5] INX 0, ACTUALDISKADDRESS(SEG0[4].[CF])); 20050000        
+                                                                        20050100        
+COMMENT FORMAT OF COMPILER GENERATED FPB:                               20050200        
+     CHRS 1 AND 2     = FILE NUMBER (12 BIT BINARY) STARTING WITH 1     20050300        
+     CHR.  3          = FILE TYPE                                       20050400        
+     CHRS  4 THRU 10  = MFID                                            20050500        
+     CHRS 11 THRU 17  = FID                                             20050600        
+     CHR  18          = LENGTH OF INTERNAL FILE NAME (6 BIT BINARY)     20050700        
+     CHRS 19 THRU N   = INTERNAL NAME                                   20050800        
+     FOR VERSION 1 ( VERSION NUMBER IN SEG0[5].[1:8] )                  20050900        
+     NEXT TWO CHARACTERS FOLLOWING INTERNAL NAME CONTAIN:               20051000        
+        [40:1]         = SENSITIVE BIT                                  20051100        
+        [41:2]         = DISK SPEED (1=FAST, 2=SLOW, 0=UNSPECIFIED)     20051200        
+        [43:5]         = EU NUMBER + 1                                  20051300        
+                                                                        20051400        
+COMMENT FORMAT OF "IN-CORE" FPB ( 5 WORDS FOR EACH FILE ENTRY )         20051500        
+      WORD[0].[ 6:42]  = MFID                                           20051600        
+      WORD[1].[ 6:42]  = FID                                            20051700        
+      WORD[2].[ 1:17]  = REEL NUMBER   (3 BCL DIGITS)                   20051800        
+      WORD[2].[18:30]  = CREATION DATE (5 BCL DIGITS)                   20051900        
+      WORD[3].[ 1:5 ]  = CYCLE NUMBER (BINARY)                          20052000        
+      WORD[3].[ 6:17]  = PRN (PHYSICAL REEL NUMBER) FOR NON-DISK FILES  20052100        
+      WORD[3].[15:1 ]  = SENSITIVE BIT (DISK FILES ONLY)                20052200        
+      WORD[3].[16:2 ]  = DISK SPEED    (DISK FILES ONLY)                20052300        
+      WORD[3].[18:5 ]  = EU. NUMBER+1  (DISK FILES ONLY)                20052400        
+      WORD[3].[23:1 ]  = IO CODE (INPUT=0,OUTPUT=1)                     20052500        
+      WORD[3].[24:12]  = NUMBER OF ERRORS                               20052600        
+      WORD[3].[36:6 ]  = LOGICAL UNIT NUMBER + 1                        20052700        
+      WORD[3].[43:5 ]  = UNIT TYPE                                      20052800        
+END OF COMMENT;                                                         20052900        
