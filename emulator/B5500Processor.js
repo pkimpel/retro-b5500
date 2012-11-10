@@ -1464,13 +1464,12 @@ B5500Processor.prototype.run = function() {
     must point to the next syllable to be executed.
     This routine will run until cycleCount >= cycleLimit or !this.busy */
     var noSECL = 0;                     // to support char mode dynamic count from CRF syllable
-    var opcode;
-    var t1;
-    var t2;
-    var variant;
-    var flagBit;                            // bit 0 indicates operand(off) or control word/descriptor(on).
-    var aLo,aHi,bLo,bHi;                    // upper/lower pieces of a word for bitwise operators.
-    var w32 = B5500CentralControl.pow2[32]; // 32-bit boundary constant for bitwise operators.
+    var opcode;                         // copy of T register        
+    var t1;                             // scratch variable for internal instruction use
+    var t2;                             // ditto
+    var t3;                             // ditto
+    var t4;                             // ditto
+    var variant;                        // high-order six bits of T register
 
     do {
         this.Q = 0;
@@ -2289,60 +2288,55 @@ B5500Processor.prototype.run = function() {
                 case 0x0D:              // XX15: logical (bitmask) ops
                     switch (variant) {
                     case 0x01:          // 0115: LNG=logical negate
-                        // assert(this.AROF == 1);
-                        flagBit = this.cc.bit(this.A, 0);    // save flag bit
-                        aHi = this.A / w32;
-                        aLo = this.A % w32;
-                        this.A = (~aHi) * w32 + (~aLo); // negate as two chunks
-                        this.A = this.cc.fieldInsert(this.A, 0, 1, flagBit); // restore flag bit
-                        this.AROF == 1;
+                        this.adjustAFull();
+                        t1 = this.A % 0x1000000;
+                        t2 = (this.A - t1) / 0x1000000;
+                        this.A = (t2 ^ 0x7FFFFF)*0x1000000 + (t1 ^ 0xFFFFFF);
                         break;
 
                     case 0x02:          // 0215: LOR=logical OR
-                        // assert(this.AROF == 1 && this.BROF == 1);
-                        flagBit = this.cc.bit(this.B, 0); // save B flag bit
-                        aHi = this.A / w32;
-                        aLo = this.A % w32;
-                        bHi = this.B / w32;
-                        bLo = this.B % w32;
-                        this.A = (aHi | bHi) * w32 + (aLo | bLo);
-                        this.A = this.cc.fieldInsert(this.A, 0, 1, flagBit); // restore flag bit to A
-                        this.AROF = 1;
+                        this.adjustABFull();
+                        t1 = this.A % 0x1000000;
+                        t2 = (this.A - t1) / 0x1000000;
+                        t3 = this.B % 0x1000000;
+                        t4 = (this.B - t3) / 0x1000000;
+                        this.A = (t4 | (t2 & 0x7FFFFF))*0x1000000 + (t1 | t3);
                         this.BROF = 0;
                         break;
 
                     case 0x04:          // 0415: LND=logical AND
-                        // assert(this.AROF == 1 && this.BROF == 1);
-                        flagBit = this.cc.bit(this.B, 0); // save flag bit
-                        aHi = this.A / w32;
-                        aLo = this.A % w32;
-                        bHi = this.B / w32;
-                        bLo = this.B % w32;
-                        this.A = (aHi & bHi) * w32 + (aLo & bLo);
-                        this.A = this.cc.fieldInsert(this.A, 0, 1, flagBit); // restore flag bit to A
-                        this.AROF = 1;
+                        this.adjustABFull();
+                        t1 = this.A % 0x1000000;
+                        t2 = (this.A - t1) / 0x1000000;
+                        t3 = this.B % 0x1000000;
+                        t4 = (this.B - t3) / 0x1000000;
+                        this.A = ((t4 & 0x7FFFFF) | (t2 & t4 & 0x7FFFFF))*0x1000000 + (t1 & t3);
                         this.BROF = 0;
                         break;
 
                     case 0x08:          // 1015: LQV=logical EQV
-                        // assert(this.AROF == 1 && this.BROF == 1);
-                        flagBit = this.cc.bit(this.B, 0); // save B flag bit
-                        aHi = this.A / w32;
-                        aLo = this.A % w32;
-                        bHi = this.B / w32;
-                        bLo = this.B % w32;
-                        this.B = (~(aHi ^ bHi)) * w32 + (~(aLo ^ bLo));
-                        this.B = this.cc.fieldInsert(this.B, 0, 1, flagBit); // restore B flag bit
+                        this.cycleCount += 8;
+                        this.adjustABFull();
+                        t1 = this.A % 0x1000000;
+                        t2 = (this.A - t1) / 0x1000000;
+                        t3 = this.B % 0x1000000;
+                        t4 = (this.B - t3) / 0x1000000;
+                        this.B = ((t4 & 0x7FFFFF) | ((~(t2 ^ t4)) & 0x7FFFFF))*0x1000000 + ((~(t1 ^ t3)) & 0xFFFFFF);
                         this.AROF = 0;
-                        this.BROF = 1;
                         break;
 
                     case 0x10:          // 2015: MOP=reset flag bit (make operand)
-                        this.A = this.cc.bitReset(this.A, 0);
+                        this.adjustAFull();
+                        if (this.A >= 0x800000000000) {
+                            this.A %= 0x800000000000;
+                        }
                         break;
 
                     case 0x20:          // 4015: MDS=set flag bit (make descriptor)
-                        this.A = this.cc.bitSet(this.A, 0);
+                        this.adjustAFull();
+                        if (this.A < 0x800000000000) {
+                            this.A += 0x800000000000;
+                        }
                         break;
                     }
                     break;
@@ -2432,7 +2426,7 @@ B5500Processor.prototype.run = function() {
                     case 0x2C:          // 5425: CTC=core field to C field
                         break;
 
-                    case 0x3C:          // 7425: CTF=cre field to F field
+                    case 0x3C:          // 7425: CTF=core field to F field
                         break;
                     }
                     break;
@@ -2446,28 +2440,23 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x04:          // 0431: SSN=set sign bit (set negative)
-                        // assert(this.AROF == 1);
-                        this.A = this.cc.bitSet(this.A, 1);
-                        this.AROF = 1;
+                        this.adjustAFull();
+                        t1 = this.A % 0x400000000000;
+                        t2 = (this.A - t1)/0x400000000000;
+                        this.A = ((t2 & 0x03) | 0x01)*0x400000000000 + t1;
                         break;
 
                     case 0x08:          // 1031: CHS=change sign bit
-                        // the sign-bit is bit 1
-                        // assert(this.AROF == 1);
-                        if (this.cc.bit(this.A, 1)) {
-                            this.A = this.cc.bitReset(this.A, 1);
-                        } else {
-                            this.A = this.cc.bitSet(this.A, 1);
-                        }
-                        this.AROF = 1;
+                        this.adjustAFull();
+                        t1 = this.A % 0x400000000000;
+                        t2 = (this.A - t1)/0x400000000000;
+                        this.A = ((t2 & 0x03) ^ 0x01)*0x400000000000 + t1;
                         break;
 
                     case 0x10:          // 2031: TOP=test flag bit (test for operand)
-                        if (this.cc.bit(this.B, 1)) {
-                            this.A = 0;
-                        } else {
-                            this.A = 1;
-                        }
+                        this.adjustAEmpty();
+                        this.adjustBFull();
+                        this.A = (this.B % 0x800000000000 ? 0 : 1);
                         this.AROF = 1;
                         break;
 
@@ -2487,10 +2476,10 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x24:          // 4431: SSP=reset sign bit (set positive)
-                        // the sign-bit is bit 1
-                        // assert(this.AROF == 1);
-                        this.A = this.cc.bitReset(this.A, 1);
-                        this.AROF = 1;
+                        this.adjustAFull();
+                        t1 = this.A % 0x400000000000;
+                        t2 = (this.A - t1)/0x400000000000;
+                        this.A = (t2 & 0x02)*0x400000000000 + t1;
                         break;
 
                     case 0x31:          // 6131: LBU=branch backward word unconditional
