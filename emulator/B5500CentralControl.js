@@ -54,7 +54,7 @@ function B5500CentralControl() {
 
 B5500CentralControl.rtcTick = 1000/60; // Real-time clock period, milliseconds
 
-B5500CentralControl.pow2 = [ // powers oF 2 From 0 to 52
+B5500CentralControl.pow2 = [ // powers of 2 from 0 to 52
                      0x1,              0x2,              0x4,              0x8, 
                     0x10,             0x20,             0x40,             0x80, 
                    0x100,            0x200,            0x400,            0x800, 
@@ -235,7 +235,7 @@ B5500CentralControl.prototype.fieldTransfer = function(word, wstart, width, valu
 
 /**************************************/
 B5500CentralControl.prototype.fetch = function(acc) {
-    /* Called by requestor module passing accessor object "acc" to fetch a
+    /* Called by a requestor module passing accessor object "acc" to fetch a
     word from memory. */
     var addr = acc.addr;
     var modNr = addr >>> 12;
@@ -278,7 +278,7 @@ B5500CentralControl.prototype.fetch = function(acc) {
 };
 
 /**************************************/
-B5500CentralControl.prototype.store = function(r, addr, word) {
+B5500CentralControl.prototype.store = function(acc) {
     /* Called by requestor module passing accessor object "acc" to store a
     word into memory. */
     var addr = acc.addr;

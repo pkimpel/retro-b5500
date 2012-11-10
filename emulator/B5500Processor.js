@@ -357,7 +357,7 @@ B5500Processor.prototype.jump = function(count, byWords) {
         this.L = addr & 0x03;
     }
     this.access(0x30);                  // P = [C]
-}
+};
 
 /**************************************/
 B5500Processor.prototype.jumpOutOfLoop = function(count) {
@@ -377,7 +377,7 @@ B5500Processor.prototype.jumpOutOfLoop = function(count) {
     this.X = this.A % 0x8000000000;     // store prior LCW (39 bits: less control bits) in X
     this.S = t1;                        // restore S
     this.AROF = 0;                      // invalidate A
-}
+};
 
 /**************************************/
 B5500Processor.prototype.streamAdjustSourceChar = function() {
@@ -487,7 +487,6 @@ B5500Processor.prototype.compareSourceWithDest = function(count) {
                         this.K = 0;
                         this.BROF = 0;
                         this.S++;
-                        }
                     }
                     if (this.G < 7) {
                         this.G++;
@@ -498,7 +497,7 @@ B5500Processor.prototype.compareSourceWithDest = function(count) {
                     }
                 }
             } else {                    // check this character
-                if ((this.Y = this.cc.fieldIsolate(this.A, aBit, 6)) != (this.Z = this.cc.fieldIsolate(this.B, bBit, 6)) {
+                if ((this.Y = this.cc.fieldIsolate(this.A, aBit, 6)) != (this.Z = this.cc.fieldIsolate(this.B, bBit, 6))) {
                     this.Q |= 0x04;     // set Q03F to stop further comparison
                     this.MSFF = (B5500Processor.collate[this.Y] > B5500Processor.collate[this.Z] ? 1 : 0);
                 } else {                // strings still equal -- advance to next character
@@ -515,7 +514,6 @@ B5500Processor.prototype.compareSourceWithDest = function(count) {
                         }
                         this.S++;
                         this.access(0x03);      // B = [S]
-                        }
                     }
                     if (aBit < 42) {
                         aBit += 6;
@@ -551,7 +549,7 @@ B5500Processor.prototype.fieldArithmetic = function(count, subtract) {
     var zd;                             // destination digit
     
     this.compareSourceWithDest(count);
-    this.cycleCount += 2;           // approximate the timing thus far
+    this.cycleCount += 2;               // approximate the timing thus far
     if (this.Q & 0x20) {                // Q06F => count > 0, so there's characters to add
         this.Q &= ~(0x28);              // reset Q06F and Q04F
         
@@ -581,10 +579,10 @@ B5500Processor.prototype.fieldArithmetic = function(count, subtract) {
         this.Q |= 0x80;                 // set Q08F (for display only)
         aBit = this.G*6;                // A-bit number
         bBit = this.K*6;                // B-bit number
-        yd = this.cc.fieldIsolate(this.A, aBit, 2);             // get the source sign
-        zd = this.cc.fieldIsolate(this.B, bBit, 2);             // get the dest sign
-        compl = (yd == zd ? subtract : !subtract );             // determine if complement needed
-        resultNegative = !(                                     // determine sign of result
+        yd = this.cc.fieldIsolate(this.A, aBit, 2);     // get the source sign
+        zd = this.cc.fieldIsolate(this.B, bBit, 2);     // get the dest sign
+        compl = (yd == zd ? subtract : !subtract );     // determine if complement needed
+        resultNegative = !(                             // determine sign of result
                 (zd == 0 && !compl) || 
                 (zd == 0 && Q03F && !MSFF) ||
                 (zd != 0 && compl && Q03F && MSFF ) ||
@@ -662,7 +660,6 @@ B5500Processor.prototype.fieldArithmetic = function(count, subtract) {
             } else {
                 this.K = 0;
                 this.S++;
-                }
             }
             if (this.G < 7) {
                 this.G++;
@@ -674,7 +671,7 @@ B5500Processor.prototype.fieldArithmetic = function(count, subtract) {
         this.AROF = this.BROF = 0;
         this.H = this.V = this.N = 0;
     }
-}
+};
 
 /**************************************/
 B5500Processor.prototype.streamSourceToDest = function(count, transform) {
@@ -758,7 +755,7 @@ B5500Processor.prototype.streamToDest = function(count, transform) {
                     this.K = 0;
                     this.access(0x0B);  // [S] = B
                     this.S++;
-                    if (count < 8) {    // only need to load B if a partial word is left
+                    if (count < 8) {    // only need to reload B if a partial word is left
                         this.access(0x03);  // B = [S]
                     }
                 }
@@ -984,7 +981,7 @@ B5500Processor.initiate = function(forTest) {
     // else don't restore A or B for word mode -- will pop up as necessary
     }
 
-    this.T = Math.floor(this.P / Math.pow(2, 36-this.L*12)) % 0x1000;   // ugly
+    this.T = this.cc.fieldIsolate(this.P, this.L*12, 12);
     this.TROF = 1;
     if (forTest) {
         this.NCSF = (this.TM >>> 4) & 0x01;
@@ -1254,8 +1251,8 @@ B5500Processor.prototype.enterSubroutine = function(descriptorCall) {
     of an OPDC or DESC syllable. Also handles accidental entry */
     var aw = this.A;                    // local copy of word in A reg
     var bw;                             // local copy of word in B reg
-    var arg = this.cc.bit(aw, 5);            // descriptor argument bit
-    var mode = this.cc.bit(aw, 4);           // descriptor mode bit (1-char mode)
+    var arg = this.cc.bit(aw, 5);       // descriptor argument bit
+    var mode = this.cc.bit(aw, 4);      // descriptor mode bit (1-char mode)
 
     if (arg && !this.MSFF) {
         ; // just leave the PD on TOS
@@ -1889,7 +1886,8 @@ B5500Processor.prototype.run = function() {
                     if (this.B >= 0x800000000000) {     // if it's a descriptor, 
                         this.L = 0;                     // force L to zero and
                         if (this.presenceTest(this.B)) {// if present, initiate a fetch to P
-                            this.access.(0x30);         // P = [C]
+                            this.access(0x30);          // P = [C]
+                        }
                     } else {
                         t1 = this.cc.fieldIsolate(this.B, 10, 2);
                         if (t1 < 3) {                   // if not a descriptor, increment the address
@@ -1934,7 +1932,7 @@ B5500Processor.prototype.run = function() {
                     t1 = this.cc.fieldInsert(           // construct new LCW: insert repeat count
                             this.cc.fieldInsert(        // insert L
                                 this.cc.fieldInsert(this.X, 33, 15, this.C), // insert C
-                                10, 2, this.L)
+                                10, 2, this.L),
                             12, 6, (variant ? variant-1 : 0));  // decrement count for first iteration
                     this.B = this.cc.fieldInsert(this.X, 0, 2, 3);      // set control bits [0:2]=3
                     t2 = this.S;                        // save S (not the way the hardware did it)
@@ -1975,7 +1973,7 @@ B5500Processor.prototype.run = function() {
                             this.cc.fieldInsert(        // insert F (as saved in t2)
                                 this.cc.fieldInsert(    // insert L
                                     this.cc.fieldInsert(this.B, 33, 15, this.C), // insert C
-                                    10, 2, this.L)
+                                    10, 2, this.L),
                                 18, 15, t2),  
                             0, 1, 0);      
                     this.access(0x0B);                  // [S] = B
