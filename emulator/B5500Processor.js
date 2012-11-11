@@ -496,7 +496,7 @@ B5500Processor.prototype.compareSourceWithDest = function(count) {
                         this.M++;
                     }
                 }
-            } else {                    // check this character
+            } else {                    // strings still equal -- check this character
                 if ((this.Y = this.cc.fieldIsolate(this.A, aBit, 6)) != (this.Z = this.cc.fieldIsolate(this.B, bBit, 6))) {
                     this.Q |= 0x04;     // set Q03F to stop further comparison
                     this.MSFF = (B5500Processor.collate[this.Y] > B5500Processor.collate[this.Z] ? 1 : 0);
@@ -674,6 +674,51 @@ B5500Processor.prototype.fieldArithmetic = function(count, subtract) {
 };
 
 /**************************************/
+B5500Processor.prototype.streamBitsToDest = function(count, mask) {
+    /* Streams a pattern of bits to the destination specified by S, K, and V,
+    as supplied by the 48-bit "mask" argument. Partial words are filled from
+    the low-order bits of the mask. Implements the guts of Character-Mode 
+    Bit Set (XX64) and Bit Reset (XX65). Leaves the registers pointing at the 
+    next bit in sequence */
+    var bn;                             // field starting bit number
+    var fl;                             // field length in bits
+    
+    if (count) {
+        this.cycleCount += count;
+        if (!this.BROF) {
+            this.access(0x03);          // B = [S]
+        }
+        do {
+            bn = this.K*6 + this.V;     // starting bit nr.
+            fl = 48-bn;                 // bits remaining in the word
+            if (count < fl) {
+                fl = count;
+            }
+            if (fl < 48) {
+                this.B = this.cc.fieldInsert(this.B, bn, fl, mask);
+            } else {
+                this.B = mask;          // set the whole word
+            }
+            count -= fl;                // decrement by number of bits modified
+            bn += fl;                   // increment the starting bit nr.
+            if (bn < 48) {
+                this.V = bn % 6;
+                this.K = (bn - this.V)/6;
+            } else {
+                this.K = this.V = 0;
+                this.access(0x0B);      // [S] = B, save the updated word
+                this.S++;
+                if (count > 0) {
+                    this.access(0x03);  // B = [S], fetch next word in sequence
+                } else {
+                    this.BROF = 0;
+                }
+            }
+        } while (count);
+    }
+};
+
+/**************************************/
 B5500Processor.prototype.streamSourceToDest = function(count, transform) {
     /* General driver for character-mode character transfers from source to
     destination, such as TRS or TRZ. 
@@ -765,7 +810,155 @@ B5500Processor.prototype.streamToDest = function(count, transform) {
 };
 
 /**************************************/
-B5500Processor.storeForInterrupt = function(forTest) {
+B5500Processor.prototype.streamInputConvert = function(count) {
+    /* Converts a signed-numeric character field at the source M & G address 
+    from decimal to binary, storing the resulting word at the S address and then
+    incrementing S. Normally, decimal to binary conversion shouldn't be this
+    complex, so we must do it more or less the way the B5500 hardware did, by
+    repeated remainder division (i.e., shifting right) and adjusting the
+    low-order digit by -3 when a one was shifted into the high-order bit of the
+    low-order digit from the higher digit locations. The problem with doing it a
+    more direct and efficient way is with digits that are not in the range 0-9.
+    Doing it the hardware way should yield the same (albeit questionable)
+    result. See Section 2.6 in the B5281 Training Manual for details. This
+    process took at least 27 clocks on the B5500, so we can afford to be slow
+    here, too. Note that a maximum of 8 characters are converted */
+    var a = 0;                          // local working copy of A
+    var b = 0;                          // local working copy of B
+    var power = 1;                      // A-register shif factor
+    
+    this.streamAdjustSourceChar();
+    if (this.BROF) {
+        this.access(0x0B);              // [S] = B
+        this.BROF = 0;
+    }
+    if (this.K || this.V) {             // adjust dest to word boundary
+        this.K = this.V = 0;
+        this.S++;
+    }
+    if (count) {                        // count > 0
+        this.cycleCount += count*2 + 27;
+        count = ((count-1) & 0x07) + 1; // limit the count to 8
+        if (!this.AROF) {
+            this.access(0x04);          // A = [M]
+        }
+        
+        // First, assemble the digits into B
+        do {                            
+            b = b << 4 | ((this.Y = this.cc.fieldIsolate(this.A, this.G*6, 6)) & 0x0F);
+            if (this.G < 7) {
+                this.G++;
+            } else {
+                this.G = 0;
+                this.M++;
+                if (count > 1) {
+                    this.access(0x04);  // A = [M], only if more chars are needed
+                } else {
+                    this.AROF = 0;
+                }
+            }
+        } while (--count);
+        
+        // Then do the artful shifting to form the binary value in A
+        this.AROF = 0;
+        this.B = b;                     // for display purposes only
+        while (b) {
+            if (b & 0x01) {
+                a += power;
+            }
+            power *= 2;
+            b >>>= 1;
+            if (b & 0x08) {
+                b -= 3;                 // since the low-order digit is >= 8, don't worry about borrow
+            }
+        }
+        
+        // Finally, fix up the binary sign and store the result
+        if (a) {                        // zero results have sign bit reset
+            if (this.Y & 0x30 == 0x20) {
+                a += 0x400000000000;    // set the sign bit
+            }
+        }
+        this.A = a;      
+        this.access(0x0A);              // [S] = A
+        this.S++;
+    }
+};
+
+/**************************************/
+B5500Processor.prototype.streamOutputConvert = function(count) {
+    /* Converts the binary word addressed by M (after word-boundary adjustment) 
+    to decimal BIC at the destination address of S & K. The maximum number of 
+    digits to convert is 8. If the binary value can be represented in "count"
+    digits (or the count is zero), the true-false FF, MSFF, is set; otherwise it
+    is reset. The sign is stored in low-order character of the result */
+    var a;                              // local working copy of A
+    var b = 0;                          // local working copy of B
+    var c;                              // converted decimal character
+    var d = 0;                          // digit counter
+    var power = 1;                      // power-of-64 factor for result digits
+    
+    this.MSFF = 1;                      // set TFFF unless there's overflow
+    this.streamAdjustDestChar();
+    if (this.BROF) {
+        this.access(0x0B);              // [S] = B, but leave BROF set
+    }
+    if (this.G || this.H) {             // adjust source to word boundary
+        this.G = this.H = 0;
+        this.AROF = 0;
+        this.M++;
+    }
+    if (count) {                        // count > 0
+        this.cycleCount += count*2 + 27; 
+        if (!this.AROF) {
+            this.access(0x04);          // A = [M]
+        }
+        count = ((count-1) & 0x07) + 1; // limit the count to 8
+        a = this.A % 0x8000000000;      // get absolute mantissa value, ignore exponent
+        if (a) {                        // mantissa is non-zero, so conversion is required
+            if ((this.A % 800000000000) >= 0x400000000000) {
+                b = 0x20;               // result is negative, so preset the sign in the low-order digit
+            }
+            do {                        // Convert the binary value in A to BIC digits in B 
+                c = a % 10;
+                a = (a-c)/10;
+                if (c) {
+                    b += c*power;
+                }
+                power *= 64;
+            } while (a && ++d < count);
+            if (a) {
+                this.MSFF = 0;          // overflow occurred, so reset TFFF
+            }
+        }
+        this.AROF = 0;                  // invalidate A
+        this.M++;                       // and advance to the next source word
+        
+        // Finally, stream the digits from A (whose value is still in local b) to the destination 
+        this.A = b;                     // for display purposes only
+        this.access(0x03)               // B = [S], restore original value of B
+        d = 48 - count*6;               // starting bit in A
+        do {
+            this.B = this.cc.fieldTransfer(this.B, this.K*6, 6, b, d);
+            d += 6;
+            if (this.K < 7) {
+                this.K++;
+            } else {
+                this.access(0x0B);      // [S] = B
+                this.K = 0;
+                this.S++;
+                if (count > 1) {
+                    this.access(0x03);  // B = [S]
+                } else
+                    this.BROF = 0;
+                }
+            }
+        } while (--count);
+    }    
+};
+
+/**************************************/
+B5500Processor.prototype.storeForInterrupt = function(forTest) {
     /* Implements the 3011=SFI operator and the parts of 3411=SFT that are
     common to it. "forTest" implies use from SFT */
     var forced = this.Q & 0x0040;       // Q07F: Hardware-induced SFI syllable
@@ -902,7 +1095,7 @@ B5500Processor.storeForInterrupt = function(forTest) {
 };
 
 /**************************************/
-B5500Processor.initiate = function(forTest) {
+B5500Processor.prototype.initiate = function(forTest) {
     /* Initiates the processor from interrupt control words stored in the
     stack. Assumes the INCW is in A. "forTest" implies use from IFT */
     var saveAROF;
@@ -999,6 +1192,106 @@ B5500Processor.initiate = function(forTest) {
 };
 
 /**************************************/
+B5500Processor.prototype.singePrecisionAdd = function(subtract) {
+    /* Adds the contents of the A register to the B register, leaving the result 
+    in B and invalidating A. If "subtract" is true, the sign of A is complemented
+    to accomplish subtraction instead of addition. 42-bit arithmetic is done on
+    the mantissas to allow for a rounding digit in the low-order octade (in the 
+    hardware, shifts off the low-order end of the word went into the X register) */
+    var ea;                             // signed exponent of A
+    var eb;                             // signed exponent of B
+    var ma;                             // absolute mantissa of A*8
+    var mb;                             // absolute mantissa of B*8
+    var sa;                             // mantissa sign of A (0=positive)
+    var sb;                             // mantissa sign of B (ditto)
+    
+    this.adjustABFull();
+    ma = this.A % 0x8000000000;
+    mb = this.B % 0x8000000000;
+    if (ma == 0) {                      // if A is zero, result is B
+        this.B %= 0x800000000000;       // reset the flag bit
+    } else if (mb == 0) {               // otherwise, if B is zero, result is A
+        this.B = this.A % 0x800000000000;
+    } else {                            // rats, we actually have to do this
+        ea = (this.A - ma)/0x8000000000;
+        sa = ((ea >>> 7) & 0x01) ^ (subtract ? 1 : 0);
+        ea = (ea & 0x40 ? -(ea & 0x3F) : (ea & 0x3F));
+        ma *= 8;                        // shift A left an octade to provide a guard digit 
+
+        eb = (this.B - mb)/0x8000000000;
+        sb = (eb >>> 7) & 0x01;
+        eb = (eb & 0x40 ? -(eb & 0x3F) : (eb & 0x3F));
+        mb *= 8;                        // shift B left an octade to provide a guard digit 
+
+        // If the exponents are unequal, normalize the larger and scale the smaller
+        // until they are in alignment, or one of the mantissas (mantissae?) becomes zero
+        if (ea > eb) {
+            // Normalize A
+            while (ma < 0x8000000000 && ea != eb) {
+                ma *= 8;
+                ea--;
+            }
+            // Scale B until its exponent matches or mantissa goes to zero
+            while (ea != eb && mb) {
+                mb = (mb - mb%8)/8;
+                eb++;
+            }
+        } else if (ea < eb) {
+            // Normalize B
+            while (mb < 0x8000000000 && eb != ea) {
+                mb *= 8;
+                eb--;
+            }
+            // Scale A until its exponent matches or mantissa goes to zero
+            while (eb != ea && ma) {
+                ma = (ma - ma%8)/8;
+                ea++;
+            }
+        }
+
+        // At this point, the exponents are aligned (or one of the mantissas 
+        // is zero), so do the actual 42-bit addition
+        mb = (sb ? -mb : mb) + (sa ? -ma : ma);
+
+        if (mb == 0) {
+            this.B = 0;
+        } else {
+            // Determine the resulting sign
+            if (mb >= 0) {
+                sb = 0;
+            } else {
+                sb = 1;
+                mb = -mb;
+            }
+
+            // Round and normalize as necessary
+            ma = mb % 8;                // reuse ma for the guard digit;
+            mb = (mb - ma)/8;           // shift back to a 39-bit mantissa
+            if (mb >= 0x8000000000) {
+                ma = mb % 8;
+                mb = (mb - ma)/8;       // renormalize due to overflow
+                eb++; 
+            }
+            mb += (ma >>> 2);           // add in the rounding bit (what about overflow ??)
+
+            // Check for exponent overflow
+            if (eb > 63) {
+                eb %= 64;
+                if (this.NCSF) {
+                    this.I = (this.I & 0x0F) | 0xB0;    // set I05/6/8: exponent-overflow
+                    this.cc.signalInterrupt();
+                }
+            } else if (eb < 0) {
+                eb = (-eb) | 0x40;      // set the exponent sign bit
+            }
+
+            this.B = (sb*64 + eb)*0x8000000000 + mb;     // Final Answer
+        } 
+    }
+    this.AROF = 0;
+};
+
+/**************************************/
 B5500Processor.prototype.computeRelativeAddr = function(offset, cEnabled) {
     /* Computes an absolute memory address from the relative "offset" parameter
     and leaves it in the M register. See Table 6-1 in the B5500 Reference
@@ -1064,7 +1357,7 @@ B5500Processor.prototype.indexDescriptor = function() {
 
     // Normalize the index, if necessary
     if (xe > 0) {                       // index is not an integer
-        if (this.cc.bit(bw, 2)) {            // index exponent is negative
+        if (this.cc.bit(bw, 2)) {       // index exponent is negative
             do {
                 xo = xm % 8;
                 xm = (xm - xo)/8;
@@ -1710,9 +2003,8 @@ B5500Processor.prototype.run = function() {
                     if (!this.AROF) {
                         this.access(0x04);              // A = [M]
                     }
-                    t1 = B5500Processor.collate[this.cc.fieldIsolate(this.A, this.G*6, 6)];
-                    t2 = B5500Processor.collate[variant];
-                    this.MSFF = (t1 == t2 ? 1 : 0);
+                    t1 = this.cc.fieldIsolate(this.A, this.G*6, 6);
+                    this.MSFF = (t1 == variant ? 1 : 0);
                     break;
 
                 case 0x15:              // XX25: TNE=Test for not equal
@@ -1720,9 +2012,8 @@ B5500Processor.prototype.run = function() {
                     if (!this.AROF) {
                         this.access(0x04);              // A = [M]
                     }
-                    t1 = B5500Processor.collate[this.cc.fieldIsolate(this.A, this.G*6, 6)];
-                    t2 = B5500Processor.collate[variant];
-                    this.MSFF = (t1 != t2 ? 1 : 0);
+                    t1 = this.cc.fieldIsolate(this.A, this.G*6, 6);
+                    this.MSFF = (t1 != variant ? 1 : 0);
                     break;
 
                 case 0x16:              // XX26: TEG=Test for equal or greater
@@ -1768,9 +2059,11 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x1A:              // XX32: ---=Field subtract (aux)       !! ??
+                    this.fieldArithmetic(variant, true);
                     break;
 
                 case 0x1B:              // XX33: ---=Field add (aux)            !! ??
+                    this.fieldArithmetic(variant, false);
                     break;
 
                 case 0x1C:              // XX34: TEL=Test for equal or less
@@ -1824,6 +2117,22 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x21:              // XX41: STC=Store TALLY
+                    this.cycleCount += variant;
+                    this.A = this.B;                    // save B
+                    this.AROF = 0;                      // invalidate A
+                    this.B = this.F;                    // save RCW address in B (why??)
+                    if (this.BROF) {
+                        this.access(0x0A);              // [S] = A, save original B contents
+                        this.BROF = 0;
+                    }
+                    this.A = this.B;                    // move saved F address to A (why??)
+                    this.B = this.R;                    // copy the TALLY value to B
+                    t1 = this.S;                        // save S (not the way the hardware did it)
+                    this.S = this.F - variant;          
+                    this.access(0x0B);                  // [S] = B, store the TALLY value
+                    this.B = this.A;                    // restore F address from A (why??)
+                    this.S = t1;                        // restore S
+                    this.BROF = 0;                      // invalidate B
                     break;
 
                 case 0x22:              // XX42: SEC=Set TALLY
@@ -2038,15 +2347,18 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x34:              // XX64: BIS=Set bit
+                    this.streamBitsToDest(variant, 0xFFFFFFFFFFFF);
                     break;
 
                 case 0x35:              // XX65: BIR=Reset bit
+                    this.streamBitsToDest(variant, 0);
                     break;
 
                 case 0x36:              // XX66: OCV=Output convert
                     break;
 
                 case 0x37:              // XX67: ICV=Input convert
+                    this.streamInputConvert(variant);
                     break;
 
                 case 0x38:              // XX70: CEL=Compare equal or less
@@ -2170,9 +2482,11 @@ B5500Processor.prototype.run = function() {
                 case 0x01:              // XX01: single-precision numerics
                     switch (variant) {
                     case 0x01:          // 0101: ADD=single-precision add
+                        this.singlePrecisionAdd(false);
                         break;
 
                     case 0x03:          // 0301: SUB=single-precision subtract
+                        this.singlePrecisionAdd(true);
                         break;
 
                     case 0x04:          // 0401: MUL=single-precision multiply
