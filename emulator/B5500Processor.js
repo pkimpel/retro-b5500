@@ -1207,6 +1207,7 @@ B5500Processor.prototype.singlePrecisionAdd = function(adding) {
     
     this.cycleCount += 4;               // estimate some general overhead
     this.adjustABFull();
+    this.AROF = 0;                      // A is unconditionally marked empty
     ma = this.A % 0x8000000000;         // extract the A mantissa
     mb = this.B % 0x8000000000;         // extract the B mantissa
     
@@ -1308,7 +1309,6 @@ B5500Processor.prototype.singlePrecisionAdd = function(adding) {
             this.B = (sb*128 + eb)*0x8000000000 + mb;   // Final Answer
         } 
     }
-    this.AROF = 0;
 };
 
 /**************************************/
@@ -1329,6 +1329,7 @@ B5500Processor.prototype.singlePrecisionMultiply = function() {
     
     this.cycleCount += 4;               // estimate some general overhead
     this.adjustABFull();
+    this.AROF = 0;                      // A is unconditionally marked empty
     ma = this.A % 0x8000000000;         // extract the A mantissa
     mb = this.B % 0x8000000000;         // extract the B mantissa
     
@@ -1403,6 +1404,9 @@ B5500Processor.prototype.singlePrecisionMultiply = function() {
         }
         
         // Round the result
+        this.Q &= ~(0x10);              // reset Q05F
+        this.A = 0;                     // required by specs due to the way rounding addition worked
+        
         if (xx >= 0x4000000000) {       // if high-order bit of remaining extension is 1
             if (mb < 0x7FFFFFFFFF) {    // if the rounding would not cause overflow
                 this.cycleCount++;
@@ -1433,7 +1437,6 @@ B5500Processor.prototype.singlePrecisionMultiply = function() {
             this.B = (sb*128 + eb)*0x8000000000 + mb;   // Final Answer
         } 
     }
-    this.AROF = 0;
     this.X = mx;                        // for display purposes only
 };
 
