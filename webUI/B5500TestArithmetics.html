@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<head>
+<title>B5500 Emulator Arithmetic Testbed</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta name="Author" content="Nigel Williams & Paul Kimpel">
+<meta http-equiv="Content-Script-Type" content="text/javascript">
+<meta http-equiv="Content-Style-Type" content="text/css">
+<link id=defaultStyleSheet rel=stylesheet type="text/css" href="B5500DistributionAndDisplay.css">
+
+<script src="../emulator/B5500SystemConfiguration.js"></script>
+<script src="../emulator/B5500CentralControl.js"></script>
+<script src="../emulator/B5500Processor.js"></script>
+
+<script>
+"use strict";
+var cc;
+
+function setText(id, text) {
+    /* Replaces the children of the node having id="id" with the "text" */
+    var e = document.getElementById(id);
+    var f;
+    
+    if (!e) {
+        alert("Invalid node id \"" + id + "\"");
+    } else {
+        while (f = e.firstChild) {
+            e.removeChild(f);
+        }
+        e.appendChild(document.createTextNode(text));
+    }
+}
+
+function getOctal(id) {
+    /* Obtains the .value from the element "id", parses it, and returns the 
+    result as a B5500 numeric word. If the element text contains any of "-+eE."
+    the text is parsed as a decimal integer or floating point number, otherwise
+    it is parsed as an octal value */
+    var e = document.getElementById(id);
+    var ev = 0;                         // exponent of parsed value
+    var mv;                             // mantissa of parsed value
+    var sv = 0;                         // sign of parsed value
+    var tv = 0;                         // sign of parsed value exponent
+    var text = e.value;                 // text of element
+    var v;                              // parsed value of element text
+    
+    if (text.search(/[-+eE.]/) < 0) {
+        v = parseInt(text, 8);
+    } else {
+        v = parseFloat(text);
+        if (!isNaN(v)) {
+            if (v < 0) {
+                sv = 1;
+                v = -v;
+            }
+            while (v < 0x1000000000) {
+                v *= 8;
+                ev--;
+            } 
+            while (v >= 0x8000000000) {
+                v /= 8;
+                ev++;
+            }
+            mv = Math.floor(v);
+            if (ev >= -13) {
+                while (ev < 0 && mv%8 == 0) {
+                    mv /= 8;
+                    ev++;
+                }
+            }
+            if (ev < 0) {
+                tv = 1;
+                ev = -ev;
+            }
+            v = (((sv*2) + tv)*64 + ev%64)*0x8000000000 + mv;        // to B5500 format
+        }
+    }
+    
+    if (isNaN(v)) {
+        e.style.backgroundColor = "red";
+    } else {
+        e.style.backgroundColor = "";
+    }
+    return v;
+}
+
+function putOctal(id, value) {
+    /* Formats the "value" as octal and set the "id".value property with the result */
+    var e = document.getElementById(id);
+    
+    e.value = value.toString(8);
+}
+
+function putNumber(id, value) {
+    /* Converts the "value" as a B5500 number to a Javascript Number() object and
+    formats it as the text content of node "id" */
+    var m = value % 0x8000000000;       // get the mantissa
+    var e = (value - m)/0x8000000000;   // get the exponent and sign bits
+    var s = (e & 0x80) >>> 7;           // get the mantissa sign
+    var t = (e & 0x40) >>> 6;           // get the exponent sign
+    
+    e = (t ? -(e & 0x3F) : (e & 0x3F)); // get signed value of exponent
+    setText(id, (Math.pow(8, e)*(s ? -m : m)).toPrecision(12));
+}
+
+function testIt(index) {
+    /* Simple test driver for the Processor arithmetic ops */
+    var opcode = 0x02D;                 // NOOP (XX55) by default
+    var text;
+    var title;
+    var value;
+    
+    cc.P1.X = cc.P1.I = 0;
+    
+    value = getOctal("AReg");
+    if (!isNaN(value)) {
+        cc.P1.A = value;
+        cc.P1.AROF = 1;
+        setText("ARegOrig", value.toString(8));
+        value = getOctal("BReg");
+        if (!isNaN(value)) {
+            cc.P1.B = value;
+            cc.P1.BROF = 1;
+            setText("BRegOrig", value.toString(8));
+            
+            switch(index) {
+            case 1:
+                title = "Add";
+                opcode = 0x041;         // ADD (0101)
+                break;
+            case 2:
+                title = "Subtract";
+                opcode = 0x0C1;         // SUB (0301)
+                break;
+            case 3:
+                title = "Multiply";
+                opcode = 0x101;         // MUL (0401)
+                break;
+            case 4:
+                title = "Divide";
+                opcode = 0x201;         // DIV (1001)
+                break;
+            }
+            
+            cc.P1.T = opcode;
+            cc.P1.step();
+
+            putOctal("AReg", cc.P1.A);
+            putNumber("ARegValue", cc.P1.A);
+            putOctal("BReg", cc.P1.B);
+            putNumber("BRegValue", cc.P1.B);
+            putOctal("XReg", cc.P1.X);
+            putNumber("XRegValue", cc.P1.X);
+            putOctal("IReg", cc.P1.I);
+        }
+    }
+    setText("Caption", title);
+}
+
+window.onload = function() {
+
+    cc = new B5500CentralControl();
+    cc.powerOn();
+    cc.clear();
+
+    //cc.MemMod[0][0x10] = 0x00400C215415;// LITC 1, LITC 3, XCH, DUP
+
+    cc.P1.S = 0x100;                    // stack at @400
+    cc.P1.R = 0x005;                    // PRT at @500 (R has addr div 64)
+
+    cc.P1.C = 0x10;                     // execute from address @20
+    cc.P1.access(0x30);                 // P = [C]
+    cc.P1.T = cc.fieldIsolate(cc.P1.P, 0, 12);
+    cc.P1.TROF = 1;
+    cc.P1.L = 1;                        // point to the next instruction
+    
+    cc.P1.NCSF = 1;                     // run test in normal state
+
+}
+</script>
+</head>
+
+<body style="position:relative">
+
+<div style="position:absolute; background-color:#666; width:230px; height: 136px; right:0; top:0">
+<div id=BurroughsLogo>
+    <img id=BurroughsLogoImage src="Burroughs-Logo-Neg.jpg">
+</div>
+<div id=B5500Logo>B 5500 
+</div>
+</div>
+
+<h3>Arithmetic Testbed</h3>
+
+<div id=Caption>&nbsp;</div>
+
+<table border=1 cellpadding=4 cellspacing=0>
+<thead>
+<tr>
+    <th>Reg
+    <th>Current (octal)
+    <th>FP Value
+    <th>Original (octal)
+<tbody>
+<tr>
+    <td class=center>A
+    <td><input id=AReg name=AReg type=text class=number size=16 maxlength=16>
+    <td id=ARegValue class=number>
+    <td id=ARegOrig class=number>
+<tr>    
+    <td class=center>B
+    <td><input id=BReg name=BReg type=text class=number size=16 maxlength=16>
+    <td id=BRegValue class=number>
+    <td id=BRegOrig class=number>
+<tr>    
+    <td class=center>X
+    <td><input id=XReg name=XReg type=text class=number size=13 maxlength=13>
+    <td id=XRegValue class=number>
+    <td id=XRegOrig class=number>
+<tr>  
+    <td class=center>I
+    <td><input id=IReg name=IReg type=text class=number size=3 maxlength=3>
+    <td id=IRegValue class=number>
+    <td id=IRegOrig class=number>
+</table>
+
+<p>
+<input name=Add         type=button value=Add           onclick="return testIt(1)">
+<input name=Subtract    type=button value=Subtract      onclick="return testIt(2)">
+<input name=Multiply    type=button value=Multiply      onclick="return testIt(3)">
+<input name=Divide      type=button value=Divide        onclick="return testIt(4)"  DISABLED  >
+</p>
+
+</body>
+</html>
