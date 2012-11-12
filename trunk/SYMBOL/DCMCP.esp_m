@@ -15709,3 +15709,110 @@ COMMENT FORMAT OF "IN-CORE" FPB ( 5 WORDS FOR EACH FILE ENTRY )         20051500
       WORD[3].[36:6 ]  = LOGICAL UNIT NUMBER + 1                        20052700        
       WORD[3].[43:5 ]  = UNIT TYPE                                      20052800        
 END OF COMMENT;                                                         20052900        
+                                                                        20053000        
+    FPBVERSION:=SEG0[5].1:8]; % NEWER VERSN.CONTAINS EU,SPD,ETC.        20053100        
+    STREAM(TOG:=(FPBVERSION=1),T1:=0,T2:=0,C:=0,FPB,FB);                20053200        
+       BEGIN                                                            20053300        
+       SI:=FPB;                                                         20053400        
+   LL: IF SC="0" THEN % FIRST DIGIT OF FILE NUMBER                      20053500        
+          BEGIN                                                         20053600        
+          SI:=SI+1; IF SC="0" THEN GO TO LP; % END OF FPB               20053700        
+          END ELSE SI:=SI+1;                                            20053800        
+       SI:=SI+1; T1:=SI; SI:=SI+1; % FILE TYPE LOCATION                 20053900        
+       2(DS:=LIT"0"; DS:=7CHR); % MFID,FID                              20054000        
+       T2:=DI; DI:=LOC C; DI:=DI+7; DS:=CHR; DI:=T2; %INT.NAME SIZE     20054100        
+       DS:=15LIT"0"; % ZERO OUT REEL,DATE,CYCLE,ETC.                    20054200        
+       T2:=SI; SI:=T1; DS:=CHR; SI:=T2; % FILE TYPE                     20054300        
+       GO TO SK; L1: GO TO LL: L2: GO TO XXIT; SK:                      20054400        
+       SI:=SI+C; % SKIP OVER INTERNAL NAME                              20054500        
+       TOG(T2:=DI; DI:=DI-6; SKIP 3DB; SKIP 4SB;                        20054600        
+           IF SB THEN DS:=SET ELSE DS:=RESET; SKIP SB; % SENSITIVE      20054700        
+           2(IF SB THEN DS:=SET ELSE DS:=RESET; SKIP DB); % SPEED       20054800        
+           5(IF SB THEN DS:=SET ELSE DS:=RESET; SKIP SB); % EU          20054900        
+           DI:=T2);                                                     20055000        
+       DS:=8LIT"0"; % ZERO OUT FIFTH WORD OF FB                         20055100        
+       GO TO L1;                                                        20055200        
+ XXIT: END STREAM STATEMENT;                                            20055300        
+                                                                        20055400        
+    IF MCPJOB THEN GO TO STOP; % NO LABEL EQUATION FOR "SYSTEM" JOBS    20055500        
+                                                                        20055600        
+%%% LABEL EQUATION PROCESSING                                           20055700        
+                                                                        20055800        
+    COMMENT LABEL EQUATION RECORD FORMAT:                               20055900        
+                                                                        20056000        
+       WORD[ 0]         =  MFID ( ZERO, IF NONE GIVEN )                 20056100        
+       WORD[ 1]         =  FID                                          20056200        
+       WORD[ 2 ].[1:17] = REEL NUMBER ( 3 BCL DIGITS )                  20056300        
+               .[18:30] = CREATION DATE ( 5 BCL DIGITS )                20056400        
+               .[42:1 ] = MARKER FOR FILE OPEN ( 1 = CDATE GIVEN )      20056500        
+       WORD[ 3].[ 1:5 ] = CYCLE NUMBER                                  20056600        
+               .[15:8 ] = NUMBER OF COPIES -1                           20056700        
+               .[23:1 ] = PACKETS                                       20056800        
+               .[42:1 ] = "FORMS" REQUESTED                             20056900        
+               .[43:5 ] = UNIT TYPE                                     20057000        
+       WORD[ 4].[ 0:6 ] = SIZE OF INTERNAL NAME                         20057100        
+               .[ 6:42] = FIRST SEVEN CHARACTERS OF INTERNAL NAME       20057200        
+       WORD[ 5] THROUGH WORD[11] = REMAINDER OF INTERNAL NAME           20057300        
+       WORD[12].[15:1 ] = SENSITIVE BIT                                 20057400        
+               .[16:2 ] = DISK SPEED (1=FAST,2=SLOW,0=NOT SPECIFIED)    20057500        
+               .[18:5 ] = EU NUMBER + 1                                 20057600        
+       WORD[14] = START OF NEXT LBL.EQN.ENTRY (14 IF NO MORE ENTRIES)   20057700        
+       WORD[29] = LINK TO NEXT ESP SEGMENT FOR LABEL EQUATION           20057800        
+   END OF COMMENT;                                                      20057900        
+                                                                        20058000        
+    FOR L := 1 STEP 1 UNTIL 2 DO                                        20058100        
+       BEGIN                                                            20058200        
+       LINK:=IF L THEN S[15] ELSE S[13]; % EQN FROM COMPILE/EXEC,       20058300        
+        % S[15] = RELATIVE DISK ADDRESS IN CODE FILE FOR LABEL          20058400        
+        %            EQUATION ENTERED AT COMPILE TIME                   20058500        
+        % S[13] = ACTUAL ESP DISK ADDRESS OF LABEL EQUATION ENTERED     20058600        
+        %            AT RUN TIME.                                       20058700        
+       S2 := NOT L; % TRUE, IF LBL.EQN.ENTERED AT RUN TIME              20058800        
+       WHILE LINK NEQ 0 DO % IF LBL.EQN.EXISTS                          20058900        
+          BEGIN                                                         20059000        
+          IF LBL=0 THEN                                                 20059100        
+          BEGIN                                                         20059110        
+          M[(LBL:=ARRAYDESC(30,LBLEQNAREAV)) INX NOT 1].AREAMIXF:=0;    20059120        
+          END;                                                          20059130        
+          % IF LINK=S[15],READ FROM CODE FILE ELSE READ FROM ESP DISK   20059200        
+          DISKWAIT(-(LBL INX 0), 30,                                    20059300        
+                   IF L THEN ACTUALDISKADDRESS(LINK) ELSE LINK);        20059400        
+          I := 0; % START AT BEGINNING OF SEGMENT                       20059500        
+          IF NOT L THEN FORGETESPDISK(LINK);                            20059600        
+          LINK := LBL[29]; % NEXT LINK                                  20059700        
+          IF S2 THEN % RUN TIME LABEL EQUATION                          20059900        
+             BEGIN                                                      20060000        
+             % IF A COMPILE JOB, SAVE FID OF OBJECT FILE NAME IN        20060100        
+             % JAR[30] TO PRINT MIX MESSAGE OF THE FORM:                20060200        
+             %    "ALGOL"/<MFID>/<FID>                                  20060300        
+             IF JAR[MIX,0] LSS 0 THEN JAR[MIX,30]:=LBL[1];              20060400        
+             S2:=0; % USE THE FIRST EQUATION ONLY                       20060500        
+             END;                                                       20060600        
+          IF LBL[0] = 14 THEN GO TO STOP;                               20060800        
+UNBLK:    LINDX:=I|14; % INDEX INTO LABEL EQUATION SEGMENT              20060900        
+          STREAM(FN:=0 : FT:=[FT], ZERO:=0, T2:=0,                      20061000        
+                TOG:=(FPBVERSION=1), FPB, F:=[LBL[LINDX+4]], C:=0);     20061100        
+             BEGIN                                                      20061200        
+             SI := F; DI:=LOC C; DI:=DI+7 ; DS:=CHR; % LBL.NAM.SIZE     20061300        
+             SI := FPB;                                                 20061400        
+          L: DI:=LOC FN; DI:=DI+6; DS:=2 CHR; % FILE NUMBER             20061500        
+             DI := LOC ZERO;  SI:=SI-2;                                 20061600        
+             IF 2 SC = DC THEN GO TO XXIT; % FILE NUMBER=0              20061700        
+             DI:=FT; DS:=CHR; DI:=SI+14; % SAVE FILE TYPE FOR CHK BELOW 20061800        
+             DI := F; % SI AT FPB INT.NAM,DI AT LBL.EQN.                20061900        
+             IF SC = DC THEN % SAME STRING SIZE                         20062000        
+                BEGIN                                                   20062100        
+                IF C DC=DC THEN GO TO XXIT; % ALL CHARACTERS MATCH      20062200        
+                END                                                     20062300        
+             ELSE                                                       20062400        
+                BEGIN % NOT THE SAME SIZE                               20062500        
+                SI:=SI-1; DI:=LOC T2; DI:=DI+7; DS:=CHR;                20062600        
+                SI:=SI+72; % SKIP OVER FPB ENTRY                        20062700        
+                END;                                                    20062800        
+             TOG(SI:=SI+2); % SPEED AND EU CHARACTERS IN FPB(VERSION 1) 20062900        
+             GO TO L;                                                   20063000        
+      XXIT:  END;                                                       20063100        
+                                                                        20063200        
+          IF (T:=P) NEQ 0 THEN % VALID LABEL EQUATION                   20063300        
+             BEGIN                                                      20063400        
+             FBADRS:=(T-1)|ETRLNT+FB; % ADRS OF FB FILE ENTRY           20063500        
