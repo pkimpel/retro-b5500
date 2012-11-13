@@ -15816,3 +15816,69 @@ UNBLK:    LINDX:=I|14; % INDEX INTO LABEL EQUATION SEGMENT              20060900
           IF (T:=P) NEQ 0 THEN % VALID LABEL EQUATION                   20063300        
              BEGIN                                                      20063400        
              FBADRS:=(T-1)|ETRLNT+FB; % ADRS OF FB FILE ENTRY           20063500        
+             % FT IS FILE TYPE FROM FPB OBTAINED ABOVE                  20063600        
+             IF (FT1:=LBL[LINDX+3].[43:5]) NEQ @37 THEN FT:=FT1;%NEW TYP20063700        
+             FT:=FT.[43:5]; % REMOVE "FORMS" BIT                        20063800        
+             TYPEDISK ~ (FT=10) OR (FT=12) OR (FT=13) OR (FT=26);       20063900        
+             STREAM(X:=[LBL[LINDX]],TOG:=(TYPEDISK AND (FPBVERSION=1)), 20064000        
+                    FBADRS);                                            20064100        
+                BEGIN                                                   20064200        
+                SI:=X; DS:=3WDS; DS:=CHR; % MFID,FID REEL,DATE,CYCLE    20064300        
+                TOG(SI:=SI+2; SKIP 5SB; DI:=SI+2; SKIP 5DB;             20064400        
+                    IF SB THEN DS:=SET ELSE DS:=RESET; SKIP SB;         20064500        
+                    JUMP OUT TO L); % SAVE EU/SPEED SPECS FOR DISK      20064600        
+                DS:=3CHR;                                               20064700        
+             L: DS:=3CHR;                                               20064800        
+                IF SC NEQ "~" THEN % NEW TYPE SPECIFIED                 20064900        
+                  IF SC NEQ """ THEN DS:=CHR ELSE DS:=SET;              20065000        
+                END STREAM STATEMENT;                                   20065100        
+             SENSEVAL := (EUVAL := LBL[LINDX+12].[15:8]).[40:1];        20065200        
+             SPDVAL   := EUVAL.[41:2];                                  20065300        
+             EUVAL    := EUVAL AND @37;                                 20065400        
+             IF SPDVAL GTR 0 THEN                                       20065500        
+                M[FBADRS+3]:=(*P(DUP))&SPDVAL[16:46:2];                 20065600        
+             IF SENSEVAL THEN % FILE SENSITIVE                          20065700        
+                M[FBADRS+3]:=(*P(DUP))&SENSEVAL[15:47:1];               20065800        
+             IF EUVAL GTR 0 THEN % NEW EU NUMBER REQUESTED IN LBL.EQN.  20065900        
+                M[FBADRS+3]:=(*P(DUP))&EUVAL [18:43:5];                 20066000        
+             END; % IF VALID LABEL EQUATION                             20066100        
+          IF (I:=I+1) = 1 THEN IF LBL[14] NEQ 14 THEN GO TO UNBLK;      20066200        
+          END; % WHILE LINK NEQ 0                                       20066300        
+STOP:  END; % FOR L                                                     20066400        
+    FORGETSPACE(FPB);                                                   20066500        
+    TRP[3] := [M[FB]] & (SEG0[7].[CF]|ETRLNG)[8:38:10];                 20066600        
+    END; % IF TYPE = EQUATING                                           20066700        
+                                                                        20066800        
+EXIT:                                                                   20080000        
+    P([RETURNRCW],  STS, 0, RDS, 0, XCH, P&P[CTF], STF);                20080100        
+    END PROCEDURE SELECTRUN1;                                           20080200        
+                                                                        20080300        
+                                                                        20080400        
+PROCEDURE SELECTRUN2;                                                   20080500        
+   BEGIN                                                                20080600        
+    REAL    MSCW         =  -2,                                         20080700        
+            F            =  -1,                                         20080800        
+            MYMSCW       =  -1,                                         20080900        
+            RCW          =  +0,                                         20081000        
+            I            =  +1,                                         20081100        
+            T            =  +2,                                         20081200        
+            L            =  +3,                                         20081300        
+            DT           =  +4,                                         20081400        
+            MIX          =  +5,                                         20081500        
+            HDR          =  +6,                                         20081600        
+            LEVEL        =  +7,                                         20081700        
+            MCPJOB       =  +8,                                         20081800        
+            OLAYDISK     =  +9,                                         20081900        
+            THISLINK     =  +10,                                        20082000        
+            NEXTLINK     =  +11,                                        20082100        
+            PREVLINK     =  +12,                                        20082200        
+            TYPE         =  +13,                                        20082300        
+            STACKLOC     =  +14,                                        20082400        
+            SHEETLOCKED  =  +15;                                        20082500        
+                                                                        20082600        
+    ARRAY   A            =  +16[*],                                     20082700        
+            SEG0         =  +17[*],                                     20082800        
+            TRP          =  +18[*],                                     20082900        
+            LBL          =  +19[*],                                     20083000        
+            SD           =  NT2[*],                                     20083100        
+            TSKA         =  NT2[*];                                     20083200        
