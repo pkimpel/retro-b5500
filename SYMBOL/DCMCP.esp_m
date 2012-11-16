@@ -15882,3 +15882,102 @@ PROCEDURE SELECTRUN2;                                                   20080500
             LBL          =  +19[*],                                     20083000        
             SD           =  NT2[*],                                     20083100        
             TSKA         =  NT2[*];                                     20083200        
+                                                                        20083300        
+    NAME    ADDR         = LBL +1;                                      20083500        
+    REAL    PASSLEVEL    = ADDR + 1,                                    20083600        
+            SVALUE       = PASSLEVEL,                                   20083700        
+            RETURNMSCW   = PASSLEVEL + 1,                               20083800        
+            RETURNRCW    = RETURNMSCW + 1;                              20083900        
+                                                                        20084000        
+    DEFINE SHEETMAX = MIXMAX#;                                          20084100        
+                                                                        20084200        
+                                                                        20085300        
+    %%%%                     ***NOTE****                                20085400        
+    %%%% THE VARIABLES DECLARED ABOVE MUST CORRESPOND EXACTLY TO        20085500        
+    %%%% THOSE DECLARED IN PROCEDURE SELECTRUN.                         20085600        
+                                                                        20085710        
+    REAL MSGSPACE = RETURNRCW + 1; % LOCAL TO THIS PROCEDURE            20085800        
+    LABEL DLX, BMSG, SKIP, EXIT;                                   %127-20085900        
+    DEFINE XCLOCKTIME =                                                 20086000        
+        (((NT2:=(XCLOCK DIV 3600)) MOD 60 + (NT2 DIV 60)|100 +          20086100        
+         0.5 ) DIV 1)#;                                                 20086200        
+                                                                        20086300        
+    DEFINE ACTUALDISKADDRESS(ACTUALDISKADDRESS1) =                      20086400        
+        ((JAR[MIX,((NT4:=ACTUALDISKADDRESS1) DIV (NT3:=JAR[MIX,8]))+10] 20086500        
+         + (NT4 MOD NT3) + 0.5) DIV 1)#;                                20086600        
+                                                                        20086700        
+ $ SET OMIT = NOT(PACKETS)                                              20086799        
+    DEFINE UNITNO = S[23].[2:6]#;  % ORIGINATING UNIT                   20086800        
+ $ POP OMIT                                                             20086801        
+                                                                        20086810        
+    DEFINE DALOCSIZE = 9#;                                              20087200        
+                                                                        20087400        
+    % VALUES ASSOCIATED WITH "TYPE" ;                                   20087500        
+                                                                        20087600        
+    DEFINE STARTING      =  1#,                                         20087700        
+           CONTINUEING   =  2#,                                         20087800        
+           QUITTING      =  3#,                                         20087900        
+           RUNING        =  4#,                                         20088000        
+           PASSING       =  5#,                                         20088100        
+           EQUATING      =  6#;                                         20088200        
+                                                                        20088300        
+    SUBROUTINE DELINK;                                                  20088400        
+    % DELINKS THE SHEET ENTRY AND RETURNS SHEET DISK SPACE              20088500        
+        BEGIN                                                           20088600        
+        STREAM(A:=S[3].[8:10],B:=P(.SCHEDULEIDS));                      20088700        
+            BEGIN % MARK SCHEDULE SLOT "OPEN"                           20088800        
+            SKIP A DB; DS:=RESET;                                       20088900        
+            END;                                                        20089000        
+        IF F = 0 THEN % SHEET ENTRY NOT PASSED AS PARAMETER             20089100        
+            BEGIN                                                       20089200        
+            IF NEXTLINK=0 THEN SHEET[LEVEL].[FF]:=PREVLINK;             20089300        
+            IF PREVLINK=0 THEN                                          20089400        
+                BEGIN                                                   20089500        
+                SHEET[LEVEL].[CF]:=NEXTLINK; GO DLX;                    20089600        
+                END;                                                    20089700        
+            IF LBL=0 THEN                                               20089800        
+            BEGIN                                                       20089810        
+            M[(LBL:=ARRAYDESC(30,LBLEQNAREAV)) INX NOT 1].AREAMIXF:=0;  20089820        
+            END;                                                        20089830        
+            DISKWAIT(-(LBL INX 0), 30, PREVLINK);                       20089900        
+            LBL[29]:=NEXTLINK;                                          20090000        
+            DISKWAIT( (LBL INX 0), 30, PREVLINK);                       20090100        
+DLX:        FORGETESPDISK(THISLINK);                                    20090200        
+            END; % IF SHEET ENTRY NOT A PARAMETER                       20090300        
+        END DELINK;                                                     20090400        
+                                                                        20090500        
+    BOOLEAN SUBROUTINE REENTRY;                                         20090700        
+        BEGIN                                                           20090800        
+        POLISH(FALSE);                                                  20090900        
+        IF JAR[MIX,2].[8:10] NEQ 0 THEN % NOT "GO" FROM COMPILE AND GO  20091000        
+        IF NOT (S[2].[2:1]) THEN % NOT ES-ED                            20091100        
+        FOR I:=1 STEP 1 UNTIL MIXMAX DO                                 20091200        
+        IF JAR[I,*] NEQ 0 THEN                                          20091300        
+        IF ((JAR[MIX,0] EQV JAR[I,0])) = (NOT 0) THEN % SAME MFID       20091400        
+        IF ((JAR[MIX,0] LSS 0) OR % COMPILER                            20091500        
+        (((JAR[MIX,1] EQV JAR[I,1])) = (NOT 0))) THEN % SAME FID        20091600        
+        IF JAR[I,10] NEQ 0  THEN % COMPILER OR SAME MFID                20091700        
+        IF JAR[I,2].[8:10] NEQ 0 THEN % NOT "GO" PART OF COMP.& GO      20091800        
+        IF PRYOR[I] GEQ 0 OR                                            20091900        
+        NFO[(I-1)|NDX+1].[FF] NEQ 0 THEN % RUNNING                      20092000        
+            BEGIN                                                       20092100        
+            COMMENT MAKE THE ENTRY IN LINKED-LIST STYLE;                20092200        
+            IF PRT[I,4].[FF] NEQ 0 THEN % ALREADY PRESENT               20092300        
+                BEGIN                                                   20092400        
+                COMMENT ENTER AT TAIL OF PREVIOUS LIST;                 20092500        
+                DO NT1:= I UNTIL (I:=PRT[I,4].[24:6])=@77;              20092600        
+                NFO[(MIX-1)|NDX+1]:=TRP[4]:=PRT[NT1,4];                 20092700        
+                NFO[(NT1-1)|NDX+1]:=PRT[NT1,4]:=                        20092800        
+                (*P(DUP))&MIX[24:42:6];                                 20092900        
+                END                                                     20093000        
+            ELSE                                                        20093100        
+                BEGIN                                                   20093200        
+                COMMENT CONSTRUCT NEW LIST;                             20093300        
+                NFO[(I-1)|NDX+1]:=PRT[I,4]:=                            20093400        
+                (*P(DUP))&I[18:42:6]&MIX[24:42:6];                      20093500        
+                NFO[(MIX-1)|NDX+1]:=TRP[4]:=                            20093600        
+                PRT[I,4]&@77[24:42:6];                                  20093700        
+                END;                                                    20093800        
+            POLISH(DEL,TRUE);                                           20093900        
+            I:=MIXMAX;                                                  20094000        
+            END;                                                        20094100        
