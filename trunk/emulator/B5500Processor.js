@@ -1312,6 +1312,75 @@ B5500Processor.prototype.singlePrecisionAdd = function(adding) {
 };
 
 /**************************************/
+B5500Processor.prototype.singlePrecisionCompare = function() {
+    /* Algebraically compares the B register to the A register. Function returns 
+    -1 if B<A, 0 if B=A, or +1 if B>A. Exits with AROF=0, BROF=1, and A and B as is */
+    var ea;                             // signed exponent of A
+    var eb;                             // signed exponent of B
+    var ma;                             // absolute mantissa of A
+    var mb;                             // absolute mantissa of B
+    var sa;                             // mantissa sign of A (0=positive)
+    var sb;                             // mantissa sign of B (ditto)
+    
+    this.cycleCount += 4;               // estimate some general overhead
+    this.adjustABFull();
+    this.AROF = 0;                      // A is unconditionally marked empty
+    ma = this.A % 0x8000000000;         // extract the A mantissa
+    mb = this.B % 0x8000000000;         // extract the B mantissa
+    
+    if (ma == 0) {                      // if A mantissa is zero
+        ea = sa = 0;                    // consider A to be completely zero
+    } else {
+        ea = (this.A - ma)/0x8000000000;
+        sa = ((ea >>> 7) & 0x01);
+        ea = (ea & 0x40 ? -(ea & 0x3F) : (ea & 0x3F));
+    }
+    if (mb == 0) {                      // if B mantissa is zero 
+        eb = sb = 0;                    // consider B to be completely zero
+    } else {                            // rats, we actually have to do this
+        eb = (this.B - mb)/0x8000000000;
+        sb = (eb >>> 7) & 0x01;
+        eb = (eb & 0x40 ? -(eb & 0x3F) : (eb & 0x3F));
+    }
+
+    // If the exponents are unequal, normalize each until the high-order octade
+    // is non-zero or the exponents are equal
+    if (ma) {                           // Normalize A 
+        while (ma < 0x1000000000 && ea != eb) {
+            this.cycleCount++;
+            ma *= 8;                    // shift left
+            ea--;
+        }
+    } 
+    if (mb) {                           // Normalize B 
+        while (mb < 0x1000000000 && eb != ea) {
+            this.cycleCount++;
+            mb *= 8;                    // shift left
+            eb--;
+        }
+    }
+    
+    // Compare signs, exponents, and normalized magnitudes, in that order
+    if (sb == sa) {                     // if signs are equal:
+        if (eb == ea) {                 // if exponents are equal:
+            if (mb = ma) {              // if magnitudes are equal:
+                return 0;               // then the operands are equal
+            } else if (mb > ma) {       // otherwise, if magnitude of B > A:
+                return (sb ? -1 : 1);   //      B<A if B negative, B>A if B positive
+            } else {                    // otherwise, if magnitude of B < A:
+                return (sb ? 1 : -1);   //      B>A if B negative, B<A if B positive
+            }
+        } else if (eb > ea) {           // otherwise, if exponent of B > A:
+            return (sb ? -1 : 1);       //      B<A if B negative, B>A if B positive
+        } else {                        // otherwise, if exponent of B < A
+            return (sb ? 1 : -1);       //      B>A if B negative, B<A if B positive
+        }
+    } else {                            // otherwise, if signs are different:
+        return (sa < sb ? -1 : 1);      // B<A if B negative, B>A if B positive
+    }
+};
+
+/**************************************/
 B5500Processor.prototype.singlePrecisionMultiply = function() {
     /* Multiplies the contents of the A register to the B register, leaving the 
     result in B and invalidating A. A double-precision mantissa is developed and
@@ -2821,6 +2890,7 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x36:              // XX66: OCV=Output convert
+                    this.streamOutputConvert(variant);
                     break;
 
                 case 0x37:              // XX67: ICV=Input convert
@@ -3152,18 +3222,16 @@ B5500Processor.prototype.run = function() {
 
                 case 0x15:              // XX25: comparison & misc. stack ops
                     switch (variant) {
-                    case 0x01:          // 0125: CEQ=compare B greater or equal to A
+                    case 0x01:          // 0125: GEQ=compare B greater or equal to A
+                        this.B = (this.singlePrecisionCompare() >= 0 ? 1 : 0);
                         break;
 
-                    case 0x02:          // 0225: CGR=compare B greater to A
+                    case 0x02:          // 0225: GTR=compare B greater to A
+                        this.B = (this.singlePrecisionCompare() > 0 ? 1 : 0);
                         break;
 
                     case 0x04:          // 0425: NEQ=compare B not equal to A
-                        // assert(this.AROF == 1 && this.BROF == 1);
-                        // TODO: should this be excluding the flag bit in the comparison?
-                        this.B = (this.A != this.B) ? 1 : 0;
-                        this.AROF = 0;
-                        this.BROF = 1;
+                        this.B = (this.singlePrecisionCompare() != 0 ? 1 : 0);
                         break;
 
                     case 0x08:          // 1025: XCH=exchange TOS words
@@ -3174,37 +3242,30 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x10:          // 2025: DUP=Duplicate TOS
-                        this.adjustAEmpty();
-                        this.adjustBFull();
-                        this.A = this.B;
-                        this.AROF = 1;
+                        if (this.AROF) {
+                            this.AdjustBEmpty();
+                            this.B = this.A;
+                            this.BROF = 1;
+                        } else {
+                            this.adjustBFull();
+                            this.A = this.B;
+                            this.AROF = 1;
+                        }
                         break;
 
                     case 0x1C:          // 3425: FTF=F field to F field
                         break;
 
                     case 0x21:          // 4125: LEQ=compare B less or equal to A
-                        // assert(this.AROF == 1 && this.BROF == 1);
-                        // TODO: should this be excluding the flag bit in the comparison?
-                        this.B = (this.A >= this.B) ? 1 : 0;
-                        this.AROF = 0;
-                        this.BROF = 1;
+                        this.B = (this.singlePrecisionCompare() <= 0 ? 1 : 0);
                         break;
 
                     case 0x22:          // 4225: LSS=compare B less to A
-                        // assert(this.AROF == 1 && this.BROF == 1);
-                        // TODO: should this be excluding the flag bit in the comparison?
-                        this.B = (this.A > this.B) ? 1 : 0;
-                        this.AROF = 0;
-                        this.BROF = 1;
+                        this.B = (this.singlePrecisionCompare() < 0 ? 1 : 0);
                         break;
 
                     case 0x24:          // 4425: EQL=compare B equal to A
-                        // assert(this.AROF == 1 && this.BROF == 1);
-                        // TODO: should this be excluding the flag bit in the comparison?
-                        this.B = (this.A == this.B) ? 1 : 0;
-                        this.AROF = 0;
-                        this.BROF = 1;
+                        this.B = (this.singlePrecisionCompare() == 0 ? 1 : 0);
                         break;
 
                     case 0x2C:          // 5425: CTC=core field to C field

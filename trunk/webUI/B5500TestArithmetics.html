@@ -44,6 +44,9 @@ function getOctal(id) {
     var text = e.value;                 // text of element
     var v;                              // parsed value of element text
     
+    if (text.search(/\S/) < 0) {
+        text = "0";
+    }
     if (text.search(/[-+eE.]/) < 0) {
         v = parseInt(text, 8);
     } else {
@@ -123,14 +126,17 @@ function reg_onChange(ev) {
     return result;
 }
 
-function testIt(index) {
+function stepIt() {
     /* Simple test driver for the Processor arithmetic ops */
     var opcode = 0x02D;                 // NOOP (XX55) by default
+    var opList = document.getElementById("OpList")
     var text;
     var title;
     var value;
-    
-    cc.P1.X = cc.P1.I = 0;
+
+    title = opList.options[opList.selectedIndex].text
+    value = opList.options[opList.selectedIndex].value;
+    opcode = parseInt(value, 8);
     
     value = getOctal("AReg");
     if (!isNaN(value)) {
@@ -143,34 +149,10 @@ function testIt(index) {
             cc.P1.BROF = 1;
             setText("BRegOrig", value.toString(8));
             
-            switch(index) {
-            case 1:
-                title = "Add";
-                opcode = 0x041;         // ADD (0101)
-                break;
-            case 2:
-                title = "Subtract";
-                opcode = 0x0C1;         // SUB (0301)
-                break;
-            case 3:
-                title = "Multiply";
-                opcode = 0x101;         // MUL (0401)
-                break;
-            case 4:
-                title = "Divide";
-                opcode = 0x201;         // DIV (1001)
-                break;
-            case 5:
-                title = "Integer Divide";
-                opcode = 0x601;         // IDV (3001)
-                break;
-            case 6:
-                title = "Remainder Divide";
-                opcode = 0xE01;         // RDV (7001)
-                break;
-            }
-            
             cc.P1.I = 0;                // reset any interrupts
+            cc.IAR = 0;
+            
+            cc.P1.X = 0;
             cc.P1.T = opcode;
             cc.P1.step();
 
@@ -259,12 +241,33 @@ window.onload = function() {
 </table>
 
 <p>
+<!--
 <input name=Add         type=button value=Add           onclick="return testIt(1)">
 <input name=Subtract    type=button value=Subtract      onclick="return testIt(2)">
 <input name=Multiply    type=button value=Multiply      onclick="return testIt(3)">
 <input name=Divide      type=button value=Divide        onclick="return testIt(4)">
 <input name=IntDiv      type=button value="Int Div"     onclick="return testIt(5)">
 <input name=Remide      type=button value="Rem Div"     onclick="return testIt(6)">
+-->
+
+Syllable: 
+<select id=OpList name=OpList>
+    <option value="0055" selected>NOP : No Operation
+    <option value="0101">ADD : Add
+    <option value="0301">SUB : Subtract
+    <option value="0401">MUL : Multiply
+    <option value="1001">DIV : Divide
+    <option value="3001">IDV : Integer Divide
+    <option value="7001">RDV : Remainder Divide
+    <option value="0125">GEQ : B Greater or Equal A
+    <option value="0225">GTR : B Greater Than A
+    <option value="0425">NEQ : B Not Equal A
+    <option value="4125">LEQ : B Less or Equal A
+    <option value="4225">LSS : B Less Than A
+    <option value="4425">EQL : B Equal A
+</select>
+
+<input id=Step name=Step type=button value="Step" onclick="return stepIt()">
 </p>
 
 </body>
