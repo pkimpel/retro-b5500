@@ -1370,7 +1370,7 @@ B5500Processor.prototype.singlePrecisionMultiply = function() {
         xx = mb;                        // move multiplier to X
         mb = 0;                         // initialize high-order part of product
         
-        //Now we step through the 13 octades of the multiplier, developing the product
+        // Now we step through the 13 octades of the multiplier, developing the product
         do {
             d = xx % 8;                 // extract the current multiplier digit
             xx = (xx - d)/8;            // shift the multiplier right one octade
@@ -1408,6 +1408,7 @@ B5500Processor.prototype.singlePrecisionMultiply = function() {
         this.A = 0;                     // required by specs due to the way rounding addition worked
         
         if (xx >= 0x4000000000) {       // if high-order bit of remaining extension is 1
+            this.Q |= 0x01              // set Q01F (for display purposes only)
             if (mb < 0x7FFFFFFFFF) {    // if the rounding would not cause overflow
                 this.cycleCount++;
                 mb++;                   // round up the result
@@ -1417,7 +1418,7 @@ B5500Processor.prototype.singlePrecisionMultiply = function() {
         if (mb == 0) {                  // don't see how this could be necessary here, but
             this.B = 0;                 // the TM says to do it anyway
         } else {
-            // Check for exponent overflow
+            // Check for exponent under/overflow
             if (eb > 63) {
                 eb %= 64;
                 if (this.NCSF) {
@@ -1438,6 +1439,319 @@ B5500Processor.prototype.singlePrecisionMultiply = function() {
         } 
     }
     this.X = mx;                        // for display purposes only
+};
+
+/**************************************/
+B5500Processor.prototype.singlePrecisionDivide = function() {
+    /* Divides the contents of the A register into the B register, leaving the 
+    result in B and invalidating A. A 14-octade mantissa is developed and
+    then normalized and rounded */
+    var ea;                             // signed exponent of A
+    var eb;                             // signed exponent of B
+    var ma;                             // absolute mantissa of A
+    var mb;                             // absolute mantissa of B
+    var n = 0;                          // local copy of N (octade counter)
+    var q = 0;                          // current quotient digit (octal)
+    var sa;                             // mantissa sign of A (0=positive)
+    var sb;                             // mantissa sign of B (ditto)
+    var xx = 0;                         // local copy of X for quotient development
+    
+    this.cycleCount += 4;               // estimate some general overhead
+    this.adjustABFull();
+    this.AROF = 0;                      // A is unconditionally marked empty
+    ma = this.A % 0x8000000000;         // extract the A mantissa
+    mb = this.B % 0x8000000000;         // extract the B mantissa
+    
+    if (ma == 0) {                      // if A mantissa is zero
+        this.A = this.B = 0;            // result is all zeroes
+        if (this.NCSF) {
+            this.I = (this.I & 0x0F) | 0xD0;    // set I05/7/8: divide by zero
+            this.cc.signalInterrupt();
+        }
+    } else if (mb == 0) {               // otherwise, if B is zero, 
+        this.A = this.B = 0;            // result is all zeroes
+    } else {                            // otherwise, may the octades always be in your favor
+        ea = (this.A - ma)/0x8000000000;
+        sa = ((ea >>> 7) & 0x01);
+        ea = (ea & 0x40 ? -(ea & 0x3F) : (ea & 0x3F));
+
+        eb = (this.B - mb)/0x8000000000;
+        sb = (eb >>> 7) & 0x01;
+        eb = (eb & 0x40 ? -(eb & 0x3F) : (eb & 0x3F));
+
+        // Normalize A for 39 bits (13 octades)
+        while (ma < 0x1000000000) {
+            this.cycleCount++;
+            ma *= 8;                // shift left
+            ea--;
+        }
+        // Normalize B for 39 bits (13 octades)
+        while (mb < 0x1000000000) {
+            this.cycleCount++;
+            mb *= 8;                // shift left
+            eb--;
+        }
+
+        sb ^= sa;                       // positive if signs are same, negative if different
+        
+        // Now we step through the development of the quotient one octade at a time,
+        // tallying the shifts in n until the high-order octade of xx is non-zero (i.e.,
+        // normalized). The divisor is in ma and the dividend (which becomes the
+        // remainder) is in mb. Since the operands are normalized, this will take
+        // either 13 or 14 shifts. We do the xx shift at the top of the loop so that 
+        // the 14th (rounding) digit will be available in q at the end. The initial 
+        // shift has no effect, as it operates using zero values for xx and q.
+        do {
+            xx = xx*8 + q;              // shift quotient digit into the working quotient
+            n++;                        // tally the shifts (one more than affects result)
+            q = 0;                      // initialize the quotient digit
+            while (mb >= ma) {
+                q++;                    // bump the quotient digit
+                mb -= ma;               // subtract divisor from remainder
+            }
+            mb *= 8;                    // shift the remainder left one octade
+        } while (xx < 0x1000000000);
+        
+        this.cycleCount += n*3;         // just estimate the average number of divide clocks
+        eb -= ea + n - 2;               // compute the exponent, accounting for the extra shift
+        
+        // Round the result (it's already normalized)
+        this.A = 0;                     // required by specs due to the way rounding addition worked
+        if (q >= 4) {                   // if high-order bit of last quotient digit is 1
+            this.Q |= 0x01              // set Q01F (for display purposes only)
+            if (xx < 0x7FFFFFFFFF) {    // if the rounding would not cause overflow
+                xx++;                   // round up the result
+            }
+        }
+        
+        // Check for exponent under/overflow
+        if (eb > 63) {
+            eb %= 64;
+            if (this.NCSF) {
+                this.I = (this.I & 0x0F) | 0xB0;    // set I05/6/8: exponent-overflow
+                this.cc.signalInterrupt();
+            }
+        } else if (eb < -63) {
+            eb = ((-eb) % 64) | 0x40;   // mod the exponent and set its sign
+            if (this.NCSF) {
+                this.I = (this.I & 0x0F) | 0xA0;    // set I06/8: exponent-underflow
+                this.cc.signalInterrupt();
+            }
+        } else if (eb < 0) {
+            eb = (-eb) | 0x40;          // set the exponent sign bit
+        }
+
+        this.B = (sb*128 + eb)*0x8000000000 + xx;   // Final Answer
+    }
+    this.X = xx;                        // for display purposes only
+};
+
+/**************************************/
+B5500Processor.prototype.integerDivide = function() {
+    /* Divides the contents of the A register into the B register, leaving the 
+    integerized result in B and invalidating A. If the result cannot be expressed
+    as an integer, the Integer-Overflow interrupt is set */
+    var ea;                             // signed exponent of A
+    var eb;                             // signed exponent of B
+    var ma;                             // absolute mantissa of A
+    var mb;                             // absolute mantissa of B
+    var n = 0;                          // local copy of N (octade counter)
+    var q = 0;                          // current quotient digit (octal)
+    var sa;                             // mantissa sign of A (0=positive)
+    var sb;                             // mantissa sign of B (ditto)
+    var xx = 0;                         // local copy of X for quotient development
+    
+    this.cycleCount += 4;               // estimate some general overhead
+    this.adjustABFull();
+    this.AROF = 0;                      // A is unconditionally marked empty
+    ma = this.A % 0x8000000000;         // extract the A mantissa
+    mb = this.B % 0x8000000000;         // extract the B mantissa
+    
+    if (ma == 0) {                      // if A mantissa is zero
+        this.A = this.B = 0;            // result is all zeroes
+        if (this.NCSF) {
+            this.I = (this.I & 0x0F) | 0xD0;    // set I05/7/8: divide by zero
+            this.cc.signalInterrupt();
+        }
+    } else if (mb == 0) {               // otherwise, if B is zero, 
+        this.A = this.B = 0;            // result is all zeroes
+    } else {                            // otherwise, continue
+        ea = (this.A - ma)/0x8000000000;
+        sa = ((ea >>> 7) & 0x01);
+        ea = (ea & 0x40 ? -(ea & 0x3F) : (ea & 0x3F));
+
+        eb = (this.B - mb)/0x8000000000;
+        sb = (eb >>> 7) & 0x01;
+        eb = (eb & 0x40 ? -(eb & 0x3F) : (eb & 0x3F));
+
+        // Normalize A for 39 bits (13 octades)
+        while (ma < 0x1000000000) {
+            this.cycleCount++;
+            ma *= 8;                    // shift left
+            ea--;
+        }
+        // Normalize B for 39 bits (13 octades)
+        while (mb < 0x1000000000) {
+            this.cycleCount++;
+            mb *= 8;                    // shift left
+            eb--;
+        }
+        
+        if (ea > eb) {                  // if divisor has greater magnitude
+            this.A = this.B = 0;        // quotient is < 1, so set result to zero
+        } else {                        // otherwise, do the long division
+            sb ^= sa;                   // positive if signs are same, negative if different
+
+            // Now we step through the development of the quotient one octade at a time,
+            // similar to that for DIV, but in addition to stopping when the high-order 
+            // octade of xx is non-zero (i.e., normalized), we can stop if the exponents
+            // becomes equal. Since there is no rounding, we do not need to develop an 
+            // extra quotient digit.
+            do {
+                this.cycleCount += 3;   // just estimate the average number of clocks
+                q = 0;                  // initialize the quotient digit
+                while (mb >= ma) {
+                    q++;                // bump the quotient digit
+                    mb -= ma;           // subtract divisor from remainder
+                }
+                mb *= 8;                // shift the remainder left one octade
+                xx = xx*8 + q;          // shift quotient digit into the working quotient
+                if (xx >= 0x1000000000) {
+                    break;              // quotient has become normalized        
+                } else if (ea < eb) {
+                    eb--;               // decrement the B exponent
+                } else {
+                    break;
+                }
+            } while (true);
+
+            if (ea == eb) {
+                eb = 0;                 // integer result developed
+            } else {
+                if (this.NCSF) {        // integer overflow result        
+                    this.I = (this.I & 0x0F) | 0xC0;    // set I07/8: integer-overflow
+                    this.cc.signalInterrupt();
+                }  
+                eb = (eb-ea)%64;               
+                if (eb < 0) {
+                    eb = (-eb) | 0x40;  // set the exponent sign bit
+                }
+            }
+
+            this.A = 0;                 // required by specs
+            this.B = (sb*128 + eb)*0x8000000000 + xx;   // Final Answer
+        }
+    }
+    this.X = xx;                        // for display purposes only
+};
+
+/**************************************/
+B5500Processor.prototype.remainderDivide = function() {
+    /* Divides the contents of the A register into the B register, leaving the 
+    remainder result in B and invalidating A. The sign of the result is the sign 
+    of the dividend (B register value). If the quotient cannot be expressed as an 
+    integer, the Integer-Overflow interrupt is set */
+    var ea;                             // signed exponent of A
+    var eb;                             // signed exponent of B
+    var ma;                             // absolute mantissa of A
+    var mb;                             // absolute mantissa of B
+    var n = 0;                          // local copy of N (octade counter)
+    var q = 0;                          // current quotient digit (octal)
+    var sa;                             // mantissa sign of A (0=positive)
+    var sb;                             // mantissa sign of B (ditto)
+    var xx = 0;                         // local copy of X for quotient development
+    
+    this.cycleCount += 4;               // estimate some general overhead
+    this.adjustABFull();
+    this.AROF = 0;                      // A is unconditionally marked empty
+    ma = this.A % 0x8000000000;         // extract the A mantissa
+    mb = this.B % 0x8000000000;         // extract the B mantissa
+    
+    if (ma == 0) {                      // if A mantissa is zero
+        this.A = this.B = 0;            // result is all zeroes
+        if (this.NCSF) {
+            this.I = (this.I & 0x0F) | 0xD0;    // set I05/7/8: divide by zero
+            this.cc.signalInterrupt();
+        }
+    } else if (mb == 0) {               // otherwise, if B is zero, 
+        this.A = this.B = 0;            // result is all zeroes
+    } else {                            // otherwise, continue
+        ea = (this.A - ma)/0x8000000000;
+        sa = ((ea >>> 7) & 0x01);
+        ea = (ea & 0x40 ? -(ea & 0x3F) : (ea & 0x3F));
+
+        eb = (this.B - mb)/0x8000000000;
+        sb = (eb >>> 7) & 0x01;
+        eb = (eb & 0x40 ? -(eb & 0x3F) : (eb & 0x3F));
+
+        // Normalize A for 39 bits (13 octades)
+        while (ma < 0x1000000000) {
+            this.cycleCount++;
+            ma *= 8;                    // shift left
+            ea--;
+        }
+        // Normalize B for 39 bits (13 octades)
+        while (mb < 0x1000000000) {
+            this.cycleCount++;
+            mb *= 8;                    // shift left
+            eb--;
+        }
+        
+        if (ea > eb) {                  // if divisor has greater magnitude
+            this.A = 0;                 // quotient is < 1, so set A to zero and 
+            this.B %= 0x8000000000000;  // result is original B (less the flag bit)
+        } else {                        // otherwise, work remains (so to speak)
+            // Now we step through the development of the quotient one octade at a time,
+            // similar to that for DIV, but in addition to stopping when the high-order 
+            // octade of xx is non-zero (i.e., normalized), we can stop if the exponents
+            // becomes equal. Since there is no rounding, we do not need to develop an 
+            // extra quotient digit. 
+            do {
+                this.cycleCount += 3;   // just estimate the average number of clocks
+                q = 0;                  // initialize the quotient digit
+                while (mb >= ma) {
+                    q++;                // bump the quotient digit
+                    mb -= ma;           // subtract divisor from remainder
+                }
+                xx = xx*8 + q;          // shift quotient digit into the working quotient
+                if (xx >= 0x1000000000) {
+                    break;              // quotient has become normalized
+                } else if (ea < eb) {
+                    mb *= 8;            // shift the remainder left one octade
+                    eb--;               // decrement the B exponent
+                } else {
+                    break;
+                }
+            } while (true);
+
+            if (eb < -63) {             // check for exponent underflow
+                eb %= 64;               // if so, exponent is mod 64
+                if (this.NCSF) {
+                    this.I = (this.I & 0x0F) | 0xA0;    // set I06/8: exponent-underflow
+                    this.cc.signalInterrupt();
+                }
+            } else if (ea == eb) {      // integer result developed
+                if (mb == 0) {          // if B mantissa is zero, then
+                    eb = sb = 0;        // assure result will be all zeroes
+                } else {
+                    eb %= 64;           // use remainder exponent mod 64
+                }
+            } else {
+                if (this.NCSF) {        // integer overflow result        
+                    this.I = (this.I & 0x0F) | 0xC0;    // set I07/8: integer-overflow
+                    this.cc.signalInterrupt();
+                }  
+                mb = eb = sb = 0;       // result in B will be all zeroes
+            }
+            if (eb < 0) {
+                eb = (-eb) | 0x40;  // set the exponent sign bit
+            }
+
+            this.A = 0;                 // required by specs
+            this.B = (sb*128 + eb)*0x8000000000 + mb;   // Final Answer
+        }
+    }
+    this.X = xx;                        // for display purposes only
 };
 
 /**************************************/
@@ -2646,12 +2960,15 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x08:          // 1001: DIV=single-precision floating divide
+                        this.singlePrecisionDivide();
                         break;
 
                     case 0x18:          // 3001: IDV=integer divide
+                        this.integerDivide();
                         break;
 
                     case 0x38:          // 7001: RDV=remainder divide
+                        this.remainderDivide();
                         break;
                     }
                     break;

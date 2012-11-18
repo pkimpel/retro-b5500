@@ -13,6 +13,7 @@
 
 <script>
 "use strict";
+
 var cc;
 
 function setText(id, text) {
@@ -47,7 +48,7 @@ function getOctal(id) {
         v = parseInt(text, 8);
     } else {
         v = parseFloat(text);
-        if (!isNaN(v)) {
+        if (!isNaN(v) && v != 0) {
             if (v < 0) {
                 sv = 1;
                 v = -v;
@@ -102,6 +103,26 @@ function putNumber(id, value) {
     setText(id, (Math.pow(8, e)*(s ? -m : m)).toPrecision(12));
 }
 
+function reg_onChange(ev) {
+    /* Normalizes and displays the value of a register when changed */
+    var e = ev.target;
+    var id = e.id;
+    var result = true;
+    var value;
+    
+    value = getOctal(id);
+    if (isNaN(value)) {
+        e.style.backgroundColor = "red";
+        result = false;
+    } else {
+        e.style.backgroundColor = "";
+        putOctal(id, value);
+        putNumber(id+"Value", value);
+        setText(id+"Orig", value.toString(8));
+    }
+    return result;
+}
+
 function testIt(index) {
     /* Simple test driver for the Processor arithmetic ops */
     var opcode = 0x02D;                 // NOOP (XX55) by default
@@ -139,8 +160,17 @@ function testIt(index) {
                 title = "Divide";
                 opcode = 0x201;         // DIV (1001)
                 break;
+            case 5:
+                title = "Integer Divide";
+                opcode = 0x601;         // IDV (3001)
+                break;
+            case 6:
+                title = "Remainder Divide";
+                opcode = 0xE01;         // RDV (7001)
+                break;
             }
             
+            cc.P1.I = 0;                // reset any interrupts
             cc.P1.T = opcode;
             cc.P1.step();
 
@@ -157,6 +187,9 @@ function testIt(index) {
 }
 
 window.onload = function() {
+
+    document.getElementById("AReg").onchange = reg_onChange;
+    document.getElementById("BReg").onchange = reg_onChange;
 
     cc = new B5500CentralControl();
     cc.powerOn();
@@ -191,8 +224,6 @@ window.onload = function() {
 
 <h3>Arithmetic Testbed</h3>
 
-<div id=Caption>&nbsp;</div>
-
 <table border=1 cellpadding=4 cellspacing=0>
 <thead>
 <tr>
@@ -203,31 +234,37 @@ window.onload = function() {
 <tbody>
 <tr>
     <td class=center>A
-    <td><input id=AReg name=AReg type=text class=number size=16 maxlength=16>
+    <td class=number>
+        <input id=AReg name=AReg type=text class=number size=16 maxlength=16>
     <td id=ARegValue class=number>
     <td id=ARegOrig class=number>
 <tr>    
     <td class=center>B
-    <td><input id=BReg name=BReg type=text class=number size=16 maxlength=16>
+    <td class=number>
+        <input id=BReg name=BReg type=text class=number size=16 maxlength=16>
     <td id=BRegValue class=number>
     <td id=BRegOrig class=number>
 <tr>    
     <td class=center>X
-    <td><input id=XReg name=XReg type=text class=number size=13 maxlength=13>
+    <td class=number>
+        <input id=XReg name=XReg type=text class=number size=13 maxlength=13>
     <td id=XRegValue class=number>
     <td id=XRegOrig class=number>
 <tr>  
     <td class=center>I
-    <td><input id=IReg name=IReg type=text class=number size=3 maxlength=3>
+    <td class=number>
+        <input id=IReg name=IReg type=text class=number size=3 maxlength=3>
     <td id=IRegValue class=number>
-    <td id=IRegOrig class=number>
+    <td id=Caption class=center>
 </table>
 
 <p>
 <input name=Add         type=button value=Add           onclick="return testIt(1)">
 <input name=Subtract    type=button value=Subtract      onclick="return testIt(2)">
 <input name=Multiply    type=button value=Multiply      onclick="return testIt(3)">
-<input name=Divide      type=button value=Divide        onclick="return testIt(4)"  DISABLED  >
+<input name=Divide      type=button value=Divide        onclick="return testIt(4)">
+<input name=IntDiv      type=button value="Int Div"     onclick="return testIt(5)">
+<input name=Remide      type=button value="Rem Div"     onclick="return testIt(6)">
 </p>
 
 </body>
