@@ -15981,3 +15981,107 @@ DLX:        FORGETESPDISK(THISLINK);                                    20090200
             POLISH(DEL,TRUE);                                           20093900        
             I:=MIXMAX;                                                  20094000        
             END;                                                        20094100        
+        REENTRY:=POLISH;                                                20094200        
+        END REENTRANT CODE LINKAGE ESTABLISHMENT SUBROUTINE;            20094300        
+                                                                        20094500        
+    P(MYMSCW, STF);                                                     20094600        
+    P(0); % MESAGE SPACE, LOCAL TO THIS PROCEDURE                       20094610        
+                                                                        20094700        
+%    ****   *****     ***      *****   *****  *****  *****              20094800        
+%    *   *  *   *      *      *  *  *  *      *      *                  20094900        
+%    ****   *   *      *      *  *  *  *****  *****  *  **              20095000        
+%    *   *  *   *   *  *      *  *  *      *      *  *   *              20095100        
+%    ****   *****   ****      *  *  *  *****  *****  ***** 0            20095200        
+                                                                        20095300        
+ $ SET OMIT = NOT( DCSPO AND DATACOM )                                  20098900        
+    IF BOJMESS THEN                                                     20100700        
+       IF MCPJOB.[1:1] THEN % "SYSTEM" TYPE JOB                         20100800        
+          IF NOT (AUTOMESS) THEN % SUPPRESS BOJ/EOJ MESSAGE             20100900        
+             IF NOT (S[2].[2:1]) THEN % NOT ES-ED                       20101000        
+                   IF S[2].[4:1] THEN % SUPRESS BOJ/EOJ MESSAGE         20101100        
+                      BEGIN                                             20101200        
+                      STREAM(N:=S[0], MIX, T:=T:=SPACE(4));             20101300        
+                         BEGIN                                          20101400        
+                         DS:=6LIT" AUTO-";                              20101500        
+                         SI:=LOC N; SI:=SI+1; DS:=7CHR;                 20101600        
+                         DS:=2LIT" ="; SI:=LOC MIX; DS:=2DEC;           20101700        
+                         DS:=LIT"~"; DI:=DI-3; DS:=FILL;                20101800        
+                         END;                                           20101900        
+                      SPOUT(T);                                         20102000        
+                      GO TO SKIP;                                       20102100        
+                      END;                                              20102200        
+ $ SET OMIT = PACKETS                                                   20104600        
+ $ SET OMIT = NOT(PACKETS)                                              20104900        
+    IF (NOT MCPJOB OR BOJMESS)                                          20105000        
+ $ POP OMIT % PACKETS                                                   20105100        
+    AND NOT S[2].[2:1] THEN % S[2].[2:1]=1 WHEN ES-ED                   20105200        
+        BEGIN                                                           20105300        
+        GIMEDATE([DT].[CF],-DT); % CONVERT DATE TO "MMDDYY" FORMAT      20105350        
+        STREAM(DAAT:=DT, DTOG:=NOT(MCPJOB) AND TRUE, SV :=0,            20105400        
+ $ SET OMIT = NOT(DCSPO AND DATACOM)                                    20105500        
+               C:=S[18], A:=JARROW[MIX], MIX,  % S[18]=PRIORITY         20105900        
+               Q:=XCLOCKTIME, B:=MESAGESPACE:=GETSPACE(12,0,0)+2);      20106000        
+            BEGIN                                                       20106100        
+            SI:=LOC C; DS:=6DEC; DI:=DI-6; DS:=5FILL;   % PRIORITY      20106200        
+            DI:=B; DI:=DI+6; DS:=LIT":";                                20106300        
+            SI:=A; SI:=SI+1; DS:=7CHR;                  % MFID          20106400        
+            DS:=LIT"/"; SI:=SI+1; DS:=7CHR;             % FID           20106500        
+            SI:=LOC MIX; DS:=LIT"="; DS:=2DEC;          % MIX           20106600        
+            SV:=DI; DI:=DI-2; DS:=FILL; DI:=SV;                         20106700        
+            DS:=5LIT" BOJ "; DS:=4DEC; DS:=LIT" ";      % TIME          20106800        
+            DTOG(SI:=LOC DAAT; SI:=SI+2;                                20106900        
+            3(DS:=2CHR; DS:=LIT"/"); DI:=DI-1;          % CDATE         20107000        
+ $ SET OMIT = NOT(DCSPO AND DATACOM)                                    20107100        
+            DS:=LIT"~";                                                 20107500        
+            END STREAM STATEMENT;                                       20107600        
+ $ SET OMIT = NOT(DCSPO AND DATACOM)                                    20107700        
+                                                                        20108400        
+        END;                                                            20108500        
+                                                                        20108700        
+SKIP:                                                                   20108800        
+                                                                        20108900        
+                                                                        20109000        
+%   *****  *****  *****     *****  *****  *****  *****                  20109100        
+%   *      *      *            *   *      *   *  *   *                  20109200        
+%   *****  *****  *  **       *    *****  *****  *   *                  20109300        
+%       *  *      *   *      *     *      *  *   *   *                  20109400        
+%   *****  *****  *****     *****  *****  *   *  *****                  20109500        
+                                                                        20109600        
+    JAR[MIX,2] := (*P(DUP)) & SEG0[2][1:1:2] &                          20110700        
+                    SEG0[2][5:2:3] &                                    20110900        
+                    SEG0[7][3:2:1];                                     20111100        
+    % SEG0[2].[1:1] = JOB COMPILED BY COBOL ( NO "OAT" ENTRY )          20111200        
+    % SEG0[2].[2:3], SEG0[7].[2:1] = USED FOR INTER-PROG.COMMUNICATION  20111300        
+    IF SEG0[2].[2:1] THEN SOFTI:=SOFTI+1;                               20111500        
+    IF SEG0[2].[4:1] AND (MESAGESPACE!0) THEN % INVOKED I.P.C. TASK%110-20111600        
+       BEGIN % CHANGE BOJ TO BOT                                   %110-20111610        
+       STREAM(MESAGESPACE); BEGIN DI~DI+28; DS~LIT"T"; END;        %110-20111620        
+       END;                                                        %110-20111630        
+ $ SET OMIT = NOT(BREAKOUT)                                             20111800        
+                                                                        20115200        
+%   *****  *****  *****  *****  *   *              *****  *****  *****  20115300        
+%   *        *    *   *  *      *  *        *      *   *  *   *    *    20115400        
+%   *****    *    *****  *      * *       *****    *****  *****    *    20115500        
+%       *    *    *   *  *      *  *        *      *      *  *     *    20115600        
+%   *****    *    *   *  *****  *   *              *      *   *    *    20115700        
+                                                                        20115800        
+    IF MESAGESPACE NEQ 0 THEN % BOJ MESSAGE BUILD                       20118350        
+        BEGIN                                                           20118360        
+        SPOUTER(MESAGESPACE,UNITNO,(BOJMESS AND NOT S[2].[2:1]));       20118370        
+        % S[2].[2:1] = 1 WHEN ES-ED                                     20118380        
+        MESAGESPACE:=0;                                                 20118390        
+        END;                                                            20118400        
+    M[STACKLOC].[9:6] := MIX; % PLACE MIX INDEX IN MEMORY LINK          20118600        
+    % COMPUTE THE ADDRESS FOR THE PRT SUCH THAT PRTADRS.[42:6]=0        20118800        
+    T:=(((STACKLOC:=STACKLOC+2)+S[21]) OR 63) + 1; % S[21]=STACKSIZE    20118900        
+    IF ((I:=M[STACKLOC-2].[CF])-(L:=SEG0[3] INX T)) GTR 10 THEN         20119000        
+       BEGIN % RETURN REMAINDER OF PRT SPACE                            20119100        
+       IF NOT STORDY THEN SLEEP([TOGLE],STOREMASK);                     20119600        
+       LOCKTOG(STOREMASK);                                              20119700        
+       M[L] := I & (STACKLOC-2)[CTF] & MIX[9:42:6]; % NEW LINK          20119900        
+       M[I].[FF]          := L;                     % BACK LINK         20120000        
+       M[STACKLOC-2].[CF] := L;                     % FORWARD LINK      20120100        
+       UNLOCKTOG(STOREMASK);                                            20120600        
+       FORGETSPACE(L+2);                                                20120800        
+       END; % IF PRT SPACE WAS TOO LARGE                                20120900        
+    %   ZERO OUT STACK TO EASE PROBLEMS OF CONGENITAL DUMP-READERS      20121000        
