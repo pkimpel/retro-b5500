@@ -16085,3 +16085,80 @@ SKIP:                                                                   20108800
        FORGETSPACE(L+2);                                                20120800        
        END; % IF PRT SPACE WAS TOO LARGE                                20120900        
     %   ZERO OUT STACK TO EASE PROBLEMS OF CONGENITAL DUMP-READERS      20121000        
+    M[STACKLOC] := @3333333333333333;                                   20121100        
+    MOVE(T-STACKLOC-1,STACKLOC,STACKLOC+1);                             20121200        
+                                                                        20121300        
+%  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  20121400        
+%  READ IN PRT FROM DISK                                                20121500        
+%  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  20121600        
+                                                                        20121700        
+    DISKWAIT(-T, SEG0[3].[CF], ACTUALDISKADDRESS(SEG0[2].[CF]));        20121800        
+    % SEG0[2] = RELATIVE DISK ADDRESS OF THE PRT IN THE CODE FILE       20121900        
+    % SEG0[3] = SIZE OF THE PRT                                         20122000        
+    TRP:=PRTROW[MIX]:=[M[T]]&1023[8:38:10]; % DESCRIPTOR TO THE PRT     20122100        
+                                                                        20122200        
+%   *****  *****  *****     ****    ***   *****  *****                  20122300        
+%   *      *      *         *   *    *    *        *                    20122400        
+%   *****  *****  *  **     *   *    *    *        *                    20122500        
+%       *  *      *   *     *   *    *    *        *                    20122600        
+%   *****  *****  *****     ****    ***   *****    * 0                  20122700        
+                                                                        20122800        
+    IF REENTRY THEN                                                     20123000        
+        BEGIN                                                           20123100        
+        % RE-ENTRANT JOB, PRT[4] POINTS TO EXISTING SEGMENT DICTIONARY  20123200        
+        COMMENT BUILD PHONY ICW, IRCW, & INCW;                          20123300        
+        M[STACKLOC]   := @2222222222222222;                             20123400        
+        M[STACKLOC+1] := -FLAG(0&(TRP)[6:33:9]);                        20123500        
+        M[STACKLOC+2] := -FLAG(0);                                      20123600        
+        TRP[8]        := -FLAG(STACKLOC+2);                             20123700        
+        TRP[10]       := TRP&(STACKLOC+1)[18:33:15];                    20123800        
+        END % REENTRY                                                   20123900        
+    ELSE                                                                20124000        
+        BEGIN                                                           20124100        
+        NFO[(MIX-1)|NDX+1] :=                                           20124700        
+        TRP[4]:=[M[T:=GETSPACE(SEG0[1].[CF],SEGDICTAREAV,1)+2]];   %167-20124900        
+        DISKWAIT(-T, SEG0[1].[CF], ACTUALDISKADDRESS(SEG0[0].[CF]));    20125000        
+        % SEG0[0]= RELATIVE DISK ADDRESS OF SEGMENT DICTIONARY          20125100        
+        % SEG0[1]= SIZE OF THE SEGMENT DICTIONARY                       20125200        
+        M[TRP[4]] := SEG0[1].[CF] -1; % SEGDICT[0]=SIZE OF DICTIONARY   20125300        
+ $ SET OMIT = NOT(AUXMEM)                                               20125400        
+        END; % NOT REENTRY                                              20126400        
+                                                                        20126600        
+%   ****   *****  *      *****  *****                                   20126700        
+%   *   *  *   *  *      *   *  *                                       20126800        
+%   *   *  *****  *      *   *  *                                       20126900        
+%   *   *  *   *  *      *   *  *                                       20127000        
+%   ****   *   *  *****  *****  *****                                   20127100        
+                                                                        20127200        
+    STREAM(D:=DALOCROW[MIX]:=SAVEARRAYDESC(DALOCSIZE,DALOCROWAREAV));   20127300        
+        BEGIN                                                           20127500        
+        SI:=D; SI:=SI-8; DS:=DALOCSIZE WDS;                             20127600        
+        END;                                                            20127700        
+    IF OLAYDISK NEQ 0 THEN % OLAY DISK OBTAINED ABOVE                   20127800        
+       BEGIN                                                            20127900        
+       DALOC[MIX.0] := @200002;                                         20128000        
+       DALOC[MIX,1] := OLAYDISK;                                        20128100        
+       OLAYDISK     := 0;                                               20128200        
+       END;                                                             20128300        
+    OLAYMASK := TWO(MIX) OR OLAYMASK; % OLAYS NOW ALLOWABLE             20128400        
+                                                                        20128500        
+%   *****  *****   *****    *****   *****  *    *                       20128600        
+%   *      *   *  *  *  *  *  *  *  *   *  **   *                       20128700        
+%   *      *   *  *  *  *  *  *  *  *   *  * *  *                       20128800        
+%   *      *   *  *  *  *  *  *  *  *   *  *  * *                       20128900        
+%   *****  *****  *  *  *  *  *  *  *****  *   **                       20129000        
+                                                                        20129100        
+    % PLACE "COMMON" VALUE IN FIRST SIMPLE VARIABLE IN THE PRT          20129200        
+    NT1 := S[19]; % COMMON VALUE IN SHEET[19]                           20129300        
+    FOR I:= @25 STEP 1 WHILE NT1 NEQ 0 AND I LSS SEG0[3] DO             20129400        
+    IF TRP[I]=0 THEN % SIMPLE VARIABLE (NOT A DESCRIPTOR)               20129500        
+        BEGIN                                                           20129600        
+        TRP[I]:=NT1;                                                    20129700        
+        NT1:=0;                                                         20129800        
+        END;                                                            20129900        
+    DELINK; % DELINK SHEET ENTRY FROM SHEET QUEUE                       20130000        
+                                                                        20130100        
+EXIT:                                                                   20140000        
+                                                                        20140100        
+    P([RETURNRCW],  STS, 0, RDS, 0, XCH, P&P[CTF], STF);                20140200        
+    END PROCEDURE SELECTRUN2;                                           20140300        
