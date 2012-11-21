@@ -15876,7 +15876,7 @@ PROCEDURE SELECTRUN2;                                                   20080500
             STACKLOC     =  +14,                                        20082400        
             SHEETLOCKED  =  +15;                                        20082500        
                                                                         20082600        
-    ARRAY   A            =  +16[*],                                     20082700        
+    ARRAY   S            =  +16[*],                                     20082700        
             SEG0         =  +17[*],                                     20082800        
             TRP          =  +18[*],                                     20082900        
             LBL          =  +19[*],                                     20083000        
@@ -16162,3 +16162,85 @@ EXIT:                                                                   20140000
                                                                         20140100        
     P([RETURNRCW],  STS, 0, RDS, 0, XCH, P&P[CTF], STF);                20140200        
     END PROCEDURE SELECTRUN2;                                           20140300        
+                                                                        20140400        
+% FOR ADDITIONAL INFORMATION CONCERNING THE SHEET, SEE THE              20140500        
+% DOCUMENT AT SEQUENCE NUMBER 20512000                                  20140600        
+                                                                        20140700        
+PROCEDURE SELECTRUN(F); VALUE F; REAL F;                                20140800        
+    BEGIN                                                               20140900        
+                                                                        20141000        
+    REAL    MSCW         =  -2,                                         20141100        
+            F            =  -1,                                         20141200        
+            MYMSCW       =  -1,                                         20141300        
+            RCW          =  +0,                                         20141400        
+            I            =  +1,                                         20141500        
+            T            =  +2,                                         20141600        
+            L            =  +3,                                         20141700        
+            DT           =  +4,                                         20141800        
+            MIX          =  +5,                                         20141900        
+            HDR          =  +6,                                         20142000        
+            LEVEL        =  +7,                                         20142100        
+            MCPJOB       =  +8,                                         20142200        
+            OLAYDISK     =  +9,                                         20142300        
+            THISLINK     =  +10,                                        20142400        
+            NEXTLINK     =  +11,                                        20142500        
+            PREVLINK     =  +12,                                        20142600        
+            TYPE         =  +13,                                        20142700        
+            STACKLOC     =  +14,                                        20142800        
+            SHEETLOCKED  =  +15;                                        20142900        
+                                                                        20142940        
+    INTEGER EST          =  I;     % USED FROM 20163700 TO 20165300     20142950        
+                                                                        20143000        
+    ARRAY   S            =  +16[*],                                     20143100        
+            SEG0         =  +17[*],                                     20143200        
+            TRP          =  +18[*],                                     20143300        
+            LBL          =  +19[*],                                     20143400        
+            SD           =  NT2[*],                                     20143500        
+            TSKA         =  NT2[*];                                     20143600        
+                                                                        20143700        
+    NAME    ADDR         = LBL +1;                                      20143900        
+    REAL    PASSLEVEL    = ADDR + 1,                                    20144000        
+            SVALUE       = PASSLEVEL,                                   20144100        
+            RETURNMSCW   = PASSLEVEL + 1,                               20144200        
+            RETURNRCW    = RETURNMSCW + 1;                              20144300        
+                                                                        20144400        
+    DEFINE SHEETMAX = MIXMAX#;                                          20144500        
+                                                                        20144600        
+                                                                        20145700        
+    %%%%                     ***NOTE****                                20145800        
+    %%%% THE VARIABLES DECLARED ABOVE MUST CORRESPOND EXACTLY TO        20145900        
+    %%%% THOSE DECLARED IN PROCEDURE SELECTRUN.                         20146000        
+                                                                        20146100        
+    DEFINE XCLOCKTIME =                                                 20146200        
+        (((NT2:=(XCLOCK DIV 3600)) MOD 60 + (NT2 DIV 60)|100 +          20146300        
+         0.5 ) DIV 1)#;                                                 20146400        
+                                                                        20146410        
+ $ SET OMIT = NOT(PACKETS)                                              20146419        
+    DEFINE UNITNO = S[23].[2:6]#;  % ORIGINATING UNIT                   20146420        
+ $ POP OMIT                                                             20146421        
+                                                                        20146500        
+    LABEL START, CONTINUE, LOAD, PASS, WINDUP, QUIT;                    20146600        
+    LABEL JARSPACE, TRYAGAIN, NG;                                  %127-20146700        
+                                                                        20146800        
+    SWITCH SW := QUIT, START, CONTINUE, QUIT, QUIT, PASS;               20146900        
+                                                                        20147000        
+    COMMENT THE VALUE OF "TYPE" MAY DETERMINE WHICH PORTIONS OF         20147100        
+    PROCEDURES "SELECTRUN1" AND/OR "SELECTRUN2" WILL BE EXECUTED.       20147200        
+    PROCEDURE "SELECTRUN1" AND "SELECTRUN2" MAY, IN TURN, SPECIFY       20147300        
+    THE BRANCH POINT IN THIS PROCEDURE.                                 20147400        
+    THE FOLLOWING DEFINES ARE USED TO SPECIFY THE BRANCH POINT          20147500        
+    IN SWITCH "SW".                                                     20147600        
+    END OF COMMENT;                                                     20147700        
+                                                                        20147800        
+    DEFINE STARTING      =  1#,                                         20147900        
+           CONTINUEING   =  2#,                                         20148000        
+           QUITTING      =  3#,                                         20148100        
+           RUNING        =  4#,                                         20148200        
+           PASSING       =  5#,                                         20148300        
+           EQUATING      =  6#;                                         20148400        
+                                                                        20148500        
+    P(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);                       20148700        
+    RCW := RCW & P(..SELECTRUN,LOD)[CTC];                               20149200        
+                                                                        20149300        
+    TYPE := STARTING;                                                   20149400        
+                                                                        20149500        
