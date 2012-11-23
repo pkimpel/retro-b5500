@@ -16244,3 +16244,112 @@ PROCEDURE SELECTRUN(F); VALUE F; REAL F;                                20140800
                                                                         20149300        
     TYPE := STARTING;                                                   20149400        
                                                                         20149500        
+START:                                                                  20149600        
+                                                                        20149700        
+    P1MIX := 0;                                                         20149800        
+    IF F NEQ 0 THEN % SHEET ENTRY PASSED AS A PARAMETER                 20149900        
+       BEGIN                                                            20150000        
+       S   := IOQUE & F[CTC]; % SHEET ENTRY                             20150100        
+       HDR := F.[FF]; % CORE ADDRESS OF OBJECT FILE HEADER              20150200        
+       END                                                              20150300        
+    ELSE                                                                20150400        
+        BEGIN                                                           20150500        
+        IF TYPE=STARTING AND NOT SHEETLOCKED THEN                       20150600        
+            BEGIN                                                       20150700        
+            SLEEP([TOGLE].SHEETMASK);                                   20150800        
+            LOCKTOG(SHEETMASK);                                         20150900        
+            SHEETLOCKED := 1;                                           20151000        
+            END;                                                        20151100        
+        P([SVALUE], STS);                                               20151200        
+        SELECTRUN1;                                                     20151300        
+        IF TYPE LSS 0 THEN                                              20151400        
+            GO TO SW[TYPE:=ABS(TYPE)];                                  20151500        
+        END;                                                            20151600        
+                                                                        20151700        
+CONTINUE:                                                               20151800        
+                                                                        20151900        
+    P1MIX := 0;                                                         20152000        
+    IF (MCPJOB := S[2].SSYSJOBF) THEN                                   20152100        
+      IF (MCPJOB = PRNPBTCODE AND AUTOPRINT) OR                         20152200        
+         (MCPJOB = LDCNTRLCODE AND CDONLY) THEN                         20152300        
+                   MCPJOB.[1:1] := 1;                                   20152800        
+                                                                        20152900        
+    % NOTE: A NEGATIVE SIGN FOR MCPJOB IMPLIES THAT THIS JOB            20153000        
+    %       SHOULD BE STARTED REGARDLESS OF THE AVAILABILITY OF         20153100        
+    %       SYSTEM CORE.                                                20153200        
+                                                                        20153300        
+    IF INTSIZE=0 THEN % NO INTRINSICS FILE                              20153400        
+        IF NOT(MCPJOB) THEN % NOT "SYSTEM" PROGRAM                      20153500        
+           BEGIN                                                        20153600        
+           STREAM(NT3:=NT3:=SPACE(4));                                  20153700        
+           DS:=24 LIT"##NO INTRINSICS FILE...~";                        20153800        
+           SPOUT(NT3);                                                  20153900        
+           SLEEP([INTSIZE],@1777);                                      20154000        
+           END;                                                         20154100        
+                                                                        20154200        
+    WHILE(NT2:=XCLOCK+P(RTR)) GEQ WITCHINGHOUR DO MIDNIGHT;             20157700        
+                                                                        20157800        
+%   *****  *      *****  *   *     ****   ***   *****  *   *            20157900        
+%   *   *  *      *   *   * *      *   *   *    *      *  *             20158000        
+%   *   *  *      *****    *       *   *   *    *****  ***              20158100        
+%   *   *  *      *   *    *       *   *   *        *  *  *             20158200        
+%   *****  *****  *   *    *       ****   ***   *****  *   *            20158300        
+                                                                        20158400        
+    IF NOT MCPJOB THEN % NOT "LIBMAIN","LDCNTRL","PRNPBT"               20158500        
+    IF OLAYDISK=0 THEN % NO OLAY DISK OBTAINED YET                      20158600        
+    IF(OLAYDISK:=PETUERDISK(500 OR M,1))=0 THEN % NO OLAY DISK          20159100        
+        BEGIN                                                           20159200        
+        L:=1;                                                           20159500        
+        GO TO PASS;                                                     20159900        
+        END; % IF NOT OLAY DISK                                         20160000        
+                                                                        20160200        
+COMMENT JOB WILL BE RUN ONLY IF:                                        20160300        
+        1) AN XS OR ES MESSAGE HAS BEEN ENERED FOR THIS JOB, (IN WHICH  20160400        
+           CASE SHEETDIDDLER TURNED ON S[2].[1:1] AND CALLED SELECTION),20160500        
+     OR 2) THE SUM OF THIS JOBS CORE REQUIREMENTS (S[20]) PLUS THE SUM  20160600        
+           OF THE CORE REQUIREMENTS OF ALL OTHER JOBS ACTUALLY RUNNING  20160700        
+           (CORE.[FF]) IS LESS THAN THE TOTAL AMOUNT OF CORE AVAILABLE  20160800        
+           FOR USER PROGRAMS (THE INITIAL SPACE AVAILABLE (CORE.[CF])   20160900        
+           TIMES THE MULTIPROCESSING FACTOR (CORE.[4:14]),              20161000        
+    OR 3) "LDCNTRL/DISK" IS BEING TESTED AND THE "CDONLY" OPTION IS SET 20161100        
+          OR                                                            20161200        
+          "PRNPBT/DISK" IS BEING TESTED AND THE "AUTOPRNT" OPTION IS SET20161300        
+                                                                        20161400        
+          IF THE JOB BEING TESTED IS A "SYSTEM" JOB (LIBMAIN,LDCNTRL,   20161500        
+          PRNPBT) AND THE ABOVE CONDITIONS ARE NOT SATISFIED, THE       20161600        
+          THE APPARENT AMOUNT OF AVAILABLE CORE (AS SHOWN IN THE "CORE" 20161700        
+          WORD) IS TESTED USING A FACTOR OF 1.1 TIMES THE ACTUAL FACTOR 20161800        
+          IN ORDER TO ATTEMPT TO FORCE THESE JOBS IN.                   20161900        
+    END OF COMMENT;                                                     20162000        
+                                                                        20162100        
+    IF S[2].[8:10]=5 THEN % "RUN" JOB GETS SPECIAL HANDLING             20162300        
+ $ SET OMIT = NOT(DATACOM AND RJE )                                     20162400        
+       BEGIN                                                            20162700        
+       TYPE := RUNING;                                                  20162800        
+       P([SVALUE],STS);                                                 20162900        
+       SELECTRUN1;                                                      20163000        
+        IF TYPE LSS 0 THEN                                              20163100        
+            GO TO SW[TYPE:=ABS(TYPE)];                                  20163200        
+       END; % IF A "RUN" REQUEST                                        20163300        
+        T:=S[20];  % USED UNTIL 20178900                                20163600        
+        IF (EST:=CORE.[CF]|CORE.[4:14]/100)<T THEN % ESTIMATE > TOTAL.  20163700        
+        IF EST>0 THEN T:=EST;                      % SET IT TO TOTAL.   20163800        
+        L:=0;                                                      %125-20163900        
+        IF NOMEM NEQ 0 THEN GO TO PASS;                                 20164000        
+        IF (S[2] LSS 0) OR (MCPJOB.[1:1]) THEN GO TO JARSPACE;          20164200        
+        % MCPJOB.[1:1]=1 MEANS RUN IT REGARDLESS OF CORE AVAILABILITY   20164300        
+        % S[2].[1:2] ::: [0=NORMAL, 1=NOT USED, 2=XS-ED, 3=ES-ED]       20164400        
+        IF (LEVEL GTR PASSLEVEL) THEN GO TO PASS;                  %140-20164700        
+ $ SET OMIT = NOT(BREAKOUT)                                        %140-20164750        
+ $ SET OMIT = NOT(WORKSET)                                              20165110        
+        IF (WKSETSTOPJOBS NEQ 0) OR WKSETNOSELECT THEN GO TO PASS;      20165120        
+ $ POP OMIT % WORKSET                                                   20165130        
+        IF CORE.[FF]+T > (IF MCPJOB THEN EST|1.1 ELSE EST) THEN GO PASS;20165300        
+        % AN ATTEMPT IS MADE TO RUN MCPJOBS EVEN WHEN CORE IS FULL BY   20165400        
+        % TESTING THEM AGAINST A VALUE 10% HIGHER.                      20165500        
+                                                                        20166800        
+%     ***  *****  *****  *****  *****  *****  *****  *****              20166900        
+%      *   *   *  *   *  *      *   *  *   *  *      *                  20167000        
+%      *   *****  *****  *****  *****  *****  *      *****              20167100        
+%  *   *   *   *  *  *       *  *      *   *  *      *                  20167200        
+%  *****   *   *  *   *  *****  *      *   *  *****  *****              20167300        

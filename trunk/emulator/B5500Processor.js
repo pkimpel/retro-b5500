@@ -50,7 +50,7 @@ function B5500Processor(procID, cc) {
 
 /**************************************/
 
-B5500Processor.timeSlice = 5000;        // Standard run() timeslice, about 5ms (we hope)
+B5500Processor.timeSlice = 5000;        // Standard run() timeslice, about 5ms (we hope) 
 
 B5500Processor.collation = [            // index by BIC to get collation value
     53, 54, 55, 56, 57, 58, 59, 60,             // @00: 0 1 2 3 4 5 6 7
@@ -107,9 +107,9 @@ B5500Processor.prototype.clear = function() {
     this.cycleCount = 0;                // Current cycle count for this.run()
     this.cycleLimit = 0;                // Cycle limit for this.run()
     this.totalCycles = 0;               // Total cycles executed on this processor
-    this.procTime = 0;                  // Current processor running time, based on cycles executed
-    this.scheduleSlack = 0;             // Total processor throttling delay, milliseconds
-    this.busy = 0;                      // Proessor is running, not idle or halted
+    this.procTime = 0;                  // Total processor running time, based on cycles executed
+    this.procSlack = 0;                 // Total processor throttling delay, milliseconds
+    this.busy = 0;                      // Processor is running, not idle or halted
 };
 
 /**************************************/
@@ -3064,17 +3064,6 @@ B5500Processor.prototype.run = function() {
                     case 0x01:          // 0111: PRL=Program Release
                         break;
 
-                    case 0x10:          // 1011: COM=Communicate
-                        if (this.NCSF) {                        // no-op in control state
-                            this.adjustAFull();
-                            this.M = (this.R*64) + 0x09;        // address = R+@11
-                            this.access(0x0C);                  // [M] = A
-                            this.AROF = 0;
-                            this.I = (this.I & 0x0F) | 0x40;    // set I07
-                            this.cc.signalInterrupt();
-                        }
-                        break;
-
                     case 0x02:          // 0211: ITI=Interrogate Interrupt
                         if (this.cc.IAR && !this.NCSF) {        // control-state only
                             this.C = this.cc.IAR;
@@ -3089,6 +3078,22 @@ B5500Processor.prototype.run = function() {
                         if (!this.NCSF) {      // control-state only
                             this.adjustAEmpty();
                             this.A = this.cc.CCI03F*64 + this.cc.TM;
+                        }
+                        break;
+
+                    case 0x10:          // 1011: COM=Communicate
+                        if (this.NCSF) {                        // no-op in control state
+                            this.M = (this.R*64) + 0x09;        // address = R+@11
+                            if (this.AROF) {
+                                this.access(0x0C);              // [M] = A
+                                this.AROF = 0;
+                            } else {
+                                this.adjustBFull();
+                                this.access(0x0D);              // [M] = B
+                                this.BROF = 0;
+                            }
+                            this.I = (this.I & 0x0F) | 0x40;    // set I07
+                            this.cc.signalInterrupt();
                         }
                         break;
 
@@ -3122,19 +3127,40 @@ B5500Processor.prototype.run = function() {
 
                     case 0x22:          // 4211: IP2=Initiate Processor 2
                         if (!this.NCSF) {                       // control-state only
-                            this.adjustAFull();
-                            this.M = 8;             // INCW is stored in @10
-                            this.access(0x0C);      // [M] = A
-                            this.AROF = 0;
+                            this.M = 0x08;                      // INCW is stored in @10
+                            if (this.BROF && !this.AROF) {
+                                this.access(0x0D);              // [M] = B
+                                this.BROF = 0;
+                            } else
+                                this.adjustAFull();
+                                this.access(0x0C);              // [M] = A
+                                this.AROF = 0;
+                            }
                             this.cc.initiateP2();
-                            this.cycleLimit = 0;    // give P2 a chance to run
+                            this.cycleLimit = 0;                // give P2 a chance to run
                         }
                         break;
 
                     case 0x24:          // 4411: IIO=Initiate I/O
+                        if (!this.NCSF) {
+                            this.M = 0x08;                      // address of IOD is stored in @10
+                            if (this.BROF && !this.AROF) {
+                                this.access(0x0D);              // [M] = B
+                                this.BROF = 0;
+                            } else
+                                this.adjustAFull();
+                                this.access(0x0C);              // [M] = A
+                                this.AROF = 0;
+                            }
+                            this.cc.initiateIO();               // let CentralControl choose the I/O Unit
+                            this.cycleLimit = 0;                // give the I/O a chance to start
+                        }
                         break;
 
                     case 0x29:          // 5111: IFT=Initiate For Test
+                        if (!this.NCSF) {                       // control-state only
+                            this.initiate(1);
+                        }
                         break;
                     } // end switch for XX11 ops
                     break;
@@ -3647,7 +3673,7 @@ B5500Processor.prototype.schedule = function schedule() {
     that.procTime += that.cycleCount;
     if (that.busy) {
         delayTime = that.procTime/1000 - new Date().getTime();
-        that.scheduleSlack += delayTime;
+        that.procSlack += delayTime;
         that.scheduler = setTimeout(that.schedule, (delayTime < 0 ? 1 : delayTime));
     }
 };
@@ -3666,4 +3692,3 @@ B5500Processor.prototype.step = function() {
     this.totalCycles += this.cycleCount
     this.procTime += this.cycleCount;
 };
-
