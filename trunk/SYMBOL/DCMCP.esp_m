@@ -16353,3 +16353,109 @@ COMMENT JOB WILL BE RUN ONLY IF:                                        20160300
 %      *   *****  *****  *****  *****  *****  *      *****              20167100        
 %  *   *   *   *  *  *       *  *      *   *  *      *                  20167200        
 %  *****   *   *  *   *  *****  *      *   *  *****  *****              20167300        
+                                                                        20167400        
+JARSPACE:                                                               20167500        
+                                                                        20167600        
+    IDLETIME;                                                           20167650        
+    % FIND A MIX SLOT FOR THIS JOB                                      20167700        
+    FOR MIX:=1 STEP 1 UNTIL MIXMAX DO                                   20167800        
+       IF JAR[MIX,*]=0 THEN GO LOAD;                                    20167900        
+                                                                        20168000        
+    % NO FREE SPACE IN JAR: PASS ENTRY WITHOUT DELINKING AND CONTINUE   20168100        
+    L:=2;                                                               20168150        
+    GO TO PASS;                                                         20168200        
+                                                                        20168700        
+%   *      *****  *****  ****       ***  *****  *****                   20168800        
+%   *      *   *  *   *  *   *       *   *   *  *   *                   20168900        
+%   *      *   *  *****  *   *       *   *****  *****                   20169000        
+%   *      *   *  *   *  *   *    *  *   *   *  *  *                    20169100        
+%   *****  *****  *   *  ****     ****   *   *  *   *                   20169200        
+                                                                        20169300        
+LOAD:                                                                   20169400        
+                                                                        20169500        
+    JARROW[MIX] := IOQUE & HDR[CTC];      % FILE HEADER BECOMES JAR ROW 20169600        
+    M[HDR-2].[9:6] := MIX; % PLACE MIX INDEX IN MEMORY LINK             20169800        
+    M[HDR-2].[3:6] := JARROWAREAV;                                 %167-20169900        
+    CORE.[FF] := CORE.[FF] + T;           % ADD IN CORE ESTIMATE        20170600        
+ $ SET OMIT = NOT(PACKETS)                                              20170700        
+    IF(I:=S[23].[2:6]) GEQ 32 THEN PSEUDOMIX]MIX]:=I; % PSUEDO-RDR JOB  20170800        
+ $ POP OMIT % PACKETS                                                   20170900        
+    JAR[MIX,0] := S[0];                                                 20171000        
+    JAR[MIX,1] := S[1];                                                 20171100        
+    JAR[MIX,2]:=S[2]&(IF (NT1:=S[2].[8:10])=5 THEN 2 ELSE NT1)[8:38:10];20171200        
+    % IF THIS IS A "RUN" JOB, CHANGE IT TO SAY "EXECUTE"                20171300        
+    % JAR[MIX,2].[8:10] = SHEET[2].[8:10] =                             20171400        
+    %    0 = "GO" PART OF COMPILE AND GO                                20171500        
+    %    1 = COMPILE AND GO                                             20171600        
+    %    2 = EXECUTE                                                    20171700        
+    %    3 = COMPILE FOR SYNTAX                                         20171800        
+    %    4 = COMPILE TO LIBRARY                                         20171900        
+    5    5 = RUN JOB                                                    20172000        
+    STREAM(A:=JAR[MIX,3].[30:18], D:=[DT]); % CREATION DATE FROM HDR    20172100        
+       BEGIN                                                            20172200        
+       SI:=LOC A; DS:=8DEC;                                             20172300        
+       END;                                                             20172400        
+ $ SET OMIT = NOT(NEWLOGGING)                                           20172499        
+    PROCTIME[MIX] := -(JAR[MIX,3]:=S[16]); % PROCESS LIMIT         %127-20172600        
+    IOTIME  [MIX] := -(JAR[MIX,4]:=S[17]); % I/O LIMIT             %127-20172700        
+    STREAM(DATE, A:=[I]); % CONVERT DATE TO OCTAL FOR LOGGING           20172800        
+        BEGIN                                                           20172900        
+        SI:=LOC DATE; DS:=8OCT;                                         20173000        
+        END;                                                            20173100        
+    JAR[MIX,5]:=(XCLOCK+P(RTR)) & I[1:25:23]; % DATE AND TIME           20173200        
+    JAR[MIX,6] := S[6]&S[23][2:2:6]; % CARD/PSEUDO RDR. UNITNO IN [2:6] 20173300        
+    JAR[MIX,7] := 0; % IDLETIME ENTRY                                   20173800        
+    JAR[MIX,9].[FF] := 0; % ZERO OUT "CHAIN" DISK ADDRESS FIELD         20173900        
+    % JAR[MIX,8] THROUGH JAR[MIX,29] STILL CONTAIN CONTENTS OF          20174100        
+    % OBJECT FILE HEADER AS OBTAINED ABOVE                              20174200        
+    JAR[MIX,9] := M[HDR INX 9].[CF] & MCPJOB[6:45:3] &                  20174300        
+                  (S[2].[4:1] AND NOT(S[2].[2:1] OR AUTOMESS))[2:47:1]; 20174400        
+     % S[2].[4:1]=1 MEANS SUPPRESS BOJ/EOJ MESSAGES                     20174500        
+     % MARK JAR[9] WITH JOB CODE (1,3 OR 5 FOR SYS JOB)                 20174600        
+    % INSURE THAT THIS JOB HAS A UNIQUE STARTING TIME (FOR LOG)         20174900        
+TRYAGAIN:                                                               20175000        
+    FOR I:=1 STEP 1 UNTIL MIXMAX DO                                     20175100        
+        BEGIN                                                           20175200        
+        IF JARROW[1] NEQ 0 THEN % JOB RUNNING HERE                      20175300        
+        IF I NEQ MIX THEN % NOT OUR JOB                                 20175400        
+        IF JAR[MIX,5].[24:24]=JAR[I,5].[24:24] THEN % SAME START TIME   20175500        
+            BEGIN                                                       20175600        
+            JAR[MIX,5].[24:24]:=JAR[MIX,5].[24:24]+1; % BUMP THE TIME   20175700        
+            GO TRYAGAIN;                                                20175800        
+            END;                                                        20175900        
+        END;                                                            20176000        
+%                                                                  %127-20176003        
+%   *****  *****  *****     *****  *****  *****  *****             %127-20176006        
+%   *      *      *            *   *      *   *  *   *             %127-20176009        
+%   *****  *****  *  **       *    *****  *****  *   *             %127-20176012        
+%       *  *      *   *      *     *      *  *   *   *             %127-20176015        
+%   *****  *****  *****     *****  *****  *   *  *****             %127-20176018        
+%                                                                  %127-20176021        
+    IF F NEQ 0 THE % SHEET ENTRY PASSED AS A PARAMETER             %127-20176024        
+        BEGIN                                                      %127-20176027        
+        IF SEG0 NEQ 0 THEN FORGETSPACE(SEG0);                      %127-20176030        
+        SEG0 := S & S[7][CTC]; % CEG. ZERO PRESENT AT CORE ADDR. "S[7]" 20176033        
+        END                                                        %127-20176036        
+    ELSE                                                           %127-20176039        
+        BEGIN                                                      %127-20176042        
+        IF SEG0 = 0 THEN %                                         %127-20176045        
+            M[(SEG0:=ARRAYDESC(30,SEGZEROAREAV)) INX NOT 1].AREAMIXF:=0;20176048        
+        DISKWAIT(-(SEG0 INX 0),30,M[HDR INX 10]); % READ SEGMENT ZERO   20176054        
+        END; % IF SEGMENT ZERO WAS NOT PRESENT                     %127-20176057        
+%                                                                  %127-20176060        
+%   *****  *****  *****  *****  *   *              *****  *****  *****  20176063        
+%   *        *    *   *  *      *  *        *      *   *  *   *    *    20176066        
+%   *****    *    *****  *      ***       *****    *****  *****    *    20176069        
+%       *    *    *   *  *      *  *        *      *      *  *     *    20176072        
+%   *****    *    *   *  *****  *   *              *      *   *    *    20176075        
+%                                                                  %127-20176078        
+    % S[21] CONTAINS STACK SIZE, SEG0[3] CONTAINS PRT SIZE         %127-20176081        
+    IF SEG0[3] GTR 0 THEN % NOT A RESTART JOB                      %127-20176084        
+        BEGIN                                                      %127-20176087        
+        NFO[(MIX-1)|NDX+2] := (STACKLOC:=GETSPACE %                %167-20176090        
+            (SEG0[3] INX S[21] INX 64,STACKPRTAREAV,3))+2; %       %167-20176093        
+        IF STACKLOC = 0 THEN % NO MEMORY                           %127-20176096        
+            BEGIN                                                  %127-20176099        
+NG:         JARROW[MIX] := L := 0; %                               %127-20176102        
+            CORE.[FF] := CORE.[FF] - T; %                          %127-20176105        
+ $ SET OMIT = NOT(PACKETS)                                         %127-20176117        
