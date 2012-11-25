@@ -1192,126 +1192,6 @@ B5500Processor.prototype.initiate = function(forTest) {
 };
 
 /**************************************/
-B5500Processor.prototype.singlePrecisionAdd = function(adding) {
-    /* Adds the contents of the A register to the B register, leaving the result 
-    in B and invalidating A. If "adding" is not true, the sign of A is complemented
-    to accomplish subtraction instead of addition. 42-bit arithmetic is done on
-    the mantissas to allow for a rounding digit in the low-order octade (in the 
-    hardware, shifts off the low-order end of the word went into the X register) */
-    var ea;                             // signed exponent of A
-    var eb;                             // signed exponent of B
-    var ma;                             // absolute mantissa of A*8
-    var mb;                             // absolute mantissa of B*8
-    var sa;                             // mantissa sign of A (0=positive)
-    var sb;                             // mantissa sign of B (ditto)
-    
-    this.cycleCount += 4;               // estimate some general overhead
-    this.adjustABFull();
-    this.AROF = 0;                      // A is unconditionally marked empty
-    ma = this.A % 0x8000000000;         // extract the A mantissa
-    mb = this.B % 0x8000000000;         // extract the B mantissa
-    
-    if (ma == 0) {                      // if A mantissa is zero
-        if (mb == 0) {                  // and B mantissa is zero
-            this.B = 0;                 // result is all zeroes
-        } else {
-            this.B %= 0x800000000000;   // otherwise, result is B with flag bit reset
-        }
-    } else if (mb == 0 && adding) {     // otherwise, if B is zero and we're adding, 
-        this.B = this.A % 0x800000000000;       // result is A with flag bit reset
-    } else {                            // rats, we actually have to do this
-        ea = (this.A - ma)/0x8000000000;
-        sa = ((ea >>> 7) & 0x01) ^ (adding ? 0 : 1);
-        ea = (ea & 0x40 ? -(ea & 0x3F) : (ea & 0x3F));
-        ma *= 8;                        // shift A left an octade to provide a guard digit 
-
-        eb = (this.B - mb)/0x8000000000;
-        sb = (eb >>> 7) & 0x01;
-        eb = (eb & 0x40 ? -(eb & 0x3F) : (eb & 0x3F));
-        mb *= 8;                        // shift B left an octade to provide a guard digit 
-
-        // If the exponents are unequal, normalize the larger and scale the smaller
-        // until they are in alignment, or one of the mantissas (mantissae?) becomes zero
-        if (ea > eb) {
-            // Normalize A for 42 bits (14 octades)
-            while (ma < 0x8000000000 && ea != eb) {
-                this.cycleCount++;
-                ma *= 8;                // shift left
-                ea--;
-            }
-            // Scale B until its exponent matches or mantissa goes to zero
-            while (ea != eb && mb) {
-                this.cycleCount++;
-                mb = (mb - mb%8)/8;     // shift right
-                eb++;
-            }
-        } else if (ea < eb) {
-            // Normalize B for 42 bits (14 octades)
-            while (mb < 0x8000000000 && eb != ea) {
-                this.cycleCount++;
-                mb *= 8;                // shift left
-                eb--;
-            }
-            // Scale A until its exponent matches or mantissa goes to zero
-            while (eb != ea && ma) {
-                this.cycleCount++;
-                ma = (ma - ma%8)/8;     // shift right
-                ea++;
-            }
-        }
-
-        // At this point, the exponents are aligned (or one of the mantissas 
-        // is zero), so do the actual 42-bit addition
-        mb = (sb ? -mb : mb) + (sa ? -ma : ma);
-
-        if (mb == 0) {
-            this.B = 0;
-        } else {
-            // Determine the resulting sign
-            if (mb >= 0) {
-                sb = 0;
-            } else {
-                sb = 1;
-                mb = -mb;
-            }
-
-            // Normalize and round as necessary
-            ma = mb % 8;                // reuse ma for the guard digit;
-            mb = (mb - ma)/8;           // shift back to a 39-bit mantissa
-            if (mb >= 0x8000000000) {
-                this.cycleCount++;
-                ma = mb % 8;
-                mb = (mb - ma)/8;       // renormalize due to overflow
-                eb++; 
-            }
-            
-            // Note: the Training Manual does not say that rounding is suppressed
-            // for add/subtract when the mantissa is all ones, but it does say so
-            // for multiply/divide, so we assume it's also the case here.
-            if (ma & 0x04) {            // if the guard digit >= 4
-                if (mb < 0x7FFFFFFFFF) {// and rounding would not cause overflow
-                    this.cycleCount++;
-                    mb++;               // round up the result
-                }
-            }
-
-            // Check for exponent overflow
-            if (eb > 63) {
-                eb %= 64;
-                if (this.NCSF) {
-                    this.I = (this.I & 0x0F) | 0xB0;    // set I05/6/8: exponent-overflow
-                    this.cc.signalInterrupt();
-                }
-            } else if (eb < 0) {
-                eb = (-eb) | 0x40;      // set the exponent sign bit
-            }
-
-            this.B = (sb*128 + eb)*0x8000000000 + mb;   // Final Answer
-        } 
-    }
-};
-
-/**************************************/
 B5500Processor.prototype.singlePrecisionCompare = function() {
     /* Algebraically compares the B register to the A register. Function returns 
     -1 if B<A, 0 if B=A, or +1 if B>A. Exits with AROF=0, BROF=1, and A and B as is */
@@ -1377,6 +1257,144 @@ B5500Processor.prototype.singlePrecisionCompare = function() {
         }
     } else {                            // otherwise, if signs are different:
         return (sa < sb ? -1 : 1);      // B<A if B negative, B>A if B positive
+    }
+};
+
+/**************************************/
+B5500Processor.prototype.singlePrecisionAdd = function(adding) {
+    /* Adds the contents of the A register to the B register, leaving the result 
+    in B and invalidating A. If "adding" is not true, the sign of A is complemented
+    to accomplish subtraction instead of addition */
+    var d = 0;                          // the guard (rounding) digit
+    var ea;                             // signed exponent of A
+    var eb;                             // signed exponent of B
+    var ma;                             // absolute mantissa of A*8
+    var mb;                             // absolute mantissa of B*8
+    var sa;                             // mantissa sign of A (0=positive)
+    var sb;                             // mantissa sign of B (ditto)
+    var xx = 0;                         // local copy of X
+    
+    this.cycleCount += 4;               // estimate some general overhead
+    this.adjustABFull();
+    this.AROF = 0;                      // A is unconditionally marked empty
+    ma = this.A % 0x8000000000;         // extract the A mantissa
+    mb = this.B % 0x8000000000;         // extract the B mantissa
+    
+    if (ma == 0) {                      // if A mantissa is zero
+        if (mb == 0) {                  // and B mantissa is zero
+            this.B = 0;                 // result is all zeroes
+        } else {
+            this.B %= 0x800000000000;   // otherwise, result is B with flag bit reset
+        }
+    } else if (mb == 0 && adding) {     // otherwise, if B is zero and we're adding, 
+        this.B = this.A % 0x800000000000;       // result is A with flag bit reset
+    } else {                            // rats, we actually have to do this
+        ea = (this.A - ma)/0x8000000000;
+        sa = ((ea >>> 7) & 0x01);
+        ea = (ea & 0x40 ? -(ea & 0x3F) : (ea & 0x3F));
+
+        eb = (this.B - mb)/0x8000000000;
+        sb = (eb >>> 7) & 0x01;
+        eb = (eb & 0x40 ? -(eb & 0x3F) : (eb & 0x3F));
+
+        // If the exponents are unequal, normalize the larger and scale the smaller
+        // until they are in alignment, or one of the mantissas (mantissae?) becomes zero
+        if (ea > eb) {
+            // Normalize A for 39 bits (13 octades)
+            while (ma < 0x1000000000 && ea != eb) {
+                this.cycleCount++;
+                ma *= 8;                // shift left
+                ea--;
+            }
+            // Scale B until its exponent matches or mantissa goes to zero
+            while (ea != eb) {
+                this.cycleCount++;
+                d = mb % 8;
+                mb = (mb - d)/8;        // shift right into X
+                xx = (xx - xx%8)/8 + d*0x1000000000;
+                if (mb) {
+                    eb++;
+                } else {
+                    eb = ea;            // if B=0, result will have exponent of A
+                    // should we clear X at this point to prevent rounding of A?
+                }
+            }
+        } else if (ea < eb) {
+            // Normalize B for 39 bits (13 octades)
+            while (mb < 0x1000000000 && eb != ea) {
+                this.cycleCount++;
+                mb *= 8;                // shift left
+                eb--;
+            }
+            // Scale A until its exponent matches or mantissa goes to zero
+            while (eb != ea) {
+                this.cycleCount++;
+                d =  ma % 8;
+                ma = (ma -d)/8;         // shift right into X
+                xx = (xx - xx%8)/8 + d*0x1000000000;
+                if (ma) {
+                    ea++;
+                } else {
+                    ea = eb;            // if A=0, kill the scaling loop
+                    // should we clear X at this point to prevent rounding of B?
+                }
+            }
+        }
+
+        // At this point, the exponents are aligned (or one of the mantissas 
+        // is zero), so do the actual 39-bit addition
+        mb = (sb ? -mb : mb) + (sa ^ (adding ? 0 : 1) ? -ma : ma);
+
+        if (mb == 0) {
+            this.B = 0;
+        } else {
+            // Determine the resulting sign
+            if (mb >= 0) {
+                sb = 0;
+            } else {
+                sb = 1;
+                mb = -mb;
+            }
+
+            // Normalize and round as necessary
+            if (mb < 0x1000000000 && xx >= 0x800000000) {       // Normalization can be required for subtract
+                this.cycleCount++;                              
+                d = (xx - xx%0x1000000000)/0x1000000000;        // get the rounding digit from X
+                xx = (xx%0x1000000000)*8;                       // shift B and X left together
+                mb = mb*8 + d;
+                eb--;
+                d = (xx - xx%0x1000000000)/0x1000000000;        // get the next rounding digit from X
+            } else if (mb >= 0x8000000000) {                    // Scaling can be required for add
+                this.cycleCount++;
+                d = mb % 8;                                     // get the rounding digit from B
+                mb = (mb - d)/8;                                // shift right due to overflow
+                eb++; 
+            }
+            
+            // Note: the Training Manual does not say that rounding is suppressed
+            // for add/subtract when the mantissa is all ones, but it does say so
+            // for multiply/divide, so we assume it's also the case here.
+            if (d & 0x04) {             // if the guard digit >= 4
+                if (mb < 0x7FFFFFFFFF) {// and rounding would not cause overflow
+                    this.cycleCount++;
+                    mb++;               // round up the result
+                }
+            }
+
+            // Check for exponent overflow
+            if (eb > 63) {
+                eb %= 64;
+                if (this.NCSF) {
+                    this.I = (this.I & 0x0F) | 0xB0;    // set I05/6/8: exponent-overflow
+                    this.cc.signalInterrupt();
+                }
+            } else if (eb < 0) {
+                eb = (-eb) | 0x40;      // set the exponent sign bit
+            }
+
+            this.X = xx;                                // for display purposes only
+            this.B = (sb*128 + eb)*0x8000000000 + mb;   // Final Answer
+        } 
     }
 };
 
@@ -1821,6 +1839,194 @@ B5500Processor.prototype.remainderDivide = function() {
         }
     }
     this.X = xx;                        // for display purposes only
+};
+
+/**************************************/
+B5500Processor.prototype.doublePrecisionAdd = function(adding) {
+    /* Adds the double-precision contents of the A and B registers to the double-
+    precision contents of the top two words in the memory stack, leaving the result 
+    in A and B. If "adding" is not true, the sign of A is complemented to accomplish 
+    subtraction instead of addition */
+    var carry = 0;                      // overflow carry flag
+    var d = 0;                          // shifting digit between registers
+    var ea;                             // signed exponent of A
+    var eb;                             // signed exponent of B
+    var ma;                             // absolute mantissa of A*8
+    var mb;                             // absolute mantissa of B*8
+    var sa;                             // mantissa sign of A (0=positive)
+    var sb;                             // mantissa sign of B (ditto)
+    var xa;                             // extended mantissa for A
+    var xb;                             // extended mantissa for B
+    
+    this.cycleCount += 8;               // estimate some general overhead
+    
+    this.adjustABFull();                // extract the top (A) operand fields:
+    ma = this.A % 0x8000000000;         // extract the A mantissa
+    xa = this.B % 0x8000000000;         // extract the A mantissa extension
+    ea = (this.A - ma)/0x8000000000;
+    sa = ((ea >>> 7) & 0x01);
+    ea = (ea & 0x40 ? -(ea & 0x3F) : (ea & 0x3F));
+
+    this.AROF = this.BROF = 0;          // empty the TOS registers
+    this.adjustABFull();                // extract the second (B) operand fields:
+    mb = this.A % 0x8000000000;         // extract the B mantissa
+    xb = this.B % 0x8000000000;         // extract the B mantissa extension
+    eb = (this.B - mb)/0x8000000000;
+    sb = (eb >>> 7) & 0x01;
+    eb = (eb & 0x40 ? -(eb & 0x3F) : (eb & 0x3F));
+
+    
+    if (ma == 0 && xa == 0) {           // if A is zero
+        if (mb == 0 && xb == 0) {       // and B is zero
+            this.A = this.B = 0;        // result is all zeroes
+        } else {
+            this.A %= 0x800000000000;   // otherwise, result is B with flag bit reset
+        }
+    } else if (mb == 0 && xb == 0 && adding) {  // otherwise, if B is zero and we're adding, 
+        this.B = xa;                    // reconstruct A operand with flag bit reset
+        this.A = ((sa*2 + (ea < 0 ? 1 : 0))*64 + (ea < 0 ? -ea : ea))*0x8000000000 + ma;       
+    } else {                            // so much for the simple cases...
+        // If the exponents are unequal, normalize the larger and scale the smaller
+        // until they are in alignment, or one of the mantissas becomes zero
+        if (ea > eb) {
+            // Normalize A for 78 bits (26 octades)
+            while (ma < 0x1000000000 && ea != eb) {
+                this.cycleCount++;
+                d = (xa - xa%0x1000000000)/0x1000000000;
+                ma = ma*8 + d;          // shift left
+                xa = (xa % 0x1000000000)*8;
+                ea--;
+            }
+            // Scale B until its exponent matches or mantissa goes to zero
+            while (ea != eb) {
+                this.cycleCount++;
+                d = mb % 8;
+                mb = (mb - d)/8;        // shift right into extension
+                xb = (xb - xb%8)/8 + d*0x1000000000;
+                if (mb && xb) {
+                    eb++;
+                } else {
+                    eb = ea;            // if B=0, result will have exponent of A
+                }
+            }
+        } else if (ea < eb) {
+            // Normalize B for 78 bits (26 octades)
+            while (mb < 0x1000000000 && eb != ea) {
+                this.cycleCount++;
+                d = (xb - xb%0x1000000000)/0x1000000000;
+                mb = mb*8 + d;          // shift left
+                xb = (xb % 0x1000000000)*8;
+                eb--;
+            }
+            // Scale A until its exponent matches or mantissa goes to zero
+            while (eb != ea) {
+                this.cycleCount++;
+                d = ma % 8;
+                ma = (ma - d)/8;        // shift right into extension
+                xa = (xa - xa%8)/8 + d*0x1000000000;
+                if (ma && xa) {
+                    ea++;
+                } else {
+                    ea = eb;            // if A=0, kill the scaling loop
+                }
+            }
+        }
+
+        // At this point, the exponents are aligned (or one of the mantissas 
+        // is zero), so do the actual 78-bit addition as two 40-bit, signed, twos-
+        // complement halves. Note that computing the twos-complement of the 
+        // extension requires a borrow from the high-order part, so the borrow
+        // is taken from the 40-bit twos-complement base (i.e., use 0xFFFFFFFFFF
+        // instead of 0x10000000000).
+        if (sb) {                       // if B negative, compute B 2s complement
+            this.cycleCount += 2;
+            xb = 0x8000000000 - xb;
+            mb = 0xFFFFFFFFFF - mb;
+        }
+        if (sa ^ (adding ? 0 : 1)) {    // if A negative XOR subtracting, compute A 2s complement
+            this.cycleCount += 2;
+            xa = 0x8000000000 - xa;
+            ma = 0xFFFFFFFFFF - ma;
+        }
+        
+        xb += xa;                       // add the extension parts
+        if (xb >= 0x8000000000) {               // deal with carry out of extension part
+            mb++;                               // into high-order part
+            xb %= 0x8000000000;
+        }
+        
+        mb += ma;                       // add the high-order parts
+        
+        // Check for overflow: if the result occupies more than 40 bits, we know
+        // that overflow occurred; otherwise if both internal signs were positive
+        // and we have a twos-complement negative result, overflow occurred; otherwise
+        // if both internal signs were negative and we have a positive result,
+        // overflow occurred. Set the carry flag and adjust the result as necessary.
+        if (mb >= 0x10000000000) {                      // if result overflowed 40 bits
+            carry = 1;                                  // set the carry flag
+            mb -= 0x8000000000;                         // and adjust result for the overflow
+        } else if (sb == (sa ^ (adding ? 0 : 1))) {     // if the signs of the internal addition are the same
+            if (sb && mb < 0x8000000000) {              // if signs were negative and result is positive
+                carry = 1;                              // overflow occurred: set carry flag
+                mb += 0x8000000000;                     // and adjust result for the overflow
+            } else if (!sb && mb >= 0x8000000000) {     // if signs were positive and result is negative
+                carry = 1;                              // overflow occurred: set the carry flag
+                mb -= 0x8000000000;                     // and adjust result for the overflow
+            }
+        }
+        
+        // Determine the resulting sign and decomplement as necessary        
+        if (mb < 0x8000000000) {
+            sb = 0;                     // it's positive
+        } else {
+            sb = 1;                     // it's negative
+            this.cycleCount++;
+            xb = 0x8000000000 - xb;
+            mb = 0xFFFFFFFFFF - mb;
+        }        
+
+        // Scale or normalize as necessary
+        if (carry) {                                    // overflow occurred, so scale it in
+            this.cycleCount++;
+            d = mb % 8;                                 // get the shift digit from high-order part
+            mb = (mb - d)/8 + 0x1000000000;             // shift right and insert the overflow bit
+            xb = (xb - xb%8)/8 + d*0x1000000000;        // shift the extension and insert the shift digit
+            eb++; 
+        } else {
+            while (mb < 0x1000000000 && mb & xb) {      // Normalize
+                this.cycleCount++;                              
+                d = (xb - xb%0x1000000000)/0x1000000000;// get the rounding digit from X
+                xb = (xb%0x1000000000)*8;               // shift B and X left together
+                mb = mb*8 + d;
+                eb--;
+            }
+        }
+
+        if (mb == 0 && xb == 0) {
+            this.A = this.B = 0;
+        } else {
+            // Check for exponent over/underflow
+            if (eb > 63) {
+                eb %= 64;
+                if (this.NCSF) {
+                    this.I = (this.I & 0x0F) | 0xB0;    // set I05/6/8: exponent-overflow
+                    this.cc.signalInterrupt();
+                }
+            } else if (eb < -63) {
+                eb = ((-eb) % 64) | 0x40;               // mod the exponent and set its sign
+                if (this.NCSF) {
+                    this.I = (this.I & 0x0F) | 0xA0;    // set I06/8: exponent-underflow
+                    this.cc.signalInterrupt();
+                }
+            } else if (eb < 0) {
+                eb = (-eb) | 0x40;                      // set the exponent sign bit
+            }
+
+            this.X = xb;                                // for display purposes only
+            this.B = xb;
+            this.A = (sb*128 + eb)*0x8000000000 + mb;   // Final Answer
+        } 
+    }
 };
 
 /**************************************/
@@ -3046,15 +3252,33 @@ B5500Processor.prototype.run = function() {
                 case 0x05:              // XX05: double-precision numerics
                     switch (variant) {
                     case 0x01:          // 0105: DLA=double-precision add
+                        this.doublePrecisionAdd(true);
                         break;
 
                     case 0x03:          // 0305: DLS=double-precision subtract
+                        this.doublePrecisionAdd(false);
                         break;
 
                     case 0x04:          // 0405: DLM=double-precision multiply
+                        this.adjustABFull();                    // FOR NOW, just do SP multiply
+                        this.BROF = 0;                          // wipe out the first mantissa extension
+                        this.adjustBFull();                     // get second mantissa
+                        this.S--;                               // wipe out the second mantissa extension
+                        this.singlePrecisionMultiply();
+                        this.A = this.B;                        // move high-order result to A
+                        this.AROF = 1;
+                        this.B = 0;                             // set low-order result to 0 in B
                         break;
 
                     case 0x08:          // 1005: DLD=double-precision floating divide
+                        this.adjustABFull();                    // FOR NOW, just do SP divide
+                        this.BROF = 0;                          // wipe out the first mantissa extension
+                        this.adjustBFull();                     // get second mantissa
+                        this.S--;                               // wipe out the second mantissa extension
+                        this.singlePrecisionDivide();
+                        this.A = this.B;                        // move high-order result to A
+                        this.AROF = 1;
+                        this.B = 0;                             // set low-order result to 0 in B
                         break;
                     }
                     break;
@@ -3131,7 +3355,7 @@ B5500Processor.prototype.run = function() {
                             if (this.BROF && !this.AROF) {
                                 this.access(0x0D);              // [M] = B
                                 this.BROF = 0;
-                            } else
+                            } else {
                                 this.adjustAFull();
                                 this.access(0x0C);              // [M] = A
                                 this.AROF = 0;
@@ -3147,7 +3371,7 @@ B5500Processor.prototype.run = function() {
                             if (this.BROF && !this.AROF) {
                                 this.access(0x0D);              // [M] = B
                                 this.BROF = 0;
-                            } else
+                            } else {
                                 this.adjustAFull();
                                 this.access(0x0C);              // [M] = A
                                 this.AROF = 0;
