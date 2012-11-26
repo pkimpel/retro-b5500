@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<head>
+<title>B5500 Processor Syllable Debugger</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta name="Author" content="Nigel Williams & Paul Kimpel">
+<meta http-equiv="Content-Script-Type" content="text/javascript">
+<meta http-equiv="Content-Style-Type" content="text/css">
+<link id=defaultStyleSheet rel=stylesheet type="text/css" href="B5500SyllableDebugger.css">
+
+<script src="../emulator/B5500SystemConfiguration.js"></script>
+<script src="../emulator/B5500CentralControl.js"></script>
+<script src="../emulator/B5500Processor.js"></script>
+
+<script>
+"use strict";
+
+var cc;
+var memAddr = 0x40;                     // @100
+
+var accessor = {                        // Memory access control block
+    requestorID: "A",                   // Memory requestor ID
+    addr: 0,                            // Memory address
+    word: 0,                            // 48-bit data word
+    MAIL: 0,                            // Truthy if attempt to access @000-@777 in normal state
+    MPED: 0,                            // Truthy if memory parity error
+    MAED: 0                             // Truthy if memory address/inhibit error
+};
+
+function setText(id, text) {
+    /* Replaces the children of the node having id="id" with a text node containing "text" */
+    var e = document.getElementById(id);
+    var f;
+    
+    if (!e) {
+        alert("Invalid setText() node id \"" + id + "\"");
+    } else {
+        while (f = e.firstChild) {
+            e.removeChild(f);
+        }
+        e.appendChild(document.createTextNode(text));
+    }
+}
+
+function parseToOctal(e) {
+    /* Obtains the .value from the element "e", parses it, and returns the 
+    result as a B5500 numeric word. If the element text contains any of "-+eE."
+    the text is parsed as a decimal integer or floating point number, otherwise
+    it is parsed as an octal value */
+    var ev = 0;                         // exponent of parsed value
+    var mv;                             // mantissa of parsed value
+    var sv = 0;                         // sign of parsed value
+    var tv = 0;                         // sign of parsed value exponent
+    var text = e.value;                 // text of element
+    var v;                              // parsed value of element text
+    
+    if (text.search(/\S/) < 0) {
+        text = "0";
+    }
+    if (text.search(/[-+eE.]/) < 0) {
+        v = parseInt(text, 8);
+    } else {
+        v = parseFloat(text);
+        if (!isNaN(v) && v != 0) {
+            if (v < 0) {
+                sv = 1;
+                v = -v;
+            }
+            while (v < 0x1000000000) {
+                v *= 8;
+                ev--;
+            } 
+            while (v >= 0x8000000000) {
+                v /= 8;
+                ev++;
+            }
+            mv = Math.floor(v);
+            if (ev >= -13) {
+                while (ev < 0 && mv%8 == 0) {
+                    mv /= 8;
+                    ev++;
+                }
+            }
+            if (ev < 0) {
+                tv = 1;
+                ev = -ev;
+            }
+            v = (((sv*2) + tv)*64 + ev%64)*0x8000000000 + mv;        // to B5500 format
+        }
+    }
+    
+    if (isNaN(v)) {
+        e.style.backgroundColor = "red";
+    } else {
+        e.style.backgroundColor = "";
+    }
+    return v;
+}
+
+function padOctal(value, octades) {
+    /* Formats "value" as an octal number of "octades" length, left-padding with 
+    zeroes as necessary */
+    var text = value.toString(8);
+    var len = text.length;
+    
+    while (len++ < octades) {
+        text = "0" + text;
+    }
+    return text;
+}
+
+function displayOctal(id, value, octades) {
+    /* Formats the "value" as octal of length "octades" and sets the "id".value 
+    property with the result */
+    var e = document.getElementById(id);
+    
+    e.value = padOctal(value, octades);
+}
+
+function displayNumber(id, value) {
+    /* Converts the "value" as a B5500 number to a Javascript Number() object and
+    formats it as the text content of node "id" */
+    var m = value % 0x8000000000;       // get the mantissa
+    var e = (value - m)/0x8000000000;   // get the exponent and sign bits
+    var s = (e & 0x80) >>> 7;           // get the mantissa sign
+    var t = (e & 0x40) >>> 6;           // get the exponent sign
+    
+    e = (t ? -(e & 0x3F) : (e & 0x3F)); // get signed value of exponent
+    setText(id, (Math.pow(8, e)*(s ? -m : m)).toPrecision(12));
+}
+
+function displayMemWord(e, addr, valueID) {
+    /* Displays the contents of the memory word at "addr" as the value of element "e" */
+    
+    setText(valueID, "");
+    e.setAttribute("data-b55sd-addr", addr.toString(8));
+    accessor.addr = addr;
+    cc.fetch(accessor);
+    if (accessor.MAIL) {
+        e.style.backgroundColor = "yellow";
+        e.value = "<< ADDR INH >>";
+    } else if (accessor.MPED) {
+        e.style.backgroundColor = "yellow";
+        e.value = "<< PARITY >>";
+    } else if (accessor.MAED) {
+        e.style.backgroundColor = "yellow";
+        e.value = "<< INV ADDR >>";
+    } else { 
+        e.style.backgroundColor = "";
+        displayOctal(e.id, accessor.word, 16);
+        displayNumber(valueID, accessor.word);
+    }
+}
+
+function displayStack() {
+    /* Displays the A and B registers, plus the top 8 words of the memory stack */
+    var addr;
+    var e;
+    var valueID;
+    var x;
+    
+    displayOctal("AReg", cc.P1.A, 16);
+    displayNumber("ARegValue", cc.P1.A);
+    document.getElementById("AROF").checked = (cc.P1.AROF != 0);
+    
+    displayOctal("BReg", cc.P1.B, 16);
+    displayNumber("BRegValue", cc.P1.B);
+    document.getElementById("BROF").checked = (cc.P1.BROF != 0);
+    
+    for (x=0; x<=7; x++) {
+        addr = cc.P1.S - x;
+        setText("SAddr" + x, padOctal(addr, 5));   
+        e = document.getElementById("SWord" + x);
+        valueID = e.getAttribute("data-b55sd-valueID");
+        displayMemWord(e, addr, valueID);
+    }
+}
+
+function displayMemory() {
+    /* Displays the words surrounding "memAddr" */
+    var addr;
+    var e;
+    var suffix;
+    var valueID;
+    var x;
+    
+    for (x=-4; x<=4; x++) {
+        suffix = (x < 0 ? "M" + (-x) : "P" + x);
+        addr = memAddr + x;
+        if (x == 0) {
+            displayOctal("MAddr", addr, 5);
+        } else {
+            setText("MAddr" + suffix, padOctal(addr, 5));   
+        }
+        e = document.getElementById("MWord" + suffix);
+        valueID = e.getAttribute("data-b55sd-valueID");
+        displayMemWord(e, addr, valueID);
+    }
+}
+
+function displayRegisters() {
+    /* Displays the non-stack processor registers */
+    
+    displayOctal("XReg", cc.P1.X, 13);
+    displayOctal("CReg", cc.P1.C, 5);
+    displayOctal("LReg", cc.P1.L, 1);
+    displayOctal("PReg", cc.P1.P, 16);
+    document.getElementById("PROF").checked = (cc.P1.PROF != 0);    
+    displayOctal("TReg", cc.P1.T, 4);
+    document.getElementById("TROF").checked = (cc.P1.TROF != 0);
+    displayOctal("EReg", cc.P1.E, 2);
+    displayOctal("IReg", cc.P1.I, 3);
+    displayOctal("QReg", cc.P1.Q, 4);
+    displayOctal("MReg", cc.P1.M, 5);
+    displayOctal("GReg", cc.P1.G, 1);
+    displayOctal("HReg", cc.P1.H, 1);
+    displayOctal("SReg", cc.P1.S, 5);
+    displayOctal("KReg", cc.P1.K, 1);
+    displayOctal("VReg", cc.P1.V, 1);
+    displayOctal("FReg", cc.P1.F, 5);
+    displayOctal("RReg", cc.P1.R, 3);
+    displayOctal("YReg", cc.P1.Y, 2);
+    displayOctal("ZReg", cc.P1.Z, 2);
+    displayOctal("NReg", cc.P1.N, 2);  
+    document.getElementById("NCSF").checked = (cc.P1.NCSF != 0);
+    document.getElementById("CWMF").checked = (cc.P1.CWMF != 0);
+    document.getElementById("SALF").checked = (cc.P1.SALF != 0);
+    document.getElementById("VARF").checked = (cc.P1.VARF != 0);
+}
+
+function displayProcessorState() {
+    /* Extracts and displays the current processor state on the web page */
+    
+    displayStack();
+    displayMemory();
+    displayRegisters();
+}
+
+function stepIt(exec) {
+    /* Simple test driver for the Processor arithmetic ops */
+    var opcode = 0x02D;                 // NOOP (XX55) by default
+    var opList = document.getElementById("OpList")
+    var saveC;
+    var saveL;
+    var saveP;
+    var saveT;
+    var text;
+    var title;
+    var value;
+
+    title = opList.options[opList.selectedIndex].text
+    value = opList.options[opList.selectedIndex].value;
+    opcode = parseInt(value, 8);
+
+    setText("ARegOrig", padOctal(cc.P1.A, 16));
+    setText("BRegOrig", padOctal(cc.P1.B, 16));
+
+    cc.P1.I = 0;                // reset any interrupts
+    cc.IAR = 0;
+
+    cc.P1.X = 0;
+    if (exec) {
+        saveT = cc.P1.T;
+        saveC = cc.P1.C;
+        saveL = cc.P1.L;
+        saveP = cc.P1.P;
+        cc.P1.T = opcode;
+    }             
+    cc.P1.step();
+    if (exec) {
+        cc.P1.T = saveT;
+        cc.P1.C = saveC;
+        cc.P1.L = saveL;
+        cc.P1.P = saveP;
+    }             
+                  
+    displayProcessorState();
+}
+
+function word_onChange(ev) {
+    /* Normalizes, sets, and displays the value of a memory word when changed */
+    var addr;
+    var e = ev.target;
+    var value;
+    var valueID = e.getAttribute("data-b55sd-valueID");
+    
+    value = e.getAttribute("data-b55sd-addr");
+    addr = parseInt(value, 8);
+    if (isNaN(addr)) {
+        e.style.backgroundColor = "orange";
+        alert("Invalid data-b55sd-addr address: " + value);
+    } else {
+        value = parseToOctal(e);
+        if (isNaN(value)) {
+            e.style.backgroundColor = "red";
+        } else {
+            e.style.backgroundColor = "";
+            accessor.addr = addr;
+            accessor.word = value;
+            cc.store(accessor);
+            displayMemWord(e, addr, valueID);
+        }
+    }
+    return value;
+}
+
+function reg_onChange(ev) {
+    /* Normalizes, sets, and displays the value of a register when changed */
+    var e = ev.target;
+    var value;
+    
+    value = parseToOctal(e);
+    if (isNaN(value)) {
+        e.style.backgroundColor = "red";
+    } else {
+        e.style.backgroundColor = "";
+        e.value = padOctal(value, e.maxLength);
+    }
+    return value;
+}
+
+function tos_onChange(ev, valueID, origID) {
+    /* Normalizes and displays the value of a register when changed */
+    var e = ev.target;
+    var value;
+    
+    value = parseToOctal(e);
+    if (isNaN(value)) {
+        e.style.backgroundColor = "red";
+    } else {
+        e.style.backgroundColor = "";
+        displayOctal(e.id, value, 16);
+        displayNumber(valueID, value);
+    }
+    return value;
+}
+
+window.onload = function() {
+
+    document.getElementById("AReg").onchange = function(ev) {
+        cc.P1.A = tos_onChange(ev, "ARegValue", "ARegOrig");
+        cc.P1.AROF = 1;
+        document.getElementById("AROF").checked = true;
+    };
+    document.getElementById("BReg").onchange = function(ev) {
+        cc.P1.B = tos_onChange(ev, "BRegValue", "BRegOrig");
+        cc.P1.BROF = 1;
+        document.getElementById("BROF").checked = true;
+    };
+    document.getElementById("MAddr").onchange = function(ev) {
+        var addr = parseToOctal(ev.target);
+        
+        if (!isNaN(addr)) {
+            memAddr = addr & 0x7FFF;
+            displayMemory();
+        }
+    };
+    document.getElementById("SReg").onchange = function(ev) {
+        var addr = parseToOctal(ev.target);
+        
+        if (!isNaN(addr)) {
+            cc.P1.S = addr & 0x7FFF;
+            displayStack();
+        }
+    };
+    document.getElementById("SWord0").onchange = word_onChange;
+    document.getElementById("SWord1").onchange = word_onChange;
+    document.getElementById("SWord2").onchange = word_onChange;
+    document.getElementById("SWord3").onchange = word_onChange;
+    document.getElementById("SWord4").onchange = word_onChange;
+    document.getElementById("SWord5").onchange = word_onChange;
+    document.getElementById("SWord6").onchange = word_onChange;
+    document.getElementById("SWord7").onchange = word_onChange;
+    
+    document.getElementById("MWordM4").onchange = word_onChange;
+    document.getElementById("MWordM3").onchange = word_onChange;
+    document.getElementById("MWordM2").onchange = word_onChange;
+    document.getElementById("MWordM1").onchange = word_onChange;
+    document.getElementById("MWordP0").onchange = word_onChange;
+    document.getElementById("MWordP1").onchange = word_onChange;
+    document.getElementById("MWordP2").onchange = word_onChange;
+    document.getElementById("MWordP3").onchange = word_onChange;
+    document.getElementById("MWordP4").onchange = word_onChange;
+    
+    document.getElementById("TReg").onchange = function(ev) {
+        cc.P1.T = reg_onChange(ev);
+    };
+
+    cc = new B5500CentralControl();
+    cc.powerOn();
+    cc.clear();
+
+    cc.P1.S = 0x40;                     // stack at @100
+    cc.P1.R = 0x005;                    // PRT at @500 (R has addr div 64)
+
+    cc.P1.C = 0x10;                     // execute from address @20
+    cc.P1.access(0x30);                 // P = [C]
+    cc.P1.T = cc.fieldIsolate(cc.P1.P, 0, 12);
+    cc.P1.TROF = 1;
+    cc.P1.L = 1;                        // point to the next instruction
+    
+    cc.P1.NCSF = 0;                     // initiate test in control state
+    
+    displayProcessorState();
+}
+</script>
+</head>
+
+<body>
+
+<div id=LogoDiv>
+    <div id=BurroughsLogo>
+        <img id=BurroughsLogoImage src="Burroughs-Logo-Neg.jpg">
+    </div>
+    <div id=B5500Logo>B 5500 
+    </div>
+</div>
+
+<h3>B5500 Syllable Debugger</h3>
+
+<table id=RegisterBank1 class="normal border">
+<thead>
+<tr>
+    <th>Reg
+    <th>Addr
+    <th>Current (octal)
+    <th>FP Value
+    <th>Original (octal)
+<tbody>
+<tr>
+    <td colspan=5 class="center bold">STACK
+<tr>
+    <td class=center>A
+    <td>
+        <input id=AROF name=AROF type=checkbox value=1><label for=AROF>AROF</label>
+    <td>
+        <input id=AReg name=AReg type=text class=number size=16 maxlength=16
+               data-b55sd-valueID=ARegValue data-b55sd-origID=ARegOrig>
+    <td id=ARegValue class=number>
+    <td id=ARegOrig class=number>
+<tr>    
+    <td class=center>B
+    <td>
+        <input id=BROF name=BROF type=checkbox value=1><label for=BROF>BROF</label>
+    <td>
+        <input id=BReg name=BReg type=text class=number size=16 maxlength=16
+               data-b55sd-valueID=BRegValue data-b55sd-origID=BRegOrig>
+    <td id=BRegValue class=number>
+    <td id=BRegOrig class=number>
+<tr>
+    <td class=center>S-0
+    <td id=SAddr0 class="data center">00000
+    <td>
+        <input id=SWord0 name=SWord0 type=text class=number size=16 maxlength=16
+               data-b55sd-valueID=SValue0 data-b55sd-origID=SOrig0>
+    <td id=SValue0 class=number>
+    <td id=SOrig0 class=number>
+<tr>
+    <td class=center>S-1
+    <td id=SAddr1 class="data center">11111
+    <td>
+        <input id=SWord1 name=SWord1 type=text class=number size=16 maxlength=16
+               data-b55sd-valueID=SValue1 data-b55sd-origID=SOrig1>
+    <td id=SValue1 class=number>
+    <td id=SOrig1 class=number>
+<tr>
+    <td class=center>S-2
+    <td id=SAddr2 class="data center">22222
+    <td>
+        <input id=SWord2 name=SWord2 type=text class=number size=16 maxlength=16
+               data-b55sd-valueID=SValue2 data-b55sd-origID=SOrig2>
+    <td id=SValue2 class=number>
+    <td id=SOrig2 class=number>
+<tr>
+    <td class=center>S-3
+    <td id=SAddr3 class="data center">33333
+    <td>
+        <input id=SWord3 name=SWord3 type=text class=number size=16 maxlength=16
+               data-b55sd-valueID=SValue3 data-b55sd-origID=SOrig3>
+    <td id=SValue3 class=number>
+    <td id=SOrig3 class=number>
+<tr>
+    <td class=center>S-4
+    <td id=SAddr4 class="data center">44444
+    <td>
+        <input id=SWord4 name=SWord4 type=text class=number size=16 maxlength=16
+               data-b55sd-valueID=SValue4 data-b55sd-origID=SOrig4>
+    <td id=SValue4 class=number>
+    <td id=SOrig4 class=number>
+<tr>
+    <td class=center>S-5
+    <td id=SAddr5 class="data center">55555
+    <td>
+        <input id=SWord5 name=SWord5 type=text class=number size=16 maxlength=16
+               data-b55sd-valueID=SValue5 data-b55sd-origID=SOrig5>
+    <td id=SValue5 class=number>
+    <td id=SOrig5 class=number>
+<tr>
+    <td class=center>S-6
+    <td id=SAddr6 class="data center">66666
+    <td>
+        <input id=SWord6 name=SWord6 type=text class=number size=16 maxlength=16
+               data-b55sd-valueID=SValue6 data-b55sd-origID=SOrig6>
+    <td id=SValue6 class=number>
+    <td id=SOrig6 class=number>
+<tr>
+    <td class=center>S-7
+    <td id=SAddr7 class="data center">77777
+    <td>
+        <input id=SWord7 name=SWord7 type=text class=number size=16 maxlength=16
+               data-b55sd-valueID=SValue7 data-b55sd-origID=SOrig7>
+    <td id=SValue7 class=number>
+    <td id=SOrig7 class=number>
+
+<tbody>
+<tr>
+    <td colspan=5 class="center bold">MEMORY
+<tr>
+    <td class=center>M+4
+    <td id=MAddrP4 class="data center">44444
+    <td>
+        <input id=MWordP4 name=MWordP4 type=text class=number size=16 maxlength=16
+               data-b55sd-valueID=MValueP4 data-b55sd-origID=MOrigP4>
+    <td id=MValueP4 class=number>
+    <td id=MOrigP4 class=number>
+<tr>
+    <td class=center>M+3
+    <td id=MAddrP3 class="data center">33333
+    <td>
+        <input id=MWordP3 name=MWordP3 type=text class=number size=16 maxlength=16
+               data-b55sd-valueID=MValueP3 data-b55sd-origID=MOrigP3>
+    <td id=MValueP3 class=number>
+    <td id=MOrigP3 class=number>
+<tr>
+    <td class=center>M+2
+    <td id=MAddrP2 class="data center">22222
+    <td>
+        <input id=MWordP2 name=MWordP2 type=text class=number size=16 maxlength=16
+               data-b55sd-valueID=MValueP2 data-b55sd-origID=MOrigP2>
+    <td id=MValueP2 class=number>
+    <td id=MOrigP2 class=number>
+<tr>
+    <td class=center>M+1
+    <td id=MAddrP1 class="data center">11111
+    <td>
+        <input id=MWordP1 name=MWordP1 type=text class=number size=16 maxlength=16
+               data-b55sd-valueID=MValueP1 data-b55sd-origID=MOrigP1>
+    <td id=MValueP1 class=number>
+    <td id=MOrigP1 class=number>
+<tr>
+    <td class=center>Mem
+    <td class="center">
+        <input id=MAddr name=MAddr type=text class=center size=5 maxlength=5>    
+    <td>
+        <input id=MWordP0 name=MWordP0 type=text class=number size=16 maxlength=16
+               data-b55sd-valueID=MValueP0 data-b55sd-origID=MOrigP0>
+    <td id=MValueP0 class=number>
+    <td id=MOrigP0 class=number>
+<tr>
+    <td class=center>M-1
+    <td id=MAddrM1 class="data center">11111
+    <td>
+        <input id=MWordM1 name=MWordM1 type=text class=number size=16 maxlength=16
+               data-b55sd-valueID=MValueM1 data-b55sd-origID=MOrigM1>
+    <td id=MValueM1 class=number>
+    <td id=MOrigM1 class=number>
+<tr>
+    <td class=center>M-2
+    <td id=MAddrM2 class="data center">22222
+    <td>
+        <input id=MWordM2 name=MWordM2 type=text class=number size=16 maxlength=16
+               data-b55sd-valueID=MValueM2 data-b55sd-origID=MOrigM2>
+    <td id=MValueM2 class=number>
+    <td id=MOrigM2 class=number>
+<tr>
+    <td class=center>M-3
+    <td id=MAddrM3 class="data center">33333
+    <td>
+        <input id=MWordM3 name=MWordM3 type=text class=number size=16 maxlength=16
+               data-b55sd-valueID=MValueM3 data-b55sd-origID=MOrigM3>
+    <td id=MValueM3 class=number>
+    <td id=MOrigM3 class=number>
+<tr>
+    <td class=center>M-4
+    <td id=MAddrM4 class="data center">44444
+    <td>
+        <input id=MWordM4 name=MWordM4 type=text class=number size=16 maxlength=16
+               data-b55sd-valueID=MValueM4 data-b55sd-origID=MOrigM4>
+    <td id=MValueM4 class=number>
+    <td id=MOrigM4 class=number>
+</table>
+
+<table id=RegisterBank2 class="normal border">
+<tbody>
+<tr>    
+    <td class=center>X
+    <td colspan=5>
+        <input id=XReg name=XReg type=text class=number size=13 maxlength=13>
+<tr>
+    <td class=center>C
+    <td>
+        <input id=CReg name=CReg type=text class=number size=5 maxlength=5>
+    <td class=center>L
+    <td colspan=3>
+        <input id=LReg name=LReg type=text class=number size=1 maxlength=1>
+<tr>
+    <td class=center>P
+    <td colspan=5>
+        <input id=PReg name=PReg type=text class=number size=16 maxlength=16>
+        <input id=PROF name=PROF type=checkbox value=1><label for=PROF>PROF</label>
+<tr>
+    <td class=center>T
+    <td colspan=5>
+        <input id=TReg name=TReg type=text class=number size=4 maxlength=4>
+        <input id=TROF name=TROF type=checkbox value=1><label for=TROF>TROF</label>
+<tr>
+    <td class=center>E
+    <td>
+        <input id=EReg name=EReg type=text class=number size=2 maxlength=2>
+    <td class=center>I
+    <td>
+        <input id=IReg name=IReg type=text class=number size=3 maxlength=3>
+    <td class=center>Q
+    <td>
+        <input id=QReg name=QReg type=text class=number size=4 maxlength=4>
+<tr>
+    <td class=center>M
+    <td>
+        <input id=MReg name=MReg type=text class=number size=5 maxlength=5>
+    <td class=center>G
+    <td>
+        <input id=GReg name=GReg type=text class=number size=1 maxlength=1>
+    <td class=center>H
+    <td>
+        <input id=HReg name=HReg type=text class=number size=1 maxlength=1>
+<tr>
+    <td class=center>S
+    <td>
+        <input id=SReg name=SReg type=text class=number size=5 maxlength=5>
+    <td class=center>K
+    <td>
+        <input id=KReg name=KReg type=text class=number size=1 maxlength=1>
+    <td class=center>V
+    <td>
+        <input id=VReg name=VReg type=text class=number size=1 maxlength=1>
+<tr>
+    <td class=center>F
+    <td>
+        <input id=FReg name=FReg type=text class=number size=5 maxlength=5>
+    <td class=center>R
+    <td colspan=3>
+        <input id=RReg name=RReg type=text class=number size=3 maxlength=3>
+<tr>
+    <td class=center>Y
+    <td>
+        <input id=YReg name=YReg type=text class=number size=2 maxlength=2>
+    <td class=center>Z
+    <td>
+        <input id=ZReg name=ZReg type=text class=number size=2 maxlength=2>
+    <td class=center>N
+    <td>
+        <input id=NReg name=NReg type=text class=number size=2 maxlength=2>
+<tr>
+    <td colspan=6 class=center>
+        <input id=NCSF name=NCSF type=checkbox value=1><label for=NCSF>NCSF</label>
+        &nbsp;&nbsp;
+        <input id=CWMF name=CWMF type=checkbox value=1><label for=CWMF>CWMF</label>
+        &nbsp;&nbsp;
+        <input id=SALF name=SALF type=checkbox value=1><label for=SALF>SALF</label>
+        &nbsp;&nbsp;
+        <input id=VARF name=VARF type=checkbox value=1><label for=VARF>VARF</label>
+</table>
+
+<p>
+<input id=Step name=Step type=button value="Step" onclick="return stepIt(false)">
+&nbsp;
+Syllable: 
+<select id=OpList name=OpList>
+    <option value="0055" selected>NOP : No Operation
+    <option value="0101">ADD : Add
+    <option value="0301">SUB : Subtract
+    <option value="0401">MUL : Multiply
+    <option value="1001">DIV : Divide
+    <option value="3001">IDV : Integer Divide
+    <option value="7001">RDV : Remainder Divide
+    <option value="0105">DLA : Add Double Precision
+    <option value="0305">DLS : Subtract Double Precision
+    <option value="0125">GEQ : B Greater or Equal A
+    <option value="0225">GTR : B Greater Than A
+    <option value="0425">NEQ : B Not Equal A
+    <option value="4125">LEQ : B Less or Equal A
+    <option value="4225">LSS : B Less Than A
+    <option value="4425">EQL : B Equal A
+</select>
+
+&nbsp;
+<input id=Step name=Exec type=button value="Exec" onclick="return stepIt(true)">
+</p>
+
+</body>
+</html>
