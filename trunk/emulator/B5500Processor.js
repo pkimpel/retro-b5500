@@ -51,6 +51,7 @@ function B5500Processor(procID, cc) {
 /**************************************/
 
 B5500Processor.timeSlice = 5000;        // Standard run() timeslice, about 5ms (we hope) 
+B5500Processor.memCycles = 6;           // assume 6 us memory cycle time (the other option was 4 usec)
 
 B5500Processor.collation = [            // index by BIC to get collation value
     53, 54, 55, 56, 57, 58, 59, 60,             // @00: 0 1 2 3 4 5 6 7
@@ -190,7 +191,7 @@ B5500Processor.prototype.access = function(eValue) {
         break;
     }
 
-    this.cycleCount += 6;               // assume 6 us memory cycle time (the other option was 4 usec)
+    this.cycleCount += B5500Processor.memCycles;               
     if (acc.MAED) {
         this.I |= 0x02;                 // set I02F - memory address/inhibit error
         if (this.NCSF || this !== this.cc.P1) {
@@ -1858,7 +1859,8 @@ B5500Processor.prototype.doublePrecisionAdd = function(adding) {
     var xa;                             // extended mantissa for A
     var xb;                             // extended mantissa for B
     
-    this.cycleCount += 8;               // estimate some general overhead
+    // Estimate some general overhead and account for stack manipulation we don't do
+    this.cycleCount += B5500Processor.memCycles*4 + 8;
     
     this.adjustABFull();                // extract the top (A) operand fields:
     ma = this.A % 0x8000000000;         // extract the A mantissa
@@ -1936,7 +1938,7 @@ B5500Processor.prototype.doublePrecisionAdd = function(adding) {
         // is zero), so do the actual 78-bit addition as two 40-bit, signed, twos-
         // complement halves. Note that computing the twos-complement of the 
         // extension requires a borrow from the high-order part, so the borrow
-        // is taken from the 40-bit twos-complement base (i.e., use 0xFFFFFFFFFF
+        // is taken from the 40-bit twos-complement base (i.e., using 0xFFFFFFFFFF
         // instead of 0x10000000000).
         if (sb) {                       // if B negative, compute B 2s complement
             this.cycleCount += 2;
