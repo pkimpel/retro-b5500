@@ -16459,3 +16459,112 @@ TRYAGAIN:                                                               20175000
 NG:         JARROW[MIX] := L := 0; %                               %127-20176102        
             CORE.[FF] := CORE.[FF] - T; %                          %127-20176105        
  $ SET OMIT = NOT(PACKETS)                                         %127-20176117        
+            PSEUDOMIX[MIX] := 0; %                                 %127-20176120        
+ $ POP OMIT                                                        %127-20176123        
+            GO TO PASS;                                            %127-20176126        
+            END; % IF NO MEMORY                                    %127-20176129        
+        IF NOT MCPJOB.[1:1] THEN % DON-T UATO-START SYSJOB         %127-20176132        
+        IF STACKLOC GEQ @50000 THEN                                %127-20176135        
+            BEGIN % SAVE SPACE TO  HIGH...                         %127-20176138        
+            FORGETSPACE(STACKLOC+2); %                             %127-20176141        
+            STACKLOC := 0; %                                       %127-20176144        
+            GO TO NG; %                                            %127-20176147        
+            END;                                                   %127-20176150        
+        END; % NOT RESTART                                         %127-20176153        
+%%% SEE ALSO "SEGMENT ZERO" SECTION IN PROCEDURE "SELECTRUN2" FOR       20176200        
+%%% FURTHER ALTERATION TO THE JAR.                                      20176300        
+                                                                        20176400        
+%    *****  *****  ****   *      *****  *****                           20176500        
+%      *    *   *  *   *  *      *      *                               20176600        
+%      *    *****  ****   *      *****  *****                           20176700        
+%      *    *   *  *   *  *      *          *                           20176800        
+%      *    *   *  ****   *****  *****  *****                           20176900        
+                                                                        20177000        
+ $ SET OMIT = NOT(STATISTICS)                                           20177200        
+    IF S[2].[2:1] OR (S[21] LSS 128) THEN S[21]:=128;                   20178100        
+    %  S[2].[2:1]=1 WHEN ES-ED, S[21] CONTAINS STACK SIZE               20178200        
+    NFO[(MIX-1)|NDX+2] := P(DUP,LOC) & T [CTF] & ((CLOCK+P(RTR))   %127-20178900        
+        DIV 60) [1:31:17]; %                                       %127-20178910        
+    PRYOR[MIX]   := -1;                                                 20179100        
+ $ SET OMIT = NOT(WORKSET)                                              20179210        
+    OLAYTIME[MIX] := 0;                                                 20179220        
+ $ POP OMIT % WORKSET                                                   20179230        
+ $ SET OMIT = NOT(DATACOM)                                         %141-20179610        
+                                                                        20179700        
+                  %%%%%    %     %%%%%    %%%   %   %                   20179800        
+                  %   %   %%    %  %  %    %     % %                    20179900        
+    P1MIX:=MIX;   %%%%%    %    %  %  %    %      %                     20180000        
+                  %        %    %  %  %    %     % %                    20180100        
+                  %       %%%   %  %  %   %%%   %   %                   20180200        
+                                                                        20180300        
+    STARTLOG(P1MIX); % BEGIN LOGGING FOR THIS MIX                  %127-20180350        
+    USERCODE[MIX]:=ABS(S[24]); % USERCODE IN S[24]                      20180400        
+    CHANGEABORT(S[6]);                                                  20180600        
+    IF S[2].[8:10]=0 THEN FORGETESPDISK(S[25]); % FORGET OBJ.SKELETON   20180800        
+     % S[2].[8:10]=0 FOR "GO" PART OF "COMPILE AND GO"                  20180900        
+    STREAM(Q:=FSROW[MIX]:=SAVEARRAYDESC(4,FSAREAV));               %167-20181000        
+           DS:=32LIT"0";                                                20181100        
+ $ SET OMIT = NOT(AUXMEM)                                               20185300        
+                                                                        20185700        
+    TYPE := CONTINUEING;                                                20185800        
+                                                                        20185900        
+    % SELECTRUN2 IS CONCERNED WITH:                                     20186000        
+    %   BOJ MESSAGE                                                     20186100        
+    %   SEGMENT ZERO                                                    20186200        
+    %   STACK AND PRT                                                   20186300        
+    %   SEGMENT DICTIONARY                                              20186400        
+    %   DALOC                                                           20186500        
+    %   COMMON                                                          20186600        
+                                                                        20186700        
+    P([SVALUE],STS);                                                    20186800        
+    SELECTRUN2;                                                         20186900        
+    IF TYPE LSS 0 THEN                                                  20187000        
+        GO TO SW[TYPE:=ABS(TYPE)];                                      20187100        
+                                                                        20187200        
+    IF (SEG0[7].[CF]=0) THEN % BUILD A DUMMY FILE PARAMETER BLOCK       20187300        
+           TRP[3]:=[M[GETSPACE(1,FPBAREAV,1)+2]] ELSE%             %167-20187400        
+        BEGIN                                                           20187500        
+        TYPE := EQUATING; % BUILD FPB AND PROCESS LABEL EQUATION        20187600        
+        P([SVALUE],STS);                                                20187700        
+        SELECTRUN1;                                                     20187800        
+            IF TYPE.[1:1] THEN GO TO SW[TYPE:=ABS(TYPE)];               20187900        
+        END;                                                            20188000        
+                                                                        20188100        
+    NFO[(MIX-1)|NDX] := TRP[3];                                         20188600        
+    % TRP[3] VALUE SET BY SELECTRUN1 FOR NON-MCP TYPE JOB               20188800        
+    GO TO WINDUP;                                                       20188900        
+                                                                        20189000        
+PASS:                                                                   20189100        
+                                                                        20189200        
+    TYPE := PASSING;                                                    20189300        
+    P([SVALUE],STS);                                                    20189400        
+    SELECTRUN1;                                                         20189500        
+    IF TYPE LSS 0 THEN                                                  20189600        
+        GO TO SW[TYPE:=ABS(TYPE)]; % SELECTRUN1 DETERMINES BRANCH POINT 20189700        
+                                                                        20189800        
+WINDUP:                                                                 20189900        
+                                                                        20190000        
+%     ***   **  *   ***   *****       ***  *****  ****                  20190100        
+%      *    **  *    *      *          *   *   *  *   *                 20190200        
+%      *    * * *    *      *          *   *   *  ****                  20190300        
+%      *    *  **    *      *       *  *   *   *  *   *                 20190400        
+%     ***   *  **   ***     * 0     ****   *****  ****                  20190500        
+                                                                        20190600        
+ $ SET OMIT = NOT(WORKSET)                                              20190610        
+    WKSETSWITCHTIME := CLOCK + P(RTR); % TIME OF LAST SELECTION         20190620        
+ $ POP OMIT % WORKSET                                                   20190630        
+    %   INITIALIZE OTHER PRT CELLS                                      20190700        
+    TRP[0]  := WORDOFEASE;                                              20190800        
+    TRP[2]  := MEMORY;                                                  20190900        
+    TRP[10] := TRP&(STACKLOC+1)[18:33:15];                              20191000        
+    IF JAR[MIX,0] LSS 0 THEN % COMPILE JOB                              20191100        
+        BEGIN                                                           20191200        
+        IF(NT1:=JAR[MIX,2].[8:10])=4 THEN % COMPILE TO LIBRARY          20191300        
+        TRP[@26]:=S[22] % SAVE FACTOR FOR OBJECT FILE IN SHEET[22]      20191400        
+        ELSE IF NT1=3 THEN % COMPILE FOR SYNTAX ONLY                    20191500        
+            BEGIN                                                       20191600        
+            TRP[@26]:=-1; % SAVE FACTOR = (-1) % DONT SAVE OBJECT       20191700        
+            JAR[MIX,2].[8:10]:=2; % MARK IT AN "EXECUTE" JOB            20191800        
+            END;                                                        20191900        
+        END; % COMPILE JOBS                                             20192000        
+    TRP[6]:=FLAG(0&[TRP[6]][18:33:15]&[8:38:10]);                       20192100        
