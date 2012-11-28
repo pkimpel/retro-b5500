@@ -16568,3 +16568,62 @@ WINDUP:                                                                 20189900
             END;                                                        20191900        
         END; % COMPILE JOBS                                             20192000        
     TRP[6]:=FLAG(0&[TRP[6]][18:33:15]&[8:38:10]);                       20192100        
+    IF JAR[MIX,2] GEQ 0 THEN % NOT COBOL                                20192200        
+       TRP[11]:=FLAG(0&[TRP[11]][18:33:15]&8[8:38:10]); % "OAT" ENTRY   20192300        
+    %   BRING IN STARTING SEGMENT&BUILD CONTROL WORDS FOR INITIATE%     20192400        
+    MAKEPRESENT(TRP INX POLISH(SEG0[6],TRP[4],INX,LOD).[8:10]);         20192500        
+    % SEG0[6] = STARTING SEGMENT NUMBER                                 20192600        
+    % SEGDICT[SEG0[6]].[8:10] = PRT LOCN. OF DESC. FOR STARTING SEGMENT 20192700        
+    M[STACKLOC+2]:= -FLAG(POLISH(SEG0[6],TRP[4],INX,LOD).[18:15]);      20192800        
+    M[STACKLOC+1]:= -FLAG(0&(TRP)[6:33:9]);                             20192900        
+    M[STACKLOC]  := @2222222222222222;                                  20193000        
+    TRP[8]       := -FLAG(STACKLOC+2); % INITIATE CONTROL WORD          20193100        
+    IF(NT1:=TRP[4].[18:6]) NEQ 0 THEN                                   20193200        
+    INTABLEROW[MIX]:=INTABLEROW[NT1]                                    20193300        
+    ELSE IF NOT(JAR[MIX,9].SYSJOBF) THEN  % NOT "SYSTEM" JOB            20193400        
+        BEGIN                                                           20193500        
+        I:=INTSIZE;                                                     20194100        
+        INTABLEROW[MIX]:=[M[GETSPACE(I,1,1)+2]]&1[8:38:10];             20194300        
+        STREAM(A:=I,T:=INTABLEROW[MIX]);                                20194400        
+            BEGIN                                                       20194500        
+            SI:=T; SI:=SI-8; DS:=A WDS;                                 20194600        
+            END;                                                        20194700        
+        END;                                                            20194800        
+                                                                        20194900        
+                                                                        20195000        
+    IF S[2].[2:1] THEN % S[2].[2:1]=1 WHEN ES-ED, CALL TERMINATE        20195100        
+        BEGIN                                                           20195200        
+        JAR[MIX,2].[2:1]:=1; % MARK IT TERMINATED                       20195400        
+        TERMINATE(MIX &                                                 20195500        
+                  (IF JAR[MIX,2].[7:1] AND (*P(TSX INX TRP)).PBIT THEN  20195600        
+                   90 ELSE 35)[CTF]);                                   20195700        
+        END                                                             20196300        
+    ELSE                                                                20196400        
+    IF JAR[MIX,2].[7:1] THEN         % TASK WHOSE PARENT HAS            20196500        
+    IF (TSKA~*P(TSX INX TRP)).PBIT THEN % DECLARED TASK ARRAY      %110-20196600        
+        BEGIN                                                           20196700        
+        TSKA[1] := JAR[MIX,0];                                          20196800        
+        TSKA[2] := JAR[MIX,1];                                          20196900        
+        TSKA[3] := 2; % STATUS: ACTIVE                                  20197000        
+        TSKA[4] := MIX;                                                 20197100        
+        END;                                                            20197200        
+ $ SET OMIT = NOT(NEWLOGGING)                                           20197300        
+    SAVEMIX(MIX);                                                       20197600        
+    PRYOR(MIX) := S[18]; % PRIORITY IN SHEET[18];                       20198500        
+    IF F=0 THEN % SHEET ENTRY NOT PASSED AS A PARAMETER                 20199200        
+        BEGIN                                                           20199300        
+        TYPE := (IF S[2].[1:1] THEN STARTING ELSE CONTINUEING);         20199400        
+        % IF ES-ED THEN RE-START SHEET SEARCH; OTHERWISE,CONTINUE ON    20199500        
+        GO TO START;                                                    20199600        
+        END;                                                            20199700        
+                                                                        20199800        
+QUIT:                                                                   20210000        
+                                                                        20210100        
+    P1MIX := 0;                                                         20210200        
+    IF SHEETLOCKED THEN UNLOCKTOG(SHEETMASK);                           20210300        
+    IF S NEQ 0 THEN FORGETSPACE(S);       % SPACE FOR SHEET ENTRY       20210400        
+    IF SEG0 NEQ 0 THEN FORGETSPACE(SEG0); % SPACE FOR SEGMENT ZERO      20210500        
+    IF OLAYDISK NEQ 0 THEN FORGETUSERDISK(OLAYDISK,-500);               20210600        
+    IF LBL NEQ 0 THEN FORGETSPACE(LBL);   % SPACE FOR LABEL EQN.ENTRIES 20210700        
+    KILL([MSCW]);                                                       20211400        
+    END SELECTION ROUTINE;                                              20211600        
