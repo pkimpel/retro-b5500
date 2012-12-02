@@ -16741,3 +16741,102 @@ REAL     MSCW        =  -2,                                             20288100
 ARRAY    ACCUM       =  USERID+1[*],                                    20288265        
          CEQN        =  ACCUM+1[*],                                     20288270        
          CMM         =  CEQN+1[*],                                      20288275        
+         DIRECT      =  CMM+1[*],                                       20288280        
+         PEQN        =  DIRECT+1[*],                                    20288285        
+         PROG        =  PEQN+1[*];                                      20288295        
+NAME     ADDR        =  PROG+1;                                         20288300        
+BOOLEAN  ABORT       =  ADDR+1,                                         20288305        
+         TOG         =  ABORT+1;                                        20288310        
+REAL     RETURNMSCW  =  TOG+1,         % THESE LOCALS MUST BE THE LAST  20288315        
+         RETURNRCW   =  RETURNMSCW+1,  % THREE LOCALS OF CONTROLCARD    20288320        
+         RETURNVAL   =  RETURNRCW+1                                     20288325        
+#;                                                                      20288900        
+                                                                        20289000        
+ $ SET OMIT = NOT(PACKETS)                                              20289009        
+PROCEDURE PRINTTHECOVER(CARD,UNITNO,PS);                                20289010        
+   VALUE CARD,UNITNO,PS; REAL CARD,UNITNO,PS;                           20289020        
+   % TO ALTER SIZE OF ONE-AREA PACKET PAGE CHANGE DEFINE AT 02113091    20289025        
+   BEGIN LABEL TRYAGAIN;                                                20289030        
+         REAL BUF,T,TP,X;                                               20289035        
+         INTEGER I,PAGEADDR; ARRAY HEADER[*];                           20289040        
+       SUBROUTINE BUILDHEADER;                                          20289045        
+       BEGIN                                                            20289050        
+       HEADER:=IOQUE & BUF[CTC];                                        20289055        
+       M[BUF]:=0;                                                       20289060        
+       MOVE(29,BUF,BUF+1);                                              20289065        
+       STREAM(DATE,H3:=HEADER INX 3);                                   20289080        
+          BEGIN SI:=LOC DATE; DS:=8OCT;     % CREATION                  20289085        
+                DI:=H3; DS:=2LIT"+#";       % SAVE 10                   20289090        
+                SI:=H3; SI:=SI+5; DS:=3CHR; % ACCESSED                  20289095        
+          END;                                                          20289100        
+       HEADER[0]:=@0013200132000103; % 90,90,1,3                        20289105        
+       HEADER[1]:=(XCLOCK+P(RTR)) & HEADER[3][6:30:18];                 20289110        
+       HEADER[2]:=HEADER[5]:=MCP.[6:42];                           %131-20289113        
+       HEADER[4]:=0&(@1001)[2:38:10]&SYSNO[4:46:2];                %112-20289115        
+ $ SET OMIT = NOT(DATACOM AND RJE) OR OMIT                              20289117        
+       HEADER[7]:=(PAGESIZE DIV 3)-1;                                   20289120        
+       HEADER[8]:=PAGESIZE;                                             20289125        
+       HEADER[9]:=1;                                                    20289130        
+       HEADER[10]:=PAGEADDR;                                            20289135        
+       END BUILDHEADER;                                                 20289140        
+TRYAGAIN:                                                               20289142        
+       CIDTABLE[UNITNO-32,6]:=TP:= 001 & NEXTCDNUM(1)[6:24:24];         20289144        
+       IF DIRECTORYSEARCH(="PBD    ",TP,5)!0 THEN GO TRYAGAIN;          20289146        
+       BUF:=SPACE(90);                                                  20289148        
+       PAGEADDR:=GETUSERDISK(PAGESIZE);                                 20289150        
+       PS:=IF CARD.[9:9]=0 THEN                                         20289152        
+           IF PS=0 THEN "CRA" ELSE IF PS=1 THEN "CRB" ELSE              20289153        
+           IF PS=2 THEN TINU[UNITNO].[30:18] ELSE                       20289154        
+           IF PS=3 THEN "ZIP" ELSE "   " ELSE                           20289155        
+ $ SET OMIT = NOT(DATACOM AND RJE) OR OMIT                              20289156        
+           "   ";                                                       20289159        
+       STREAM(CARD,TP:=CIDTABLE[UNITNO-32,2],PS                         20289160        
+                  , N:=CIDTABLE[UNITNO-32,7]+1,BUF);                    20289163        
+       BEGIN DS:=8LIT" "; SI:=BUF; 2(DS:=44 WDS);                       20289165        
+            SI:=LOC N; DI:=LOC N; DS:=8DEC; DI:=LOC N; DS:=8FILL;       20289170        
+            SI:=LOC N; SI:=SI+3; DI:=BUF; DI:=DI+12;                    20289175        
+            DS:=7LIT"INPUT  "; DS:=5CHR; DS:=12LIT" CARDS FROM ";       20289180        
+            SI:=LOC PS; SI:=SI+5; DS:=3CHR;                             20289185        
+            DI:=BUF; 4(DI:=DI+34); DS:=8LIT":|}14000"; BUF:=DI;         20289190        
+            SI:=LOC TP; SI:=SI+2; DI:=DI+12;                            20289195        
+            DS:=8LIT"PACKET  "; DS:=4CHR; DI:=DI-4; DS:=3FILL;          20289200        
+            DI:=BUF; 4(DI:=DI+34); DS:=8LIT":|}14000"; BUF:=DI;         20289205        
+            SI:=CARD; DS:=9WDS;                                         20289210        
+            DI:=BUF; 4(DI:=DI+34); DS:=8LIT":|}12000"; BUF:=DI;         20289215        
+            54(DS:=LIT"#"); DS:=11LIT"  ABORTED  "; 55(DS:=LIT"#");     20289220        
+            DI:=BUF; 4(DI:=DI+34); DS:=8LIT":|}12000"; BUF:=DI;         20289225        
+            DS:=16LIT"+ABORTED0PAGE   "; DS:=9LIT"0PACKET 0";           20289230        
+            SI:=LOC TP; SI:=SI+2; DS:=4CHR; DI:=DI+3;                   20289235        
+            SI:=CARD; DS:=9 WDS;                                   %131-20289240        
+            40(DS:=LIT"0");                                             20289245        
+       END;                                                             20289250        
+       M[BUF+87]:=MCP;                                             %131-20289252        
+       DISKWAIT(BUF,90,PAGEADDR);                                       20289255        
+       STREAM(A:=I:=((NT1:=((XCLOCK+P(RTR)) DIV 3600)) MOD 60           20289260        
+                    +(NT1 DIV 60)|100),DATE,WEEKDAY,ACTDATE,BUF);       20289265        
+       BEGIN                                                            20289270        
+            3(4(DI:=DI+34); DS:=8LIT":|0|2000"); BUF:=DI;               20289275        
+            DS:=8LIT" "; SI:=BUF; DS:=34 WDS; DI:=BUF;                  20289280        
+            SI:=LOC DATE; DI:=DI+12; DS:=4LIT"DATE"; DI:=DI+3;          20289285        
+            SI:=SI+3; DS:=5CHR; DI:=DI+1;                               20289287        
+            SI:=SI+2; 6(IF SC=" " THEN SI:=SI+1 ELSE DS:=CHR);          20289290        
+            SI:=LOC ACTDATE; DS:=5LIT"DAY, ";                           20289295        
+            SI:=SI+2; 2(DS:=2CHR; DS:=LIT"/"); DS:=2 CHR;               20289300        
+            DI:=BUF; 4(DI:=DI+34); DS:=8LIT":|}14000"; BUF:=DI;         20289305        
+            SI:=LOC A; DI:=DI+12; DS:=4LIT"TIME"; DI:=DI+4; DS:=4DEC;   20289310        
+            DI:=BUF; 4(DI:=DI+34); DS:=8LIT":|}14000";                  20289315        
+       END;                                                             20289320        
+       DISKWAIT(BUF,90,PAGEADDR+3);                                     20289325        
+       X:=6; M[BUF+17]:=0;                                         %178-20289335        
+       IF (T:=DIRECTORYSEARCH("MESSAGE","0THEDAY",5))!0 THEN            20289340        
+       BEGIN                                                            20289345        
+            FOR I:=0 STEP 1 WHILE (I<6) AND NOT M[BUF+17] DO            20289350        
+            BEGIN                                                       20289355        
+                 DISKWAIT(-BUF,90,M[T+10]+3|I);                         20289360        
+                 DISKWAIT(BUF,90,PAGEADDR+6+3|I);                       20289365        
+                 X:=X+3;                                                20289370        
+            END;                                                        20289375        
+            FORGETSPACE(T);                                             20289380        
+       END;                                                             20289385        
+       STREAM(ML:=MARKLEVEL,PL:=PATCHLEVEL,LL:=LOCALLEVEL               20289390        
+                  ,IL:=M[3],BUF:=BUF+54);                               20289395        
