@@ -16840,3 +16840,75 @@ TRYAGAIN:                                                               20289142
        END;                                                             20289385        
        STREAM(ML:=MARKLEVEL,PL:=PATCHLEVEL,LL:=LOCALLEVEL               20289390        
                   ,IL:=M[3],BUF:=BUF+54);                               20289395        
+       BEGIN DS:=8LIT" "; SI:=BUF; DS:=34 WDS; DI:=BUF;                 20289400        
+            DI:=DI-8; DS:=8LIT":|0Q0803";                               20289405        
+            DI:=DI+12; DS:=18LIT"#NO MESSAGES TODAY";                   20289410        
+            DI:=BUF; 4(DI:=DI+34); DS:=8LIT":|}12002"; BUF:=DI;         20289415        
+            DI:=DI+8; DS:=3LIT"*** BURROUGHS B5700 DCMCP MARK ";        20289420        
+            SI:=LOC ML; IF SC GEQ " " THEN;                             20289425        
+            8(IF TOGGLE THEN IF SC="0" THEN SI:=SI+1 ELSE DS:=CHR       20289430        
+              ELSE DS:=CHR); DS:=LIT".";                                20289435        
+            SI:=LOC PL; IF SC GEQ " " THEN;                             20289440        
+            6(IF TOGGLE THEN IF SC="0" THEN SI:=SI+1 ELSE DS:=CHR       20289445        
+              ELSE DS:=CHR); DS:=2CHR;                                  20289450        
+              SI:=LOC LL; IF SC GEQ " " THEN;                           20289455        
+            8(IF TOGGLE THEN IF SC="0" THEN SI:=SI+1 ELSE DS:=CHR       20289460        
+              ELSE DS:=CHR); DS:=21LIT" AND INTRINSICS MARK ";          20289465        
+            SI:=LOC ML; IF SC GEQ " " THEN;                             20289470        
+            8(IF TOGGLE THEN IF SC="0" THEN SI:=SI+1 ELSE DS:=CHR       20289475        
+              ELSE DS:=CHR); DS:=LIT".";                                20289480        
+            SI:=LOC IL; SI:=SI+1; IF SC>"0" THEN DS:=CHR ELSE           20289485        
+            SI:=SI+1; DS:=2CHR; DS:=4LIT" ***";                         20289490        
+            DI:=BUF; 4(DI:=DI+34); DS:=8LIT":|}12001";                  20289495        
+       END;                                                             20289500        
+       DISKWAIT(BUF,90,PAGEADDR+X);                                     20289510        
+       BUILDHEADER;                                                     20289520        
+       ENTERUSERFILE("PBD    ",TP,BUF-1);                               20289530        
+       PSEUDO[UNITNO-32]:=(*P(DUP))&                                    20289540        
+                          11[8:38:10]& % PACKETPDB                      20289550        
+                          (IF T!0 THEN 3 ELSE 2)[18:45:3]& % PACKETREC  20289560        
+                          1[21:47:1]& % PACKETFREE                      20289570        
+                          (PAGEADDR+X)[22:22:26]; % PACKETPAGE          20289580        
+       FORGETSPACE(BUF);                                                20289590        
+   END PRINTTHECOVER;                                                   20289600        
+ $ POP OMIT                                                             20289601        
+COMMENT  FETCH READS THE NEXT CONTROL CARD  ,  SETS SOURCE TO BEGINNING 20290000        
+         OF CARD , SETS LAST WORD OF CARD TO PERIOD.      ;%            20291000        
+    PROCEDURE FETCH(UNITNO,CARDLOC,SOURCE);                             20292000        
+              VALUE UNITNO,CARDLOC;                                     20292100        
+              REAL  UNITNO,CARADLOC,SOURCE ;                            20292200        
+         BEGIN%                                                         20293000        
+              REAL T,E;                                                 20294000        
+              E:=@14&UNITNO[45:1:1]; UNITNO:=ABS(UNITNO);               20294800        
+         IF (UNITNO OR 1)=31 THEN % DCOM OR ZIP                         20295000        
+           M[SOURCE:=CARDLOC]:=@1425452432373737                        20295100        
+         ELSE                                                           20295200        
+           BEGIN   % NOT DCOM                                           20295300        
+ $ SET OMIT = PACKETS                                                   20295999        
+ $ SET OMIT = NOT(PACKETS)                                              20296099        
+               IF UNITNO GEQ 32 THEN                                    20296100        
+               DO UNTIL NOT E.[45:1] OR T:=                             20296200        
+ $ POP OMIT                                                             20296201        
+                   READEMFROMDISK(CIDROW[UNITNO-32],%                   20297000        
+                        [M[CARDLOC]]&10[8:38:10]) ELSE%                 20298000        
+      DO BEGIN T~                                                       20298100        
+                                                                        20298111        
+              WAITIO(CARDLOC INX @40000000,E,UNITNO);                   20299000        
+               IF UNITNO=30 OR T.[45:1] THEN                            20299020        
+               STREAM(Q~12,CARDLOC);                                    20299030        
+               BEGIN SI~LOC Q;SI~SI+7;DS~CHR;DS~4 LIT "END." END;       20299040        
+              IF UNITNO=25 THEN                                         20299110        
+              BEGIN                                                     20299111        
+              STREAM(T~0:CARDLOC);%                                     20300000        
+              BEGIN SI~CARDLOC;SI~LOC T;DI~DI+6;SI~SI-1;DS~2CHR;SI~SI-1;20301000        
+                   DI~CARDLOC;DI~DI-1;DS~LIT"<";8(60(IF SC="~" THEN     20301100        
+                   BEGIN DS~CHR;JUMP OUT 2 TO L END;IF SC="<" THEN      20301200        
+                   BEGIN DI~DI-1;IF SC!DC THEN DI~DI-1 END ELSE         20301300        
+                   DS~CHR));                                            20301400        
+              L:   DI~CARDLOC;DI~DI-1;SI~LOC T;SI~SI+6;DS~CHR;          20301500        
+              END;                                                      20301600        
+              END ELSE P(0);                                            20301700        
+         END UNTIL P.[42:6]!31;                                         20302000        
+         M[(SOURCE ~ CARDLOC)+9]~0&"."[1:43:5];%                        20303000        
+           END;    % NOT DCOM                                           20303900        
+         END    ;%                                                      20304000        
