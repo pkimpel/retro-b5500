@@ -16912,3 +16912,98 @@ COMMENT  FETCH READS THE NEXT CONTROL CARD  ,  SETS SOURCE TO BEGINNING 20290000
          M[(SOURCE ~ CARDLOC)+9]~0&"."[1:43:5];%                        20303000        
            END;    % NOT DCOM                                           20303900        
          END    ;%                                                      20304000        
+COMMENT THE SCAN ROUTINE IS USED FOR CONTROL CARD SCANNING.%            20305000        
+              SCAN  RETURNS THE FOLLOWING RESULTS :%                    20306000        
+                   4  FOR IDENTIFIERS WHICH ARE NOT RESERVED%           20307000        
+                   0  FOR PERIOD%                                       20308000        
+                   1  FOR SLASH%                                        20309000        
+                   2  FOR QUESTION MARK%                                20310000        
+                   5...  FOR IDENTIFIERS IN DIRECT.%                    20311000        
+                   3  FOR OTHER SPECIAL CHARACTERS.%                    20312000        
+                   13  FOR "PRIORITY"                 ;%                20313000        
+REAL PROCEDURE SCN(UNITNO,CARDLOC,SOURCE,ACCUM,KOUNT,LASTSCAN.          20314000        
+                   DIRECT);                                             20314050        
+              VALUE UNITNO,CARDLOC                             ;        20314100        
+               REAL UNITNO,CARDLOC,SOURCE,      KOUNT,LASTSCAN ;        20314200        
+             ARRAY ACCUM[*],DIRECT[*];                                  20314300        
+         BEGIN                                                          20315000        
+         LABEL  GOGO,       TYPE0,TYPE1,TYPE2;%                         20316000        
+         SWITCH TYPE ~ TYPE0,TYPE1,TYPE2 ;%                             20317000        
+         DEFINE DSIZE =  56#;%                                          20318000        
+         REAL  I;%                                                      20319000        
+         LABEL PERPER;%                                                 20320000        
+    GOTO:%                                                              20321000        
+         IF LASTSCAN THEN%                                              20322000        
+              BEGIN IF LASTSCAN < 0 OR UNITNO = 31 THEN%                20323000        
+                        BEGIN I ~ QUEST; LASTSCAN ~ 0; GO TO TYPE1 END; 20324000        
+                   FETCH(UNITNO,CARDLOC,SOURCE);                        20325000        
+                   LASTSCAN:=0                                          20325100        
+ $ SET OMIT = NOT(PACKETS)                                              20325109        
+                              &1[2:47:1];                               20325110        
+ $ POP OMIT                                                             20325111        
+              END;%                                                     20326000        
+         I ~ IDENT;%                                                    20327000        
+         STREAM (J~0,K~0,SOURCE : ACCUM);%                              20328000        
+              BEGIN%                                                    20329000        
+              SI ~ SOURCE ; DI ~ ACCUM ;  DI~DI+1;%                     20330000        
+         L:   IF SC = " " THEN BEGIN SI~SI+1; GO L END;%                20331000        
+              IF SC = ALPHA THEN%                                       20332000        
+                   BEGIN%                                               20333000        
+              IF SC =@14 THEN GO TO L3;%                                20334000        
+                   DS ~ CHR ; TALLY ~ 1;%                               20335000        
+              L1:  63(IF SC=ALPHA THEN BEGIN DS~CHR;%                   20336000        
+                        TALLY~TALLY+1 END ELSE JUMP OUT);%              20337000        
+                   K~TALLY; TALLY~0; J~TALLY;  DS~8 LIT" ";%            20338000        
+                   END%                                                 20339000        
+              ELSE IF SC = """ THEN%                                    20340000        
+                   BEGIN    SI ~ SI+1;%                                 20341000        
+                   30(IF SC=""" THEN JUMP OUT;                          20342000        
+                      DS:=CHR; TALLY:=TALLY+1);                         20342250        
+                   IF TOGGLE THEN                % FOUND CLOSING QUOTE  20342500        
+                        BEGIN DS:=8 LIT" "; SI:=SI+1;                   20342750        
+                        K:=TALLY; TALLY:=1; J:=TALLY;                   20343000        
+                        END                                             20343250        
+                   ELSE                          % INVALID STRING       20343500        
+                        BEGIN                                           20343750        
+                        SI~SI-31; GO L3;                                20344000        
+                        END;                                            20344250        
+                   END%                                                 20345000        
+              ELSE BEGIN%                                               20346000        
+         L3:%                                                           20347000        
+                   TALLY ~ 2; J~TALLY; DI~LOC K; DI~DI+7; DS~CHR ;%     20348000        
+                   END;%                                                20349000        
+              SOURCE ~ SI;%                                             20350000        
+                   END;%                                                20351000        
+COMMENT  STACK NOW CONTAINS :  0 FOR IDENTIFIER & NO. OF CHRS%          20352000        
+                               1 FOR "ID"       & NO. OF CHRS%          20353000        
+                               2 FOR SPECIAL CHR & ACTUAL CHR   ;%      20354000        
+         P([SOURCE],~);                                                 20355000        
+         P([KOUNT],~);                                                  20356000        
+         GO TO TYPE[POLISH];%                                           20357000        
+     TYPE0:%                                                            20358000        
+          BEGIN                                                         20361000        
+         I~-2;   WHILE  DIRECT[I~I+2]!0  DO%                            20362000        
+              IF (DIRECT[I] EQV ACCUM[0])= NOT 0  THEN%                 20363000        
+              BEGIN IF DIRECT[I+1] !QUEST OR UNITNO=25 OR UNITNO}30 THEN20364000        
+                   BEGIN I~DIRECT[I+1];GO TO TYPE1 END END;%            20365000        
+              I ~ IDENT  ;  END;%                                       20366000        
+         GO TO TYPE1  ;%                                                20367000        
+     TYPE2:%                                                            20368000        
+         IF KOUNT!"~" THEN ACCUM[0]~ "      0" OR KOUNT;                20368100        
+         IF KOUNT="~" OR%                                               20369000        
+              KOUNT ="." THEN%                                          20370000        
+                   BEGIN LASTSCAN ~ 1;%                                 20371000        
+     PERPER:            I ~ PERIO; GO TO TYPE1;%                        20372000        
+                   END;%                                                20373000        
+         IF KOUNT="-" THEN BEGIN IF UNITNO}32 THEN                      20374000        
+                                 IF CIDTABLE[UNITNO-32,3]}              20374100        
+                                    CIDTABLE[UNITNO-32,7] THEN          20374200        
+                                    BEGIN I~ENDFI; GO TO TYPE1 END;     20374300        
+                                 IF UNITNO = 31 THEN                    20374310        
+                                 BEGIN I~PERIO; GO TO TYPE1 END;        20374320        
+                                 FETCH(UNITNO,CARDLOC,SOURCE);          20374400        
+                   STREAM(CARDLOC);                                %890-20374401        
+                   BEGIN                                           %890-20374402        
+                     2(36(IF SC=">" THEN                           %890-20374403        
+                     BEGIN CARDLOC~SI;DI~CARDLOC;DS~ LIT "=" END;  %890-20374404        
+                           IF SC="}" THEN                          %890-20374405        
