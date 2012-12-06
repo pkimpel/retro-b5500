@@ -1209,31 +1209,26 @@ B5500Processor.prototype.singlePrecisionCompare = function() {
     ma = this.A % 0x8000000000;         // extract the A mantissa
     mb = this.B % 0x8000000000;         // extract the B mantissa
     
+    // Extract the exponents and signs. If the exponents are unequal, normalize 
+    // each until the high-order octade is non-zero or the exponents are equal.
     if (ma == 0) {                      // if A mantissa is zero
         ea = sa = 0;                    // consider A to be completely zero
     } else {
         ea = (this.A - ma)/0x8000000000;
         sa = ((ea >>> 7) & 0x01);
         ea = (ea & 0x40 ? -(ea & 0x3F) : (ea & 0x3F));
-    }
-    if (mb == 0) {                      // if B mantissa is zero 
-        eb = sb = 0;                    // consider B to be completely zero
-    } else {                            // rats, we actually have to do this
-        eb = (this.B - mb)/0x8000000000;
-        sb = (eb >>> 7) & 0x01;
-        eb = (eb & 0x40 ? -(eb & 0x3F) : (eb & 0x3F));
-    }
-
-    // If the exponents are unequal, normalize each until the high-order octade
-    // is non-zero or the exponents are equal
-    if (ma) {                           // Normalize A 
         while (ma < 0x1000000000 && ea != eb) {
             this.cycleCount++;
             ma *= 8;                    // shift left
             ea--;
         }
-    } 
-    if (mb) {                           // Normalize B 
+    }
+    if (mb == 0) {                      // if B mantissa is zero 
+        eb = sb = 0;                    // consider B to be completely zero
+    } else {                           
+        eb = (this.B - mb)/0x8000000000;
+        sb = (eb >>> 7) & 0x01;
+        eb = (eb & 0x40 ? -(eb & 0x3F) : (eb & 0x3F));
         while (mb < 0x1000000000 && eb != ea) {
             this.cycleCount++;
             mb *= 8;                    // shift left
@@ -1241,7 +1236,7 @@ B5500Processor.prototype.singlePrecisionCompare = function() {
         }
     }
     
-    // Compare signs, exponents, and normalized magnitudes, in that order
+    // Compare signs, exponents, and normalized magnitudes, in that order.
     if (sb == sa) {                     // if signs are equal:
         if (eb == ea) {                 // if exponents are equal:
             if (mb = ma) {              // if magnitudes are equal:
