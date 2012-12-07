@@ -17072,3 +17072,68 @@ PROCEDURE SEEKNAM(A,B,C,D,E,N,XLST); VALUE A,B;                         20382010
                                       XLST[K+1]:=XLST[X+1];             20382380        
                                       XLST.[8:10]:=XLST.[8:10]-2;       20382400        
                                 END;                                    20382420        
+                          K:=X;                                         20382440        
+                          END;                                          20382460        
+                    IF INXLST THEN ELSE GO FIND;                        20382480        
+                    END ELSE GO FIND;                                   20382500        
+    RESTART:       END;                                                 20382520        
+                 END UNTIL (J:=NB[2].[FF])=0;                           20382540        
+         END;                                                           20382560        
+         FORGETSPACE(NB);                                               20382580        
+         IF C=0 THEN N:=0 ELSE C:=0;                                    20382600        
+         GO L;                                                          20382620        
+    FIND:                                                               20382640        
+         D:=NB[I]; E:=NB[I+1];                                          20382660        
+         C:=NB[I+2].[CF];                                               20382680        
+         M[N]:=I&J1[36:42:6]&J2[30:42:6]&K1[24:42:6]&K2[18:42:6]&       20382700        
+               J3[12:42:6];                                             20382720        
+    L:                                                                  20382740        
+         END;        % SEEKNAME                                         20382760        
+ REAL PROCEDURE PPC                                                     20383000        
+         (ADDR,EQN,X,DEX,TYPE,UNITNO,CARDLOC,SOURCE,ACCUM,LASTSCAN,     20384000        
+          DIRECT);                                                      20384100        
+    VALUE                TYPE,UNITNO,CARDLOC                       ;    20385000        
+     REAL ADDR,      DEX,TYPE,UNITNO,CARDLOC,SOURCE,      LASTSCAN ;    20386000        
+    ARRAY EQN[*],X[*],ACCUM[*],DIRECT[*];                               20386100        
+         BEGIN%                                                         20387000        
+         REAL IOD,KOUNT;                                                20388000        
+         LABEL  EXIT,ERROR,NEXT,LFORM,LND,LDISK,LTAPE,LPUNCH,LPAPER,%   20389000        
+              ROUND,PROTECT,                                            20390000        
+              SERIAL,UPDATE,SPO,DSKCHECK,                        % (SHM)20391000        
+              DOWN,LREMOTE,                                             20392000        
+                LDUMMY,                                            %846-20392870        
+           LLINES66,  %                                            %724-20392880        
+           LRANDOM,                                                %603-20392890        
+              LSPECIAL,LPRINT,LBACK,LCOPY,LFREE;                        20393000        
+      SWITCH D~LFORM,                                              %603-20394000        
+               LDUMMY,                                             %846-20394070        
+           LLINES66,                                               %724-20394080        
+           LRANDOM,                                                %603-20394090        
+         LNO,LDISK,LTAPE,LPUNCH,LPRINT,LPAPER,                     %603-20394900        
+              LBACK,SERIAL,UPDATE,SPO,%                                 20395000        
+              LREMOTE,LSPECIAL,ERROR,ERROR,ERROR,ERROR,LCOPY,ERROR,     20396000        
+              LFREF,ERROR,PROTECT;                                      20396010        
+         REAL NOLBL,TPNO ;%                                             20397000        
+         BOOLEAN FAROUT;                                                20397050        
+         REAL SUBROUTINE SCAN;                                          20397100        
+              BEGIN SCAN~SCN(UNITNO,CARDLOC,SOURCE,ACCUM,KOUNT,LASTSCAN,20397200        
+                             DIRECT)                                    20397300        
+              END;                                                      20397400        
+         IF  TYPE = FILEV  THEN%                                        20398000        
+              BEGIN%                                                    20399000        
+              IF  ADDR =0  THEN ADDR~X[13]~GETESPDISK ;%                20400000        
+              IF   DEX  =  2   THEN%                                    20401000        
+                   BEGIN%                                               20402000        
+                   EQN [29] ~ GETESPDISK;%                              20403000        
+                   DISKIO( IOD , EQN    INX 0-1  ,30, ADDR);%           20404000        
+                   ADDR ~ EQN[29];%                                     20405000        
+                   DEX ~ 0;%                                            20406000        
+                   SLEEP([IOD], IOMASK);%                               20407000        
+                   END;%                                                20408000        
+              IF (TYPE:=SCAN) < IDENT THEN GO TO ERROR;                 20409000        
+              EQN ~ (14 | DEX) INX  EQN ;%                              20410000        
+              EQN[12]:=0; % ZERO OUT EU/SPEED CELL               % (SHM)20410100        
+              STREAM( KOUNT, ACCUM, Z ~ [EQN[4]]);%                     20411000        
+                   BEGIN%                                               20412000        
+                   SI ~ LOC KOUNT ; SI~SI+7; DI~Z; DS~CHR;%             20413000        
+                   SI ~ ACCUM ; SI~SI+1;  DS~ KOUNT CHR ;%              20414000        
