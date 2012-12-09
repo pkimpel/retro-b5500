@@ -4,6 +4,8 @@
 * Copyright (c) 2012, Nigel Williams and Paul Kimpel.
 * Licensed under the MIT License, see
 *       http://www.opensource.org/licenses/mit-license.php
+************************************************************************
+* B5500 Processor (CPU) module.
 *
 * Instance variables in all caps generally refer to register or flip-flop (FF)
 * entities in the processor hardware. See the Burroughs B5500 Reference Manual
@@ -14,14 +16,12 @@
 *
 * B5500 word format: 48 bits plus (hidden) parity.
 *   Bit 0 is high-order, bit 47 is low-order, big-endian character ordering.
-*       [0:1]   Flag bit (1=descriptor)
+*       [0:1]   Flag bit (1=control word or descriptor)
 *       [1:1]   Mantissa sign bit (1=negative)
 *       [2:1]   Exponent sign bit (1=negative)
 *       [3:6]   Exponent (power of 8, signed-magnitude)
 *       [9:39]  Mantissa (signed-magnitude, scaling point after bit 47)
 *
-************************************************************************
-* B5500 Processor (CPU) module.
 ************************************************************************
 * 2012-06-03  P.Kimpel
 *   Original version, from thin air.
@@ -3559,6 +3559,9 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x14:          // 2431: TUS=interrogate peripheral status
+                        this.adjustAEmpty();
+                        this.A = this.cc.interrogateUnitStatus();
+                        this.AROF = 1;
                         break;
 
                     case 0x21:          // 4131: BBW=branch backward unconditional
@@ -3581,6 +3584,9 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x34:          // 6431: TIO=interrogate I/O channel
+                        this.adjustAEmpty();
+                        this.A = this.cc.interrogateIOChannel();
+                        this.AROF = 1;
                         break;
 
                     case 0x38:          // 7031: FBS=stack search for flag
