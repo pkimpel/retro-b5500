@@ -26,7 +26,7 @@ function B5500CentralControl() {
     this.IO4 = null;                    // I/O unit 4
 
     this.P1 = null;                     // Reference for Processor 1 (control) [PA or PB]
-    this.P1 = null;                     // Reference for Processor 2 (slave)   [PA or PB]
+    this.P2 = null;                     // Reference for Processor 2 (slave)   [PA or PB]
 
     this.AddressSpace = [               // Array of memory module address spaces (8 x 32KB each)
         null, null, null, null, null, null, null, null];
@@ -35,6 +35,7 @@ function B5500CentralControl() {
 
     // Instance variables and flags
     this.poweredUp = 0;                 // System power indicator
+    this.unitStatusMask = 0;            // Peripheral unit ready-status bitmask
 
     this.PB1L = 0;                      // 0=> PA is P1, 1=> PB is P1
     this.cardLoadSelect = 0;            // 0=> load from disk/drum; 1=> load from cards
@@ -385,15 +386,19 @@ B5500CentralControl.prototype.clearInterrupt = function() {
         break;
     case 0x17:                          // @27: I/O 1 finished
         this.CCI08F = 0;
+        this.AD1F = 0;                          // make unit non-busy
         break;
     case 0x18:                          // @30: I/O 2 finished
         this.CCI09F = 0;
+        this.AD2F = 0;                          // make unit non-busy
         break;
     case 0x19:                          // @31: I/O 3 finished
         this.CCI10F = 0;
+        this.AD3F = 0;                          // make unit non-busy
         break;
     case 0x1A:                          // @32: I/O 4 finished
         this.CCI11F = 0;
+        this.AD4F = 0;                          // make unit non-busy
         break;
     case 0x1B:                          // @33: P2 busy
         this.CCI12F = 0;
@@ -510,21 +515,83 @@ B5500CentralControl.prototype.initiateP2 = function() {
 B5500CentralControl.prototype.initiateIO = function() {
     /* Selects an I/O unit and initiates an I/O */
 
-    if (this.IO1) {
+    if (this.IO1 && this.IO1.REMF && !this.AD1F) {
         this.AD1F = 1;
         this.IO1.initiate();
-    } else if (this.IO2) {
+    } else if (this.IO2 && this.IO2.REMF && !this.AD2F) {
         this.AD2F = 1;
         this.IO2.initiate();
-    } else if (this.IO3) {
+    } else if (this.IO3 && this.IO3.REMF && !this.AD3F) {
         this.AD3F = 1;
         this.IO3.initiate();
-    } else if (this.IO4) {
+    } else if (this.IO4 && this.IO4.REMF && !this.AD4F) {
         this.AD4F = 1;
         this.IO4.initiate();
     } else {
         this.CCI04F = 1;                // set I/O busy interrupt
         this.signalInterrupt();
+    }
+};
+
+/**************************************/
+B5500CentralControl.prototype.interrogateIOChannel = function() {
+    /* Returns a value as for the processor TIO syllable indicating the first
+    available and non-busy I/O Unit */
+
+    if (this.IO1 && this.IO1.REMF && !this.AD1F) {
+        return 1;
+    } else if (this.IO2 && this.IO2.REMF && !this.AD2F) {
+        return 2;
+    } else if (this.IO3 && this.IO3.REMF && !this.AD3F) {
+        return 3;
+    } else if (this.IO4 && this.IO4.REMF && !this.AD4F) {
+        return 4;
+    } else {
+        return 0;                       // All I/O Units busy
+    }
+};
+
+/**************************************/
+B5500CentralControl.prototype.interrogateUnitStatus = function() {
+    /* Returns a bitmask as for the processor TUS syllable indicating the
+    ready status of all peripheral units */
+
+    return this.unitStatusMask;
+};
+
+/**************************************/
+B5500CentralControl.prototype.testUnitBusy = function(ioUnit, unit) {
+    /* Determines whether the unit designate "unit" is currently in use by any other
+    I/O Unit than the one designated by "ioUnit". Returns 0 if not busy */
+
+    if (ioUnit != "1" && this.IO1 && this.IO1.REMF && this.AD1F && this.IO1.Dunit == unit) {
+        return 1;
+    } else if (ioUnit != "2" && this.IO2 && this.IO2.REMF && this.AD2F && this.IO2.Dunit == unit) {
+        return 2;
+    } else if (ioUnit != "3" && this.IO3 && this.IO3.REMF && this.AD3F && this.IO3.Dunit == unit) {
+        return 3;
+    } else if (ioUnit != "4" && this.IO4 && this.IO4.REMF && this.AD4F && this.IO4.Dunit == unit) {
+        return 4;
+    } else {
+        return 0;                       // peripheral unit not in use by any other I/O Unit
+    }
+};
+
+/**************************************/
+B5500CentralControl.prototype.testUnitReady = function(unit) {
+    /* Determines whether the unit designate "unit" is currently in ready status.
+    Returns 0 if not ready */
+
+    if (ioUnit != "1" && this.IO1 && this.IO1.REMF && this.AD1F && this.IO1.Dunit == unit) {
+        return 1;
+    } else if (ioUnit != "2" && this.IO2 && this.IO2.REMF && this.AD2F && this.IO2.Dunit == unit) {
+        return 2;
+    } else if (ioUnit != "3" && this.IO3 && this.IO3.REMF && this.AD3F && this.IO3.Dunit == unit) {
+        return 3;
+    } else if (ioUnit != "4" && this.IO4 && this.IO4.REMF && this.AD4F && this.IO4.Dunit == unit) {
+        return 4;
+    } else {
+        return 0;                       // peripheral unit not in use by any other I/O Unit
     }
 };
 
@@ -560,11 +627,30 @@ B5500CentralControl.prototype.halt = function() {
 B5500CentralControl.prototype.loadComplete = function loadComplete() {
     /* Monitors an initial load I/O operation for complete status.
     When complete, initiates P1 */
+    var completed = false;              // true if some I/O Unit finished
     var that = loadComplete.that;       // capture the current closure context
 
-    if (!that.CCI08F) {
+    if (that.CCI08F) {                  // I/O Unit 1 finished
+        completed = true;
+        that.CCI08F = 0;
+        that.AD1F = 0;
+    } else if (that.CCI09F) {           // I/O Unit 2 finished
+        completed = true;
+        that.CCI09F = 0;
+        that.AD2F = 0;
+    } else if (that.CCI10F) {           // I/O Unit 3 finished
+        completed = true;
+        that.CCI10F = 0;
+        that.AD3F = 0;
+    } else if (that.CCI11F) {           // I/O Unit 4 finished
+        completed = true;
+        that.CCI11F = 0;
+        that.AD4F = 0;
+    } else {                            // Nothing finished yet (or there was an error)
         that.loadTimer = setTimeout(that.loadComplete, 100);
-    } else {
+    }
+    
+    if (completed) {
         that.loadTimer = null;
         that.LOFF = 0;
         that.P1.C = 0x10;               // execute from address @20
@@ -583,14 +669,27 @@ B5500CentralControl.prototype.loadComplete = function loadComplete() {
 B5500CentralControl.prototype.load = function() {
     /* Initiates a Load operation to start the system */
 
-    if ((this.PA && this.PA.busy) || (this.PB && this.PB.busy)) {
+    if (this.P1 && !this.P1.busy) {
         this.clear();
-        if (this.P1) {
-            this.LOFF = 1;
-            if (this.IO1) {             // !! not sure about I/O selection here
-                this.IO1.initiateLoad(this.cardLoadSelect);
-                this.loadComplete();
-            }
+        this.LOFF = 1;
+        if (this.IO1 && this.IO1.REMF && !this.AD1F) {
+            this.AD1F = 1;
+            this.IO1.initiateLoad(this.cardLoadSelect);
+            this.loadComplete();
+        } else if (this.IO2 && this.IO2.REMF && !this.AD2F) {
+            this.AD2F = 1;
+            this.IO2.initiateLoad(this.cardLoadSelect);
+            this.loadComplete();
+        } else if (this.IO3 && this.IO3.REMF && !this.AD3F) {
+            this.AD3F = 1;
+            this.IO3.initiateLoad(this.cardLoadSelect);
+            this.loadComplete();
+        } else if (this.IO4 && this.IO4.REMF && !this.AD4F) {
+            this.AD4F = 1;
+            this.IO4.initiateLoad(this.cardLoadSelect);
+            this.loadComplete();
+        } else {
+            this.CCI04F = 1;                // set I/O busy interrupt
         }
     }
 };
@@ -679,12 +778,10 @@ B5500CentralControl.prototype.configureSystem = function() {
 
     this.PB1L = (cfg.PB1L ? 1 : 0);
 
-    /*** enable once I/O exists ***
     if (cfg.IO1) {this.IO1 = new B5500IOUnit("1", this)};
     if (cfg.IO2) {this.IO2 = new B5500IOUnit("2", this)};
     if (cfg.IO3) {this.IO3 = new B5500IOUnit("3", this)};
     if (cfg.IO4) {this.IO4 = new B5500IOUnit("4", this)};
-    ***/
 
     for (x=0; x<8; x++) {
         if (cfg.MemMod[x]) {
