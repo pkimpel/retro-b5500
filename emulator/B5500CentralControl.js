@@ -87,6 +87,20 @@ B5500CentralControl.mask2 = [ // (2**n)-1 For n From 0 to 52
          0x0FFFFFFFFFFFF,  0x1FFFFFFFFFFFF,  0x3FFFFFFFFFFFF,  0x7FFFFFFFFFFFF, 
         0x0FFFFFFFFFFFFF] ;
 
+// The following two-dimensional array translates unit designates to a unique 1-relative 
+// peripheral unit index. This index is the same as the unit's ready-status bit number, 
+// which is why they are in the range 17..47. The [0] dimension determines the index 
+// when writing; the [1] dimension determines the index when reading. This approach 
+// is necessary since some unit designates map to two different devices depending 
+// on IOD.[24:1], e.g. designate 14=CPA/CRA (status bits 23/24).
+
+B5500CentralControl.unitIndex = [
+     // 0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
+    [null,  47,null,  46,  31,  45,  29,  44,  30,  43,  25,  42,  28,  41,null,  40, 
+       17,  39,  21,  38,  18,  37,  27,  36,null,  35,  26,  34,null,  33,  22,  32],    
+    [null,  47,null,  46,  31,  45,  29,  44,  30,  43,  24,  42,  28,  41,  23,  40, 
+       17,  39,  20,  38,  19,  37,null,  36,null,  35,null,  34,null,  33,  22,  32]];
+
 /**************************************/
 B5500CentralControl.prototype.clear = function() {
     /* Initializes (and if necessary, creates) the system and starts the
@@ -478,10 +492,21 @@ B5500CentralControl.prototype.tock = function tock() {
     } else {
         that.TM = 0;
         that.CCI03F = 1;                // set timer interrupt
-        // inhibit for now // that.signalInterrupt();
+        // >>>>> inhibit for now >>>>> that.signalInterrupt();
     }
     interval = (that.nextTimeStamp += B5500CentralControl.rtcTick) - thisTime;
     that.timer = setTimeout(function() {that.tock()}, (interval < 0 ? 1 : interval));
+};
+
+/**************************************/
+B5500CentralControl.prototype.haltP2 = function() {
+    /* Called by P1 to halt P2. storeForInterrupt() will set P2BF=0 */
+    
+    this.HP2F = 1;
+    // We know P2 is not currently running on this thread, so save its registers
+    if (this.P2 && this.P2BF) {
+        this.P2.storeForInterrupt(0);
+    }
 };
 
 /**************************************/
@@ -490,24 +515,14 @@ B5500CentralControl.prototype.initiateP2 = function() {
     memory location @10. If P2 is busy or not present, sets the P2 busy
     interrupt. Otherwise, loads the INCW into P2's A register and initiates
     the processor. */
-    var p2 = this.P2;
 
     if (!this.P2 || this.P2BF) {
         this.CCI12F = 1;                // set P2 busy interrupt
         this.signalInterrupt();
     } else {
-        p2.M = 8;                       // Now have P2 pick up the INCW
-        p2.access(0x04);                // A = [M]
-        p2.AROF = 1;
-        p2.T = 0x849;                   // inject 4111=IP1 into P2's T register
-        p2.TROF = 1;
-        p2.NCSF = 0;                    // make sure P2 is in control state
         this.P2BF = 1;
         this.HP2F = 0;
-
-        // Now start scheduling P2 on the Javascript thread
-        p2.procTime = new Date().getTime()*1000;
-        p2.scheduler = setTimeout(p2.schedule, 0);
+        this.P2.initiateAsP2();
     }
 };
 
@@ -578,21 +593,13 @@ B5500CentralControl.prototype.testUnitBusy = function(ioUnit, unit) {
 };
 
 /**************************************/
-B5500CentralControl.prototype.testUnitReady = function(unit) {
+B5500CentralControl.prototype.testUnitReady = function(rw, unit) {
     /* Determines whether the unit designate "unit" is currently in ready status.
-    Returns 0 if not ready */
+    "rw" indicates whether the designate is for writing (0) or reading (1).
+    Returns 1 if ready, 0 if not ready */
+    var index = B5500CentralControl.unitIndex[rw & 1][unit & 0x1F];
 
-    if (ioUnit != "1" && this.IO1 && this.IO1.REMF && this.AD1F && this.IO1.Dunit == unit) {
-        return 1;
-    } else if (ioUnit != "2" && this.IO2 && this.IO2.REMF && this.AD2F && this.IO2.Dunit == unit) {
-        return 2;
-    } else if (ioUnit != "3" && this.IO3 && this.IO3.REMF && this.AD3F && this.IO3.Dunit == unit) {
-        return 3;
-    } else if (ioUnit != "4" && this.IO4 && this.IO4.REMF && this.AD4F && this.IO4.Dunit == unit) {
-        return 4;
-    } else {
-        return 0;                       // peripheral unit not in use by any other I/O Unit
-    }
+    return (index ? this.bit(this.unitStatusMask, index) : 0);
 };
 
 /**************************************/
@@ -653,15 +660,7 @@ B5500CentralControl.prototype.loadComplete = function loadComplete() {
     if (completed) {
         that.loadTimer = null;
         that.LOFF = 0;
-        that.P1.C = 0x10;               // execute from address @20
-        that.P1.access(0x30);           // P = [C]
-        that.P1.T = that.fieldIsolate(that.P, 0, 12);
-        that.P1.TROF = 1;
-        that.P1.L = 1;                  // advance L to the next syllable
-
-        // Now start scheduling P1 on the Javascript thread
-        that.P1.procTime = new Date().getTime()*1000;
-        that.P1.scheduler = setTimeout(that.P1.schedule, 0);
+        that.P1.start();
     }
 };
 
@@ -752,16 +751,7 @@ B5500CentralControl.prototype.runTest = function(runAddr) {
     this.clear();
     this.loadTimer = null;
     this.LOFF = 0;
-    this.P1.C = runAddr;                // starting execution address
-    this.P1.access(0x30);               // P = [C]
-    this.P1.T = this.fieldIsolate(this.P1.P, 0, 12);
-    this.P1.TROF = 1;
-    this.P1.L = 1;                      // advance L to the next syllable
-
-    // Now start scheduling P1 on the Javascript thread
-    this.busy = 1;
-    this.P1.procTime = new Date().getTime()*1000;
-    this.P1.scheduler = setTimeout(this.P1.schedule, 0);
+    this.P1.start();
 };
 
 /**************************************/
