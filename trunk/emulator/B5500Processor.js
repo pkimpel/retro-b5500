@@ -1061,11 +1061,11 @@ B5500Processor.prototype.storeForInterrupt = function(forTest) {
             this.TROF = 0;
             this.PROF = 0;
             this.busy = 0;
-            this.cc.HP2F = 1;
-            this.cc.P2BF = 0;
-            if (this.cc.P2 && this.cc.P2.scheduler) {
-                clearTimeout(this.cc.P2.scheduler);
-                this.cc.P2.scheduler = null;
+            this.cc.HP2F = 1;           
+            this.cc.P2BF = 0;           // tell P1 we've stopped
+            if (this.scheduler) {
+                clearTimeout(this.scheduler);
+                this.scheduler = null;
             }
         }
         this.CWMF = 0;
@@ -1086,13 +1086,29 @@ B5500Processor.prototype.storeForInterrupt = function(forTest) {
             this.PROF = 0;
             this.busy = 0;
             this.cc.HP2F = 1;
-            this.cc.P2BF = 0;
-            if (this.cc.P2 && this.cc.P2.scheduler) {
-                clearTimeout(this.cc.P2.scheduler);
-                this.cc.P2.scheduler = null;
+            this.cc.P2BF = 0;           // tell P1 we've stopped
+            if (this.scheduler) {
+                clearTimeout(this.scheduler);
+                this.scheduler = null;
             }
         }
     }
+};
+
+/**************************************/
+B5500Processor.prototype.start = function() {
+    /* Initiates the processor from a load condition at P=@20 */
+
+    this.C = runAddr;                   // starting execution address
+    this.access(0x30);                  // P = [C]
+    this.T = this.fieldIsolate(this.P, 0, 12);
+    this.TROF = 1;
+    this.L = 1;                         // advance L to the next syllable
+
+    // Now start scheduling the processor on the Javascript thread
+    this.busy = 1;
+    this.procTime = new Date().getTime()*1000;
+    this.scheduler = setTimeout(this.schedule, 0);
 };
 
 /**************************************/
@@ -1190,6 +1206,23 @@ B5500Processor.prototype.initiate = function(forTest) {
         this.NCSF = 1;
         this.busy = 1;
     }
+};
+
+/**************************************/
+B5500Processor.prototype.initiateAsP2 = function() {
+    /* Called from Central Control to initiate the processor as P2. Fetches the
+    INCW from @10 and calls initiate() */
+    
+    this.M = 0x08;                    // address of the INCW
+    this.access(0x04);                // A = [M]
+    this.AROF = 1;
+    this.T = 0x849;                   // inject 4111=IP1 into P2's T register
+    this.TROF = 1;
+    this.NCSF = 0;                    // make sure P2 is in control state
+
+    // Now start scheduling P2 on the Javascript thread
+    this.procTime = new Date().getTime()*1000;
+    this.scheduler = setTimeout(this.schedule, 0);
 };
 
 /**************************************/
@@ -3322,10 +3355,8 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x12:          // 2211: HP2=Halt Processor 2
-                        if (!this.NCSF && this.cc.P2 && this.cc.P2BF) { // control-state only
-                            this.cc.HP2F = 1;
-                            // We know P2 is not currently running on this thread, so save its registers
-                            this.cc.P2.storeForInterrupt(0);
+                        if (!this.NCSF) { // control-state only
+                            this.cc.haltP2();
                         }
                         break;
 
