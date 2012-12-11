@@ -17234,5 +17234,83 @@ PROCEDURE SEEKNAM(A,B,C,D,E,N,XLST); VALUE A,B;                         20382010
       IF TYPE=COPYN THEN BEGIN TPNO~16; GO LCOPY END ELSE          %603-20475100        
          IF TYPE~TAPE THEN GO ERROR;                                 %P 20476000        
               IF TYPE !PERIO THEN GO NEXT ELSE GO EXIT;                 20477000        
-    LFREE:                                                              20477500        
- $ SET OMIT = NOT(PACKETS)                                              20477504        
+    LFREE:                                                              20478500        
+ $ SET OMIT = NOT(PACKETS)                                              20478504        
+              EQN[3].[23:1]~1;                                          20478505        
+ $ POP OMIT                                                             20478506        
+              GO TO NEXT;                                               20478508        
+    LCOPY:    IF (TYPE:=SCAN) NEQ IDENT OR KOUNT GTR 3 THEN GO TO ERROR;20478510        
+              STREAM(A:=0:KOUNT,ACCUM);                                 20478520        
+              BEGIN SI:=ACCUM;SI:=SI+1;DI:=LOC A;DS:=KOUNT OCT END;     20478530        
+              IF(TYPE:=P(DUP)) GTR 256 OR P(XCH)LSS 1 THEN GO ERROR;    20478540        
+              EQN[3].[15:8]:=TYPE-1;GO TO NEXT;                         20478550        
+    ERROR:%                                                             20479000        
+         PPC~TRUE;GO DOWN;%                                             20480000        
+    SPO:      TPNO~11;GO TO NEXT;%                                      20481000        
+    LREMOTE:  TPNO~ 19;  GO NEXT;                                       20481100        
+  LRANDOM:  TPNO~10; GO TO DSKCHECK;                               %603-20481900        
+    SERIAL: TPNO:=12; GO TO DSKCHECK;                            % (SHM)20482000        
+    UPDATE:   TPNO~13; GO TO DSKCHECK;                                  20483000        
+    PROTECT:  TPNO~26;                                                  20483100        
+    DSKCHECK:                                                    % (SHM)20484000        
+              IF (TYPE:=SCAN)=COMMA THEN GO TO DSKCHECK;         % (SHM)20484050        
+              IF TYPE=EU THEN                                    % (SHM)20484100        
+                 BEGIN                                           % (SHM)20484150        
+                 IF SCAN NEQ EQUAL THEN GO TO ERROR ELSE         % (SHM)20484200        
+                 IF (TYPE:=SCAN) NEQ IDENT OR KOUNT GTR 2 THEN GO ERROR;20484250        
+                 STREAM(KOUNT,ACCUM,T:=[TYPE]);                  % (SHM)20484300        
+                    BEGIN                                        % (SHM)20484350        
+                    SI:=ACCUM; SI:=SI+1; DI:=T; DS:=KOUNT OCT;   % (SHM)20484400        
+                    END;                                         % (SHM)20484450        
+                 EQN[12].[18:5]:=TYPE+1;                         % (SHM)20484500        
+                 GO TO DSKCHECK;                                 % (SHM)20484550        
+                 END % IF EU                                     % (SHM)20484600        
+              ELSE IF TYPE=FAST OR TYPE=SLOW THEN                % (SHM)20484650        
+                 BEGIN                                           % (SHM)20484700        
+                 EQN[12].[16:2]:=1+(TYPE=SLOW);                  % (SHM)20484750        
+                 GO TO DSKCHECK;                                 % (SHM)20484800        
+                 END                                                    20484850        
+              ELSE IF TYPE = SENSE THEN                                 20484855        
+                 BEGIN                                                  20484860        
+                 EQN[12].[15:1]:=1;                                     20484865        
+                 GO TO DSKCHECK;                                        20484870        
+                 END;                                                   20484875        
+             GO TO ROUND;                                               20484900        
+    EXIT:%                                                              20485000        
+         IF   NOLBL THEN TPNO ~ IF TPNO=2 THEN 9 ELSE%                  20486000        
+                       (IF TPNO =3 THEN 5  ELSE%                        20487000        
+              (IF TPNO=7 THEN 8 ELSE%                                   20488000        
+              (IF TPNO=@37 THEN 9 ELSE TPNO)));%                        20489000        
+         IF FAROUT THEN IF UNITNO}32 THEN CIDROW[UNITNO-32].[3:5] ~ 0   20489100        
+                   ELSE IF UNITNO=23 THEN READERA.[FF] ~ 0              20489200        
+                   ELSE IF UNITNO=24 THEN READERB.[FF] ~ 0;             20489300        
+         EQN[3].[43:5]~TPNO;%                                           20490000        
+              DEX  ~  DEX+1;%                                           20491000        
+              END%                                                      20492000        
+         ELSE%                                                          20493000        
+              BEGIN%                                                    20494000        
+         DO UNTIL (IOD ~ SCAN) = EQUAL OR IOD = PERIO;%                 20495000        
+         IF IOD = PERIO THEN GO TO ERROR;%                              20496000        
+              IOD ~ SCAN;%                                              20497000        
+              STREAM (K~0; A ~ [ACCUM[0]],KOUNT);%                      20498000        
+                   BEGIN%                                               20499000        
+                   SI ~ A ; SI~SI+1; DI~LOC K;%                         20500000        
+                   KOUNT(IF SC<"0" THEN BEGIN DS~LIT"+";                20500100        
+                         JUMP OUT TO ERR; END; SI~SI+1);                20500200        
+                         SI~SI-KOUNT;                                   20500300        
+                   DS ~ KOUNT  OCT ;%                                   20501000        
+                   ERR:                                                 20501100        
+              END;%                                                     20502000        
+         IF (TPNO~P).[1:1] THEN GO TO ERROR;                            20503000        
+         IF TYPE=PROCE OR TYPE=IO THEN X[16+TYPE-PROCE]~TPNO|3600       20504000        
+         ELSE IF TYPE=COREV THEN                                   %512-20504500        
+              BEGIN X[20] ~ TPNO DIV 64;                           %512-20505000        
+              DO UNTIL (IOD ~ SCAN)=MAXV OR IOD=PERIO;             %512-20507000        
+              IF IOD=MAXV THEN P([X[20]],IOR) ELSE GO TO DOWN;     %512-20507100        
+              END                                                  %512-20507200        
+         ELSE IF TYPE}PRIOR AND TYPE{SAVEV THEN                    %512-20507300        
+              X[18+TYPE-PRIOR]~TPNO ELSE GO TO ERROR;              %512-20507400        
+         DO UNTIL SCAN = PERIO;%                                        20508000        
+              END;%                                                     20509000        
+    DOWN:%                                                              20510000        
+         END;%                                                          20511000        
