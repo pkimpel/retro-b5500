@@ -17137,3 +17137,102 @@ PROCEDURE SEEKNAM(A,B,C,D,E,N,XLST); VALUE A,B;                         20382010
                    BEGIN%                                               20412000        
                    SI ~ LOC KOUNT ; SI~SI+7; DI~Z; DS~CHR;%             20413000        
                    SI ~ ACCUM ; SI~SI+1;  DS~ KOUNT CHR ;%              20414000        
+                   END ;%                                               20415000        
+              IF X[0]<0 THEN IF KOUNT=4 AND ACCUM[0].[6:24]="CARD"      20415100        
+                   THEN FAROUT ~ TRUE;                                  20415200        
+              IF SCAN ! EQUAL THEN GO TO ERROR;                         20416000        
+              IF SCAN < IDENT THEN GO TO ERROR;                         20416500        
+              EQN[2] ~ EQN[3]~%                                         20417000        
+              EQN[0]~0;  EQN[1] ~ ACCUM[0];%                            20418000        
+              IF  (TYPE~SCAN)= SLASH  THEN%                             20419000        
+              BEGIN  IF SCAN}IDENT  THEN%                               20420000        
+                   BEGIN   EQN[0]~EQN[1]; EQN[1]~ACCUM[0]   ;%          20421000        
+              ;    END    ELSE   GO TO   ERROR;%                        20422000        
+                        TYPE ~ SCAN  END;%                              20423000        
+              IF TYPE = COMMA THEN%                                     20424000        
+                   BEGIN%                                               20425000        
+              IF(TYPE~SCAN)~ IDENT OR KOUNT >3 THEN  GO TO ERROR;%      20426000        
+                   STREAM ( S ~ 3-KOUNT,KOUNT,ACCUM, T~[EQN[2]]);%      20427000        
+                   BEGIN  SI~ACCUM; SI~SI+1; DI~DI+S; DS~KOUNT NUM;%    20428000        
+                   END;%                                                20429000        
+              IF(TYPE~SCAN)= COMMA THEN%                                20430000        
+                   BEGIN%                                               20431000        
+                   IF(TYPE~SCAN)! IDENT OR KOUNT>5 THEN GO TO ERROR;%   20432000        
+                        STREAM( S~8-KOUNT,KOUNT,ACCUM, T~[EQN[2]]);%    20433000        
+                        BEGIN SI~ACCUM; SI~SI+1; DI~DI+S;DS~KOUNT NUM%  20434000        
+                        END;%                                           20435000        
+                   EQN[2].[42:1] ~ 1;% SO FILE OPEN KNOWS ITS LABELEQUAT20435500        
+                   IF(TYPE~SCAN)= COMMA  THEN%                          20436000        
+                        BEGIN%                                          20437000        
+                   IF(TYPE~SCAN)!IDENT OR KOUNT>1 THEN GO TO ERROR;     20438000        
+                        STREAM(S~1-KOUNT,KOUNT,ACCUM,T~[EQN[3]]);       20439000        
+                        BEGIN SI~ACCUM; SI~SI+1; DI~DI+S;DS~KOUNT NUM;% 20440000        
+                        END;    TYPE ~ SCAN;%                           20441000        
+                        END% CYCLE ;%                                   20442000        
+                   END% CREATION DATE ;%                                20443000        
+                   END;%REEL  NUMBER;%                                  20444000        
+              TPNO~@37;%                                                20445000        
+              NOLBL ~ 0;%                                               20446000        
+    ROUND:%                                                             20447000        
+         WHILE TYPE NEQ PERIO AND                                       20448000        
+          ((TYPE LSS FORM AND TYPE NEQ COPYN) OR TYPE GTR FREEF) DO     20448050        
+          TYPE:=SCAN;                                                   20448100        
+         IF TYPE = PERIO THEN GO TO EXIT;%                              20449000        
+         IF TYPE = COPYN THEN GO LCOPY;                                 20449100        
+         GO TO D[TYPE-FORM];%                                           20450000        
+      NEXT:     TYPE~SCAN;  GO TO  ROUND;%                              20451000        
+    LDUMMY:    TPNO~11;  % " FORM SPO" - DUMMY FILE                %846-20451900        
+     LFORM:%                                                            20452000        
+              EQN[3].[42:1]~1; GO TO NEXT;%                             20453000        
+     LNO:%                                                              20454000        
+         NOLBL ~ 1; GO TO NEXT;%                                        20455000        
+    LDISK:%                                                             20456000        
+      TPNO~12;  GO TO DSKCHECK;  % "DISK" MEANS DISK SERIAL        %603-20457000        
+    LTAPE:%                                                             20458000        
+         TPNO ~ 2; GO TO NEXT;%                                         20459000        
+    LPUNCH:%                                                            20460000        
+         TPNO:=0;                                                       20460100        
+         IF (TYPE:=SCAN)=PERIO THEN GO TO EXIT;                         20461000        
+         IF TYPE=FREEF THEN GO TO LFREE ELSE                            20461050        
+         IF TYPE=BACK THEN                                              20461100        
+         TPNO~20 ELSE                                                   20461200        
+      BEGIN TPNO~21; IF TYPE=COPYN THEN BEGIN                      %603-20461300        
+           TPNO~22; GO LCOPY            END ELSE                   %603-20461310        
+           IF SCAN!BACK THEN GO ERROR;                             %603-20461320        
+      END;                                                         %603-20461330        
+         IF SCAN=PERIO THEN GO ERROR;                                   20461400        
+         IF (TYPE~SCAN)=PERIO THEN                                      20461500        
+              TPNO~TPNO+4 ELSE                                          20461600        
+         IF TYPE=FREEF THEN GO TO LFREE ELSE                            20461650        
+         IF TYPE=DISK THEN                                              20461700        
+              TPNO~TPNO+2 ELSE                                          20461800        
+      IF TYPE=COPYN THEN BEGIN TPNO~22; GO LCOPY END ELSE          %603-20461810        
+         IF TYPE!TAPE THEN GO ERROR;                                    20461900        
+              IF TYPE!PERIO THEN GO NEXT ELSE GO EXIT;                  20461950        
+    LPAPER:%                                                            20462000        
+         TYPE ~ SCAN; TPNO ~ 7; GO TO NEXT;%                            20463000        
+    LSPECIAL:%                                                          20464000        
+         TPNO ~ 3; GO TO NEXT;%                                         20465000        
+  LLINES66: %                                                      %724-20465050        
+      EQN[0] ~ "FULLPGE" ;  %SET UP MFID FOR FULL PAGE             %724-20465100        
+    LPRINT:%                                                            20466000        
+         TPNO:=1;                                                       20466100        
+         IF (TYPE:=SCAN)=PERIO THEN GO TO EXIT;                         20467000        
+         IF TYPE=FREEF THEN GO TO LFREE ELSE                            20467100        
+         IF TYPE=BACK THEN                                           %P 20468000        
+    LBACK:    TPNO~6 ELSE                                            %P 20469000        
+      BEGIN TPNO~4; IF TYPE=COPYN THEN BEGIN                       %603-20470000        
+           TPNO~15; GO TO LCOPY        END ELSE                    %603-20470100        
+           IF SCAN!BACK THEN GO ERROR;                             %603-20470110        
+      END;                                                         %603-20470120        
+         IF SCAN=PERIO THEN GO ERROR;                                %P 20471000        
+         IF (TYPE~SCAN)=PERIO THEN                                   %P 20472000        
+              TPNO~22-TPNO ELSE                                      %P 20473000        
+         IF TYPE=FREEF THEN GO TO LFREE ELSE                            20473100        
+         IF TYPE=DISK THEN                                           %P 20474000        
+              TPNO~21-TPNO ELSE                                      %P 20475000        
+      IF TYPE=COPYN THEN BEGIN TPNO~16; GO LCOPY END ELSE          %603-20475100        
+         IF TYPE~TAPE THEN GO ERROR;                                 %P 20476000        
+              IF TYPE !PERIO THEN GO NEXT ELSE GO EXIT;                 20477000        
+    LFREE:                                                              20477500        
+ $ SET OMIT = NOT(PACKETS)                                              20477504        
