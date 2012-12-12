@@ -187,10 +187,8 @@ B5500IOUnit.prototype.fetch = function(addr) {
 
     this.cycleCount += B5500IOUnit.memCycles;               
     if (acc.MAED) {
-        this.D26F = 1;                  // memory address error
         return 1;
     } else if (acc.MPED) {
-        this.D29F = 1;                  // memory parity error on data transfer
         return 1;
     } else {
         return 0;                       // no error
@@ -209,7 +207,6 @@ B5500IOUnit.prototype.store = function(addr) {
 
     this.cycleCount += B5500IOUnit.memCycles;               
     if (acc.MAED) {
-        this.D26F = 1;                  // memory address error
         return 1;
     } else {
         return 0;                       // no error
@@ -230,6 +227,7 @@ B5500IOUnit.prototype.fetchBuffer = function(mode, words) {
     var c;                              // current character code
     var count = 0;                      // number of characters fetched
     var done = false;                   // loop control
+    var overflow = false;               // memory address overflowed max
     var s;                              // character shift counter
     var w;                              // local copy of this.W
     
@@ -238,7 +236,8 @@ B5500IOUnit.prototype.fetchBuffer = function(mode, words) {
             done = true;
         } else {
             words--;
-            if (addr > 0x7FFF) {
+            if (overflow) {
+                this.AOFF = 1;          // for display onlly
                 this.D26F = 1;          // address overflow: set invalid address error
                 done = true;
             } else if (this.fetch(addr)) { // fetch the next word from memory
@@ -261,11 +260,15 @@ B5500IOUnit.prototype.fetchBuffer = function(mode, words) {
                     }
                 } // for s
             }
-            addr++;
+            if (addr < 0x7FFF) {
+                addr++;
+            } else {
+                overflow = true;
+            }
         }
     } while (!done);
     
-    this.Daddress = addr % 0x7FFF;
+    this.Daddress = addr;
     if (this.D23F) {
         this.DwordCount = words % 0x1FF;
     }
@@ -288,6 +291,7 @@ B5500IOUnit.prototype.storeBuffer = function(chars, offset, mode, words) {
     var c;                              // current character code
     var count = 0;                      // number of characters fetched
     var done = (words > 0);             // loop control
+    var overflow = false;               // memory address overflowed max
     var power = 0x40000000000;          // factor for character shifting into a word
     var s = 8;                          // character shift counter
     var w = 0;                          // local copy of this.W
@@ -301,7 +305,7 @@ B5500IOUnit.prototype.storeBuffer = function(chars, offset, mode, words) {
             power /= 64;
             if (--s <= 0) {
                 this.W = w;
-                if (addr > 0x7FFF) {
+                if (overflow) {
                     this.D26F = 1;      // address overflow: set invalid address error
                     done = true;
                 } else if (this.store(addr)) { // store the word in memory
@@ -309,7 +313,11 @@ B5500IOUnit.prototype.storeBuffer = function(chars, offset, mode, words) {
                         this.D26F = 1;  // set invalid address error
                     }
                 }
-                addr++;
+                if (addr < 0x7FFF) {
+                    addr++;
+                } else {
+                    overflow = true;
+                }
                 s = 8;
                 w = 0;
                 power = 0x40000000000;
@@ -327,7 +335,7 @@ B5500IOUnit.prototype.storeBuffer = function(chars, offset, mode, words) {
     }
     if (s < 8 && words > 0) {           // partial word left to be stored
         this.W = w;
-        if (addr > 0x7FFF) {
+        if (overflow) {
             this.D26F = 1;              // address overflow: set invalid address error
             done = true;
         } else if (this.store(addr)) {  // store the word in memory
@@ -335,11 +343,13 @@ B5500IOUnit.prototype.storeBuffer = function(chars, offset, mode, words) {
                 this.D26F = 1;          // set invalid address error
             }
         }
-        addr++;
         words--;
+        if (addr < 0x7FFF) {
+            addr++;
+        }
     }
     
-    this.Daddress = addr % 0x7FFF;
+    this.Daddress = addr;
     if (this.D23F) {
         this.DwordCount = words % 0x1FF;
     }
@@ -397,6 +407,7 @@ B5500IOUnit.prototype.initiate = function() {
     var x;
     
     this.clearD();
+    this.AOFF = 0;
     this.EXNF = 0;
     this.D31F = 1;                      // preset IOD fetch error condition (cleared if successful)
     if (this.fetch(0x08)) {             // fetch the IOD address from @10
