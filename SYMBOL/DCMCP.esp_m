@@ -17314,3 +17314,92 @@ PROCEDURE SEEKNAM(A,B,C,D,E,N,XLST); VALUE A,B;                         20382010
               END;%                                                     20509000        
     DOWN:%                                                              20510000        
          END;%                                                          20511000        
+PROCEDURE SECURITYMAINT( TYPE,SMID,SFID,CMM,SFH,CARD);                  20511100        
+VALUE TYPE,SMID,SFID,SFH,CARD;                                          20511110        
+REAL  TYPE,SMID,SFID,SFH,CARD;                                          20511120        
+ARRAY CMM[*];                                                           20511130        
+BEGIN                                                                   20511140        
+DEFINE  SPOUTUNIT = CARD #;  % TO ALLOW "LIBERR" TO WORK           %589-20511148        
+REAL N4,OPTN,T1;                                                        20511150        
+REAL ER1,ER2,ER3; LABEL ERSYS;                                     %169-20511152        
+REAL T=TYPE;                                                            20511155        
+LABEL SEC3,FUNC0,FUNC1,FUNC2,FUNC3,SEC4,EXYT;                           20511160        
+LABEL ERR,ERROR,FUNCJ;%                                                 20511165        
+SWITCH FUNC,FUNCJ,FUNC0,FUNC1,FUNC2,FUNC3;%                             20511170        
+LABEL EXIT; %                                                           20511171        
+         ER1:=")~     ";%                                          %169-20511175        
+         N4:= ABS(CMM[5]);                                              20511181        
+         IF ((CMM[0]EQV "DECK   ")=NOT 0) AND                           20511182        
+            (((CMM[1]AND @77000000007777)EQV @12000000003714)=NOT 0)    20511184        
+         OR SYSTEMFILE(CMM[0],CMM[1]) THEN%                        %169-20511188        
+         BEGIN ERSYS: ER1:="SYSTEM ";ER2:="FILE)~ "; GO ERROR END; %169-20511190        
+         IF TYPE = USEV AND                                             20511295        
+         ((CMM[0]EQV SMID)=NOT 0 AND (CMM[1]EQV SFID)=NOT 0) THEN       20511300        
+         BEGIN ER1:="SAME FI";ER2:="LE)~   "; GO ERROR END         %169-20511303        
+         ELSE                                                           20511305        
+         IF (OPTN:=DIRECTORYSEARCH(CMM[0],CMM[1],3)) GEQ 64 THEN        20511306        
+         BEGIN                                                          20511311        
+         IF TYPE=USEV AND M[OPTN+2]<0 THEN%                        %169-20511312        
+         BEGIN ER1:="SECURIT";ER2:="Y FILE)";ER3:="~      "; GO ERR END;20511313        
+         IF (T1~((N4 EQV MCP)=NOT 0) OR (CMM[5]=NOT(-0))) OR            20511315        
+           (M[OPTN+2]>0 AND(N4 EQV ABS(M[OPTN+2]))=NOT 0)THEN           20511320        
+         GO TO SEC3 ELSE                                                20511330        
+         BEGIN ER1:="INVALID";ER2:=" USER)~";%                     %169-20511335        
+     ERR:      FORGETSPACE(OPTN);%                                 %169-20511340        
+                       FORGETSPACE(DIRECTORYSEARCH(CMM[0],CMM[1],14));  20511350        
+            END;                                                        20511360        
+         END ELSE IF OPTN=2 THEN GO ERSYS% @ LINE 20511190         %169-20511363        
+            ELSE IF OPTN=1 THEN BEGIN ER1:="IN USE)";ER2:="~      " END 20511364        
+            ELSE IF OPTN=0 THEN BEGIN ER1:="NOT ON ";ER2:="DISK)~ " END;20511365        
+   ERROR:                                                          %169-20511366        
+         STREAM(A:=[CMM[0]],ER:=[ER1],B:=(OPTN:=SPACE(10)));       %169-20511370        
+         BEGIN SI:=A; SI:=SI+1; DS:=LIT" "; DS:=7 CHR;                  20511380        
+               SI:=SI+1; DS:=LIT"/"; DS:=7 CHR;                         20511390        
+               DS:=25 LIT " SECURITY MAINT IGNORED ("; SI:=ER;%    %169-20511400        
+               3(SI:=SI+1; DS:=7 CHR);%                            %169-20511405        
+         END STREAM;                                                    20511410        
+         SPOUTER(OPTN&CARD[9:9:9],CARD,LIBERR);                    %149-20511420        
+         GO TO EXYT;                                                    20511430        
+    SEC3:                                                               20511440        
+         GO TO FUNC[TYPE-UNLOCKV];                                      20511450        
+   FUNCJ:M[OPTN INX 5]~M[OPTN INX 6]~@14;%                              20511455        
+         CMM[2] := " UNLOCK"; CMM[3] := "ED~~   ";%                     20511457        
+         GO TO SEC4;%                                                   20511459        
+   FUNC0:                                                               20511460        
+         M[OPTN INX 5]:=-SMID; M[OPTN INX 6]:= SFID;                    20511470        
+         CMM[2]:= " SECURE"; CMM[3]:= "D WITH ";                        20511480        
+         M[SFH+2] := P(DUP,LOD,SSB);                                    20511490        
+         GO TO SEC4;                                                    20511500        
+   FUNC1:                                                               20511510        
+         IF (T1~T1 AND (M[OPTN+2]=0)) THEN M[OPTN+2]~CMM[6];            20511515        
+         SMID:=M[OPTN+5]; SFID:=M[OPTN+6];                              20511520        
+         M[OPTN INX 5]:= M[OPTN INX 6]:=0;                              20511525        
+         CMM[2]~" LOCKED";CMM[3]~" FROM  ";CMM[4]~" WITH :";GO TO SEC4; 20511530        
+   FUNC2:                                                               20511540        
+M[OPTN INX 5]~M[OPTN INX 2].[6:42]; M[OPTN INX 2]~M[OPTN INX 6]~0;      20511550        
+         CMM[2]:= " FREE F"; CMM[3]:= "ILE~~  "; GO TO SEC4;            20511560        
+   FUNC3:                                                               20511570        
+         M[OPTN INX 5]:=  @14;   M[OPTN INX 6]:= 0;                     20511580        
+         CMM[2]:= " PUBLIC";CMM[3]:= " FILE~~";                         20511590        
+    SEC4:                                                               20511600        
+         DISKWAIT(OPTN,[CF],30,OPTN.[FF]);                              20511610        
+         P(DIRECTORYSEARCH(-CMM[0],CMM[1],14),DEL);                     20511620        
+ $ SET OMIT = PACKETS                                                   20511639        
+         STREAM(A:=ABS(SMID),B:=SFID,C:=CMM,Q:=(T LSS FREE)%            20511660        
+               AND (T!UNLOCKV) AND (ABS(SMID)!12),%                     20511662        
+               X:=(SFID=0 OR ABS(SFID)=12) %                            20511663        
+               AND T LSS FREE AND T~UNLCOKV,%                           20511664        
+               Y~T=LOCKV AND(((N4 EQV MCP)=NOT 0)AND((CMM[6] EQV MCP)!  20511665        
+               NOT 0)) AND T1,D~OPTN~OPTN INX 0);                       20511666        
+         BEGIN SI:=C; SI:=SI+1; DS:=LIT" "; DS:=7 CHR; DS:=LIT"/";      20511670        
+               3(SI:=SI+1; DS:=7 CHR);                                  20511680        
+               X(DI:=DI-7; DS:=2 LIT"~~");                              20511685        
+               Q(DS:=LIT" ";SI:=LOC A;SI:=SI+1;DS:=7 CHR; DS:=LIT"/";   20511690        
+               SI~SI+1; DS~7 CHR);                                      20511700        
+               Y(X(DI~DI-18); SI~C;4(SI~SI+8);SI~SI+1;DS~7 CHR;         20511702        
+                 SI~SI+9; DS~7 CHR); DS~ LIT "~";                       20511704        
+         END STREAM;                                                    20511710        
+         SPOUTER(OPTN&CARD[9:9:9],CARD,SECMSG);                         20511720        
+ $ SET OMIT = PACKETS                                                   20511729        
+    EXYT:                                                               20511800        
+END SECURITYMAINT;                                                      20511810        
