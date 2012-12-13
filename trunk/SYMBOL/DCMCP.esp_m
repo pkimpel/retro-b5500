@@ -17403,3 +17403,117 @@ M[OPTN INX 5]~M[OPTN INX 2].[6:42]; M[OPTN INX 2]~M[OPTN INX 6]~0;      20511550
  $ SET OMIT = PACKETS                                                   20511729        
     EXYT:                                                               20511800        
 END SECURITYMAINT;                                                      20511810        
+COMMENT  THE PRT CELL "SHEET" GIVES DISK ADDRESS OF 1ST SHEET ENTRY     20512000        
+    *** ENTRIES IN THE SHEET ARE AS FOLLOWS:                            20512400        
+         S[ 0]         = 1ST NAME (7 CHRS)                              20512800        
+              .[ 2:1 ] = "CANDE" JOB (TSS ONLY)                         20513200        
+         S[ 1]         = 2ND NAME (7 CHRS)                              20513600        
+         S[ 2].[ 1: 2] = 0 NORMAL                                       20514000        
+                         2 JOB HAS BEEN XS-ED (FORCED RUN)              20514400        
+                         3 JOB HAS BEEN ES-ED (FORCED RUN AND DS)       20514800        
+         S[ 3].[ 4:1 ] = SUPPRESS BOJ/EOJ MESSAGES FOR SYSTEM JOBS      20515200        
+         S[ 2].[ 5:3 ] = 0 NORMAL, 1 LIBMAIN, 3 LDCNTRL, 5 PRNPBT       20515400        
+         S[ 2].[ 8:10] = 0 GO JOB (FROM COMPILE & GO)                   20515600        
+                       = 1 COMPILER (FOR COMPILE & GO)                  20516000        
+                       = 2 EXECUTE JOB                                  20516400        
+                       = 3 COMPILER (FOR SYNTAX CHECK)(SET TO 2 LATER)  20516800        
+                       = 4 COMPILER (FOR COMPILE TO LIBRARY)            20517200        
+                       = 5 RUN JOB                                      20517600        
+         S[ 2].[18:15] = SKELETONS DISK ADDRESS (IF S[2].[8:10] = 1,2,4 20518000        
+         S[ 2].[33:15] = PRIORITY, SAME AS S[18]                        20518400        
+         S[ 3].[ 1:1 ] = SET BY SELECTRUN WHEN "SCHEDULED" MESSAGE      20518800        
+                         IS SENT (IF SCHEDULED)                         20519200        
+         S[ 3].[ 2: 1] = 1 RESTART JOB                                  20519600        
+         S[ 3].[ 8:10] = SCHEDULE-ID FOR THIS JOB                       20520000        
+         S[ 5]         = STARTING TIME FOR LOG                          20520400        
+         S[ 6]         = LOCATION OF LAST PART OF LOG                   20520800        
+         S[ 7]         = CORE ADDRESS OF SEGMENT ZERO (WHEN THE         20521200        
+                         SHEET IS PASSED TO SELECTRUN AS A PARAMETER)   20521600        
+         S[13]         = DISK ADDRESS OF LABEL EQUATION ENTRIES         20522000        
+                         APPLICABLE TO THIS EXECUTION ONLY (SEE BELOW)  20522400        
+         S[14]         = ACTUAL MFID OF JOB (TSS ONLY). THIS MAY BE     20522800        
+                         BE DIFFERENT FROM S[0] FOR SOME JOBS           20523200        
+                         WHICH ARE STARTED BY CANDE.                    20523600        
+         S[15]         = DISK ADDRESS OF LABEL EQUATION ENTRIES         20524000        
+                         PRESENTED WHEN PROGRAM WAS COMPILED AND        20524400        
+                         APPLICABLE TO ALL EXECUTIONS                   20524800        
+         S[16]         = ESTIMATED PROCESSOR TIME                       20525200        
+         S[17]         = ESTIMATED I/O TIME                             20525600        
+         S[18]         = PRIORITY                                       20526000        
+         S[19]         = COMMON VALUE                                   20526400        
+         S[20]         = ESTIMATED CORE REQUIREMENTS                    20526800        
+         S[20].[ 2:1 ] = "CAN-T EXPAND" BIT (TSS)                       20527200        
+              .[33:15] = ESTIMATED CORE REQUIREMENT                     20527600        
+         S[21]         = STACK SIZE                                     20528000        
+         S[22]         = SAVE FACTOR FOR OBJECT FILE (COMPILATIONS)     20528400        
+         S[23].[2:6]   = UNITNO OF CARD/PSEUDO READER IN CONTROLCARD.   20528800        
+         S[23].[9:9]   = REMOTE STATION ADDRESS, ELSE 0                 20529200        
+         S[23].[24:24] = TIME JOB PUT IN SHEET(FOR TS MSG)              20529600        
+         S[24]         = USER CODE                                      20530000        
+         S[25]         = DISK ADDRESS OF FILE HEADER FOR THE JOB        20530400        
+         S[26]         = LOGLINE (TSS)                                  20530800        
+         S[27]         = FID FOR COMPILES,TAPE NAME FOR LIBMAIN.        20531200        
+         S[29]         = DISK ADDRESS OF NEXT SHEET ENTRY (=0 IF LAST)  20531600        
+    *** ENTRIES FOR LABEL EQAT. ARE AS FOLLOWS:                         20532000        
+         F[0]          = MULTI-FILE ID (7 CHRS)                         20532400        
+         F[1]          = FILE ID      (7 CHRS)                          20532800        
+         F[2].[0:18]   = REEL NO    (3 CHRS)                            20533200        
+         F[2].[18:30]  = CREATION DATE  (5 CHRS)                        20533600        
+         F[3].[0:6]    = CYCLE    (1 CHR)                               20534000        
+         F[3].[15:8]   = NUM COPIES OF PBD OR PUD FILE                  20534400        
+         F[3].[23:1]   = 1, IF "FREEF" PDB PACKET FILE                  20534800        
+         F[3].[42:1]   = 1  FOR FORMS REQUIRED                          20535200        
+         F[3].[43:5]   = 0  FOR CP  (FILE TYPES )                       20535600        
+                         1  FOR LP                                      20536000        
+                         2  FOR MT                                      20536400        
+                         3  FOR SPECIFIC UNIT                           20536800        
+                         4  FOR LP  (MAY BACKUP)                        20537200        
+                         5  FOR SPECIFIC (UNLABELED)                    20537600        
+                         6  FOR LP  (MUST BACKUP)                       20538000        
+                         7  FOR PT                                      20538400        
+                         8  FOR PT (UNLABELED)                          20538800        
+                         9  FOR MT (UNLABELED)                          20539200        
+                        10  FOR DISK                                    20539600        
+         F[4].[0:6]    = NO OF CHARS IN INTERNAL NAME                   20540000        
+         F[4].[6:42]   = INTERNAL NAME (MAY CONTINUE TO F[11])          20540400        
+         F[12].[15:1]  = "SENSITIVE" BIT                                20540800        
+         F[12].[16:2]  = DISK SPEED                                     20541200        
+         F[12].[18:5]  = EU NUMBER + 1                                  20541600        
+         F[14]- F[25]  SAME AS ABOVE FOR NEXT FILE (F[14]=14 IF NO NEXT)20542000        
+         F[29]         = DISK ADRS.OF NXT.LBL.EQUAT.ENTRY(=0 IF NONE)   20542400        
+  **** ALSO SEE PROCEDURE "SELECTRUN1" (SEQ.NO.20055600) FOR            20542800        
+  **** FURTHER INFORMATION ON LABEL EQUATION AND THE FILE               20543200        
+  **** PARAMETER BLOCK.                                                 20543600        
+                                                                        20544000        
+    **** CONTENTS OF THE JAR:                                           20544400        
+    JAR[0].[ 1:1 ]  =  COMPILE JOB                                      20544800        
+          .[ 2:1 ]  =  "CANDE" JOB (TSS ONLY)                           20545200        
+          .[ 6:42]  =  MFID OF THE JOB                                  20545600        
+    JAR[1].[ 1:1 ]  =  JOB IS BEING DS-ED                               20546000        
+          .[ 2:1 ]  =  JOB IS BEING ES-ED                               20546400        
+          .[ 6:42]  =  FID OF THE JOB                                   20546800        
+    JAR[2].[ 1:1 ]  =  COBOL JOB                                        20547200        
+          .[ 2:1 ]  =  DECLARED SOFTWARD INTERRUPTS                     20547600        
+          .[ 3:1 ]  =  JOB HAS MAINTENANCE LOG ENTRY                    20548000        
+          .[ 4:1 ]  =  NOT USED                                         20548400        
+          .[ 5:1 ]  =  DECLARED SOFTWARE INTERRUPTS                     20548800        
+          .[ 6:1 ]  =  INVOKED OR INVOKING IPC PROG.FILE                20549200        
+          .[ 7:1 ]  =  INVOKED IPC PROGRAM FILE                         20549600        
+          .[ 6:10]  =  SAME AS S[2].[8:10] ABOVE                        20550000        
+          .[18:15]  =  DISK ADDRESS FOR THE SKELETON SHEET (COMPILATIONS20550400        
+          .[33:15]  =  PRIORITY                                         20550800        
+    JAR[3]          =  PROCESS TIME LIMIT                               20551200        
+    JAR[4]          =  IO TIME LIMIT                                    20551600        
+    JAR[5].[ 1:23]  =  STARTING DATE (OCTAL)                            20552000        
+          .[24:24]  =  STARTING TIME (OCTAL)                            20552400        
+    JAR[6].[ 1:1 ]  =  JOB IS SD-ED                                     20552800        
+          .[ 2:4 ]  =  PSEUDO-READER NUMBER                             20553200        
+          .[18:15]  =  SIZE OF LOG INFORMATION (BATCH)                  20553600        
+          .[33:15]  =  DISK ADDRESS OF FIRST RECORD FOR THE LOG         20554000        
+    JAR[7]          =  IDLETIME ENTRY (BATCH)                           20554400        
+    JAR[7]          =  MFID OF JOB (TSS ONLY). THIS MAY BE DIFFERENT    20554800        
+                        FROM JAR[0] FOR SOME JOBS STARTED BY CANDE.     20555200        
+    JAR[8]          =   LENGTH OF CODE FILE ROW                         20555600        
+    JAR[9].[ 1:1 ]  =  REEL CHANGE IN PROGRESS DUE TO "RC" MESSAGE      20556000        
+          .[ 2:1 ]  =  SUPPRESS PRINTING OF BOJ/EOJ MESSAGES            20556400        
+          .[ 3:1 ]  =  JOB HAS BEEN "STOPPED" (WORKSET ON BATCH)        20556410        
