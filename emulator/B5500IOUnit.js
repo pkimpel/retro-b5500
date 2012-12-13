@@ -79,6 +79,16 @@ B5500IOUnit.BICtoANSI = [               // Index by 6-bit BIC to get 8-bit ANSI 
         "Q", "R", "$", "*", "-", ")", ";", "{",         // 28-2F, @50-57
         " ", "/", "S", "T", "U", "V", "W", "X",         // 30-37, @60-67
         "Y", "Z", ",", "%", "!", "=", "]", "\""];       // 38-3F, @70-77
+
+B5500IOUnit.BICtoBCLANSI = [            // Index by 6-bit BIC to get 8-bit BCL-as-ANSI code
+        "#", "1", "2", "3", "4", "5", "6", "7",         // 00-07, @00-07
+        "8", "9", "@", "?", "0", ":", ">", "}",         // 08-1F, @10-17
+        ",", "/", "S", "T", "U", "V", "W", "X",         // 10-17, @20-27
+        "Y", "Z", "%", "!", " ", "=", "]", "\"",        // 18-1F, @30-37
+        "$", "J", "K", "L", "M", "N", "O", "P",         // 20-27, @40-47
+        "Q", "R", "*", "-", "|", ")", ";", "{",         // 28-2F, @50-57
+        "+", "A", "B", "C", "D", "E", "F", "G",         // 30-37, @60-67
+        "H", "I", "[", "&", ".", "(", "<", "~"];        // 38-3F, @70-77
         
 B5500IOUnit.ANSItoBIC = [               // Index by 8-bit ANSI to get 6-bit BIC (upcased, invalid=>"?")
         0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 00-0F
@@ -89,6 +99,24 @@ B5500IOUnit.ANSItoBIC = [               // Index by 8-bit ANSI to get 6-bit BIC 
         0x27,0x28,0x29,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x1B,0x0C,0x3E,0x0C,0x0C,  // 50-5F
         0x0C,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x21,0x22,0x23,0x24,0x25,0x26,  // 60-6F
         0x27,0x28,0x29,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x2F,0x20,0x0F,0x1F,0x0C,  // 70-7F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 80-8F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 90-9F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // A0-AF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // B0-BF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // C0-CF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // D0-DF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // E0-EF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C]; // F0-FF
+        
+B5500IOUnit.BCLANSItoBIC = [            // Index by 8-bit BCL-as-ANSI to get 6-bit BIC (upcased, invalid=>"?")
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 00-0F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 10-1F
+        0x1C,0x1B,0x1F,0x00,0x20,0x1A,0x3B,0x0C,0x3D,0x2D,0x2A,0x30,0x10,0x2B,0x3C,0x11,  // 20-2F
+        0x0C,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0D,0x2E,0x3E,0x1D,0x0E,0x0B,  // 30-3F
+        0x0A,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x21,0x22,0x23,0x24,0x25,0x26,  // 40-4F
+        0x27,0x28,0x29,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x3A,0x0C,0x1E,0x0C,0x0C,  // 50-5F
+        0x0C,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x21,0x22,0x23,0x24,0x25,0x26,  // 60-6F
+        0x27,0x28,0x29,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x2F,0x2C,0x0F,0x3F,0x0C,  // 70-7F
         0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 80-8F
         0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 90-9F
         0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // A0-AF
@@ -187,8 +215,10 @@ B5500IOUnit.prototype.fetch = function(addr) {
 
     this.cycleCount += B5500IOUnit.memCycles;               
     if (acc.MAED) {
+        this.D26F = 1;                  // set memory address error
         return 1;
     } else if (acc.MPED) {
+        this.D29F = 1;                  // set memory parity error on data transfer
         return 1;
     } else {
         return 0;                       // no error
@@ -207,6 +237,7 @@ B5500IOUnit.prototype.store = function(addr) {
 
     this.cycleCount += B5500IOUnit.memCycles;               
     if (acc.MAED) {
+        this.D26F = 1;                  // set memory address error
         return 1;
     } else {
         return 0;                       // no error
@@ -216,9 +247,8 @@ B5500IOUnit.prototype.store = function(addr) {
 /**************************************/
 B5500IOUnit.prototype.fetchBuffer = function(mode, words) {
     /* Fetches words from memory starting at this.Daddress and coverts the
-    BIC characters to ANSI in this.buffer. "mode": 0=alpha, 1=binary; 
-    "words": maximum number of words to transfer. In alpha mode, the transfer
-    can be terminated by a group-mark code in memory. At exit, updates this.Daddress 
+    BIC characters to ANSI or BCLANSI in this.buffer. "mode": 0=BCLANSI, 1=ANSI; 
+    "words": maximum number of words to transfer. At exit, updates this.Daddress 
     with the final transfer address+1. If this.D23F, updates this.wordCount 
     with any remaining count.
     Returns the number of characters fetched into the buffer */
@@ -229,6 +259,7 @@ B5500IOUnit.prototype.fetchBuffer = function(mode, words) {
     var done = false;                   // loop control
     var overflow = false;               // memory address overflowed max
     var s;                              // character shift counter
+    var table = (mode ? B5500IOUnit.BICtoANSI : B5500IOUnit.BICtoBCLANSI);
     var w;                              // local copy of this.W
     
     do {                                // loop through the words
@@ -237,26 +268,70 @@ B5500IOUnit.prototype.fetchBuffer = function(mode, words) {
         } else {
             words--;
             if (overflow) {
-                this.AOFF = 1;          // for display onlly
+                this.AOFF = 1;          // for display only
                 this.D26F = 1;          // address overflow: set invalid address error
                 done = true;
-            } else if (this.fetch(addr)) { // fetch the next word from memory
-                if (this.accessor.MAED) {
-                    this.D26F = 1;      // set invalid address error
-                }
-                if (this.accessor.MPED) {
-                    this.D29F = 1;      // set memory parity error
-                }
-            } else {                    // fill the buffer with this word's characters
-                w = this.W;
+            } else if (!this.fetch(addr)) { // fetch the next word from memory
+                w = this.W;             // fill the buffer with this word's characters        
                 for (s=0; s<8; s++) {
                     c = (w - (w %= 0x40000000000))/0x40000000000;
-                    if (mode || c != 0x1F) {        // if binary mode or not a group-mark
-                        buf[count++] = B5500IOUnit.BICtoANSI[c];
-                        w *= 64;                    // shift word left 6 bits
-                    } else {
-                        done = true;                // group-mark detected in alpha mode
+                    buf[count++] = table[c];
+                    w *= 64;            // shift word left 6 bits
+                } // for s
+            }
+            if (addr < 0x7FFF) {
+                addr++;
+            } else {
+                overflow = true;
+            }
+        }
+    } while (!done);
+    
+    this.Daddress = addr;
+    if (this.D23F) {
+        this.DwordCount = words % 0x1FF;
+    }
+    return count;
+};
+
+/**************************************/
+B5500IOUnit.prototype.fetchBufferWithGM = function(mode, words) {
+    /* Fetches words from memory starting at this.Daddress and coverts the
+    BIC characters to ANSI or BCLANSI in this.buffer. "mode": 0=BCLANSI, 1=ANSI; 
+    "words": maximum number of words to transfer. The transfer can be terminated 
+    by a group-mark code in memory. At exit, updates this.Daddress with the 
+    final transfer address+1. If this.D23F, updates this.wordCount 
+    with any remaining count.
+    Returns the number of characters fetched into the buffer */
+    var addr = this.Daddress;           // local copy of memory address
+    var buf = this.buffer;              // local pointer to buffer
+    var c;                              // current character code
+    var count = 0;                      // number of characters fetched
+    var done = false;                   // loop control
+    var overflow = false;               // memory address overflowed max
+    var s;                              // character shift counter
+    var table = (mode ? B5500IOUnit.BICtoANSI : B5500IOUnit.BICtoBCLANSI);
+    var w;                              // local copy of this.W
+    
+    do {                                // loop through the words
+        if (words <= 0) {
+            done = true;
+        } else {
+            words--;
+            if (overflow) {
+                this.AOFF = 1;          // for display only
+                this.D26F = 1;          // address overflow: set invalid address error
+                done = true;
+            } else if (!this.fetch(addr)) { // fetch the next word from memory
+                w = this.W;             // fill the buffer with this word's characters        
+                for (s=0; s<8; s++) {
+                    c = (w - (w %= 0x40000000000))/0x40000000000;
+                    if (c == 0x1F) {    
+                        done = true;    // group-mark detected 
                         break;
+                    } else {
+                        buf[count++] = table[c];
+                        w *= 64;        // shift word left 6 bits
                     }
                 } // for s
             }
@@ -277,13 +352,11 @@ B5500IOUnit.prototype.fetchBuffer = function(mode, words) {
 
 /**************************************/
 B5500IOUnit.prototype.storeBuffer = function(chars, offset, mode, words) {
-    /* Converts characters in this.buffer from ANSI to BIC, assembles them into
-    words, and stores the words into memory starting at this.Daddress.
-    BIC characters to ANSI in this.buffer. "chars": the number of characters to 
-    stort, starting at "offset" in the buffer; "mode": 0=alpha, 1=binary; 
-    "words": maximum number of words to transfer. In alpha mode, the final character
-    stored from the buffer is followed by a group-mark, assuming the word count is
-    not exhausted. At exit, updates this.Daddress with the final transfer address+1. 
+    /* Converts characters in this.buffer from ANSI or BCLANSI to BIC, assembles
+    them into words, and stores the words into memory starting at this.Daddress.
+    "chars": the number of characters to store, starting at "offset" in the buffer; 
+    "mode": 0=BCLANSI, 1=ANSI; "words": maximum number of words to transfer. 
+    At exit, updates this.Daddress with the final transfer address+1. 
     If this.D23F, updates this.wordCount with any remaining count.
     Returns the number of characters stored into memory from the buffer */
     var addr = this.Daddress;           // local copy of memory address
@@ -293,33 +366,107 @@ B5500IOUnit.prototype.storeBuffer = function(chars, offset, mode, words) {
     var done = (words > 0);             // loop control
     var overflow = false;               // memory address overflowed max
     var power = 0x40000000000;          // factor for character shifting into a word
-    var s = 8;                          // character shift counter
+    var s = 0;                          // character shift counter
+    var table = (mode ? B5500IOUnit.BICtoANSI : B5500IOUnit.BICtoBCLANSI);
     var w = 0;                          // local copy of this.W
     
-    while (!done) {                                // loop through the words
+    while (!done) {                     // loop through the words
         if (count >= chars) {
             done = true;
         } else {
-            c = B5500IOUnit.ANSItoBIC[buf[offset+(count++)]];
+            c = table[buf[offset+(count++)]];
             w += c*power;
             power /= 64;
-            if (--s <= 0) {
+            if (++s > 7) {
                 this.W = w;
                 if (overflow) {
+                    this.AOFF = 1;      // for display only
                     this.D26F = 1;      // address overflow: set invalid address error
                     done = true;
-                } else if (this.store(addr)) { // store the word in memory
-                    if (this.accessor.MAED) {
-                        this.D26F = 1;  // set invalid address error
-                    }
+                } else {
+                    this.store(addr);   // store the word in memory
                 }
                 if (addr < 0x7FFF) {
                     addr++;
                 } else {
                     overflow = true;
                 }
-                s = 8;
-                w = 0;
+                w = s = 0;
+                power = 0x40000000000;
+                if (--words <= 0) {
+                    done = true;
+                }
+            }
+        }
+    } // while !done
+
+    if (s > 0 && words > 0) {           // partial word left to be stored
+        this.W = w;
+        if (overflow) {
+            this.AOFF = 1;              // for display only
+            this.D26F = 1;              // address overflow: set invalid address error
+            done = true;
+        } else {
+            this.store(addr);           // store the word in memory
+        }
+        words--;
+        if (addr < 0x7FFF) {
+            addr++;
+        }
+    }
+    
+    this.Daddress = addr;
+    if (this.D23F) {
+        this.DwordCount = words % 0x1FF;
+    }
+    return count;
+};
+
+/**************************************/
+B5500IOUnit.prototype.storeBufferWithGM = function(chars, offset, mode, words) {
+    /* Converts characters in this.buffer from ANSI to BIC, assembles them into
+    words, and stores the words into memory starting at this.Daddress.
+    "chars": the number of characters to store, starting at "offset" in the buffer; 
+    "mode": 0=BCLANSI, 1=ANSI; "words": maximum number of words to transfer. 
+    The final character stored from the buffer is followed in memory by a group-mark, 
+    assuming the word count is not exhausted. At exit, updates this.Daddress with the 
+    final transfer address+1. 
+    If this.D23F, updates this.wordCount with any remaining count.
+    Returns the number of characters stored into memory from the buffer, plus one
+    for the group-mark */
+    var addr = this.Daddress;           // local copy of memory address
+    var buf = this.buffer;              // local pointer to buffer
+    var c;                              // current character code
+    var count = 0;                      // number of characters fetched
+    var done = (words > 0);             // loop control
+    var overflow = false;               // memory address overflowed max
+    var power = 0x40000000000;          // factor for character shifting into a word
+    var s = 0;                          // character shift counter
+    var table = (mode ? B5500IOUnit.BICtoANSI : B5500IOUnit.BICtoBCLANSI);
+    var w = 0;                          // local copy of this.W
+    
+    while (!done) {                     // loop through the words
+        if (count >= chars) {
+            done = true;
+        } else {
+            c = table[buf[offset+(count++)]];
+            w += c*power;
+            power /= 64;
+            if (++s > 7) {
+                this.W = w;
+                if (overflow) {
+                    this.AOFF = 1;      // for display only
+                    this.D26F = 1;      // address overflow: set invalid address error
+                    done = true;
+                } else {
+                    this.store(addr);   // store the word in memory
+                }
+                if (addr < 0x7FFF) {
+                    addr++;
+                } else {
+                    overflow = true;
+                }
+                w = s = 0;
                 power = 0x40000000000;
                 if (--words <= 0) {
                     done = true;
@@ -330,18 +477,17 @@ B5500IOUnit.prototype.storeBuffer = function(chars, offset, mode, words) {
     
     if (!mode) {                        // alpha transfer terminates with a group-mark
         w += 0x1F*power;                // set group mark in register
-        s--;
+        s++;
         count++;
     }
-    if (s < 8 && words > 0) {           // partial word left to be stored
+    if (s > 0 && words > 0) {           // partial word left to be stored
         this.W = w;
         if (overflow) {
+            this.AOFF = 1;              // for display only
             this.D26F = 1;              // address overflow: set invalid address error
             done = true;
-        } else if (this.store(addr)) {  // store the word in memory
-            if (this.accessor.MAED) {
-                this.D26F = 1;          // set invalid address error
-            }
+        } else {
+            this.store(addr);           // store the word in memory
         }
         words--;
         if (addr < 0x7FFF) {
