@@ -17517,3 +17517,51 @@ COMMENT  THE PRT CELL "SHEET" GIVES DISK ADDRESS OF 1ST SHEET ENTRY     20512000
     JAR[9].[ 1:1 ]  =  REEL CHANGE IN PROGRESS DUE TO "RC" MESSAGE      20556000        
           .[ 2:1 ]  =  SUPPRESS PRINTING OF BOJ/EOJ MESSAGES            20556400        
           .[ 3:1 ]  =  JOB HAS BEEN "STOPPED" (WORKSET ON BATCH)        20556410        
+          .[ 4:1 ]  =  KEYBOARD INTERRUPTS ARE ALLOWED                  20556420        
+          .[ 5:1 ]  =  A KEYBOARD INTERRUPT HAS OCCURRED                20556430        
+          .[ 6:3 ]  =  0 NORMAL JOB                                     20556700        
+                    =  1 LIBMAIN                                        20556710        
+                    =  3 LDCNTRL                                        20556720        
+                    =  5 PRNPBT -- ODD VALUES FOR BOOLEAN TESTING       20556730        
+          .[18:15]  =  DISK ADDRESS FOR "CHAIN" IF NON-ZERO             20556800        
+          .[33:15]  =  NUMBER FOR DISK ROWS IN CODE FILE                20557200        
+    JAR[10] THROUGH JAR[29] = DISK ADDRESS OF CODE FILE ROWS            20557600        
+    JAR[30]         = FID OF OBJECT FILE (BATCH COMPILES ONLY)          20558000        
+    END OF COMMENT;                                                     20558400        
+REAL PROCEDURE CCLIB;                                                   20566000        
+BEGIN LABEL NEXT,LOOP;                                                  20566011        
+DECLARECCVARIABLES;                                                     20566100        
+    REAL CNT         =  RETURNVAL+1,   % BEGIN LOCALS TO CCLIB          20566245        
+         HOLD1       =  CNT+1,                                          20566247        
+         HOLD2       =  HOLD1+1,        XI          =  HOLD2,           20566250        
+         HOLD3       =  HOLD2+1,                                        20566255        
+         REPEAT      =  HOLD3+1,        XLSTSZ      =  REPEAT,          20566260        
+         TYM         =  REPEAT+1,       HME         =  TYM;             20566265        
+BOOLEAN  FIRSTIME    =  TYM+1;                                          20566270        
+    ARRAY XLST       =  FIRSTIME+1[*];                                  20566280        
+    REAL FROMHLD     =  XLST+1,                                         20566290        
+    TOHLD            =  FROMHLD+1,                                      20566300        
+    REMEMBER         =  TOHLD+1,                                        20566310        
+    NAMECNT          =  REMEMBER+1;                                     20566320        
+BOOLEAN DIDGETESPDISK=  NAMECNT + 1;                                    20566330        
+    INTEGER I        = DIDGETESPDISK + 1;                          %148-20566340        
+%********************************************************************** 20566350        
+%                                                                       20566352        
+%                                                                       20566354        
+%   CCLIB HAS BEEN EXPANDED TO HANDLE NEW FACILITIES AVAILABLE          20566356        
+%   THROUGH USE OF THE "COPY" CONTROL CARD AND THE EXTENSION OF         20566358        
+%   "EXCEPT" LISTS TO "REMOVE" CONTROL CARDS.                           20566360        
+%                                                                       20566362        
+%                                                                       20566364        
+%   1:  COPY CONTROL CARDS                                              20566366        
+%                                                                       20566368        
+%    PERFORMS SYNTAX ANALYSIS (SEE DOCUMENTATION)                       20566370        
+%                                                                       20566372        
+%    SETS UP LINKED LIST OF ESPDISK SEGMENTS PROVIDING DATA AND         20566374        
+%    NAMES NECESSARY FOR LIBRARY MAINTENANCE PROCESSING                 20566376        
+%    (INCLUDING "EXCEPT" AND "AS" LISTS).                               20566378        
+%                                                                       20566380        
+%                                                                       20566382        
+%   2:  REMOVE CONTROL CARDS                                            20566384        
+%                                                                       20566386        
+%    SCANS "EXCEPT" LIST ASSOCIATED WITH ANY PARTICULAR NAME            20566388        
