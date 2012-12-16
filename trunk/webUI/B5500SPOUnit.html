@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<head>
+<title>B5500 Emulator SPO Unit</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta name="Author" content="Nigel Williams & Paul Kimpel">
+<meta http-equiv="Content-Script-Type" content="text/javascript">
+<meta http-equiv="Content-Style-Type" content="text/css">
+<link id=defaultStyleSheet rel=stylesheet type="text/css" href="B5500SPOUnit.css">
+
+<script>
+var $$ = function(e) {return document.getElementById(e)};
+var msgTank = [];
+
+var printFinished = function() {
+    
+    if (msgTank.length > 1) {
+        msgTank = msgTank.slice(1);
+        print(msgTank[0], msgTank[0].length, printFinished);
+    } else {
+        msgTank = [];
+        alert("Printing finished");
+    }
+};
+
+var printChar = function(buffer, length, index, col, finished) {
+    /* Prints one character to the SPO. If more characters remain to be printed, 
+    schedules itself 100 ms later to print the next one, otherwise calls finished().
+    If the column counter exceeds 72, a CR/LF are output. A CR/LF are also output
+    at the end of the message */
+    var ta = $$("SPOUT");
+    
+    if (col == 72) {                    // delay to fake the output of a carriage-return
+        setTimeout(function() {printChar(buffer, length, index, col+1, finished)}, 100);
+    } else if (col > 72) {              // actually output the CR/LF
+        ta.value = ta.value + "\n";
+        ta.scrollTop = ta.scrollHeight;
+        if (index < length) {           // more characters to print after the CR/LF
+            setTimeout(function() {printChar(buffer, length, index, 0, finished)}, 100);
+        } else {                        // message text is exhausted
+            finished();
+        }
+    } else {                            // print the character
+        if (index < length) {
+            ta.value = ta.value.substring(-32768) + String.fromCharCode(buffer[index]);
+            ta.scrollTop = ta.scrollHeight;
+            setTimeout(function() {printChar(buffer, length, index+1, col+1, finished)}, 100);
+        } else {                        // set up for the final CR/LF        
+            setTimeout(function() {printChar(buffer, length, index, 72, finished)}, 100);
+        }
+    }
+};
+
+var print = function(buffer, length, finished) {
+    /* Prints the contents of the "buffer" for "length" characters */
+    
+    printChar(buffer, length, 0, 0, finished);
+};
+
+var printText = function(msg) {
+    var buf = new Uint8Array(msg.length);
+    var length = msg.length;
+    var x;
+    
+    for (x=0; x<length; x++) {
+        buf[x] = msg.charCodeAt(x);
+    }
+    
+    msgTank.push(buf);
+    if (msgTank.length <= 1) {
+        print(buf, length, printFinished);
+    }
+};
+
+window.onload = function() {
+    var d = $$("SPODiv");
+    var x;
+    
+    window.resizeBy(d.scrollWidth-document.body.scrollWidth, d.scrollHeight-document.body.scrollHeight);
+    window.moveTo((screen.availWidth-window.outerWidth)/2, (screen.availHeight-window.outerHeight)/2);
+    
+    $$("SPOReadyBtn").className = "yellowButton blackBorder yellowLit";
+    $$("SPORemoteBtn").className = "yellowButton blackBorder yellowLit";
+    
+    for (x=1; x<30; x++) {
+        printText("");
+    }
+    
+    printText("B5500 SPO Printing Test");
+    printText("");
+    printText("~");
+    printText("        10        20        30        40        50        60        70        80        90       100");
+    printText("123456789.123456789.123456789.123456789.123456789.123456789.123456789.123456789.123456789.123456789.");
+    printText(" ");
+    printText("What hath Barton wrought...");
+    printText("");
+};
+</script>
+</head>
+
+<body>
+
+<div id=SPODiv>
+    <textarea id=SPOUT rows=30 cols=73></textarea>
+    
+    <img id=TeletypeLogo src="TeletypeLogo.gif">
+    <button id=SPOReadyBtn class="yellowButton blackBorder">READY</button>
+    <button id=SPOPowerBtn class="blackButton blackBorder">POWER</button>
+    <button id=SPORemoteBtn class="yellowButton blackBorder">REMOTE</button>
+    <button id=SPOLocalBtn class="yellowButton blackBorder">LOCAL</button>
+    <button id=SPOInputRequestBtn class="yellowButton blackBorder">INPUT REQUEST</button>
+    <button id=SPOEndOfMessageBtn class="yellowButton blackBorder">END OF MESSAGE</button>
+    <button id=SPOBlank1Btn class="yellowButton blackBorder"></button>
+    <button id=SPOErrorBtn class="yellowButton blackBorder">ERROR</button>
+    <button id=SPOBlank2Btn class="yellowButton blackBorder"></button>
+    <button id=SPOBlank3Btn class="yellowButton blackBorder"></button>
+</div>
+
+</body>
+</html>
