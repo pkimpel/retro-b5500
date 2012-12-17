@@ -17565,3 +17565,109 @@ BOOLEAN DIDGETESPDISK=  NAMECNT + 1;                                    20566330
 %   2:  REMOVE CONTROL CARDS                                            20566384        
 %                                                                       20566386        
 %    SCANS "EXCEPT" LIST ASSOCIATED WITH ANY PARTICULAR NAME            20566388        
+%    PAIR PASSING SAID LISTS TO PROCEDURE "SEEKNAM", WHICH IN           20566390        
+%    TURN USES THE "EXCEPT" LIST WHEN DETERMINING WHETHER OR            20566392        
+%    NOT TO RETURN SPECIFIC NAMES FOR REMOVAL.                          20566394        
+%                                                                       20566396        
+%                                                                       20566398        
+%   CMM[19].[2:1]   INDICATES ORIGINATON                                20566400        
+%          .[3:6]   UNITNO FOR PACKETS                                  20566402        
+%          .[9:9]   USER SPECIFIED MAXIMUM NUMBER OF FILES PER          20566404        
+%                   OUTPUT UNIT                                         20566406        
+%                                                                       20566408        
+%   XLST            DESCRIPTOR TO "EXCEPT" LIST ASSOCIATED WITH         20566410        
+%                   A PARTICULAR NAME PAIR                              20566412        
+%                                                                       20566414        
+%   REMEMBER        USED FOR CORRECT PLACEMENT OF "FROMHLD",            20566426        
+%                   "TOHLD", OPTIONS AND NAME COUNTS WITHIN THE         20566428        
+%                   LINKED LIST OF ESPDISK SEGMENTS...                  20566430        
+%           .[3:15] FIRST ESPDISK ADDRESS                               20566432        
+%           .[FF]    OFFSET INTO .[CF]                                  20566434        
+%           .[CF]   ESPDISK ADDRESS OF OPTIONS AND NAME COUNT WORD      20566436        
+%                                                                       20566438        
+%   NAMECNT.[FF]    COUNT OF "EXCEPT" LIST PAIRS AND "AS" CLAUSE        20566440        
+%                   PAIRS FOR A PARTICULAR SOURCE                       20566442        
+%          .[CF]    COUNT OF NAME PAIRS                                 20566444        
+%                                                                       20566446        
+%   FROMHLD.[1:5]   INPUT UNIT NUMBER + 1                          %148-20566448        
+%                   IF .[1:5] = 0 THEN INPUT FROM ANY TAPE         %148-20566449        
+%                   THAT WAS THE CORRECT NAME                      %148-20566450        
+%          .[6:42]  IF DISK THEN 0                                 %148-20566451        
+%                   IF TAPE THEN TAPE NAME                              20566452        
+%                                                                       20566454        
+%   TOHLD.[1:5]     OUTPUT UNIT NUMBER + 1                         %148-20566455        
+%                   IF .[1:5] = 0 THEN OUTPUT TO ANY SCRATCH       %148-20566456        
+%                   TAPE.                                          %148-20566457        
+%                   IF DISK THEN .[40:1] SPECIFIES TYPE FAST            20566458        
+%                                .[41:1]    "       "   SLOW            20566460        
+%                                .[42:6]    "      EU #                 20566462        
+%                   IF TAPE THEN .[6:42] HAS TAPE NAME             %148-20566464        
+%                                                                       20566466        
+%                                                                       20566468        
+%***********************************************************************20566470        
+    LABEL CCA,QUIT,POWIE,CHAN,REMO,INCSC,GETEM,ENTE,LCOPY,SEEK,INIT;    20566600        
+    LABEL DOWNR,OUTR,SCNX,NEXTL,MIRID;                                  20566610        
+    SWITCH SW:=LCOPY,LCOPY,LCOPY,ENTE,ENTE,REMO,CHAN;                   20566620        
+    DEFINE ZIPMIX=CARD.[18:6]#;                                         20566630        
+    DEFINE UNITNUM = [1:5]#;                                       %148-20566640        
+    %                                                                   20566650        
+    %**************************************************                 20566655        
+    %                                                                   20566660        
+    SUBROUTINE CHECK;                                                   20566665        
+    BEGIN                                                               20566670        
+         IF (CNT:=CNT+2) GTR 26 THEN                                    20566675        
+         BEGIN                                                          20566680        
+         PROG[29]:=GETESPDISK;                                          20566685        
+         DIDGETESPDISK:=TRUE;                                           20566687        
+         DISKWAIT(PROG INX 0,30,LIBNO);                                 20566690        
+         LIBNO:=PROG[29];                                               20566695        
+         CNT:=0;                                                        20566700        
+         END;                                                           20566705        
+    END;    %  CHECK                                                    20566710        
+    %                                                                   20566744        
+    %**************************************************                 20566745        
+    %                                                                   20566746        
+    % - FINAL PREPARATIONS BEFORE EXITING                               20566747        
+    % - PLACEMENT OF FINAL INPUT SOURCE AND DESTINATION                 20566748        
+    %                                                                   20566749        
+    %**************************************************                 20566750        
+    %                                                                   20566751        
+    SUBROUTINE BOTH;                                                    20566752        
+    BEGIN CMM[0]:="LIBMAIN"; CMM[1]:="DISK   ";                         20566755        
+          CMM[2] := 0 & LIBMAINCODE[5:45:3] & 2[8:38:10]; CMM[13]:=0;   20566760        
+ $ SET OMIT = PACKETS                                                   20566765        
+ $ SET OMIT = NOT(PACKETS)                                              20566780        
+          CMM[23]:=0&CARD[9:9:9]&(IF ZIPMIX NEQ 0 THEN PSEUDOMIX[ZIPMIX]20566785        
+                   ELSE UNITNO[2:42:6];                                 20566790        
+ $ POP OMIT                                                             20566795        
+          CHECK; PROG[CNT]:=@14;                                        20566805        
+         IF T GEQ COPYN AND T LEQ LOAD THEN                        %543-20566807        
+           BEGIN PROG[CNT+1]:=FROMHLD; CHECK; PROG[CNT]:=@114;          20566810        
+                 IF LIBNO=REMEMBER.[3:15] THEN PROG[1]:=TOHLD;          20566812        
+           END;                                                         20566815        
+           OPTN:=CN; PROG[29]:=0;                                  %123-20566817        
+           DISKWAIT(PROG INX 0,30,LIBNO);                               20566820        
+          IF T GEQ COPYN AND T LEQ LOAD THEN                       %543-20566822        
+           IF LIBNO NEQ REMEMBER.[3:15] THEN                            20566825        
+            BEGIN DISKWAIT(-PROG.[CF],30,REMEMBER.[3:15]);              20566830        
+                  PROG[1]:=TOHLD;                                       20566835        
+                  DISKWAIT(PROG INX 0,30,REMEMBER.[3:15]);              20566840        
+            END;                                                        20566845        
+           LIBNO:=ABS(CMM[19]);                                         20566850        
+     END OF BOTH;                                                       20566855        
+     %                                                                  20566864        
+     %*************************************************                 20566865        
+     %                                                                  20566866        
+     REAL SUBROUTINE SCAN;                                              20566875        
+          SCAN~SCN(UNITNO,CARDLOC,SOURCE,ACCUM,KOUNT,LASTSCAN,          20566900        
+                   DIRECT);                                             20566902        
+     REAL SUBROUTINE SKAN;                                              20566905        
+     BEGIN                                                              20566910        
+     STREAM(X:=0:CN:=0,ACCUM);                                          20566915        
+     BEGIN                                                              20566920        
+     SI:=ACCUM;SI:=SI+1;                                                20566925        
+     8(IF SC GEQ "0" THEN BEGIN SI:=SI+1;TALLY:=TALLY+1; END ELSE       20566930        
+       IF SC=" " THEN JUMP OUT ELSE BEGIN TALLY:=0;JUMP OUT END);       20566935        
+       CN:=TALLY;SI:=SI-CN;DI:=LOC X;DS:=CN OCT;                        20566940        
+     END;                                                               20566945        
+     SKAN:=P;                                                           20566950        
