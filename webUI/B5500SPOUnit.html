@@ -8,96 +8,290 @@
 <link id=defaultStyleSheet rel=stylesheet type="text/css" href="B5500SPOUnit.css">
 
 <script>
-var $$ = function(e) {return document.getElementById(e)};
-var msgTank = [];
-
-var printFinished = function() {
-    
-    if (msgTank.length > 1) {
-        msgTank = msgTank.slice(1);
-        print(msgTank[0], msgTank[0].length, printFinished);
-    } else {
-        msgTank = [];
-        //alert("Printing finished");
-    }
-};
-
-var printChar = function(buffer, length, index, col, scheduled, finished) {
-    /* Prints one character to the SPO. If more characters remain to be printed, 
-    schedules itself 100 ms later to print the next one, otherwise calls finished().
-    If the column counter exceeds 72, a CR/LF are output. A CR/LF are also output
-    at the end of the message */
-    var body = $$("SPOUT").contentDocument.body;
-    var c;
-    var nextTime = scheduled + 100;
-    var delay = nextTime - new Date().getTime();
-    var line = body.lastChild;
-    
-    if (col == 72) {                    // delay to fake the output of a carriage-return
-        setTimeout(function() {printChar(buffer, length, index, col+1, nextTime, finished)}, delay);
-    } else if (col > 72) {              // actually output the CR/LF
-        line = document.createElement("br");
-        body.appendChild(line);
-        line.scrollIntoView();
-        if (index < length) {           // more characters to print after the CR/LF
-            setTimeout(function() {printChar(buffer, length, index, 0, nextTime, finished)}, delay);
-        } else {                        // message text is exhausted
-            finished();
-        }
-    } else {                            // print the character
-        if (index < length) {
-            c = String.fromCharCode(buffer[index])
-            if (line && line.nodeName == "#text") {
-                line.nodeValue += c;
-            } else {
-                line = document.createTextNode(c);
-                body.appendChild(line);
-                $$("SPOUT").contentDocument.defaultView.scrollBy(0, 12);
-            }
-            setTimeout(function() {printChar(buffer, length, index+1, col+1, nextTime, finished)}, delay);
-        } else {                        // set up for the final CR/LF        
-            setTimeout(function() {printChar(buffer, length, index, 72, nextTime, finished)}, delay);
-        }
-    }
-};
-
-var print = function(buffer, length, finished) {
-    /* Prints the contents of the "buffer" for "length" characters */
-    var body = $$("SPOUT").contentDocument.body;
-    var count = body.childNodes.length;
-    
-    while (count-- > 500) {
-        body.removeChild(body.firstChild);
-    }
-    
-    printChar(buffer, length, 0, 0, new Date().getTime(), finished);
-};
-
-var printText = function(msg) {
-    var buf = new Uint8Array(msg.length);
-    var length = msg.length;
-    var x;
-    
-    for (x=0; x<length; x++) {
-        buf[x] = msg.charCodeAt(x);
-    }
-    
-    msgTank.push(buf);
-    if (msgTank.length <= 1) {
-        print(buf, length, printFinished);
-    }
-};
 
 window.onload = function() {
-    var d = $$("SPODiv");
-    var x;
+    var $$ = function(e) {return document.getElementById(e)};
+    var msgTank = [];
+    var spoRemote = false;
+    var spoLocalRequested = false;
+    var spoInputActive = false;
+    var spoInputRequested = false;
+
+    var msgCtl = {
+        buffer:         null,
+        length:         0,
+        index:          0,
+        col:            0,
+        nextCharTime:   0,
+        finished:       null};
+        
+    var hasClass = function(e, name) {
+        /* returns true if element "e" has class "name" in its class list */
+        var classes = e.className;
+        
+        if (!e) {
+            return false;
+        } else if (classes == name) {
+            return true;
+        } else {
+            return (classes.search("\\b" + name + "\\b") >= 0);
+        }
+    };
     
-    window.resizeBy(d.scrollWidth-document.body.scrollWidth, 
-                    d.scrollHeight-document.body.scrollHeight);
+    var addClass = function(e, name) {
+        /* Adds a class "name" to the element "e"s class list */
+        
+        if (!hasClass(e, name)) {
+            e.className += (" " + name);
+        }
+    };
+    
+    var removeClass = function(e, name) {
+        /* Removes the class "name" from the element "e"s class list */
+        
+        e.className = e.className.replace(new RegExp("\\b" + name + "\\b\\s*", "g"), "");
+    };
+    
+    var accept = function() {
+        var inputBtn = $$("SPOInputRequestBtn");
+        var spin = $$("SPIN");
+        var body = $$("SPOUT").contentDocument.body;
+        var line;
+
+        spoInputActive = true;        
+        addClass(inputBtn, "yellowLit");
+        spin.disabled = false;
+        spin.focus();
+        line = document.createTextNode("");
+        body.appendChild(line);
+        body.parentNode.defaultView.scrollBy(0, 12);
+    };
+
+    var printChar = function(finished) {
+        /* Prints one character to the SPO. If more characters remain to be printed, 
+        schedules itself 100 ms later to print the next one, otherwise calls finished().
+        If the column counter exceeds 72, a CR/LF are output. A CR/LF are also output
+        at the end of the message */
+        var body = $$("SPOUT").contentDocument.body;
+        var c;
+        var nextTime = msgCtl.nextCharTime + 100;
+        var delay = nextTime - new Date().getTime();
+        var line = body.lastChild;
+
+        msgCtl.nextCharTime = nextTime;
+        if (msgCtl.col < 72) {          // print the character
+            if (msgCtl.index < msgCtl.length) {
+                c = String.fromCharCode(msgCtl.buffer[msgCtl.index])
+                if (line && line.nodeName == "#text") {
+                    line.nodeValue += c;
+                } else {
+                    line = document.createTextNode(c);
+                    body.appendChild(line);
+                    $$("SPOUT").contentDocument.defaultView.scrollBy(0, 12);
+                }
+                msgCtl.index++;
+                msgCtl.col++;
+                setTimeout(printChar, delay);
+            } else {                    // set up for the final CR/LF        
+                msgCtl.col = 72;
+                setTimeout(printChar, delay);
+            }
+        } else if (msgCtl.col == 72) {  // delay to fake the output of a carriage-return            
+            msgCtl.col++;
+            setTimeout(printChar, delay);
+        } else {                        // actually output the CR/LF          
+            line = document.createElement("br");
+            body.appendChild(line);
+            line.scrollIntoView();
+            if (msgCtl.index < msgCtl.length) {           
+                msgCtl.col = 0;         // more characters to print after the CR/LF
+                setTimeout(printChar, delay);
+            } else {                    // message text is exhausted
+                msgCtl.finished();
+            }
+        }
+    };
+
+    var print = function(buffer, length, finished) {
+        /* Prints the contents of the "buffer" for "length" characters */
+        var body = $$("SPOUT").contentDocument.body;
+        var count = body.childNodes.length;
+
+        while (count-- > 500) {
+            body.removeChild(body.firstChild);
+        }
+
+        msgCtl.buffer = buffer;
+        msgCtl.length = length;
+        msgCtl.index = 0;
+        msgCtl.col = 0;
+        msgCtl.nextCharTime = new Date().getTime();
+        msgCtl.finished = finished;
+        printChar();
+    };
+
+    var printFinished = function() {
+        /* Called to report that all printing to the SPO is complete */
+
+        if (msgTank.length > 1) {
+            msgTank = msgTank.slice(1);
+            print(msgTank[0], msgTank[0].length, printFinished);
+        } else {
+            msgTank = [];
+            //alert("Printing finished");
+            if (spoLocalRequested) {
+                spoLocalRequested = false;
+                setRemote(false);
+            } else if (spoInputRequested) {
+                spoInputRequested = false;
+                accept();
+            }
+        }
+    };
+
+    var printText = function(msg) {
+        /* Utility function to convert a string to a Typed Array buffer and queue
+        it for printing */
+        var buf = new Uint8Array(msg.length);
+        var length = msg.length;
+        var x;
+
+        for (x=0; x<length; x++) {
+            buf[x] = msg.charCodeAt(x);
+        }
+
+        msgTank.push(buf);
+        if (msgTank.length <= 1) {
+            print(buf, length, printFinished);
+        }
+    };
+    
+    var setReady = function(ready) {
+        /* Sets the ready status of the SPO based on the truth of "ready" */
+        var readyBtn = $$("SPOReadyBtn");
+        
+        if (ready) {
+            addClass(readyBtn, "yellowLit");
+        } else {
+            removeClass(readyBtn, "yellowLit");
+        }
+    };    
+    
+    var setRemote = function(remote) {
+        /* Sets the remote status of the SPO based on the truth of "remote" */
+        var localBtn = $$("SPOLocalBtn");
+        var remoteBtn = $$("SPORemoteBtn");
+        
+        spoRemote = remote;
+        if (remote) {
+            addClass(remoteBtn, "yellowLit");
+            removeClass(localBtn, "yellowLit");
+        } else {
+            spoInputRequested = false;
+            spoInputActive = false;
+            addClass(localBtn, "yellowLit");
+            removeClass(remoteBtn, "yellowLit");
+        }
+    };    
+    
+    var doTests = function() {
+        
+        printText("*** B5500 SPO Test ***");
+        printText(" ");
+        printText("What hath Barton wrought?");
+        printText("");
+        /*****
+        printText("123456789.123456789.123456789.123456789.123456789.123456789.123456789.1");
+        printText("123456789.123456789.123456789.123456789.123456789.123456789.123456789.12");
+        printText("123456789.123456789.123456789.123456789.123456789.123456789.123456789.123");
+        printText("");
+        printText("        10        20        30        40        50        60        70        80        90       100");
+        printText("123456789.123456789.123456789.123456789.123456789.123456789.123456789.123456789.123456789.123456789.");
+        printText("~");
+        printText("END");
+        *****/
+    }
+    
+    /***** window.onload() outer block *****/
+    
+    window.resizeBy($$("SPODiv").scrollWidth-document.body.scrollWidth, 
+                    $$("SPODiv").scrollHeight-document.body.scrollHeight);
     window.moveTo((screen.availWidth-window.outerWidth)/2, (screen.availHeight-window.outerHeight)/2);
     
-    $$("SPOReadyBtn").className = "yellowButton blackBorder yellowLit";
-    $$("SPORemoteBtn").className = "yellowButton blackBorder yellowLit";
+    $$("SPORemoteBtn").onclick = function() {
+        setRemote(true);
+    };
+    
+    $$("SPOPowerBtn").onclick = function() {
+        alert("Don't DO that");
+    };
+    
+    $$("SPOLocalBtn").onclick = function() {
+        spoInputRequested = false;
+        if (msgTank.length > 0) {
+            spoLocalRequested = true;
+        } else {
+            setRemote(false);
+        }
+        
+    };
+    
+    $$("SPOInputRequestBtn").onclick = function() {
+        if (spoRemote) {
+            if (msgTank.length > 0) {
+                spoInputRequested = true;
+            } else {
+                accept();
+            }
+        }
+    };
+    
+    $$("SPOErrorBtn").onclick = function() {
+        spoInputActive = false;
+        $$("SPIN").disabled = true;
+        removeClass($$("SPOInputRequestBtn"), "yellowLit");
+    };
+    
+    $$("SPOEndOfMessageBtn").onclick = function() {
+        spoInputActive = false;
+        $$("SPIN").disabled = true;
+        removeClass($$("SPOInputRequestBtn"), "yellowLit");
+    };
+    
+    $$("SPIN").onkeyup = function(ev) {
+        var body = $$("SPOUT").contentDocument.body;
+        var line = body.lastChild;
+        
+        if (spoInputActive) {
+            line.nodeValue = $$("SPIN").value;
+            if (ev.keyCode == 27) {
+                spoInputActive = false;
+                removeClass($$("SPOInputRequestBtn"), "yellowLit");
+            } else if (ev.keyCode == 13) {
+                if (spoInputActive) {
+                    spoInputActive = false;
+                }
+            }
+        }
+    };
+    
+    window.onkeydown = function(ev) {
+        if (ev.keyCode == 27) {
+            if (spoRemote) {
+                if (spoInputActive) {
+                    spoInputActive = false;
+                    removeClass($$("SPOInputRequestBtn"), "yellowLit");
+                } else if (msgTank.length > 0) {
+                    spoInputRequested = true;
+                } else {
+                    accept();
+                }
+            }
+        }
+    };
+    
+    setReady(true);
+    setRemote(true);
     
     // Since we are not loading a document into the IFRAME, we must specify the body styles for it here.
     $$("SPOUT").contentDocument.body.style.backgroundColor = "#FFE";
@@ -110,21 +304,7 @@ window.onload = function() {
         "<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>" + 
         "<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>";
     
-    printText("*** B5500 SPO Printing Test ***");
-    printText(" ");
-    printText("What hath Barton wrought?");
-    printText("");
-    printText("123456789.123456789.123456789.123456789.123456789.123456789.123456789.1");
-    printText("123456789.123456789.123456789.123456789.123456789.123456789.123456789.12");
-    printText("123456789.123456789.123456789.123456789.123456789.123456789.123456789.123");
-    printText("");
-    printText("        10        20        30        40        50        60        70        80        90       100");
-    printText("123456789.123456789.123456789.123456789.123456789.123456789.123456789.123456789.123456789.123456789.");
-    printText("~");
-    printText("SPODiv.scrollWidth = " + d.scrollWidth);
-    printText("SPODiv.scrollHeight = " + d.scrollHeight);
-    printText("window.innerWidth = " + window.innerWidth);
-    printText("window.innerHeight = " + window.innerHeight);
+    doTests();
 };
 </script>
 </head>
@@ -133,6 +313,8 @@ window.onload = function() {
 
 <div id=SPODiv>
     <iframe id=SPOUT scrolling=auto></iframe>
+    <br>
+    <input id=SPIN type=text disabled>
     <div id=SPOControlsDiv>
         <img id=TeletypeLogo src="TeletypeLogo.gif">
         <button id=SPOReadyBtn          class="yellowButton blackBorder">READY</button>
