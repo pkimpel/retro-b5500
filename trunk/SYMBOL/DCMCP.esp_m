@@ -17772,3 +17772,101 @@ SCNX:     IF (XX:=XI+2) GEQ XLSTSZ                                      20567010
          DISKWAIT(-PROG.[CF],30,REMEMBER.[CF]);                         20567335        
          PROG[REMEMBER.[FF]]:=(*P(DUP))&NAMECNT[18:18:15]&NAMECNT[CTC]; 20567340        
          DISKWAIT(PROG INX 0,30,REMEMBER.[CF]);                         20567345        
+         DISKWAIT(-PROG.[CF],30,LIBNO);                                 20567350        
+         END ELSE                                                       20567355        
+         PROG[REMEMBER.[FF]]:=(*P(DUP))&NAMECNT[18:18:15]&NAMECNT[CTC]; 20567360        
+    END OF SETUP;                                                       20567365        
+    %                                                                   20567510        
+    %******************  START HERE  ******************                 20567511        
+    %                                                                   20567512        
+    P(RCW,MYMSCW,STF);                                                  20567520        
+    RCW:=RCW & P(XCH)[CTC];                                             20567530        
+    P(0,0,0,0,0,0,0,0,0,0,0,0,0);   % ZERO LOCALS OF CCLIB              20567540        
+    P(0);                                                          %148-20567550        
+    GO SW [T-COPYN];                                                    20567600        
+LCOPY:                                                                  20569200        
+ENTE:                                                                   20569230        
+         PROG[0]:=PROG[2]:=0; CNT:=2;                                   20569240        
+         IF (CN:=SCAN)=IDENT THEN                                       20569260        
+         BEGIN                                                          20569290        
+          IF (ST:=SKAN)=0 THEN ST:=511 ELSE CN:=SCAN;                   20569320        
+          IF ST GTR 511 THEN ST:=511;                                   20569350        
+         END ELSE ST:=511;                                              20569380        
+         REMEMBER.[3:15]:=LIBNO:=GETESPDISK;                            20569400        
+         DIDGETESPDISK:=TRUE;                                           20569410        
+         CMM[19]:=0&(IF UNITNO=23 OR UNITNO=24 OR UNITNO GEQ 32 THEN    20569420        
+                     UNITNO ELSE 0)[3:42:6]&ST[9:39:9]&                 20569440        
+                     LIBNO[CTC]&1[2:47:1];                              20569460        
+NEXTL:                                                                  20569520        
+         FROMHLD.UNITNUM:=19; TOHLD.UNITNUM:=19; % 19=DISK UNINTO+1%148-20569522        
+         PROG[CNT+1]:=0;                                                20569525        
+         NAMECNT:=0;                                                    20569527        
+         IF T=ADDV THEN PROG[CNT+1].[6:1]:=1;                           20569528        
+         IF T=UNLOAD THEN PROG[CNT+1].[8:1]:=1;                         20569529        
+ $ SET OMIT = NOT B6500LOAD                                             20569530        
+         IF T NEQ COPYN THEN                                            20569590        
+          IF CN=TOV AND T GTR UNLOAD THEN                               20569610        
+           SCANDSKTYP;                                                  20569630        
+         IF CN=LATESTV THEN                                             20569650        
+          BEGIN PROG[CNT+1].[5:1]:=1; CN:=SCAN; END;                    20569670        
+         IF CN=EXPIRED THEN                                             20569690        
+          BEGIN PROG[CNT+1].[4:1]:=1; CN:=SCAN; END;                    20569710        
+         IF CN=ACCESSD THEN                                             20569730        
+          BEGIN PROG[CNT+1].[3:1]:=1; CN:=SCAN; END;                    20569750        
+         IF CN=ADDV THEN                                                20569770        
+          BEGIN PROG[CNT+1].[6:1]:=1; CN:=SCAN; END;                    20569780        
+         IF CN=NOHASH THEN                                              20569790        
+          BEGIN PROG[CNT+1].[7:1]:=1; CN:=SCAN; NAMECNT.[17:1]:=1; END; 20569800        
+         IF CN=UNLOAD THEN                                              20569802        
+          BEGIN PROG[CNT+1].[8:1]:=1; CN:=SCAN; NAMECNT.[17:1]:=1; END; 20569804        
+         IF T NEQ COPYN THEN                                            20569810        
+          IF SCAN NEQ IDENT                                             20569830        
+           THEN GO POWIE                                                20569835        
+           ELSE IF T LEQ UNLOAD                                         20569840        
+                 THEN BEGIN TOHLD:=ACCUM[0];                       %148-20569845        
+                      IF (CN:=SCAN)=ONV THEN TOHLD.UNITNUM:=SCANON;%148-20569846        
+                      END                                          %148-20569847        
+                 ELSE BEGIN FROMHLD:=ACCUM[0];                     %148-20569850        
+                      IF (CN:=SCAN)=ONV THEN FROMHLD.UNITNUM:=SCANON;   20569860        
+                      END;                                         %148-20569870        
+         REMEMBER:=REMEMBER&LIBNO[CTC]&(CNT+1)[CTF];                    20569890        
+GETEM:                                                                  20569920        
+         CHECK;                                                         20569925        
+         T1.[46:1]~HOLD3~(CN=EQUAL);                               %543-20569930        
+         IF HOLD3 THEN PROG[CNT]:=-1 ELSE                          %543-20569935        
+         IF CN GEQ IDENT THEN PROG[CNT]:=ACCUM[0] ELSE GO POWIE;   %543-20569940        
+         IF SCAN NEQ SLASH THEN GO POWIE;                               20569950        
+         T1.[47:1]~HOLD3~((CN~SCAN)=EQUAL);                        %543-20569960        
+         IF HOLD3 THEN PROG[CNT+1]:=-1 ELSE                        %543-20569965        
+          IF CN GEQ IDENT THEN PROG[CNT+1]:=ACCUM[0] ELSE GO POWIE;     20569970        
+         NAMECNT.[CF]:=NAMECNT.[CF]+2;                                  20569975        
+         HME:=PROG[CNT].[1:1]+PROG[CNT+1].[1:1];                        20569980        
+         HOLD3:=1;                                                      20569985        
+         IF (CN:=SCAN)=EXCEPT THEN BEGIN CN:=SCAN; HOLD3:=0; END;       20569990        
+         IF CN=LB THEN IF HME NEQ 0 THEN                                20570000        
+          BEGIN XI:=-2;                                                 20570010        
+                SCANEXCEPT;                                             20570015        
+                FOR ST:=0 STEP 2 UNTIL XI DO                            20570020        
+                BEGIN CHECK;                                            20570030        
+                      PROG[CNT]:=XLST[ST]&1[5:47:1];                    20570040        
+                      PROG[CNT+1]:=XLST[ST+1]&1[5:47:1];                20570050        
+                      NAMECNT.[FF]:=NAMECNT.[FF]+2;                     20570055        
+                END;                                                    20570060        
+                CN:=SCAN;                                               20570065        
+              FORGETSPACE(XLST); XLST:=0;                          %543-20570070        
+          END ELSE GO POWIE                                             20570080        
+                  ELSE IF HOLD3=0 THEN GO POWIE;                        20570090        
+         IF CN=AS THEN                                                  20570100        
+          BEGIN                                                         20570110        
+          IF HME=2 OR T=UNLOAD OR NAMECNT.[17:1] THEN GO POWIE;         20570120        
+         IF (CN~SCAN)=EQUAL THEN IF T1.[46:1] THEN                 %543-20570130        
+           BEGIN CHECK; PROG[CNT]:=-1&1[4:47:1]; END ELSE GO POWIE      20570140        
+         ELSE IF CN GEQ IDENT THEN IF T1.[46:1] THEN GO POWIE      %543-20570150        
+             ELSE BEGIN CHECK; PROG[CNT]:=ACCUM[0]&1[4:47:1]; END       20570160        
+              ELSE GO POWIE;                                            20570170        
+          IF SCAN NEQ SLASH THEN GO POWIE;                              20570180        
+         IF (CN~SCAN)=EQUAL THEN IF T1 THEN                        %543-20570190        
+           PROG[CNT+1]:=-1&1[4:47:1] ELSE GO POWIE                      20570200        
+         ELSE IF CN GEQ IDENT THEN IF T1 THEN GO POWIE             %543-20570210        
+             ELSE PROG[CNT+1]:=ACCUM[0]&1[4:47:1]                       20570220        
+              ELSE GO POWIE;                                            20570230        
