@@ -17645,29 +17645,130 @@ BOOLEAN DIDGETESPDISK=  NAMECNT + 1;                                    20566330
            BEGIN PROG[CNT+1]:=FROMHLD; CHECK; PROG[CNT]:=@114;          20566810        
                  IF LIBNO=REMEMBER.[3:15] THEN PROG[1]:=TOHLD;          20566812        
            END;                                                         20566815        
-           OPTN:=CN; PROG[29]:=0;                                  %123-20566817        
-           DISKWAIT(PROG INX 0,30,LIBNO);                               20566820        
-          IF T GEQ COPYN AND T LEQ LOAD THEN                       %543-20566822        
-           IF LIBNO NEQ REMEMBER.[3:15] THEN                            20566825        
-            BEGIN DISKWAIT(-PROG.[CF],30,REMEMBER.[3:15]);              20566830        
-                  PROG[1]:=TOHLD;                                       20566835        
-                  DISKWAIT(PROG INX 0,30,REMEMBER.[3:15]);              20566840        
-            END;                                                        20566845        
-           LIBNO:=ABS(CMM[19]);                                         20566850        
-     END OF BOTH;                                                       20566855        
-     %                                                                  20566864        
-     %*************************************************                 20566865        
-     %                                                                  20566866        
-     REAL SUBROUTINE SCAN;                                              20566875        
-          SCAN~SCN(UNITNO,CARDLOC,SOURCE,ACCUM,KOUNT,LASTSCAN,          20566900        
-                   DIRECT);                                             20566902        
-     REAL SUBROUTINE SKAN;                                              20566905        
-     BEGIN                                                              20566910        
-     STREAM(X:=0:CN:=0,ACCUM);                                          20566915        
-     BEGIN                                                              20566920        
-     SI:=ACCUM;SI:=SI+1;                                                20566925        
-     8(IF SC GEQ "0" THEN BEGIN SI:=SI+1;TALLY:=TALLY+1; END ELSE       20566930        
-       IF SC=" " THEN JUMP OUT ELSE BEGIN TALLY:=0;JUMP OUT END);       20566935        
-       CN:=TALLY;SI:=SI-CN;DI:=LOC X;DS:=CN OCT;                        20566940        
-     END;                                                               20566945        
-     SKAN:=P;                                                           20566950        
+          OPTN:=CN; PROG[29]:=0;                                   %123-20566817        
+          DISKWAIT(PROG INX 0,30,LIBNO);                                20566820        
+         IF T GEQ COPYN AND T LEQ LOAD THEN                        %543-20566822        
+          IF LIBNO NEQ REMEMBER.[3:15] THEN                             20566825        
+           BEGIN DISKWAIT(-PROG.[CF],30,REMEMBER.[3:15]);               20566830        
+                 PROG[1]:=TOHLD;                                        20566835        
+                 DISKWAIT(PROG INX 0,30,REMEMBER.[3:15]);               20566840        
+           END;                                                         20566845        
+          LIBNO:=ABS(CMM[19]);                                          20566850        
+    END OF BOTH;                                                        20566855        
+    %                                                                   20566864        
+    %**************************************************                 20566865        
+    %                                                                   20566866        
+    REAL SUBROUTINE SCAN;                                               20566875        
+         SCAN~SCN(UNITNO,CARDLOC,SOURCE,ACCUM,KOUNT,LASTSCAN,           20566900        
+                  DIRECT);                                              20566902        
+    REAL SUBROUTINE SKAN;                                               20566905        
+    BEGIN                                                               20566910        
+    STREAM(X:=0:CN:=0,ACCUM);                                           20566915        
+    BEGIN                                                               20566920        
+    SI:=ACCUM;SI:=SI+1;                                                 20566925        
+    8(IF SC GEQ "0" THEN BEGIN SI:=SI+1;TALLY:=TALLY+1; END ELSE        20566930        
+      IF SC=" " THEN JUMP OUT ELSE BEGIN TALLY:=0;JUMP OUT END);        20566935        
+      CN:=TALLY;SI:=SI-CN;DI:=LOC X;DS:=CN OCT;                         20566940        
+    END;                                                                20566945        
+    SKAN:=P;                                                            20566950        
+    END OF SKAN;                                                        20566955        
+    %                                                                   20566984        
+    %**************************************************                 20566985        
+    %                                                                   20566986        
+    % - CREATES AN EXCEPTION LIST OF FILE NAMES WHICH ARE               20566987        
+    %   ASSOCIATED WITH A PARTICULAR PRECEDING FILE NAME                20566988        
+    %                                                                   20566989        
+    %**************************************************                 20566990        
+    %                                                                   20566991        
+    SUBROUTINE SCANEXCEPT;                                              20567000        
+    BEGIN IF XLST=0 THEN XLST:=[M[SPACE(XLSTSZ:=30)]]&30[8:38:10]; %177-20567005        
+SCNX:     IF (XX:=XI+2) GEQ XLSTSZ                                      20567010        
+           THEN BEGIN % EXPAND EXCEPTION LIST SIZE                      20567015        
+                ST:=SPACE(XLSTSZ:=XLSTSZ+30);                           20567020        
+                MOVE(XLSTSZ-30,XLST,ST);                                20567025        
+                FORGETSPACE(XLST);                                      20567030        
+                XLST:=[M[ST]]&XLSTSZ[8:38:10];                          20567035        
+                END;                                                    20567040        
+          IF (CN:=SCAN)=EQUAL                                           20567045        
+           THEN BEGIN XLST[X]:=-1;                                      20567050        
+                IF HME ! 2                                         %792-20567055        
+                THEN BEGIN  IF T1.[46:1] THEN GO POWIE;            %792-20567056        
+                   XLST[XI] ~ IF T1.[45:1] THEN  CMM[0]            %792-20567057        
+                                           ELSE  PROG[CNT];        %792-20567058        
+                END END                                            %792-20567060        
+           ELSE IF CN GEQ IDENT THEN XLST[XI]:=ACCUM[0]                 20567065        
+                                ELSE GO POWIE;                          20567070        
+          IF SCAN NEQ SLASH THEN GO POWIE;                              20567075        
+          IF (CN:=SCAN)=EQUAL                                           20567080        
+           THEN BEGIN IF XLST[XI].[1:1] THEN GO POWIE;                  20567085        
+                XLST[XI+1]:=-1;                                         20567090        
+                IF HME ! 2                                         %792-20567095        
+                THEN BEGIN  IF T1 THEN GO POWIE;                   %792-20567096        
+                   XLST[SI+1] ~ IF T1.[45:1] THEN  CMM[1]          %792-20567097        
+                                             ELSE  PROG[CNT+1];    %792-20567098        
+                END END                                            %792-20567100        
+           ELSE IF CN GEQ IDENT THEN XLST[X]:=ACCUM[0]                  20567105        
+                                ELSE GO POWIE;                          20567110        
+          IF (CN:=SCAN)=COMMA THEN GO SCNX                              20567115        
+                              ELSE IF CN NEQ RB THEN GO POWIE;          20567120        
+    END;   % SCANEXCEPT                                                 20567125        
+    %                                                              %148-20567140        
+    %**************************************************            %148-20567142        
+    %                                                              %148-20567144        
+    % - LOOK FOR TAPE UNIT ASSOCIATED WITH AN INPUT OR             %148-20567145        
+    %   OUTPUT FILE NAME                                           %148-20567146        
+    %                                                              %148-20567148        
+    %**************************************************            %148-20567150        
+    %                                                              %148-20567152        
+    REAL SUBROUTINE SCANON;                                        %148-20567154        
+    BEGIN IF(CN:=SCAN) ! IDENT THEN GO POWIE;                      %148-20567158        
+          CN:=ACCUM[0].[6:18];                                     %148-20567160        
+          FOR I:=0 STEP 1 UNTIL 15 DO                              %148-20567162        
+               IF TINU[1].[30:18]=CN THEN                          %148-20567166        
+               BEGIN                                               %148-20567168        
+                    P(I+1);                                        %148-20567170        
+                    I:=16;                                         %148-20567172        
+               END;                                                %148-20567174        
+          IF I!17 THEN GO TO POWIE;                                %148-20567176        
+          CN:=SCAN;                                                %148-20567178        
+          SCANON:=P;                                               %148-20567180        
+    END SCANON;                                                         20567182        
+    %                                                                   20567200        
+    %**************************************************                 20567201        
+    %                                                                   20567202        
+    SUBROUTINE SCANDSKTYP;                                              20567205        
+    BEGIN                                                               20567210        
+         IF (CN:=SCAN)=EU                                               20567215        
+          THEN BEGIN                                                    20567220        
+               IF (CN:=SCAN) NEQ IDENT THEN GO POWIE;                   20567225        
+               IF P(SKAN,DUP) GTR 19 THEN BEGIN P(DEL); GO POWIE; END;  20567230        
+               CN:=P+1; TOHLD.[42:6]:=CN;                               20567235        
+               IF CN GTR NEUP.NEUF THEN GO POWIE;                       20567240        
+               END                                                      20567245        
+          ELSE IF CN=SLOW THEN TOHLD.[41:1]:=1 ELSE                     20567250        
+                IF CN=FAST THEN TOHLD.[40:1]:=1 ELSE                    20567255        
+                 IF T NEQ COPYN THEN GO POWIE ELSE                      20567260        
+                  IF CN=DISK THEN ELSE                                  20567265        
+                   IF CN NEQ IDENT THEN GO POWIE ELSE TOHLD:=ACCUM[0];  20567270        
+         IF (CN:=SCAN)=ONV THEN                                    %148-20567271        
+          IF TOHLD.UNITNUM!0 THEN GO POWIE                         %148-20567274        
+          ELSE                                                     %148-20567276        
+           BEGIN                                                   %148-20567278        
+           TOHLD.UNITNUM:=SCANON;                                  %148-20567280        
+           END;                                                    %148-20567282        
+    END OF SCANDSKTYP;                                                  20567285        
+    %                                                                   20567300        
+    %************************************************                   20567305        
+    %                                                                   20567310        
+    % - PLACEMENT OF OPTIONS AND NAME COUNTS INTO CORRECT               20567311        
+    %   WORD OF CORRECT ESPDISK SEGMENT                                 20567312        
+    %                                                                   20567313        
+    %**************************************************                 20567314        
+    %                                                                   20567315        
+    SUBROUTINE SETUP;                                                   20567316        
+    BEGIN                                                               20567320        
+         IF LIBNO NEQ REMEMBER.[CF] THEN                                20567325        
+         BEGIN DISKWAIT(PROG INX 0,30,LIBNO);                           20567330        
+         DISKWAIT(-PROG.[CF],30,REMEMBER.[CF]);                         20567335        
+         PROG[REMEMBER.[FF]]:=(*P(DUP))&NAMECNT[18:18:15]&NAMECNT[CTC]; 20567340        
+         DISKWAIT(PROG INX 0,30,REMEMBER.[CF]);                         20567345        
