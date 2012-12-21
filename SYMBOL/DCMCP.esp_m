@@ -17870,3 +17870,104 @@ GETEM:                                                                  20569920
          ELSE IF CN GEQ IDENT THEN IF T1 THEN GO POWIE             %543-20570210        
              ELSE PROG[CNT+1]:=ACCUM[0]&1[4:47:1]                       20570220        
               ELSE GO POWIE;                                            20570230        
+          NAMECNT.[FF]:=NAMECNT.[FF]+2;                                 20570232        
+          CN:=SCAN;                                                     20570235        
+          END;                                                          20570240        
+         IF CN=COMMA THEN BEGIN CN:=SCAN; GO GETEM; END;                20570250        
+         IF CN=PERIO OR CN=POUND                                        20570270        
+         THEN IF T=COPYN THEN GO POWIE ELSE GO QUIT                     20570280        
+         ELSE IF T NEQ COPYN                                            20570290        
+              THEN GO POWIE                                             20570300        
+              ELSE IF CN=TOV                                            20570310        
+                   THEN BEGIN                                           20570320        
+                        FIRSTIME:=TRUE;                                 20570330        
+MIRID:                  SCANDSKTYP;                                     20570340        
+                        IF FIRSTIME AND (TOHLD.UNITNUM=19)         %148-20570350        
+                        THEN GO POWIE                                   20570360        
+                        ELSE IF CN=PERIO OR CN=POUND                    20570370        
+                             THEN GO QUIT ELSE GO POWIE                 20570380        
+                        END                                             20570390        
+                   ELSE IF CN NEQ FROM                                  20570400        
+                        THEN GO POWIE                                   20570410        
+                        ELSE BEGIN                                      20570420        
+                             IF (CN:=SCAN)=DISK                         20570430        
+                             THEN FIRSTIME:=TRUE                        20570440        
+                             ELSE IF CNNEQ IDENT                        20570450        
+                              THEN GO POWIE ELSE FROMHLD:=ACCUM[0];     20570460        
+                             IF (CN:=SCAN) = ONV THEN              %148-20570462        
+                              FROMHLD.UNITNUM:=SCANON;             %148-20570464        
+                             IF CN=POUND OR CN=PERIO               %148-20570470        
+                             THEN IF FIRSTIME THEN GO POWIE             20570480        
+                                              ELSE GO QUIT              20570490        
+                             ELSE IF CN=TOV                             20570500        
+                                  THEN GO MIRID                         20570510        
+                                  ELSE IF CN NEQ COMMA                  20570520        
+                                       THEN GO POWIE                    20570530        
+                                       ELSE BEGIN                       20570540        
+                                            SETUP;                      20570550        
+                                            CHECK; PROG[CNT]:=@14;      20570560        
+                                            PROG[CNT+1]:=FROMHLD;       20570570        
+                                            CN:=SCAN;                   20570575        
+                                            CHECK; PROG[CNT]:=0;        20570577        
+                                            GO NEXTL;                   20570580        
+                                            END;                        20570590        
+                             END;                                       20570600        
+    QUIT:                                                               20571500        
+         SETUP; BOTH;                                                   20571600        
+          STREAM(A:=TOHLD,B:=TOHLD.[42:6]-1,C:=TOHLD.[42:6]!0,     %122-20571700        
+                 D:=[CMM[27]]);                                    %122-20571702        
+             BEGIN                                                 %122-20571710        
+             SI:=LOC A; SKIP SB;                                   %122-20571720        
+             IF SB THEN                                            %122-20571730        
+                BEGIN                                              %122-20571740        
+                SKIP 39 SB;                                        %122-20571750        
+                IF SB THEN DS:=8 LIT"0FAST   "                     %122-20571760        
+                ELSE                                               %122-20571770        
+                   BEGIN                                           %122-20571780        
+                   SKIP SB;                                        %122-20571782        
+                   IF SB THEN DS:=8 LIT"0SLOW   "                  %122-20571790        
+                   ELSE                                            %122-20571800        
+                      BEGIN                                        %122-20571810        
+                      C(SI:=LOC B;                                 %122-20571820        
+                      DS:=6 LIT"0EU # "; DS:=2 DEC;                %122-20571830        
+                      JUMP OUT TO L);                              %122-20571840        
+                      DS:=8 LIT"0DISK   ";                         %122-20571842        
+          L:          END                                          %122-20571850        
+                   END                                             %122-20571860        
+                END                                                %122-20571870        
+             ELSE                                                  %122-20571880        
+                BEGIN                                              %122-20571890        
+                SKIP 5 SB;                                         %122-20571900        
+                DS:=LIT"0"; DS:=7 CHR;                             %122-20571910        
+                END;                                               %122-20571920        
+             END;                                                  %122-20571930        
+          GO INIT;                                                      20572100        
+    POWIE:                                                              20572200        
+         IF DIDGETESPDISK THEN                                          20572210        
+         BEGIN                                                          20572220        
+         IF CMM[19].[CF]!LIBNO THEN % MORE THAN ONE SEGMENT USED        20572300        
+         BEGIN                                                          20572400        
+              DISKWAIT(-PROG.[CF],30,CMM[19].[CF]);                     20572500        
+              FORGETESPDISK(CMM[19].[CF]);                              20572700        
+              CMM[19]~PROG[29];                                         20572800        
+              GO POWIE;                                                 20572900        
+         END;                                                           20573000        
+         FORGETESPDISK(LIBNO);                                          20573100        
+         END;                                                           20573110        
+         GO INCSC;                                                      20573200        
+    REMO:                                                               20573300        
+         IF XLST NEQ 0 THEN BEGIN FORGETSPACE(XLST); XLST:=0; END; %543-20573350        
+         T1.[46:1] ~ ((CN ~ SCAN) = EQUAL);                        %552-20573400        
+         IF T1.[46:1] THEN  CMM[0]~-1  ELSE                        %552-20573402        
+         IF CN GEQ IDENT THEN CMM[0]:=ACCUM[0] ELSE GO POWIE;           20573410        
+         IF SCAN NEQ SLASH THEN GO POWIE;                               20573420        
+         T1.[47:1] ~ ((CN ~ SCAN) = EQUAL);                        %552-20573430        
+         IF T1 THEN  CMM[1]~-1  ELSE                               %552-20573432        
+         IF CN GEQ IDENT THEN CMM[1]:=ACCUM[0] ELSE GO POWIE;           20573440        
+         HME:=CMM[0].[1:1]~CMM[1].[1:1];                                20573450        
+         XI:=-2;                                                        20573460        
+         IF (CN:=SCAN)=PERIO OR CN=COMMA                                20573470        
+          THEN HOLD1:=CN                                                20573480        
+          ELSE BEGIN                                                    20573490        
+               IF CN=EXCEPT THEN CN:=SCAN;                              20573500        
+               IF CN=LB THEN IF HME NEQ 0 THEN ELSE GO POWIE            20573510        
