@@ -17971,3 +17971,106 @@ MIRID:                  SCANDSKTYP;                                     20570340
           ELSE BEGIN                                                    20573490        
                IF CN=EXCEPT THEN CN:=SCAN;                              20573500        
                IF CN=LB THEN IF HME NEQ 0 THEN ELSE GO POWIE            20573510        
+                        ELSE GO POWIE;                                  20573520        
+               T1.[45:1] ~ 1;  % FLAG FOR SCANEXCEPT.  ON REMOVE = %552=20573525        
+               SCANEXCEPT;                                              20573530        
+               XLST.[8:10]:=X1+2;                                       20573540        
+               HOLD1:=SCAN;                                             20573760        
+               END;                                                     20573770        
+         CN:=T:=0;                                                      20573850        
+         IF (CMM[0] OR CMM[1]) LSS 0 THEN                               20573900        
+    SEEK:                                                               20574000        
+         SEEKNAM(CMM[0],CMM[1],CN,CMM[2],CMM[3],OPTN,XLST) ELSE         20574100        
+         BEGIN                                                          20574200        
+              CMM[2]:=CMM[0];                                           20574300        
+              CMM[3]:=CMM[1];                                           20574400        
+              CN:=1;                                                    20574500        
+         END;                                                           20574600        
+         IF CN NEQ 0                                                    20574700        
+           THEN T:=IF SYSTEMFILE(CMM[2],CMM[3])                         20574750        
+                     THEN 2                                             20574800        
+                     ELSE DIRECTORYSEARCH(CMM[2],CMM[3],5)              20574850        
+           ELSE IF OPTN NEQ 0 THEN GO OUTR;                             20574875        
+         IF T GEQ 64 THEN                                               20574900        
+         BEGIN IF HOLD3:=NOT(M[T+4].[44:1]) THEN BEGIN FORGETSPACE(T);  20574905        
+               T:=DIRECTORYSEARCH(CMM[2],CMM[3]&(UNITNO=25 OR UNITNO=30)20574910        
+               [1:47:1],4); END;                                        20574915        
+               IF T GEQ 64 THEN                                    %508-20574917        
+               IF M[T+4].[43:2]=3 THEN BEGIN FORGETSPACE(T); T:=1; END; 20574920        
+         END;                                                           20574922        
+         IF CARD.[8:1] THEN GO DOWNR;                                   20574925        
+         IF T LSS 2                                                     20574950        
+           THEN IF T=1                                                  20575000        
+             THEN LBMESS(ABS(CMM[2]),CMM[3],-7,45,0,SPOUTUNIT,LIBERR)   20575050        
+             ELSE LBMESS(CMM[0],CMM[1],-7,15,0,SPOUTUNIT,LIBERR)   %149-20575100        
+           ELSE IF T=2                                                  20575150        
+             THEN LBMESS(CMM[2],CMM[3],-7,25,0,SPOUTUNIT,LIBERR)   %149-20575200        
+                  ELSE IF T GEQ 64                                      20575250        
+                         THEN BEGIN                                     20575300        
+                              IF M[T+2] NEQ 0 AND (USERID EQV MCP) NEQ  20575350        
+                                 NOT 0 AND (USERID EQV ABS(M[T+2])) NEQ 20575400        
+                                 NOT 0                                  20575450        
+                                THEN BEGIN                              20575500        
+                                     LBMESS(CMM[2],CMM[3],-7,41,        20575550        
+                                             0, SPOUTUNIT, LIBERR);%149-20575600        
+                                     FORGETSPACE(DIRECTORYSEARCH(CMM[2],20575650        
+                                                 CMM[3],14));           20575700        
+                                     END                                20575750        
+                                ELSE IF M[T+4].[43:2] NEQ 0             20575800        
+                                       THEN BEGIN                       20575850        
+DOWNR:                                      IF NOT FIRSTIME THEN        20575900        
+                                             BEGIN FIRSTIME:=1;         20576000        
+                                             CMM[19]:=(LIBNO:=          20576050        
+                                             GETESPDISK)&1[18:44:4];    20576100        
+                                             DIDGETESPDISK:=TRUE;       20576125        
+                                             END;                       20576150        
+                                            M[T+4].[43:2]:=1;           20576200        
+                                            DISKWAIT(T.[CF],30,T.[FF]); 20576210        
+                                            IF HOLD3 THEN FORGETSPACE(  20576215        
+                                            DIRECTORYSEARCH(CMM[2],     20576216        
+                                            CMM[3],14));                20576217        
+                                            CHECK;                      20576220        
+                                            PROG[CNT]:=CMM[2];          20576230        
+                                            PROG[CNT+1]:=CMM[3];        20576240        
+                                            END                         20576250        
+                                       ELSE FORGETSPACE(DIRECTORYSEARCH(20576300        
+                                            CMM[2],CMM[3],6             20576350        
+ $ SET OMIT = NOT (PACKETS)                                             20576395        
+                                            &SPOUTUNIT[9:9:9]           20576400        
+                                            &SPOUTUNIT[24:42:6]         20576405        
+ $ POP OMIT                                                             20576410        
+                                            ));                         20576415        
+                              FORGETSPACE(T);                           20576450        
+                              END;                                      20576475        
+         IF CN NEQ 0 AND (CMM[0] OR CMM[1] LSS 0 THEN GO SEEK;          20576500        
+OUTR:    IF (CN:=HOLD1)=COMMA THEN GO REMO;                             20576600        
+         IF CN=PERIO THEN                                               20576700        
+                   IF FIRSTIME THEN                                     20576710        
+                          BEGIN BOTH;                                   20576720        
+                                M[CARDLOC-2]:=0;                        20576754        
+                                M[CARDLOC-1]:=10;                       20576756        
+                                CMM[6]:=GETESPDISK & 10[18:33:15];      20576758        
+ $ SET OMIT = NOT(DATACOM AND RJE)                                      20576760        
+                                DISKWAIT(CARDLOC-2,11,CMM[6] INX 0);    20576768        
+                                GO INIT;                                20576770        
+                          END                                           20576780        
+                                   ELSE GO CCA                          20576790        
+                     ELSE GO POWIE;                                     20576800        
+    CHAN:                                                               20576850        
+         T:=0; % T USED AS BIT MASK FOR SYNTAX CHECK                    20576900        
+         FOR CN:=0 STEP 1 UNTIL 3 DO % SCAN INPUT REQUEST               20576925        
+            BEGIN                                                       20576950        
+            OPTN := SCAN;                                               20576975        
+            T := (OPTN=EQUAL) & T[43:44:4]; % SHIFT PREVIOUS VALUE LEFT 20577000        
+            IF T THEN CMM[CN] := (-1) ELSE                              20577025        
+            IF OPTN GEQ IDENT THEN CMM[CN] := ACCUM[0] ELSE             20577050        
+            GO TO INCSC; % INCORECT REQUEST                             20577075        
+            OPTN := SCAN; % SKIP "/","," OR ";"                         20577100        
+            END; % SCANNING INPUT REQUEST                               20577125        
+         IF (T NEQ 0) AND (T NEQ 5) AND (T NEQ 10) THEN GO INCSC;       20577150        
+         % T=5  FOR =/<NAME1> TO =/<NAME2>                              20577175        
+         % T=10 FOR <NAME1>/= TO <NAME2>/=                              20577200        
+         % T=0  FOR <NAME1>/<NAME2> TO <NAME3>/<NAME4>                  20577225        
+         IF (REPEAT:=(T GTR 0)) THEN                                    20577250        
+            BEGIN                                                       20577275        
+            HOLD1 := CMM[0]; HOLD2 := CMM[1]; TYM:=1; CN:=0;            20577300        

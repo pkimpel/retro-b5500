@@ -128,7 +128,7 @@ B5500IOUnit.BCLANSItoBIC = [            // Index by 8-bit BCL-as-ANSI to get 6-b
 
 /**************************************/
 B5500IOUnit.prototype.clear = function() {
-    /* Initializes (and if necessary, creates) the processor state */
+    /* Initializes (and if necessary, creates) the I/O Unit state */
 
     this.W = 0;                         // Memory buffer register
     this.D = 0;                         // I/O descriptor (control) register
@@ -168,6 +168,7 @@ B5500IOUnit.prototype.clear = function() {
     this.REMF = 1;                      // Remote FF (0=local, 1=remote and available)
     
     this.busy = 0;                      // I/O Unit is busy
+    this.busyUnit = 0;                  // Peripheral unit index currently assigned to the I/O Unit
 
     this.cycleCount = 0;                // Current cycle count for this.run()
     this.cycleLimit = 0;                // Cycle limit for this.run()
@@ -522,7 +523,7 @@ B5500IOUnit.prototype.finish = function () {
         this.D30F *          0x20000 +
         this.D31F *          0x10000 +
         this.D32F *           0x8000 +
-        this.Daddressf;
+        this.Daddress;
     
     switch(ioUnitID) {
     case "1":
@@ -543,13 +544,50 @@ B5500IOUnit.prototype.finish = function () {
         break;
     }
     
-    this.Dunit = 0;                     // zero so CC won't think unit is busy
+    this.busyUnit = 0;                  // zero so CC won't think unit is busy
+    this.cc.signalInterrupt();
+};
+
+/**************************************/
+B5500IOUnit.prototype.makeFinish(f) {
+    /* Utility function to create a closure for I/O finish handlers */
+    var that = this;
+    
+    return function(mask, length) {return that.f(mask, length)};
+};
+
+/**************************************/
+B5500IOUnit.prototype.finishGeneric = function(errorMask, length) {
+    /* Handles a generic I/O finish when no word-count update or input data
+    transfer is needed. Can also be used to apply common error mask posting
+    at the end of specialized finish handlers */
+    
+    if (errorMask & 0x01) {this.D32F = 1}
+    if (errorMask & 0x02) {this.D31F = 1}
+    if (errorMask & 0x04) {this.D30F = 1}
+    if (errorMask & 0x08) {this.D29F = 1}
+    if (errorMask & 0x10) {this.D28F = 1}
+    if (errorMask & 0x20) {this.D27F = 1}
+    if (errorMask & 0x40) {this.D26F = 1}
+    this.finish();
+};
+
+/**************************************/
+B5500IOUnit.prototype.finishSPORead = function(errorMask, length) {
+    /* Handles I/O finish for a SPO keyboard input operation */
+    var count;
+    
+    count = this.storeBufferWithGM(length, 0, 1, 0x7FFF);
+    this.finishGeneric(errorMask, length);
 };
 
 /**************************************/
 B5500IOUnit.prototype.initiate = function() {
     /* Initiates an I/O operation on this I/O Unit */
     var addr;                           // memory address
+    var chars;                          // I/O memory transfer length
+    var index;                          // unit index
+    var u;                              // peripheral unit object
     var x;
     
     this.clearD();
@@ -576,13 +614,16 @@ B5500IOUnit.prototype.initiate = function() {
             this.D24F = (x >>> 23) & 1; // write/read
             this.LP = (x >>> 15) & 0x3F;// save control bits for drum and printer
             this.Daddress = x % 0x7FFF;
-            if (this.cc.testUnitBusy(this.ioUnitID, this.Dunit)) {
+            
+            this.busyUnit = index = B5500CentralControl.unitIndex[this.D24F & 1][this.Dunit & 0x1F];
+            if (this.cc.testUnitBusy(this.ioUnitID, this.busyUnit)) {
                 this.D32F = 1;          // set unit busy error
                 this.finish();
             } else if (!this.cc.testUnitReady(this.D24F, this.Dunit)) {
                 this.D30F = 1;          // set unit not-ready error
                 this.finish();
             } else {
+                u = this.cc.unit[index];
                 switch(this.Dunit) {
                 // disk designates
                 case 6: 
@@ -613,7 +654,12 @@ B5500IOUnit.prototype.initiate = function() {
                 
                 // SPO designate
                 case 30:
-                    this.D30F = 1; this.finish(); // >>> temp until implemented <<<
+                    if (this.D24F) {
+                        u.read(this.makeFinish(this.finishSPORead), this.buffer, 0x7FFF, 0, 0);
+                    } else {
+                        chars = this.fetchBufferWithGM(1, 0x7FFF);
+                        u.write(makeFinish(this.finishGeneric), this.buffer, chars, 0, 0);
+                    }
                     break;
                 
                 // magnetic tape designates
