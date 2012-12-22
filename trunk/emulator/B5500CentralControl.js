@@ -28,9 +28,16 @@ function B5500CentralControl() {
     this.P1 = null;                     // Reference for Processor 1 (control) [PA or PB]
     this.P2 = null;                     // Reference for Processor 2 (slave)   [PA or PB]
 
-    this.AddressSpace = [               // Array of memory module address spaces (8 x 32KB each)
+    this.addressSpace = [               // Array of memory module address spaces (8 x 32KB each)
         null, null, null, null, null, null, null, null];
-    this.MemMod = [                     // Array of memory module words as Float64s (8 x 4KW each)
+    this.memMod = [                     // Array of memory module words as Float64s (8 x 4KW each)
+        null, null, null, null, null, null, null, null];
+    this.unit = [                       // Array of peripheral units, indexed by ready-mask bit number
+        null, null, null, null, null, null, null, null,
+        null, null, null, null, null, null, null, null,
+        null, null, null, null, null, null, null, null,
+        null, null, null, null, null, null, null, null,
+        null, null, null, null, null, null, null, null,
         null, null, null, null, null, null, null, null];
 
     // Instance variables and flags
@@ -100,6 +107,43 @@ B5500CentralControl.unitIndex = [
        17,  39,  21,  38,  18,  37,  27,  36,null,  35,  26,  34,null,  33,  22,  32],    
     [null,  47,null,  46,  31,  45,  29,  44,  30,  43,  24,  42,  28,  41,  23,  40, 
        17,  39,  20,  38,  19,  37,null,  36,null,  35,null,  34,null,  33,  22,  32]];
+       
+// The following object maps the unit mnemonics from B5500SystemConfiguration.Units 
+// to the attributes needed to configure the CC unit[] array.
+
+B5500CentralControl.unitSpecs = {
+    SPO: {index: 22, designate: 30, unitClass: B5500SPOUnit},
+    DKA: {index: 29, designate:  6, unitClass: null}, 
+    DKB: {index: 28, designate: 12, unitClass: null}, 
+    CRA: {index: 24, designate: 10, unitClass: null}, 
+    CRB: {index: 23, designate: 14, unitClass: null}, 
+    CPA: {index: 25, designate: 10, unitClass: null}, 
+    LPA: {index: 27, designate: 22, unitClass: null}, 
+    LPB: {index: 26, designate: 26, unitClass: null}, 
+    PRA: {index: 20, designate: 18, unitClass: null}, 
+    PRB: {index: 19, designate: 20, unitClass: null}, 
+    PPA: {index: 21, designate: 18, unitClass: null}, 
+    PPB: {index: 18, designate: 20, unitClass: null}, 
+    DCA: {index: 17, designate: 16, unitClass: null}, 
+    DRA: {index: 31, designate:  4, unitClass: null},
+    DRB: {index: 30, designate:  8, unitClass: null},
+    MTA: {index: 47, designate:  1, unitClass: null}, 
+    MTB: {index: 46, designate:  3, unitClass: null}, 
+    MTC: {index: 45, designate:  5, unitClass: null}, 
+    MTD: {index: 44, designate:  7, unitClass: null}, 
+    MTE: {index: 43, designate:  9, unitClass: null}, 
+    MTF: {index: 42, designate: 11, unitClass: null}, 
+    MTH: {index: 41, designate: 13, unitClass: null}, 
+    MTJ: {index: 40, designate: 15, unitClass: null}, 
+    MTK: {index: 39, designate: 17, unitClass: null}, 
+    MTL: {index: 38, designate: 19, unitClass: null}, 
+    MTM: {index: 37, designate: 21, unitClass: null}, 
+    MTN: {index: 36, designate: 23, unitClass: null}, 
+    MTP: {index: 35, designate: 25, unitClass: null}, 
+    MTR: {index: 34, designate: 27, unitClass: null}, 
+    MTS: {index: 33, designate: 29, unitClass: null}, 
+    MTT: {index: 32, designate: 31, unitClass: null}}; 
+    
 
 /**************************************/
 B5500CentralControl.prototype.clear = function() {
@@ -281,14 +325,14 @@ B5500CentralControl.prototype.fetch = function(acc) {
     }
 
     // For now, we assume memory parity can never happen
-    if (acc.MAIL || !this.MemMod[modNr]) {
+    if (acc.MAIL || !this.memMod[modNr]) {
         acc.MPED = 0;   // no memory parity error
         acc.MAED = 1;   // memory address error
         // no .word value is returned in this case
     } else {
         acc.MPED = 0;   // no parity error
         acc.MAED = 0;   // no address error
-        acc.word = this.MemMod[modNr][modAddr];
+        acc.word = this.memMod[modNr][modAddr];
     }
 };
 
@@ -325,14 +369,14 @@ B5500CentralControl.prototype.store = function(acc) {
     }
 
     // For now, we assume memory parity can never happen
-    if (acc.MAIL || !this.MemMod[modNr]) {
+    if (acc.MAIL || !this.memMod[modNr]) {
         acc.MPED = 0;   // no memory parity error
         acc.MAED = 1;   // memory address error
         // no word is stored in this case
     } else {
         acc.MPED = 0;   // no parity error
         acc.MAED = 0;   // no address error
-        this.MemMod[modNr][modAddr] = acc.word;
+        this.memMod[modNr][modAddr] = acc.word;
     }
 };
 
@@ -575,17 +619,18 @@ B5500CentralControl.prototype.interrogateUnitStatus = function() {
 };
 
 /**************************************/
-B5500CentralControl.prototype.testUnitBusy = function(ioUnit, unit) {
+B5500CentralControl.prototype.testUnitBusy = function(ioUnit, rw, unit) {
     /* Determines whether the unit designate "unit" is currently in use by any other
-    I/O Unit than the one designated by "ioUnit". Returns 0 if not busy */
+    I/O Unit than the one designated by "ioUnit". "rw" indicates whether the designate 
+    is for writing (0) or reading (1). Returns 0 if not busy */
 
-    if (ioUnit != "1" && this.IO1 && this.IO1.REMF && this.AD1F && this.IO1.Dunit == unit) {
+    if (ioUnit != "1" && this.IO1 && this.IO1.REMF && this.AD1F && this.IO1.busyUnit == unit) {
         return 1;
-    } else if (ioUnit != "2" && this.IO2 && this.IO2.REMF && this.AD2F && this.IO2.Dunit == unit) {
+    } else if (ioUnit != "2" && this.IO2 && this.IO2.REMF && this.AD2F && this.IO2.busyUnit == unit) {
         return 2;
-    } else if (ioUnit != "3" && this.IO3 && this.IO3.REMF && this.AD3F && this.IO3.Dunit == unit) {
+    } else if (ioUnit != "3" && this.IO3 && this.IO3.REMF && this.AD3F && this.IO3.busyUnit == unit) {
         return 3;
-    } else if (ioUnit != "4" && this.IO4 && this.IO4.REMF && this.AD4F && this.IO4.Dunit == unit) {
+    } else if (ioUnit != "4" && this.IO4 && this.IO4.REMF && this.AD4F && this.IO4.busyUnit == unit) {
         return 4;
     } else {
         return 0;                       // peripheral unit not in use by any other I/O Unit
@@ -714,8 +759,8 @@ B5500CentralControl.prototype.loadTest = function(buf, loadAddr) {
         var modNr = addr >>> 12;
         var modAddr = addr & 0x0FFF;
 
-        if (modNr < 8 && this.MemMod[modNr]) {
-            this.MemMod[modNr][modAddr] = word;
+        if (modNr < 8 && this.memMod[modNr]) {
+            this.memMod[modNr][modAddr] = word;
         }
     }
 
@@ -759,24 +804,81 @@ B5500CentralControl.prototype.configureSystem = function() {
     /* Establishes the hardware module configuration from the
     B5500SystemConfiguration module */
     var cfg = B5500SystemConfiguration;
+    var mnem;
+    var signal = null;
+    var specs;
+    var u;
+    var unitClass;
     var x;
+    
+    function makeChange(cc, maskBit) {
+        return function(ready) {
+            cc.unitStatusMask = (ready ? cc.bitSet(cc.unitStatusMask, maskBit)
+                                       : cc.bitReset(cc.unitStatusMask, maskBit);
+        };
+    }
+    
+    function makeSignal(cc, mnemonic) {
+        switch (mnemonic) {
+        case "SPO":
+            return function() {cc.CCIO5F = 1; cc.signalInterrupt()};
+            break;
+        case "LPA":
+            return function() {cc.CCIO6F = 1; cc.signalInterrupt()};
+            break;
+        case "LPB":
+            return function() {cc.CCIO7F = 1; cc.signalInterrupt()};
+            break;
+        case "DKA":
+            return function() {cc.CCI15F = 1; cc.signalInterrupt()};
+            break;
+        case "DKB":
+            return function() {cc.CCI16F = 1; cc.signalInterrupt()};
+            break;
+        default:
+            return function() {};
+            break;
+        };
+    }
 
-    // !! inhibit for now // this.DD = new B5500DistributionAndDisplay(this);
+    // ***** !! inhibit for now ***** // this.DD = new B5500DistributionAndDisplay(this);
 
+    // Configure the processors
     if (cfg.PA) {this.PA = new B5500Processor("A", this)};
     if (cfg.PB) {this.PB = new B5500Processor("B", this)};
 
+    // Determine P1/P2
     this.PB1L = (cfg.PB1L ? 1 : 0);
 
+    // Configure the I/O Units
     if (cfg.IO1) {this.IO1 = new B5500IOUnit("1", this)};
     if (cfg.IO2) {this.IO2 = new B5500IOUnit("2", this)};
     if (cfg.IO3) {this.IO3 = new B5500IOUnit("3", this)};
     if (cfg.IO4) {this.IO4 = new B5500IOUnit("4", this)};
 
+    // Configure memory
     for (x=0; x<8; x++) {
-        if (cfg.MemMod[x]) {
-            this.AddressSpace[x] = new ArrayBuffer(32768);  // 4K B5500 words @ 8 bytes each
-            this.MemMod[x] = new Float64Array(this.AddressSpace[x]);
+        if (cfg.memMod[x]) {
+            this.addressSpace[x] = new ArrayBuffer(32768);  // 4K B5500 words @ 8 bytes each
+            this.memMod[x] = new Float64Array(this.addressSpace[x]);
+        }
+    }
+    
+    // Configure the peripheral units
+    for (mnem in cfg.Units) {
+        if (cfg.Units[mnem]) {
+            specs = B5500CentralControl.unitSpecs[mnem];
+            if (specs) {
+                unitClass = specs.unitClass || B5500DummyUnit;
+                if (unitClass) {
+                    u = new unitClass(mnem, specs.index, specs.designate, 
+                        makeChange(this, specs.index), makeSignal(this, mnem);
+                    this.unit[specs.index] = u;
+                    u.mnemonic = mnem;
+                    u.index = specs.index;
+                    u.designate = specs.designate;
+                }
+            }
         }
     }
 
@@ -816,8 +918,8 @@ B5500CentralControl.prototype.powerOff = function() {
         this.IO3 = null;
         this.IO4 = null;
         for (x=0; x<8; x++) {
-            this.MemMod[x] = null;
-            this.AddressSpace[x] = null;
+            this.memMod[x] = null;
+            this.addressSpace[x] = null;
         }
 
         this.poweredUp = 0;
