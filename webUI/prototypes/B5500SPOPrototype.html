@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<head>
+<title>B5500 Emulator SPO Unit Prototype</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta name="Author" content="Nigel Williams & Paul Kimpel">
+<meta http-equiv="Content-Script-Type" content="text/javascript">
+<meta http-equiv="Content-Style-Type" content="text/css">
+<link id=defaultStyleSheet rel=stylesheet type="text/css" href="B5500SPOPrototype.css">
+
+<script>
+
+window.onload = function() {
+    const spoNotReady = 0;
+    const spoLocal = 1;
+    const spoRemote = 2;
+    const spoInput = 3;
+    const spoOutput = 4;
+
+    var $$ = function(e) {return document.getElementById(e)};
+    var msgTank = [];
+    var spoState = spoNotReady;
+    var spoLocalRequested = false;
+    var spoInputActive = false;
+    var spoInputRequested = false;
+
+    var msgCtl = {
+        buffer:         null,
+        length:         0,
+        index:          0,
+        col:            0,
+        nextCharTime:   0,
+        finished:       null};
+        
+    var keyFilter = [               // Filter keyCode values to valid B5500 ones
+        0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,  // 00-0F
+        0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,  // 10-1F
+        0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x3F,0x28,0x29,0x2A,0x2B,0x2C,0x2D,0x2E,0x2F,  // 20-2F
+        0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x3A,0x3B,0x3C,0x3D,0x3E,0x3F,  // 30-3F
+        0x40,0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,  // 40-4F
+        0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x5B,0x3F,0x5D,0x3F,0x3F,  // 50-5F
+        0x3F,0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,  // 60-6F
+        0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x5B,0x5C,0x5D,0x5E,0x3F]; // 70-7F
+        
+    var hasClass = function(e, name) {
+        /* returns true if element "e" has class "name" in its class list */
+        var classes = e.className;
+        
+        if (!e) {
+            return false;
+        } else if (classes == name) {
+            return true;
+        } else {
+            return (classes.search("\\b" + name + "\\b") >= 0);
+        }
+    };
+    
+    var addClass = function(e, name) {
+        /* Adds a class "name" to the element "e"s class list */
+        
+        if (!hasClass(e, name)) {
+            e.className += (" " + name);
+        }
+    };
+    
+    var removeClass = function(e, name) {
+        /* Removes the class "name" from the element "e"s class list */
+        
+        e.className = e.className.replace(new RegExp("\\b" + name + "\\b\\s*", "g"), "");
+    };
+    
+    var addFrameStyles = function(frame) {
+        /* Appends the necessary styles for the <iframe> to its internal stylesheet */
+        
+        frame.contentDocument.head.innerHTML += "<style>" +
+                "BODY {background-color: #FFE} " +
+                "PRE {margin: 0; font-size: 10pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
+                "</style>";
+    };
+    
+    var appendEmptyLine = function(count) {
+        /* Appends "count" <pre> elements to the <iframe>, creating an empty text node
+        inside each new element */
+        var body = $$("SPOUT").contentDocument.body;
+        var line;
+        var x;
+
+        for (x=1; x<=count; x++) {
+            line = document.createElement("pre");
+            line.appendChild(document.createTextNode(""));
+            body.appendChild(line);
+            line.scrollIntoView();
+        }
+    };
+    
+    var accept = function() {
+        var inputBtn = $$("SPOInputRequestBtn");
+
+        spoState = spoInput;        
+        addClass(inputBtn, "yellowLit");
+        
+        msgCtl.buffer = new Uint8Array(80);
+        msgCtl.length = 0;
+        msgCtl.index = 0;
+        msgCtl.col = 0;
+        msgCtl.nextCharTime = 0;
+        msgCtl.finished = printFinished;
+        msgTank.push(msgCtl.buffer);
+    };
+    
+    var backspaceChar = function() {
+        /* Handles backspace for SPO input */
+        var line = $$("SPOUT").contentDocument.body.lastChild.lastChild;
+        
+        if (msgCtl.length > 0) {
+            msgCtl.length--;
+            msgCtl.index--;
+            line.nodeValue = line.nodeValue.substring(0, msgCtl.length);
+            if (msgCtl.col > 0) {
+                msgCtl.col--;
+            }
+        }
+    };
+    
+    var echoChar = function(c) {
+        /* Echoes the character code "c" to the SPO printer. Used by keyboard input */
+        var body = $$("SPOUT").contentDocument.body;
+        var line = body.lastChild.lastChild;
+        
+        if (c == 8) {
+            if (line.nodeValue.length > 0) {
+                line.nodeValue = line.nodeValue.substring(-1);
+            }
+        } else if (c == 13) {
+            appendEmptyLine(1);
+        } else if (line.nodeValue.length < 72) {
+            line.nodeValue += String.fromCharCode(c);
+        } else {
+             line.nodeValue = line.nodeValue.substring(0,71) + String.fromCharCode(c);
+        }
+   };
+
+    var printChar = function() {
+        /* Prints one character to the SPO. If more characters remain to be printed, 
+        schedules itself 100 ms later to print the next one, otherwise calls finished().
+        If the column counter exceeds 72, a CR/LF are output. A CR/LF are also output
+        at the end of the message */
+        var body = $$("SPOUT").contentDocument.body;
+        var c;
+        var nextTime = msgCtl.nextCharTime + 100;
+        var delay = nextTime - new Date().getTime();
+        var line = body.lastChild.lastChild;
+
+        msgCtl.nextCharTime = nextTime;
+        if (msgCtl.col < 72) {          // print the character
+            if (msgCtl.index < msgCtl.length) {
+                c = String.fromCharCode(msgCtl.buffer[msgCtl.index]);
+                line.nodeValue += c;
+                msgCtl.index++;
+                msgCtl.col++;
+                setTimeout(printChar, delay);
+            } else {                    // set up for the final CR/LF        
+                msgCtl.col = 72;
+                setTimeout(printChar, delay);
+            }
+        } else if (msgCtl.col == 72) {  // delay to fake the output of a carriage-return            
+            msgCtl.col++;
+            setTimeout(printChar, delay);
+        } else {                        // actually output the CR/LF          
+            appendEmptyLine(1);
+            if (msgCtl.index < msgCtl.length) {           
+                msgCtl.col = 0;         // more characters to print after the CR/LF
+                setTimeout(printChar, delay);
+            } else {                    // message text is exhausted
+                msgCtl.finished();
+            }
+        }
+    };
+
+    var print = function(buffer, length, finished) {
+        /* Prints the contents of the "buffer" for "length" characters */
+        var body = $$("SPOUT").contentDocument.body;
+        var count = body.childNodes.length;
+
+        spoState = spoOutput;
+        while (count-- > 500) {
+            body.removeChild(body.firstChild);
+        }
+
+        msgCtl.buffer = buffer;
+        msgCtl.length = length;
+        msgCtl.index = 0;
+        msgCtl.col = 0;
+        msgCtl.nextCharTime = new Date().getTime();
+        msgCtl.finished = finished;
+        printChar();
+    };
+
+    var printFinished = function() {
+        /* Called to report that all printing to the SPO is complete */
+
+        if (msgTank.length > 1) {
+            msgTank = msgTank.slice(1);
+            print(msgTank[0], msgTank[0].length, printFinished);
+        } else {
+            spoState = spoRemote;
+            msgTank = [];
+            if (spoLocalRequested) {
+                spoLocalRequested = false;
+                setRemote(false);
+            } else if (spoInputRequested) {
+                spoInputRequested = false;
+                accept();
+            }
+        }
+    };
+    
+    var setReady = function(ready) {
+        /* Sets the ready status of the SPO based on the truth of "ready" */
+        var readyBtn = $$("SPOReadyBtn");
+        
+        if (ready && spoState == spoNotReady) {
+            addClass(readyBtn, "yellowLit");
+            spoState = spoLocal;
+            setRemote(true);
+        } else if (!ready && spoState != spoNotReady) {
+            spoState = spoNotReady;
+            removeClass(readyBtn, "yellowLit");
+        }
+    };    
+    
+    var setRemote = function(remote) {
+        /* Sets the remote status of the SPO based on the truth of "remote" */
+        var localBtn = $$("SPOLocalBtn");
+        var remoteBtn = $$("SPORemoteBtn");
+        
+        if (remote && spoState == spoLocal) {
+            spoState = spoRemote;
+            addClass(remoteBtn, "yellowLit");
+            removeClass(localBtn, "yellowLit");
+        } else if (!remote && spoState == spoRemote) {
+            spoState = spoLocal;
+            spoInputRequested = false;
+            addClass(localBtn, "yellowLit");
+            removeClass(remoteBtn, "yellowLit");
+        }
+    };    
+    
+    var initiateInput = function(ev) {
+        /* Handles a successful Input Request event and enables the keyboard */
+
+        if (spoState == spoRemote) {
+            accept();
+        } else if (spoState == spoOutput) {
+            inputRequested = true;
+        }
+    };
+    
+    var terminateInput = function(ev) {
+        /* Handles the End of Message event */
+        var text;
+        
+        if (spoState == spoInput) {
+            if (spoLocalRequested) {
+                setRemote(false);
+            } else {
+                spoState = spoRemote;
+            }
+            removeClass($$("SPOInputRequestBtn"), "yellowLit");
+            text = String.fromCharCode.apply(null, msgCtl.buffer.subarray(0, msgCtl.length));
+            printChar();
+            printText("YOU ENTERED: " + text);
+            
+        }
+    };
+    
+    var cancelInput = function(ev) {
+        /* Handles the Error message event */
+        
+        if (spoState = spoInput) {
+            if (spoLocalRequested) {
+                setRemote(false);
+            } else {
+                spoState = spoRemote;
+            }
+            removeClass($$("SPOInputRequestBtn"), "yellowLit");
+            printChar();
+            printText("**ERROR");
+        }
+    };
+
+    var printText = function(msg) {
+        /* Utility function to convert a string to a Typed Array buffer and queue
+        it for printing */
+        var buf = new Uint8Array(msg.length);
+        var length = msg.length;
+        var x;
+
+        for (x=0; x<length; x++) {
+            buf[x] = msg.charCodeAt(x);
+        }
+
+        msgTank.push(buf);
+        if (msgTank.length <= 1) {
+            print(buf, length, printFinished);
+        }
+    };
+    
+    var doTests = function() {
+        
+        printText("*** B5500 SPO TEST ***");
+        printText(" ");
+        printText("WHAT HATH PASADENA WROUGHT?");
+        printText("");
+        /*****
+        printText("123456789.123456789.123456789.123456789.123456789.123456789.123456789.1");
+        printText("123456789.123456789.123456789.123456789.123456789.123456789.123456789.12");
+        printText("123456789.123456789.123456789.123456789.123456789.123456789.123456789.123");
+        printText("");
+        printText("        10        20        30        40        50        60        70        80        90       100");
+        printText("123456789.123456789.123456789.123456789.123456789.123456789.123456789.123456789.123456789.123456789.");
+        printText("~");
+        printText("END");
+        *****/
+    }
+    
+    /***** window.onload() outer block *****/
+    
+    window.resizeBy($$("SPODiv").scrollWidth-document.body.scrollWidth, 
+                    $$("SPODiv").scrollHeight-document.body.scrollHeight);
+    window.moveTo((screen.availWidth-window.outerWidth)/2, (screen.availHeight-window.outerHeight)/2);
+    
+    $$("SPORemoteBtn").onclick = function() {
+        setRemote(true);
+    };
+    
+    $$("SPOPowerBtn").onclick = function() {
+        alert("Don't DO that");
+    };
+    
+    $$("SPOLocalBtn").onclick = function() {
+        spoInputRequested = false;
+        if (msgTank.length > 0) {
+            spoLocalRequested = true;
+        } else {
+            setRemote(false);
+        }
+        
+    };
+    
+    $$("SPOInputRequestBtn").onclick = initiateInput;
+    
+    $$("SPOErrorBtn").onclick = cancelInput;
+    
+    $$("SPOEndOfMessageBtn").onclick = terminateInput;
+    
+    window.onkeypress = function(ev) {
+        var c = ev.charCode;
+        var index = msgCtl.length;
+        var nextTime;
+        var result = false;
+        var stamp = new Date().getTime();
+        
+        if (msgCtl.nextCharTime > stamp) {
+            nextTime = msgCtl.nextCharTime + 100;
+        } else {
+            nextTime = stamp + 100;
+        }
+        msgCtl.nextCharTime = nextTime;
+        if (spoState == spoInput) {
+            if (c >= 32 && c <= 126) {
+                msgCtl.buffer[index] = c = keyFilter[c & 0x7F];
+                if (msgCtl.length < 72) {
+                    msgCtl.col++;
+                    msgCtl.length++;
+                    msgCtl.index++;
+                }
+                setTimeout(function() {echoChar(c)}, nextTime-stamp);
+            }
+        } else if (spoState == spoLocal) {
+            if (c >= 32 && c <= 126) {
+                c = keyFilter[c & 0x7F];
+                setTimeout(function() {echoChar(c)}, nextTime-stamp);
+            }
+        }
+        return result;
+    };
+    
+    window.onkeydown = function(ev) {
+        var c = ev.keyCode;
+        var result = false;
+        
+        if (spoState == spoRemote) {
+            if (c == 27) {
+                initiateInput(ev);
+            }
+        } else if (spoState == spoInput) {
+            switch (c) {
+            case 27:                    // ESC
+                cancelInput(ev);
+                break;
+            case 8:                     // Backspace
+                backspaceChar();
+                break;
+            case 13:                    // Enter
+            case 126:                   // "~" (B5500 left arrow/group mark)
+                terminateInput(ev);
+                break;
+            default:
+                result = true;
+            }
+        } else if (spoState == spoLocal) {
+            switch (c) {
+            case 8:                     // Backspace
+            case 13:                    // Enter
+                echoChar(c);
+                break;
+            default:
+                result = true;
+            }
+        }
+        return result;
+    };
+    
+    addFrameStyles($$("SPOUT"));
+    appendEmptyLine(32);
+    setReady(true);
+    setRemote(true);
+    
+    doTests();
+};
+</script>
+</head>
+
+<body>
+
+<div id=SPODiv>
+    <iframe id=SPOUT scrolling=auto></iframe>
+    <div id=SPOControlsDiv>
+        <img id=TeletypeLogo src="TeletypeLogo.gif">
+        <button id=SPOReadyBtn          class="yellowButton blackBorder">READY</button>
+        <button id=SPOPowerBtn          class="blackButton blackBorder">POWER</button>
+        <button id=SPORemoteBtn         class="yellowButton blackBorder">REMOTE</button>
+        <button id=SPOLocalBtn          class="yellowButton blackBorder">LOCAL</button>
+        <button id=SPOInputRequestBtn   class="yellowButton blackBorder">INPUT REQUEST</button>
+        <button id=SPOEndOfMessageBtn   class="yellowButton blackBorder">END OF MESSAGE</button>
+        <button id=SPOBlank1Btn         class="yellowButton blackBorder"></button>
+        <button id=SPOErrorBtn          class="yellowButton blackBorder">ERROR</button>
+        <button id=SPOBlank2Btn         class="yellowButton blackBorder"></button>
+        <button id=SPOBlank3Btn         class="yellowButton blackBorder"></button>
+    </div>
+</div>
+
+</body>
+</html>

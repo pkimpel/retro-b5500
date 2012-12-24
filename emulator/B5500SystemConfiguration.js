@@ -27,7 +27,7 @@ var B5500SystemConfiguration = {
     IO3:        false,                  // I/O Unit 3 available
     IO4:        false,                  // I/O Unit 4 available
 
-    MemMod: [
+    memMod: [
                 true,                   // Memory module 0 available (4KW)
                 true,                   // Memory module 1 available (4KW)
                 false,                  // Memory module 2 available (4KW)
@@ -37,7 +37,7 @@ var B5500SystemConfiguration = {
                 false,                  // Memory module 6 available (4KW)
                 false],                 // Memory module 7 available (4KW)
 
-    Units: {
+    units: {
         SPO:    true,                   // SPO keyboard/printer
         DKA:    false,                  // Disk File Control A
         DKB:    false,                  // Disk File Control B
@@ -68,5 +68,5 @@ var B5500SystemConfiguration = {
         MTP:    false,                  // Magnetic Tape Unit P
         MTR:    false,                  // Magnetic Tape Unit R
         MTS:    false,                  // Magnetic Tape Unit S
-        MTT:    false};                 // Magnetic Tape Unit X
+        MTT:    false},                 // Magnetic Tape Unit X
 };

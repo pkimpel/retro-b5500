@@ -108,7 +108,7 @@ B5500CentralControl.unitIndex = [
     [null,  47,null,  46,  31,  45,  29,  44,  30,  43,  24,  42,  28,  41,  23,  40, 
        17,  39,  20,  38,  19,  37,null,  36,null,  35,null,  34,null,  33,  22,  32]];
        
-// The following object maps the unit mnemonics from B5500SystemConfiguration.Units 
+// The following object maps the unit mnemonics from B5500SystemConfiguration.units 
 // to the attributes needed to configure the CC unit[] array.
 
 B5500CentralControl.unitSpecs = {
@@ -814,7 +814,7 @@ B5500CentralControl.prototype.configureSystem = function() {
     function makeChange(cc, maskBit) {
         return function(ready) {
             cc.unitStatusMask = (ready ? cc.bitSet(cc.unitStatusMask, maskBit)
-                                       : cc.bitReset(cc.unitStatusMask, maskBit);
+                                       : cc.bitReset(cc.unitStatusMask, maskBit));
         };
     }
     
@@ -865,18 +865,15 @@ B5500CentralControl.prototype.configureSystem = function() {
     }
     
     // Configure the peripheral units
-    for (mnem in cfg.Units) {
-        if (cfg.Units[mnem]) {
+    for (mnem in cfg.units) {
+        if (cfg.units[mnem]) {
             specs = B5500CentralControl.unitSpecs[mnem];
             if (specs) {
                 unitClass = specs.unitClass || B5500DummyUnit;
                 if (unitClass) {
                     u = new unitClass(mnem, specs.index, specs.designate, 
-                        makeChange(this, specs.index), makeSignal(this, mnem);
+                        makeChange(this, specs.index), makeSignal(this, mnem));
                     this.unit[specs.index] = u;
-                    u.mnemonic = mnem;
-                    u.index = specs.index;
-                    u.designate = specs.designate;
                 }
             }
         }
