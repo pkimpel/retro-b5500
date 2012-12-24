@@ -549,7 +549,7 @@ B5500IOUnit.prototype.finish = function () {
 };
 
 /**************************************/
-B5500IOUnit.prototype.makeFinish(f) {
+B5500IOUnit.prototype.makeFinish = function(f) {
     /* Utility function to create a closure for I/O finish handlers */
     var that = this;
     

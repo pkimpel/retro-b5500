@@ -45,54 +45,54 @@ B5500DummyUnit.prototype.clear = function() {
 B5500DummyUnit.prototype.read = function(finish, buffer, length, mode, control) {
     /* Initiates a read operation on the unit */
     
-    finish(0x04, 0);
+    finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
 B5500DummyUnit.prototype.space = function(finish, length, control) {
     /* Initiates a space operation on the unit */
 
-    finish(0x04, 0);
+    finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
 B5500DummyUnit.prototype.write = function(finish, buffer, length, mode, control) {
     /* Initiates a write operation on the unit */
 
-    finish(0x04, 0);
+    finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
 B5500DummyUnit.prototype.erase = function(finish, length) {
     /* Initiates an erase operation on the unit */
     
-    finish(0x04, 0);
+    finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
 B5500DummyUnit.prototype.rewind = function(finish) {
     /* Initiates a rewind operation on the unit */
     
-    finish(0x04, 0);
+    finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
 B5500DummyUnit.prototype.readCheck = function(finish, length) {
     /* Initiates a read check operation on the unit */
     
-    finish(0x04, 0);
+    finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
 B5500DummyUnit.prototype.readInterrogate = function(finish) {
     /* Initiates a read interrogate operation on the unit */
     
-    finish(0x04, 0);
+    finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
 B5500DummyUnit.prototype.writeInterrogate = function (finish) {
     /* Initiates a write interrogate operation on the unit */
     
-    finish(0x04, 0);
+    finish(0x04, 0);                    // report unit not ready
 };
