@@ -18074,3 +18074,79 @@ OUTR:    IF (CN:=HOLD1)=COMMA THEN GO REMO;                             20576600
          IF (REPEAT:=(T GTR 0)) THEN                                    20577250        
             BEGIN                                                       20577275        
             HOLD1 := CMM[0]; HOLD2 := CMM[1]; TYM:=1; CN:=0;            20577300        
+LOOP:       SEEKNAM(HOLD1,HOLD2,CN,CMM[1],CMM[1],HOLD3,P(0));           20577325        
+            IF CN = 0 THEN % NOT FOUND IN DIRECTORY                     20577350        
+               BEGIN                                                    20577375        
+               IF TYM = 1 THEN % FIRST PASS, NULL SEARCH                20577400        
+                  BEGIN                                                 20577425        
+                  LBMESS(HOLD1, HOLD2, -5, 15, %NOT CHANGED, NOT ON DISK20577450        
+                         0, SPOUTUNIT, LIBERR);                    %149-20577475        
+                  END;                                                  20577500        
+               GO TO NEXT;                                              20577525        
+               END;                                                     20577550        
+            TYM := 2;                                                   20577575        
+            IF HOLD1 LSS 0 THEN CMM[2] := CMM[0] ELSE                   20577600        
+            IF HOLD2 LSS 0 THEN CMM[3] := CMM[1]; % USE NAME "FOUND"    20577625        
+            END;                                                        20577650        
+        IF (T:=DIRECTORYSEARCH(CMM[2],CMM[3],5)) NEQ 0 THEN             20577675        
+           BEGIN                                                        20577700        
+           FORGETSPACE(T);                                              20577725        
+           LBMESS(CMM[0], CMM[1], -5, 29, % NOT CHANGED, DUP FILE       20577750        
+                  0, SPOUTUNIT, LIBERR);                           %149-20577775        
+           END ELSE                                                     20577800        
+         BEGIN                                                          20577805        
+           T:=IF SYSTEMFILE(CMM[0].CMM[1]) THEN 3 ELSE                  20577810        
+              DIRECTORYSEARCH(CMM[0],CMM[1],5);                         20577815        
+           IF T GEQ 64 THEN                                             20577820        
+           BEGIN IF NOT(M[T+4].[44:1]) THEN BEGIN FORGETSPACE(T);       20577823        
+                 T~DIRECTORYSEARCH(CMM[0],CMM[1]&(P(UNITNO,DUP)=25 OR   20577826        
+                   P(XCH)=30)[1:47:1],4); END;                     %508-20577827        
+               IF T GEQ 64 THEN                                    %508-20577828        
+                IF M[T+4].[43:2]=3 THEN BEGIN FORGETSPACE(T); T:=1;     20577829        
+                                         END;                           20577832        
+           END;                                                         20577833        
+           IF T LXX 2 THEN                                              20577835        
+           LBMESS(CMM[0],CMM[1],-5,15+((T=1)|30), % NOT CHANGED         20577875        
+                  % 45 = IN USE, 15 = NOT ON DISK                       20577900        
+                  0, SPOUTUNIT, LIBERR)                            %149-20577925        
+        ELSE IF T=2 THEN                                                20577950        
+          LBMESS(CMM[0], CMM[1], -5, 25, % NOT CHANGED, SYSTEM FILE     20577975        
+                  0, SPOUTUNIT, 1 )                                %    20578000        
+        ELSE IF M[T+2] NEQ 0 AND                 % NOT FREE FILE        20578025        
+         (USERID EQV MCP) NEQ NOT 0 AND          % NOT MCP              20578050        
+         (USERID EQV ABS(M[T+2])) NEQ NOT 0 THEN % NOT CREATOR          20578075        
+           BEGIN                                                        20578100        
+           LBMESS(CMM[0], CMM[1], -5, 41, % NOT CHANGED, INVALID USER   20578125        
+                  0, SPOUTUNIT, 1 );                               %    20578150        
+           IF M[T+4].[43:2] NEQ 1 THEN                                  20578175        
+           FORGETSPACE( DIRECTORYSEARCH(CMM[0], CMM[1], 14 ) );         20578200        
+           FORGETSPACE(T);                                              20578210        
+           END                                                          20578225        
+        ELSE                                                            20578250        
+           BEGIN % CHANGE OK                                            20578275        
+           M[T+4]:=(*P(DUP))&3[1:46:2];                                 20578300        
+           T:=T&EUF(-CMM[2],CMM[3],T INX 0-1)[18:33:15];                20578375        
+           FORGETSPACE(DIRECTORYSEARCH(CMM[0],CMM[1],8));               20578400        
+           HEADERUNLOCK(CMM[2],CMM[3],T);                               20578425        
+ $ SET OMIT = PACKETS                                                   20578450        
+              LBMESS(CMM[0], CMM[1], 52, % CHANGED TO                   20578525        
+                     CMM[2], CMM[3], SPOUTUNIT, LIBMSG);                20578550        
+           PBCOUNT:=PBCOUNT-((((CMM[0] EQV "PBD    ")=NOT 0) OR         20578575        
+           ((CMM[0] EQV "PUD    ")=NOT 0)) AND (CMM[1].[CF]=1))         20578600        
+           +((((CMM[2] EQV "PBD    ")=NOT 0) OR                         20578625        
+           ((CMM[2] EQV "PUD    ")=NOT 0)) AND (CMM[3],[CF]=1));        20578650        
+           END;                                                         20578675        
+         END;                                                           20578685        
+        IF REPEAT THEN GO TO LOOP; % FIND REMAINING FILES               20578700        
+NEXT:                                                                   20578725        
+         IF OPTN=COMMA THEN GO CHAN;                                    20578900        
+         IF OPTN=PERIO THEN GO TO CCA ELSE GO INCSC;                    20579000        
+INIT:    CCLIB:=LIBNO; GO CCA;                                          20579100        
+INCSC:   CCLIB:=1;                                                      20579200        
+CCA:     CADDR:=CDEX:=0;                                                20579300        
+         IF XLST NEQ 0 THEN FORGETSPACE(XLST);                          20579302        
+         IF (LIBNO:=PROCVAL).[CF] GTR 1 THEN PROCVAL:=2 ELSE            20579305        
+              IF LIBNO THEN PROCVAL:=6 ELSE PROCVAL:=0;                 20579310        
+         RETURNVAL:=PROCVAL;                                            20579330        
+         P([RETURNRCW],STS,0,RDS,0,XCH,P&P[CTF],STF);                   20579340        
+END; % CCLIB PROCEDURE                                                  20579350        

@@ -60,6 +60,8 @@ function B5500CentralControl() {
 /**************************************/
     /* Global constants */
 
+B5500CentralControl.version = "0.01";
+
 B5500CentralControl.rtcTick = 1000/60; // Real-time clock period, milliseconds
 
 B5500CentralControl.pow2 = [ // powers of 2 from 0 to 52
@@ -112,37 +114,37 @@ B5500CentralControl.unitIndex = [
 // to the attributes needed to configure the CC unit[] array.
 
 B5500CentralControl.unitSpecs = {
-    SPO: {index: 22, designate: 30, unitClass: B5500SPOUnit},
-    DKA: {index: 29, designate:  6, unitClass: null}, 
-    DKB: {index: 28, designate: 12, unitClass: null}, 
-    CRA: {index: 24, designate: 10, unitClass: null}, 
-    CRB: {index: 23, designate: 14, unitClass: null}, 
-    CPA: {index: 25, designate: 10, unitClass: null}, 
-    LPA: {index: 27, designate: 22, unitClass: null}, 
-    LPB: {index: 26, designate: 26, unitClass: null}, 
-    PRA: {index: 20, designate: 18, unitClass: null}, 
-    PRB: {index: 19, designate: 20, unitClass: null}, 
-    PPA: {index: 21, designate: 18, unitClass: null}, 
-    PPB: {index: 18, designate: 20, unitClass: null}, 
-    DCA: {index: 17, designate: 16, unitClass: null}, 
-    DRA: {index: 31, designate:  4, unitClass: null},
-    DRB: {index: 30, designate:  8, unitClass: null},
-    MTA: {index: 47, designate:  1, unitClass: null}, 
-    MTB: {index: 46, designate:  3, unitClass: null}, 
-    MTC: {index: 45, designate:  5, unitClass: null}, 
-    MTD: {index: 44, designate:  7, unitClass: null}, 
-    MTE: {index: 43, designate:  9, unitClass: null}, 
-    MTF: {index: 42, designate: 11, unitClass: null}, 
-    MTH: {index: 41, designate: 13, unitClass: null}, 
-    MTJ: {index: 40, designate: 15, unitClass: null}, 
-    MTK: {index: 39, designate: 17, unitClass: null}, 
-    MTL: {index: 38, designate: 19, unitClass: null}, 
-    MTM: {index: 37, designate: 21, unitClass: null}, 
-    MTN: {index: 36, designate: 23, unitClass: null}, 
-    MTP: {index: 35, designate: 25, unitClass: null}, 
-    MTR: {index: 34, designate: 27, unitClass: null}, 
-    MTS: {index: 33, designate: 29, unitClass: null}, 
-    MTT: {index: 32, designate: 31, unitClass: null}}; 
+    SPO: {unitIndex: 22, designate: 30, unitClass: B5500SPOUnit},
+    DKA: {unitIndex: 29, designate:  6, unitClass: null}, 
+    DKB: {unitIndex: 28, designate: 12, unitClass: null}, 
+    CRA: {unitIndex: 24, designate: 10, unitClass: null}, 
+    CRB: {unitIndex: 23, designate: 14, unitClass: null}, 
+    CPA: {unitIndex: 25, designate: 10, unitClass: null}, 
+    LPA: {unitIndex: 27, designate: 22, unitClass: null}, 
+    LPB: {unitIndex: 26, designate: 26, unitClass: null}, 
+    PRA: {unitIndex: 20, designate: 18, unitClass: null}, 
+    PRB: {unitIndex: 19, designate: 20, unitClass: null}, 
+    PPA: {unitIndex: 21, designate: 18, unitClass: null}, 
+    PPB: {unitIndex: 18, designate: 20, unitClass: null}, 
+    DCA: {unitIndex: 17, designate: 16, unitClass: null}, 
+    DRA: {unitIndex: 31, designate:  4, unitClass: null},
+    DRB: {unitIndex: 30, designate:  8, unitClass: null},
+    MTA: {unitIndex: 47, designate:  1, unitClass: null}, 
+    MTB: {unitIndex: 46, designate:  3, unitClass: null}, 
+    MTC: {unitIndex: 45, designate:  5, unitClass: null}, 
+    MTD: {unitIndex: 44, designate:  7, unitClass: null}, 
+    MTE: {unitIndex: 43, designate:  9, unitClass: null}, 
+    MTF: {unitIndex: 42, designate: 11, unitClass: null}, 
+    MTH: {unitIndex: 41, designate: 13, unitClass: null}, 
+    MTJ: {unitIndex: 40, designate: 15, unitClass: null}, 
+    MTK: {unitIndex: 39, designate: 17, unitClass: null}, 
+    MTL: {unitIndex: 38, designate: 19, unitClass: null}, 
+    MTM: {unitIndex: 37, designate: 21, unitClass: null}, 
+    MTN: {unitIndex: 36, designate: 23, unitClass: null}, 
+    MTP: {unitIndex: 35, designate: 25, unitClass: null}, 
+    MTR: {unitIndex: 34, designate: 27, unitClass: null}, 
+    MTS: {unitIndex: 33, designate: 29, unitClass: null}, 
+    MTT: {unitIndex: 32, designate: 31, unitClass: null}}; 
     
 
 /**************************************/
@@ -871,9 +873,9 @@ B5500CentralControl.prototype.configureSystem = function() {
             if (specs) {
                 unitClass = specs.unitClass || B5500DummyUnit;
                 if (unitClass) {
-                    u = new unitClass(mnem, specs.index, specs.designate, 
-                        makeChange(this, specs.index), makeSignal(this, mnem));
-                    this.unit[specs.index] = u;
+                    u = new unitClass(mnem, specs.unitIndex, specs.designate, 
+                        makeChange(this, specs.unitIndex), makeSignal(this, mnem));
+                    this.unit[specs.unitIndex] = u;
                 }
             }
         }

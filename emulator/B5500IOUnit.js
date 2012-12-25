@@ -71,24 +71,24 @@ B5500IOUnit.timeSlice = 5000;           // Standard run() timeslice, about 5ms (
 B5500IOUnit.memCycles = 6;              // assume 6 us memory cycle time (the other option was 4 usec)
 
 B5500IOUnit.BICtoANSI = [               // Index by 6-bit BIC to get 8-bit ANSI code
-        "0", "1", "2", "3", "4", "5", "6", "7",         // 00-07, @00-07
-        "8", "9", "#", "@", "?", ":", ">", "}",         // 08-1F, @10-17
-        "+", "A", "B", "C", "D", "E", "F", "G",         // 10-17, @20-27
-        "H", "I", ".", "[", "&", "(", "<", "~",         // 18-1F, @30-37
-        "|", "J", "K", "L", "M", "N", "O", "P",         // 20-27, @40-47
-        "Q", "R", "$", "*", "-", ")", ";", "{",         // 28-2F, @50-57
-        " ", "/", "S", "T", "U", "V", "W", "X",         // 30-37, @60-67
-        "Y", "Z", ",", "%", "!", "=", "]", "\""];       // 38-3F, @70-77
+        0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,        // 00-07, @00-07
+        0x38,0x39,0x23,0x40,0x3F,0x3A,0x3E,0x7D,        // 08-1F, @10-17
+        0x2B,0x41,0x42,0x43,0x44,0x45,0x46,0x47,        // 10-17, @20-27
+        0x48,0x49,0x2E,0x5B,0x26,0x28,0x3C,0x7E,        // 18-1F, @30-37
+        0x7C,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,        // 20-27, @40-47
+        0x51,0x52,0x24,0x2A,0x2D,0x29,0x3B,0x7B,        // 28-2F, @50-57
+        0x20,0x2F,0x53,0x54,0x55,0x56,0x57,0x58,        // 30-37, @60-67
+        0x59,0x5A,0x2C,0x25,0x21,0x3D,0x5D,0x23];       // 38-3F, @70-77
 
 B5500IOUnit.BICtoBCLANSI = [            // Index by 6-bit BIC to get 8-bit BCL-as-ANSI code
-        "#", "1", "2", "3", "4", "5", "6", "7",         // 00-07, @00-07
-        "8", "9", "@", "?", "0", ":", ">", "}",         // 08-1F, @10-17
-        ",", "/", "S", "T", "U", "V", "W", "X",         // 10-17, @20-27
-        "Y", "Z", "%", "!", " ", "=", "]", "\"",        // 18-1F, @30-37
-        "$", "J", "K", "L", "M", "N", "O", "P",         // 20-27, @40-47
-        "Q", "R", "*", "-", "|", ")", ";", "{",         // 28-2F, @50-57
-        "+", "A", "B", "C", "D", "E", "F", "G",         // 30-37, @60-67
-        "H", "I", "[", "&", ".", "(", "<", "~"];        // 38-3F, @70-77
+        0x23,0x31,0x32,0x33,0x34,0x35,0x36,0x37,        // 00-07, @00-07
+        0x38,0x39,0x40,0x3F,0x30,0x3A,0x3E,0x7D,        // 08-1F, @10-17
+        0x2C,0x2F,0x53,0x54,0x55,0x56,0x57,0x58,        // 10-17, @20-27
+        0x59,0x5A,0x25,0x21,0x20,0x3D,0x5D,0x22,        // 18-1F, @30-37
+        0x24,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,        // 20-27, @40-47
+        0x51,0x52,0x2A,0x2D,0x7C,0x29,0x3B,0x7B,        // 28-2F, @50-57
+        0x2B,0x41,0x42,0x43,0x44,0x45,0x46,0x47,        // 30-37, @60-67
+        0x48,0x49,0x5B,0x26,0x2E,0x28,0x3C,0X7E];       // 38-3F, @70-77
         
 B5500IOUnit.ANSItoBIC = [               // Index by 8-bit ANSI to get 6-bit BIC (upcased, invalid=>"?")
         0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 00-0F
@@ -208,11 +208,6 @@ B5500IOUnit.prototype.fetch = function(addr) {
     acc.addr = addr;
     this.cc.fetch(acc);
     this.W = acc.word;
-
-    acc.addr = this.S;
-    acc.MAIL = (this.S < 0x0200 && this.NCSF);
-    acc.word = this.A;
-    this.cc.store(acc);
 
     this.cycleCount += B5500IOUnit.memCycles;               
     if (acc.MAED) {
@@ -525,7 +520,7 @@ B5500IOUnit.prototype.finish = function () {
         this.D32F *           0x8000 +
         this.Daddress;
     
-    switch(ioUnitID) {
+    switch(this.ioUnitID) {
     case "1":
         this.store(0x0C);
         this.cc.CCI08F = 1;             // set I/O Finished #1
@@ -553,7 +548,7 @@ B5500IOUnit.prototype.makeFinish = function(f) {
     /* Utility function to create a closure for I/O finish handlers */
     var that = this;
     
-    return function(mask, length) {return that.f(mask, length)};
+    return function(mask, length) {return f.call(that, mask, length)};
 };
 
 /**************************************/
@@ -658,7 +653,7 @@ B5500IOUnit.prototype.initiate = function() {
                         u.read(this.makeFinish(this.finishSPORead), this.buffer, 0x7FFF, 0, 0);
                     } else {
                         chars = this.fetchBufferWithGM(1, 0x7FFF);
-                        u.write(makeFinish(this.finishGeneric), this.buffer, chars, 0, 0);
+                        u.write(this.makeFinish(this.finishGeneric), this.buffer, chars, 0, 0);
                     }
                     break;
                 
