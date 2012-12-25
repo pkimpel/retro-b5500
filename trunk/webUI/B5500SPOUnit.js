@@ -17,7 +17,7 @@
 "use strict";
 
 /**************************************/
-function B5500SPOUnit(mnemonic, index, designate, statusChange, signal) {
+function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal) {
     /* Constructor for the SPOUnit object */
     var that = this;
 
@@ -25,7 +25,7 @@ function B5500SPOUnit(mnemonic, index, designate, statusChange, signal) {
     this.charPeriod = 100;              // Printer speed, milliseconds per character
     
     this.mnemonic = mnemonic;           // Unit mnemonic
-    this.index = index;                 // Ready-mask bit number
+    this.unitIndex = unitIndex;         // Ready-mask bit number
     this.designate = designate;         // IOD unit designate number
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (e.g,. SPO input request)
@@ -33,72 +33,15 @@ function B5500SPOUnit(mnemonic, index, designate, statusChange, signal) {
     
     this.clear();
     
-    this.backspaceChar.that = this;     // Store object context these functions
+    this.backspaceChar.that = this;     // Store object context for these functions
     this.printChar.that = this;
     this.writeChar.that = this;    
     
-    this.window = window.open("B5500SPOUnit.html", "SPOWin", "scrollbars,resizable,width=600,height=500");
-    
+    this.window = window.open("", "SPOWin", "scrollbars,resizable,width=600,height=500");
     this.window.onload = function() {
-        /* Initializes the SPO window and user interface */
-        var x;
-        
-        that.doc = that.window.document;
-        that.paper = that.$$("SPOUT").contentDocument.body;
-        that.$$("SPOUT").contentDocument.head.innerHTML += "<style>" +
-                "BODY {background-color: #FFE} " +
-                "PRE {margin: 0; font-size: 10pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
-                "</style>";
-    
-        window.resizeBy(that.$$("SPODiv").scrollWidth-document.body.scrollWidth, 
-                        that.$$("SPODiv").scrollHeight-document.body.scrollHeight);
-        window.moveTo((screen.availWidth-window.outerWidth)/2, (screen.availHeight-window.outerHeight)/2);
-
-        that.$$("SPORemoteBtn").onclick = function() {
-            that.setRemote();
-        };
-
-        that.$$("SPOPowerBtn").onclick = function() {
-            that.window.alert("Don't DO that");
-        };
-
-        that.$$("SPOLocalBtn").onclick = function() {
-            that.setLocal();
-        };
-
-        that.$$("SPOInputRequestBtn").onclick = function() {
-            if (that.spoState == that.spoRemote) {
-                that.signal();
-            } else if (that.spoState == that.spoOutput) {
-                that.signal();
-            }
-        };
-
-        that.$$("SPOErrorBtn").onclick = function() {
-            that.cancelInput();
-        };
-
-        that.$$("SPOEndOfMessageBtn").onclick = function() {
-            that.terminateInput();
-        };
-        
-        window.onkeypress = function(ev) {
-            that.keyPress(ev);
-        };
-        
-        window.onkeydown = function(ev) {
-            that.keyDown(ev);
-        };
-
-        for (x=0; x<32; x++) {
-            that.appendEmptyLine();
-        }
-        that.setReady();
-        that.printText("retro-B5500 Emulator Version 0.01", function() {
-            that.setRemote();
-            that.appendEmptyLine();
-        });
+        that.spoOnload();
     };
+    this.window.location.href = "/B5500/B5500SPOUnit.html";  // load window only after the onload() event is established
 }
 
 // this.spoState enumerations
@@ -178,6 +121,7 @@ B5500SPOUnit.prototype.setNotReady = function() {
     if (this.spoState == this.spoLocal) {
         this.spoState = this.spoNotReady;
         this.removeClass(readyBtn, "yellowLit");
+        this.statusChange(0);
     }
 };
 
@@ -202,6 +146,7 @@ B5500SPOUnit.prototype.setLocal = function() {
         this.spoState = this.spoLocal;
         this.addClass(localBtn, "yellowLit");
         this.removeClass(remoteBtn, "yellowLit");
+        this.statusChange(0);
         
         // Set up to echo characters from the keyboard
         this.buffer = null;
@@ -223,6 +168,7 @@ B5500SPOUnit.prototype.setRemote = function() {
         this.spoState = this.spoRemote;
         this.addClass(remoteBtn, "yellowLit");
         this.removeClass(localBtn, "yellowLit");
+        this.statusChange(1);
     }
 };
 
@@ -245,16 +191,16 @@ B5500SPOUnit.prototype.appendEmptyLine = function() {
 B5500SPOUnit.prototype.backspaceChar = function backspaceChar() {
     /* Handles backspace for SPO input */
     var that = backspaceChar.that;
-    var line = this.paper.lastChild.lastChild;
+    var line = that.paper.lastChild.lastChild;
 
-    if (this.bufLength > 0) {
-        this.bufIndex--;
+    if (that.bufLength > 0) {
+        that.bufIndex--;
     }        
-    if (this.printCol > 0) {
-        this.printCol--;
+    if (that.printCol > 0) {
+        that.printCol--;
     }
     if (line.nodeValue.length > 0) {
-        line.nodeValue = line.nodeValue.substring(-1);
+        line.nodeValue = line.nodeValue.substring(0, line.nodeValue.length-1);
     }
 };
 
@@ -262,7 +208,7 @@ B5500SPOUnit.prototype.backspaceChar = function backspaceChar() {
 B5500SPOUnit.prototype.printChar = function printChar(c) {
     /* Echoes the character code "c" to the SPO printer */
     var that = printChar.that;
-    var line = this.paper.lastChild.lastChild;
+    var line = that.paper.lastChild.lastChild;
 
     if (line.nodeValue.length < 72) {
         line.nodeValue += String.fromCharCode(c);
@@ -272,7 +218,7 @@ B5500SPOUnit.prototype.printChar = function printChar(c) {
 };
 
 /**************************************/
-B5500SPOUnit.prototype.writeChar = function() {
+B5500SPOUnit.prototype.writeChar = function writeChar() {
     /* Outputs one character from the buffer to the SPO. If more characters remain 
     to be printed, schedules itself 100 ms later to print the next one, otherwise
     calls finished(). If the column counter exceeds 72, a CR/LF pair is output.
@@ -296,19 +242,19 @@ B5500SPOUnit.prototype.writeChar = function() {
         }
     } else if (that.printCol == 72) {   // delay to fake the output of a new-line            
         that.printCol++;
-        setTimeout(that.writeChar, delay);
+        setTimeout(that.writeChar, delay+that.charPeriod);
     } else {                            // actually output the CR/LF          
         that.appendEmptyLine();
         if (that.bufIndex < that.bufLength) {           
             that.printCol = 0;          // more characters to print after the CR/LF
             setTimeout(that.writeChar, delay);
         } else {                        // message text is exhausted
+            that.finish(that.errorMask, that.bufLength);  // report finish with any errors
             if (that.spoLocalRequested) {
                 that.setLocal();
             } else {
                 that.spoState = that.spoRemote;
             }
-            that.finish(that.errorMask, that.bufLength);  // report finish with any errors
         }
     }
 };
@@ -346,6 +292,7 @@ B5500SPOUnit.prototype.keyPress = function(ev) {
     /* Handles keyboard character events. Depending on the state of the unit,
     either buffers the character for transmission to the I/O Unit, simply echos
     it to the printer, or ignores it altogether */
+    var that = this;
     var c = ev.charCode;
     var index = this.bufLength;
     var nextTime;
@@ -360,16 +307,16 @@ B5500SPOUnit.prototype.keyPress = function(ev) {
     this.nextCharTime = nextTime;
     if (this.spoState == this.spoInput) {
         if (c >= 32 && c <= 126) {
-            this.buffer[this.bufIndex++] = c = keyFilter[c];
+            this.buffer[this.bufIndex++] = c = this.keyFilter[c];
             if (this.printCol < 72) {
                 this.printCol++;
             }
-            setTimeout(function() {this.printChar(c)}, nextTime-stamp);
+            setTimeout(function() {that.printChar(c)}, nextTime-stamp);
         }
     } else if (this.spoState == this.spoLocal) {
         if (c >= 32 && c <= 126) {
-            c = keyFilter[c];
-            setTimeout(function() {this.printChar(c)}, nextTime-stamp);
+            c = this.keyFilter[c];
+            setTimeout(function() {that.printChar(c)}, nextTime-stamp);
         }
     }
     if (!result) {
@@ -381,8 +328,18 @@ B5500SPOUnit.prototype.keyPress = function(ev) {
 /**************************************/
 B5500SPOUnit.prototype.keyDown = function(ev) {
     /* Handles key-down events to capture ESC, BS, and Enter keystrokes */
+    var that = this;
     var c = ev.keyCode;
+    var nextTime;
     var result = true;
+    var stamp = new Date().getTime();
+
+    if (this.nextCharTime > stamp) {
+        nextTime = this.nextCharTime + this.charPeriod;
+    } else {
+        nextTime = stamp + this.charPeriod;
+    }
+    this.nextCharTime = nextTime;
 
     if (this.spoState == this.spoRemote) {
         if (c == 27) {
@@ -400,7 +357,7 @@ B5500SPOUnit.prototype.keyDown = function(ev) {
             result = false;
             break;
         case 8:                     // Backspace
-            this.backspaceChar();
+            setTimeout(that.backspaceChar(), nextTime-stamp);
             result = false;
             break;
         case 13:                    // Enter
@@ -412,8 +369,11 @@ B5500SPOUnit.prototype.keyDown = function(ev) {
     } else if (this.spoState == this.spoLocal) {
         switch (c) {
         case 8:                     // Backspace
+            setTimeout(that.backspaceChar, nextTime-stamp);
+            result = false;
+            break;
         case 13:                    // Enter
-            this.backspaceChar();
+            setTimeout(function() {that.appendEmptyLine()}, nextTime-stamp+this.charPeriod);
             result = false;
             break;
         }
@@ -443,6 +403,70 @@ B5500SPOUnit.prototype.printText = function(msg, finish) {
     this.nextCharTime = new Date().getTime();
     this.finish = finish;
     this.writeChar();                   // start the printing process
+};
+
+/**************************************/
+B5500SPOUnit.prototype.spoOnload = function() {
+    /* Initializes the SPO window and user interface */
+    var that = this;
+    var x;
+
+    this.doc = this.window.document;
+    this.paper = this.$$("SPOUT").contentDocument.body;
+    this.$$("SPOUT").contentDocument.head.innerHTML += "<style>" +
+            "BODY {background-color: #FFE} " +
+            "PRE {margin: 0; font-size: 10pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
+            "</style>";
+
+    this.window.resizeTo(this.window.outerWidth+this.$$("SPODiv").scrollWidth-this.window.innerWidth+8, 
+                         this.window.outerHeight+this.$$("SPODiv").scrollHeight-this.window.innerHeight+8);
+    this.window.moveTo(screen.availWidth-this.window.outerWidth-8, screen.availHeight-this.window.outerHeight-8);
+    this.window.focus();
+
+    this.$$("SPORemoteBtn").onclick = function() {
+        that.setRemote();
+    };
+
+    this.$$("SPOPowerBtn").onclick = function() {
+        that.window.alert("Don't DO THAT");
+    };
+
+    this.$$("SPOLocalBtn").onclick = function() {
+        that.setLocal();
+    };
+
+    this.$$("SPOInputRequestBtn").onclick = function() {
+        if (that.spoState == that.spoRemote) {
+            that.signal();
+        } else if (that.spoState == that.spoOutput) {
+            that.signal();
+        }
+    };
+
+    this.$$("SPOErrorBtn").onclick = function() {
+        that.cancelInput();
+    };
+
+    this.$$("SPOEndOfMessageBtn").onclick = function() {
+        that.terminateInput();
+    };
+
+    this.window.onkeypress = function(ev) {
+        that.keyPress(ev);
+    };
+
+    this.window.onkeydown = function(ev) {
+        that.keyDown(ev);
+    };
+
+    for (x=0; x<32; x++) {
+        this.appendEmptyLine();
+    }
+    this.setReady();
+    this.printText("retro-B5500 Emulator Version " + B5500CentralControl.version, function() {
+        that.setRemote();
+        that.appendEmptyLine();
+    });
 };
 
 /**************************************/
