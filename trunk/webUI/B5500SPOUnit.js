@@ -37,11 +37,10 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal) {
     this.printChar.that = this;
     this.writeChar.that = this;    
     
-    this.window = window.open("", "SPOWin", "scrollbars,resizable,width=600,height=500");
+    this.window = window.open("/B5500/B5500SPOUnit.html", "SPOWin", "scrollbars,resizable,width=600,height=500");
     this.window.onload = function() {
         that.spoOnload();
     };
-    this.window.location.href = "/B5500/B5500SPOUnit.html";  // load window only after the onload() event is established
 }
 
 // this.spoState enumerations

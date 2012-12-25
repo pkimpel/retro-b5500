@@ -18150,3 +18150,73 @@ CCA:     CADDR:=CDEX:=0;                                                20579300
          RETURNVAL:=PROCVAL;                                            20579330        
          P([RETURNRCW],STS,0,RDS,0,XCH,P&P[CTF],STF);                   20579340        
 END; % CCLIB PROCEDURE                                                  20579350        
+REAL PROCEDURE CCSET; FORWARD;                                          20579400        
+PROCEDURE CCFINISH;                                                     20579800        
+BEGIN                                                                   20579852        
+DECLARECCVARIABLES;                                                     20581000        
+REAL     TEMP        =  RETURNRCW+1;   % BEGIN LOCALS OF CCFINISH       20581080        
+         P(RCW,MYMSCW,STF);                                             20581125        
+         RCW:=RCW & P(XCH)[CTC];                                        20581130        
+         P(0);  % ZERO LOCAL OF CCFINISH                                20581140        
+         PPCPROCESS:=0;                                                 20581150        
+         CN:=T;                                                         20581200        
+         IF OPTN = PERIO OR OPTN = LIBRA THEN                           20581250        
+         BEGIN                                                          20581300        
+              CMM[22]:= PROG[22];                                       20581350        
+              PROG[2].[CF]:= IF PROG[18] > 32767 THEN 32767             20581400        
+                             ELSE PROG[18];                             20581450        
+         IF PROG[20] > 512 THEN PROG[20]:= 512;                         20581500        
+         IF PADDR NEQ 0 THEN                                            20581550        
+                  BEGIN                                                 20581600        
+                  PEQN[29]:= 0;                                         20581650        
+                  IF PDEX=0 THEN PEQN[0]:=14;                           20581700        
+                  IF PDEX=1 THEN PEQN[14]:= 14;                         20581750        
+                   DISKWAIT(PEQN.[CF],30,PADDR);                        20581800        
+                  END;                                                  20581850        
+         PROG[29]:= 0;                                                  20581900        
+         CMM[2].[FF]:=NT1:=GETESPDISK;                                  20581950        
+         DISKWAIT(PROG.[CF],30,NT1);                                    20582000        
+         END;                                                           20582050        
+         IF CADDR NEQ 0 THEN                                            20582100        
+                  BEGIN                                                 20582150        
+                  CEQN[29]:= 0;                                         20582200        
+                  IF CDEX=0 THEN CEQN[0]:= 14;                          20582250        
+                  IF CDEX=1 THEN CEQN[14]:= 14;                         20582300        
+                   DISKWAIT(CEQN.[CF],30,CADDR);                        20582350        
+                  END;                                                  20582400        
+         COMPLEXSLEEP((SCHEDULEIDS!NOT 0) AND SHEETFREE);               20582440        
+         LOCKTOG(SHEETMASK);                                            20582450        
+         CDEX:= GETESPDISK;                                             20582500        
+         CMM[2].[CF]:= IF CMM[18] > 32767 THEN 32767 ELSE CMM[18];      20582550        
+         PDEX:= IF CMM[18] > MIXMAX THEN MIXMAX ELSE CMM[18];           20582600        
+         IF LIBNO NEQ 0 THEN CMM[19]:= LIBNO;                           20582650        
+         STREAM(A:=0:S:=P(.SCHEDULEIDS));                               20582750        
+         BEGIN SI:=S;                                                   20582800        
+                47(SKIP SB; SKIB DB; TALLY:=TALLY+1;                    20582850        
+                   IF SB THEN BEGIN END ELSE JUMP OUT);                 20582900        
+                DS:= SET; A:= TALLY;                                    20582950        
+         END STREAM;                                                    20583000        
+          TEMP:= P; CMM[3]:= 0&TEMP[8:38:10];                           20583050        
+          CMM[23].[24:24]~(CLOCK+P(RTR))DIV 60;                         20583100        
+          IF SHEET[PDEX].[CF] NEQ 0 THEN                                20583150        
+             BEGIN                                                      20583200        
+              DISKWAIT(-PROG.[CF],30,PADDR:=SHEET[PDEX].[FF]);          20583250        
+             PROG[29]:= CDEX;                                           20583300        
+              DISKWAIT(PROG.[CF],30,PADDR);                             20583350        
+             END;                                                       20583400        
+          ELSE SHEET[PDEX]:= CDEX;                                      20583450        
+          SHEET[PDEX].[18:15]:= CDEX;                                   20583500        
+          CMM[29]:= 0;                                                  20583550        
+         DISKWAIT(CMM.[CF],30,CDEX);                                    20583600        
+          UNLOCKTOG(SHEETMASK);                                         20583650        
+          T:= CN;                                                       20583700        
+         P([RETURNRCW],STS,0,RDS,0,XCH,P&P[CTF],STF);                   20583710        
+END CCFINISH;                                                           20583750        
+REAL PROCEDURE CCCOMPILE;                                               20583800        
+BEGIN COMMENT SETUP OF COMPILER LABEL EQUATION CODE: PN1/PN2;           20583860        
+DECLARECCVARIABLES;                                                     20584000        
+REAL SUBROUTINE SCAN;                                                   20584150        
+     SCAN~SCN[UNITNO,CARDLOC,SOURCE,ACCUM,KOUNT,LASTSCAN,DIRECT);       20584200        
+LABEL SKN,EXIT;                                                         20584250        
+DEFINE ZIPMIX=CARD.[18:6]#;                                             20584275        
+DEFINE DISKTYPE = 10#;%                                                 20584300        
