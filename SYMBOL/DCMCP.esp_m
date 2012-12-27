@@ -18220,3 +18220,160 @@ REAL SUBROUTINE SCAN;                                                   20584150
 LABEL SKN,EXIT;                                                         20584250        
 DEFINE ZIPMIX=CARD.[18:6]#;                                             20584275        
 DEFINE DISKTYPE = 10#;%                                                 20584300        
+         P(RCW,MYMSCW,STF);                                             20584325        
+         RCW:=RCW & P(XCH)[CTC];                                        20584330        
+         CCCOMPILE~0;                                              %510-20584340        
+         T:=SCAN;%                                                      20584350        
+         CEQN[0]:=ACCUM[0];                                             20584400        
+         T:=SCAN;%                                                      20584450        
+         T:=SCAN;%                                                      20584500        
+         CEQN[1]:=ACCUM[0];%                                            20584550        
+         CEQN[2]:=0;%                                                   20584600        
+         CEQN[3]:=DISKTYPE;%                                            20584650        
+         CEQN[4]:=@423462425606060;%                                    20584700        
+         CEQN[12]:=0; % EU/SPEED CELL                            % (SHM)20584710        
+         CDEX   :=1;%                                                   20584750        
+         IF ((UNITNO+1)AND 24)=24 OR UNITNO GEQ 32 THEN%                20584800        
+         BEGIN CEQN[14]:=CEQN[16]:=CEQN[17]:=0;%                        20584850        
+               CEQN[15]:= "CARD 00" OR ((IF UNITNO GEQ 32 THEN%         20584900        
+                          "C/" ELSE @5772) + UNITNO);%                  20584950        
+         CEQN[18]:=@423215124000000; CDEX:=2;%                          20585000        
+         IF UNITNO GEQ 32 THEN CIDROW[UNITNO-32].[3:5]:=1 ELSE%         20585050        
+         IF UNITNO=23 THEN READERA.[FF] ~ 1 ELSE                        20585100        
+         IF UNITNO=24 THEN READERB.[FF] ~ 1;                            20585125        
+         END;                                                           20585150        
+         WHILE (CN:=SCAN) LSS ALGOL OR CN GTR COBOL DO                  20585200        
+         IF CN=PERIO THEN BEGIN CCCOMPILE:=1; GO EXIT END;              20585250        
+               IF CN=WITH THEN                                          20585300        
+               IF (CN~SCAN)=PERIO THEN BEGIN CCCOMPILE~1; GO EXIT END;  20585350        
+               IF CN<ALGOL OR CN>COBOL THEN                             20585355        
+                IF(T:=DIRECTORYSEARCH(ACCUM[0],"DISK   ",5))!0 THEN     20585360        
+                BEGIN IF NOT M[T+4].[8:1] THEN                          20585365        
+                      BEGIN LBMESS(ACCUM[0],"DISK   ",-22,0,            20585370        
+                                   0, SPOUTUNIT, LIBERR);          %149-20585375        
+                      FORGETSPACE(T); CCCOMPILE~1; GO EXIT;             20585380        
+                      END; FORGETSPACE(T);                              20585385        
+                END;                                                    20585390        
+COMMENT SET UP NOMICAL VALUES FOR PROGRAM PARAMETERS;%                  20585400        
+          CMM[0]:=-(CMPLR:=ACCUM[0]); CMM[1]:=CEQN[0];                  20585450        
+          CMM[2]:=0;                                                    20585500        
+          CMM[13]:= CADDR:= GETESPDISK;                                 20585550        
+ $ SET OMIT = PACKETS                                                   20585599        
+ $ SET OMIT = NOT(PACKETS)                                              20585609        
+          CMM[23]:=0&CARD[9:9:9]&(IF ZIPMIX NEQ 0 THEN PSEUDOMIX[ZIPMIX]20585610        
+                                  ELSE UNITNO)[2:42:6];                 20585620        
+ $ POP OMIT                                                             20585621        
+          CMM[27]:=CEQN[1]; %FID FOR SCHED MESS.                        20585630        
+%   GET OPTION (GO,SYNTAX CHECK, OR LIBRARY)                            20585650        
+SKN:     DO OPTN:=SCAN UNTIL OPTN=PERIO OR OPTN=SYNTA OR OPTN=LIBRA     20585700        
+         OR OPTN=QUEST; % IN CASE OF HYPHEN IN COMMENT PORTION          20585705        
+         IF OPTN=QUEST THEN                                             20585710        
+            IF SOURCE=(CARDLOC&1[30:45:3]) THEN                         20585715        
+               BEGIN                                                    20585720        
+               OPTN:=PERIO; SOURCE:=CARDLOC;                            20585725        
+               END ELSE GO TO SKN;                                      20585730        
+         CMM[2].[8:10] := IF OPTN=PERIO THEN 1 ELSE                     20585750        
+                             IF OPTN=SYNTA THEN 3 ELSE 4;%(OPTN=LIBRA)  20585800        
+         IF OPTN NEQ SYNTA THEN                                         20585850        
+% SET UP PROG ARRAY FOR COMPILE AND GO OR COMPILE TO LIBRARY JOBS       20585900        
+         BEGIN                                                          20585950        
+              PROG[0]:= CEQN[0];                                        20586000        
+              PROG[1]:= CEQN[1];                                        20586050        
+              PROG[2]:=PROG[15]:= 0;                                    20586100        
+              PROG[16]:=PROG[17]:= @377777777777;                       20586150        
+              PROG[18]:= (MIXMAX+1) DIV 2;                              20586200        
+              PROG[19]:= 0;                                             20586250        
+              PROG[20]:= -1;                                            20586300        
+              PROG[21]:= 512;                                           20586350        
+              PROG[22]:= 10;                                            20586400        
+              PROG[23]:= CMM[23];                                       20586450        
+              PROG[24]:= USERID;                                        20586500        
+         END;                                                           20586550        
+EXIT:    RETURNVAL:=PROCVAL; % ADJUST RESULT OF TYPED PROC              20586600        
+         P([RETURNRCW],STS,0,RDS,0,XCH,P&P[CTF],STF);                   20586625        
+END CCCOMPILE;                                                          20586650        
+REAL PROCEDURE INITIALIZEIT;                                            20586700        
+BEGIN LABEL TRYAGAIN,LS,SPLAT,SPOT,EXIT;                                20586715        
+DECLARECCVARIABLES;                                                     20586800        
+REAL     CMM1        =  RETURNVAL+1;   % BEGIN LOCAL TO INITIALIZEIT    20586950        
+REAL SUBROUTINE SCAN;                                                   20587050        
+     SCAN~SCN(UNITNO,CARDLOC,SOURCE,ACCUM,DOUNT,LASTSCAN,DIRECT);       20587100        
+      P(RCW,MYMSCW,STF);                                                20587110        
+      RCW:=RCW & P(XCH)[CTC];                                           20587120        
+      P(0); % ZERO LOCAL TO INITIALIZEIT                                20587130        
+      PROG[13]:=PADDR:=PDEX:=0; % IN CASE PROGRAM NOT IN DIRECTORY      20587150        
+TRYAGAIN:                                                               20587170        
+      IF (T:=DIRECTORYSEARCH(ABS(CMM[0]),CMM1:=IF CMM[0] LSS 0 THEN     20587200        
+         "DISK   " ELSE CMM[1],3))=0 THEN                               20587250        
+      BEGIN                                                             20587300        
+         IF CMM[2].SSYSJOBF = LIBMAINCODE THEN                          20587310        
+         BEGIN                                                          20587330        
+         INTERSYSFILE(1);                                               20587340        
+         GOTRYAGAIN;                                                    20587350        
+         END;                                                           20587360        
+         IF CARD.[9:9]=0 THEN GO TO LS;                                 20587370        
+ $ SET OMIT = NOT(DATACOM)                                              20587399        
+              BEGIN                                                     20587500        
+LS:           LBMESS(ABS(CMM[0]),CMM1,-15,0,0,SPOUTUNIT,LIBERR);   %149-20587550        
+SPLAT:                                                                  20587650        
+              IF UNITNO GEQ 32 THEN BEGIN INITIALIZEIT:=5;GO EXIT END;  20587700        
+              END;                                                      20587750        
+          DO T~SCAN UNTIL T>IDENT AND T{RESETV;                         20587800        
+         IF UNITNO=31 THEN BEGIN INITIALIZEIT:=7; GO EXIT; END;         20587850        
+         INITIALIZEIT:=1; GO EXIT;                                      20587950        
+      END;                                                              20587975        
+      IF M[T INX 4].[9:2]=2 THEN                                        20588000        
+      BEGIN FORGETSPACE(T);                                             20588010        
+         GO TO SPOT;                                                    20588020        
+      END;                                                              20588030        
+    IF SECURITYCHECK(ABS(CMM[0]),                                       20588050        
+         CMM1.USERID,T)=0 THEN                                          20588100        
+         BEGIN                                                          20588150        
+              OPTN:=0; CMM[2]:=T;                                       20588200        
+              P(DIRECTORYSEARCH(NABS(CMM[0]),CMM[1]:=CMM1,13),DEL);     20588250        
+              INITIALIZEIT:=4;                                          20588350        
+              GO TO EXIT;                                               20588360        
+         END;                                                           20588370        
+           DISKIO(N1,-(PEQN INX 0-1),30,M[T+10]);                       20588400        
+          P(M[T INX 4].[9:2]=3); FORGETSPACE(T);%NOTE FOR BELOW         20588450        
+           CMM[24]:= USERID;                                            20588500        
+           CMM[25]:= T.[FF];                                            20588550        
+           SLEEP([N1],IOMASK);                                          20588600        
+           FOR T:=1 STEP 1 UNTIL 4 DO                                   20588650        
+           IF (NOT ABS(PEQN[T]&0[CTC])) NEQ NOT 0 THEN T:= 7;           20588700        
+           IF PEQN[3] GEQ 0 THEN       % SKIP IF RESTART FILE      %106-20588701        
+           IF ABS(PEQN[3])>1023 THEN P(DEL,T~0);  % PRT>1023 NO WAY%202-20588702        
+ $ SET OMIT = NOT(BREAKOUT)                                             20588710        
+ $ SET OMIT = BREAKOUT                                                  20588730        
+           IF PEQN[3].[1:1] THE NP(DEL,T:=0);% CAN-T RESTART;           20588740        
+ $ POP OMIT                                                             20588745        
+           IF PEQN[2].[3:1] THEN % I.P.C.                          %110-20588746        
+           IF(PEQN[8]>2) THEN P(DEL,T~0); % I.P.C. - NEEDS PARAMETERS   20588747        
+           IF NOT (P OR T) THEN %NOT CODE                               20588750        
+           BEGIN                                                        20588800        
+SPOT:      LBMESS(ABS(CMM[0]),CMM1,-19,0,0,SPOUTUNIT,LIBERR);      %149-20588900        
+           P(DIRECTORYSEARCH(NABS(CMM[0]),CMM1,13),DEL);                20589000        
+           GO TO SPLAT;                                                 20589150        
+           END;                                                         20589200        
+           IF PEQN[6] LSS 0 THEN FOR T:=15 STEP 1 UNTIL 22 DO           20589250        
+           CMM[T]:=PEQN[T] ELSE                                         20589300        
+           BEGIN                                                        20589350        
+                CMM[15]:= 0;                                            20589400        
+                CMM[16]:= CMM[17]:= @377777777777;                      20589450        
+                 CMM[18]:=(MIXMAX-1) DIV 2;                             20589460        
+                 CMM[19]:= 0;                                           20589470        
+                 CMM[20]:= PEQN[7].[FF];                                20589480        
+                 CMM[21]:= 512;                                         20589490        
+           END;                                                         20589500        
+INITIALIZEIT:=3;                                                        20589550        
+EXIT:      RETURNVAL:=PROCVAL; % ADJUST RESULT OF TYPED PROC            20589600        
+           P([RETURNRCW],STS,0,RDS,0,XCH,P&P[CTF],STF);                 20589610        
+END INITIALIZEIT;                                                       20589650        
+REAL PROCEDURE CCUNIT;                                                  20589700        
+BEGIN LBEL U1,ERROR,EXIT;                                               20589720        
+DECLARECCVARIABLES;                                                     20589800        
+REAL SUBROUTINE SCAN;                                                   20589950        
+     SCAN~SCN(UNITNO,CARDLOC,SOURCE,ACCUM,KOUNT,LASTSCAN,DIRECT);       20590000        
+      P(RCW,MYMSCW,STF);                                                20590010        
+      RCW:=RCW & P(XCH)[CTC];                                           20590020        
+      T:= SCAN; CN:= ACCUM[0];                                          20590050        
