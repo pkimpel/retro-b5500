@@ -29,9 +29,13 @@ var accessor = {                        // Memory access control block
     MAED: 0                             // Truthy if memory address/inhibit error
 };
 
+function $$(id) {
+    return document.getElementById(id);
+}
+
 function setText(id, text) {
     /* Replaces the children of the node having id="id" with a text node containing "text" */
-    var e = document.getElementById(id);
+    var e = $$(id);
     var f;
     
     if (!e) {
@@ -114,7 +118,7 @@ function padOctal(value, octades) {
 function displayOctal(id, value, octades) {
     /* Formats the "value" as octal of length "octades" and sets the "id".value 
     property with the result */
-    var e = document.getElementById(id);
+    var e = $$(id);
     
     e.value = padOctal(value, octades);
 }
@@ -163,16 +167,16 @@ function displayStack() {
     
     displayOctal("AReg", cc.P1.A, 16);
     displayNumber("ARegValue", cc.P1.A);
-    document.getElementById("AROF").checked = (cc.P1.AROF != 0);
+    $$("AROF").checked = (cc.P1.AROF != 0);
     
     displayOctal("BReg", cc.P1.B, 16);
     displayNumber("BRegValue", cc.P1.B);
-    document.getElementById("BROF").checked = (cc.P1.BROF != 0);
+    $$("BROF").checked = (cc.P1.BROF != 0);
     
     for (x=0; x<=7; x++) {
         addr = cc.P1.S - x;
         setText("SAddr" + x, padOctal(addr, 5));   
-        e = document.getElementById("SWord" + x);
+        e = $$("SWord" + x);
         valueID = e.getAttribute("data-b55sd-valueID");
         displayMemWord(e, addr, valueID);
     }
@@ -194,7 +198,7 @@ function displayMemory() {
         } else {
             setText("MAddr" + suffix, padOctal(addr, 5));   
         }
-        e = document.getElementById("MWord" + suffix);
+        e = $$("MWord" + suffix);
         valueID = e.getAttribute("data-b55sd-valueID");
         displayMemWord(e, addr, valueID);
     }
@@ -207,9 +211,9 @@ function displayRegisters() {
     displayOctal("CReg", cc.P1.C, 5);
     displayOctal("LReg", cc.P1.L, 1);
     displayOctal("PReg", cc.P1.P, 16);
-    document.getElementById("PROF").checked = (cc.P1.PROF != 0);    
+    $$("PROF").checked = (cc.P1.PROF != 0);    
     displayOctal("TReg", cc.P1.T, 4);
-    document.getElementById("TROF").checked = (cc.P1.TROF != 0);
+    $$("TROF").checked = (cc.P1.TROF != 0);
     displayOctal("EReg", cc.P1.E, 2);
     displayOctal("IReg", cc.P1.I, 3);
     displayOctal("QReg", cc.P1.Q, 4);
@@ -224,10 +228,10 @@ function displayRegisters() {
     displayOctal("YReg", cc.P1.Y, 2);
     displayOctal("ZReg", cc.P1.Z, 2);
     displayOctal("NReg", cc.P1.N, 2);  
-    document.getElementById("NCSF").checked = (cc.P1.NCSF != 0);
-    document.getElementById("CWMF").checked = (cc.P1.CWMF != 0);
-    document.getElementById("SALF").checked = (cc.P1.SALF != 0);
-    document.getElementById("VARF").checked = (cc.P1.VARF != 0);
+    $$("NCSF").checked = (cc.P1.NCSF != 0);
+    $$("CWMF").checked = (cc.P1.CWMF != 0);
+    $$("SALF").checked = (cc.P1.SALF != 0);
+    $$("VARF").checked = (cc.P1.VARF != 0);
 }
 
 function displayProcessorState() {
@@ -241,7 +245,7 @@ function displayProcessorState() {
 function stepIt(exec) {
     /* Simple test driver for the Processor arithmetic ops */
     var opcode = 0x02D;                 // NOOP (XX55) by default
-    var opList = document.getElementById("OpList")
+    var opList = $$("OpList")
     var saveC;
     var saveL;
     var saveP;
@@ -256,9 +260,6 @@ function stepIt(exec) {
 
     setText("ARegOrig", padOctal(cc.P1.A, 16));
     setText("BRegOrig", padOctal(cc.P1.B, 16));
-
-    cc.P1.I = 0;                // reset any interrupts
-    cc.IAR = 0;
 
     cc.P1.X = 0;
     if (exec) {
@@ -339,17 +340,27 @@ function tos_onChange(ev, valueID, origID) {
 
 window.onload = function() {
 
-    document.getElementById("AReg").onchange = function(ev) {
+    $$("LogoDiv").onclick = function(ev) {
+        displayProcessorState();
+    };
+    
+    $$("AReg").onchange = function(ev) {
         cc.P1.A = tos_onChange(ev, "ARegValue", "ARegOrig");
         cc.P1.AROF = 1;
-        document.getElementById("AROF").checked = true;
+        $$("AROF").checked = true;
     };
-    document.getElementById("BReg").onchange = function(ev) {
+    $$("AROF").onclick = function(ev) {
+        cc.P1.AROF = (ev.target.checked ? 1 : 0);
+    }
+    $$("BReg").onchange = function(ev) {
         cc.P1.B = tos_onChange(ev, "BRegValue", "BRegOrig");
         cc.P1.BROF = 1;
-        document.getElementById("BROF").checked = true;
+        $$("BROF").checked = true;
     };
-    document.getElementById("MAddr").onchange = function(ev) {
+    $$("BROF").onclick = function(ev) {
+        cc.P1.BROF = (ev.target.checked ? 1 : 0);
+    }
+    $$("MAddr").onchange = function(ev) {
         var addr = parseToOctal(ev.target);
         
         if (!isNaN(addr)) {
@@ -357,7 +368,7 @@ window.onload = function() {
             displayMemory();
         }
     };
-    document.getElementById("SReg").onchange = function(ev) {
+    $$("SReg").onchange = function(ev) {
         var addr = parseToOctal(ev.target);
         
         if (!isNaN(addr)) {
@@ -365,28 +376,28 @@ window.onload = function() {
             displayStack();
         }
     };
-    document.getElementById("SWord0").onchange = word_onChange;
-    document.getElementById("SWord1").onchange = word_onChange;
-    document.getElementById("SWord2").onchange = word_onChange;
-    document.getElementById("SWord3").onchange = word_onChange;
-    document.getElementById("SWord4").onchange = word_onChange;
-    document.getElementById("SWord5").onchange = word_onChange;
-    document.getElementById("SWord6").onchange = word_onChange;
-    document.getElementById("SWord7").onchange = word_onChange;
-    
-    document.getElementById("MWordM4").onchange = word_onChange;
-    document.getElementById("MWordM3").onchange = word_onChange;
-    document.getElementById("MWordM2").onchange = word_onChange;
-    document.getElementById("MWordM1").onchange = word_onChange;
-    document.getElementById("MWordP0").onchange = word_onChange;
-    document.getElementById("MWordP1").onchange = word_onChange;
-    document.getElementById("MWordP2").onchange = word_onChange;
-    document.getElementById("MWordP3").onchange = word_onChange;
-    document.getElementById("MWordP4").onchange = word_onChange;
-    
-    document.getElementById("TReg").onchange = function(ev) {
+    $$("TReg").onchange = function(ev) {
         cc.P1.T = reg_onChange(ev);
     };
+    
+    $$("SWord0").onchange = word_onChange;
+    $$("SWord1").onchange = word_onChange;
+    $$("SWord2").onchange = word_onChange;
+    $$("SWord3").onchange = word_onChange;
+    $$("SWord4").onchange = word_onChange;
+    $$("SWord5").onchange = word_onChange;
+    $$("SWord6").onchange = word_onChange;
+    $$("SWord7").onchange = word_onChange;
+    
+    $$("MWordM4").onchange = word_onChange;
+    $$("MWordM3").onchange = word_onChange;
+    $$("MWordM2").onchange = word_onChange;
+    $$("MWordM1").onchange = word_onChange;
+    $$("MWordP0").onchange = word_onChange;
+    $$("MWordP1").onchange = word_onChange;
+    $$("MWordP2").onchange = word_onChange;
+    $$("MWordP3").onchange = word_onChange;
+    $$("MWordP4").onchange = word_onChange;
 
     cc = new B5500CentralControl();
     cc.powerOn();

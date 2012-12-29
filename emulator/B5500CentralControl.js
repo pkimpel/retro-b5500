@@ -390,7 +390,7 @@ B5500CentralControl.prototype.signalInterrupt = function() {
     any remaining interrupts after an interrupt is handled. If no interrupt
     condition exists, this.IAR is set to zero. */
     var p1 = this.P1;
-    var p2 = this.P2;
+    var p2;
 
     this.IAR = p1.I & 0x01      ? 0x30  // @60: P1 memory parity error
              : p1.I & 0x02      ? 0x31  // @61: P1 invalid address error
@@ -410,7 +410,7 @@ B5500CentralControl.prototype.signalInterrupt = function() {
              : this.CCI16F      ? 0x1F  // @37: Disk file 2 read check finished
              : p1.I & 0x04      ? 0x32  // @62: P1 stack overflow
              : p1.I & 0xF0      ? (p1.I >>> 4) + 0x30   // @64-75: P1 syllable-dependent
-             : p2 ?
+             : (p2 = this.P2) ?
                   ( p2.I & 0x01 ? 0x20  // @40: P2 memory parity error
                   : p2.I & 0x02 ? 0x21  // @41: P2 invalid address error
                   : p2.I & 0x04 ? 0x22  // @42: P2 stack overflow
@@ -537,8 +537,10 @@ B5500CentralControl.prototype.tock = function tock() {
         that.TM++;
     } else {
         that.TM = 0;
+        /********** INHIBIT FOR NOW **********
         that.CCI03F = 1;                // set timer interrupt
-        // >>>>> inhibit for now >>>>> that.signalInterrupt();
+        that.signalInterrupt();
+        *************************************/
     }
     interval = (that.nextTimeStamp += B5500CentralControl.rtcTick) - thisTime;
     that.timer = setTimeout(function() {that.tock()}, (interval < 0 ? 1 : interval));
@@ -823,13 +825,13 @@ B5500CentralControl.prototype.configureSystem = function() {
     function makeSignal(cc, mnemonic) {
         switch (mnemonic) {
         case "SPO":
-            return function() {cc.CCIO5F = 1; cc.signalInterrupt()};
+            return function() {cc.CCI05F = 1; cc.signalInterrupt()};
             break;
         case "LPA":
-            return function() {cc.CCIO6F = 1; cc.signalInterrupt()};
+            return function() {cc.CCI06F = 1; cc.signalInterrupt()};
             break;
         case "LPB":
-            return function() {cc.CCIO7F = 1; cc.signalInterrupt()};
+            return function() {cc.CCI07F = 1; cc.signalInterrupt()};
             break;
         case "DKA":
             return function() {cc.CCI15F = 1; cc.signalInterrupt()};

@@ -285,7 +285,7 @@ B5500IOUnit.prototype.fetchBuffer = function(mode, words) {
     
     this.Daddress = addr;
     if (this.D23F) {
-        this.DwordCount = words % 0x1FF;
+        this.DwordCount = words & 0x1FF;
     }
     return count;
 };
@@ -341,7 +341,7 @@ B5500IOUnit.prototype.fetchBufferWithGM = function(mode, words) {
     
     this.Daddress = addr;
     if (this.D23F) {
-        this.DwordCount = words % 0x1FF;
+        this.DwordCount = words & 0x1FF;
     }
     return count;
 };
@@ -359,11 +359,11 @@ B5500IOUnit.prototype.storeBuffer = function(chars, offset, mode, words) {
     var buf = this.buffer;              // local pointer to buffer
     var c;                              // current character code
     var count = 0;                      // number of characters fetched
-    var done = (words > 0);             // loop control
+    var done = (words == 0);            // loop control
     var overflow = false;               // memory address overflowed max
     var power = 0x40000000000;          // factor for character shifting into a word
     var s = 0;                          // character shift counter
-    var table = (mode ? B5500IOUnit.BICtoANSI : B5500IOUnit.BICtoBCLANSI);
+    var table = (mode ? B5500IOUnit.ANSItoBIC : B5500IOUnit.BCLANSItoBIC);
     var w = 0;                          // local copy of this.W
     
     while (!done) {                     // loop through the words
@@ -413,7 +413,7 @@ B5500IOUnit.prototype.storeBuffer = function(chars, offset, mode, words) {
     
     this.Daddress = addr;
     if (this.D23F) {
-        this.DwordCount = words % 0x1FF;
+        this.DwordCount = words & 0x1FF;
     }
     return count;
 };
@@ -434,11 +434,11 @@ B5500IOUnit.prototype.storeBufferWithGM = function(chars, offset, mode, words) {
     var buf = this.buffer;              // local pointer to buffer
     var c;                              // current character code
     var count = 0;                      // number of characters fetched
-    var done = (words > 0);             // loop control
+    var done = (words == 0);            // loop control
     var overflow = false;               // memory address overflowed max
     var power = 0x40000000000;          // factor for character shifting into a word
     var s = 0;                          // character shift counter
-    var table = (mode ? B5500IOUnit.BICtoANSI : B5500IOUnit.BICtoBCLANSI);
+    var table = (mode ? B5500IOUnit.ANSItoBIC : B5500IOUnit.BCLANSItoBIC);
     var w = 0;                          // local copy of this.W
     
     while (!done) {                     // loop through the words
@@ -471,11 +471,10 @@ B5500IOUnit.prototype.storeBufferWithGM = function(chars, offset, mode, words) {
         }
     } // while !done
     
-    if (!mode) {                        // alpha transfer terminates with a group-mark
-        w += 0x1F*power;                // set group mark in register
-        s++;
-        count++;
-    }
+    w += 0x1F*power;                // set group mark in register
+    s++;
+    count++;
+
     if (s > 0 && words > 0) {           // partial word left to be stored
         this.W = w;
         if (overflow) {
@@ -493,7 +492,7 @@ B5500IOUnit.prototype.storeBufferWithGM = function(chars, offset, mode, words) {
     
     this.Daddress = addr;
     if (this.D23F) {
-        this.DwordCount = words % 0x1FF;
+        this.DwordCount = words & 0x1FF;
     }
     return count;
 };
@@ -593,7 +592,7 @@ B5500IOUnit.prototype.initiate = function() {
         this.finish();
     } else {
         this.EXNF = 1;
-        this.Daddress = addr = this.W % 0x7FFF;
+        this.Daddress = addr = this.W % 0x8000;
         if (this.fetch(addr)) {         // fetch the IOD from that address
             this.finish();
         } else {
@@ -608,7 +607,7 @@ B5500IOUnit.prototype.initiate = function() {
             this.D23F = (x >>> 24) & 1; // use word counter
             this.D24F = (x >>> 23) & 1; // write/read
             this.LP = (x >>> 15) & 0x3F;// save control bits for drum and printer
-            this.Daddress = x % 0x7FFF;
+            this.Daddress = x % 0x8000;
             
             this.busyUnit = index = B5500CentralControl.unitIndex[this.D24F & 1][this.Dunit & 0x1F];
             if (this.cc.testUnitBusy(this.ioUnitID, this.busyUnit)) {
