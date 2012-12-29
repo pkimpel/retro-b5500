@@ -35,8 +35,13 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal) {
     
     this.backspaceChar.that = this;     // Store object context for these functions
     this.printChar.that = this;
-    this.writeChar.that = this;    
-    
+    this.outputChar.that = this;    
+
+    this.window = window.open("", "SPOWin");
+    if (this.window) {
+        this.window.close();            // destroy the previously-existing window
+        this.window = null;
+    }
     this.window = window.open("/B5500/B5500SPOUnit.html", "SPOWin", "scrollbars,resizable,width=600,height=500");
     this.window.onload = function() {
         that.spoOnload();
@@ -58,7 +63,7 @@ B5500SPOUnit.prototype.keyFilter = [            // Filter keyCode values to vali
         0x40,0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,  // 40-4F
         0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x5B,0x3F,0x5D,0x3F,0x3F,  // 50-5F
         0x3F,0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,  // 60-6F
-        0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x5B,0x5C,0x5D,0x5E,0x3F]; // 70-7F
+        0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x7B,0x7C,0x7D,0x7E,0x3F]; // 70-7F
 
 /**************************************/
 B5500SPOUnit.prototype.$$ = function(e) {
@@ -115,11 +120,10 @@ B5500SPOUnit.prototype.removeClass = function(e, name) {
 /**************************************/
 B5500SPOUnit.prototype.setNotReady = function() {
     /* Sets the status of the SPO to Not Ready */
-    var readyBtn = this.$$("SPOReadyBtn");
 
     if (this.spoState == this.spoLocal) {
         this.spoState = this.spoNotReady;
-        this.removeClass(readyBtn, "yellowLit");
+        this.removeClass(this.$$("SPOReadyBtn"), "yellowLit");
         this.statusChange(0);
     }
 };
@@ -127,10 +131,9 @@ B5500SPOUnit.prototype.setNotReady = function() {
 /**************************************/
 B5500SPOUnit.prototype.setReady = function() {
     /* Sets the status of the SPO to Ready */
-    var readyBtn = this.$$("SPOReadyBtn");
 
     if (this.spoState == this.spoNotReady) {
-        this.addClass(readyBtn, "yellowLit");
+        this.addClass(this.$$("SPOReadyBtn"), "yellowLit");
         this.spoState = this.spoLocal;
     }
 };
@@ -138,13 +141,11 @@ B5500SPOUnit.prototype.setReady = function() {
 /**************************************/
 B5500SPOUnit.prototype.setLocal = function() {
     /* Sets the status of the SPO to Local */
-    var localBtn = this.$$("SPOLocalBtn");
-    var remoteBtn = this.$$("SPORemoteBtn");
 
     if (this.spoState == this.spoRemote) {
         this.spoState = this.spoLocal;
-        this.addClass(localBtn, "yellowLit");
-        this.removeClass(remoteBtn, "yellowLit");
+        this.addClass(this.$$("SPOLocalBtn"), "yellowLit");
+        this.removeClass(this.$$("SPORemoteBtn"), "yellowLit");
         this.statusChange(0);
         
         // Set up to echo characters from the keyboard
@@ -160,13 +161,11 @@ B5500SPOUnit.prototype.setLocal = function() {
 /**************************************/
 B5500SPOUnit.prototype.setRemote = function() {
     /* Sets the status of the SPO to Remote */
-    var localBtn = this.$$("SPOLocalBtn");
-    var remoteBtn = this.$$("SPORemoteBtn");
 
     if (this.spoState == this.spoLocal) {
         this.spoState = this.spoRemote;
-        this.addClass(remoteBtn, "yellowLit");
-        this.removeClass(localBtn, "yellowLit");
+        this.addClass(this.$$("SPORemoteBtn"), "yellowLit");
+        this.removeClass(this.$$("SPOLocalBtn"), "yellowLit");
         this.statusChange(1);
     }
 };
@@ -217,14 +216,14 @@ B5500SPOUnit.prototype.printChar = function printChar(c) {
 };
 
 /**************************************/
-B5500SPOUnit.prototype.writeChar = function writeChar() {
+B5500SPOUnit.prototype.outputChar = function outputChar() {
     /* Outputs one character from the buffer to the SPO. If more characters remain 
     to be printed, schedules itself 100 ms later to print the next one, otherwise
     calls finished(). If the column counter exceeds 72, a CR/LF pair is output.
     A CR/LF pair is also output at the end of the message. Note the use of the local
     function property "that" (initialized in the constructor), which supplies the
     necessary SPOUnit object context across setTimeout() calls */
-    var that = writeChar.that;          // retrieve our object context        
+    var that = outputChar.that;         // retrieve our object context        
     var nextTime = that.nextCharTime + that.charPeriod;
     var delay = nextTime - new Date().getTime();
 
@@ -234,19 +233,19 @@ B5500SPOUnit.prototype.writeChar = function writeChar() {
             that.printChar(that.buffer[that.bufIndex]);
             that.bufIndex++;
             that.printCol++;
-            setTimeout(that.writeChar, delay);
+            setTimeout(that.outputChar, delay);
         } else {                        // set up for the final CR/LF        
             that.printCol = 72;
-            setTimeout(that.writeChar, delay);
+            setTimeout(that.outputChar, delay);
         }
     } else if (that.printCol == 72) {   // delay to fake the output of a new-line            
         that.printCol++;
-        setTimeout(that.writeChar, delay+that.charPeriod);
+        setTimeout(that.outputChar, delay+that.charPeriod);
     } else {                            // actually output the CR/LF          
         that.appendEmptyLine();
         if (that.bufIndex < that.bufLength) {           
             that.printCol = 0;          // more characters to print after the CR/LF
-            setTimeout(that.writeChar, delay);
+            setTimeout(that.outputChar, delay);
         } else {                        // message text is exhausted
             that.finish(that.errorMask, that.bufLength);  // report finish with any errors
             if (that.spoLocalRequested) {
@@ -261,14 +260,14 @@ B5500SPOUnit.prototype.writeChar = function writeChar() {
 /**************************************/    
 B5500SPOUnit.prototype.terminateInput = function() {
     /* Handles the End of Message event. Turns off then Input Request lamp, then
-    calls writeChar(), which will find bufIndex==bufLength, output a new-line, 
+    calls outputChar(), which will find bufIndex==bufLength, output a new-line, 
     set the state to Remote, and call finish() for us. Slick, eh? */
 
     if (this.spoState == this.spoInput) {
         this.removeClass(this.$$("SPOInputRequestBtn"), "yellowLit");
         this.bufLength = this.bufIndex;
         this.nextCharTime = new Date().getTime();
-        this.writeChar();
+        this.outputChar();
     }
 };
     
@@ -282,7 +281,7 @@ B5500SPOUnit.prototype.cancelInput = function() {
         this.errorMask |= 0x10;         // set parity/error-button bit
         this.bufLength = this.bufIndex;
         this.nextCharTime = new Date().getTime();
-        this.writeChar();
+        this.outputChar();
     }
 };
     
@@ -305,12 +304,21 @@ B5500SPOUnit.prototype.keyPress = function(ev) {
     }
     this.nextCharTime = nextTime;
     if (this.spoState == this.spoInput) {
-        if (c >= 32 && c <= 126) {
+        if (c >= 32 && c < 126) {
             this.buffer[this.bufIndex++] = c = this.keyFilter[c];
             if (this.printCol < 72) {
                 this.printCol++;
             }
             setTimeout(function() {that.printChar(c)}, nextTime-stamp);
+        }
+        if (c == 126) {                 // "~" (B5500 group-mark)
+            c = this.keyFilter[c];
+            if (this.printCol < 72) {
+                this.printCol++;
+            }
+            setTimeout(function() {that.printChar(c)}, nextTime-stamp);
+            this.nextCharTime = nextTime + this.charPeriod;
+            this.terminateInput();
         }
     } else if (this.spoState == this.spoLocal) {
         if (c >= 32 && c <= 126) {
@@ -360,7 +368,6 @@ B5500SPOUnit.prototype.keyDown = function(ev) {
             result = false;
             break;
         case 13:                    // Enter
-        case 126:                   // "~" (B5500 left arrow/group mark)
             this.terminateInput();
             result = false;
             break;
@@ -401,7 +408,7 @@ B5500SPOUnit.prototype.printText = function(msg, finish) {
     this.printCol = 0;
     this.nextCharTime = new Date().getTime();
     this.finish = finish;
-    this.writeChar();                   // start the printing process
+    this.outputChar();                  // start the printing process
 };
 
 /**************************************/
@@ -419,7 +426,7 @@ B5500SPOUnit.prototype.spoOnload = function() {
 
     this.window.resizeTo(this.window.outerWidth+this.$$("SPODiv").scrollWidth-this.window.innerWidth+8, 
                          this.window.outerHeight+this.$$("SPODiv").scrollHeight-this.window.innerHeight+8);
-    this.window.moveTo(screen.availWidth-this.window.outerWidth-8, screen.availHeight-this.window.outerHeight-8);
+    this.window.moveTo(0/*screen.availWidth-this.window.outerWidth-8*/, screen.availHeight-this.window.outerHeight-8);
     this.window.focus();
 
     this.$$("SPORemoteBtn").onclick = function() {
@@ -476,13 +483,14 @@ B5500SPOUnit.prototype.read = function(finish, buffer, length, mode, control) {
     switch (this.spoState) {
     case this.spoRemote:
         this.spoState = this.spoInput;        
-        this.addClass(inputBtn, "yellowLit");
+        this.addClass(this.$$("SPOInputRequestBtn"), "yellowLit");
         this.buffer = buffer;
         this.bufLength = length;
         this.bufIndex = 0;
         this.printCol = 0;
         this.nextCharTime = new Date().getTime();
         this.finish = finish;
+        this.window.focus();
         break;
     case this.spoOutput:
     case this.spoInput:
@@ -515,7 +523,8 @@ B5500SPOUnit.prototype.write = function(finish, buffer, length, mode, control) {
         this.printCol = 0;
         this.nextCharTime = new Date().getTime();
         this.finish = finish;
-        this.writeChar();               // start the printing process
+        this.window.focus();
+        this.outputChar();              // start the printing process
         break;
     case this.spoOutput:
     case this.spoInput:

@@ -325,10 +325,8 @@ B5500Processor.prototype.exchangeTOS = function() {
         }
     } else {
         if (this.BROF) {
-            // A is empty and B is full, so copy B to A and load B from [S]
-            this.A = this.B;
-            this.AROF = 1;
-            this.access(0x03);          // B = [S]
+            // A is empty and B is full, so load A from [S]
+            this.access(0x02);          // A = [S]
             this.S--;
         } else {
             // A and B are empty, so simply load them in reverse order
@@ -1250,11 +1248,6 @@ B5500Processor.prototype.singlePrecisionCompare = function() {
         ea = (this.A - ma)/0x8000000000;
         sa = ((ea >>> 7) & 0x01);
         ea = (ea & 0x40 ? -(ea & 0x3F) : (ea & 0x3F));
-        while (ma < 0x1000000000 && ea != eb) {
-            this.cycleCount++;
-            ma *= 8;                    // shift left
-            ea--;
-        }
     }
     if (mb == 0) {                      // if B mantissa is zero 
         eb = sb = 0;                    // consider B to be completely zero
@@ -1262,6 +1255,15 @@ B5500Processor.prototype.singlePrecisionCompare = function() {
         eb = (this.B - mb)/0x8000000000;
         sb = (eb >>> 7) & 0x01;
         eb = (eb & 0x40 ? -(eb & 0x3F) : (eb & 0x3F));
+    }
+    if (ma) {                           // normalize the A mantissa
+        while (ma < 0x1000000000 && ea != eb) {
+            this.cycleCount++;
+            ma *= 8;                    // shift left
+            ea--;
+        }
+    }
+    if (mb) {                           // normalize the B mantissa
         while (mb < 0x1000000000 && eb != ea) {
             this.cycleCount++;
             mb *= 8;                    // shift left
@@ -1272,7 +1274,7 @@ B5500Processor.prototype.singlePrecisionCompare = function() {
     // Compare signs, exponents, and normalized magnitudes, in that order.
     if (sb == sa) {                     // if signs are equal:
         if (eb == ea) {                 // if exponents are equal:
-            if (mb = ma) {              // if magnitudes are equal:
+            if (mb == ma) {             // if magnitudes are equal:
                 return 0;               // then the operands are equal
             } else if (mb > ma) {       // otherwise, if magnitude of B > A:
                 return (sb ? -1 : 1);   //      B<A if B negative, B>A if B positive
@@ -3324,7 +3326,7 @@ B5500Processor.prototype.run = function() {
                             this.L = 0;
                             this.S = 0x40;                      // stack address @100
                             this.cc.clearInterrupt();
-                            this.cc.access(0x30);               // P = [C]
+                            this.access(0x30);                  // P = [C]
                         }
                         break;
 
@@ -3332,6 +3334,7 @@ B5500Processor.prototype.run = function() {
                         if (!this.NCSF) {      // control-state only
                             this.adjustAEmpty();
                             this.A = this.cc.CCI03F*64 + this.cc.TM;
+                            this.AROF = 1;
                         }
                         break;
 
@@ -3442,18 +3445,18 @@ B5500Processor.prototype.run = function() {
                         t2 = (this.A - t1) / 0x1000000;
                         t3 = this.B % 0x1000000;
                         t4 = (this.B - t3) / 0x1000000;
-                        this.A = ((t4 & 0x7FFFFF) | (t2 & t4 & 0x7FFFFF))*0x1000000 + (t1 & t3);
+                        this.A = ((t4 & 0x800000) | (t2 & t4 & 0x7FFFFF))*0x1000000 + (t1 & t3);
                         this.BROF = 0;
                         break;
 
                     case 0x08:          // 1015: LQV=logical EQV
-                        this.cycleCount += 8;
+                        this.cycleCount += 16;
                         this.adjustABFull();
                         t1 = this.A % 0x1000000;
                         t2 = (this.A - t1) / 0x1000000;
                         t3 = this.B % 0x1000000;
                         t4 = (this.B - t3) / 0x1000000;
-                        this.B = ((t4 & 0x7FFFFF) | ((~(t2 ^ t4)) & 0x7FFFFF))*0x1000000 + ((~(t1 ^ t3)) & 0xFFFFFF);
+                        this.B = ((t4 & 0x800000) | ((~(t2 ^ t4)) & 0x7FFFFF))*0x1000000 + ((~(t1 ^ t3)) & 0xFFFFFF);
                         this.AROF = 0;
                         break;
 
@@ -3521,7 +3524,7 @@ B5500Processor.prototype.run = function() {
 
                     case 0x10:          // 2025: DUP=Duplicate TOS
                         if (this.AROF) {
-                            this.AdjustBEmpty();
+                            this.adjustBEmpty();
                             this.B = this.A;
                             this.BROF = 1;
                         } else {

@@ -18377,3 +18377,110 @@ REAL SUBROUTINE SCAN;                                                   20589950
       P(RCW,MYMSCW,STF);                                                20590010        
       RCW:=RCW & P(XCH)[CTC];                                           20590020        
       T:= SCAN; CN:= ACCUM[0];                                          20590050        
+      T~SCAN; IF T!EQUAL THEN GO ERROR;                                 20590100        
+      FOR T:= 0 STEP 1 UNTIL 31 DO                                      20590150        
+          IF CN.[6:18]=TINU[T].[30:18] THEN GO TO U1;                   20590200        
+         GO ERROR;                                                      20590250        
+U1: IF LABELTABLE[T] NEQ @314 THEN BEGIN CCUNIT:=6; GO EXIT END;        20590300        
+     CN:= SCAN;                                                         20590350        
+     MULTITABLE[T]:=RDCTABLE[T]:=0;                                     20590400        
+     LABELTABLE[T]:= ACCUM[0];                                          20590450        
+     IF (CN:= SCAN) = SLASH THEN                                        20590500        
+        BEGIN MULTITABLE[T]:= LABELTABLE[T];                            20590550        
+              CN~SCAN; LABELTABLE[T]~ACCUM[0]; CN~SCAN;                 20590600        
+        END;                                                            20590610        
+                 IF CN=COMMA THEN                                       20590650        
+                 BEGIN IF(CN~SCAN)!IDENT OR KOUNT>3 THEN GO ERROR;      20590655        
+                 STREAM(R~0:KOUNT,ACCUM);                               20590660        
+                 BEGIN SI~ACCUM;SI~SI+1;DI~LOC R;DS~KOUNT OCT END;      20590665        
+                 RDCTABLE[T]~P(XCH,RDCTABLE[T])&P(XCH)[14:38:10];       20590668        
+                 IF(CN~SCAN)=COMMA THEN                                 20590670        
+                 BEGIN IF(CN~SCAN)!IDENT OR KOUNT>5 THEN GO ERROR;      20590675        
+                 STREAM(R~0:KOUNT,ACCUM);                               20590680        
+                 BEGIN SI~ACCUM;SI~SI+1;DI~LOC R;DS~KOUNT OCT END;      20590685        
+                 RDCTABLE[T]~P(XCH,RDCTABLE[T])&P(XCH)[24:31:17];       20590688        
+                 IF(CN~SCAN)=COMMA THEN                                 20590690        
+                 BEGIN IF(CN~SCAN)!IDENT OR KOUNT>2 THEN GO ERROR;      20590695        
+                 STREAM(R~0:KOUNT,ACCUM);                               20590700        
+                 BEGIN SI~ACCUM;SI~SI+1;DI~LOC R;DS~KOUNT OCT END;      20590705        
+                 RDCTABLE[T]~P(XCH,RDCTABLE[T])&P(XCH)41:41:17];        20590710        
+                 END %CYCLE                                             20590715        
+                 END %CREATION DATE                                     20590720        
+                 END; %REEL NUMBER                                      20590725        
+         IF CN! PERIO THEN DO CN~SCAN UNTIL CN=PERIO;CCUNIT~0;GO EXIT;  20590730        
+ERROR: CCUNIT~6;                                                        20590740        
+EXIT:    RETURNVAL:=PROCVAL; % ADJUST RESULT OF TYPED PROC              20590750        
+         P([RETURNRCW],STS,0,RDS,0,XCH,P&P[CTF],STF);                   20590751        
+END CCUNIT;                                                             20590800        
+REAL PROCEDURE CCSECMAINT;                                              20590850        
+BEGIN LABEL EXIT,CCC;                                                   20590910        
+DECLARECCVARIABLES;                                                     20591000        
+REAL SUBROUTINE SCAN;                                                   20591350        
+     SCAN~SCN(UNITNO,CARDLOC,SOURCE,ACCUM,KOUNT,LASTSCAN,DIRECT);       20591400        
+          LABEL OPTNO,OPTN,OPTN2,SEC1,SEC2,SEC5,ST1,                    20591500        
+                ST2,LS;                                                 20591550        
+          SWITCH SW:=OPTNO,OPTN1,OPTN2;                                 20591600        
+          P(RCW,MYMSCW,STF);                                            20591610        
+          RCW:=RCW & P(XCH)[CTC];                                       20591620        
+          GO TO SW[OPTNN];                                              20591650        
+OPTNO:    USERID:= ABS(USERID);                                         20591700        
+          IF SCAN LSS IDENT THEN BEGIN CCSECMAINT:=6;GO EXIT END;       20591750        
+          SMID:= CMM[0]:= ACCUM[0]; CN:=SCAN;                           20591800        
+          IF SCAN LSS IDENT THEN BEGIN CCSECMAINT:=6; GO EXIT END;      20591850        
+          SFID:= CMM[1]:= ACCUM[0]; CDEX:= 0;                           20591900        
+          IF (SFH:=DIRECTORYSEARCH(SMID,SFID,4))=0 THEN GO TO LS;       20591950        
+          IF NOT(SYSTEMFILE(CMM[CDEX] ,CMM[CDEX+1]) OR                  20592000        
+               (SMID EQV "PBD    ")=NOT 0) AND (M[SFH+5]=0              20592050        
+               AND M[SFH+2] NEQ 0) THEN                                 20592100        
+% INHIBIT USE ON PUBLIC, SECURE FILES                                   20592150        
+          BEGIN CN:=SCAN; GO TO OPTN2 END;                              20592200        
+          OPTN:=0; CMM[2]:= SFH;                                        20592250        
+          P(DIRECTORYSEARCH(NABS(CMM[0]),CMM[1],14),DEL);               20592300        
+OPTN1:    STREAM(USERID,Q:=USERID>0,B:=[CMM],D:=CN:=SPACE(10));         20592400        
+          BEGIN Q(SI:=LOC USERID; SI:=SI+1;DS:=LIT " "; DS:= 7CHR;);    20592450        
+                DS:= 17LIB " INVALID USER OF "; SI:=B;                  20592500        
+                SI:=SI+1; DS:= 7CHR; DS:=LIT "/"; SI:=SI+1; DS:= 7CHR;  20592550        
+                 DS:=LIT"~";                                            20592600        
+          END STREAM;                                                   20592650        
+          SPOUTER( CN&CARD[9:9:9], SPOUTUNIT, 1 );                 %    20592700        
+          FORGETSPACE(CMM[2]);                                          20592725        
+          IF OPTN NEQ 0 THEN GO TO SEC5;                                20592750        
+          IF UNITNO GEQ 32 THEN BEGIN CCSECMAINT:=5;GO EXIT END;        20592800        
+          GO TO CCC;                                                    20592850        
+OPTN2:    CMM[5]:=USERID;                                               20592900        
+          ST:= CDEX:= 0;                                                20592950        
+    SEC1: FOR OPTN:=0 STEP 1 UNTIL 1 DO                                 20593000        
+          BEGIN CN:=SCAN;                                               20593050        
+               IF T=OPEN AND CN=UNLOCKV AND OPTN=0 THEN                 20593060        
+               BEGIN T:=UNLOCKV; GO TO SEC1 END                         20593100        
+                ELSE IF CN LSS IDENT AND CN NEQ EQUAL THEN GO TO ST1;   20593150        
+                CMM[OPTN]:= IF CN=EQUAL THEN -1 ELSE ACCUM[0];          20593200        
+                CN:=SCAN;                                               20593250        
+          END;                                                          20593300        
+         IF CN=WITH THEN BEGIN CN~SCAN;CMM[6]~IF CN}IDENT THEN ACCUM[0] 20593310        
+                        ELSE USERID; CN~SCAN END ELSE CMM[6]~USERID;    20593320        
+          IF CMM[0] GEQ 0 AND CMM[1] GEQ 0 THEN GO TO SEC2;             20593350        
+          N1:= CMM[0]; N2:= CMM[1]; N3:= 0; ST:= 1;                     20593400        
+    ST2:  SEEKNAM(N1,N2,N3,CMM[0],CMM[1],T1,P(0));                      20593450        
+          IF N3 NEQ 0 THEN GO TO SEC2;                                  20593500        
+          ST:= 0; GO TO SEC5;                                           20593550        
+    SEC2: IF (ABS(USERID)EQV MCP) NEQ NOT 0 THEN                        20593600        
+          IF SYSTEMFILE(CMM[CDEX],CMM[CDEX+1]) OR                       20593650        
+             (CMM[0] EQV "PBD    ")= NOT 0 THEN GO SEC5;                20593700        
+          SECURITYMAINT(T,SMID,SFID,CMM,SFH,SPOUTUNIT);                 20593750        
+    SEC5: IF ST THEN GO TO ST2;                                         20593800        
+          IF CN=COMMA THEN GO SEC1;                                     20593850        
+          IF T=USEV THEN                                                20593900        
+          HEADERUNLOCK(SMID,SFID,SFH);                                  20593950        
+          GO TO CCC;                                                    20594000        
+LS: LBMESS(CMM[0],CMM[1],-15,0,0,SPOUTUNIT,LIBERR);                %149-20594350        
+    IF UNITNO GEQ 32 THEN BEGIN CCSECMAINT:=5; GO EXIT END;             20594400        
+CCC: DO T~SCAN UNTIL T>IDENT AND T{RESETV;                              20594450        
+    IF UNITNO=31 THEN BEGIN CCSECMAINT:=7; GO EXIT; END;                20594500        
+    CCSECMAINT:=1; GO EXIT;                                             20594550        
+ST1:      IF T=USEV THEN                                                20594600        
+          HEADERUNLOCK(SMID,SFID,SFH);                                  20594650        
+          CCSECMAINT:=6;                                                20594700        
+EXIT:     RETURNVAL:=PROCVAL; % ADJUST RESULT OF TYPED PROC             20594750        
+          P([RETURNRCW],STS,0,RDS,0,XCH,P&P[CTF],STF);                  20594751        
+END CCSECMAINT;                                                         20594800        
