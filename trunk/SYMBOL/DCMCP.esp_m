@@ -18484,3 +18484,114 @@ ST1:      IF T=USEV THEN                                                20594600
 EXIT:     RETURNVAL:=PROCVAL; % ADJUST RESULT OF TYPED PROC             20594750        
           P([RETURNRCW],STS,0,RDS,0,XCH,P&P[CTF],STF);                  20594751        
 END CCSECMAINT;                                                         20594800        
+REAL PROCEDURE CCLABEL;                                                 20594850        
+BEGIN LABEL EXIT;                                                       20594870        
+DECLARECCVARIABLES;                                                     20595000        
+     P(RCW,MYMSCW,STF);                                                 20595080        
+     RCW:=RCW & P(XCH)[CTC];                                            20595090        
+     CN:=0;                                                             20595150        
+     UNITCODE[UNITNO-23]:= USERID;                                      20595200        
+     MULTITABLE[UNITNO]:= 0;                                            20595250        
+     RDCTABLE[UNITNO]:= 1&1[14:38:10];                                  20595300        
+     IF UNITNO=23 THEN BEGIN CN:=READERA.[FF];READERA:=CARDLOC END      20595350        
+     ELSE IF UNITNO=24 THEN BEGIN CN:=READERB.[FF];READERB:=CARDLOC END 20595400        
+     ELSE IF UNITNO GEQ 32 THEN BEGIN CN:= CIDROW[UNITNO-32].[3:5];     20595450        
+                                CIDROW[UNITNO-32].[3:5]:= 0;            20595500        
+                                CIDROW[UNITNO-32].[18:15]:= CARDLOC;    20595550        
+                    M[CARDLOC-4].[3:6]:=20;M[CARDLOC-3]:=UNITNO-32;     20595560        
+                                END;                                    20595600        
+     IF CN THEN BEGIN LABELTABLE[UNITNO]:= "CARD 00" OR                 20595650        
+                ((IF UNITNO GEQ 32 THEN "C/" ELSE @5772 + UNITNO);      20595700        
+                 CCLABEL:=8; GO EXIT;                                   20595750        
+                END;                                                    20595800        
+     IF T = LABEV THEN BEGIN                                            20595850        
+                       MULTITABLE[UNINTO]:=M[CARDLOC+1].[6:42];         20595900        
+                       STREAM(A:=0,B:=0,C:=0:D:=CARDLOC+3);             20595950        
+                       BEGIN DI:=LOC A; SI:=D;DS:=3OCT;                 20596000        
+                             DS:=5OCT; DS:=2OCT; END;                   20596050        
+                       P(P(XCH)&P[24:31:17]&P(XCH)[14:38:10],           20596100        
+                       [RDCTABLE[UNITNO]],~);%                          20596150        
+                       LABELTABLE[UNITNO]:=M[CARDLOC+2].[6:42];         20596200        
+                       END                                              20596250        
+     ELSE IF SCN(UNITNO,CARDLOC,SOURCE,ACCUM,KOUNT,LASTSCAN,DIRECT)     20596300        
+     GEQ IDENT THEN LABELTABLE[UNITNO]:=ACCUM[0]                        20596350        
+          ELSE BEGIN IF UNITNO GEQ 32 THEN                              20596400        
+               CIDROW[UNITNO-32].[18:15]:=0;                            20596450        
+               CCLABEL:=6; GO EXIT;                                     20596500        
+               END;                                                     20596550        
+         CCLABEL:=6;                                                    20596600        
+EXIT:     RETURNVAL:=PROCVAL; % ADJUST RESULT OF TYPED PROC             20596650        
+          P([RETURNRCW],STS,0,RDS,0,XCH,P&P[CTF],STF);                  20596651        
+END CCLABEL;                                                            20596700        
+BOOLEAN PROCEDURE CCFIND;                                               20596750        
+BEGIN LABEL FINDX;                                                      20596760        
+DECLARECCVARIABLES;                                                     20596800        
+         P(RCW,MYMSCW,STF);                                             20596945        
+         RCW:=RCW & P(XCH)[CTC];                                        20596947        
+               IF T=ENDFI THEN BEGIN P(0); GO TO FINDX END;             20596950        
+               IF T=DATAV THEN BEGIN P(1); GO TO FINDX; END;            20597000        
+               IF T=LABEV THEN BEGIN P(1); GO TO FINDX; END;            20597050        
+ $ SET OMIT = NOT(DCSPO AND DATACOM )                                   20597100        
+         FINDX: CCFIND:=P;                                              20597450        
+         RETURNVAL:=PROCVAL; % ADJUST RESULT OF TYPED PROC;             20597459        
+         P([RETURNRCW],STS,P&RCW[CTC],0,RDS,0,XCH,P&P[CTF],STF);        20597460        
+END CCFIND;                                                             20597500        
+PROCEDURE CONTROLCARD(CARD); VALUE CARD; REAL CARD;                     20597550        
+BEGIN                                                                   20597600        
+    LABEL CC,CCTYPE,COMPILE,INITIALIZATION,BEFORETRYNEXT,TRYNEXT,       20597650        
+          CONTROLER,CONTROLA,COMPILEJOB,COMJOB,EXEC,EXRUN,RUN,          20597700        
+          USERS,USES,SECBOMB,UNLOX,LOX,FREES,OPENS,ENTE,                20597750        
+          LCOPY,CHANGE,REMOVE,UNITI,INCSC,ENDF,ENDECK,SAVENO,           20597800        
+          LABE,FINIS,ZIPEXIT,EXIT,SET,RSET,DOWN;                        20597850        
+    LABEL CCC,PACK,PACK2,WAIT,ZIPLIST;                                  20597880        
+    SWITCH TYPE~ UNLOX,USES,LOX,FREES,OPENS,PACK,USERS,                 20597900        
+                 RUN,COMPILE,EXEC,LCOPY,LCOPY,LCOPY,ENTE,ENTE,REMOVE,   20597950        
+                   CHANGE,UNITI,ENDF,WAIT,LABE,LABE,SET,RSET;           20598000        
+    SWITCH SW~ CC,CCTYPE,INITIALIZATION,BEFORETRYNEXT,SECBOMB,ENDECK,   20599000        
+                INCSC,ZIPEXIT,EXIT,PACK2;                               20599100        
+    DEFINE ZIPMIX=CARD.[18:6]#, PSOURCE=CARD.[24:6]#;                   20600000        
+DECLARECCVARIABLES;                                                     20600010        
+    REAL SUBROUTINE SCAN;                                               20600020        
+         SCAN:=SCN(UNITNO,CARDLOC,SOURCE,ACCUM,KOUNT,LASTSCAN,DIRECT);  20600040        
+ $ SET OMIT = NOT(PACKETS)                                              20600099        
+    SUBROUTINE LISTHECARD;                                              20600100        
+    IF LASTSCAN.[2:1] THEN                                              20600110        
+    IF SPOUTUNIT.[CF] GEQ 32 THEN                                       20600120        
+    IF T!PACKET THEN                                                    20600130        
+    BEGIN                                                               20600140        
+         LASTSCAN.[2:1]:=0; ABORT:=CARDLOC;                             20600150        
+         IF UNITNO=31 THEN                                              20600160        
+         STREAM(E:="END....", CARDLOC);                                 20600170        
+         BEGIN SI:=CARDLOC; DI:=LOC E; DI:=DI+1;                        20600180        
+         L1:  IF SC=" " THEN BEGIN SI:=SI+1; GO L1; END;                20600190        
+              IF SC="~" THEN GO FINI;                                   20600200        
+              IF SC=ALPHA THEN                                          20600210        
+              IF SC="E" THEN                                            20600220        
+              BEGIN                                                     20600230        
+                   IF 3 SC=DC THEN IF SC=ALPHA THEN ELSE                20600240        
+                   BEGIN                                                20600250        
+                        CARDLOC:=SI; DI:=CARDLOC; DS:=LIT"~";           20600260        
+                        GO FINI;                                        20600270        
+                   END;                                                 20600280        
+                   SI:=SI-3; DI:=DI-3; GO L2;                           20600290        
+              END ELSE % ALPHANUMERIC                                   20600300        
+              BEGIN                                                     20600310        
+         L2:       SI:=SI+1; IF SC=ALPHA THEN GO L2;                    20600320        
+              END ELSE % SPECIAL CHR                                    20600330        
+              SI:=SI+1;                                                 20600340        
+              GO L;                                                     20600350        
+         FINI:                                                          20600360        
+         END;                                                           20600370        
+ZIPLIST:                                                                20600380        
+         STREAM(EOS:=0; CARDLOC:=[ABORT], PC:=PPCPROCESS,               20600390        
+                ZZP:=UNITNO=31, D:=NT1:=SPACE(10));                     20600400        
+         BEGIN SI:=CARDLOC; SI:=SI+5; SI:=SC;                           20600410        
+              DS:=LIT">"; PPC(DS:=4LIT">"); ZZP(DS:=2LIT">");           20600420        
+              2(36(IF SC="~" THEN JUMP OUT 2 TO DUN;                    20600425        
+              ZZP(IF SC="1" THEN BEGIN DS:=CHR;                         20600430        
+         LUP: IF SC=" " THEN BEGIN SI:=SI+1; GO LUP; END;               20600435        
+              JUMP OUT 3 TO AGN; END);                                  20600440        
+              DS:=CHR));                                                20600445        
+         AGN: TALLY:=1; EOS:=TALLY;                                     20600450        
+         DUN: DS:=LIT"~";                                               20600455        
+              ZZP(D:=SI; SI:=LOC D; DI:=CARDLOC; DS:=WDS);              20600460        
