@@ -18595,3 +18595,109 @@ ZIPLIST:                                                                20600380
          AGN: TALLY:=1; EOS:=TALLY;                                     20600450        
          DUN: DS:=LIT"~";                                               20600455        
               ZZP(D:=SI; SI:=LOC D; DI:=CARDLOC; DS:=WDS);              20600460        
+         END;                                                           20600465        
+         SPOUTER(NT1,SPOUTUNIT,64);                                     20600470        
+         IF P AND (UNITNO=31) THEN                                      20600480        
+         GO Z;PLIST;                                                    20600490        
+         ABORT:=0;                                                      20600500        
+    END LISTHECARD;                                                     20600510        
+ $ POP OMIT                                                             20600511        
+         P(0,0,0,0,0,0,0,0,0,0);%                                       20600600        
+         P(0,0,0,0,0,0,0,0,0,0);%                                       20600650        
+         P(0,0,0,0,0,0,0,0,0,0);%                                       20600700        
+         P(0,0,0,0);                                                    20600750        
+         % DO NOT ZERO THE LAST THREE LOCALS (RETURN-MSCW, RCW, & VAL)  20600755        
+         RCW:=RCW & P1(..CONTROLCARD,LOD)[CTC];                         20600760        
+         UNITNO := CARD.[2:6];                                          20600850        
+         IF CARD.[33:15] = 0 THEN                                       20600900        
+              BEGIN CARD.[33:15] := GETSPACE(13,0,0)+4;                 20600950        
+              IF WAITIO(CARD INX @40000000,@15,UNITNO).[45:3] NEQ 0%    20601000        
+              THEN                                                      20601050        
+                  BEGIN LABELTABLE[UNITNO] := @114;%                    20601100        
+                  RRRMECH := NOT TWO (UNITNO) AND RRRMECH;%             20601150        
+                  FORGETSPACE(CARD INX NOT 1);%                         20601200        
+                  KILL([MSCW]);                                         20601250        
+                  END;                                                  20601300        
+              END;                                                      20601350        
+COMMENT GET OWN STACK AND GET RID OF INDEPENDENT STACK;%                20601400        
+COMMENT SET UP ACCUM ARRAY FOR SCAN;%                                   20601450        
+        ACCUM:=[M[SPACE(10)]]&10[8:38:10];%                             20601500        
+        ACCUM[0] := 0;%                                                 20601550        
+         IF (CCTBLWORD:=P(CCTBLWORD,DUP)&(P.[FF]+1)[CTF]).[FF]>1 THEN   20601600        
+         BEGIN                                                          20601620        
+              IF CCTBLADDR=0 THEN SLEEP([CCTBLWORD],@77777);            20601640        
+              DIRECT:=[C[CCTBLWORD]]&CCTABLSZ[8:38:10];                 20601660        
+         END ELSE                                                       20601680        
+         BEGIN                                                          20601700        
+              DIRECT:=[M[T:=SPACE(CCTABLSZ)]]&CCTABLSZ[8:38:10];        20601720        
+              DISKWAIT(-T,CCTABLSZ,MESSAGETABLE[3].[22:26]);            20601740        
+              CCTABLDDR:=T;                                             20601760        
+         END;                                                           20601780        
+         CMM:=[M[GETSPACE(130,2,0)+2]]&30[8:38:10];%                    20601850        
+         PEQN:=(31 INX (CEQN:=(31 INX(PROG:=(31 INX CMM)))));%          20601900        
+          % PLACE "." IN COL 73 ;%                                      20601950        
+         CARDLOC := CARD INX 0;%                                        20602000        
+         IF UNITNO=25 OR UNITNO=26 OR UNITNO=30 OR UNITNO=31 THEN       20602050        
+         SOURCE:=CARDLOC ELSE                                           20602100        
+         M[(SOURCE:=CARDLOC)+9] := @3277320000000000; % .". 2B XTRA SAFE20602150        
+         IF UNITNO GEQ 32 AND UNITCODE[UNITNO-23].[1:1] THEN            20602200        
+            UNITCODE[UNITNO-23]:=M[CARDLOC + 10];                       20602250        
+         IF UNITNO=25 OR UNITNO=31 THEN USERID:=MCP ELSE%               20602300        
+         BEGIN IF UNITNO=26 THEN UNITNO:=31;%                           20602350        
+         USERID:=UNITCODE[UNITNO-23];%                                  20602400        
+ $ SET OMIT = NOT(DATACOM AND RJE )                                     20602409        
+         END;%                                                          20602450        
+         SPOUTUNIT:=(                                                   20602460        
+ $ SET OMIT = NOT(PACKETS)                                              20602469        
+                     IF ZIPMIX!0 AND PSEUDOMIX[ZIPMIX] GEQ 32 THEN      20602470        
+                     PSEUDOMIX[ZIPMIX] ELSE                             20602480        
+                     IF UNITNO GEQ 32 THEN UNITNO ELSE                  20602490        
+ $ POP OMIT                                                             20602491        
+                     0)&CARD[9:9:9];                                    20602500        
+ $ SET OMIT = NOT(PACKETS)                                              20602509        
+         IF UNITNO GEQ 32 THEN                                          20602510        
+         IF PKTONLY THEN                                           %124-20602515        
+         IF PSEUDO[UNITNO-32]=0 THEN                                    20602520        
+         PRINTTHECOVER(CARDLOC&CARD[9:9:9],UNITNO,PSOURCE);             20602530        
+         LASTSCAN:=0&1[2:47:1];                                         20602540        
+ $ POP OMIT                                                             20602541        
+COMMENT SCAN FOR CARD WITH QUESTION MARK IN COL. 1;%                    20602550        
+CC:      IF SCAN NEQ QUEST THEN GO TO INCSC;%                           20602650        
+         T:=SCAN;                                                       20602700        
+CCTYPE:    IF (T LSS UNLOCKV) OR (T GTR RESETV) THEN                    20602800        
+         GO TO INCSC;%                                                  20602850        
+         PPCPROCESS:=0;%                                           %173-20602855        
+         PROCVAL:=0;                                               %128-20602860        
+         IF CARD.[9:9] NEQ 0 THEN%                                      20602900        
+ $ SET OMIT = NOT(DATACOM AND RJE )                                     20602909        
+         IF CCFIND THEN GO TO INCSC;                                    20602950        
+         IF (T LEQ LOAD AND (T GEQ RUNV) THEN                           20603000        
+             BEGIN %                                                    20603050        
+               M[CARDLOC - 2] := 0;%                                    20603100        
+               M[CARDLOC -1]  :=10;%                                    20603150        
+               CMM[6]:= GETESPDISK & 10[18:33:15];%                     20603200        
+ $ SET OMIT = NOT(DATACOM AND RJE )                                     20603209        
+               DISKWAIT(CARDLOC-2,11,CMM[6] INX 0);                     20603250        
+             END;%                                                      20603350        
+ $ SET OMIT = NOT(PACKETS)                                              20603359        
+         LISTHECARD;                                                    20603360        
+ $ POP OMIT                                                             20603361        
+%   WRITE OUT CONTROL CARD FOR LOGGING ROUTINE%                         20603400        
+%   BRANCH ON 1ST WORD ON CONTROL CARD%                                 20603450        
+          LIBNO:=0;                                                     20603500        
+          TOG:= FALSE;                                                  20603550        
+           IF UNITNO GEQ 32 THEN                                   %780-20603560        
+                   IF T=PACKET OR T=USER THEN ELSE                 %780-20603565        
+                       IF (USERID.[1:1] AND USERID ! MCP) THEN     %780-20603570        
+                              BEGIN   USERID ~ "U000000";          %780-20603575        
+                                      UNITCODE[UNIT-23] ~ USERID   %780-20603580        
+                              END;                                 %780-20603590        
+          GO TO TYPE[T-UNLOCKV];                                        20603600        
+% COMPILER CALL OUT CARD%                                               20603700        
+COMPILE: IF CCCOMPILE THEN GO INCSC;                                    20603750        
+INITIALIZATION: OPTNN:=INITIALIZEIT; GO DOWN;                           20603900        
+BEFORETRYNEXT: IF OPTN=PERIO THEN GO TO CONTROLLER;                     20604050        
+TRYNEXT: IF KOUNT=@14 THEN                                              20604100        
+            IF SOURCE=(CARDLOC&1[30:45:3]) THEN                         20604105        
+               BEGIN                                                    20604110        
+               PPCPROCESS:=1; T:=SCAN; GO CONTROLA;                     20604115        

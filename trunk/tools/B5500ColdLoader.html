@@ -648,160 +648,192 @@ window.onload = function() {
         reader.readAsArrayBuffer(f);
     }
 
-    function loadBootstrap(eu, buffer) {
-        /* Creates the Halt/Load Button Card image and stores it in segment 1 */
-        var w = [];
-
-        w[ 0] = parseInt("0441341003604231", 8);
-        w[ 1] = parseInt("7500000000000023", 8);
-        w[ 2] = parseInt("0211001441310435", 8);
-        w[ 3] = parseInt("7012700704210014", 8);
-        w[ 4] = parseInt("4411005441314155", 8);
-        w[ 5] = parseInt("6461106500000425", 8);
-        w[ 6] = parseInt("0074013100644131", 8);
-        w[ 7] = parseInt("0000006200644131", 8);
-        w[ 8] = parseInt("0000006601044131", 8);
-        w[ 9] = parseInt("0000007201244131", 8);
-        w[10] = parseInt("0000007601444131", 8);
-        w[11] = parseInt("5140000040700137", 8);
-        w[12] = parseInt("5140000047700461", 8);
-        w[13] = parseInt("5140000047704223", 8);
-        w[14] = parseInt("7700000000000037", 8);
-        w[15] = parseInt("0153020404050000", 8);
-        w[16] = parseInt("0167010604410440", 8);
-        w[17] = parseInt("0163010604410010", 8);
-        w[18] = parseInt("0157010604410660", 8);
-        w[19] = parseInt("0600017205204131", 8);
-        wordsToANSI(w, 0, 30, buffer, 0);
-        eu.put(buffer, 1);
-    }
-
-    function enterFile(mfid, fid, areas, areasize, eu, buffer, directoryTop, labels, fileNr, segNr) {
-        /* Enters a file into the disk directory. The loader will only create
-        one directory block, so do not call this routine more than 15 times.
-        Only the first row is allocated. Returns the next available segment address */
-        var header = [];
-        var labelx = 240-(fileNr+1)*16;
-
-        stringToANSI(padToLength(mfid, 7), labels, labelx+1);
-        stringToANSI(padToLength(fid, 7),  labels, labelx+9);
-        if (labelx > 15) {
-            labels[labelx-9] = 0x4C;    // @114, last-entry marker
-        }
-        header[0] = 0x41;               // BIC "11" = @0101 = 1 rec/block, 1 seg/block
-        header[3] = 0x1001200;          // Date: BIC "00010180" = 1980-01-01
-        header[7] = areas*areasize-1;
-        header[8] = areasize;
-        header[9] = areas;
-        header[10] = segNr;
-        wordsToANSI(header, 0, 30, buffer, 0);
-        eu.put(buffer, directoryTop + 18 - fileNr);
-
-        return segNr + areasize;
-    }
-
     function initializeDisk() {
         /* Performs a B5500 Cold Start by initializing the directory structure on
         the disk, overwriting (and destroying) whatever else was there before */
         var buffer = new Uint8Array(240);
-        var eu = disk.transaction(euPrefix+"0", "readwrite").objectStore(euPrefix+"0");
+        var eu;
+        var euName = euPrefix + "0";
         var fileLabels = new Uint8Array(240);
         var fileNr = 0;
         var info = [];
         var segNr;
         var shar = [];
+        var txn;
         var zeroes = new Uint8Array(240);
         var x;
 
-        fileLabels[14*16+7] = 0x4C;     // @114, last-entry marker
+        function loadBootstrap(eu, buffer) {
+            /* Creates the Halt/Load Button Card image and stores it in segment 1 */
+            var w = [];
 
-        shar[ 0] = 1;                   // number of shared-disk systems
-        shar[ 1] = directoryTop;
-        shar[ 2] = 0;
-        shar[ 3] = 0;
-        shar[ 4] = directoryEnd;        // DIRECT deck option
-        eu.put(shar, 0);
-
-        loadBootstrap(eu, buffer);      // load the Halt/Load Button Card image
-
-        for (x=50; x<directoryTop; x++) {
-            eu.put(zeroes, x);
+            w[ 0] = parseInt("0441341003604231", 8);
+            w[ 1] = parseInt("7500000000000023", 8);
+            w[ 2] = parseInt("0211001441310435", 8);
+            w[ 3] = parseInt("7012700704210014", 8);
+            w[ 4] = parseInt("4411005441314155", 8);
+            w[ 5] = parseInt("6461106500000425", 8);
+            w[ 6] = parseInt("0074013100644131", 8);
+            w[ 7] = parseInt("0000006200644131", 8);
+            w[ 8] = parseInt("0000006601044131", 8);
+            w[ 9] = parseInt("0000007201244131", 8);
+            w[10] = parseInt("0000007601444131", 8);
+            w[11] = parseInt("5140000040700137", 8);
+            w[12] = parseInt("5140000047700461", 8);
+            w[13] = parseInt("5140000047704223", 8);
+            w[14] = parseInt("7700000000000037", 8);
+            w[15] = parseInt("0153020404050000", 8);
+            w[16] = parseInt("0167010604410440", 8);
+            w[17] = parseInt("0163010604410010", 8);
+            w[18] = parseInt("0157010604410660", 8);
+            w[19] = parseInt("0600017205204131", 8);
+            wordsToANSI(w, 0, 30, buffer, 0);
+            eu.put(buffer, 1);
         }
 
-        info[ 0] =                      // option word
-                                                // 47: use DRA
-                                                // 46: use DRB
-                   pow2[47-45] +                // 45: print BOJ
-                   pow2[47-44] +                // 44: print EOJ
-                   pow2[47-43] +                // 43: type file open
-                   pow2[47-42] +                // 42: call TERMINATE procedure
-                   pow2[47-41] +                // 41: initialize date @ H/L
-                   pow2[47-40] +                // 40: initialize time @ H/L
-                                                // 39: use only one breakout tape
-                                                // 38: automatically print pbt
-                   pow2[47-37] +                // 37: clear write ready status @ terminal
-                   pow2[47-36] +                // 36: write disc. code on terminal
-                   pow2[47-35] +                // 35: type when compiler files open & close
-                   pow2[47-34] +                // 34: type file close
-                   pow2[47-33] +                // 33: error msgs when progr recovery used
-                   pow2[47-32] +                // 32: type MT retention messages
-                   pow2[47-31] +                // 31: type library messages
-                   pow2[47-30] +                // 30: type schedule messages
-                   pow2[47-29] +                // 29: type file security messages
-                   pow2[47-28] +                // 28: prevent I/O below user disk area
-                   pow2[47-27] +                // 27: prevent disk RELEASE statement
-                   pow2[47-26] +                // 26: printer backup disk release
-                   pow2[47-25] +                // 25: check memory links
-                   pow2[47-24] +                // 24: type disk error messages
-                   pow2[47-23] +                // 23: disk logging
-                   pow2[47-22] +                // 22: suppress library error messages
-                   pow2[47-21] +                // 21: go to printer back-up only
-                   pow2[47-20] +                // 20: dont stack files on PB tapes
-                   pow2[47-19] +                // 19: print set or reset messages
-                                                // 18: no user disk will unload expired
-                   pow2[47-17] +                // 17: run all decks(SHAREDISK)
-                                                // 16: olay core to ECM(AUXMEM)
-                   pow2[47-15] +                // 15: job core estimates(STATISTICS)
-                                                // 14: olay data to ECM(AUXMEM)
-                   pow2[47-13] +                // 13: makes system hang on-should HL msg
-                                                // 12: enables datacom(TSS, if not DCP)
-                   pow2[47-11] +                // 11: library messages for CANDE
-                   pow2[47-10] +                // 10: ZIP decks to run on batch(SHAREDISK)
-                                                //  9: controls running of batch jobs on TSS
-                                                //  8:  UNUSED
-                                                //  7:  UNUSED
-                                                //  6:  UNUSED
-                                                //  5:  UNUSED
-                                                //  4:  UNUSED
-                                                //  3:  UNUSED
-                   pow2[47- 2] +                //  2: Model III I/O channels
-                                                //  1:  UNUSED
-                   0;                           //  0: (flag bit)
+        function enterFile(mfid, fid, areas, areasize, eu, buffer, directoryTop, labels, fileNr, segNr) {
+            /* Enters a file into the disk directory. The loader will only create
+            one directory block, so do not call this routine more than 15 times.
+            Only the first row is allocated. Returns the next available segment address */
+            var header = [];
+            var labelx = 240-(fileNr+1)*16;
 
-        info[ 1] = 0x1001200;           // Date: BIC "00010180" = 1980-01-01
-        info[ 2] = config.eus;          // number of EUs
-        info[ 3] = 0;                   // not used
-        info[ 4] = directoryEnd;        // DIRECT deck option
-        info[ 5] = 0;                   // last number used for control deck
-        info[ 6] = 0;                   // first control deck queued
-        info[ 7] = 0;                   // last control deck queued
-        info[ 8] = 0;                   // next number available for printer backup disk
-        info[ 9] = 1;                   // multiprocessing core factor
-        info[10] = 0;                   // SPO stations (through info[15])
-        info[11] = 0;
-        info[12] = 0;
-        info[13] = 0;
-        info[14] = 0;
-        info[15] = 0;
-        info[16] = 15;                  // Q value for datacom input
-        wordsToANSI(info, 0, 30, buffer, 0);
-        eu.put(buffer, directoryTop);
+            stringToANSI(padToLength(mfid, 7), labels, labelx+1);
+            stringToANSI(padToLength(fid, 7),  labels, labelx+9);
+            if (labelx > 15) {
+                stringToANSI("0000001?", labels, labelx-16);        // @114, last-entry marker
+                stringToANSI("00000000", labels, labelx-8);
+            }
+            header[0] = 0x41;               // BIC "11" = @0101 = 1 rec/block, 1 seg/block
+            header[3] = 0x1001200;          // Date: BIC "00010180" = 1980-01-01
+            header[7] = areas*areasize-1;
+            header[8] = areasize;
+            header[9] = areas;
+            header[10] = segNr;
+            wordsToANSI(header, 0, 30, buffer, 0);
+            eu.put(buffer, directoryTop + 18 - fileNr);
 
-        segNr = directoryEnd + 1;
-        segNr = enterFile("SYSTEM", "LOG", 1, 20000, eu, buffer, directoryTop, fileLabels, fileNr, segNr);
-        fileNr++;
+            return segNr + areasize;
+        }
 
-        eu.put(fileLabels, directoryTop + 19);  // write the directory block file labels
+        /***** Start of initializeDisk *****/
+        wordsToANSI(shar, 0, 30, zeroes, 0);            // create a segment buffer of zeroes
+        wordsToANSI(shar, 0, 30, fileLabels, 0);        // initialize the file name label block
+
+        // Start a transaction
+        txn = disk.transaction([euName, "CONFIG"], "readwrite");
+        txn.oncomplete = function(ev) {
+            alert("Cold Start completed successfully");
+        };
+
+        eu = txn.objectStore(euName);
+        txn.objectStore("CONFIG").get(0).onsuccess = function(ev) {
+            config = ev.target.result;
+            if (!config) {
+                alert("No CONFIG object in database");
+                txn.abort();
+            } else {
+                // Initialize the directory labels segment
+                stringToANSI("0000001?", fileLabels, 14*16);            // @114, last-entry marker
+                stringToANSI("00000000", fileLabels, 14*16+8);
+
+                // Initialize segment 0
+                shar[ 0] = 1;                   // number of shared-disk systems
+                shar[ 1] = directoryTop;
+                shar[ 2] = 0;
+                shar[ 3] = 0;
+                shar[ 4] = directoryEnd;        // DIRECT deck option
+                wordsToANSI(shar, 0, 30, buffer, 0);
+                eu.put(buffer, 0);
+
+                // Load the Halt Load Button Card image
+                loadBootstrap(eu, buffer);      // load the Halt/Load Button Card image
+
+                // Clean out the ESPDISK area
+                for (x=50; x<directoryTop; x++) {
+                    eu.put(zeroes, x);
+                }
+
+                // Initialize the DIRECTORYTOP segment
+                info[ 0] =                      // option word
+                                                        // 47: use DRA
+                                                        // 46: use DRB
+                           pow2[47-45] +                // 45: print BOJ
+                           pow2[47-44] +                // 44: print EOJ
+                           pow2[47-43] +                // 43: type file open
+                           pow2[47-42] +                // 42: call TERMINATE procedure
+                           pow2[47-41] +                // 41: initialize date @ H/L
+                           pow2[47-40] +                // 40: initialize time @ H/L
+                                                        // 39: use only one breakout tape
+                                                        // 38: automatically print pbt
+                           pow2[47-37] +                // 37: clear write ready status @ terminal
+                           pow2[47-36] +                // 36: write disc. code on terminal
+                           pow2[47-35] +                // 35: type when compiler files open & close
+                           pow2[47-34] +                // 34: type file close
+                           pow2[47-33] +                // 33: error msgs when progr recovery used
+                           pow2[47-32] +                // 32: type MT retention messages
+                           pow2[47-31] +                // 31: type library messages
+                           pow2[47-30] +                // 30: type schedule messages
+                           pow2[47-29] +                // 29: type file security messages
+                           pow2[47-28] +                // 28: prevent I/O below user disk area
+                           pow2[47-27] +                // 27: prevent disk RELEASE statement
+                           pow2[47-26] +                // 26: printer backup disk release
+                           pow2[47-25] +                // 25: check memory links
+                           pow2[47-24] +                // 24: type disk error messages
+                           pow2[47-23] +                // 23: disk logging
+                           pow2[47-22] +                // 22: suppress library error messages
+                           pow2[47-21] +                // 21: go to printer back-up only
+                           pow2[47-20] +                // 20: dont stack files on PB tapes
+                           pow2[47-19] +                // 19: print set or reset messages
+                                                        // 18: no user disk will unload expired
+                           pow2[47-17] +                // 17: run all decks(SHAREDISK)
+                                                        // 16: olay core to ECM(AUXMEM)
+                           pow2[47-15] +                // 15: job core estimates(STATISTICS)
+                                                        // 14: olay data to ECM(AUXMEM)
+                           pow2[47-13] +                // 13: makes system hang on-should HL msg
+                                                        // 12: enables datacom(TSS, if not DCP)
+                           pow2[47-11] +                // 11: library messages for CANDE
+                           pow2[47-10] +                // 10: ZIP decks to run on batch(SHAREDISK)
+                                                        //  9: controls running of batch jobs on TSS
+                                                        //  8:  UNUSED
+                                                        //  7:  UNUSED
+                                                        //  6:  UNUSED
+                                                        //  5:  UNUSED
+                                                        //  4:  UNUSED
+                                                        //  3:  UNUSED
+                           pow2[47- 2] +                //  2: Model III I/O channels
+                                                        //  1:  UNUSED
+                           0;                           //  0: (flag bit)
+
+                info[ 1] = 0x1001200;           // Date: BIC "00010180" = 1980-01-01
+                info[ 2] = config.eus;          // number of EUs
+                info[ 3] = 0;                   // not used
+                info[ 4] = directoryEnd;        // DIRECT deck option
+                info[ 5] = 0;                   // last number used for control deck
+                info[ 6] = 0;                   // first control deck queued
+                info[ 7] = 0;                   // last control deck queued
+                info[ 8] = 0;                   // next number available for printer backup disk
+                info[ 9] = 1;                   // multiprocessing core factor
+                info[10] = 0;                   // SPO stations (through info[15])
+                info[11] = 0;
+                info[12] = 0;
+                info[13] = 0;
+                info[14] = 0;
+                info[15] = 0;
+                info[16] = 15;                  // Q value for datacom input
+                wordsToANSI(info, 0, 30, buffer, 0);
+                eu.put(buffer, directoryTop);
+
+                // Create a file entry for the system log
+                segNr = directoryEnd + 1;
+                segNr = enterFile("SYSTEM", "LOG", 1, 20000, eu, buffer, directoryTop, fileLabels, fileNr, segNr);
+                fileNr++;
+
+                // Store the directory labels segment
+                eu.put(fileLabels, directoryTop + 19);  // write the directory block file labels
+            }
+        };
+
     }
 
     function configureDatabase(ev) {
@@ -855,6 +887,31 @@ window.onload = function() {
         alert("Database \"" + disk.name + "\" error: " + ev.target.result.error);
     }
 
+    function dumpDisk() {
+        /* Dumps the initial and directory portions of the disk */
+        var txn = disk.transaction("EU0");
+        var eu = txn.objectStore("EU0");
+        var range = IDBKeyRange.upperBound(directoryTop+20);
+        var req = eu.openCursor(range);
+        var lastKey = -1;
+
+        spout("===== START OF DISK DUMP =====");
+        req.onsuccess = function(ev) {
+            var cursor = ev.target.result;
+
+            if (cursor) {
+                if (cursor.key-lastKey > 1) {
+                    spout("----- " + (cursor.key-lastKey-1) + " unallocated segments -----");
+                }
+                spout(cursor.key + ": " + String.fromCharCode.apply(null, cursor.value));
+                lastKey = cursor.key;
+                cursor.continue();
+            } else {
+                spout("===== END OF DISK DUMP =====");
+            }
+        };
+    }
+
     function openDatabase(name, version) {
         /* Attempts to open the disk subsystem database for the specified "name"
         and "version". Returns the IDB database object if successful, or null if
@@ -877,6 +934,8 @@ window.onload = function() {
             alert("Disk database opened: " + name + " #" + disk.version);
             disk.onerror = genericDBError;
             $$("ColdstartBtn").disabled = false;
+
+            dumpDisk();             // <<<<<<<<<<<<<< DEBUG <<<<<<<<<<<<<<<<<
         };
 
         req.onupgradeneeded = configureDatabase;
@@ -898,7 +957,8 @@ window.onload = function() {
         if (missing.length == 0) {
             return false;
         } else {
-            alert("No can do... your browser does not support the following features:\n" + missing.substring(2));
+            alert("No can do... your browser does not support the following features:\n" +
+                missing.substring(2));
             return true;
         }
     }
