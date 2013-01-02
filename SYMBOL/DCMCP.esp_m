@@ -18701,3 +18701,115 @@ TRYNEXT: IF KOUNT=@14 THEN                                              20604100
             IF SOURCE=(CARDLOC&1[30:45:3]) THEN                         20604105        
                BEGIN                                                    20604110        
                PPCPROCESS:=1; T:=SCAN; GO CONTROLA;                     20604115        
+               END;                                                     20604120        
+         IF SCAN NEQ PERIO THEN GO TRYNEXT;                             20604125        
+CONTROLER: PPCPROCESS:= 1;                                              20604150        
+           IF SCAN NEQ QUEST THEN GO TO INCSC;                          20604200        
+           T:= SCAN;                                                    20604250        
+CONTROLA: IF (T < FILEV OR T > COBOL) AND ACCUM[0] ! CMPLR THEN    %527-20604300        
+          IF T GEQ UNLOCKV AND T LEQ RESETV THEN                   %527-20604350        
+          GO TO FINIS ELSE GO TO INCSC;                                 20604360        
+          IF CARD.[9:9] NEQ 0 THEN                                      20604400        
+ $ SET OMIT = NOT(DATACOM AND RJE )                                     20604409        
+          IF CCFIND THEN GO TO INCSC;                                   20604450        
+ $ SET OMIT = NOT(PACKETS)                                              20604479        
+         LISTHECARD;                                                    20604480        
+ $ POP OMIT                                                             20604481        
+          IF T GEQ ALGOL OR ACCUM[0]=CMPLR THEN                         20604500        
+           IF OPTN=EXECU OR OPTN=RUNV THEN                              20604550        
+              GO TO TRYNEXT                                             20604600        
+           ELSE GO TO COMPILEJOB;                                       20604650        
+         IF OPTN=SYNTA THEN GO TO TRYNEXT;                              20604700        
+         IF OPTN=EXECU OR OPTN=RUNV THEN GO TO COMJOB;                  20604750        
+% CALL RPC FOR COMPILE AND GO JOB%                                      20604800        
+         IF PPC(PADDR,PEQN,PROG,PDEX,T,UNITNO,CARDLOC,SOURCE,ACCUM,     20604850        
+                LASTSCAN,DIRECT) THEN GO TO INCSC;                      20604900        
+         GO TO CONTROLER;                                               20604950        
+COMPILEJOB: T:=SCAN;                                                    20605000        
+COMJOB: IF PPC(CADDR,CEQN,CMM,CDEX,T,UNITNO,CARDLOC,SOURCE,ACCUM,       20605050        
+                LASTSCAN,DIRECT) THEN GO TO INCSC;                      20605100        
+        GO TO CONTOLER;                                                 20605150        
+COMMENT EXECUTE CARD;%                                                  20605250        
+EXEC: P(EXECU);                                                         20605300        
+EXRUN: OPTN:=P;                                                         20605320        
+       CMM[13]:=CADDR:=CDEX:=0;                                         20605340        
+       T:=SCAN; CMM[0]:=ACCUM[0];                                       20605360        
+       T:=SCAN; T:=SCAN;                                                20605380        
+       IF ((CMM[1]:=ACCUM[0]) EQV "DISK   ") ! NOT 0 THEN T := 0        20605400        
+       ELSE IF ((T := CMM[0]) EQV "LIBMAIN") = NOT 0 THEN               20605405        
+                IF UNITNO ! 31                                          20605410        
+ $ SET OMIT = NOT(DATACOM AND RJE)                                      20605415        
+                THEN GO TO INCSC ELSE T := LIBMAINCODE                  20605430        
+       ELSE IF (T EQV "PRNPBT ") = NOT 0 THEN                           20605435        
+                IF UNITNO ! 31                                          20605440        
+ $ SET OMIT = NOT(DATACOM AND RJE)                                      20605445        
+                THEN GO TO INCSC ELSE T := PRNPBTCODE                   20605460        
+       ELSE IF (T EQV "LDCNTRL") = NOT 0 THEN T := LDCNTRLCODE          20605465        
+       ELSE T := 0;                                                     20605470        
+       CMM[2] := 0 & (IF OPTN=RUNV THEN 5 ELSE 2)[8:38:10] & T[5:45:3]; 20605480        
+       CMM[23]:=0&CARD[9:9:9]&(                                         20605500        
+ $ SET OMIT = NOT(PACKETS)                                              20605509        
+                  IF ZIPMIX!0 THEN PSEUDOMIX[ZIPMIX] ELSE               20605510        
+ $ POP OMIT                                                             20605511        
+                               UNITNO)[2:42:6];                         20605520        
+       GO TO INITIALIZATION;                                            20605550        
+RUN: P(RUNV);                                                           20605600        
+     GO TO EXRUN;                                                       20605650        
+USERS: IF(T:=SCAN)!EQUAL THEN GO INCSC;                            %133-20605700        
+       IF(T:=SCAN)=PERIO THEN GO INCSC;                            %133-20605702        
+       IF (USERID.[1:1] AND USERID!MCP)                                 20605750        
+ $ SET OMIT = NOT(DATACOM AND RJE )                                     20605759        
+       THEN BEGIN                                                       20605800        
+            USERID:=ACCUM[0];                                           20605810        
+ $ SET OMIT = NOT(PACKETS)                                              20605819        
+            IF UNITNO GEQ 32 THEN UNITCODE[UNITNO-23]:=USERID;          20605820        
+ $ POP OMIT                                                             20605821        
+            END;                                                        20605830        
+CCC: %COME HERE TO FLUSH TO NEXT INITIAL WORD                           20605870        
+ $ SET OMIT = NOT(PACKETS)                                              20605879        
+         DO T:=SCAN UNTIL T=QUEST;T:=SCAN;                              20605880        
+ $ POP OMIT                                                             20605881        
+ $ SET OMIT = PACKETS                                                   20605899        
+       GO TO CCTYPE;                                                    20606000        
+USES: OPTNN:=0; OPTNN:=CCSECMAINT; GO DOWN;                             20606050        
+SECBOMB: OPTNN:=1; OPTNN:=CCSECMAINT; GO DOWN;                          20606100        
+UNLOX:                                                                  20606150        
+LOX:                                                                    20606200        
+FREES:                                                                  20606250        
+OPENS:                                                                  20606300        
+       OPTNN:=2; OPTNN:=CCSECMAINT; GO DOWN;                            20606350        
+ENTE::                                                                  20606400        
+LCOPY:                                                                  20606450        
+CHANGE:                                                                 20606500        
+REMOVE:                                                                 20606550        
+       OPTNN:=CCLIB;                                                    20606600        
+DOWN:  GO TO SW[OPTNN];                                                 20606610        
+SET: TOG:= TRUE;                                                        20606650        
+RSET: IF CCSET THEN GO CC ELSE GO INCSC;                                20606700        
+UNIT: OPTNN:=CCUNIT; GO DOWN;                                           20606800        
+INCSC:                                                                  20606850        
+       IF PCPROCESS THEN                                                20606860        
+       P(DIRECTORYSEARCH(-CMM[0],IF CMM[0] LSS 0 THEN "DISK   " ELSE    20606865        
+                          CMM[1], 13),DEL);                             20606870        
+ $ SET OMIT = NOT(PACKETS)                                              20606874        
+        LISTHECARD;                                                     20606875        
+ $ POP OMIT                                                             20606876        
+       IF UNITNO}32 THEN CIDROW[UNITNO-32].[3:5]:=0 ELSE%          %173-20606900        
+       IF UNITNO=23 THEN READERA.[FF]:=0 ELSE%                     %173-20606910        
+       IF UNITNO=24 THEN READERB.[FF]:=0;%                         %173-20606920        
+       LASTSCAN := 0;                                                   20607000        
+       STREAM(CARDLOC, U:=TINU[UNITNO], ACCUM, MIX:=ZIPMIX,             20607020        
+              ZZP:=UNITNO=31, CRD:=SPOUTUNIT.[CF]=0,                    20607040        
+              D:=T:=SPACE(15));                                         20607060        
+       BEGIN                                                            20607080        
+            DS:=20LIT"#CONTROL CARD ERROR ";                            20607100        
+            SI:=LOC U; SI:=SI+5; DS:=3 CHR;                             20607120        
+            ZZP(DI:=DI-22; DS:=24LIT"ZIP ERROR, IGNORED, MIX=";         20607140        
+            SI:=LOC MIX; DS:=2 DEC; DS:=LIT":";                         20607160        
+            D:=DI; DI:=DI-3; DS:=FILL; DI:=D);                          20607180        
+            DS:=4LIT" AT ";                                             20607200        
+            SI:=ACCUM; SI:=SI+1;                                        20607220        
+            7(IF SC=" " THEN SI:=SI+1 ELSE DS:=CHR);                    20607240        
+            CRD(DS:=LIT":"; SI:=CARDLOC; 2(DS:=36 CHR));                20607260        
+            DS:=LIT"~";                                                 20607280        
+       END;                                                             20607300        
