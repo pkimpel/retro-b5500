@@ -18813,3 +18813,129 @@ INCSC:                                                                  20606850
             CRD(DS:=LIT":"; SI:=CARDLOC; 2(DS:=36 CHR));                20607260        
             DS:=LIT"~";                                                 20607280        
        END;                                                             20607300        
+       IF UNITNO!25 THEN                                                20607500        
+          BEGIN                                                         20607550        
+                SPOUTER(T&CARD[9:9:9],SPOUTUNIT,1);                     20607600        
+                IF UNITNO=30 OR UNITNO=31 THEN GO ZIPEXIT;              20607700        
+                IF UNITNO GEQ 32 THEN GO ENDECK;                        20607750        
+          END ELSE                                                      20607800        
+          BEGIN P(WAITIO(T,0,25),DEL);                                  20608000        
+                FORGETSPACE(T);                                         20608050        
+ $ SET OMIT = PACKETS                                                   20608059        
+ $ SET OMIT = NOT(PACKETS)                                              20608069        
+                 FETCH(UNITNO,CARDLOC,SOURCE);                          20608070        
+                 IF SCAN NEQ QUEST THEN GO TO INCSC;                    20608072        
+                 T:=SCAN;                                               20608074        
+                 IF PPCPROCESS THEN GO TO CONTROLA;                     20608076        
+                 IF (T}PACKET) AND (T{RESETV) AND (T!RUNV) THEN    %527-20608078        
+                 GO TO CCTYPE; GO TO INCSC;                             20608080        
+ $ POP OMIT                                                             20608081        
+          END;                                                          20608100        
+ $ SET OMIT = NOT(PACKETS)                                              20608109        
+ENDECK:                                                                 20608110        
+         IF ZIPMIX NEQ 0 THEN                                      %147-20608112        
+         IF (T:=PSEUDOMIX[ZIPMIX]) GEQ 32 THEN                     %147-20608114        
+            PACKETERR[T-32]:=TRUE;                                 %147-20608116        
+         IF UNITNO GEQ 32 THEN                                          20608120        
+         BEGIN ABORT:=TRUE;                                             20608130        
+         PACKETERR[UNITNO-32]:=TRUE;                                    20608140        
+         GO TO PACK2;                                                   20608142        
+         END;                                                           20608144        
+ $ POP OMIT                                                             20608146        
+       DO DO                                                            20608150        
+            FETCH(-UNITNO,CRDLOC,SOURCE)                                20608200        
+          UNTIL SCAN=QUEST                                              20608250        
+       UNTIL SCAN=ENDFI;                                                20608300        
+ENDF::                                                                  20608450        
+ $ SET OMIT = NOT(PACKETS)                                              20608459        
+       IF UNITNO LSS 32 THEN                                            20608460        
+ $ POP OMIT                                                             20608461        
+       IF UNITNO NEQ 30 THEN UNITCODE[UNITNO-23]:=0;                    20608500        
+         IF UNITNO=23 THEN READERA:=0 ELSE                              20608510        
+         IF UNITNO=24 THEN READERB:=0 ELSE                              20608520        
+        IF UNITNO GEQ 25 THEN                                           20608550        
+        IF UNITNO GEQ 32 THEN                                           20608600        
+PACK2::    %PACKET CARDS END HERE FROM PSEUDO-READERS                   20608610        
+           IF CIDTABLE[UNITNO-32,3] LSS CIDTABLE[UNITNO-32,7]THEN       20608650        
+           BEGIN FETCH(-UNITNO,CARDLOC,SOURCE);                         20608700        
+ $ SET OMIT = NOT(PACKETS)                                              20608709        
+                IF ABORT THEN                                           20608710        
+                BEGIN                                                   20608720        
+                     IF (T:=SCAN)=QUEST THEN                            20608730        
+                     IF (T:=SCAN) = ENDFI THEN                     %129-20608740        
+                     ABORT:=FALSE;                                      20608750        
+                     GO TO PACK2;                                  %129-20608760        
+                END ELSE T:=0;                                          20608770        
+                LASTSCAN:=0&1[2:47:1];                                  20608780        
+                PACKETERR(UNITNO-32]:=FALSE;                            20608790        
+ $ POP OMIT                                                             20608801        
+                GO CC;                                                  20608810        
+           END ELSE                                                     20608820        
+           BEGIN                                                        20608830        
+ $ SET OMIT = NOT(PACKETS)                                              20608839        
+                LABELTABLE[UNITNO]:=@114;                               20608840        
+                IF PACKETACT[UNITNO-32]=D THEN                          20608850        
+ $ POP OMIT                                                             20608851        
+ $ SET OMIT = PACKETS                                                   20608859        
+                ENDOFDECK((UNITNO-32),SPOUTUNIT&CARD[1:1:1]);           20608870        
+                GO ZIPEXIT;                                             20608880        
+           END ELSE                                                     20608890        
+           GO ZIPEXIT;                                                  20608900        
+           IF(TWO(UNITNO) AND SAVEWORD) NEQ 0 THEN GO TO SAVENO;        20608950        
+           IF WAITIO(CARDLOC&400[18:33:15],@15,UNITNO).[45:3] NEQ 0 THEN20609000        
+           BEGIN                                                        20609050        
+SAVEND: LABELTABLE[UNITNO]:= @114;                                      20609100        
+        RRRMECH:= NOT (NT1:= TWO(UNITNO)) AND RRRMECH OR                20609150        
+                  NT1 AND SAVEWORD;                                     20609200        
+        GO TO ZIPEXIT;                                                  20609250        
+           END;                                                         20609300        
+        M[(SOURCE:= CARDLOC)+9]:= 0&"."[1:43:5];                        20609350        
+        USERID:= UNITCODE[UNITNO-23];                                   20609400        
+        GO TO CC;                                                       20609410        
+PACK:   IF UNITNO<32 THEN GO INCSC;                                     20609420        
+ $ SET OMIT = NOT(PACKETS)                                         %124-20609425        
+         IF PSEUDO[UNITNO-32] = 0 THEN                             %124-20609430        
+            PRINTTHECOVER(CARDLOC,UNITNO,PSOURCE);                 %124-20609435        
+    IF PSOURCE = 3 THEN USERID ~USERID &1[1:47:1];                 %782-20609436        
+ $ POP OMIT                                                        %124-20609440        
+        GO PACK2;                                                       20609450        
+LABE: OPTNN:=CCLABEL; GO DOWN;                                          20609500        
+WAIT:                                                                   20609555        
+ $ SET OMIT = NOT(PACKETS)                                              20609559        
+      IF UNITNO<32 THEN GO TO CCC;                                      20609560        
+      IF PACKETACT[UNITNO-32]=0 THEN GO TO CCC;                         20609570        
+      LABELTABLE[UNITNO]:=@214; GO TO ZIPEXIT;                          20609580        
+ $ POP OMIT                                                             20609581        
+FINIS::     CCFINISH;                                                   20609600        
+ $ SET OMIT = NOT(PACKETS)                                              20609659        
+    IF (NT1~IF ZIPMIX!0 THEN PSEUDOMIX[ZIPMIX] ELSE UNITNO)             20609660        
+         GEQ 32 THEN PACKETACT[NT1-32]:=PACKETACT[NT1-32]+1;            20609670        
+ $ POP OMIT                                                             20609671        
+           SELECTION;                                                   20609700        
+            IF UNITNO NEQ 31 THEN                                       20609750        
+            BEGIN                                                       20609760        
+ $ SET OMIT = PACKETS                                                   20609799        
+            GO CCTYPE;                                                  20610100        
+            END;                                                        20610150        
+ZIPEXIT:    FORGETSPACE(CARDLOC-2);                                     20610200        
+EXIT::                                                                  20610250        
+ $ SET OMIT = NOT(PACKETS)                                              20610259        
+          IF ZIPMIX NEQ 0 THEN NYLONZIPPER[ZIPMIX].[2:1]:=1;            20610260        
+ $ POP OMIT                                                             20610261        
+         FORGETSPACE(ACCUM INX 0);%                                     20610300        
+         FORGETSPACE(CMM INX 0);%                                       20610350        
+         IF (CCTBLWORD:=P(CCTBLWORD,DUP)&(P.[FF]-1)[CTF]).[FF]=0 THEN   20610400        
+         BEGIN                                                          20610410        
+              FORGETSPACE(CCTBLADDR);                                   20610420        
+              CCTBLADDR:=0;                                             20610430        
+         END;                                                           20610440        
+         IF UNITNO GEQ 32 AND UNITNO LEQ 63 THEN                        20610500        
+            PSEUDOCOPY:= PSEUDOCOPY - 1;                                20610550        
+         KILL([MSCW]);                                                  20610600        
+END CONTROLCARD;                                                        20610650        
+REAL PROCEDURE CCSET;                                                   20700000        
+BEGIN LABEL MORE,SEEK,SKIP,CCERR,L1,L2;                                 20701000        
+DECLARECCVARIABLES;                                                     20701500        
+REAL     FXTOG       =  RETURNVAL+1,   % BEGIN LOCALS OF CCSET          20702000        
+         LOK         =  FXTOG+1,                                        20702100        
+         N           =  LOK+1,                                          20703000        
