@@ -46,9 +46,11 @@
 "use strict";
 
 window.onload = function() {
+    const tapeMark = 0x8F;              // .bcd file tapemark (EOF) octet code
     var panel = document.getElementById("TextPanel");
-    var tapeMark = 0x8F;
-    var tapeDir = [];
+    var tapeBlob = null;                // blob read from .bcd file
+    var tapeData = null;                // tape blob as a DataView
+    var tapeDir = [];                   // contents of tape directory from .bcd blob
         
     var tapeCtl = {
         data:           null,
@@ -529,16 +531,16 @@ window.onload = function() {
 
     function fileLoader_onLoad(ev) {
         /* Handle the onload event for an ArrayBuffer FileReader */
-        var buf = ev.target.result;
-        var data = new DataView(buf);   // use DataView() to avoid problems with littleendians.
-        var tapeDir;
         var text = "";
         var x = 0;
 
+        tapeBlob = ev.target.result;
+        tapeData = new DataView(tapeBlob);      // use DataView() to avoid problems with little-endians.
+
         clearPanel();
-        tapeCtl.data = data;
+        tapeCtl.data = tapeData;
         tapeCtl.offset = 0;
-        tapeCtl.dataLength = buf.byteLength;
+        tapeCtl.dataLength = tapeBlob.byteLength;
         tapeCtl.eof = false;
         tapeCtl.eot = false;
         tapeCtl.blockCount = 0;

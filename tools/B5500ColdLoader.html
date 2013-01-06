@@ -70,7 +70,9 @@ window.onload = function() {
     var config = null;                  // copy of CONFIG store contents
     var disk = null;                    // the IDB database object
     var panel = document.getElementById("TextPanel");
-    var tapeDir = [];
+    var tapeBlob = null;                // blob read from .bcd file
+    var tapeData = null;                // tape blob as a DataView
+    var tapeDir = [];                   // contents of tape directory from .bcd blob
 
     var euSet = {EU0: euSize, EU1: euSize};
 
@@ -83,7 +85,7 @@ window.onload = function() {
         blockCount:     0,
         blockLength:    0};
 
-    var BICtoANSI = [
+    var BICtoANSI = [                   // Index by 6-bit BIC to get ANSI character
             "0", "1", "2", "3", "4", "5", "6", "7",
             "8", "9", "#", "@", "?", ":", ">", "}",
             "+", "A", "B", "C", "D", "E", "F", "G",
@@ -93,7 +95,17 @@ window.onload = function() {
             " ", "/", "S", "T", "U", "V", "W", "X",
             "Y", "Z", ",", "%", "!", "=", "]", "\""];
 
-    var pow2 = [ // powers of 2 from 0 to 52
+    var BICtoANSICode = [               // Index by 6-bit BIC to get 8-bit ANSI code
+        0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,        // 00-07, @00-07
+        0x38,0x39,0x23,0x40,0x3F,0x3A,0x3E,0x7D,        // 08-1F, @10-17
+        0x2B,0x41,0x42,0x43,0x44,0x45,0x46,0x47,        // 10-17, @20-27
+        0x48,0x49,0x2E,0x5B,0x26,0x28,0x3C,0x7E,        // 18-1F, @30-37
+        0x7C,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,        // 20-27, @40-47
+        0x51,0x52,0x24,0x2A,0x2D,0x29,0x3B,0x7B,        // 28-2F, @50-57
+        0x20,0x2F,0x53,0x54,0x55,0x56,0x57,0x58,        // 30-37, @60-67
+        0x59,0x5A,0x2C,0x25,0x21,0x3D,0x5D,0x23];       // 38-3F, @70-77
+
+    var pow2 = [                        // powers of 2 from 0 to 52
                      0x1,              0x2,              0x4,              0x8,
                     0x10,             0x20,             0x40,             0x80,
                    0x100,            0x200,            0x400,            0x800,
@@ -180,14 +192,15 @@ window.onload = function() {
     }
 
     function stringToANSI(text, bytes, bx) {
-        /* Translates the characters in a string to ANSI byte-array format.
-        "text" is the input string, "bytes" is the Uint8Array output buffer,
-        and "bx" is the offset into that output buffer */
+        /* Translates the characters in a string to upper case, and then to ANSI
+        byte-array format. "text" is the input string, "bytes" is the Uint8Array
+        output buffer, and "bx" is the offset into that output buffer */
         var len = text.length;
+        var utxt = text.toUpperCase();
         var x;
 
         for (x=0; x<len; x++) {
-            bytes[bx++] = text.charCodeAt(x) & 0xFF;
+            bytes[bx++] = utxt.charCodeAt(x) & 0xFF;
         }
     }
 
@@ -209,7 +222,7 @@ window.onload = function() {
             for (y=0; y<8; y++) {
                 z = w % 0x40000000000;
                 c = (w-z)/0x40000000000;
-                bytes[bx++] = BICtoANSI[c].charCodeAt(0);
+                bytes[bx++] = BICtoANSICode[c];
                 w = z*64;
             }
         }
@@ -609,30 +622,78 @@ window.onload = function() {
 
     function fileLoader_onLoad(ev) {
         /* Handle the onload event for an ArrayBuffer FileReader */
-        var buf = ev.target.result;
-        var data = new DataView(buf);   // use DataView() to avoid problems with littleendians.
-        var tapeDir;
+        var body = $$("TapeDirBody");
+        var cell;
+        var e;
+        var row;
         var text = "";
         var x = 0;
 
+        tapeBlob = ev.target.result;
+        tapeData = new DataView(tapeBlob);      // use DataView() to avoid problems with little-endians.
+
         clearPanel();
-        tapeCtl.data = data;
+        tapeCtl.data = tapeData;
         tapeCtl.offset = 0;
-        tapeCtl.dataLength = buf.byteLength;
+        tapeCtl.dataLength = tapeBlob.byteLength;
         tapeCtl.eof = false;
         tapeCtl.eot = false;
         tapeCtl.blockCount = 0;
 
         tapeDir = readTapeDirectory(tapeCtl);
-        for (x=0; x<tapeDir.length; x++) {
-            spout(tapeDir[x]);
-        }
+
+        row = document.createElement("tr");
+        cell = document.createElement("td");
+        cell.colSpan=2;
+        row.appendChild(cell);
+        cell = document.createElement("td");
+        cell.className = "center";
+        e = document.createElement("input");
+        e.type = "radio";
+        e.value = "0";
+        e.name = "AsMCP";
+        e.checked = true;
+        cell.appendChild(e);
+        row.appendChild(cell);
+        cell = document.createElement("td");
+        cell.appendChild(document.createTextNode("(none)"));
+        row.appendChild(cell);
+        body.appendChild(row);
 
         for (x=1; x<tapeDir.length; x++) {
-            if (extractFile(tapeCtl, x, tapeDir[x])) {
-                break;
-            }
+            row = document.createElement("tr");
+            // File number
+            cell = document.createElement("td");
+            cell.className = "rj";
+            cell.appendChild(document.createTextNode(x.toFixed(0)));
+            row.appendChild(cell);
+            // Load selection checkbox
+            cell = document.createElement("td");
+            cell.className = "center";
+            e = document.createElement("input");
+            e.type = "checkbox";
+            e.id = "File_" + x;
+            e.value = "File_" + x;
+            cell.appendChild(e);
+            row.appendChild(cell);
+            // Load as MCP selection radio button
+            cell = document.createElement("td");
+            cell.className = "center";
+            e = document.createElement("input");
+            e.type = "radio";
+            e.id = "AsMCP_" + x;
+            e.value = x;
+            e.name = "AsMCP";
+            cell.appendChild(e);
+            row.appendChild(cell);
+            // File ID
+            cell = document.createElement("td");
+            cell.appendChild(document.createTextNode(tapeDir[x]));
+            row.appendChild(cell);
+            body.appendChild(row);
         }
+        $$("TapeDirDiv").style.display = "block";
+        $$("LoadBtn").disabled = false;
     }
 
     function fileSelector_onChange(ev) {
@@ -716,6 +777,120 @@ window.onload = function() {
             return segNr + areasize;
         }
 
+        function initializeDirectory(config) {
+            /* Initializes the directory structure on EU0. "config" is the
+            database CONFIG structure */
+
+            // Initialize the directory labels segment
+            stringToANSI("0000001?", fileLabels, 14*16);            // @114, last-entry marker
+            stringToANSI("00000000", fileLabels, 14*16+8);
+
+            // Initialize segment 0
+            shar[ 0] = 1;                   // number of shared-disk systems
+            shar[ 1] = directoryTop;
+            shar[ 2] = 0;
+            shar[ 3] = 0;
+            shar[ 4] = directoryEnd;        // DIRECT deck option
+            wordsToANSI(shar, 0, 30, buffer, 0);
+            eu.put(buffer, 0);
+
+            // Load the Halt Load Button Card image
+            loadBootstrap(eu, buffer);      // load the Halt/Load Button Card image
+
+            // Note: it is not necessary the clear out the ESPDISK area, since on a
+            // cold start the entire EU object store is cleared.
+
+            // Initialize the DIRECTORYTOP segment
+            info[ 0] =                      // option word
+                                                    // 47: use DRA
+                                                    // 46: use DRB
+                       pow2[47-45] +                // 45: print BOJ
+                       pow2[47-44] +                // 44: print EOJ
+                       pow2[47-43] +                // 43: type file open
+                       pow2[47-42] +                // 42: call TERMINATE procedure
+                       pow2[47-41] +                // 41: initialize date @ H/L
+                       pow2[47-40] +                // 40: initialize time @ H/L
+                                                    // 39: use only one breakout tape
+                                                    // 38: automatically print pbt
+                       pow2[47-37] +                // 37: clear write ready status @ terminal
+                       pow2[47-36] +                // 36: write disc. code on terminal
+                       pow2[47-35] +                // 35: type when compiler files open & close
+                       pow2[47-34] +                // 34: type file close
+                       pow2[47-33] +                // 33: error msgs when progr recovery used
+                       pow2[47-32] +                // 32: type MT retention messages
+                       pow2[47-31] +                // 31: type library messages
+                       pow2[47-30] +                // 30: type schedule messages
+                       pow2[47-29] +                // 29: type file security messages
+                       pow2[47-28] +                // 28: prevent I/O below user disk area
+                       pow2[47-27] +                // 27: prevent disk RELEASE statement
+                       pow2[47-26] +                // 26: printer backup disk release
+                       pow2[47-25] +                // 25: check memory links
+                       pow2[47-24] +                // 24: type disk error messages
+                       pow2[47-23] +                // 23: disk logging
+                       pow2[47-22] +                // 22: suppress library error messages
+                       pow2[47-21] +                // 21: go to printer back-up only
+                       pow2[47-20] +                // 20: dont stack files on PB tapes
+                       pow2[47-19] +                // 19: print set or reset messages
+                                                    // 18: no user disk will unload expired
+                       pow2[47-17] +                // 17: run all decks(SHAREDISK)
+                                                    // 16: olay core to ECM(AUXMEM)
+                       pow2[47-15] +                // 15: job core estimates(STATISTICS)
+                                                    // 14: olay data to ECM(AUXMEM)
+                       pow2[47-13] +                // 13: makes system hang on-should HL msg
+                                                    // 12: enables datacom(TSS, if not DCP)
+                       pow2[47-11] +                // 11: library messages for CANDE
+                       pow2[47-10] +                // 10: ZIP decks to run on batch(SHAREDISK)
+                                                    //  9: controls running of batch jobs on TSS
+                                                    //  8:  UNUSED
+                                                    //  7:  UNUSED
+                                                    //  6:  UNUSED
+                                                    //  5:  UNUSED
+                                                    //  4:  UNUSED
+                                                    //  3:  UNUSED
+                       pow2[47- 2] +                //  2: Model III I/O channels
+                                                    //  1:  UNUSED
+                       0;                           //  0: (flag bit)
+
+            info[ 1] = 0x1001200;           // Date: BIC "00010180" = 1980-01-01
+            info[ 2] = config.eus;          // number of EUs
+            info[ 3] = 0;                   // not used
+            info[ 4] = directoryEnd;        // DIRECT deck option
+            info[ 5] = 0;                   // last number used for control deck
+            info[ 6] = 0;                   // first control deck queued
+            info[ 7] = 0;                   // last control deck queued
+            info[ 8] = 0;                   // next number available for printer backup disk
+            info[ 9] = 1;                   // multiprocessing core factor
+            info[10] = 0;                   // SPO stations (through info[15])
+            info[11] = 0;
+            info[12] = 0;
+            info[13] = 0;
+            info[14] = 0;
+            info[15] = 0;
+            info[16] = 15;                  // Q value for datacom input
+            info[17] = 0;                   // remote SPO mask
+            info[18] = 0;                   // time of day (XCLOCK)
+            info[19] = 0;                   // FENCE address (TSSMCP only)
+            info[20] = 0;                   // log pointer
+            info[21] = 0;                   // status of schedule lines (TSSMCP only)
+            info[22] = 0;                   // log serial number fields
+            info[23] = 0;                   // not used
+            info[24] = 0;                   // DKA SU configuration
+            info[25] = 0;                   // DKA, continued
+            info[26] = 0;                   // DKB SU configuration (if no DFX)
+            info[27] = 0;                   // DKB, continued
+            info[28] = directoryTop;        // disk address of DIRECTORYTOP
+            wordsToANSI(info, 0, 30, buffer, 0);
+            eu.put(buffer, directoryTop);
+
+            // Create a file entry for the system log
+            segNr = directoryEnd + 4;
+            segNr = enterFile("SYSTEM", "LOG", 1, 20000, eu, buffer, directoryTop, fileLabels, fileNr, segNr);
+            fileNr++;
+
+            // Store the directory labels segment
+            eu.put(fileLabels, directoryTop + 19);  // write the directory block file labels
+        }
+
         /***** Start of initializeDisk *****/
         wordsToANSI(shar, 0, 30, zeroes, 0);            // create a segment buffer of zeroes
         wordsToANSI(shar, 0, 30, fileLabels, 0);        // initialize the file name label block
@@ -728,112 +903,17 @@ window.onload = function() {
 
         eu = txn.objectStore(euName);
         txn.objectStore("CONFIG").get(0).onsuccess = function(ev) {
-            config = ev.target.result;
+
+            config = ev.target.result;                  // global assignment
             if (!config) {
                 alert("No CONFIG object in database");
                 txn.abort();
             } else {
-                // Initialize the directory labels segment
-                stringToANSI("0000001?", fileLabels, 14*16);            // @114, last-entry marker
-                stringToANSI("00000000", fileLabels, 14*16+8);
-
-                // Initialize segment 0
-                shar[ 0] = 1;                   // number of shared-disk systems
-                shar[ 1] = directoryTop;
-                shar[ 2] = 0;
-                shar[ 3] = 0;
-                shar[ 4] = directoryEnd;        // DIRECT deck option
-                wordsToANSI(shar, 0, 30, buffer, 0);
-                eu.put(buffer, 0);
-
-                // Load the Halt Load Button Card image
-                loadBootstrap(eu, buffer);      // load the Halt/Load Button Card image
-
-                // Clean out the ESPDISK area
-                for (x=50; x<directoryTop; x++) {
-                    eu.put(zeroes, x);
+                eu.clear().onsuccess = function(ev) {
+                    initializeDirectory(config);
                 }
-
-                // Initialize the DIRECTORYTOP segment
-                info[ 0] =                      // option word
-                                                        // 47: use DRA
-                                                        // 46: use DRB
-                           pow2[47-45] +                // 45: print BOJ
-                           pow2[47-44] +                // 44: print EOJ
-                           pow2[47-43] +                // 43: type file open
-                           pow2[47-42] +                // 42: call TERMINATE procedure
-                           pow2[47-41] +                // 41: initialize date @ H/L
-                           pow2[47-40] +                // 40: initialize time @ H/L
-                                                        // 39: use only one breakout tape
-                                                        // 38: automatically print pbt
-                           pow2[47-37] +                // 37: clear write ready status @ terminal
-                           pow2[47-36] +                // 36: write disc. code on terminal
-                           pow2[47-35] +                // 35: type when compiler files open & close
-                           pow2[47-34] +                // 34: type file close
-                           pow2[47-33] +                // 33: error msgs when progr recovery used
-                           pow2[47-32] +                // 32: type MT retention messages
-                           pow2[47-31] +                // 31: type library messages
-                           pow2[47-30] +                // 30: type schedule messages
-                           pow2[47-29] +                // 29: type file security messages
-                           pow2[47-28] +                // 28: prevent I/O below user disk area
-                           pow2[47-27] +                // 27: prevent disk RELEASE statement
-                           pow2[47-26] +                // 26: printer backup disk release
-                           pow2[47-25] +                // 25: check memory links
-                           pow2[47-24] +                // 24: type disk error messages
-                           pow2[47-23] +                // 23: disk logging
-                           pow2[47-22] +                // 22: suppress library error messages
-                           pow2[47-21] +                // 21: go to printer back-up only
-                           pow2[47-20] +                // 20: dont stack files on PB tapes
-                           pow2[47-19] +                // 19: print set or reset messages
-                                                        // 18: no user disk will unload expired
-                           pow2[47-17] +                // 17: run all decks(SHAREDISK)
-                                                        // 16: olay core to ECM(AUXMEM)
-                           pow2[47-15] +                // 15: job core estimates(STATISTICS)
-                                                        // 14: olay data to ECM(AUXMEM)
-                           pow2[47-13] +                // 13: makes system hang on-should HL msg
-                                                        // 12: enables datacom(TSS, if not DCP)
-                           pow2[47-11] +                // 11: library messages for CANDE
-                           pow2[47-10] +                // 10: ZIP decks to run on batch(SHAREDISK)
-                                                        //  9: controls running of batch jobs on TSS
-                                                        //  8:  UNUSED
-                                                        //  7:  UNUSED
-                                                        //  6:  UNUSED
-                                                        //  5:  UNUSED
-                                                        //  4:  UNUSED
-                                                        //  3:  UNUSED
-                           pow2[47- 2] +                //  2: Model III I/O channels
-                                                        //  1:  UNUSED
-                           0;                           //  0: (flag bit)
-
-                info[ 1] = 0x1001200;           // Date: BIC "00010180" = 1980-01-01
-                info[ 2] = config.eus;          // number of EUs
-                info[ 3] = 0;                   // not used
-                info[ 4] = directoryEnd;        // DIRECT deck option
-                info[ 5] = 0;                   // last number used for control deck
-                info[ 6] = 0;                   // first control deck queued
-                info[ 7] = 0;                   // last control deck queued
-                info[ 8] = 0;                   // next number available for printer backup disk
-                info[ 9] = 1;                   // multiprocessing core factor
-                info[10] = 0;                   // SPO stations (through info[15])
-                info[11] = 0;
-                info[12] = 0;
-                info[13] = 0;
-                info[14] = 0;
-                info[15] = 0;
-                info[16] = 15;                  // Q value for datacom input
-                wordsToANSI(info, 0, 30, buffer, 0);
-                eu.put(buffer, directoryTop);
-
-                // Create a file entry for the system log
-                segNr = directoryEnd + 1;
-                segNr = enterFile("SYSTEM", "LOG", 1, 20000, eu, buffer, directoryTop, fileLabels, fileNr, segNr);
-                fileNr++;
-
-                // Store the directory labels segment
-                eu.put(fileLabels, directoryTop + 19);  // write the directory block file labels
             }
         };
-
     }
 
     function configureDatabase(ev) {
@@ -934,8 +1014,9 @@ window.onload = function() {
             alert("Disk database opened: " + name + " #" + disk.version);
             disk.onerror = genericDBError;
             $$("ColdstartBtn").disabled = false;
+            $$("FileSelector").disabled = false;
 
-            dumpDisk();             // <<<<<<<<<<<<<< DEBUG <<<<<<<<<<<<<<<<<
+            //dumpDisk();             // <<<<<<<<<<<<<< DEBUG <<<<<<<<<<<<<<<<<
         };
 
         req.onupgradeneeded = configureDatabase;
@@ -975,6 +1056,22 @@ window.onload = function() {
     }
 }
 </script>
+
+<style>
+BODY {
+    font-family:        Arial, Helvetica, sans-serif;
+    font-size:          small}
+TH {
+    vertical-align:     bottom}
+DIV#TapeDirDiv {
+    display:            none}
+TBODY#TapeDirBody {
+    font-family:        Courier New, Courier, monospace}
+.center {
+    text-align:         center}
+.rj {
+    text-align:         right}
+</style>
 </head>
 
 <body>
@@ -984,12 +1081,25 @@ window.onload = function() {
         retro-B5500 Coldstart Disk SubSystem Loader
     </div>
     <div style="text-align:center">
-        <input id=ColdstartBtn type=button DISABLED value="Cold Start">
+        <input id=ColdstartBtn type=button value="Cold Start" DISABLED>
     </div>
     <div style="position:absolute; top:0; right:0; width:auto">
-        <input id=FileSelector type=file size=60>
+        <input id=FileSelector type=file size=60 DISABLED>
     </div>
 
+</div>
+
+<div id=TapeDirDiv>
+    <table id=TapeDirTable border=1 cellspacing=0 cellpadding=1>
+    <thead>
+    <tr>
+        <th>Nr
+        <th>Load
+        <th>as MCP
+        <th>File ID
+    <tbody id=TapeDirBody>
+    </table>
+    <input id=LoadBtn type=button value="Load" DISABLED>
 </div>
 
 <pre id=TextPanel>
