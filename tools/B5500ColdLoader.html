@@ -173,6 +173,7 @@ window.onload = function() {
         var e = document.createTextNode(text + "\n");
 
         panel.appendChild(e);
+        $$("PageBottom").scrollIntoView();
     }
 
     /**************************************/
@@ -288,7 +289,16 @@ window.onload = function() {
 
     /**************************************/
     function makeAvailable(addr, size) {
-        /* Removes "size" segments starting at "addr" from the "availDisk" map. */
+        /* Returns "size" segments starting at "addr" to the "availDisk" map.
+        No attempt at space consolidate is made, presently, since it is likely
+        we are replacing the same file with the same size rows */
+
+        availDisk.push({addr: addr, size: size});
+    }
+
+    /**************************************/
+    function removeAvailable(addr, size) {
+        /* Removes "size" segments starting at "addr" from the "availDisk" map */
         var avAddr;
         var avEnd;
         var endAddr = addr+size-1;
@@ -325,7 +335,7 @@ window.onload = function() {
             }
         }
         if (!found) {
-            alert("makeAvailable: No map entry covers address " + addr + " for " + size + " segments");
+            alert("removeAvailable: No map entry covers address " + addr + " for " + size + " segments");
         }
     }
 
@@ -346,9 +356,9 @@ window.onload = function() {
                  if (avSize == size) {          // we will take this one
                      bestx = mx;
                      break;
-                 } else if (bestSize == 0 || bestSize > avSize) {
-                     bestSize = avSize;
+                 } else if (bestx < 0 || bestSize > avSize) {
                      bestx = mx;
+                     bestSize = avSize;
                  }
             }
         }
@@ -357,7 +367,7 @@ window.onload = function() {
         } else {
             addr = availDisk[bestx].addr;
             availDisk[bestx].addr += size;
-            availDisk[bestx].size -= addr;
+            availDisk[bestx].size -= size;
             return addr;
         }
     }
@@ -674,9 +684,8 @@ window.onload = function() {
     }
 
     /**************************************/
-    function loadFileRow(ctl, eu, addr) {
-        /* Extracts the next row from the tape blob and writes it to the "eu" disk
-        unit. Updates the header row address word with the address of the row */
+    function loadFileRow(ctl, eu, addr, segsPerRow) {
+        /* Extracts the next row from the tape blob and writes it to the "eu" disk unit */
         var block;
         var blockSegs;
         var done = false;
@@ -690,9 +699,10 @@ window.onload = function() {
             } else {
                 wordCount = block.length;
                 blockSegs = Math.floor((wordCount+29)/30);
-                if (segs+blockSegs > header.segmentsPerRow) {
+                if (segs+blockSegs > segsPerRow) {
+                    done = true;
                     alert("loadFileRow: row too long: " + segs);
-                    blockSegs = header.segmentsPerRow - segs;
+                    blockSegs = segsPerRow - segs;
                     wordCount = blockSegs*30;
                 }
                 if (wordCount > 0) {
@@ -700,7 +710,7 @@ window.onload = function() {
                     addr += blockSegs;
                     segs += blockSegs;
                 }
-                if (segs >= header.segmentsPerRow) {
+                if (segs >= segsPerRow) {
                     done = true;
                 }
             }
@@ -708,10 +718,10 @@ window.onload = function() {
     }
 
     /**************************************/
-    function loadFile(ctl, fileNr, eu, header) {
+    function loadFile(ctl, fileNr, eu, diskHeader) {
         /* Extracts the next file in sequence from the tape blob, converts the data
         from BIC to ANSI, and writes it a row at a time to the disk "eu".
-        Establishes the "header" disk file header from the tape and updates the
+        Establishes the "diskHeader" disk file header from the tape and updates the
         disk header address row words as the rows are allocated and written to the disk.
         Returns true if no more files should be converted */
         var addr;
@@ -725,17 +735,17 @@ window.onload = function() {
         var x;
 
         spout(" ");
-        spout("Extracting #" + fileNr + ": " + tapeDir[fileNr]);
+        spout("Loading #" + fileNr + ": " + tapeDir[fileNr]);
         lab = readTapeLabel(ctl);
         if (ctl.eof) {
-            spout("Extract: EOF encountered when tape label expected, block=" + ctl.blockCount);
+            spout("loadFile: EOF encountered when tape label expected, block=" + ctl.blockCount);
         } else if (!lab.isLabel) {
             spout(lab.text);
-            spout("Extract: Above block encountered when a tape label was expected, block=" + ctl.blockCount);
+            spout("loadFile: Above block encountered when a tape label was expected, block=" + ctl.blockCount);
         } else {
             block = readWordBlock(ctl);
             if (!ctl.eof) {
-                spout("Extract: EOF expected after starting label, block=" + ctl.blockCount);
+                spout("loadFile: EOF expected after starting label, block=" + ctl.blockCount);
             }
             tapeHeader = readDiskHeader(ctl);
 
@@ -769,29 +779,33 @@ window.onload = function() {
 
             // Copy the header words from the tape to the disk header
             for (x=0; x<30; x++) {
-                header[x] = tapeHeader.words[x] || 0;
+                diskHeader[x] = tapeHeader.words[x] || 0;
             }
 
-            // Load the rows and update the header address words
-            for (x=0; x<header.maxRows; x++) {
-                if (header[10+x] > 0) {
-                    addr = findDiskSpace(header.segmentsPerRow);
+            // Load the rows and update the disk header address words
+            for (x=0; x<tapeHeader.maxRows; x++) {
+                if (diskHeader[10+x] > 0) {
+                    addr = findDiskSpace(tapeHeader.segmentsPerRow);
                     if (addr < 0) {
-                        done = true;
                         alert("Cannot get space for row #" + x);
-                        header[10+x] = 0;
+                        diskHeader[10+x] = 0;
                     } else {
-                        header[10+x] = addr;
-                        loadFileRow(ctl, eu, addr);
+                        diskHeader[10+x] = addr;
+                        loadFileRow(ctl, eu, addr, tapeHeader.segmentsPerRow);
                     }
                 }
             }
 
+            block = readWordBlock(ctl);
+            if (!ctl.eof) {
+                spout("loadFile: EOF expected after last data row, block=" + ctl.blockCount);
+            }
+
             lab2 = readTapeLabel(ctl);
             if (!lab2.isLabel) {
-                spout("Extract: Tape label expected after file data, block=" + ctl.blockCount);
+                spout("loadFile: Tape label expected after file data, block=" + ctl.blockCount);
             } else if (lab2.mfid != lab.mfid || lab2.fid != lab.fid) {
-                spout("Extract: File ending label mismatch, block=" + ctl.blockCount);
+                spout("loadFile: File ending label mismatch, block=" + ctl.blockCount);
             }
         }
         return result;
@@ -808,14 +822,14 @@ window.onload = function() {
         spout("Skipping #" + fileNr + ": " + tapeDir[fileNr]);
         lab = readTapeLabel(ctl);
         if (ctl.eof) {
-            spout("Skip: EOF encountered when tape label expected, block=" + ctl.blockCount);
+            spout("skipFile: EOF encountered when tape label expected, block=" + ctl.blockCount);
         } else if (!lab.isLabel) {
             spout(lab.text);
-            spout("Skip: Above block encountered when a tape label was expected, block=" + ctl.blockCount);
+            spout("skipFile: Above block encountered when a tape label was expected, block=" + ctl.blockCount);
         } else {
             block = readWordBlock(ctl);
             if (!ctl.eof) {
-                spout("Skip: EOF expected after starting label, block=" + ctl.blockCount);
+                spout("skipFile: EOF expected after starting label, block=" + ctl.blockCount);
             }
 
             do {
@@ -824,9 +838,9 @@ window.onload = function() {
 
             lab2 = readTapeLabel(ctl);
             if (!lab2.isLabel) {
-                spout("Skip: Tape label expected after file data, block=" + ctl.blockCount);
+                spout("skipFile: Tape label expected after file data, block=" + ctl.blockCount);
             } else if (lab2.mfid != lab.mfid || lab2.fid != lab.fid) {
-                spout("Skip: File ending label mismatch, block=" + ctl.blockCount);
+                spout("skipFile: File ending label mismatch, block=" + ctl.blockCount);
             }
         }
         return result;
@@ -915,7 +929,7 @@ window.onload = function() {
             /* Controls the loading of the current file from tape and updates
             the disk directory with the new file information */
             var extendDirectory = false;
-            var header;
+            var diskHeader;
             var hx = slot*30;
             var nx = slot*2 + 450;
             var rowMax;
@@ -924,24 +938,24 @@ window.onload = function() {
 
             if (addr < 0) {
                 addr = -addr;
-                header = new Array(30);
+                diskHeader = new Array(30);
             } else {
-                header = block.slice(hx, hx+30);
+                diskHeader = block.slice(hx, hx+30);
                 // Deallocate the existing rows
-                rowSize = header[8];
-                rowMax = fieldIsolate(header[9], 43,  5);
+                rowSize = diskHeader[8];
+                rowMax = fieldIsolate(diskHeader[9], 43,  5);
                 for (x=0; x<rowMax; x++) {
-                    if (header[10+x] > 0) {
-                        makeAvailable(header[10+x], rowSize);
+                    if (diskHeader[10+x] > 0) {
+                        makeAvailable(diskHeader[10+x], rowSize);
                     }
                 }
             }
 
-            loadFile(tapeCtl, fileNr, eu, header);
+            loadFile(tapeCtl, fileNr, eu, diskHeader);
 
             // Move the new header into the directory block
             for (x=0; x<30; x++) {
-                block[hx+x] = header[x] || 0;
+                block[hx+x] = diskHeader[x] || 0;
             }
 
             // Check if using the last slot in the directory
@@ -973,8 +987,8 @@ window.onload = function() {
 
         mfid = "0" + padToLength(nameParts[0] || " ", 7);
         fid =  "0" + padToLength(nameParts[1] || " ", 7);
-        stringToANSI(mfid, 8, buf, 0);
-        stringToANSI(fid,  8, buf, 8);
+        stringToANSI(mfid, buf, 0);
+        stringToANSI(fid,  buf, 8);
         ANSItoWords(buf, 0, 16, names, 0);
         mfid = names[0];
         fid =  names[1];
@@ -1010,7 +1024,7 @@ window.onload = function() {
             }
         }
         if (topFileNr <= 0) {
-            alert("LoadFromTape: no files selected");
+            alert("loadFromTape: no files selected");
         } else {
             loadNextFile(tapeCtl, topFileNr, 1);
         }
@@ -1048,7 +1062,7 @@ window.onload = function() {
                     rowMax = fieldIsolate(block[bx+9], 43,  5);
                     for (rx=0; rx<rowMax; rx++) {
                         if (block[bx+10+rx] > 0) {
-                            makeAvailable(block[bx+10+rx], rowSize);
+                            removeAvailable(block[bx+10+rx], rowSize);
                         }
                     }
                 }
@@ -1586,6 +1600,9 @@ TBODY#TapeDirBody {
 
 <pre id=TextPanel>
 </pre>
+
+<div id=PageBottom>
+</div>
 
 </body>
 </html>
