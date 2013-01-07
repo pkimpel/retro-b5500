@@ -15,14 +15,14 @@
 *       see http://www.opensource.org/licenses/mit-license.php
 ************************************************************************
 * B5500 Library Maintenance tape file mapper.
-* 
+*
 * This script reads a Burroughs B5500 Library/Maintenance tape as one
 * large blob and outputs directory information for all files.
 *
 * The blob is assumed to be in the so-called ".bcd" format. Each 7-bit frame
 * from the tape is represented as one 8-bit unsigned byte. The low-order six
 * bits (mask 0x3F) contain the character value. The next bit (mask 0x40) is
-* the parity bit, and the high-order bit (mask 0x80) indicates the byte is 
+* the parity bit, and the high-order bit (mask 0x80) indicates the byte is
 * at the start of a physical tape block. Tape marks (EOF) are indicated by a
 * block containing a single 0x8F byte.
 *
@@ -41,7 +41,7 @@ window.onload = function() {
     var panel = document.getElementById("TextPanel");
     var tapeMark = 0x8F;
     var tapeDir = [];
-        
+
     var tapeCtl = {
         data:           null,
         offset:         0,
@@ -50,31 +50,31 @@ window.onload = function() {
         eot:            false,
         blockCount:     0,
         blockLength:    0};
-    
-    var BICtoANSI = [ 
-            "0", "1", "2", "3", "4", "5", "6", "7", 
-            "8", "9", "#", "@", "?", ":", ">", "}", 
-            "+", "A", "B", "C", "D", "E", "F", "G", 
-            "H", "I", ".", "[", "&", "(", "<", "~", 
-            "|", "J", "K", "L", "M", "N", "O", "P", 
-            "Q", "R", "$", "*", "-", ")", ";", "{", 
-            " ", "/", "S", "T", "U", "V", "W", "X", 
+
+    var BICtoANSI = [
+            "0", "1", "2", "3", "4", "5", "6", "7",
+            "8", "9", "#", "@", "?", ":", ">", "}",
+            "+", "A", "B", "C", "D", "E", "F", "G",
+            "H", "I", ".", "[", "&", "(", "<", "~",
+            "|", "J", "K", "L", "M", "N", "O", "P",
+            "Q", "R", "$", "*", "-", ")", ";", "{",
+            " ", "/", "S", "T", "U", "V", "W", "X",
             "Y", "Z", ",", "%", "!", "=", "]", "\""];
-        
+
     var pow2 = [ // powers of 2 from 0 to 52
-                     0x1,              0x2,              0x4,              0x8, 
-                    0x10,             0x20,             0x40,             0x80, 
-                   0x100,            0x200,            0x400,            0x800, 
-                  0x1000,           0x2000,           0x4000,           0x8000, 
-                 0x10000,          0x20000,          0x40000,          0x80000, 
-                0x100000,         0x200000,         0x400000,         0x800000, 
-               0x1000000,        0x2000000,        0x4000000,        0x8000000, 
-              0x10000000,       0x20000000,       0x40000000,       0x80000000, 
-             0x100000000,      0x200000000,      0x400000000,      0x800000000, 
-            0x1000000000,     0x2000000000,     0x4000000000,     0x8000000000, 
-           0x10000000000,    0x20000000000,    0x40000000000,    0x80000000000, 
-          0x100000000000,   0x200000000000,   0x400000000000,   0x800000000000, 
-         0x1000000000000,  0x2000000000000,  0x4000000000000,  0x8000000000000, 
+                     0x1,              0x2,              0x4,              0x8,
+                    0x10,             0x20,             0x40,             0x80,
+                   0x100,            0x200,            0x400,            0x800,
+                  0x1000,           0x2000,           0x4000,           0x8000,
+                 0x10000,          0x20000,          0x40000,          0x80000,
+                0x100000,         0x200000,         0x400000,         0x800000,
+               0x1000000,        0x2000000,        0x4000000,        0x8000000,
+              0x10000000,       0x20000000,       0x40000000,       0x80000000,
+             0x100000000,      0x200000000,      0x400000000,      0x800000000,
+            0x1000000000,     0x2000000000,     0x4000000000,     0x8000000000,
+           0x10000000000,    0x20000000000,    0x40000000000,    0x80000000000,
+          0x100000000000,   0x200000000000,   0x400000000000,   0x800000000000,
+         0x1000000000000,  0x2000000000000,  0x4000000000000,  0x8000000000000,
         0x10000000000000];
 
     function bit(word, bit) {
@@ -100,46 +100,46 @@ window.onload = function() {
     function spout(text) {
         /* Appends "text"+NL as a new text node to the panel DOM element */
         var e = document.createTextNode(text + "\n");
-        
+
         panel.appendChild(e);
     }
-    
+
     function clearPanel() {
         /* Clears the text panel */
         var kid;
-        
+
         while (kid = panel.firstChild) {
             panel.removeChild(kid);
         }
     }
-    
+
     function parseNumber(s) {
         /* Parses the string "s" as a base-10 number. Returns 0 if it is not a number */
         var n = parseInt(s, 10);
-        
+
         return (isNaN(n) ? 0 : n);
     }
-    
+
     function rtrim(s) {
         /* Trims trailing spaces from "s" and returns the resulting string */
         var m = s.match(/^(.*?) *$/);
-        
+
         return m[1];
     }
-    
-    function readTextBlock(ctl) { 
+
+    function readTextBlock(ctl) {
         /* Reads the next block from the tape, translating the character frames to ANSI
-           character codes and returning the data as a string. A block is terminated when 
+           character codes and returning the data as a string. A block is terminated when
            the next frame has its high-order bit set, or the end of the data is reached.
            The string returned is always at least one character in length, unless the block
-           is a tapeMark  (in which case the "eof" property is set) or the end of the data 
+           is a tapeMark  (in which case the "eof" property is set) or the end of the data
            has been reached (in which case the "eof" and "eot" properties are set) */
         var c;
         var data = ctl.data;
         var limit = ctl.dataLength;
         var text = "";
         var x = ctl.offset;
-        
+
         if (x >= limit) {
            ctl.eof = true;
            ctl.eot = true;
@@ -167,13 +167,13 @@ window.onload = function() {
         }
         return text;
     }
-    
-    function readWordBlock(ctl) { 
-        /* Reads the next block from the tape, translating the character frames to an array 
-           of B5500 binary words and returning the array. A block is terminated when 
+
+    function readWordBlock(ctl) {
+        /* Reads the next block from the tape, translating the character frames to an array
+           of B5500 binary words and returning the array. A block is terminated when
            the next frame has its high-order bit set, or the end of the data is reached.
            The array returned is always at least one element in length, unless the block
-           is a tapeMark  (in which case the "eof" property is set) or the end of the data 
+           is a tapeMark  (in which case the "eof" property is set) or the end of the data
            has been reached (in which case the "eof" and "eot" properties are set) */
         var c;
         var data = ctl.data;
@@ -182,7 +182,7 @@ window.onload = function() {
         var words = [];
         var wx = 0;
         var x = ctl.offset;
-        
+
         if (x >= limit) {
            ctl.eof = true;
            ctl.eot = true;
@@ -209,7 +209,7 @@ window.onload = function() {
                          c = tapeMark;  // to kill the loop
                      }
                  } while (c < 128);
-                 
+
                  // Right-justify the last word as necessary
                  while (wx++ < 8) {
                      w *= 64;
@@ -223,13 +223,13 @@ window.onload = function() {
         }
         return words;
     }
-    
+
     function readTapeLabel(ctl) {
         /* Reads the next block from the tape and determines if it is a B5500 tape label.
            If so, decodes the label into a label object and returns the object */
         var rec;
         var s;
-        
+
         var lab = {
             isLabel:    false,
             text:       "",
@@ -245,7 +245,7 @@ window.onload = function() {
             recordCount:0,
             memdumpKey: 0,
             tapeNumber: ""};
-        
+
         rec = readTextBlock(ctl);
         if (!ctl.eof) {
             lab.text = rec;
@@ -267,7 +267,7 @@ window.onload = function() {
         }
         return lab;
     }
-    
+
     function readTapeDirectory(ctl) {
         /* Reads the Lib/Maint tape directory and returns and array of file names, indexed
            starting at 1. If the directory is invalid, returns an empty array */
@@ -280,7 +280,7 @@ window.onload = function() {
         var rec;
         var w;
         var x;
-        
+
         lab = readTapeLabel(ctl);
         if (ctl.eof) {
             spout("TapeDir: EOF encountered when tape label expected, block=" + ctl.blockCount);
@@ -293,7 +293,7 @@ window.onload = function() {
             if (!ctl.eof) {
                 spout("TapeDir: EOF expected after starting label, block=" + ctl.blockCount);
             }
-            
+
             do {
                 rec = readTextBlock(ctl);
                 if (!ctl.eof) {
@@ -317,7 +317,7 @@ window.onload = function() {
                     } while (!done);
                 }
             } while (!ctl.eof);
-            
+
             lab2 = readTapeLabel(ctl);
             if (!lab2.isLabel) {
                 spout("TapeDir: Tape label expected after directory, block=" + ctl.blockCount);
@@ -327,12 +327,12 @@ window.onload = function() {
         }
         return dir;
     }
-    
+
     function readDiskHeader(ctl) {
-        /* Reads the next block from the tape blob and (partially) decodes it as a B5500 
+        /* Reads the next block from the tape blob and (partially) decodes it as a B5500
            disk header, returning the header object */
         var block;
-        
+
         var header = {
             recordLength:       0,
             blockLength:        0,
@@ -348,7 +348,7 @@ window.onload = function() {
             segmentsPerRow:     0,
             maxRows:            0,
             rowAddress:         []};
-        
+
         block = readWordBlock(ctl);
         if (ctl.eof) {
             spout("DiskHeader: EOF encountered reading header, block=" + ctl.blockCount);
@@ -372,7 +372,7 @@ window.onload = function() {
         }
         return header;
     }
-    
+
     function extractFile(ctl, fileNr, fileName) {
         /* Extracts the next file in sequence from the tape blob, converts the data
            from BIC to ASCII, and writes it to a new window object within the browser.
@@ -388,7 +388,7 @@ window.onload = function() {
         var text;
         var win;
         var x;
-        
+
         spout(" ");
         spout("File #" + fileNr + ": " + fileName);
         lab = readTapeLabel(ctl);
@@ -400,9 +400,9 @@ window.onload = function() {
         } else {
             block = readWordBlock(ctl);
             if (!ctl.eof) {
-                spout("TapeDir: EOF expected after starting label, block=" + ctl.blockCount);
+                spout("Extract: EOF expected after starting label, block=" + ctl.blockCount);
             }
-            header = readDiskHeader(ctl); 
+            header = readDiskHeader(ctl);
             spout("    " + lab.mfid + "/" + lab.fid +
                   ": REC=" + header.recordLength +
                   ", BLK=" + header.blockLength +
@@ -417,7 +417,7 @@ window.onload = function() {
                   ", CNT=" + header.recordCount +
                   ", SPR=" + header.segmentsPerRow +
                   ", MXR=" + header.maxRows);
-                  
+
             text = "        Rows @ [";
             for (x=0; x<header.rowAddress.length; x++) {
                 if (x>0) {
@@ -429,11 +429,11 @@ window.onload = function() {
                 }
             }
             spout(text + "], allocated=" + rowCount);
-            
+
             while (!ctl.eof) {
-               text = readTextBlock(ctl);                
+               text = readTextBlock(ctl);
             }
-            
+
             lab2 = readTapeLabel(ctl);
             if (!lab2.isLabel) {
                 spout("Extract: Tape label expected after file data, block=" + ctl.blockCount);
@@ -459,11 +459,11 @@ window.onload = function() {
         tapeCtl.eof = false;
         tapeCtl.eot = false;
         tapeCtl.blockCount = 0;
-        
+
         tapeDir = readTapeDirectory(tapeCtl);
         spout("Files on tape: " + tapeDir[0]);
         spout("");
-        
+
         for (x=1; x<tapeDir.length; x++) {
             if (extractFile(tapeCtl, x, tapeDir[x])) {
                 break;
@@ -476,7 +476,7 @@ window.onload = function() {
         var f = ev.target.files[0];
         var reader = new FileReader();
 
-        //alert("File selected: " + f.name + 
+        //alert("File selected: " + f.name +
         //        "\nModified " + f.lastModifiedDate +
         //        "\nType=" + f.type + ", Size=" + f.size + " octets");
 
@@ -521,7 +521,7 @@ window.onload = function() {
     <div style="position:absolute; top:0; right:0; width:auto">
         <input id=FileSelector type=file size=60>
     </div>
-    
+
 </div>
 
 <pre id=TextPanel>
