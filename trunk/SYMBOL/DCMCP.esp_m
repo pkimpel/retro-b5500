@@ -18939,3 +18939,96 @@ DECLARECCVARIABLES;                                                     20701500
 REAL     FXTOG       =  RETURNVAL+1,   % BEGIN LOCALS OF CCSET          20702000        
          LOK         =  FXTOG+1,                                        20702100        
          N           =  LOK+1,                                          20703000        
+         SENSETOG    =  N+1;                                            20704000        
+BOOLEAN FT=N; DEFINE FH(FH1)=M[T+FH1]#;  % RESET FILE A/B          %815-20704100        
+SUBROUTINE CLEARTHEFILE;  % CLEAR AN IN-USE FILE                   %815-20704200        
+BEGIN                                                              %815-20704210        
+     FH[4].[01:06]~0;   % EXCLUSIVE                                %815-20704220        
+     FH[4].[16:20]~0;   % OPEN COUNT 2                             %815-20704230        
+     FH[9].[01:28]~0;   % TOGS & OPEN COUNT 1                      %815-20704240        
+     DISKWAIT(T.[CF],30,T.[FF]);       % FIX IT                    %815-20704250        
+     FILEHOLD(CMM[2],CMM[3],0,T,0);    % MAKE UP WAITING PROCESSES %815-20704260        
+     LBMESS(CMM[2],CMM[3],11,26,0,SPOUTUNIT,1);                    %815-20704270        
+END CLEARTHEFILE;                                                  %815-20704280        
+REAL SUBROUTINE SCAN;                                                   20705000        
+     SCAN~SCN(UNITNO,CARDLOC,SOURCE,ACCUM,KOUNT,LASTSCAN,DIRECT);       20706000        
+     P(RCW,MYMSCW,STF);                                                 20707000        
+     RCW:=RCW & P(XCH)[CTC];                                            20708000        
+     P(0,0,0,0); % ZERO LOCALS OF CCSET                                 20709000        
+     CCSET~0;                                                      %510-20711100        
+     IF NOT (FXTOG:=(CN:=SCAN)=FIXED) THEN                              20712000        
+     IF NOT (SENSETOG:=(CN=SENSE)) THEN                                 20713000        
+     IF CN!ACCESS0 THEN                                            %815-20714000        
+         IF NOT (FT~FXTOG~(CN=FILEV)) THEN GO TO CCERR;            %815-20714500        
+MORE:                                                                   20715000        
+     IF (CN:=SCAN)=EQUAL THEN CMM[0]:=-1 ELSE                           20716000        
+     IF CN GEQ IDENT THEN CMM[0]:=ACCUM[0] ELSE GO CCERR;               20717000        
+     IF SCAN NEQ SLASH THEN GO TO CCERR;                                20718000        
+     IF (CN:=SCAN)=EQUAL THEN CMM[1]:=-1 ELSE                           20719000        
+     IF CN GEQ IDENT THEN CMM[1]:=ACCUM[0] ELSE                         20720000        
+     GO TO CCERR;                                                       20721000        
+     CN:=T:=0;                                                          20722000        
+SEEK:                                                                   20723000        
+     IF (CMM[0] OR CMM[1]) LSS 0 THEN                                   20724000        
+     SEEKNAM(CMM[0],CMM[1],CN,CMM[2],CMM[3],N,P(0)) ELSE                20725000        
+     BEGIN CN:=1; CMM[2]:=CMM[0]; CMM[3]:=CMM[1] END;                   20726000        
+     IF CN NEQ 0 THEN                                                   20727000        
+     BEGIN                                                              20728000        
+          IF NOT FXTOG THEN IF SYSTEMFILE(CMM[2],CMM[3]) THEN           20729000        
+          BEGIN T~2; GO TO L1; END;                                %521-20730000        
+          T:=DIRECTORYSEARCH(CMM[2],CMM[3],19);                         20731000        
+     END ELSE IF N=0 THEN BEGIN CMM[2]:=CMM[0]; CMM[3]:=CMM[1]; GO L1;  20732000        
+                          END                                           20733000        
+                     ELSE GO L2;                                        20734000        
+SKIP:                                                                   20735000        
+         IF T GEQ 64 THEN                                               20736000        
+           BEGIN                                                        20737000        
+           IF M[T+4].[43:2]=3 THEN                                      20738000        
+             BEGIN FORGETSPACE(T); T~1; GO SKIP; END;              %521-20739000        
+           IF (USERID EQV MCP)= NOT 0 OR                                20740000        
+              (USERID EQV ABS(M[T+2]))= NOT 0 OR                        20741000        
+              (NOT SENSETOG AND (M[T+2]=0)) THEN                        20742000        
+             BEGIN                                                      20743000        
+             LOK:=0;                                                    20744000        
+             IF FXTOG                                                   20745000        
+               THEN M[T+4].[42:1]:=TOG                                  20746000        
+               ELSE IF SENSETOG                                         20747000        
+                      THEN IF LOK:=((M[T+4].[43:2]=1) AND NOT TOG)      20748000        
+                             THEN M[T+4].[43:2]:=0                      20749000        
+                             ELSE IF M[T+4].[43:2]=1                    20750000        
+                                    THEN ELSE M[T+4].[43:2]:=TOG|2      20751000        
+                      ELSE BEGIN                                        20752000        
+                           M[T+4].[11:1]:=TOG;                          20753000        
+                           IF TOG THEN %                           %503-20753800        
+                           BEGIN %                                 %503-20753900        
+                           STREAM(DATE,J:=5);                           20754000        
+                            BEGIN SI:=LOC DATE; DS:=8OCT; END;          20755000        
+                           M[T+3].[12:18]:=JUNK;                        20756000        
+                           END; %                                  %503-20756100        
+                           END;                                         20757000        
+             DISKWAIT(T.[CF],-30,T.[FF]);                               20758000        
+ $ SET OMIT = SHAREDISK                                                 20759000        
+             UNLOCKDIRECTORY;                                           20760000        
+ $ POP OMIT                                                             20761000        
+ $ SET OMIT = PACKETS                                                   20762000        
+              IF LOK THEN P(DIRECTORYSEARCH(-CMM[2],CMM[3],6),DEL)      20765000        
+                     ELSE LBMESS(CMM[2],CMM[3],IF TOG THEN 12 ELSE 11,  20766000        
+                          13+(SENSETOG|47)-(FXTOG|3),0,SPOUTUNIT,RSTOG) 20767000        
+          END ELSE  IF FT THEN CLEARTHEFILE ELSE BEGIN             %815-20769000        
+ $ SET OMIT = SHAREDISK                                            %521-20769100        
+                 UNLOCKDIRECTORY;                                  %521-20769200        
+ $ POP OMIT                                                        %521-20769300        
+                 LBMESS(CMM[2],CMM[3],-(11+TOG),41,0,SPOUTUNIT,1); %521-20769400        
+                 END;                                              %521-20769500        
+            FORGETSPACE(T);                                        %521-20769600        
+           END                                                          20770000        
+            ELSE BEGIN                                             %521-20771000        
+ $ SET OMIT = SHAREDISK                                            %521-20771010        
+                 UNLOCKDIRECTORY;                                  %521-20771020        
+ $ POP OMIT                                                        %521-20771030        
+L1:             LBMESS(CMM[2],CMM[3],-(11+TOG),15+((T=1)|30)+((T=2)|10),20771100        
+                       0, SPOUTUNIT, 1 );                          %    20772000        
+                 END;                                              %521-20772050        
+     IF CN NEQ 0 AND (CMM[0] OR CMM[1]) LSS 0 THEN GO SEEK;             20779000        
+L2:  IF (CN:=SCAN)=COMMA THEN GO MORE;                                  20780000        
+     IF CN=PERIO THEN CCSET:=1;                                         20781000        
