@@ -19032,3 +19032,90 @@ L1:             LBMESS(CMM[2],CMM[3],-(11+TOG),15+((T=1)|30)+((T=2)|10),20771100
      IF CN NEQ 0 AND (CMM[0] OR CMM[1]) LSS 0 THEN GO SEEK;             20779000        
 L2:  IF (CN:=SCAN)=COMMA THEN GO MORE;                                  20780000        
      IF CN=PERIO THEN CCSET:=1;                                         20781000        
+CCERR: RETURNVAL:=PROCVAL; % ADJUST RESULT OF TYPED PROC                20782000        
+       P([RETURNRCW],STS,0,RDS,0,XCH,P&P[CTF],STF);                     20783000        
+END CCSET;                                                              20784000        
+ $ SET OMIT = NOT(DATACOM )                                             20999999        
+REAL SECONDCTR;                                                         22000000        
+ $ SET OMIT = NOT(SHAREDISK)                                            22000499        
+ PROCEDURE NSECOND;%                                                    22001000        
+         BEGIN REAL RCW=+0, I=RCW+1, X=I+1, J=X+1;                      22002000        
+              REAL MSCW=-2;                                             22002500        
+              ARRAY A=J+1[*];                                           22003000        
+ $ SET OMIT = NOT SHAREDISK                                             22003990        
+              P(0,0,0,0);                                               22006000        
+ $ SET OMIT = NOT SHAREDISK                                             22006090        
+              IF (J:=TOGLE.MEMNO)!0 THEN                                22007000        
+                TOGLE.MEMNO:=IF J THEN 6 ELSE J-2;                      22007100        
+              A ~ [M[SPACE(3|MIXMAX+3)]]&90[8:38:10];                   22008000        
+ $ SET OMIT = NOT(DCLOG AND DATACOM )                                   22008049        
+              SLEEP([TOGLE],ABORTMASK);                                 22009000        
+              LOCKTOG(ABORTMASK);                                       22010000        
+              HALT; IDLETIME;%                                          22011000        
+              J:=NEUP.NEUF ;                                            22011100        
+ $ SET OMIT = NOT(SHAREDISK )                                           22011190        
+              FOR I:=J-1 STEP -1 UNTIL 0 DO                             22011300        
+               BEGIN                                                    22011400        
+                EUIO[I+EUIOFFSET]:=*P(DUP)|EUTAPER+PEUIO[I];            22011500        
+                PEUIO[I]:=0;                                            22011600        
+               END;                                                     22011700        
+ $ SET OMIT = NOT(SHAREDISK )                                           22011790        
+              WHILE (J:=XCLOCK+P(RTR)) GEQ WITCHINGHOUR DO MIDNIGHT;    22012000        
+              CHANGEDATE(0);                                            22012500        
+              A[0]~J; A[2]~"ABORT";J~0;                                 22013000        
+              A[1] ~ DATE;%                                             22014000        
+              IF (CLOCK AND @17777)=0 THEN                              22014100        
+              BEGIN FOR I:=1 STEP 1 UNTIL MIXMAX DO                     22014400        
+                    IF *[JARROW[I]] NEQ 0 THEN                          22014500        
+                    IF REPLY[I] LSS 0 THEN % WAITING FOR SOMETHING      22014600        
+ $ SET OMIT = NOT(WORKSET)                                              22014610        
+                      IF (WKSETSTOPJOBS AND TWO(I))=0 THEN % NOT AUTO-ST22014620        
+ $ POP OMIT % WORKSET                                                   22014630        
+                         REPLY[I]:=VWY;                                 22014640        
+              END;                                                      22014900        
+              FOR I ~ 1 STEP 1 UNTIL MIXMAX DO%                         22015000        
+                   BEGIN J ~ J+3;%                                      22016000        
+                        IF JARROW[I] ! 0 THEN%                          22017000        
+                             BEGIN A[J] ~ JAR[I,3]+PROCTIME[I];         22018000        
+                                  NT1 ~ IOTIME[I]+JAR[I,4];%            22019000        
+                                  WHILE NT1 < 0 DO NT1~NT1+CLOCK+P(RTR);22020000        
+                                  A[J+1] ~ NT1;%                        22021000        
+                                  A[J+2] ~ JAR[I,7];%                   22022000        
+                                  IF PROCTIME[I]>0 THEN                 22023500        
+                                     TERMINATE(I&15[18:33:15]) ELSE     22024000        
+                                  IF A[J+1]> JAR[I,4] THEN              22024500        
+                                     TERMINATE(I&83[18:33:15]);         22025000        
+                             END%                                       22026000        
+                        ELSE A[J] ~ A[J+1] ~ A[J+2] ~ 0;%               22027000        
+                   END;%                                                22028000        
+              DISKIO(J,A INX 0-1,3|MIXMAX+3,ESPDISKTOP+1);              22029000        
+              UNLOCKTOG(ABORTMASK);                                     22030000        
+ $ SET OMIT = NOT(DCLOG AND DATACOM )                                   22030099        
+              NOPROCESSTOG ~ NOPROCESSTOG-1;%                           22031000        
+              FOR I ~ 20 STEP 1 UNTIL 21 DO%                            22032000        
+                   BEGIN IF NOT UNIT[I].[16:1] THEN%                    22033000        
+                             UNIT[I].[17:1] ~ 0;%                       22034000        
+                        STARTIO(I);%                                    22035000        
+                   END;%                                                22036000        
+ $ SET OMIT = NOT(DFX)                                                  22036999        
+              IF TERMINALCLOCK ! 0 THEN%                                22039000        
+              IF CLOCK-TERMINALCLOCK > 512 THEN %                       22040000        
+              BEGIN                                                     22040500        
+              FOR I ~ 0 STEP 2 UNTIL JOBNUM DO%                         22041000        
+              IF PRTROW[X:=BED[I].[3:5]].[PSF]=1 THEN                   22042000        
+              IF JAR[X,9].SYSJOBF ! LIBMAINCODE THEN                    22042100        
+                   BEGIN BED[I] ~ BED[JOBNUM];%                         22043000        
+                        BED[I+1] ~ BED[JOBNUM+1];%                      22044000        
+                        INDEPENDENTRUNNER(P(.RUN),X,0);                 22045000        
+                        I ~ JOBNUM ~ JOBNUM-2;%                         22046000        
+                   END;%                                                22048000        
+              TERMINALCLOCK:=0;                                         22048200        
+              END;                                                      22048400        
+              SLEEP([J],IOMASK);%                                       22049000        
+              FORGETSPACE(A);%                                          22050000        
+ $ SET OMIT = NOT(STATISTICS)                                           22050909        
+ $ SET OMIT = NOT(SHAREDISK)                                            22050999        
+              NSECONDREADY:=TRUE;                                       22053700        
+              SECONDCTR:=0;                                             22053800        
+              KILL([MSCW]);                                             22053900        
+         END;%                                                          22054000        
