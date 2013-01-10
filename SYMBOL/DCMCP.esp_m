@@ -19119,3 +19119,146 @@ REAL SECONDCTR;                                                         22000000
               SECONDCTR:=0;                                             22053800        
               KILL([MSCW]);                                             22053900        
          END;%                                                          22054000        
+PROCEDURE STATUS;%                                                      22055000        
+         BEGIN REAL U=+1,%                                              22056000        
+                   MSCW=-2,                                             22056500        
+                   T=U+1,%                                              22057000        
+                   T1=T+1;%                                             22058000        
+               INTEGER                                                  22059000        
+                   I=T1+1;%                                             22060000        
+              ARRAY AREA=I+1[*];%                                       22061000        
+              REAL HDR = AREA+1,                                        22061100        
+                   SEG0= HDR + 1,                                       22061110        
+                   F   = SEG0+1;                                        22061120        
+              ARRAY SEAT = F+1[*];                                      22061130        
+              LABEL TRYAGAIN,LDCNTRL,DISK;                              22061200        
+              LABEL L,EL,NOTREADY,DIE,ACCEPT,SCRATCH,INPUT,TESTBACKUP,  22062000        
+                   COMMON;                                              22063000        
+              LABEL CARD,PRINTER,TAPE,DRUM,DISC,SPO,PUNCH,UNLD,         22064000        
+                   PAPERPUNCH,PAPER,DATACOM;                            22064500        
+              SWITCH S := CARD,PRINTER,TAPE,DRUM,DISC,SPO,PUNCH,UNLD,   22065000        
+                   PAPERPUNCH,PAPER,DATACOM;%                           22066000        
+              REAL RCW=+0;%                                             22067000        
+    SUBROUTINE SPACEA;%                                                 22068000        
+         BEGIN AREA ~ (SPACE(12) INX MEMORY)&10[8:38:10] END;%          22069000        
+   SUBROUTINE AUTOLOADER;                                               22069010        
+      BEGIN                                                             22069020        
+TRYAGAIN:                                                               22069025        
+      IF (HDR:=DIRECTORYSEARCH(P(LDCNTRL),P(DISK),3)) ! 0 THEN          22069030        
+         BEGIN                                                          22069040        
+         SHEAT := [M[F:=TYPEDSPACE(31,SHEETAREAV))] & 30[8:38:10];%%167-22069050        
+         STREAM(S:=F-1, D:=F); % ZERO OUT THE SHEAT ENTRY               22069060        
+            BEGIN                                                       22069070        
+            SI:=S; DS:=30 WDS;                                          22069080        
+            END;                                                        22069090        
+         SEG0 := TYPEDSPACE(30,SEGZEROAREAV);%                     %167-22069100        
+         DISKWAIT(-SEG0, 30, M[HDR INX 10]);                            22069110        
+         F.[FF] := HDR; % CORE ADDRESS OF HEADER IN [FF] OF PARAM.      22069120        
+         SHEAT[7] := SEG0;  % CORE ADRS.OF SEGMENT ZERO IN SHETA[7]     22069130        
+         SHEAT[0] := P(LDCNTRL);                                        22069140        
+         SHEAT[1] := P(DISK);                                           22069150        
+         SHEAT[2] := 0 & 1[4:47:1] & LDCNTRLCODE[5:45:3] & 2[8:38:10];  22069160        
+         % [4:1] IN SHEET[2] MEANS SUPRESS BOJ/EOJ MESSAGES             22069170        
+         SHEAT[16] := SHEAT[17] := @377777777777; % TIME LIMITS         22069180        
+         SHEAT[19] := U;             % COMMON VALUE                     22069190        
+         SHEAT[20] := 4;             % CORE ESTIMATE                    22069200        
+         SHEAT[21] := 150;           % STACK SIZE                       22069210        
+         SHEAT[24] := MCP;                                         %131-22069212        
+                                                                        22069220        
+         STREAM(A:=0 : S := P(.SCHEDULEIDS));                           22069230        
+            BEGIN                                                       22069240        
+            SI:=S;                                                      22069250        
+            47(SKIP SB; SKIP DB; TALLY:=TALLY+1;                        22069260        
+            IF SB THEN ELSE JUMP OUT);                                  22069270        
+            DS:=SET; A:=TALLY;                                          22069280        
+            END STREAM STATEMENT;                                       22069290        
+                                                                        22069300        
+         I := P;                                                        22069310        
+         SHEAT[3].[8:10] := 1;       % SCHEDULE NUMBER                  22069320        
+         SHEAT[23] := (CLOCK + P(RTR)) DIV 60;                          22069330        
+         SHEAT[25] := HDR.[FF]; % DISK ADDRESS OF FILE HEADER           22069340        
+         STREAM(U, I:=I:=SPACE(11));                                    22069350        
+            BEGIN                                                       22069360        
+            DI:=DI+16;                                                  22069370        
+            DS:=31LIT"CC EXECUTE LDCNTRL/DISK;COMMON=";                 22069380        
+            SI:=LOC U; DS:=8DEC;                                        22069390        
+            DS:=6LIT";END.~";                                           22069400        
+            END STREAM STATEMENT;                                       22069410        
+         M[I] := 0; M[I+1]:=10;                                         22069420        
+         SHEAT[6] := GETESPDISK & 10[18:33:15];                         22069430        
+         DISKWAIT(I, 11, SHEAT[6].[CF]);                                22069440        
+         FORGETSPACE(I);                                                22069450        
+         MULTITABLE[U] := "CONTROL";                                    22069460        
+         LABELTABLE[U] := (-"DECK   ");                                 22069470        
+         RDCTABLE[U]   := 1 & 1[14:38:10];                              22069480        
+         IF U THEN READERA:=0 ELSE READERB:=0;                          22069490        
+         INDEPENDENTRUNNER(P(.SELECTRUN),F,160);                        22069500        
+         END ELSE % IF IN DIRECTORY                                     22069510        
+         BEGIN                                                          22069520        
+         ENTERSYSFILE(2);                                               22069530        
+         GO TRYAGAIN;                                                   22069540        
+LDCNTRL::: "LDCNTRL";                                                   22069550        
+   DISK::: "DISK   ";                                                   22069560        
+         END;                                                           22069570        
+      END SUBROUTINE AUTOLOADER;                                        22069600        
+    P(0,0,0,0,0,0,0,0,0);%                                              22071000        
+    SPACEA;%                                                            22073000        
+    WHILE (T ~ P(RRR) OR RRRMECH) ! READY DO%                           22074000        
+         BEGIN I ~ 0&TINU[U ~ (P(T EQV NOT READY,DUP,DUP,|,|)%          22075000        
+                   |@1000000000000).%                                   22076000        
+                   [3:6]][5:11:7]/@1000000000000;%                      22077000        
+              IF T < READY THEN%                                        22078000        
+                   BEGIN     COMMENT SOMETHING WENT NOT READY;%         22079000        
+                             READY ~ READY AND NOT I;%                  22080000        
+                        IF LABELTABLE[U] } 0 THEN%                      22081000        
+                          BEGIN%                                        22082000        
+         L:                  LABELTABLE[U] ~ @114;%                     22083000        
+                             IF (U AND @774) NEQ 16 THEN                22084000        
+                                  MULTITABLE[U]:=0;                     22084500        
+                          END;%                                         22085000        
+         EL:            RRRMECH ~ RRRMECH AND NOT I;%                   22086000        
+                   END OF NOT READY%                                    22087000        
+              ELSE BEGIN     COMMENT SOMETHING WENT READY;%             22088000        
+                        READY ~ READY OR I;%                            22089000        
+                        UNIT[U].[13;1] ~ 0;%                            22090000        
+                        IF LABELTABLE[U] ! @114 THEN%                   22091000        
+                             BEGIN RRRMECH ~ RRRMECH OR I;%             22092000        
+                                  IF LABELTABLE[U] = @214 THEN%         22093000        
+                                       BEGIN I ~ I AND NOT SAVEWORD;%   22094000        
+                                            GO TO L;%                   22095000        
+                                  END;%                                 22096000        
+                                  STARTIO(U);%                          22097000        
+                                  GO TO COMMON;%                        22098000        
+                             END;%                                      22099000        
+                        IF (U AND @774) NEQ 16 THEN                     22100000        
+                             MULTITABLE[U]:=RDCTABLE[U]:=0;             22100500        
+                        IF (I AND SAVEWORD) ! 0 THEN%                   22101000        
+                             BEGIN RRRMECH ~ I AND SAVEWORD OR RRRMECH; 22102000        
+                                  GO TO COMMON;%                        22103000        
+                             END;%                                      22104000        
+                        GO S[UNIT[U].[1:4]];%                           22105000        
+         TAPE: P(WAITIO(@4200000000,5,U),DEL);%                         22106000        
+              IF (T ~ WAITIO(AREA INX @120540000000,@7500045,U),%       22107000        
+                   [45:3] ! 0 THEN%                                     22108000        
+         NOTREADY: BEGIN READY ~ READY AND NOT I;%                      22109000        
+                        GO TO L;%                                       22110000        
+                   END;%                                                22111000        
+              IF MOD3IOS AND NOT T.[42:1] THEN  BEGIN                %AI22111500        
+                   DO UNTIL (T1~WAITIO(AREA INX @340000012,@75,U))!0;   22112000        
+                   IF T1.[43:2]!0 THEN T1~WAITIO(@4200000000,5,U); %697-22112100        
+              END ELSE T1~WAITIO(@4200000000,5,U);                   %AI22112500        
+                   IF T1.[45:3]!0 THEN GO TO NOTREADY;               %AI22113000        
+              DO UNTIL NOT (T1~WAITIO(@500000000,@165,U)) OR            22114000        
+                   (TRANSACTION[U]~0);%                                 22115000        
+              IF T1.[42:1] THEN                                         22115020        
+              BEGIN; STREAM(T~TINU[U],A~AREA);                          22115030        
+                     BEGIN SI~LOC T; SI~SI+5; DS~LIT"#";                22115040        
+                           DS~3 CHR; DS~10 LIT "-BAD LOAD~";            22115050        
+                     END;                                               22115060        
+              SPOUT(AREA INX 0); SPACEA; GO TO L;                       22115070        
+              END;                                                      22115075        
+              IF T1.[45:1] THEN GO TO NOTREADY;%                        22116000        
+              PRNTABLE[U]~0&(NOT T1)[1:43:1];%                          22117000        
+              IF T.[43:1] THEN%                                         22118000        
+                   BEGIN;STREAM(T~TINU[U],AREA);%                       22119000        
+                             BEGIN SI ~ LOC T; SI ~ SI+5;%              22120000        
