@@ -19262,3 +19262,100 @@ LDCNTRL::: "LDCNTRL";                                                   22069550
               IF T.[43:1] THEN%                                         22118000        
                    BEGIN;STREAM(T~TINU[U],AREA);%                       22119000        
                              BEGIN SI ~ LOC T; SI ~ SI+5;%              22120000        
+                                  DS ~ LIT "#"; DS ~ 3 CHR;%            22121000        
+                                  DS ~ 14 LIT " PARITY, RW/L~"%         22122000        
+                             END;%                                      22123000        
+         DIE:           SPOUT(AREA INX 0); SPACEA;                      22124000        
+                        LABELTABLE[U] ~ @314;%                          22125000        
+                        GO TO FL;%                                      22126000        
+                   END;%                                                22127000        
+              IF T.[42:1] THEN%                                         22128000        
+                   BEGIN;STREAM(T~TINU[U],AREA);%                       22129000        
+                             BEGIN SI ~ LOC T; SI ~ SI+5;%              22130000        
+                                  DS ~ LIT "#"; DS ~ 3 CHR;%            22131000        
+                                  DS ~ 15 LIT " TAPE MK, RW/L~";%       22132000        
+                             END;#                                      22133000        
+                        GO TO DIE;%                                     22134000        
+                   END;%                                                22135000        
+              STREAM(Y~0:AREA,X~[T]);%                                  22136000        
+                   BEGIN DS ~ 8 LIT " LABEL  ";%                        22137000        
+                        SI ~ AREA; DI ~ DI-8;%                          22138000        
+                        IF 8 SC = DC THEN TALLY ~ 1;%                   22139000        
+                        AREA ~ TALLY;%                                  22140000        
+                        SI ~ SI+45; DI ~ LOC Y; DS ~ 5 OCT;%            22141000        
+                        SI ~ LOC AREA; DI ~ X; DS ~ WDS;%               22142000        
+                   END;%                                                22143000        
+              NT1 ~ P;%                                                 22144000        
+              IF T THEN PRNTABLE[U].[30:18]:=NT1 ELSE                   22145000        
+                  BEGIN STREAM(Y:=0:AREA,X:=[T]);                       22145050        
+                        BEGIN DS:=4 LIT "VOL1";                         22145100        
+                              SI:=AREA; DI:=DI-4;                       22145150        
+                              IF 4 SC=DC THEN TALLY:=1;                 22145200        
+                              AREA:=TALLY; SI:=SI+1;                    22145250        
+                              DI:=LOC Y; DS:=5 OCT;                     22145300        
+                              SI:=LOC AREA; DI:=X; DS:=WDS;             22145350        
+                        END;                                            22145400        
+                    NT1:=P;                                             22145450        
+                    IF T THEN BEGIN                                     22145500        
+                              PRNTABLE[U]:=(*P(DUP))&NT1[30:30:18] OR M;22145525        
+                              USASITAPE([AREA].[CF],T,1,U,1);           22145550        
+                              END;                                      22145600        
+                  END;                                                  22145650        
+              IF NOT T1.[43:1] THEN%                                    22146000        
+                   BEGIN IF T THEN%                                     22147000        
+                             BEGIN                                      22148000        
+                                  IF P(AREA[1],DUP)="PBTMCP " OR        22156000        
+                                  P(XCH)="PUTMCP " THEN GO INPUT;       22156100        
+                                  IF AREA[4].[12:30] > DATE THEN%       22157000        
+                                  BEGIN IF RETMSG THEN                  22158000        
+                                        STREAM(T~TINU[U],A~[AREA[6]]);  22159000        
+                                        BEGIN SI~LOC T;SI~SI+5;DS~3 CHR;22160000        
+                                              DS~5 LIT " RET ";         22161000        
+                                        END ELSE GO TO INPUT;           22162000        
+         ACCEPT:                       T1 ~ SPACE(4);%                  22163000        
+                                       STREAM(A~[AREA[1]],T1);%         22164000        
+                                            BEGIN SI ~ A; SI ~ SI+40;%  22165000        
+                                                 DS ~ LIT "#";%         22166000        
+                                                 DS ~ 8 CHR; SI ~ A;%   22167000        
+                                                 2(DS ~ LIT " ";%       22168000        
+                                                 SI ~ SI+1; DS ~ 7 CHR);22169000        
+                                                 DS ~ LIT "~";%         22170000        
+                                            END;%                       22171000        
+                                       SPOUT(T1);%                      22172000        
+                                       GO TO INPUT;%                    22173000        
+                                  END ELSE%                             22174000        
+         SCRATCH:                      LABELTABLE[U] ~ 0;%              22175000        
+                             END ELSE GO TO UNLD;                       22176000        
+                   END%                                                 22177000        
+              ELSE IF T THEN BEGIN%                                     22178000        
+         INPUT:    LABELTABLE[U] ~ AREA[2];%                            22179000        
+                   MULTITABLE[U] ~ AREA[1];%                            22180000        
+                   STREAM(A~[AREA[3]],B~[T]);%                          22181000        
+                        BEGIN SI ~ A; DS ~ 3 OCT;%                      22182000        
+                             DS ~ 5 OCT; DS ~ 2 OCT%                    22183000        
+                        END;%                                           22184000        
+                   RDCTABLE[U] ~ I&T1[24:31:17]&T[14:38:10];%           22185000        
+                   IF (MULTITABLE[U]="PBTMCP " OR                       22188000        
+                       MULTITABLE[U]="PUTMCP ") AND                     22188100        
+                        LABELTABLE[U] = "BACK-UP" THEN%                 22189000        
+                        BEGIN LABELTABLE[U] ~ @322212342546447;%        22190000        
+                        STREAM(A~TINU[U],PN~MULTITABLE[U]="PUTMCP ",    22191000        
+                               AREA);                                   22191100        
+                                  BEGIN SI ~ LOC A; SI ~ SI+5;%         22192000        
+                                       PN(DS~3 LIT"#CP"; JUMP OUT TO L);22192100        
+                                       DS~3 LIT"#LP"; L:                22192200        
+                                       DS~12 LIT" BACK-UP ON ";         22193000        
+                                       DS ~ 3 CHR; DS ~ LIT "~";%       22194000        
+                                  END;%                                 22195000        
+                         SPOUT(AREA INX 0); SPACEA;                     22196000        
+                        END;%                                           22197000        
+                   END ELSE%                                            22198000        
+         PAPER:%                                                        22199000        
+         UNLD:          LABELTABLE[U] ~ @314;%                          22200000        
+              GO TO COMMON;%                                            22201000        
+         PRINTER:%                                                      22202000        
+              T ~ WAITIO(@6000000000,4,U).[45:1];%                      22203000        
+              UNIT[U].[16:2] ~ 0;%                                      22204000        
+              IF T THEN GO TO NOTREADY;%                                22205000        
+         TESTBACKUP:                                                    22205500        
+              IF AUTOPRINT THEN                                         22206000        
