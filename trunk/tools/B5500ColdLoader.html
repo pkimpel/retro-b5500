@@ -723,19 +723,17 @@ window.onload = function() {
         from BIC to ANSI, and writes it a row at a time to the disk "eu".
         Establishes the "diskHeader" disk file header from the tape and updates the
         disk header address row words as the rows are allocated and written to the disk.
-        Returns true if no more files should be converted */
+        Returns the disk address of the first row loaded */
         var addr;
         var block;
-        var tapeHeader;
+        var firstRowAddr = -1;
         var lab;
         var lab2;
-        var result = false;
         var rowCount = 0;
+        var tapeHeader;
         var text;
         var x;
 
-        spout(" ");
-        spout("Loading #" + fileNr + ": " + tapeDir[fileNr]);
         lab = readTapeLabel(ctl);
         if (ctl.eof) {
             spout("loadFile: EOF encountered when tape label expected, block=" + ctl.blockCount);
@@ -792,6 +790,9 @@ window.onload = function() {
                     } else {
                         diskHeader[10+x] = addr;
                         loadFileRow(ctl, eu, addr, tapeHeader.segmentsPerRow);
+                        if (firstRowAddr < 0) {
+                            firstRowAddr = addr;
+                        }
                     }
                 }
             }
@@ -808,28 +809,26 @@ window.onload = function() {
                 spout("loadFile: File ending label mismatch, block=" + ctl.blockCount);
             }
         }
-        return result;
+        return firstRowAddr;
     }
 
     /**************************************/
-    function skipFile(ctl, fileNr) {
+    function skipTapeFile(ctl, fileNr) {
         /* Spaces over the next file in the tape blob */
         var block;
         var lab;
         var lab2;
-        var result = false;
 
-        spout("Skipping #" + fileNr + ": " + tapeDir[fileNr]);
         lab = readTapeLabel(ctl);
         if (ctl.eof) {
-            spout("skipFile: EOF encountered when tape label expected, block=" + ctl.blockCount);
+            spout("skipTapeFile: EOF encountered when tape label expected, block=" + ctl.blockCount);
         } else if (!lab.isLabel) {
             spout(lab.text);
-            spout("skipFile: Above block encountered when a tape label was expected, block=" + ctl.blockCount);
+            spout("skipTapeFile: Above block encountered when a tape label was expected, block=" + ctl.blockCount);
         } else {
             block = readWordBlock(ctl);
             if (!ctl.eof) {
-                spout("skipFile: EOF expected after starting label, block=" + ctl.blockCount);
+                spout("skipTapeFile: EOF expected after starting label, block=" + ctl.blockCount);
             }
 
             do {
@@ -838,12 +837,11 @@ window.onload = function() {
 
             lab2 = readTapeLabel(ctl);
             if (!lab2.isLabel) {
-                spout("skipFile: Tape label expected after file data, block=" + ctl.blockCount);
+                spout("skipTapeFile: Tape label expected after file data, block=" + ctl.blockCount);
             } else if (lab2.mfid != lab.mfid || lab2.fid != lab.fid) {
-                spout("skipFile: File ending label mismatch, block=" + ctl.blockCount);
+                spout("skipTapeFile: File ending label mismatch, block=" + ctl.blockCount);
             }
         }
-        return result;
     }
 
     /**************************************/
@@ -913,7 +911,7 @@ window.onload = function() {
     }
 
     /**************************************/
-    function loadNextFile(tapeCtl, topFileNr, fileNr) {
+    function loadTapeFile(tapeCtl, topFileNr, fileNr) {
         /* Locates and loads the next selected file from the tape blob. On
         completion, if there are more file to load, chains itself for the next one */
         var names = [0, 0];
@@ -923,7 +921,10 @@ window.onload = function() {
         var eu = txn.objectStore(euName);
         var fid;
         var mfid;
-        var nameParts = tapeDir[fileNr].split("/");
+        var loadAsInt;
+        var loadAsMCP;
+        var firstRowAddr = -1;
+        var nameParts;
 
         function loadFileHost(addr, block, slot) {
             /* Controls the loading of the current file from tape and updates
@@ -951,7 +952,7 @@ window.onload = function() {
                 }
             }
 
-            loadFile(tapeCtl, fileNr, eu, diskHeader);
+            firstRowAddr = loadFile(tapeCtl, fileNr, eu, diskHeader);
 
             // Move the new header into the directory block
             for (x=0; x<30; x++) {
@@ -981,10 +982,40 @@ window.onload = function() {
                 }
                 writeDiskWords(eu, addr+31, block, 0, 30);
             }
+
+            // Check to see if seg.0 must be updated for MCP or Intrinsics
+            if (loadAsMCP || loadAsInt) {
+                readDiskBlock(eu, 0, 1, block, function(addr, block) {
+                    if (loadAsMCP) {
+                        block[10] = mfid;
+                        block[11] = fid;
+                        block[12] = firstRowAddr;
+                    }
+                    if (loadAsInt) {
+                        block[13] = mfid;
+                        block[14] = fid;
+                    }
+                    writeDiskWords(eu, 0, block, 0, 30);
+                });
+            }
         }
 
-        /***** loadNextFile outer block *****/
+        /***** loadTapeFile outer block *****/
 
+        while (!$$("File_" + fileNr).checked) {
+            spout("Skipping #" + fileNr + ": " + tapeDir[fileNr]);
+            skipTapeFile(tapeCtl, fileNr);
+            fileNr++;
+        }
+        txn.oncomplete = function(ev) {
+            if (fileNr < topFileNr) {
+                loadTapeFile(tapeCtl, topFileNr, fileNr+1);
+            } else {
+                alert("Tape load completed");
+            }
+        };
+
+        nameParts = tapeDir[fileNr].split("/");
         mfid = "0" + padToLength(nameParts[0] || " ", 7);
         fid =  "0" + padToLength(nameParts[1] || " ", 7);
         stringToANSI(mfid, buf, 0);
@@ -992,19 +1023,11 @@ window.onload = function() {
         ANSItoWords(buf, 0, 16, names, 0);
         mfid = names[0];
         fid =  names[1];
+        loadAsMCP = $$("AsMCP_" + fileNr).checked;
+        loadAsInt = $$("AsINT_" + fileNr).checked;
 
-        while (!$$("File_" + fileNr).checked) {
-            skipFile(tapeCtl, fileNr);
-            fileNr++;
-        }
-        txn.oncomplete = function(ev) {
-            if (fileNr < topFileNr) {
-                loadNextFile(tapeCtl, topFileNr, fileNr+1);
-            } else {
-                alert("Tape load completed");
-            }
-        };
-
+        spout(" ");
+        spout("Loading #" + fileNr + ": " + tapeDir[fileNr]);
         findDiskFile(mfid, fid, eu, loadFileHost);
     }
 
@@ -1026,7 +1049,7 @@ window.onload = function() {
         if (topFileNr <= 0) {
             alert("loadFromTape: no files selected");
         } else {
-            loadNextFile(tapeCtl, topFileNr, 1);
+            loadTapeFile(tapeCtl, topFileNr, 1);
         }
     }
 
@@ -1115,20 +1138,35 @@ window.onload = function() {
         tapeDir = readTapeDirectory(tapeCtl);
 
         row = document.createElement("tr");
+        // File number and checkbox (empty)
         cell = document.createElement("td");
         cell.colSpan=2;
         row.appendChild(cell);
+        // File name
+        cell = document.createElement("td");
+        cell.appendChild(document.createTextNode("(none)"));
+        row.appendChild(cell);
+        // Load as MCP for no selection
         cell = document.createElement("td");
         cell.className = "center";
         e = document.createElement("input");
         e.type = "radio";
+        e.id = "AsMCP_0";
         e.value = "0";
         e.name = "AsMCP";
         e.checked = true;
         cell.appendChild(e);
         row.appendChild(cell);
+        // Load as Intrinsics for no selection
         cell = document.createElement("td");
-        cell.appendChild(document.createTextNode("(none)"));
+        cell.className = "center";
+        e = document.createElement("input");
+        e.type = "radio";
+        e.id = "AsINT_0";
+        e.value = "0";
+        e.name = "AsINT";
+        e.checked = true;
+        cell.appendChild(e);
         row.appendChild(cell);
         body.appendChild(row);
 
@@ -1148,6 +1186,10 @@ window.onload = function() {
             e.value = "File_" + x;
             cell.appendChild(e);
             row.appendChild(cell);
+            // File ID
+            cell = document.createElement("td");
+            cell.appendChild(document.createTextNode(tapeDir[x]));
+            row.appendChild(cell);
             // Load as MCP selection radio button
             cell = document.createElement("td");
             cell.className = "center";
@@ -1158,9 +1200,15 @@ window.onload = function() {
             e.name = "AsMCP";
             cell.appendChild(e);
             row.appendChild(cell);
-            // File ID
+            // Load as Intrinsics selection radio button
             cell = document.createElement("td");
-            cell.appendChild(document.createTextNode(tapeDir[x]));
+            cell.className = "center";
+            e = document.createElement("input");
+            e.type = "radio";
+            e.id = "AsINT_" + x;
+            e.value = x;
+            e.name = "AsINT";
+            cell.appendChild(e);
             row.appendChild(cell);
             body.appendChild(row);
         }
@@ -1196,7 +1244,8 @@ window.onload = function() {
     /**************************************/
     function initializeDisk() {
         /* Performs a B5500 Cold Start by initializing the directory structure on
-        the disk, overwriting (and destroying) whatever else was there before */
+        the disk, building segment 0, and loading the bootstrap, overwriting (and
+        destroying) whatever else was there before */
         var buffer = new Uint8Array(240);
         var eu;
         var euName = euPrefix + "0";
@@ -1211,6 +1260,7 @@ window.onload = function() {
 
         function loadBootstrap() {
             /* Creates the Halt/Load Button Card image and stores it in segment 1 */
+            /* Note: this has been replaced by loadKernel -- not used */
             var w = [];
 
             w[ 0] = parseInt("0441341003604231", 8);
@@ -1235,6 +1285,297 @@ window.onload = function() {
             w[19] = parseInt("0600017205204131", 8);
             wordsToANSI(w, 0, 30, buffer, 0);
             eu.put(buffer, 1);
+        }
+
+        function loadKernel() {
+            /* Creates the Kernel bootstrap loaderand stores it starting in
+            segment 1. This code was generated using the Mark XVI KERNEL source
+            and XVI ESPOLXEM compiler */
+            var addr = 1;               // Bootstrap starts at segment 1
+            var w = [];
+
+            w[ 0] = parseInt("0740623100000000", 8);
+            w[ 1] = parseInt("0000000000000000", 8);
+            w[ 2] = parseInt("0211101607302231", 8);
+            w[ 3] = parseInt("0004613100000000", 8);
+            w[ 4] = parseInt("0000000000000000", 8);
+            w[ 5] = parseInt("0014613100000000", 8);
+            w[ 6] = parseInt("0020613100000000", 8);
+            w[ 7] = parseInt("0060202102350000", 8);
+            w[ 8] = parseInt("0064202102350000", 8);
+            w[ 9] = parseInt("0070202102350000", 8);
+            w[10] = parseInt("0074202102350000", 8);
+            w[11] = parseInt("0000000000000000", 8);
+            w[12] = parseInt("0050613100000000", 8);
+            w[13] = parseInt("0000000000000000", 8);
+            w[14] = parseInt("0060613100000000", 8);
+            w[15] = parseInt("0064613100000000", 8);
+            w[16] = parseInt("0000000000000000", 8);
+            w[17] = parseInt("0000000000000000", 8);
+            w[18] = parseInt("0000000000000000", 8);
+            w[19] = parseInt("0000000000000000", 8);
+            w[20] = parseInt("0000000000000000", 8);
+            w[21] = parseInt("0000000000000000", 8);
+            w[22] = parseInt("0000000000000000", 8);
+            w[23] = parseInt("0000000000000000", 8);
+            w[24] = parseInt("0000000000000000", 8);
+            w[25] = parseInt("0000000000000000", 8);
+            w[26] = parseInt("0000000000000000", 8);
+            w[27] = parseInt("0000000000000000", 8);
+            w[28] = parseInt("0000000000000000", 8);
+            w[29] = parseInt("0000000000000000", 8);
+            wordsToANSI(w, 0, 30, buffer, 0);
+            eu.put(buffer, addr++);
+
+            w[ 0] = parseInt("0000000000000000", 8);
+            w[ 1] = parseInt("0000000000000000", 8);
+            w[ 2] = parseInt("0000000000000000", 8);
+            w[ 3] = parseInt("0534623100000000", 8);
+            w[ 4] = parseInt("0000000000000000", 8);
+            w[ 5] = parseInt("0000000000000000", 8);
+            w[ 6] = parseInt("0000000000000000", 8);
+            w[ 7] = parseInt("0000000000000000", 8);
+            w[ 8] = parseInt("0000000000000000", 8);
+            w[ 9] = parseInt("0000000000000000", 8);
+            w[10] = parseInt("0000000000000000", 8);
+            w[11] = parseInt("0000000000000000", 8);
+            w[12] = parseInt("0000000000000000", 8);
+            w[13] = parseInt("0000000000000000", 8);
+            w[14] = parseInt("0000000000000000", 8);
+            w[15] = parseInt("0000000000000000", 8);
+            w[16] = parseInt("0000000000000000", 8);
+            w[17] = parseInt("0000000000000000", 8);
+            w[18] = parseInt("0000000000000000", 8);
+            w[19] = parseInt("0000000000000000", 8);
+            w[20] = parseInt("0000000000000000", 8);
+            w[21] = parseInt("0000000000000000", 8);
+            w[22] = parseInt("0000000000000000", 8);
+            w[23] = parseInt("0000000000000000", 8);
+            w[24] = parseInt("0000000000000000", 8);
+            w[25] = parseInt("0000000000000000", 8);
+            w[26] = parseInt("0000000000000000", 8);
+            w[27] = parseInt("0000000000000000", 8);
+            w[28] = parseInt("0000000000000000", 8);
+            w[29] = parseInt("0000000000000000", 8);
+            wordsToANSI(w, 0, 30, buffer, 0);
+            eu.put(buffer, addr++);
+
+            w[ 0] = parseInt("0000000000000000", 8);
+            w[ 1] = parseInt("0000000000000000", 8);
+            w[ 2] = parseInt("0000000000000000", 8);
+            w[ 3] = parseInt("0000000000000000", 8);
+            w[ 4] = parseInt("0000000000000000", 8);
+            w[ 5] = parseInt("0000000000000000", 8);
+            w[ 6] = parseInt("0000000000000000", 8);
+            w[ 7] = parseInt("0000000000000000", 8);
+            w[ 8] = parseInt("0000000000000000", 8);
+            w[ 9] = parseInt("0000000000000000", 8);
+            w[10] = parseInt("0000000000000000", 8);
+            w[11] = parseInt("0000000000000000", 8);
+            w[12] = parseInt("0000000000000000", 8);
+            w[13] = parseInt("0000000000000000", 8);
+            w[14] = parseInt("0000000000000000", 8);
+            w[15] = parseInt("0000000000000000", 8);
+            w[16] = parseInt("0000000000000000", 8);
+            w[17] = parseInt("0000000000000000", 8);
+            w[18] = parseInt("0000000000000000", 8);
+            w[19] = parseInt("0000000000000000", 8);
+            w[20] = parseInt("0000000000000000", 8);
+            w[21] = parseInt("0000000000000000", 8);
+            w[22] = parseInt("0000000000000000", 8);
+            w[23] = parseInt("0000000000000000", 8);
+            w[24] = parseInt("0000000000000000", 8);
+            w[25] = parseInt("0000000000000000", 8);
+            w[26] = parseInt("0000000000000000", 8);
+            w[27] = parseInt("0000000000000000", 8);
+            w[28] = parseInt("0000000000000000", 8);
+            w[29] = parseInt("0000000000000000", 8);
+            wordsToANSI(w, 0, 30, buffer, 0);
+            eu.put(buffer, addr++);
+
+            w[ 0] = parseInt("0000000000000000", 8);
+            w[ 1] = parseInt("0000000000000000", 8);
+            w[ 2] = parseInt("0000000000000000", 8);
+            w[ 3] = parseInt("0000000000000000", 8);
+            w[ 4] = parseInt("0000000000000000", 8);
+            w[ 5] = parseInt("0000000000000000", 8);
+            w[ 6] = parseInt("0000000000000000", 8);
+            w[ 7] = parseInt("0000000000000000", 8);
+            w[ 8] = parseInt("0000000000000000", 8);
+            w[ 9] = parseInt("0000000000000000", 8);
+            w[10] = parseInt("0000000000000000", 8);
+            w[11] = parseInt("0000000000000000", 8);
+            w[12] = parseInt("0000000000000000", 8);
+            w[13] = parseInt("0000000000000000", 8);
+            w[14] = parseInt("0000000000000000", 8);
+            w[15] = parseInt("0000000000000000", 8);
+            w[16] = parseInt("0000000000000000", 8);
+            w[17] = parseInt("0000000000000000", 8);
+            w[18] = parseInt("0000000000000000", 8);
+            w[19] = parseInt("0000000000000000", 8);
+            w[20] = parseInt("0000000000000000", 8);
+            w[21] = parseInt("0000000000000000", 8);
+            w[22] = parseInt("5000000000000000", 8);
+            w[23] = parseInt("0000000000000000", 8);
+            w[24] = parseInt("0000000000000000", 8);
+            w[25] = parseInt("0000000000000000", 8);
+            w[26] = parseInt("0000000000000000", 8);
+            w[27] = parseInt("7660000000000022", 8);
+            w[28] = parseInt("7560000000000371", 8);
+            w[29] = parseInt("7560000000000400", 8);
+            wordsToANSI(w, 0, 30, buffer, 0);
+            eu.put(buffer, addr++);
+
+            w[ 0] = parseInt("0400001421410230", 8);
+            w[ 1] = parseInt("1003014102301003", 8);
+            w[ 2] = parseInt("0141202111120055", 8);
+            w[ 3] = parseInt("0101102510211003", 8);
+            w[ 4] = parseInt("0141000010250421", 8);
+            w[ 5] = parseInt("0211023010030141", 8);
+            w[ 6] = parseInt("2021111600550225", 8);
+            w[ 7] = parseInt("0024223102301003", 8);
+            w[ 8] = parseInt("0141000010250421", 8);
+            w[ 9] = parseInt("0044613100550055", 8);
+            w[10] = parseInt("0000000000010000", 8);
+            w[11] = parseInt("0000000000070000", 8);
+            w[12] = parseInt("0004101441211020", 8);
+            w[13] = parseInt("2021062001411003", 8);
+            w[14] = parseInt("0141777462551261", 8);
+            w[15] = parseInt("1265101004210204", 8);
+            w[16] = parseInt("1003014110102021", 8);
+            w[17] = parseInt("5355304510250421", 8);
+            w[18] = parseInt("0204100301412021", 8);
+            w[19] = parseInt("1003014102001025", 8);
+            w[20] = parseInt("0421021010030141", 8);
+            w[21] = parseInt("0064102504210441", 8);
+            w[22] = parseInt("1642005502041003", 8);
+            w[23] = parseInt("0141202154251032", 8);
+            w[24] = parseInt("0000442504740231", 8);
+            w[25] = parseInt("0224100301410004", 8);
+            w[26] = parseInt("1012045510451025", 8);
+            w[27] = parseInt("0421020410030141", 8);
+            w[28] = parseInt("2021100301411646", 8);
+            w[29] = parseInt("0055022410030141", 8);
+            wordsToANSI(w, 0, 30, buffer, 0);
+            eu.put(buffer, addr++);
+
+            w[ 0] = parseInt("2021745550610265", 8);
+            w[ 1] = parseInt("1025042104411652", 8);
+            w[ 2] = parseInt("0055020410030141", 8);
+            w[ 3] = parseInt("2021542510320051", 8);
+            w[ 4] = parseInt("0204100301412021", 8);
+            w[ 5] = parseInt("1003014116560055", 8);
+            w[ 6] = parseInt("0224100301412021", 8);
+            w[ 7] = parseInt("7455506102651025", 8);
+            w[ 8] = parseInt("0421044116520055", 8);
+            w[ 9] = parseInt("0204100301412021", 8);
+            w[10] = parseInt("5425103200510210", 8);
+            w[11] = parseInt("1003014102101003", 8);
+            w[12] = parseInt("0141202102241003", 8);
+            w[13] = parseInt("0141202100240401", 8);
+            w[14] = parseInt("0101102504210204", 8);
+            w[15] = parseInt("1003014120211003", 8);
+            w[16] = parseInt("0141000010250421", 8);
+            w[17] = parseInt("0220100301410441", 8);
+            w[18] = parseInt("0204100301412021", 8);
+            w[19] = parseInt("1662005501411032", 8);
+            w[20] = parseInt("1025042102201003", 8);
+            w[21] = parseInt("0141202100004425", 8);
+            w[22] = parseInt("0024213100041003", 8);
+            w[23] = parseInt("0141001010121025", 8);
+            w[24] = parseInt("0421021410030141", 8);
+            w[25] = parseInt("0004101210250421", 8);
+            w[26] = parseInt("0210100301412021", 8);
+            w[27] = parseInt("1012100304211002", 8);
+            w[28] = parseInt("0004100301412021", 8);
+            w[29] = parseInt("4125004022310230", 8);
+            wordsToANSI(w, 0, 30, buffer, 0);
+            eu.put(buffer, addr++);
+
+            w[ 0] = parseInt("1003014116660055", 8);
+            w[ 1] = parseInt("1025042102341003", 8);
+            w[ 2] = parseInt("0141167200551025", 8);
+            w[ 3] = parseInt("0421024010030141", 8);
+            w[ 4] = parseInt("1676005510250421", 8);
+            w[ 5] = parseInt("0441170200551032", 8);
+            w[ 6] = parseInt("0051000000140131", 8);
+            w[ 7] = parseInt("0200100301410444", 8);
+            w[ 8] = parseInt("1025042104411706", 8);
+            w[ 9] = parseInt("0055023010030141", 8);
+            w[10] = parseInt("2021021510360200", 8);
+            w[11] = parseInt("1003014100501025", 8);
+            w[12] = parseInt("0421044117120055", 8);
+            w[13] = parseInt("0230100301412021", 8);
+            w[14] = parseInt("0215103602001003", 8);
+            w[15] = parseInt("0141000010250421", 8);
+            w[16] = parseInt("0441171600550230", 8);
+            w[17] = parseInt("1003014120210215", 8);
+            w[18] = parseInt("1036023010030141", 8);
+            w[19] = parseInt("0230100301412021", 8);
+            w[20] = parseInt("0200010110250421", 8);
+            w[21] = parseInt("0064100301411722", 8);
+            w[22] = parseInt("0055102504210070", 8);
+            w[23] = parseInt("1003014117260055", 8);
+            w[24] = parseInt("1025042100741003", 8);
+            w[25] = parseInt("0141173200551025", 8);
+            w[26] = parseInt("0421100200100301", 8);
+            w[27] = parseInt("1003042110020224", 8);
+            w[28] = parseInt("1003014120217455", 8);
+            w[29] = parseInt("2461026502141003", 8);
+            wordsToANSI(w, 0, 30, buffer, 0);
+            eu.put(buffer, addr++);
+
+            w[ 0] = parseInt("0141202174552261", 8);
+            w[ 1] = parseInt("0265100304210004", 8);
+            w[ 2] = parseInt("0014214100000010", 8);
+            w[ 3] = parseInt("2141006410030141", 8);
+            w[ 4] = parseInt("4231000401042231", 8);
+            w[ 5] = parseInt("0024413100550055", 8);
+            w[ 6] = parseInt("0140004000000000", 8);
+            w[ 7] = parseInt("0000000000004060", 8);
+            w[ 8] = parseInt("0140000100000000", 8);
+            w[ 9] = parseInt("0000000000006060", 8);
+            w[10] = parseInt("0140000040100000", 8);
+            w[11] = parseInt("3145652143312460", 8);
+            w[12] = parseInt("2124245125626260", 8);
+            w[13] = parseInt("2646516044234737", 8);
+            w[14] = parseInt("0740000000000046", 8);
+            w[15] = parseInt("0140000047704235", 8);
+            w[16] = parseInt("0140000047700473", 8);
+            w[17] = parseInt("0140000041200017", 8);
+            w[18] = parseInt("0441023201004441", 8);
+            w[19] = parseInt("0253010453527705", 8);
+            w[20] = parseInt("3705005101002411", 8);
+            w[21] = parseInt("0000102642314006", 8);
+            w[22] = parseInt("0235000000000000", 8);
+            w[23] = parseInt("0000700744110220", 8);
+            w[24] = parseInt("1003014104411022", 8);
+            w[25] = parseInt("1025042102201003", 8);
+            w[26] = parseInt("0141202141552345", 8);
+            w[27] = parseInt("4004042140060024", 8);
+            w[28] = parseInt("0415000044250140", 8);
+            w[29] = parseInt("0131400602350000", 8);
+            wordsToANSI(w, 0, 30, buffer, 0);
+            eu.put(buffer, addr++);
+
+            w[ 0] = parseInt("0441100202001003", 8);
+            w[ 1] = parseInt("0141202101017006", 8);
+            w[ 2] = parseInt("5355304544410222", 8);
+            w[ 3] = parseInt("0104106601007006", 8);
+            w[ 4] = parseInt("1003014120210555", 8);
+            w[ 5] = parseInt("1045003402317006", 8);
+            w[ 6] = parseInt("0060715503610565", 8);
+            w[ 7] = parseInt("7004042102201003", 8);
+            w[ 8] = parseInt("0141044170061032", 8);
+            w[ 9] = parseInt("1025042102201003", 8);
+            w[10] = parseInt("0141202100004425", 8);
+            w[11] = parseInt("0100013104350000", 8);
+            w[12] = parseInt("0000000000000000", 8);
+            w[13] = parseInt("0000000000000000", 8);
+            w[14] = parseInt("0000000000000000", 8);
+            w[15] = parseInt("0000000000000000", 8);
+            wordsToANSI(w, 0, 30, buffer, 0);
+            eu.put(buffer, addr++);
         }
 
         function enterFile(mfid, fid, areas, areasize) {
@@ -1281,7 +1622,7 @@ window.onload = function() {
             eu.put(buffer, 0);
 
             // Load the Halt Load Button Card image
-            loadBootstrap();                // load the Halt/Load Button Card image
+            loadKernel();                       // load the Kernel bootstrap program
 
             // Note: it is not necessary the clear out the ESPDISK area, since on a
             // cold start the entire EU object store is cleared.
@@ -1388,12 +1729,12 @@ window.onload = function() {
 
         eu = txn.objectStore(euName);
         txn.objectStore("CONFIG").get(0).onsuccess = function(ev) {
-
             config = ev.target.result;                  // global assignment
             if (!config) {
                 alert("No CONFIG object in database");
                 txn.abort();
             } else {
+                // If we're going to cold start, may as well start with an empty EU store
                 eu.clear().onsuccess = function(ev) {
                     initializeDirectory(config);
                 }
@@ -1507,7 +1848,7 @@ window.onload = function() {
             $$("ColdstartBtn").disabled = false;
             $$("FileSelector").disabled = false;
 
-            //dumpDisk();             // <<<<<<<<<<<<<< DEBUG <<<<<<<<<<<<<<<<<
+            dumpDisk();             // <<<<<<<<<<<<<< DEBUG <<<<<<<<<<<<<<<<<
 
             disk.transaction("CONFIG").objectStore("CONFIG").get(0).onsuccess = function(ev) {
                 config = ev.target.result;
@@ -1591,11 +1932,12 @@ TBODY#TapeDirBody {
     <tr>
         <th>Nr
         <th>Load
-        <th>as MCP
         <th>File ID
+        <th>as MCP
+        <th>as INT
     <tbody id=TapeDirBody>
     </table>
-    <input id=LoadBtn type=button value="Load" DISABLED>
+    <br><input id=LoadBtn type=button value="Load" accessKey=L DISABLED>
 </div>
 
 <pre id=TextPanel>
