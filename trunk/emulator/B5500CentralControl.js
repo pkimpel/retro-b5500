@@ -269,7 +269,7 @@ B5500CentralControl.prototype.fieldInsert = function(word, start, width, value) 
     var bottom =                        // unaffected bottom portion of word
         (le == 0 ? 0 : (word % (bpower = B5500CentralControl.pow2[le])));
     var top =                           // unaffected top portion of word
-        (bit == 0 ? 0 : (word - (word % B5500CentralControl.pow2[ue])));
+        (ue == 0 ? 0 : (word - (word % B5500CentralControl.pow2[ue])));
 
     return (value % B5500CentralControl.pow2[width])*bpower + top + bottom;
 };
@@ -286,7 +286,7 @@ B5500CentralControl.prototype.fieldTransfer = function(word, wstart, width, valu
     var bottom =                        // unaffected bottom portion of word
         (le == 0 ? 0 : (word % (bpower = B5500CentralControl.pow2[le])));
     var top =                           // unaffected top portion of word
-        (bit == 0 ? 0 : (word - (word % B5500CentralControl.pow2[ue])));
+        (ue == 0 ? 0 : (word - (word % B5500CentralControl.pow2[ue])));
 
     return ((ve == 0 ? value :
                        (value - value % (vpower = B5500CentralControl.pow2[ve]))/vpower
@@ -709,7 +709,7 @@ B5500CentralControl.prototype.loadComplete = function loadComplete() {
     if (completed) {
         that.loadTimer = null;
         that.LOFF = 0;
-        that.P1.start();
+        that.P1.start(0x10);            // start execution at C=@20
     }
 };
 
@@ -800,7 +800,7 @@ B5500CentralControl.prototype.runTest = function(runAddr) {
     this.clear();
     this.loadTimer = null;
     this.LOFF = 0;
-    this.P1.start();
+    this.P1.start(runAddr);
 };
 
 /**************************************/
