@@ -19359,3 +19359,60 @@ LDCNTRL::: "LDCNTRL";                                                   22069550
               IF T THEN GO TO NOTREADY;%                                22205000        
          TESTBACKUP:                                                    22205500        
               IF AUTOPRINT THEN                                         22206000        
+                 IF PRINTORPUNCHWAIT(-U,0) THEN GO TO COMMON;           22207000        
+              GO TO SCRATCH;                                            22208000        
+         CARD:%                                                         22209000        
+              RRRMECH:=RRRMECH OR I;                                    22209200        
+              IF CDONLY THEN                                            22209400        
+                BEGIN                                                   22209500        
+                AUTOLOADER;                                             22209600        
+                GO TO COMMON;                                           22209700        
+                END;                                                    22209800        
+              LABELTABLE[U]:=-@14;                                      22212200        
+              INDEPENDENTRUNNER(P(.CONTROLCARD),0&U[3:43:5],192);       22212400        
+              IF U}32 AND U{63 THEN PSEUDOCOPY~PSEUDOCOPY+1;%      %541-22212450        
+              GO TO COMMON;%                                            22213000        
+         PUNCH:                                                         22213500        
+              STARTIO(U);                                               22213600        
+              IF UNIT[U].[15:3]=0 THEN GO TESTBACKUP ELSE GO TO SCRATCH;22213700        
+         DRUM:%                                                         22214000        
+         DISC:                                                          22215000        
+         SPO:%                                                          22216000        
+         PAPERPUNCH:%                                                   22218000        
+         DATACOM:%                                                      22219000        
+              STARTIO(U);%                                              22220000        
+              GO TO SCRATCH;%                                           22221000        
+         COMMON:   END OF READY;%                                       22222000        
+         END;%                                                          22223000        
+    STATUSBIT ~ TRUE;%                                                  22224000        
+    FORGETSPACE(AREA.[33:15]);%                                         22225000        
+    KILL([MSCW]);                                                       22226000        
+    END STATUS;%                                                        22227000        
+BOOLEAN PROCEDURE OLAY(LOC);   % MADE SAVE IN INITIALIZE                22228000        
+    VALUE LOC;  REAL LOC;%                                              22229000        
+    BEGIN REAL LINK, MOM, FRONT, BACK, CHAR, BS, STACK, S, SB,%         22230000        
+         T, X, SESC, DISK, IOD, MIX, JOBKILLED, MIXUP, SEGNO;%          22231000        
+         ARRAY NAME SEGDICT;%                                           22232000        
+         REAL RESULT=+1;%                                               22233000        
+         ARRAY SPRT[*];                                                 22234000        
+         REAL CORE, CUED;  REAL INITCW=MIXUP;                           22235000        
+         REAL TYPE13, RSLT, NOAUX;                                      22235500        
+ $ SET OMIT = NOT(NEWLOGGING)                                           22235599        
+ $ SET OMIT = NOT(WORKSET)                                              22235610        
+         REAL MCPTEMP;                                                  22235620        
+ $ POP OMIT % WORKSET                                                   22235621        
+         LABEL EXIT; % ALL AVENUES MUST LEAD TO HERE                    22235700        
+         LABEL AROUND, CODE, BACKAGAIN, MCP, INTRINSIC;%                22236000        
+         LABEL RETRY, AGAIN, FOG;                                       22236100        
+         DEFINE TSKA = SPRT#;                                           22236150        
+         BOOLEAN SUBROUTINE AWAKEN;%                                    22237000        
+         BEGIN COMMENT AWAKEN CHECKS TO SEE IF WE HAVE HALTED           22238000        
+              THE JOB ON PROCESSOR 2.  IF SO, IT RESTARTS THE           22239000        
+              TIMING FOR HIM, AND CALLS "HALT" TO CHECK INTERRUPTS;%    22240000        
+              IF JOBKILLED THEN%                                        22241000        
+              BEGIN                                                     22242000        
+ $ SET OMIT = NEWLOGGING                                                22242099        
+                   STARTLOG(P2MIX;);                                    22242100        
+ $ POP OMIT                                                             22242101        
+                   JOBKILLED ~ FALSE;  OLAY ~ RESULT OR 2;%             22243000        
+                   HALT;  NOPROCESSTOG ~ NOPROCESSORT-1;%               22244000        
