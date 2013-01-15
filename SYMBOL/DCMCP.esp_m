@@ -19415,4 +19415,105 @@ BOOLEAN PROCEDURE OLAY(LOC);   % MADE SAVE IN INITIALIZE                22228000
                    STARTLOG(P2MIX;);                                    22242100        
  $ POP OMIT                                                             22242101        
                    JOBKILLED ~ FALSE;  OLAY ~ RESULT OR 2;%             22243000        
-                   HALT;  NOPROCESSTOG ~ NOPROCESSORT-1;%               22244000        
+                   HALT;  NOPROCESSTOG ~ NOPROCESSTOG-1;%               22244000        
+              END;%                                                     22245000        
+         AWAKEN ~ RESULT END;%                                          22246000        
+         SUBROUTINE STOP;%                                              22247000        
+         BEGIN COMMENT STOP HALTS THE JOB ON PROCESSOR 2, AND           22248000        
+              CLOCKS HIM OFF.  IT SETS JOBKILLED SO THAT AWAKEN         22249000        
+              CAN DO ITS DIRTY WORK BEFORE RETURNING;%                  22250000        
+              JOBKILLED ~ TRUE;  P(HP2);%                               22251000        
+              STOPLOG(P2MIX,0);                                         22252000        
+         END STOPPER;%                                                  22253000        
+         SUBROUTINE CODEOVERLAY;%                                       22254000        
+         BEGIN COMMENT CODEOVERLAY HANDLES ALL CASES OF MARKING         22255000        
+              A NORMAL-STATE SEGMENT AS NOT-PRESENT.  IT DOES THIS      22256000        
+              A SINGEL PRT AND STACK AT A TIME, AND IS ONLY CALLED      22257000        
+              REPREATEDLY FOR RE-ENTRANT CODE OR INTRINSICS;%           22258000        
+              IF CHAR THEN S ~ M[SB ~ M[S].[FF]].[FF] ELSE S ~ S-1;%    22259000        
+              SPRT ~ PRT[MIX,10];%                                      22260000        
+              IF SPRT[X].[2:1] THEN BEGIN%                              22261000        
+    % NEED TO DO PRT AND STACK SEARCH ONLY IF PRESENT IN THIS PRT       22262000        
+                   DO UNTIL (X ~ (SPRT[X] ~ (*P(DUP))&0[22:1]%          22263000        
+                             &(SPRT[X].[CF]-FRONT)[CTC]).[6:12])}2048;% 22264000        
+    AROUND:%                                                            22265000        
+                   WHILE (STACK := HUNT(BS).[CF]) LSS S DO              22266000        
+                   BEGIN CORE ~ (DESC ~ NFLAG(M[STACK])).[CF];%         22267000        
+                        IF CORE } FRONT AND CORE < BACK THEN            22268000        
+                        IF DESC LSS 0 THEN%PROG. DESC OR RCW.           22269000        
+                        IF DESC.[3:1] THEN%DESC                         22270000        
+                        IF DESC.[2:1] THEN%PRESENT                      22270050        
+                    IF DESC.[6:2]=1 THEN %TYPE 13 INTRINSIC DESC        22270100        
+                       M[STACK]:=FLAG(DESC & 0[2:2:1]                   22270200        
+                                      & (MOM.[8:10])[CTC]) ELSE         22270300        
+    % DESCRIPTOR -- INSERT OFFSET AND RESET P-BIT                       22271000        
+                          M[STACK] ~ FLAG(DESC&0[2:2:1]%                22272000        
+                                          &(CORE-FRONT)[CTC])%          22273000        
+                        ELSE                                            22273100        
+                        ELSE BEGIN%                                     22274000        
+    % CONTROL WORD (RCW) -- UNFLAG IN STACK, PUT OFFSET INTO            22275000        
+    %    CORRESPONDING MSCW, AND MOM INTO RCW.[CF]                      22276000        
+                             M[X ~ DESC.[FF]] ~%                        22277000        
+                                  (*P(DUP))&(CORE-FRONT)[CTC];%         22278000        
+                             M[STACK] ~ DESC&SEGNO[CTC];%               22279000        
+                        END;%                                           22280000        
+                        BS ~ STACK+1;%                                  22281000        
+                   END;%                                                22282000        
+                   IF CHAR AND (STACK<SB) THEN%                         22283000        
+                   BEGIN BS ~ SB;  S ~ HUNT(BS+1).[CF];  GO AROUND END; 22284000        
+                   IF P(SPRT[19],TOP) THEN P(DEL) ELSE               %DS22284100        
+                   BEGIN CORE:=POLISH.[CF];                          %DS22284200        
+                        IF CORE < FRONT OR CORE } BACK THEN             22284300        
+                         ELSE SPRT[19]:=(*P(DUP))&0[2:2:1]           %DS22284400        
+                                        &(CORE-FRONT)[CTC];          %DS22284500        
+                   END;                                              %DS22284600        
+ $ SET OMIT = NOT(STATISTICS)                                           22284699        
+              END OF PRESENT IN PRT CASE;%                              22285000        
+         END OF CODEOVERLAY;%                                           22286000        
+    SUBROUTINE INT13;   %STACK SEARCH FOR TYPE 13 INTRINSIC CALLS       22286010        
+         BEGIN CHAR:=P(PRT[MIX,8],DUP).[32:1];                          22286020        
+               S:1P INX 0; BS:=PRT[MIX,10].[FF];                        22286030        
+         IF CHAR THEN S:=M[SB:=M[S].[FF]].[FF] ELSE S:=S-1;             22286040        
+    AGAIN:    WHILE (STACK := HUNT(BS).[CF]) LSS S DO                   22286050        
+                    BEGIN CORE:=(DESC:=NFLAG(M[STACK])).[CF];%          22286060        
+                    IF CORE GEQ FRONT AND CORE LSS BACK THEN%           22286070        
+                        IF DESC.[1:2] NEQ 0 THEN                        22286075        
+                        IF DESC.[1:3]=7 THEN%                           22286080        
+                         M[STACK]:=FLAG(DESC&0[2:2:1]&(MOM.[8:10])[CTC])22286090        
+                        ELSE                                            22286100        
+                        BEGIN M[DESC.[FF]]:=(*P(DUP))&(CORE-FRONT)[CTC];22286110        
+                              M[STACK]:=DESC&(MOM.[8:10])[CTC]&         22286120        
+                                       1[33:47:1];                      22286130        
+                        END;                                            22286140        
+                    BS:=STACK+1;                                        22286150        
+                    END;                                                22286160        
+              IF CHAR AND (STACK LSS SB) THEN%                          22286170        
+              BEGIN BS:=SB; S:=HUNT(BS+1).[CF]; GO AGAIN; END;          22286180        
+    END OF TYPE 13 INTRINSIC STACK SEARCH;                              22286190        
+         COMMENT   OLAY HANDLES OVERLAYS,  THERE ARE 3 CLASSES          22287000        
+              OF THINGS WHICH MAY BE OVERLAID;                          22288000        
+              1)   OBJECT PROGRAM DATA SEGMENTS                         22289000        
+              2)   OBJECT PROGRAM CODE SEGMENTS                         22290000        
+         AND  3)  MCP (NON-SAVE) PROCEDURES.                            22291000        
+              4) MCP TABLES - OVERLAYABLE                               22291500        
+              EACH OF THESE CLASSES GETS SPECIAL HANDLING,              22292000        
+              WHICH WILL BE DESCRIBED AS WE COME TO IT;                 22293000        
+    % THIS CODE IS COMMON TO ALL CLASSES AND ALL CASES                  22294000        
+ $ SET OMIT = NOT(NEWLOGGING)                                           22294099        
+ $ SET OMIT = NOT(WORKSET)                                              22294110        
+         MCPTEMP := CLOCK + P(RTR);                                     22294120        
+ $ POP OMIT % WORKSET                                                   22294121        
+         LINK ~ M[LOC];  MOM ~ M[LOC+1];%                               22295000        
+         FRONT := LOC + 2; BACK := LINK.[CF];                           22296000        
+         IF (MIX ~ LINK.[AREAMIXF])=0 THEN GO TO MCP;%             %167-22297000        
+    % <MIX>=0 AND NON-SAVE MEANS MCP PROCEDURE OR INTRINSIC             22298000        
+         IF MIX=P2MIX THEN STOP;%                                       22299000        
+         CHAR ~ (INITCW ~ PRT[MIX,8]).[32:1];%                          22300000        
+         S ~ INITCW.[CF];  BS ~ PRT[MIX,10].[FF];%                      22301000        
+    % CHAR IS CWMF,  S IS TOP-OF-STACK,  BS IS BASE OF STACK            22302000        
+         IF LINK.[AREATYPEF]=CODEAREAV THEN GO TO CODE;%           %167-22303000        
+         IF TERMGOING(MIX) THEN GO TO FOG;                         %507-22303200        
+    % TYPE=1 MEANS PROGRAM -- ONLY ALTERNATIVE IS DATA                  22304000        
+         IF CHAR THEN%                                                  22305000        
+    % SPECIAL CHECKS FOR ADDRESS SAVED IN CHARACTER MODE                22306000        
+         BEGIN CHAR:=(((T:=M[S-1].[CF]) } FRONT AND T < BACK) OR        22307000        
