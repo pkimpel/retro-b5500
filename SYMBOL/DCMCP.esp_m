@@ -19517,3 +19517,105 @@ BOOLEAN PROCEDURE OLAY(LOC);   % MADE SAVE IN INITIALIZE                22228000
          IF CHAR THEN%                                                  22305000        
     % SPECIAL CHECKS FOR ADDRESS SAVED IN CHARACTER MODE                22306000        
          BEGIN CHAR:=(((T:=M[S-1].[CF]) } FRONT AND T < BACK) OR        22307000        
+    % M-REGISTER FROM ICW (SOURCE ADDRESS)                              22308000        
+                   ((T:=M[S-2].[FF])} FRONT AND T < BACK));             22309000        
+    % S-REGISTER FROM ILCW (DESTINATION ADDRESS)                        22310000        
+              IF NOT CHAR THEN%                                         22311000        
+              BEGIN X ~ M[S ~ M[S].[FF]].[FF]+1;%                       22312000        
+    % M[S].[FF] IS ADDRESS OF RCW,  M[RCW].[FF] IS ADDRESS OF MSCW      22313000        
+                   DO CHAR ~ ((T ~ M[S ~ S-1].[CF])}FRONT               22314000        
+                        AND T < BACK) UNTIL (S { X) OR CHAR;            22315000        
+    % SEARCH THROUGH STREAM LOCALS AND PARAMETERS FOR ADDRESSES         22316000        
+                   S ~ X;%                                              22317000        
+              END;%                                                     22318000        
+         END;%                                                          22319000        
+         IF CHAR THEN         %TELL BREAKOUT ABOUT IT                   22320000        
+         BEGIN P(AWAKEN,SSN); GO EXIT;                                  22320100        
+         END;                                                           22320200        
+    % CANNOT OVERLAY IF MAY BE ADDRESSES IN CHAR MODE STACK             22321000        
+          IOD~M[MOM].[8:10];                                            22322000        
+          IF (DISK:=MOM.[FF]) NEQ 0 THEN % OLAY ADDRESS PRESENT         22323000        
+             BEGIN                                                      22323200        
+ $ SET OMIT = NOT(AUXMEM)                                               22323400        
+             MOM.[FF]:=0;                                               22324800        
+             END;                                                       22325000        
+          IF DISK=0 THEN DISK:=DISKSPACE(IOD,MIX,NOAUX);                22325200        
+          IF DISK LSS 0 THEN       % NO OLAY DISK                       22325400        
+          BEGIN P(AWAKEN); GO EXIT;                                     22325410        
+          END;                                                          22325430        
+ $ SET OMIT = NOT(STATISTICS)                                           22325600        
+          IF (S:=S-1) GTR MOM THEN IF MOM GTR BS THEN BS:=MOM-1;        22326400        
+    % IF MOTHER IS IN STACK, ONLY SEARCH ABOVE IT                       22326600        
+          WHILE (STACK:=HUNT(BS).[CF]) LSS S DO                         22326800        
+             BEGIN                                                      22327000        
+             IF (DESC:=NFLAG(M[STACK])).[1:2]=1 THEN                    22327200        
+    % ONLY WORRY ABOUT DATA DESCRIPTORS WHICH ARE PRESENT               22327400        
+                 IF DESC.[FF]=MOM THEN                                  22327600        
+    % THIS ONE DEMANDS ACTION -- IT POINTS INTO OUR ARRAY               22327800        
+                   IF DESC.[8:10]=0 THEN                                22328000        
+    % NAME DESCRIPTOR -- PUT IN OFFSET AND RESET P-BIT                  22328200        
+                     M[STACK]:=FLAG((DESC.[CF]-FRONT)&MOM[CTF])         22328400        
+                   ELSE                                                 22328600        
+    % NORMAL ROW DESCRIPTOR -- ZERO CORE FIELD AND RESET P-BIT          22328800        
+                     M[STACK]:=FLAG(0&DESC[8:8:25]);                    22329000        
+                BS:=STACK+1;                                            22329200        
+             END;                                                       22329400        
+           IF M[MOM].[3:3] NEQ 7 % NOT READ ONLY ALREADY WRITTEN        22329600        
+ $ SET OMIT = NOT(BREAKOUT)                                             22329800        
+           THEN                                                         22330400        
+             BEGIN                                                      22330600        
+ $ SET OMIT = NOT(AUXMEM)                                               22330800        
+RETRY:        DISKIO(RSLT,FRONT-1,IOD&1[3:47:1],DATADDRESS(MIX,DISK));  22331400        
+              % [3:1] IN SIZE MARKS I/O AS ORIGINATING FROM OLAY        22331600        
+              M[MOM]:=(*P(DUP))&0[2:47:1]&5[CTC];                       22331800        
+              P(AWAKEN,DEL);                                            22332000        
+              % CF=5 IN MOTHER IS INTERLOCK FOR MAKEPRESENT             22332200        
+              SNOOZE(0,[RSLT],IOMASK);                                  22332400        
+              IF RLST.[26:7] NEQ 0 THEN % I/O ERROR                     22332600        
+                 BEGIN                                                  22332800        
+ $ SET OMIT = NOT(AUXMEM)                                               22333000        
+                 IF (DISK:=DISKSPACE(IOD,MIX,-0)) LSS 0 THEN            22333800        
+                    BEGIN % NO OLAY DISK                                22334000        
+                    M[MOM]:=(*P(DUP))&6[CTC];       % TERMINATE MARKER  22334200        
+                    GO TO FOG;                                          22334400        
+                    END;                                                22334600        
+                 GO TO RETRY; % TRY AGAIN WITH ANOTHER ADDRESS          22334800        
+                 END; % IF I/O ERROR                                    22335000        
+              M[MOM]:=(*P(DUP))&DISK[CTC]; % PUT DISK ADDRESS IN MOTHER 22335200        
+              END % IF READ ONLY, NOT YET WRITTEN                       22335400        
+           ELSE                                                         22335600        
+              BEGIN                                                     22335800        
+              M[MOM]:=(*P(DUP))&0[2:47:1]&DISK[CTC];                    22336000        
+              P(AWAKEN,DEL);                                            22336200        
+              END;                                                      22336400        
+         IF M[MOM].[3:3]=6 THEN M[MOM].[5:1]~1;                         22339100        
+FOG:     FORGETSPACE(FRONT);                                            22350000        
+         P(TRUE); GO EXIT;                                              22351000        
+    CODE:%                                                              22352000        
+    % OBJECT PROGRAM CODE TO BE OVERLAID                                22353000        
+         IF (T ~ M[S].[CF])}FRONT AND T{BACK THEN%                      22354000        
+    % CANNOT OVERLAY NORMAL STATE SEGMENT HE WILL RETURN TO             22355000        
+         BEGIN P(AWAKEN); GO EXIT;                                      22356000        
+         END;                                                           22356020        
+         IF SOFTI>0 THEN                                                22356100        
+         IF JAR[MIX,2].[5:1] THEN      % SOFTWARE INTERRUPTS            22356140        
+           IF (TSKA ~ PRT[MIX,TSX]).PBIT THEN                           22356150        
+              IF (T ~ TSKA[8].[FF])!0 THEN                              22356200        
+                   IF (M~M[T].[CF])}FRONT AND T{BACK THEN               22356300        
+                   BEGIN P(AWAKEN); GO EXIT;                            22356400        
+                   END;                                                 22356420        
+         IF (MIXUP ~ (SEGDICT ~ PRT[MIX,4]).[FF])!0 THEN%               22357000        
+    % RE-ENTRANT CODE TO BE OVERLAID -- CHECK OTHER USERS, TOO          22358000        
+         BEGIN MIXUP ~ MIXUP.[39:6];%                                   22359000        
+              DO BEGIN%                                                 22360000        
+                   IF MIXUP=P2MIX THEN STOP;%                           22361000        
+    % STOP OTHER USER OF THIS CODE IF RUNNING ON PROCESSOR 2            22362000        
+                   IF (T ~ M[PRT[MIXUP,8]].[CF])}FRONT AND T{BACK%      22363000        
+                   THEN BEGIN P(AWAKEN); GO EXIT;                       22364000        
+                        END;                                            22364100        
+    % SAME CRITERIA APPLY TO ALL USERS OF THIS CODE                     22365000        
+                   IF SOFTI>0 THEN                                      22365100        
+                   IF JAR[MIXUP,2].[5:1] THEN    % SOFTWARE INTERRUPTS  22365140        
+                     IF (TSKA ~ PRT[MIXUP,@26]).PBIT THEN               22365150        
+                        IF (T ~ TSKA[8].[FF])!0 THEN                    22365200        
+                             IF (T~M[T].[CF])}FRONT AND T{BACK THEN     22365300        
