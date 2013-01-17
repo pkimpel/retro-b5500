@@ -19619,3 +19619,103 @@ FOG:     FORGETSPACE(FRONT);                                            22350000
                      IF (TSKA ~ PRT[MIXUP,@26]).PBIT THEN               22365150        
                         IF (T ~ TSKA[8].[FF])!0 THEN                    22365200        
                              IF (T~M[T].[CF])}FRONT AND T{BACK THEN     22365300        
+                             BEGIN P(AWAKEN); GO EXIT;                  22365400        
+                             END;                                       22365420        
+              END UNTIL (MIXUP ~ PRT[MIXUP,4].[24:6])=@77;%             22366000        
+    % CHECK ALL USERS ON MIX-INDEX LINKED LIST                          22367000        
+         END;%                                                          22368000        
+    % IF WE REACH THIS POINT, WE CAN AND WILL OVERLAY THE AREA          22369000        
+ $ SET OMIT = NOT(AUXMEM)                                               22369999        
+    BACKAGAIN::                                                         22371200        
+ $ SET OMIT = AUXMEM                                                    22371210        
+    X~SEGDICT[SEGNO~MOM].[8:10];CODEOVERLAY;                            22371220        
+ $ POP OMIT                                                             22371221        
+ $ SET OMIT = NOT(AUXMEM)                                               22371299        
+         IF MIXUP THEN%                                                 22372000        
+    % RE-ENTRANT CODE BEING OVERLAID -- MUST FIX ALL STACKS AND PRTS    22373000        
+         IF (MIX ~ PRT[MIX,4].[24:6])!@77 THEN%                         22374000        
+    % SET UP CHAR,  S,  AND BS FOR NEXT USERS STACK                     22375000        
+         BEGIN CHAR ~ (S ~ PRT[MIX,8]).[32:1];%                         22376000        
+              S ~ S INX 0;  BS ~ PRT[MX,10].[FF];%                      22377000        
+    % GO DO STACK SEARCH AND PRT FIX-UP FOR ANOTHER USER                22378000        
+              GO TO BACKAGAIN;%                                         22379000        
+         END;%                                                          22380000        
+ $ SET OMIT = NOT(AUXMEM)                                               22380049        
+ $ SET OMIT = AUXMEM                                                    22383049        
+         SEGDICT[MOM]~(*P(DUP))&MOM[FTF];%                              22383050        
+         FORGETSPACE(FRONT); P(AWAKEN,DEL,TRUE); GO EXIT;               22383100        
+ $ POP OMIT                                                             22383101        
+    % NOW WAS THAT NOT TRIVIALITY PERSONIFIED...                        22384000        
+    MCP:%                                                               22385000        
+         IF P(LINK.[AREATYPEF],DUP)=TYPE7INTAREAV OR%              %167-22386000        
+            P(XCH)=TYPE13INTAREAV THEN GO TO INTRINSIC;%           %167-22386010        
+         IF LINK.[AREATYPEF]=DATAAREAV THEN % OVERLAYABLE MCP DATA %167-22386100        
+            BEGIN                                                       22386150        
+       COMMENT  MCP TABLES CAN BE MARKED AS OVERLAYABLE SO THAT THEY CAN22386200        
+         REMAIN IN CORE WHEN IN USE AND BETWEEN USES BUT CAN BE REMOVED 22386204        
+         WHEN THE SPACE IS NEEDED, PREVIOUSLY THEY HAD TO BE LEFT IN    22386208        
+         CORE PERMANENTLY OR READ FROM DISK WITH EACH USE.  EACH TABLE  22386212        
+         NEEDS A "DESCRIPTOR" TELLING ITS PRESENCE [2:1], ITS ADDRESS   22386216        
+         [33:15], AND THE NUMBER OF PROCESSES ACCESSING IT[18:15].      22386220        
+         MEMORY LINKS MUST BE HANDLED AS IN LBMESS.  WHEN AN AREA IS    22386224        
+         IN USE, THE PAIR (MIX=0,TYPE=2(DSTA)) IN WORD 1 OF THE MEMORY  22386228        
+         LINK INDICATES SUCH AN AREA;                                   22386232        
+               IF M[MOM].[FF] = 0 THEN                                  22386250        
+                  BEGIN  %CAN OVERLAY: NO ONE IS WAITING                22386300        
+                     M[MOM] := 0;  % MARK ABSENT                        22386350        
+                     FORGETSPACE(FRONT);                                22386400        
+                     P(TRUE); %SIGNAL SUCCESS                           22386450        
+                     GO EXIT;                                           22386500        
+                  END                                                   22386550        
+               ELSE BEGIN P(FALSE); GO EXIT END                         22386600        
+            END;                                                        22386650        
+         X ~ -2;  BS ~ (P(0,RDF)).[FF];%                                22387000        
+    % SET BS TO POINT AT RCW FOR CALL ON OLAY                           22388000        
+         DO BEGIN%                                                      22389000        
+              OLAY ~ NOT(S ~ ((CORE ~ (T ~ M[BS]).[CF]){BACK            22390000        
+                        AND CORE}FRONT));%                              22391000        
+    % S IS TRUE IF THE RCW POINTS TO THE ROUTINE TO BE OVERLAID         22392000        
+              BS ~ T.[FF];%                                             22393000        
+    % POINT T TO CORRESPONDING MSCW                                     22394000        
+              WHILE (T ~ M[BS]).[16:1] DO BS ~ T.[FF];%                 22395000        
+    % RUN DOWN STACK OF MSCWS UNTIL NOT MSFF                            22396000        
+              IF (BS ~ T.[FF]){64 THEN                                  22397000        
+    % END OF STACK -- THIS IS RATIONALE FOR OBSCURE USE OF "P(0,STF)"   22398000        
+                BS ~ BED[X ~ X+2].[FF];%                                22399000        
+         END UNTIL (X>JOBNUM) OR S;%                                    22400000        
+         IF RESULT THEN%                                                22401000        
+         BEGIN M[MOM] ~ (*P(DUP))&(*P(.ESPBIT))[CTC];%                  22402000        
+              FORGETSPACE(FRONT);%                                      22403000        
+         END;%                                                          22404000        
+         P(RESULT AND 1); GO EXIT;                                      22405000        
+    INTRINSIC:%                                                         22406000        
+         FOR MIX~1 STEP 1 UNTIL MIXMAX DO%                              22407000        
+         IF INTABLEROW[MIX]!0 THEN%                                     22408000        
+         BEGIN IF MIX=P2MIX THEN STOP;%                                 22409000        
+              IF (T ~ M[PRT[MIX,8]].[CF])}FRONT AND T{BACK%             22410000        
+              THEN BEGIN P(AWAKEN); GO EXIT;                            22411000        
+                   END;                                                 22411020        
+         END;%                                                          22412000        
+         FOR MIX~1 STEP 1 UNTIL MIXMAX DO%                              22413000        
+         IF INTABLEROW[MIX]!0 THEN                                      22413010        
+         BEGIN SEGNO ~ MOM.[8:10]-1;%                                   22415000        
+              STREAM(A ~ SEGNO AND 3; T ~ [INTABLE[MIX,SEGNO DIV 4]]);  22416000        
+              BEGIN SI ~ T;  SI ~ SI+A;  SI ~ SI+A;  DI ~ LOC A;%       22417000        
+                   DI ~ DI+6;  DS ~ 2 CHR;  END STREAMING;%             22418000        
+              IF (SEGNO ~ POLISH)!0 THEN%                               22419000        
+              IF SEGNO = @2000 THEN INT13 ELSE                          22419500        
+              BEGIN CHAR ~ P(PRT[MIX,8], DUP).[32:1];%                  22420000        
+                    TYPE13:=SEGNO.[37:1];                               22420200        
+                   SEGNO:=SEGNO AND @1777; %IGNORE TYPE 13 BIT          22420500        
+                   S ~ POLISH INX 0;  BS ~ PRT[MIX,10].[FF];%           22421000        
+                   SEGDICT ~ PRT[MIX,4];%                               22422000        
+                   X:=SEGDICT[SEGNO].[8:10];                            22423000        
+                   IF TYPE13 AND NOT PRT[MIX,X].[2:1] THEN              22423100        
+    % TYPE 13 REFERENCE ALSO EXISTS AND TYPE 7 REFERENCE IS NOT PRESENT 22423200        
+                        INT13 ELSE                                      22423300        
+                   BEGIN                                                22423400        
+                   CODEOVERLAY;                                         22423500        
+                   SEGDICT[SEGNO] ~ (*P(DUP))&MOM[FTF];%                22424000        
+                   END;                                                 22424500        
+              END;%                                                     22425000        
+         END;%                                                          22426000        
