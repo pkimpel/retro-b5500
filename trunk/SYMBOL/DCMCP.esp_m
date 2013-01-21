@@ -19751,3 +19751,83 @@ EXIT:                                                                   22429100
          UNLOCKTOG(ABORTMASK);                                          22919000        
          FORGETSPACE(A);%                                               22920000        
     END;%                                                               22921000        
+ $ SET OMIT = NOT(DATACOM)                                              22999999        
+REAL SPACESTACK;                                                        23500000        
+ SAVE PROCEDURE FORGETSPACE(LOC);%                                      24000000        
+                      VALUE LOC;%                                       24001000        
+                      REAL LOC;%                                        24002000        
+    BEGIN%                                                              24003000        
+         REAL B,BACK,F,FRONT,LINK,X,T,SIZE;%                            24004000        
+         LOC ~ *P(.LOC) INX 0 -2;%                                      24005000        
+         IF (B~ M[BACK~ (LINK~ M[LOC]).[FF]]).[CF]!LOC OR               24006000        
+              (F~M[FRONT~LINK.[CF]]).[FF]!LOC OR LINK<0 THEN            24007000        
+                   PUNT(3);            % INVALID LINK                   24007100        
+         IF F<0 THEN                                                    24007200        
+                   BEGIN%                                               24008000        
+                    M[LOC]~LINK &F[CTC];%                               24009000        
+                    M[F]~M[F] & LOC[CTF];%                              24010000        
+                    M[T~M[FRONT+2]]~M[T] &(X~M[FRONT+1])[CTC];%         24011000        
+                    M[X+1]~T;%                                          24012000        
+                   END;%                                                24013000        
+         IF B<0%                                                        24014000        
+              THEN%                                                     24015000        
+                   BEGIN                                                24016000        
+                    M[BACK]~B&(T~M[LOC].[CF])[CTC];%                    24017000        
+                    M[T]~M[T]& BACK[CTF];%                              24018000        
+                    M[BACK+1]~M[BACK+1]&(SIZE~T-BACK-2)[CTF];%          24019000        
+                   END%                                                 24020000        
+              ELSE   %BACK IN USE                                       24021000        
+                   BEGIN%                                               24022000        
+                    M[LOC+2]~AVAIL;%                                    24023000        
+                    M[LOC+1]~(T~M[AVAIL]) &(SIZE~M[LOC].[CF ]-LOC-2)[CTF24024000        
+                    ];%                                                 24025000        
+                    M[T+1]~LOC+1;%                                      24026000        
+                    M[AVAIL]~T &(LOC+1)[CTC]%                           24027000        
+                   ; M[LOC]~-M[LOC]%                                    24028000        
+                   END;%                                                24029000        
+    IF LOC{LEFTOFF THEN IF M[LOC].[CF]>LEFTOFF THEN LEFTOFF~M[LOC].[FF];24030000        
+ $ SET OMIT = NOT(DEBUGGING OR CHECKLINK)                               24030100        
+    END FORGETSPACE;%                                                   24031000        
+SAVE INTEGER PROCEDURE ACTSPACE(SIZE,SAVEF);                            24032050        
+  VALUE SIZE,SAVEF; REAL SIZE; BOOLEAN SAVEF;                           24032100        
+  BEGIN REAL LINK,LOC,X,Y,T;                                            24032200        
+ $ SET OMIT = NOT(SATISTICS                                             24032300        
+        REAL SIZEF,LOS;                                                 24032700        
+        LABEL SVSTART,SVSEARCH,START,OVSEARCH,XX,ROCKABYE;              24032800        
+        IF SAVEF THEN%  ATTEMPT TO ALLOCATE AT START OF MEMORY          24032900        
+        BEGIN                                                           24033000        
+SVSTART:      LINK:=M[0];                                               24033100        
+SVSEARCH:     IF (LOC:=LINK.[CF])=0 THEN GO TO ROCKABYE;                24033200        
+              IF (LINK ~ M[LOC])}0 THEN%                                24033300        
+              BEGIN IF NOT LINK.[2:1] THEN%                             24033400        
+                    BEGIN  % OVRLAY ONLY IF POTENTIAL SPACE ADEQUATE    24033500        
+                          SIZEF ~ -2; X ~ T ~ LOC;                      24033600        
+                          IF (Y~LINK.[FF]) ~ 0 THEN                     24033700        
+                            IF M[Y] < 0 THEN SIZEF~M[(T~Y)+1].[FF];     24033800        
+                          WHILE SIZE>SIZEF AND (Y~M[X]).[1:2]!1 DO      24033900        
+                          SIZEF ~ SIZEF - X + (X ~ Y.[CF]);             24034000        
+                          IF SIZE > SIZEF THEN                          24034100        
+                          BEGIN LINK ~ Y;  GO SVSEARCH; END;            24034200        
+                          IF OLAY(LOC) THEN % RE-SET "LINK"             24034300        
+                            IF (Y~M[LINK~T])>0 OR Y.[CF]=LOC            24034400        
+                            OR M[Y].[FF]!LINK THEN                      24034500        
+                             % MEM LINK AT "T" NO LONGER VALID          24034600        
+                            GO TO SVSTART ELSE GO TO SVSEARCH           24034700        
+                          ELSE GO TO SVSEARCH;                          24034750        
+                    END ELSE                                            24034800        
+                    GO TO SVSEARCH;%                                    24034900        
+              END;%                                                     24035000        
+              IF (SIZEF ~ M[T~LOC+1].[FF])<SIZE THEN GO SVSEARCH;%      24035100        
+              M[ACTSPACE:=LOC]:=ABS(LINK&1[2:47:1]);                    24035200        
+              LINK ~ M[T];   M[LINK+1] ~ Y ~ M[T+1];%                   24035300        
+              M[Y] ~ (*P(DUP))&LINK[CTC];%                              24035400        
+              IF SIZEF>SIZE+DELTA THEN%                                 24035500        
+              BEGIN M[LOC] ~ (X ~ *P(DUP))&(Y ~ LOC+SIZE+2)[CTC];%      24035600        
+                   M[X] ~ (*P(DUP))&Y[CTF];%                            24035700        
+                   M[Y] ~ X.[CF]&LOC[CTF];%                             24035800        
+                   FORGETSPACE(Y+2);%                                   24035900        
+              END;%                                                     24036000        
+        END ELSE                                                        24036100        
+        OF SAVEF}63 OR TOGLE.MEMNO=0 THEN                               24036125        
+        BEGIN% ALLOCATE ON "SPACE AVAILABLE" BASIS                      24036150        
+START:%                                                                 24036200        

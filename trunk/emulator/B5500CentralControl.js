@@ -279,7 +279,7 @@ B5500CentralControl.prototype.fieldInsert = function(word, start, width, value) 
 B5500CentralControl.prototype.fieldTransfer = function(word, wstart, width, value, vstart) {
     /* Inserts a bit field from value.[vstart:width] into word.[wstart:width] and
     returns the updated word */
-    var ue = 48-vstart;                 // word upper power exponent
+    var ue = 48-wstart;                 // word upper power exponent
     var le = ue-width;                  // word lower power exponent
     var ve = 48-vstart-width;           // value lower power exponent
     var vpower;                         // bottom port of value power of 2

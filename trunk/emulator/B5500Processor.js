@@ -3983,13 +3983,13 @@ B5500Processor.prototype.run = function() {
                     t2 = variant >>> 3;                         // number of whole chars
                     if (t2) {
                         t1 = this.G*6 + this.H;                 // starting source bit position
-                        t2 = t2*6 - (variant & 7);              // number of bits
+                        t2 = t2*6 - (variant & 7) - this.H;     // number of bits
                         if (t1+t2 <= 48) {
                             this.A = this.cc.fieldIsolate(this.A, t1, t2);
                         } else {                                // handle wrap-around in the source value
                             this.A = this.cc.fieldInsert(
-                                    this.cc.fieldIsolate(this.A, 96-t1-t2, t1+t2-48), 48-t2, 48-t1,
-                                    this.cc.fieldIsolate(this.A, 0, 48-t1));
+                                    this.cc.fieldIsolate(this.A, 0, t2-48+t1, t1+t2-48), 48-t2, 48-t1,
+                                    this.cc.fieldIsolate(this.A, t1, 48-t1));
                         }
                         // approximate the shift cycle counts
                         this.cycleCount += (variant >>> 3) + (variant & 7) + this.G + this.H;
@@ -4044,15 +4044,15 @@ B5500Processor.prototype.run = function() {
 
                 case 0x35:              // XX65: TRB=Transfer Bits
                     this.adjustABFull();
-                    t1 = this.G*6 + this.H;     // A register starting bit nr
-                    if (t1+variant > 48) {
-                        variant = 48-t1;
-                    }
-                    t2 = this.K*6 + this.V;     // B register starting bit nr
-                    if (t2+variant > 48) {
-                        variant = 48-t2;
-                    }
                     if (variant > 0) {
+                        t1 = this.G*6 + this.H; // A register starting bit nr
+                        if (t1+variant > 48) {
+                            variant = 48-t1;
+                        }
+                        t2 = this.K*6 + this.V; // B register starting bit nr
+                        if (t2+variant > 48) {
+                            variant = 48-t2;
+                        }
                         this.B = this.cc.fieldTransfer(this.B, t2, variant, this.A, t1);
                     }
                     this.AROF = 0;
@@ -4069,7 +4069,9 @@ B5500Processor.prototype.run = function() {
                     if (t2+variant > 48) {
                         variant = 48-t2;
                     }
-                    if (variant > 0 && (this.cc.fieldIsolate(this.B, t2, variant) < this.cc.fieldIsolate(this.A, t1, variant))) {
+                    if (variant == 0) {
+                        this.A = 1;
+                    } else if (this.cc.fieldIsolate(this.B, t2, variant) < this.cc.fieldIsolate(this.A, t1, variant)) {
                         this.A = 1;
                     } else {
                         this.A = 0;
@@ -4087,7 +4089,9 @@ B5500Processor.prototype.run = function() {
                     if (t2+variant > 48) {
                         variant = 48-t2;
                     }
-                    if (variant > 0 && (this.cc.fieldIsolate(this.B, t2, variant) == this.cc.fieldIsolate(this.A, t1, variant))) {
+                    if (variant == 0) {
+                        this.A = 1;
+                    } else if (this.cc.fieldIsolate(this.B, t2, variant) == this.cc.fieldIsolate(this.A, t1, variant)) {
                         this.A = 1;
                     } else {
                         this.A = 0;
