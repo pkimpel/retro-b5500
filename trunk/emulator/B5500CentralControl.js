@@ -42,7 +42,8 @@ function B5500CentralControl() {
 
     // Instance variables and flags
     this.poweredUp = 0;                 // System power indicator
-    this.unitStatusMask = 0;            // Peripheral unit ready-status bitmask
+    this.unitStatusMask = 0;            // Peripheral unit ready-status bitmask 
+    this.unitBusyMask = 0;              // Peripheral unit busy-status bitmask
 
     this.PB1L = 0;                      // 0=> PA is P1, 1=> PB is P1
     this.cardLoadSelect = 0;            // 0=> load from disk/drum; 1=> load from cards
@@ -115,8 +116,8 @@ B5500CentralControl.unitIndex = [
 
 B5500CentralControl.unitSpecs = {
     SPO: {unitIndex: 22, designate: 30, unitClass: B5500SPOUnit},
-    DKA: {unitIndex: 29, designate:  6, unitClass: null}, 
-    DKB: {unitIndex: 28, designate: 12, unitClass: null}, 
+    DKA: {unitIndex: 29, designate:  6, unitClass: B5500DiskUnit}, 
+    DKB: {unitIndex: 28, designate: 12, unitClass: B5500DiskUnit}, 
     CRA: {unitIndex: 24, designate: 10, unitClass: null}, 
     CRB: {unitIndex: 23, designate: 14, unitClass: null}, 
     CPA: {unitIndex: 25, designate: 10, unitClass: null}, 
@@ -623,32 +624,29 @@ B5500CentralControl.prototype.interrogateUnitStatus = function() {
 };
 
 /**************************************/
-B5500CentralControl.prototype.testUnitBusy = function(ioUnit, rw, unit) {
-    /* Determines whether the unit designate "unit" is currently in use by any other
-    I/O Unit than the one designated by "ioUnit". "rw" indicates whether the designate 
-    is for writing (0) or reading (1). Returns 0 if not busy */
+B5500CentralControl.prototype.testUnitReady = function(index) {
+    /* Determines whether the unit index "index" is currently in ready status.
+    Returns 1 if ready, 0 if not ready */
 
-    if (ioUnit != "1" && this.IO1 && this.IO1.REMF && this.AD1F && this.IO1.busyUnit == unit) {
-        return 1;
-    } else if (ioUnit != "2" && this.IO2 && this.IO2.REMF && this.AD2F && this.IO2.busyUnit == unit) {
-        return 2;
-    } else if (ioUnit != "3" && this.IO3 && this.IO3.REMF && this.AD3F && this.IO3.busyUnit == unit) {
-        return 3;
-    } else if (ioUnit != "4" && this.IO4 && this.IO4.REMF && this.AD4F && this.IO4.busyUnit == unit) {
-        return 4;
-    } else {
-        return 0;                       // peripheral unit not in use by any other I/O Unit
-    }
+    return (index ? this.bit(this.unitStatusMask, index) : 0);
 };
 
 /**************************************/
-B5500CentralControl.prototype.testUnitReady = function(rw, unit) {
-    /* Determines whether the unit designate "unit" is currently in ready status.
-    "rw" indicates whether the designate is for writing (0) or reading (1).
-    Returns 1 if ready, 0 if not ready */
-    var index = B5500CentralControl.unitIndex[rw & 1][unit & 0x1F];
+B5500CentralControl.prototype.testUnitBusy = function(index) {
+    /* Determines whether the unit index "index" is currently in use by any other
+    I/O Unit. Returns 1 if busy, 0 if not busy */
 
-    return (index ? this.bit(this.unitStatusMask, index) : 0);
+    return (index ? this.bit(this.unitBusyMask, index) : 0);
+};
+
+/**************************************/
+B5500CentralControl.prototype.setUnitBusy = function(index, busy) {
+    /* Sets or resets the unit-busy mask bit for unit index "index" */
+
+    if (index) {
+        this.unitBusyMask = (busy ? this.bitSet(this.unitBusyMask, index)
+                                  : this.bitReset(this.unitBusyMask, index));
+    }
 };
 
 /**************************************/
@@ -825,19 +823,38 @@ B5500CentralControl.prototype.configureSystem = function() {
     function makeSignal(cc, mnemonic) {
         switch (mnemonic) {
         case "SPO":
-            return function() {cc.CCI05F = 1; cc.signalInterrupt()};
+            return function() {
+                cc.CCI05F = 1; 
+                cc.signalInterrupt();
+            };
             break;
         case "LPA":
-            return function() {cc.CCI06F = 1; cc.signalInterrupt()};
+            return function() {
+                cc.setUnitBusy(27, 0);
+                cc.CCI06F = 1; 
+                cc.signalInterrupt();
+            };
             break;
         case "LPB":
-            return function() {cc.CCI07F = 1; cc.signalInterrupt()};
+            return function() {
+                cc.setUnitBusy(26, 0);
+                cc.CCI07F = 1; 
+                cc.signalInterrupt();
+            };
             break;
         case "DKA":
-            return function() {cc.CCI15F = 1; cc.signalInterrupt()};
+            return function() {
+                cc.setUnitBusy(29, 0);
+                cc.CCI15F = 1; 
+                cc.signalInterrupt();
+            };
             break;
         case "DKB":
-            return function() {cc.CCI16F = 1; cc.signalInterrupt()};
+            return function() {
+                cc.setUnitBusy(28, 0);
+                cc.CCI16F = 1; 
+                cc.signalInterrupt();
+            };
             break;
         default:
             return function() {};

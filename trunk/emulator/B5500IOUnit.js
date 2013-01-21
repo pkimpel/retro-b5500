@@ -45,7 +45,7 @@ function B5500IOUnit(ioUnitID, cc) {
     this.ioUnitID = ioUnitID;           // I/O Unit ID ("1", "2", "3", or "4")
     this.cc = cc;                       // Reference back to Central Control module
 
-    this.scheduler = null;              // Reference to current setTimeout id
+    this.forkHandle = null;             // Reference to current setTimeout id
     this.accessor = {                   // Memory access control block
         requestorID: ioUnitID,             // Memory requestor ID
         addr: 0,                           // Memory address
@@ -54,8 +54,6 @@ function B5500IOUnit(ioUnitID, cc) {
         MPED: 0,                           // Truthy if memory parity error
         MAED: 0                            // Truthy if memory address/inhibit error
     };
-    
-    this.schedule.that = this;          // Establish context for when called from setTimeout()
     
     // Establish a buffer for the peripheral modules to use during their I/O.
     // The size is sufficient for 63 disk sectors, rounded up to the next 8KB.
@@ -78,7 +76,7 @@ B5500IOUnit.BICtoANSI = [               // Index by 6-bit BIC to get 8-bit ANSI 
         0x7C,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,        // 20-27, @40-47
         0x51,0x52,0x24,0x2A,0x2D,0x29,0x3B,0x7B,        // 28-2F, @50-57
         0x20,0x2F,0x53,0x54,0x55,0x56,0x57,0x58,        // 30-37, @60-67
-        0x59,0x5A,0x2C,0x25,0x21,0x3D,0x5D,0x23];       // 38-3F, @70-77
+        0x59,0x5A,0x2C,0x25,0x21,0x3D,0x5D,0x22];       // 38-3F, @70-77
 
 B5500IOUnit.BICtoBCLANSI = [            // Index by 6-bit BIC to get 8-bit BCL-as-ANSI code
         0x23,0x31,0x32,0x33,0x34,0x35,0x36,0x37,        // 00-07, @00-07
@@ -88,7 +86,7 @@ B5500IOUnit.BICtoBCLANSI = [            // Index by 6-bit BIC to get 8-bit BCL-a
         0x24,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,        // 20-27, @40-47
         0x51,0x52,0x2A,0x2D,0x7C,0x29,0x3B,0x7B,        // 28-2F, @50-57
         0x2B,0x41,0x42,0x43,0x44,0x45,0x46,0x47,        // 30-37, @60-67
-        0x48,0x49,0x5B,0x26,0x2E,0x28,0x3C,0X7E];       // 38-3F, @70-77
+        0x48,0x49,0x5B,0x26,0x2E,0x28,0x3C,0x7E];       // 38-3F, @70-77
         
 B5500IOUnit.ANSItoBIC = [               // Index by 8-bit ANSI to get 6-bit BIC (upcased, invalid=>"?")
         0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 00-0F
@@ -175,6 +173,10 @@ B5500IOUnit.prototype.clear = function() {
     this.totalCycles = 0;               // Total cycles executed on this I/O Unit
     this.ioUnitTime = 0;                // Total I/O Unit running time, based on cycles executed
     this.ioUnitSlack = 0;               // Total I/O Unit throttling delay, milliseconds
+    
+    if (this.forkHandle) {
+        clearTimeout(this.forkHandle);
+    }
 };
 
 /**************************************/
@@ -538,7 +540,8 @@ B5500IOUnit.prototype.finish = function () {
         break;
     }
     
-    this.busyUnit = 0;                  // zero so CC won't think unit is busy
+    this.busy = 0;                      // zero so CC won't think I/O unit is busy
+    this.busyUnit = 0;                  
     this.cc.signalInterrupt();
 };
 
@@ -554,7 +557,8 @@ B5500IOUnit.prototype.makeFinish = function(f) {
 B5500IOUnit.prototype.finishGeneric = function(errorMask, length) {
     /* Handles a generic I/O finish when no word-count update or input data
     transfer is needed. Can also be used to apply common error mask posting
-    at the end of specialized finish handlers */
+    at the end of specialized finish handlers. Note that this turns off the
+    busyUnit mask bit in CC */
     
     if (errorMask & 0x01) {this.D32F = 1}
     if (errorMask & 0x02) {this.D31F = 1}
@@ -563,26 +567,198 @@ B5500IOUnit.prototype.finishGeneric = function(errorMask, length) {
     if (errorMask & 0x10) {this.D28F = 1}
     if (errorMask & 0x20) {this.D27F = 1}
     if (errorMask & 0x40) {this.D26F = 1}
+    this.cc.setUnitBusy(this.busyUnit, 0);
     this.finish();
 };
 
 /**************************************/
 B5500IOUnit.prototype.finishSPORead = function(errorMask, length) {
     /* Handles I/O finish for a SPO keyboard input operation */
-    var count;
     
-    count = this.storeBufferWithGM(length, 0, 1, 0x7FFF);
+    this.storeBufferWithGM(length, 0, 1, 0x7FFF);
     this.finishGeneric(errorMask, length);
 };
 
 /**************************************/
-B5500IOUnit.prototype.initiate = function() {
-    /* Initiates an I/O operation on this I/O Unit */
+B5500IOUnit.prototype.finishDiskRead = function(errorMask, length) {
+    /* Handles I/O finish for a DFCU data read operation */
+    var segWords = Math.floor((length+7)/8);
+    var memWords = (this.D23F ? this.DwordCount : segWords);
+    
+    if (segWords < memWords) {
+        memWords = segWords;
+    }
+    this.storeBuffer(length, 0, this.D21F, memWords);
+    this.finishGeneric(errorMask, length);
+};
+
+/**************************************/
+B5500IOUnit.prototype.initiateDiskIO = function(u) {
+    /* Initiates an I/O to the Disk File Control Unit. The disk address is fetched from
+    the first word of the memory area and converted to binary for the DFCU module. Read
+    check and interrogate operations are determined from their respective IOD bits. If
+    it's a read data operation, we request the specified number of segments from the disk
+    and will sort out word count issues in finishDiskRead(). If it's a write data operation,
+    we truncate or pad the data from memory as appropriate and request a write of the 
+    specified number of segments */
+    var c;                              // address char
+    var memWords;                       // number of memory words to transfer
+    var p = 1;                          // address digit power
+    var w;                              // current memory word value
+    var x;                              // temp variable
+    
+    var segAddr = 0;                    // disk segment address
+    var segs = this.LP;                 // I/O size in segments
+    var segWords = segs*30;             // I/O size in words
+    var segChars = segWords*8;          // I/O size in characters
+
+    if (this.fetch(this.Daddress)) {    // fetch the segment address from first buffer word
+        this.finish();
+    } else {
+        this.Daddress++;                // bump memory address past the seg address word
+        w = this.W;                     // convert address word to binary
+        for (x=0; x<7; x++) {
+            c = w % 0x40;               // get low-order six bits of word
+            segAddr += (c % 0x10)*p;    // isolate the numeric portion and accumulate
+            w = (w-c)/0x40;             // shift word right six bits
+            p *= 10;                    // bump power for next digit
+        }
+
+        if (this.D18F) {                // mem inhibit => read check operation
+            u.readCheck(this.makeFinish(this.finishGeneric), segChars, segAddr);
+        } else if (this.D23F && this.DwordCount == 0) {
+            if (this.D24F) {            // read interrogate operation
+                u.readInterrogate(this.makeFinish(this.finishGeneric), segAddr);
+            } else {                    // write interrogate operation
+                u.writeInterrogate(this.makeFinish(this.finishGeneric), segAddr);
+            }
+        } else if (this.D24F) {         // it's a read data operation
+            u.read(this.makeFinish(this.finishDiskRead), this.buffer, segChars, this.D21F, segAddr);
+        } else {                        // it's a write data operation
+            memWords = (this.D23F ? this.DwordCount : segWords);
+            if (segWords <= memWords) { // transfer size is limited by number of segs
+                this.fetchBuffer(this.D21F, segWords);
+            } else {                    // transfer size is limited by word count
+                x = this.fetchBuffer(this.D21F, memWords);
+                c = (this.D21F ? 0x00 : 0x2B);  // pad "0" if binary, " " if alpha (as BCL)
+                while (x < segChars) {  // pad remainder of buffer up to seg count
+                    this.buffer[x++] = c;
+                }
+            }
+            u.write(this.makeFinish(this.finishGeneric), this.buffer, segChars, this.D21F, segAddr);
+        }
+    }
+};
+
+/**************************************/
+B5500IOUnit.prototype.forkIO = function forkIO() {
+    /* Asychrounously nitiates an I/O operation on this I/O Unit for a peripheral device */
     var addr;                           // memory address
     var chars;                          // I/O memory transfer length
     var index;                          // unit index
     var u;                              // peripheral unit object
-    var x;
+    var x;                              // temp number variable
+
+    this.forkHandle = null;             // clear the setTimeout() handle
+    
+    x = this.D;                         // explode the D-register into its fields
+    this.Dunit = this.cc.fieldIsolate(x, 3, 5);
+    this.DwordCount = this.cc.fieldIsolate(x, 8, 10);
+    x = x % 0x40000000;                 // isolate low-order 30 bits
+    this.D18F = (x >>> 29) & 1;         // memory inhibit
+    this.D21F = (x >>> 26) & 1;         // mode
+    this.D22F = (x >>> 25) & 1;         // direction (for tapes)
+    this.D23F = (x >>> 24) & 1;         // use word counter
+    this.D24F = (x >>> 23) & 1;         // write/read
+    this.LP = (x >>> 15) & 0x3F;        // save control bits for disk, drum, and printer
+    this.Daddress = x % 0x8000;
+
+    this.busyUnit = index = B5500CentralControl.unitIndex[this.D24F & 1][this.Dunit & 0x1F];
+    if (this.cc.testUnitBusy(index)) {
+        this.D32F = 1;                  // set unit busy error
+        this.finish();
+    } else if (!this.cc.testUnitReady(index)) {
+        this.D30F = 1;                  // set unit not-ready error
+        this.finish();
+    } else {
+        this.cc.setUnitBusy(index, 1);
+        u = this.cc.unit[index];
+        switch(this.Dunit) {
+        // disk designates
+        case 6: 
+        case 12:
+            this.initiateDiskIO(u);
+            break;
+
+        // printer designates
+        case 22: 
+        case 26:
+            this.D30F = 1; this.finish(); // >>> temp until implemented <<<
+            break;
+
+        // datacom designate
+        case 16:
+            this.D30F = 1; this.finish(); // >>> temp until implemented <<<
+            break;
+
+        // card #1 reader/punch
+        case 10:
+            this.D30F = 1; this.finish(); // >>> temp until implemented <<<
+            break;
+
+        // card #2 reader
+        case 14:
+            this.D30F = 1; this.finish(); // >>> temp until implemented <<<
+            break;
+
+        // SPO designate
+        case 30:
+            if (this.D24F) {
+                u.read(this.makeFinish(this.finishSPORead), this.buffer, 0x7FFF, 0, 0);
+            } else {
+                chars = this.fetchBufferWithGM(1, 0x7FFF);
+                u.write(this.makeFinish(this.finishGeneric), this.buffer, chars, 0, 0);
+            }
+            break;
+
+        // magnetic tape designates
+        case  1: case  3: case  5: case  7: case  9: case 11: case 13: case 15: 
+        case 17: case 19: case 21: case 23: case 25: case 27: case 29: case 31:
+            this.D30F = 1; this.finish(); // >>> temp until implemented <<<
+            break;
+
+        // drum designates
+        case 4: 
+        case 8:
+            this.D30F = 1; this.finish(); // >>> temp until implemented <<<
+            break;
+
+        // paper tape designates
+        case 18: 
+        case 20:
+            this.D30F = 1; this.finish(); // >>> temp until implemented <<<
+            break;
+
+        // illegal designates
+        default:
+            this.D30F = 1;      // report invalid unit as not ready
+            this.finish();
+            break;
+        } // switch this.Dunit
+    }
+};
+
+/**************************************/
+B5500IOUnit.prototype.initiate = function() {
+    /* Initiates an I/O operation on this I/O Unit. When P1 executes an IIO instruction,
+    it calls the CentralControl.initiateIO() function, which selects an idle I/O Unit and
+    calls this function for that unit. Thus, at entry we are still running on top of the
+    processor. This routine merely fetches the IOD from memory and then schedules forkIO()
+    to run asynchronously. Then we exit back through CC and into P1, thus allowing the 
+    actual I/O operation to run asynchronously from the processor. Of course, in a browser
+    environment, all of the Javascript action occurs on one thread, so this allows us to 
+    multiplex what are supposed to be asynchronous operations on that thread */
+    var that = this;                    // Establish object context for the callback
     
     this.clearD();
     this.AOFF = 0;
@@ -592,129 +768,13 @@ B5500IOUnit.prototype.initiate = function() {
         this.finish();
     } else {
         this.EXNF = 1;
-        this.Daddress = addr = this.W % 0x8000;
-        if (this.fetch(addr)) {         // fetch the IOD from that address
+        this.Daddress = this.W % 0x8000;
+        if (this.fetch(this.Daddress)) {// fetch the IOD from that address
             this.finish();
         } else {
             this.D31F = 0;              // reset the IOD-fetch error condition
-            this.D = x = this.W;        // explode the D-register into its fields
-            this.Dunit = this.cc.fieldIsolate(x, 3, 5);
-            this.DwordCount = this.cc.fieldIsolate(x, 8, 10);
-            x = x % 0x40000000;         // isolate low-order 30 bits
-            this.D18F = (x >>> 29) & 1; // memory inhibit
-            this.D21F = (x >>> 26) & 1; // mode
-            this.D22F = (x >>> 25) & 1; // direction (for tapes)
-            this.D23F = (x >>> 24) & 1; // use word counter
-            this.D24F = (x >>> 23) & 1; // write/read
-            this.LP = (x >>> 15) & 0x3F;// save control bits for drum and printer
-            this.Daddress = x % 0x8000;
-            
-            this.busyUnit = index = B5500CentralControl.unitIndex[this.D24F & 1][this.Dunit & 0x1F];
-            if (this.cc.testUnitBusy(this.ioUnitID, this.busyUnit)) {
-                this.D32F = 1;          // set unit busy error
-                this.finish();
-            } else if (!this.cc.testUnitReady(this.D24F, this.Dunit)) {
-                this.D30F = 1;          // set unit not-ready error
-                this.finish();
-            } else {
-                u = this.cc.unit[index];
-                switch(this.Dunit) {
-                // disk designates
-                case 6: 
-                case 12:
-                    this.D30F = 1; this.finish(); // >>> temp until implemented <<<
-                    break;
-                
-                // printer designates
-                case 22: 
-                case 26:
-                    this.D30F = 1; this.finish(); // >>> temp until implemented <<<
-                    break;
-                
-                // datacom designate
-                case 16:
-                    this.D30F = 1; this.finish(); // >>> temp until implemented <<<
-                    break;
-                
-                // card #1 reader/punch
-                case 10:
-                    this.D30F = 1; this.finish(); // >>> temp until implemented <<<
-                    break;
-                
-                // card #2 reader
-                case 14:
-                    this.D30F = 1; this.finish(); // >>> temp until implemented <<<
-                    break;
-                
-                // SPO designate
-                case 30:
-                    if (this.D24F) {
-                        u.read(this.makeFinish(this.finishSPORead), this.buffer, 0x7FFF, 0, 0);
-                    } else {
-                        chars = this.fetchBufferWithGM(1, 0x7FFF);
-                        u.write(this.makeFinish(this.finishGeneric), this.buffer, chars, 0, 0);
-                    }
-                    break;
-                
-                // magnetic tape designates
-                case  1: case  3: case  5: case  7: case  9: case 11: case 13: case 15: 
-                case 17: case 19: case 21: case 23: case 25: case 27: case 29: case 31:
-                    this.D30F = 1; this.finish(); // >>> temp until implemented <<<
-                    break;
-                
-                // drum designates
-                case 4: 
-                case 8:
-                    this.D30F = 1; this.finish(); // >>> temp until implemented <<<
-                    break;
-                
-                // paper tape designates
-                case 18: 
-                case 20:
-                    this.D30F = 1; this.finish(); // >>> temp until implemented <<<
-                    break;
-                
-                // illegal designates
-                default:
-                    this.D30F = 1;      // report invalid unit as not ready
-                    this.finish();
-                    break;
-                } // switch this.Dunit
-            }
+            this.D = this.W;        
+            this.forkHandle = setTimeout(function() {that.forkIO()}, 0);
         }
-    }
-};
-
-/**************************************/
-B5500IOUnit.prototype.run = function() {
-};
-
-/**************************************/
-B5500IOUnit.prototype.schedule = function schedule() {
-    /* Schedules the I/O Unit run time and attempts to throttle performance
-    to approximate that of a real B5500. Well, at least we hope this will run
-    fast enough that the performance will need to be throttled. It establishes
-    a timeslice in terms of a number of I/O Unit "cycles" of 1 microsecond
-    each and calls run() to execute at most that number of cycles. run()
-    counts up cycles until it reaches this limit or some terminating event
-    (such as a halt), then exits back here. If the I/O Unit remains active,
-    this routine will reschedule itself for an appropriate later time, thereby
-    throttling the performance and allowing other modules a chance at the
-    Javascript execution thread. */
-    var delayTime;
-    var that = schedule.that;
-
-    that.scheduler = null;
-    that.cycleLimit = B5500IOUnit.timeSlice;
-    that.cycleCount = 0;
-
-    that.run();
-
-    that.totalCycles += that.cycleCount
-    that.ioUnitTime += that.cycleCount;
-    if (that.busy) {
-        delayTime = that.ioUnitTime/1000 - new Date().getTime();
-        that.ioUnitSlack += delayTime;
-        that.scheduler = setTimeout(that.schedule, (delayTime < 0 ? 1 : delayTime));
     }
 };
