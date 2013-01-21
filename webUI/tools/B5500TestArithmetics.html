@@ -7,12 +7,14 @@
 <meta http-equiv="Content-Style-Type" content="text/css">
 <link id=defaultStyleSheet rel=stylesheet type="text/css" href="B5500DistributionAndDisplay.css">
 
-<script src="../B5500SPOUnit.js"></script>
+<script src="/B5500/B5500DummyUnit.js"></script>
+<script src="/B5500/B5500SPOUnit.js"></script>
+<script src="/B5500/B5500DiskUnit.js"></script>
 
-<script src="../../emulator/B5500SystemConfiguration.js"></script>
-<script src="../../emulator/B5500CentralControl.js"></script>
-<script src="../../emulator/B5500Processor.js"></script>
-<script src="../../emulator/B5500IOUnit.js"></script>
+<script src="/B5500EMU/emulator/B5500SystemConfiguration.js"></script>
+<script src="/B5500EMU/emulator/B5500CentralControl.js"></script>
+<script src="/B5500EMU/emulator/B5500Processor.js"></script>
+<script src="/B5500EMU/emulator/B5500IOUnit.js"></script>
 
 <script>
 "use strict";
@@ -23,7 +25,7 @@ function setText(id, text) {
     /* Replaces the children of the node having id="id" with the "text" */
     var e = document.getElementById(id);
     var f;
-    
+
     if (!e) {
         alert("Invalid node id \"" + id + "\"");
     } else {
@@ -35,7 +37,7 @@ function setText(id, text) {
 }
 
 function getOctal(id) {
-    /* Obtains the .value from the element "id", parses it, and returns the 
+    /* Obtains the .value from the element "id", parses it, and returns the
     result as a B5500 numeric word. If the element text contains any of "-+eE."
     the text is parsed as a decimal integer or floating point number, otherwise
     it is parsed as an octal value */
@@ -46,7 +48,7 @@ function getOctal(id) {
     var tv = 0;                         // sign of parsed value exponent
     var text = e.value;                 // text of element
     var v;                              // parsed value of element text
-    
+
     if (text.search(/\S/) < 0) {
         text = "0";
     }
@@ -62,7 +64,7 @@ function getOctal(id) {
             while (v < 0x1000000000) {
                 v *= 8;
                 ev--;
-            } 
+            }
             while (v >= 0x8000000000) {
                 v /= 8;
                 ev++;
@@ -81,7 +83,7 @@ function getOctal(id) {
             v = (((sv*2) + tv)*64 + ev%64)*0x8000000000 + mv;        // to B5500 format
         }
     }
-    
+
     if (isNaN(v)) {
         e.style.backgroundColor = "red";
     } else {
@@ -93,7 +95,7 @@ function getOctal(id) {
 function putOctal(id, value) {
     /* Formats the "value" as octal and set the "id".value property with the result */
     var e = document.getElementById(id);
-    
+
     e.value = value.toString(8);
 }
 
@@ -104,7 +106,7 @@ function putNumber(id, value) {
     var e = (value - m)/0x8000000000;   // get the exponent and sign bits
     var s = (e & 0x80) >>> 7;           // get the mantissa sign
     var t = (e & 0x40) >>> 6;           // get the exponent sign
-    
+
     e = (t ? -(e & 0x3F) : (e & 0x3F)); // get signed value of exponent
     setText(id, (Math.pow(8, e)*(s ? -m : m)).toPrecision(12));
 }
@@ -115,7 +117,7 @@ function reg_onChange(ev) {
     var id = e.id;
     var result = true;
     var value;
-    
+
     value = getOctal(id);
     if (isNaN(value)) {
         e.style.backgroundColor = "red";
@@ -140,7 +142,7 @@ function stepIt() {
     title = opList.options[opList.selectedIndex].text
     value = opList.options[opList.selectedIndex].value;
     opcode = parseInt(value, 8);
-    
+
     value = getOctal("AReg");
     if (!isNaN(value)) {
         cc.P1.A = value;
@@ -151,10 +153,10 @@ function stepIt() {
             cc.P1.B = value;
             cc.P1.BROF = 1;
             setText("BRegOrig", value.toString(8));
-            
+
             cc.P1.I = 0;                // reset any interrupts
             cc.IAR = 0;
-            
+
             cc.P1.X = 0;
             cc.P1.T = opcode;
             cc.P1.step();
@@ -190,7 +192,7 @@ window.onload = function() {
     cc.P1.T = cc.fieldIsolate(cc.P1.P, 0, 12);
     cc.P1.TROF = 1;
     cc.P1.L = 1;                        // point to the next instruction
-    
+
     cc.P1.NCSF = 1;                     // run test in normal state
 
 }
@@ -203,7 +205,7 @@ window.onload = function() {
 <div id=BurroughsLogo>
     <img id=BurroughsLogoImage src="../Burroughs-Logo-Neg.jpg">
 </div>
-<div id=B5500Logo>B 5500 
+<div id=B5500Logo>B 5500
 </div>
 </div>
 
@@ -223,19 +225,19 @@ window.onload = function() {
         <input id=AReg name=AReg type=text class=number size=16 maxlength=16>
     <td id=ARegValue class=number>
     <td id=ARegOrig class=number>
-<tr>    
+<tr>
     <td class=center>B
     <td class=number>
         <input id=BReg name=BReg type=text class=number size=16 maxlength=16>
     <td id=BRegValue class=number>
     <td id=BRegOrig class=number>
-<tr>    
+<tr>
     <td class=center>X
     <td class=number>
         <input id=XReg name=XReg type=text class=number size=13 maxlength=13>
     <td id=XRegValue class=number>
     <td id=XRegOrig class=number>
-<tr>  
+<tr>
     <td class=center>I
     <td class=number>
         <input id=IReg name=IReg type=text class=number size=3 maxlength=3>
@@ -253,7 +255,7 @@ window.onload = function() {
 <input name=Remide      type=button value="Rem Div"     onclick="return testIt(6)">
 -->
 
-Syllable: 
+Syllable:
 <select id=OpList name=OpList>
     <option value="0055" selected>NOP : No Operation
     <option value="0101">ADD : Add

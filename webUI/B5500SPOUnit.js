@@ -29,7 +29,6 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal) {
     this.designate = designate;         // IOD unit designate number
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (e.g,. SPO input request)
-    this.finish = null;                 // external function to call for I/O completion
     
     this.clear();
     
@@ -76,15 +75,17 @@ B5500SPOUnit.prototype.clear = function() {
     this.ready = false;                 // ready status
     this.busy = false;                  // busy status
     this.activeIOUnit = 0;              // I/O unit currently using this device
-    this.spoState = this.spoNotReady;   // Current state of SPO interface
-    this.spoLocalRequested = false;     // LOCAL button pressed while active
-    this.errorMask = 0;                 // error mask for finish()
 
+    this.errorMask = 0;                 // error mask for finish()
+    this.finish = null;                 // external function to call for I/O completion
     this.buffer = null;
     this.bufLength = 0;
     this.bufIndex = 0;
     this.printCol = 0;
     this.nextCharTime = 0;
+
+    this.spoState = this.spoNotReady;   // Current state of SPO interface
+    this.spoLocalRequested = false;     // LOCAL button pressed while active
 };
 
 /**************************************/        
@@ -551,21 +552,21 @@ B5500SPOUnit.prototype.rewind = function(finish) {
 };
 
 /**************************************/
-B5500SPOUnit.prototype.readCheck = function(finish, length) {
+B5500SPOUnit.prototype.readCheck = function(finish, length, control) {
     /* Initiates a read check operation on the unit */
     
     finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
-B5500SPOUnit.prototype.readInterrogate = function(finish) {
+B5500SPOUnit.prototype.readInterrogate = function(finish, control) {
     /* Initiates a read interrogate operation on the unit */
     
     finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
-B5500SPOUnit.prototype.writeInterrogate = function (finish) {
+B5500SPOUnit.prototype.writeInterrogate = function (finish, control) {
     /* Initiates a write interrogate operation on the unit */
     
     finish(0x04, 0);                    // report unit not ready

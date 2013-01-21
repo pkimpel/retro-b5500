@@ -27,7 +27,6 @@ function B5500DummyUnit(mnemonic, index, designate, statusChange, signal) {
     this.designate = designate;         // IOD unit designate number
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (e.g,. SPO input request)
-    this.finish = null;                 // external function to call for I/O completion
     
     this.clear();
 }
@@ -39,6 +38,10 @@ B5500DummyUnit.prototype.clear = function() {
     this.ready = false;                 // ready status
     this.busy = false;                  // busy status
     this.activeIOUnit = 0;              // I/O unit currently using this device
+    
+    this.errorMask = 0;                 // error mask for finish()
+    this.finish = null;                 // external function to call for I/O completion
+    this.buffer = null;                 // 
 };
 
 /**************************************/
@@ -77,21 +80,21 @@ B5500DummyUnit.prototype.rewind = function(finish) {
 };
 
 /**************************************/
-B5500DummyUnit.prototype.readCheck = function(finish, length) {
+B5500DummyUnit.prototype.readCheck = function(finish, length, control) {
     /* Initiates a read check operation on the unit */
     
     finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
-B5500DummyUnit.prototype.readInterrogate = function(finish) {
+B5500DummyUnit.prototype.readInterrogate = function(finish, control) {
     /* Initiates a read interrogate operation on the unit */
     
     finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
-B5500DummyUnit.prototype.writeInterrogate = function (finish) {
+B5500DummyUnit.prototype.writeInterrogate = function (finish, control) {
     /* Initiates a write interrogate operation on the unit */
     
     finish(0x04, 0);                    // report unit not ready
