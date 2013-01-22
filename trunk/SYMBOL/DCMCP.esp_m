@@ -19831,3 +19831,93 @@ SVSEARCH:     IF (LOC:=LINK.[CF])=0 THEN GO TO ROCKABYE;                24033200
         OF SAVEF}63 OR TOGLE.MEMNO=0 THEN                               24036125        
         BEGIN% ALLOCATE ON "SPACE AVAILABLE" BASIS                      24036150        
 START:%                                                                 24036200        
+              IF (LINK ~ POLISH(M[AVAIL], 0, SIZE, CFX, LLL,%           24036300        
+                0, INX, .T, STD)).[FF]=@77777 THEN%                     24036400        
+              BEGIN%                                                    24036500        
+OVSEARCH:%                                                              24036600        
+                   IF (LINK:=M[LEFTOFF]).[1:2] = 0 THEN                 24036700        
+                   BEGIN% OVERLAY ONLY IF POTENTIAL SPACE ADEQUATE      24036800        
+                        SIZEF:=-2; X:=LEFTOFF;                          24036900        
+                        IF (Y:=LINK.[CF]) ! 0 THEN                      24037000        
+                             IF M[Y] < 0 THEN SIZEF ~ M[Y+1].[FF];      24037100        
+                        WHILE SIZE > SIZEF AND (Y~M[X]).[1:2]!1 DO      24037200        
+                        BEGIN SIZEF~SIZEF+Y.[CF]-X; X~Y.[FF] END;       24037300        
+                        IF SIZE > SIZEF THEN                            24037400        
+                        BEGIN LEFTOFF ~ Y.[FF];                         24037500        
+                        IF LEFTOFF=0 OR X=0 THEN GO TO XX               24037600        
+                        ELSE GO TO OVSEARCH END;                        24037700        
+                        IF (IF P1MIX=0 THEN 1 ELSE                      24037900        
+                             IF (X:=LINK.[9:6])!P1MIX THEN 1 ELSE       24038000        
+                             ((TWO(X) AND OLAYMASK)!0)) THEN            24038100        
+                             IF OLAY(LEFTOFF) THEN GO TO START;         24038200        
+                   END;%                                                24038300        
+                   IF (LEFTOFF~LINK.[FF])=0 THEN                        24038400        
+XX:                IF LOS THEN GO TO ROCKABYE ELSE LOS~1;               24038500        
+                   GO TO OVSEARCH;                                      24038600        
+              END;%                                                     24038700        
+              IF (SIZEF ~ LINK.[FF])>SIZE+DELTA THEN%                   24038800        
+              BEGIN M[T] ~ LINK&(X ~ SIZEF-SIZE-2)[CTF];%               24038900        
+                   LOC ~ T+X+1;%                                        24039000        
+                   X ~ (Y ~ M[T-1])&(T-1)[CTF];%                        24039100        
+                   M[Y] ~ (*P(DUP))&LOC[CTF];%                          24039200        
+                   M[T-1] ~ Y&LOC[CTC];%                                24039300        
+              END ELSE                                                  24039400        
+              BEGIN                                                     24039450        
+                   M[LINK+1] ~ Y ~ M[T+1];%                             24039500        
+                   M[Y] ~ (*P(DUP))&LINK[CTC];%                         24039600        
+                   X ~ M[LOC ~ T-1];%                                   24039700        
+              END;%                                                     24039800        
+              M[ACTSPACE:=LOC]:=ABS(X&1[2:47:1]);                       24039900        
+        END ELSE GO TO SVSTART;        % MEMNO!0                        24040000        
+ $ SET OMIT = NOT(STATISTICS)                                           24040100        
+              M[LOC+1]:=0;                                              24041900        
+ROCKABYE:                                                               24042000        
+  END ACTSPACE;                                                         24042100        
+SAVE INTEGER PROCEDURE GETSPACE(SIZE,TYPE,SAVEF);                       24042200        
+  VALUE SIZE,TYPE,SAVEF;                                                24042300        
+  REAL SIZE,TYPE; BOOLEAN SAVEF;                                        24042400        
+  BEGIN                                                                 24042500        
+         REAL COUNT,T,MESS;                                             24042550        
+%                                                                  %156-24042555        
+%             FIELDS OF SAVEF PARAMETER                            %156-24042560        
+%                                                                  %156-24042565        
+              FIELD                                                %156-24042570        
+%               NEEDOLAY           = 09:39  % THIS FIELD IS NON ZERO IF 24042575        
+                                            % REQUESTOR WANTS OLAY SPACE24042580        
+                TYPENOMEMANDRETURN = 45:01  %  IF SAVEF.[45:02] = 3 THEN24042585        
+               ,JUSTRETURN         = 46:01  %  GETSPACE WILL TYPE OK MEM24042590        
+               ,GETFROMFRONT       = 47:01  %  IF SUCCESSFUL.      %156-24042595        
+               ;                                                   %156-24042596        
+         LABEL NEWSTART;                                                24042600        
+         SUBROUTINE TELLSPO;                                            24042625        
+         BEGIN P(MESS!0 OR SAVEF.[45:2]=3);                        %156-24042650        
+              IF (MESS:=GETSPACE(3,0,2)+2)=2 THEN PUNT(3);              24042675        
+              M[MESS-2].[9:6]:=0;                                  %549-24042680        
+              STREAM(X:=P: P1MIX, SIZE, MESS);                          24042700        
+              BEGIN SI:=LOC P1MIX; DS:=2 DEC;                           24042725        
+                   DS:=8 LIT" NO MEM ";                                 24042750        
+                   DS:=5 DEC; DS:=5 LIT" WDS~";                         24042775        
+                   X(DI:=DI-17; DS:=2 LIT"OK");                         24042800        
+              END;                                                      24042825        
+              P(DEL);                                                   24042850        
+              IOREQUEST(MESS&@274[1:40:8], P(DUP),                      24042875        
+               [17]&@231[10:40:8]);                                     24042900        
+         END OF TELLING SPO ABOUT NO MEMS;                              24042925        
+NEWSTART:                                                               24042950        
+         IF NOT STOREDY THEN SLEEP([TOGLE],STOREMASK);                  24043000        
+         LOCKTOG(STOREMASK);                                            24043100        
+ $ SET OMIT = NOT(DEBUGGING OR CHECKLINK)                               24043200        
+         P(SPACESTACK,STS);                                             24043500        
+         T:=ACTSPACE(SIZE,SAVEF);                                       24043600        
+         P([MESS],STS);                                                 24043700        
+         UNLOCKTOG(STOREMASK);                                          24043800        
+         IF T=0 THEN                                                    24043900        
+              BEGIN NOMEMTOG:=1;                                        24044000        
+                   IF SAVEF.JUSTRETURN THEN P(0,RTN);              %156-24044100        
+                   IF SAVEF.TYPENOMEMANDRETURN THEN                %156-24044110        
+                   BEGIN                                           %156-24044120        
+                        TELLSPO;                                   %156-24044130        
+                        P(0,TRN);                                  %156-24044140        
+                   END;                                            %156-24044150        
+                   NOMEM~NOMEM+1;                                       24044200        
+                   TAR[P1MIX].[20:1]:=1;                                24044250        
