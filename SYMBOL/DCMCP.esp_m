@@ -19921,3 +19921,58 @@ NEWSTART:                                                               24042950
                    END;                                            %156-24044150        
                    NOMEM~NOMEM+1;                                       24044200        
                    TAR[P1MIX].[20:1]:=1;                                24044250        
+                   IF (COUNT~COUNT+1)>5 THEN                            24044300        
+                     IF MESS=0 THEN TELLSPO;                            24044400        
+                   SLEEP([CLOCK], NOT CLOCK);%                          24045100        
+                   NOMEN~NOMEN-1;                                       24045200        
+                   TAR[P1MIX].[20:1]:=0;                                24045250        
+                   GO TO NEWSTART;%                                     24045300        
+              END;%                                                     24045400        
+         M[GETSPACE:=T]:=(*P(DUP))&TYPE[3:42:6]&P1MIX[9:42:6];          24045500        
+         IF MESS!0 OR SAVEF.[45:2]=3 THEN TELLSPO;                 %156-24045600        
+  END GETSPACE;                                                         24046200        
+ SAVE INTEGER PROCEDURE DISKSPACE(WORDS,MIX,AUX);                       24101000        
+ VALUE WORDS,MIX,AUX;                                                   24102000        
+ INTEGER WORDS,MIX; REAL AUX;                                           24103000        
+    BEGIN ARRAY LOC=+2[*];                                              24104000        
+         INTEGER   INDEX=NT1,                                           24105000        
+                   SEG  =NT2,                                           24106000        
+                   CNTRS=NT3,                                           24107000        
+                   SIZE =NT4,                                           24108000        
+                   LIMIT=NT5;                                           24109000        
+         REAL      T    =NT6;                                           24110000        
+         LABEL     L1,                                                  24111000        
+                   FINAL,                                               24112000        
+                   BADEXIT,                                             24112500        
+                   EXIT;                                                24113000        
+         DEFINE    HEURISTIC = 2#;                                      24114000        
+         REAL SUBROUTINE FINDSEG;                                       24115000        
+         BEGIN; STREAM(A~0:T);                                          24116000        
+                  BEGIN S1~LOC T;   SI~SI+3;                            24117000        
+                       5(IF SC="0" THEN JUMP OUT TO L;                  24118000        
+                         SI~SI+1;  TALLY~TALLY+1);                      24119000        
+                  L:   A~TALLY;                                         24120000        
+                  END STREAM;                                           24121000        
+              FINDSEG ~ POLISH                                          24122000        
+         END FINDSEG;                                                   24123000        
+         SUBROUTINE FIND;                                               24124000        
+         BEGIN POLISH(0);                                               24125000        
+              T ~ LOC[INDEX];                                           24126000        
+              SEG ~ T.[9:3];                                            24127000        
+              CNTRS ~ T.[2:7];                                          24128000        
+              IF SEG>4 THEN                                             24129000        
+    L1:         IF (SEG ~ FINDSEG(=5 THEN GO TO FINAL                   24130000        
+              ELSE CNTRS ~0;                                            24131000        
+              IF SIZE+CNTRS>100 THEN GO TO L1;                          24132000        
+              P(DEL,(INDEX|256)+SEG|100+CNTRS);                         24133000        
+              STREAM(A~0:SEG,T~[T]);                                    24134000        
+              BEGIN SI~T;  SI~SI+3;  SI~SI+SEG;                         24135000        
+                   DI~LOC A;  DI~DI+7;  SEG~DI;                         24136000        
+                   T~SI;  DS~CHR;  TALLY~A;                             24137000        
+                   TALLY~TALLY+1;  A~TALLY;                             24138000        
+                   SI~SEG;  DI~T;  DS~CHR;                              24139000        
+         L5::                                                           24139500        
+              END STREAM;                                               24140000        
+              IF (POLISH=63) OR (CNTRS ~ CNTRS+SIZE)=100 THEN           24141000        
+              BEGIN CNTRS ~ 0;  SEG ~ FINDSEG END;                      24142000        
+              LOC[INDEX] ~ T&SEG[9:45:3]&CNTRS[2:41:7];                 24143000        
