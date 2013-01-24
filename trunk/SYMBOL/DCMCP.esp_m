@@ -19976,3 +19976,119 @@ NEWSTART:                                                               24042950
               IF (POLISH=63) OR (CNTRS ~ CNTRS+SIZE)=100 THEN           24141000        
               BEGIN CNTRS ~ 0;  SEG ~ FINDSEG END;                      24142000        
               LOC[INDEX] ~ T&SEG[9:45:3]&CNTRS[2:41:7];                 24143000        
+    FINAL:    IF (DISKSPACE ~ POLISH)!0 THEN                            24144000        
+              BEGIN IF SEG=5 THEN INDEX ~ 0;                            24145000        
+                   LOC[0] ~ LIMIT&INDEX[CTF];                           24146000        
+                   GO TO EXIT;                                          24147000        
+         END  END FIND;                                                 24148000        
+ $ SET OMIT = NOT(AUXMEM)                                               24148999        
+         P(DALOCROW[MIX]);                                              24150000        
+         SIZE ~ (WORDS+29) DIV 30;                                      24151000        
+         IF (LIMIT := LOC[0].[CF])=0 THEN GO TO BADEXIT;                24152000        
+         IF (INDEX ~ LOC[0].[FF])!0 THEN FIND;                          24153000        
+         INDEX ~ 2;                                                     24154000        
+         DO FIND UNTIL (INDEX := INDEX+2)>LIMIT;                        24155000        
+    BADEXIT:                                                            24155500        
+         DISKSPACE ~ -1;                                                24156000        
+    EXIT:                                                               24157000        
+ $ SET OMIT = NOT(STATISTICS)                                           24157199        
+         STREAM(A~0:L~LIMIT.[41:6],T~[LOC[1]]);                         24158000        
+         BEGIN SI~T;  DI~A;                                             24159000        
+              L(SI~SI+11;                                               24160000        
+                5(IF SC="0" THEN DI~DI+8;  SI~SI+1));                   24161000        
+              A~DI;                                                     24162000        
+         END STREAM;                                                    24163000        
+         IF (POLISH<HEURISTIC) THEN                                     24164000        
+              IF ((SEG ~ TWO(MIX)) AND OLAYMASK)!0 THEN                 24165000        
+              BEGIN OLAYMASK ~ NOT SEG AND OLAYMASK;                    24166000        
+                   INDEPENDENTRUNNER(P(.GETMOREOLAYDISK),MIX,100); %    24167000        
+              END;                                                      24168000        
+    END DISKSPACE;                                                      24169000        
+ SAVE PROCEDURE DISKRTN(SEGNO, SIZE);                                   24200000        
+    VALUE     SEGNO, SIZE;                                              24201000        
+    INTEGER   SEGNO, SIZE;                                              24202000        
+    BEGIN INTEGER  INDEX=NT1,                                           24203000        
+                   WORD =NT2,                                           24204000        
+                   COUNT=NT3,                                           24205000        
+                   DRUM =NT4,                                           24206000        
+                   X    =NT5,                                           24207000        
+         ARRAY     LOC  =+1[*];                                         24208000        
+         LABEL     L;                                                   24209000        
+ $ SET OMIT = NOT(AUXMEM)                                               24209099        
+         P(DALOC[P1MIX,*]);                                             24210000        
+         COUNT ~ TWO(24-6|(SEGNO.[39:9] DIV 100));                      24211000        
+         X ~ (INDEX ~ 0&SEGNO[41:33:6])-1;                              24212000        
+         IF (WORD ~ LOC[INDEX].[18:30]-COUNT)=0 THEN                    24213000        
+         BEGIN LOC[INDEX] ~ 0;                                          24214000        
+    L:        IF P(LOC[0].[FF],DUP)!0 THEN                              24221000        
+                IF LOC[POLISH-1]<0 THEN P(XIT);                         24222000        
+              LOC[0] ~ (*P(DUP))&INDEX[CTF];                            24223000        
+         END ELSE BEGIN LOC[INDEX]~ (*P(DUP))&WORD[18:18:30];           24224000        
+              IF LOC[X]<0 THEN                                          24225000        
+                IF (WORD DIV COUNT).[42:6]=0 THEN GO TO L;              24226000        
+    END  END  DISKRTN;                                                  24227000        
+ $ SET OMIT = NOT(DATACOM )                                             24499999        
+ $ SET OMIT = NOT(SHAREDISK)                                            24599999        
+ $ SET OMIT = NOT(DATACOM AND DCSPO )                                   24999999        
+ $ SET OMIT = NOT(DATACOM)                                              25004999        
+ $ SET OMIT = NOT(B6500LOAD)                                            27990099        
+PROCEDURE LIBRARYHELP(Z); VALUE Z; REAL Z;                              28000000        
+%                                                                       28000002        
+%********************************************************************** 28000004        
+%                                                                       28000006        
+%                                                                       28000008        
+%   LIBRARYHELP PERFORMS INFREQUENTLY NEEDED TASKS FOR THE OTHER        28000010        
+%   LIBRARY MAINTENANCE PROCEDURES.  IT SHARES LOCALS BY USING THE      28000012        
+%   SAME STACK AS ITS CALLING PROCEDURE. LIBRARYCOPY OR                 28000014        
+%   LIBRARYTRANSFER.                                                    28000016        
+%                                                                       28000018        
+%                                                                       28000020        
+%   0:    A) SETS UP FPB ENTRY FOR INPUT SOURCE TAPE                    28000022        
+%         B) RETURNS DIRECTORY LEAVING TAPE POSITIONED AFTER            28000024        
+%            ENDING LABEL OF DIRECTORY                                  28000026        
+%                                                                       28000028        
+%   1:    RETURNS AFTER SECURING A NEW INPUT SOURCE TAPE                28000030        
+%                                                                       28000032        
+%   2:    ABORT FROM LIBRARYTRANSFER                                    28000034        
+%                                                                       28000036        
+%   3:    SETS UP FPB ENTRY FOR INPUT SOURCE DISK                       28000038        
+%                                                                       28000040        
+%   4:    ABORT FROM LIBRARYCOPY                                        28000042        
+%                                                                       28000044        
+%   5:    INITIALIZATION OF LIBRARYTRANSFER INCLUDING LOCATION          28000046        
+%         OF SPECIFIED OUTPUT UNIT                                      28000048        
+%                                                                       28000050        
+%   6:    ERROR HANDLING OR REEL SWITCHING                              28000052        
+%                                                                       28000054        
+%   7:    WRITING DIRECTORY IF NOT REEL 1                               28000056        
+%                                                                       28000058        
+%   8:    EXTRA RECORDS DETECTED IN CURRENT FILE                        28000060        
+%                                                                       28000062        
+%   9:    BAD HEADER DETECTED ON SOURCE                                 28000064        
+%                                                                       28000066        
+%   10:   INVALID RECORD SIZE ON LAST READ OR WRITE                     28000068        
+%                                                                       28000070        
+%   11:   KEYIN REEL SWITCH                                             28000072        
+%                                                                       28000074        
+%                                                                       28000076        
+%********************************************************************** 28000078        
+%                                                                       28000080        
+BEGIN                                                                   28000200        
+    REAL COMMON=-4,                                                     28000400        
+         MSCW=-2,               RCW=+0,                                 28000500        
+         MFID=+1,               FID=MFID+1,                             28000600        
+         ASMFID=FID+1,          ASFID=ASMFID+1,                         28000800        
+         TMP=ASFID+1,           TEMP=TMP+1,                             28001000        
+         FA=TEMP+1,             FAINFO=FA+1,                            28001200        
+         FASZ=FAINFO+1,         FAIN-FASZ+1,                            28001400        
+         TU=FAIN+1,             T=IU+1,                                 28001600        
+         FPBPTR=T+1,            IREEL=FPBPTR+1,                         28001800        
+         NM1=IREEL+1,           NM2=NM1+1,                              28002000        
+         DESTIN=NM2+1,          TOGS=DESTIN+1,                          28002200        
+         DA=TOGS+1,                    CCAIN=DA+1, OU=CCAIN,            28002400        
+         FAIN=CCAIN+1, OREEL=FAIN,     NAIN=EAIN+1, N=NAIN,             28002600        
+         NA=NAIN+1, CNT=NA,            NASZ=NA+1, INC=NASZ,             28002800        
+         LSX=NASZ+1, OUC=LSX,          BUMPFA=LSX+1, Y=BUMPFA,          28003000        
+         POOL=BUMPFA+1, W=POOL,        INDX=POOL+1, SIZE=INDX,          28003200        
+         UN=INDX+1, Q=UN,              SEG=UN+1, J=SEG,                 28003400        
+         MAX=SEG+1, TM=MAX,            K=MAX+1,                         28003600        
