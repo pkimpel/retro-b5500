@@ -2552,6 +2552,7 @@ B5500Processor.prototype.enterSubroutine = function(descriptorCall) {
         if (!arg) {
             // Accidental entry -- mark the stack
             this.B = this.buildMSCW();
+            this.BROF = 1;
             this.adjustBEmpty();
         }
 
@@ -3949,6 +3950,7 @@ B5500Processor.prototype.run = function() {
                     case 0x04:          // 0441: MKS=mark stack
                         this.adjustABEmpty();
                         this.B = this.buildMSCW();
+                        this.BROF = 1;
                         this.adjustBEmpty();
                         this.F = this.S;
                         if (!this.MSFF) {

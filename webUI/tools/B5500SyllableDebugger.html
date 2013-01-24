@@ -31,6 +31,16 @@ var accessor = {                        // Memory access control block
     MAED: 0                             // Truthy if memory address/inhibit error
 };
 
+var BICtoANSI = [
+        "0", "1", "2", "3", "4", "5", "6", "7",
+        "8", "9", "#", "@", "?", ":", ">", "}",
+        "+", "A", "B", "C", "D", "E", "F", "G",
+        "H", "I", ".", "[", "&", "(", "<", "~",
+        "|", "J", "K", "L", "M", "N", "O", "P",
+        "Q", "R", "$", "*", "-", ")", ";", "{",
+        " ", "/", "S", "T", "U", "V", "W", "X",
+        "Y", "Z", ",", "%", "!", "=", "]", "\""];
+
 function $$(id) {
     return document.getElementById(id);
 }
@@ -137,7 +147,27 @@ function displayNumber(id, value) {
     setText(id, (Math.pow(8, e)*(s ? -m : m)).toPrecision(12));
 }
 
-function displayMemWord(e, addr, valueID) {
+function displayBIC(id, value) {
+    /* Converts the "value" as a B5500 word to an eight character string and inserts it
+    as the text content of node "id" */
+    var c;                              // current character
+    var s = "";                         // working string value
+    var w = value;                      // working word value
+    var x;                              // character counter
+
+    for (x=0; x<8; x++) {
+        c = w % 64;
+        w = (w-c)/64;
+        if (c == 0x30) {                // 0x30 = @60 = BIC space
+            s = "_" + s;
+        } else {
+            s = BICtoANSI[c] + s;
+        }
+    }
+    setText(id, s);
+}
+
+function displayMemWord(e, addr, bicID, valueID) {
     /* Displays the contents of the memory word at "addr" as the value of element "e" */
 
     setText(valueID, "");
@@ -156,6 +186,7 @@ function displayMemWord(e, addr, valueID) {
     } else {
         e.style.backgroundColor = "";
         displayOctal(e.id, accessor.word, 16);
+        displayBIC(bicID, accessor.word);
         displayNumber(valueID, accessor.word);
     }
 }
@@ -163,15 +194,18 @@ function displayMemWord(e, addr, valueID) {
 function displayStack() {
     /* Displays the A and B registers, plus the top 8 words of the memory stack */
     var addr;
+    var bicID;
     var e;
     var valueID;
     var x;
 
     displayOctal("AReg", cc.P1.A, 16);
+    displayBIC("ARegBIC", cc.P1.A);
     displayNumber("ARegValue", cc.P1.A);
     $$("AROF").checked = (cc.P1.AROF != 0);
 
     displayOctal("BReg", cc.P1.B, 16);
+    displayBIC("BRegBIC", cc.P1.B);
     displayNumber("BRegValue", cc.P1.B);
     $$("BROF").checked = (cc.P1.BROF != 0);
 
@@ -179,14 +213,16 @@ function displayStack() {
         addr = cc.P1.S - x;
         setText("SAddr" + x, padOctal(addr, 5));
         e = $$("SWord" + x);
+        bicID = e.getAttribute("data-b55sd-bicID");
         valueID = e.getAttribute("data-b55sd-valueID");
-        displayMemWord(e, addr, valueID);
+        displayMemWord(e, addr, bicID, valueID);
     }
 }
 
 function displayMemory() {
     /* Displays the words surrounding "memAddr" */
     var addr;
+    var bicID;
     var e;
     var suffix;
     var valueID;
@@ -201,8 +237,9 @@ function displayMemory() {
             setText("MAddr" + suffix, padOctal(addr, 5));
         }
         e = $$("MWord" + suffix);
+        bicID = e.getAttribute("data-b55sd-bicID");
         valueID = e.getAttribute("data-b55sd-valueID");
-        displayMemWord(e, addr, valueID);
+        displayMemWord(e, addr, bicID, valueID);
     }
 }
 
@@ -232,6 +269,7 @@ function displayRegisters() {
     displayOctal("NReg", cc.P1.N, 2);
     $$("NCSF").checked = (cc.P1.NCSF != 0);
     $$("CWMF").checked = (cc.P1.CWMF != 0);
+    $$("MSFF").checked = (cc.P1.MSFF != 0);
     $$("SALF").checked = (cc.P1.SALF != 0);
     $$("VARF").checked = (cc.P1.VARF != 0);
 }
@@ -287,6 +325,7 @@ function word_onChange(ev) {
     var addr;
     var e = ev.target;
     var value;
+    var bicID = e.getAttribute("data-b55sd-bicID");
     var valueID = e.getAttribute("data-b55sd-valueID");
 
     value = e.getAttribute("data-b55sd-addr");
@@ -303,7 +342,7 @@ function word_onChange(ev) {
             accessor.addr = addr;
             accessor.word = value;
             cc.store(accessor);
-            displayMemWord(e, addr, valueID);
+            displayMemWord(e, addr, bicID, valueID);
         }
     }
     return value;
@@ -331,7 +370,7 @@ function ff_onChange(ev) {
     return (e.checked ? 1 : 0);
 }
 
-function tos_onChange(ev, valueID, origID) {
+function tos_onChange(ev, bicID, valueID, origID) {
     /* Normalizes and displays the value of a register when changed */
     var e = ev.target;
     var value;
@@ -342,6 +381,7 @@ function tos_onChange(ev, valueID, origID) {
     } else {
         e.style.backgroundColor = "";
         displayOctal(e.id, value, 16);
+        displayBIC(bicID, value);
         displayNumber(valueID, value);
     }
     return value;
@@ -354,7 +394,7 @@ window.onload = function() {
     };
 
     $$("AReg").onchange = function(ev) {
-        cc.P1.A = tos_onChange(ev, "ARegValue", "ARegOrig");
+        cc.P1.A = tos_onChange(ev, "ARegBIC", "ARegValue", "ARegOrig");
         cc.P1.AROF = 1;
         $$("AROF").checked = true;
     };
@@ -362,7 +402,7 @@ window.onload = function() {
         cc.P1.AROF = ff_onChange(ev);
     };
     $$("BReg").onchange = function(ev) {
-        cc.P1.B = tos_onChange(ev, "BRegValue", "BRegOrig");
+        cc.P1.B = tos_onChange(ev, "BRegBIC", "BRegValue", "BRegOrig");
         cc.P1.BROF = 1;
         $$("BROF").checked = true;
     };
@@ -521,6 +561,7 @@ window.onload = function() {
     <th>Reg
     <th>Addr
     <th>Current (octal)
+    <th>BIC
     <th>FP Value
     <th>Original (octal)
 <tbody>
@@ -532,7 +573,8 @@ window.onload = function() {
         <input id=AROF name=AROF type=checkbox value=1><label for=AROF>AROF</label>
     <td>
         <input id=AReg name=AReg type=text class=number size=16 maxlength=16
-               data-b55sd-valueID=ARegValue data-b55sd-origID=ARegOrig>
+               data-b55sd-bicID=ARegBIC data-b55sd-valueID=ARegValue data-b55sd-origID=ARegOrig>
+    <td id=ARegBIC class=data>
     <td id=ARegValue class=number>
     <td id=ARegOrig class=number>
 <tr>
@@ -541,7 +583,8 @@ window.onload = function() {
         <input id=BROF name=BROF type=checkbox value=1><label for=BROF>BROF</label>
     <td>
         <input id=BReg name=BReg type=text class=number size=16 maxlength=16
-               data-b55sd-valueID=BRegValue data-b55sd-origID=BRegOrig>
+               data-b55sd-bicID=BRegBIC data-b55sd-valueID=BRegValue data-b55sd-origID=BRegOrig>
+    <td id=BRegBIC class=data>
     <td id=BRegValue class=number>
     <td id=BRegOrig class=number>
 <tr>
@@ -549,7 +592,8 @@ window.onload = function() {
     <td id=SAddr0 class="data center">00000
     <td>
         <input id=SWord0 name=SWord0 type=text class=number size=16 maxlength=16
-               data-b55sd-valueID=SValue0 data-b55sd-origID=SOrig0>
+               data-b55sd-bicID=SBIC0 data-b55sd-valueID=SValue0 data-b55sd-origID=SOrig0>
+    <td id=SBIC0 class=data>
     <td id=SValue0 class=number>
     <td id=SOrig0 class=number>
 <tr>
@@ -557,7 +601,8 @@ window.onload = function() {
     <td id=SAddr1 class="data center">11111
     <td>
         <input id=SWord1 name=SWord1 type=text class=number size=16 maxlength=16
-               data-b55sd-valueID=SValue1 data-b55sd-origID=SOrig1>
+               data-b55sd-bicID=SBIC1 data-b55sd-valueID=SValue1 data-b55sd-origID=SOrig1>
+    <td id=SBIC1 class=data>
     <td id=SValue1 class=number>
     <td id=SOrig1 class=number>
 <tr>
@@ -565,7 +610,8 @@ window.onload = function() {
     <td id=SAddr2 class="data center">22222
     <td>
         <input id=SWord2 name=SWord2 type=text class=number size=16 maxlength=16
-               data-b55sd-valueID=SValue2 data-b55sd-origID=SOrig2>
+               data-b55sd-bicID=SBIC2 data-b55sd-valueID=SValue2 data-b55sd-origID=SOrig2>
+    <td id=SBIC2 class=data>
     <td id=SValue2 class=number>
     <td id=SOrig2 class=number>
 <tr>
@@ -573,7 +619,8 @@ window.onload = function() {
     <td id=SAddr3 class="data center">33333
     <td>
         <input id=SWord3 name=SWord3 type=text class=number size=16 maxlength=16
-               data-b55sd-valueID=SValue3 data-b55sd-origID=SOrig3>
+               data-b55sd-bicID=SBIC3 data-b55sd-valueID=SValue3 data-b55sd-origID=SOrig3>
+    <td id=SBIC3 class=data>
     <td id=SValue3 class=number>
     <td id=SOrig3 class=number>
 <tr>
@@ -581,7 +628,8 @@ window.onload = function() {
     <td id=SAddr4 class="data center">44444
     <td>
         <input id=SWord4 name=SWord4 type=text class=number size=16 maxlength=16
-               data-b55sd-valueID=SValue4 data-b55sd-origID=SOrig4>
+               data-b55sd-bicID=SBIC4 data-b55sd-valueID=SValue4 data-b55sd-origID=SOrig4>
+    <td id=SBIC4 class=data>
     <td id=SValue4 class=number>
     <td id=SOrig4 class=number>
 <tr>
@@ -589,7 +637,8 @@ window.onload = function() {
     <td id=SAddr5 class="data center">55555
     <td>
         <input id=SWord5 name=SWord5 type=text class=number size=16 maxlength=16
-               data-b55sd-valueID=SValue5 data-b55sd-origID=SOrig5>
+               data-b55sd-bicID=SBIC5 data-b55sd-valueID=SValue5 data-b55sd-origID=SOrig5>
+    <td id=SBIC5 class=data>
     <td id=SValue5 class=number>
     <td id=SOrig5 class=number>
 <tr>
@@ -597,7 +646,8 @@ window.onload = function() {
     <td id=SAddr6 class="data center">66666
     <td>
         <input id=SWord6 name=SWord6 type=text class=number size=16 maxlength=16
-               data-b55sd-valueID=SValue6 data-b55sd-origID=SOrig6>
+               data-b55sd-bicID=SBIC6 data-b55sd-valueID=SValue6 data-b55sd-origID=SOrig6>
+    <td id=SBIC6 class=data>
     <td id=SValue6 class=number>
     <td id=SOrig6 class=number>
 <tr>
@@ -605,7 +655,8 @@ window.onload = function() {
     <td id=SAddr7 class="data center">77777
     <td>
         <input id=SWord7 name=SWord7 type=text class=number size=16 maxlength=16
-               data-b55sd-valueID=SValue7 data-b55sd-origID=SOrig7>
+               data-b55sd-bicID=SBIC7 data-b55sd-valueID=SValue7 data-b55sd-origID=SOrig7>
+    <td id=SBIC7 class=data>
     <td id=SValue7 class=number>
     <td id=SOrig7 class=number>
 
@@ -617,7 +668,8 @@ window.onload = function() {
     <td id=MAddrP4 class="data center">44444
     <td>
         <input id=MWordP4 name=MWordP4 type=text class=number size=16 maxlength=16
-               data-b55sd-valueID=MValueP4 data-b55sd-origID=MOrigP4>
+               data-b55sd-bicID=MBICP4 data-b55sd-valueID=MValueP4 data-b55sd-origID=MOrigP4>
+    <td id=MBICP4 class=data>
     <td id=MValueP4 class=number>
     <td id=MOrigP4 class=number>
 <tr>
@@ -625,7 +677,8 @@ window.onload = function() {
     <td id=MAddrP3 class="data center">33333
     <td>
         <input id=MWordP3 name=MWordP3 type=text class=number size=16 maxlength=16
-               data-b55sd-valueID=MValueP3 data-b55sd-origID=MOrigP3>
+               data-b55sd-bicID=MBICP3 data-b55sd-valueID=MValueP3 data-b55sd-origID=MOrigP3>
+    <td id=MBICP3 class=data>
     <td id=MValueP3 class=number>
     <td id=MOrigP3 class=number>
 <tr>
@@ -633,7 +686,8 @@ window.onload = function() {
     <td id=MAddrP2 class="data center">22222
     <td>
         <input id=MWordP2 name=MWordP2 type=text class=number size=16 maxlength=16
-               data-b55sd-valueID=MValueP2 data-b55sd-origID=MOrigP2>
+               data-b55sd-bicID=MBICP2 data-b55sd-valueID=MValueP2 data-b55sd-origID=MOrigP2>
+    <td id=MBICP2 class=data>
     <td id=MValueP2 class=number>
     <td id=MOrigP2 class=number>
 <tr>
@@ -641,7 +695,8 @@ window.onload = function() {
     <td id=MAddrP1 class="data center">11111
     <td>
         <input id=MWordP1 name=MWordP1 type=text class=number size=16 maxlength=16
-               data-b55sd-valueID=MValueP1 data-b55sd-origID=MOrigP1>
+               data-b55sd-bicID=MBICP1 data-b55sd-valueID=MValueP1 data-b55sd-origID=MOrigP1>
+    <td id=MBICP1 class=data>
     <td id=MValueP1 class=number>
     <td id=MOrigP1 class=number>
 <tr>
@@ -650,7 +705,8 @@ window.onload = function() {
         <input id=MAddr name=MAddr type=text class=center size=5 maxlength=5>
     <td>
         <input id=MWordP0 name=MWordP0 type=text class=number size=16 maxlength=16
-               data-b55sd-valueID=MValueP0 data-b55sd-origID=MOrigP0>
+               data-b55sd-bicID=MBICP0 data-b55sd-valueID=MValueP0 data-b55sd-origID=MOrigP0>
+    <td id=MBICP0 class=data>
     <td id=MValueP0 class=number>
     <td id=MOrigP0 class=number>
 <tr>
@@ -658,7 +714,8 @@ window.onload = function() {
     <td id=MAddrM1 class="data center">11111
     <td>
         <input id=MWordM1 name=MWordM1 type=text class=number size=16 maxlength=16
-               data-b55sd-valueID=MValueM1 data-b55sd-origID=MOrigM1>
+               data-b55sd-bicID=MBICM1 data-b55sd-valueID=MValueM1 data-b55sd-origID=MOrigM1>
+    <td id=MBICM1 class=data>
     <td id=MValueM1 class=number>
     <td id=MOrigM1 class=number>
 <tr>
@@ -666,7 +723,8 @@ window.onload = function() {
     <td id=MAddrM2 class="data center">22222
     <td>
         <input id=MWordM2 name=MWordM2 type=text class=number size=16 maxlength=16
-               data-b55sd-valueID=MValueM2 data-b55sd-origID=MOrigM2>
+               data-b55sd-bicID=MBICM2 data-b55sd-valueID=MValueM2 data-b55sd-origID=MOrigM2>
+    <td id=MBICM2 class=data>
     <td id=MValueM2 class=number>
     <td id=MOrigM2 class=number>
 <tr>
@@ -674,7 +732,8 @@ window.onload = function() {
     <td id=MAddrM3 class="data center">33333
     <td>
         <input id=MWordM3 name=MWordM3 type=text class=number size=16 maxlength=16
-               data-b55sd-valueID=MValueM3 data-b55sd-origID=MOrigM3>
+               data-b55sd-bicID=MBICM3 data-b55sd-valueID=MValueM3 data-b55sd-origID=MOrigM3>
+    <td id=MBICM3 class=data>
     <td id=MValueM3 class=number>
     <td id=MOrigM3 class=number>
 <tr>
@@ -682,7 +741,8 @@ window.onload = function() {
     <td id=MAddrM4 class="data center">44444
     <td>
         <input id=MWordM4 name=MWordM4 type=text class=number size=16 maxlength=16
-               data-b55sd-valueID=MValueM4 data-b55sd-origID=MOrigM4>
+               data-b55sd-bicID=MBICM4 data-b55sd-valueID=MValueM4 data-b55sd-origID=MOrigM4>
+    <td id=MBICM4 class=data>
     <td id=MValueM4 class=number>
     <td id=MOrigM4 class=number>
 </table>
