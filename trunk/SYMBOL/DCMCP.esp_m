@@ -20092,3 +20092,93 @@ BEGIN                                                                   28000200
          POOL=BUMPFA+1, W=POOL,        INDX=POOL+1, SIZE=INDX,          28003200        
          UN=INDX+1, Q=UN,              SEG=UN+1, J=SEG,                 28003400        
          MAX=SEG+1, TM=MAX,            K=MAX+1,                         28003600        
+         L=K+1,                        MIDPTR=L+1, SV=MIDPTR,           28003800        
+         UNITNO=MIDPTR+1;                                               28004000        
+    ARRAY                                                               28004200        
+         CCA=NITNO+1[*], H=CCA[*],     X=CCA+1[*], AROW=X[*],           28004400        
+         PAP=X+1[*], IOD=PAP[*],       LAB=PAP+1[*],                    28004600        
+         LBL=LAB+1[*],                 WRDSZ=LBL+1[*];                  28004800        
+ $ SET OMIT = NOT(B6600LOAD)                                            28005000        
+    LABEL TRYNEXT,TRYAGN,FINDIT,BAC,BACK,P1,P2,P3,EXIT,ST,TAPEPAR;      28005800        
+    LABEL CASE0,CASE1,CASE2,CASE3,CASE4,CASE5,CASE6,CASE7,CASE9;        28006000        
+    DEFINE                                                              28006200        
+         BACKSPACER  = 5&@3400[CTF]#,                                   28006400        
+         SPACER      = 5&@1400[CTF]#,                                   28006600        
+         MM          = @37700040#,                                      28006800        
+         SM          = @37700000#,                                      28007000        
+         DSED        = (TERMSET(P1MIX))#,                               28007200        
+         UNITNUM     = [1:5]#,                                     %148-28007300        
+         SPOUTUNIT   = 0#,                                              28007400        
+         FORKED      = TOGS.[23:1]#,                                    28007600        
+         B6500       = TOGS.[24:1]#,                                    28007800        
+         OE          = TOGS.[26:1]#,                                    28008000        
+         FROMCOPY    = TOGS.[27:1]#,                                    28008200        
+         REELSW      = TOGS.[33:1]#,                                    28008400        
+         REEL1START  = TOGS.[34:1]#,                                    28008600        
+         SKIPDIR     = TOGS.[35:1]#,                                    28008800        
+         SPACITSW    = TOGS.[36:1]#,                                    28009000        
+         CHKLBL      = TOGS.[37:1]#,                                    28009200        
+         COPYING     = TOGS.[38:1]#,                                    28009300        
+         OUTAPEPARITY= TOGS.[39:1]#,                                    28009400        
+         SKIPFILE    = TOGS.[40:1]#,                                    28009600        
+         DUMPDIR     = TOGS.[42:1]#;                                    28009800        
+    SWITCH SWIT:=CASE0,CASE1,CASE2,CASE3,CASE4,CASE5,CASE6,CASE7,       28010000        
+                 P2,CASE9,P1,TAPEPAR;                                   28010200        
+    %***********************************************************        28010400        
+    DEFINE NOTCOPIED(NOTCOPIED1)=                                       28010600        
+         BEGIN NT3:=NOTCOPIED1; NOCOPYMESS; END#;                       28010800        
+    SUBROUTINE NCOPYMESS;                                               28011000        
+         LBMESS( ABS(MFID, FID, -67, NT3, TINU[IU], SPOUTUNIT, 1 );     28011200        
+    %***********************************************************        28011400        
+    SUBROUTINE ABORT;                                                   28011600        
+    BEGIN                                                               28011800        
+         IF COPYING                                                     28011810        
+          THEN IF OU=18                                                 28011820        
+                THEN BEGIN P(DIRECTORYSEARCH(MFID,FID,6),DEL);          28011830        
+                           OE:=0; % NOT OPENED EXCLUSIVE                28011832        
+                     END                                                28011834        
+                ELSE BEGIN P(WAITIO([TM],@40,OU),DEL);                  28011840        
+                           P(WAITIO(LBL&@5000[CTF],@40,OU),DEL);        28011850        
+                     END;                                               28011860        
+         IF NOT FROMCOPY THEN                                           28012000        
+          BEGIN IF OU GEQ 0 THEN                                        28012010        
+                 BEGIN IF OU LSS 16 THEN                                28012020        
+                        BEGIN BLASTQ(OU);                               28012030        
+                              P(WAITIO([TM],@40,OU),DEL);               28012040        
+                              SETNOTINUSE(OU,1);                        28012060        
+                        END;                                            28012070        
+                       STOPTIMING(0,1023);                              28012080        
+                 END;                                                   28012090        
+                IF IU GEQ 0 THEN                                        28012100        
+                 IF IU LSS 16 THEN BLASTQ(IU);                          28012110        
+          END ELSE                                                      28012120        
+           WHILE CCA[29] NEQ 0 DO                                       28012130        
+            BEGIN SEG:=CCA[29]; DISKWAIT(-CCA.[CF],30,SEG);             28012140        
+                  FORGETESPDISK(SEG);                                   28012150        
+            END;                                                        28012160        
+         FOR TMP:=0 STEP 1 UNTIL (FAIN DIV 2) DO                        28012800        
+          IF (TEMP:=M[FAINFO+TMP]).[CF]=18 THEN                         28013000        
+           IF TEMP.[17:1] THEN ELSE                                     28013200        
+            P(DIRECTORYSEARCH(-(TEMP.[FF]),13,20),DEL);                 28013400        
+         IF OE THEN P(DIRECTORYSEARCH(-MFID,FID,14),DEL);               28013600        
+         IF FORKED                                                      28013800        
+          THEN BEGIN IF IU GEQ 0 THEN                                   28014000        
+                      IF IU LSS 16 THEN SETNOTINUSE(IU,0);              28014100        
+                     STOPTIMING(FPBPTR,1023);                           28014200        
+               END                                                      28014400        
+          ELSE FOR TMP:=5 STEP 5 UNTIL (NT1:=PRT[P1MIX,3]).[8:10]-5 DO  28014600        
+                IF M[TN1 INX (TMP+4)] LSS 0 THEN                        28014800        
+                 BEGIN IF (TEMP:=M[NT1 INX (TMP+3)].[36:6]-1) LSS 16    28015000        
+                        THEN SETNOTINUSE(TEMP,0);                       28015200        
+                       STOPTIMING(TMP,1023);                            28015400        
+                 END;                                                   28015600        
+         FOR TMP:=0 STEP 1 UNTIL 15 DO                                  28015800        
+          IF LABELTABLE[TMP] LSS 0 THEN                                 28016000        
+           IF RDCTABLE[TMP].[8:6]=P1MIX THEN SETNOTINUSE(TMP,0);        28016200        
+ $ SET OMIT = PACKETS                                                   28017200        
+         STREAM(T:=T:=SPACE(5));                                        28018000        
+          BEGIN DS:=21LIT"LIBRARY COPY ABORTED~"; END;                  28018200        
+         SPOUT(T);                                                      28018400        
+         GO INITIATE;                                                   28018600        
+    END;                                                                28018800        
+    %***********************************************************        28019000        
