@@ -707,7 +707,8 @@ B5500CentralControl.prototype.loadComplete = function loadComplete() {
     if (completed) {
         that.loadTimer = null;
         that.LOFF = 0;
-        that.P1.start(0x10);            // start execution at C=@20
+        that.P1.preset(0x10);           // start execution at C=@20
+        that.P1.start();                // let'er rip
     }
 };
 
@@ -770,7 +771,13 @@ B5500CentralControl.prototype.loadTest = function(buf, loadAddr) {
         throw "cc.loadTest: Cannot load with system powered off"
     } else {
         while (bytes > 6) {
-            store.call(this, addr, data.getUint32(x, false)*0x10000 + data.getUint16(x+4, false));
+            word = data.getUint8(x)* 0x10000000000 + 
+                   data.getUint8(x+1)* 0x100000000 +
+                   data.getUint8(x+2)*   0x1000000 +
+                   data.getUint8(x+3)*     0x10000 +
+                   data.getUint8(x+4)*       0x100 +
+                   data.getUint8(x+5);
+            store.call(this, addr, word);
             x += 6;
             bytes -= 6;
             if (++addr > 0x7FFF) {
@@ -798,7 +805,8 @@ B5500CentralControl.prototype.runTest = function(runAddr) {
     this.clear();
     this.loadTimer = null;
     this.LOFF = 0;
-    this.P1.start(runAddr);
+    this.P1.preset(runAddr);
+    this.P1.start();
 };
 
 /**************************************/

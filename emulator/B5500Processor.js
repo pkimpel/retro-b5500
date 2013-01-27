@@ -214,8 +214,8 @@ B5500Processor.prototype.access = function(eValue) {
 };
 
 /**************************************/
-B5500Processor.prototype.accessCheck = function() {
-    /* Common error checking routine for all memory acccesses */
+B5500Processor.prototype.accessError = function() {
+    /* Common error handling routine for all memory acccesses */
 
     if (this.accessor.MAED) {
         this.I |= 0x02;                 // set I02F - memory address/inhibit error
@@ -245,11 +245,12 @@ B5500Processor.prototype.loadAviaS = function() {
     acc.addr = this.S;
     acc.MAIL = (this.S < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
-    this.A = acc.word;
-    this.AROF = 1;
     this.cycleCount += B5500Processor.memCycles; 
     if (acc.MAED || acc.MPED) {
-        this.accessCheck();
+        this.accessError();
+    } else {        
+        this.A = acc.word;
+        this.AROF = 1;
     }
 };        
 
@@ -262,11 +263,12 @@ B5500Processor.prototype.loadBviaS = function() {
     acc.addr = this.S;
     acc.MAIL = (this.S < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
-    this.B = acc.word;
-    this.BROF = 1;
     this.cycleCount += B5500Processor.memCycles; 
     if (acc.MAED || acc.MPED) {
-        this.accessCheck();
+        this.accessError();
+    } else {        
+        this.B = acc.word;
+        this.BROF = 1;
     }
 }; 
 
@@ -279,11 +281,12 @@ B5500Processor.prototype.loadAviaM = function() {
     acc.addr = this.M;
     acc.MAIL = (this.M < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
-    this.A = acc.word;
-    this.AROF = 1;
     this.cycleCount += B5500Processor.memCycles; 
     if (acc.MAED || acc.MPED) {
-        this.accessCheck();
+        this.accessError();
+    } else {        
+        this.A = acc.word;
+        this.AROF = 1;
     }
 }; 
 
@@ -296,11 +299,12 @@ B5500Processor.prototype.loadBviaM = function() {
     acc.addr = this.M;
     acc.MAIL = (this.M < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
-    this.B = acc.word;
-    this.BROF = 1;
     this.cycleCount += B5500Processor.memCycles; 
     if (acc.MAED || acc.MPED) {
-        this.accessCheck();
+        this.accessError();
+    } else {        
+        this.B = acc.word;
+        this.BROF = 1;
     }
 }; 
 
@@ -313,10 +317,11 @@ B5500Processor.prototype.loadMviaM = function() {
     acc.addr = this.M;
     acc.MAIL = (this.M < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
-    this.M = ((acc.word % 0x40000000) >>> 15) & 0x7FFF;
     this.cycleCount += B5500Processor.memCycles; 
     if (acc.MAED || acc.MPED) {
-        this.accessCheck();
+        this.accessError();
+    } else {        
+        this.M = ((acc.word % 0x40000000) >>> 15) & 0x7FFF;
     }
 }; 
 
@@ -329,11 +334,12 @@ B5500Processor.prototype.loadPviaC = function() {
     acc.addr = this.C;
     acc.MAIL = (this.C < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
-    this.P = acc.word;
-    this.PROF = 1;
+    this.PROF = 1;                      // PROF gets set even for invalid address
     this.cycleCount += B5500Processor.memCycles; 
     if (acc.MAED || acc.MPED) {
-        this.accessCheck();
+        this.accessError();
+    } else {        
+        this.P = acc.word;
     }
 }; 
 
@@ -349,7 +355,7 @@ B5500Processor.prototype.storeAviaS = function() {
     this.cc.store(acc);
     this.cycleCount += B5500Processor.memCycles; 
     if (acc.MAED || acc.MPED) {
-        this.accessCheck();
+        this.accessError();
     }
 }; 
 
@@ -365,7 +371,7 @@ B5500Processor.prototype.storeBviaS = function() {
     this.cc.store(acc);
     this.cycleCount += B5500Processor.memCycles; 
     if (acc.MAED || acc.MPED) {
-        this.accessCheck();
+        this.accessError();
     }
 }; 
 
@@ -381,7 +387,7 @@ B5500Processor.prototype.storeAviaM = function() {
     this.cc.store(acc);
     this.cycleCount += B5500Processor.memCycles; 
     if (acc.MAED || acc.MPED) {
-        this.accessCheck();
+        this.accessError();
     }
 }; 
 
@@ -397,7 +403,7 @@ B5500Processor.prototype.storeBviaM = function() {
     this.cc.store(acc);
     this.cycleCount += B5500Processor.memCycles; 
     if (acc.MAED || acc.MPED) {
-        this.accessCheck();
+        this.accessError();
     }
 }; 
 
@@ -559,23 +565,32 @@ B5500Processor.prototype.exchangeTOS = function() {
 };
 
 /**************************************/
-B5500Processor.prototype.jump = function(count, byWords) {
-    /* Adjusts the C and L registers by "count" (which may be negative).
-    If "byWords" is true, the adjustment is by words and L is set to 0.
-    Initiates a fetch to reload the P register after C and L are adjusted.
+B5500Processor.prototype.jumpSyllables = function(count) {
+    /* Adjusts the C and L registers by "count" syllables (which may be negative).
+    Forces a fetch to reload the P register after C and L are adjusted.
     On entry, C and L are assumed to be pointing to the next instruction
     to be executed, not the current one */
     var addr;
     
-    if (byWords) {
-        this.C += count;
-        this.L = 0;
-    } else {
-        addr = this.C*4 + this.L + count;
-        this.C = addr >>> 2;
-        this.L = addr & 0x03;
-    }
-    this.loadPviaC();                   // P = [C]
+    addr = this.C*4 + this.L + count;
+    this.C = addr >>> 2;
+    this.L = addr & 0x03;
+    this.PROF = 0;                      // require fetch at SECL
+};
+
+/**************************************/
+B5500Processor.prototype.jumpWords = function(count, byWords) {
+    /* Adjusts the C register by "count" words (which may be negative). L is set
+    to zero. Forces a fetch to reload the P register after C and L are adjusted.
+    On entry, C and L are assumed to be pointing to the next instruction
+    to be executed, not the current one */
+    var addr;
+    
+    /***** ??????? relative to word containing the branch ??????? *****/
+    
+    this.C += count;
+    this.L = 0;
+    this.PROF = 0;                      // require fetch at SECL
 };
 
 /**************************************/
@@ -591,7 +606,7 @@ B5500Processor.prototype.jumpOutOfLoop = function(count) {
     this.loadAviaS();                   // A = [S], fetch prior LCW from stack
     if (count) {
         this.cycleCount += (count >>> 2) + (count & 0x03);
-        this.jump(count, false);
+        this.jumpSyllables(count);
     }
     this.X = this.A % 0x8000000000;     // store prior LCW (39 bits: less control bits) in X
     this.S = t1;                        // restore S
@@ -1294,7 +1309,7 @@ B5500Processor.prototype.storeForInterrupt = function(forTest) {
             this.loadBviaM();           // B = [M]: load DD for test
             this.C = this.B % 0x7FFF;
             this.L = 0;
-            this.loadPviaC();           // P = [C]: first word of test routine
+            this.PROF = 0;              // require fetch at SECL
             this.G = 0;
             this.H = 0;
             this.K = 0;
@@ -1316,16 +1331,20 @@ B5500Processor.prototype.storeForInterrupt = function(forTest) {
 };
 
 /**************************************/
-B5500Processor.prototype.start = function(runAddr) {
-    /* Initiates the processor from a load condition at C=runAddr */
+B5500Processor.prototype.preset = function(runAddr) {
+    /* Presets the processor registers for a load condition at C=runAddr */
 
     this.C = runAddr;                   // starting execution address
-    this.loadPviaC();                   // P = [C]
-    this.T = this.fieldIsolate(this.P, 0, 12);
+    this.L = 1;                         // preset L to point to the second syllable
+    this.loadPviaC();                   // load the program word to P
+    this.T = this.cc.fieldIsolate(this.P, 0, 12);
     this.TROF = 1;
-    this.L = 1;                         // advance L to the next syllable
+};
 
-    // Now start scheduling the processor on the Javascript thread
+/**************************************/
+B5500Processor.prototype.start = function() {
+    /* Initiates the processor by scheduling it on the Javascript thread */
+    
     this.busy = 1;
     this.procTime = new Date().getTime()*1000;
     this.scheduler = setTimeout(this.schedule, 0);
@@ -1365,7 +1384,7 @@ B5500Processor.prototype.initiate = function(forTest) {
     this.L = Math.floor(this.B / 0x1000000000) % 0x04;
     this.V = Math.floor(this.B / 0x4000000000) % 0x08;
     this.H = Math.floor(this.B / 0x20000000000) % 0x08;
-    this.loadPviaC();                   // P = [C]
+    this.loadPviaC();                   // load program word to P
     if (this.CWMF || forTest) {
         saveBROF = Math.floor(this.B / 200000000000) % 0x02;
     }
@@ -2469,7 +2488,7 @@ B5500Processor.prototype.applyRCW = function(word, inline) {
     f = word % 0x8000;                  // [33:15], C
     if (!inline) {
         this.C = f;
-        this.loadPviaC();               // P = [C], fetch new program word
+        this.PROF = 0;                  // require fetch at SECL
     }
     word = (word-f)/0x8000;
     this.F = f = word % 0x8000;         // [18:15], F
@@ -2563,7 +2582,7 @@ B5500Processor.prototype.enterSubroutine = function(descriptorCall) {
         // Fetch the first word of subroutine code
         this.C = aw % 0x8000;
         this.L = 0;
-        this.loadPviaC(); 
+        this.PROF = 0;                  // require fetch at SECL
 
         // Fix up the rest of the registers
         if (arg) {
@@ -2890,7 +2909,7 @@ B5500Processor.prototype.run = function() {
                         }
                     } 
                     this.S = this.B % 0x8000;
-                    this.K = this.fieldIsolate(this.B, 18, 3);
+                    this.K = this.cc.fieldIsolate(this.B, 18, 3);
                     this.M = t1;                        // restore M & G
                     this.G = t2;
                     this.AROF = this.BROF = 0;          // invalidate A & B
@@ -3150,6 +3169,9 @@ B5500Processor.prototype.run = function() {
                     this.BROF = this.AROF;
                     this.AROF = 0;                      // invalidate A
                     noSECL = 1;                         // >>> override normal instruction fetch <<<
+                    if (!this.PROF) {
+                        this.loadPviaC();               // fetch the program word, if necessary
+                    }
                     opcode = this.cc.fieldIsolate(this.P, this.L*12, 12);
                     if (variant) {                      // if repeat count from parameter > 0
                         this.T = opcode & 0x3F + variant*0x40;  // apply it to the next syl
@@ -3167,7 +3189,7 @@ B5500Processor.prototype.run = function() {
                 case 0x25:              // XX45: JFC=Jump forward conditional
                     if (!this.MSFF) {                   // conditional on TFFF
                         this.cycleCount += (variant >>> 2) + (variant & 0x03);
-                        this.jump(variant, false);
+                        this.jumpSyllables(variant);
                     }
                     break;
 
@@ -3177,7 +3199,7 @@ B5500Processor.prototype.run = function() {
 
                 case 0x27:              // XX47: JFW=Jump forward unconditional
                     this.cycleCount += (variant >>> 2) + (variant & 0x03);
-                    this.jump(variant, false);
+                    this.jumpSyllables(variant);
                     break;
 
                 case 0x28:              // XX50: RCA=Recall control address
@@ -3192,7 +3214,7 @@ B5500Processor.prototype.run = function() {
                     if (this.B >= 0x800000000000) {     // if it's a descriptor, 
                         this.L = 0;                     // force L to zero and
                         if (this.presenceTest(this.B)) {// if present, initiate a fetch to P
-                            this.loadPviaC();           // P = [C]
+                            this.PROF = 0;              // require fetch at SECL
                         }
                     } else {
                         t1 = this.cc.fieldIsolate(this.B, 10, 2);
@@ -3202,7 +3224,7 @@ B5500Processor.prototype.run = function() {
                             this.L = 0;
                             this.C++;
                         }
-                        this.loadPviaC();               // P = [C]
+                        this.PROF = 0;                  // require fetch at SECL
                     }
                     this.B = this.A;                    // restore B
                     this.BROF = this.AROF
@@ -3218,7 +3240,7 @@ B5500Processor.prototype.run = function() {
                     if (variant) {                      // loop count exhausted?
                         this.C = this.cc.fieldIsolate(t1, 33, 15);      // no, restore C, L, and P to loop again
                         this.L = this.cc.fieldIsolate(t1, 10, 2);
-                        this.loadPviaC();               // P = [C]
+                        this.PROF = 0;                  // require fetch at SECL
                         this.X = this.cc.fieldInsert(t1, 12, 6, variant-1);     // store decremented count in X
                     } else {
                         t2 = this.S;                    // save S (not the way the hardware did it)
@@ -3275,7 +3297,7 @@ B5500Processor.prototype.run = function() {
                     this.AROF = this.BROF;
                     t2 = this.S;                        // save S (not the way the hardware did it)
                     this.S = this.F - variant;          // compute store address
-                    this.B = this.fieldInsert(          // construct control address: reset flag bit
+                    this.B = this.cc.fieldInsert(       // construct control address: reset flag bit
                             this.cc.fieldInsert(        // insert F (as saved in t2)
                                 this.cc.fieldInsert(    // insert L
                                     this.cc.fieldInsert(this.B, 33, 15, this.C), // insert C
@@ -3292,7 +3314,7 @@ B5500Processor.prototype.run = function() {
                 case 0x2D:              // XX55: JRC=Jump reverse conditional
                     if (!this.MSFF) {                   // conditional on TFFF
                         this.cycleCount += (variant >>> 2) + (variant & 0x03);
-                        this.jump(-variant, false);
+                        this.jumpSyllables(-variant);
                     }
                     break;
 
@@ -3316,12 +3338,12 @@ B5500Processor.prototype.run = function() {
                         }
                     } 
                     this.M = this.B % 0x8000;
-                    this.G = this.fieldIsolate(this.B, 18, 3);
+                    this.G = this.cc.fieldIsolate(this.B, 18, 3);
                     break;
 
                 case 0x2F:              // XX57: JRV=Jump reverse unconditional
                     this.cycleCount += (variant >>> 2) + (variant & 0x03);
-                    this.jump(-variant, false);
+                    this.jumpSyllables(-variant);
                     break;
 
                 case 0x30:              // XX60: CEQ=Compare equal
@@ -3388,6 +3410,9 @@ B5500Processor.prototype.run = function() {
                         t1 = (this.L*2 + variant & 0x01)*6;     // P-reg bit number
                         t2 = this.K*6;                          // B-reg bit number
                         do {
+                            if (!this.PROF) {
+                                this.loadPviaC();       // fetch the program word, if necessary
+                            }
                             this.Y = this.cc.fieldIsolate(this.P, t1, 6);
                             this.B = this.cc.fieldInsert(this.B, t2, 6, this.Y)
                             if (t2 < 42) {
@@ -3463,14 +3488,14 @@ B5500Processor.prototype.run = function() {
 
             case 2:                     // OPDC: Operand Call
                 this.adjustAEmpty();
-                computeRelativeAddr(opcode >>> 2, 1);
+                this.computeRelativeAddr(opcode >>> 2, 1);
                 this.loadAviaM();                   // A = [M]
                 this.operandCall();
                 break;
 
             case 3:                     // DESC: Descriptor (name) Call
                 this.adjustAEmpty();
-                computeRelativeAddr(opcode >>> 2, 1);
+                this.computeRelativeAddr(opcode >>> 2, 1);
                 this.loadAviaM();                       // A = [M]
                 this.descriptorCall();
                 break;
@@ -3551,7 +3576,7 @@ B5500Processor.prototype.run = function() {
                             this.L = 0;
                             this.S = 0x40;                      // stack address @100
                             this.cc.clearInterrupt();
-                            this.loadPviaC();                   // P = [C]
+                            this.PROF = 0;                      // require fetch at SECL
                         }
                         break;
 
@@ -3789,9 +3814,49 @@ B5500Processor.prototype.run = function() {
                 case 0x19:              // XX31: branch, sign-bit, interrogate ops
                     switch (variant) {
                     case 0x01:          // 0131: BBC=branch backward conditional
+                        this.adjustABFull();
+                        if (this.B % 0x02) {
+                            this.AROF = this.BROF = 0;          // true => no branch
+                        } else {
+                            this.BROF = 0;
+                            if (this.A < 0x800000000000) {      // simple operand
+                                this.jumpSyllables(-(this.A % 0x1000));
+                                this.AROF = 0;
+                            } else {                            // descriptor
+                                if (this.L == 0) {
+                                    this.C--;                   // adjust for Inhibit Fetch
+                                }
+                                if (this.presenceTest(this.A)) {
+                                    this.C = this.A % 0x8000;
+                                    this.L = 0;
+                                    this.PROF = 0;              // require fetch at SEQL
+                                    this.AROF = 0;
+                                }
+                            }
+                        }
                         break;
 
                     case 0x02:          // 0231: BFC=branch forward conditional
+                        this.adjustABFull();
+                        if (this.B % 0x02) {
+                            this.AROF = this.BROF = 0;          // true => no branch
+                        } else {
+                            this.BROF = 0;
+                            if (this.A < 0x800000000000) {      // simple operand
+                                this.jumpSyllables(this.A % 0x1000);
+                                this.AROF = 0;
+                            } else {                            // descriptor
+                                if (this.L == 0) {
+                                    this.C--;                   // adjust for Inhibit Fetch
+                                }
+                                if (this.presenceTest(this.A)) {
+                                    this.C = this.A % 0x8000;
+                                    this.L = 0;
+                                    this.PROF = 0;              // require fetch at SEQL
+                                    this.AROF = 0;
+                                }
+                            }
+                        }
                         break;
 
                     case 0x04:          // 0431: SSN=set sign bit (set negative)
@@ -3816,9 +3881,49 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x11:          // 2131: LBC=branch backward word conditional
+                        this.adjustABFull();
+                        if (this.B % 0x02) {
+                            this.AROF = this.BROF = 0;          // true => no branch
+                        } else {
+                            this.BROF = 0;
+                            if (this.L == 0) {
+                                this.C--;                       // adjust for Inhibit Fetch
+                            }
+                            if (this.A < 0x800000000000) {      // simple operand
+                                this.jumpWords(-(this.A % 0x0400));
+                                this.AROF = 0;
+                            } else {                            // descriptor
+                                if (this.presenceTest(this.A)) {
+                                    this.C = this.A % 0x8000;
+                                    this.L = 0;
+                                    this.PROF = 0;              // require fetch at SEQL
+                                    this.AROF = 0;
+                                }
+                            }
+                        }
                         break;
 
                     case 0x12:          // 2231: LFC=branch forward word conditional
+                        this.adjustABFull();
+                        if (this.B % 0x02) {
+                            this.AROF = this.BROF = 0;          // true => no branch
+                        } else {
+                            this.BROF = 0;
+                            if (this.L == 0) {
+                                this.C--;                       // adjust for Inhibit Fetch
+                            }
+                            if (this.A < 0x800000000000) {      // simple operand
+                                this.jumpWords(this.A % 0x0400);
+                                this.AROF = 0;
+                            } else {                            // descriptor
+                                if (this.presenceTest(this.A)) {
+                                    this.C = this.A % 0x8000;
+                                    this.L = 0;
+                                    this.PROF = 0;              // require fetch at SEQL
+                                    this.AROF = 0;
+                                }
+                            }
+                        }
                         break;
 
                     case 0x14:          // 2431: TUS=interrogate peripheral status
@@ -3828,9 +3933,39 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x21:          // 4131: BBW=branch backward unconditional
+                        this.adjustAFull();
+                        if (this.A < 0x800000000000) {          // simple operand
+                            this.jumpSyllables(-(this.A % 0x1000));
+                            this.AROF = 0;
+                        } else {                                // descriptor
+                            if (this.L == 0) {
+                                this.C--;                       // adjust for Inhibit Fetch
+                            }
+                            if (this.presenceTest(this.A)) {
+                                this.C = this.A % 0x8000;
+                                this.L = 0;
+                                this.PROF = 0;                  // require fetch at SEQL
+                                this.AROF = 0;
+                            }
+                        }
                         break;
 
                     case 0x22:          // 4231: BFW=branch forward unconditional
+                        this.adjustAFull();
+                        if (this.A < 0x800000000000) {          // simple operand
+                            this.jumpSyllables(this.A % 0x1000);
+                            this.AROF = 0;
+                        } else {                                // descriptor
+                            if (this.L == 0) {
+                                this.C--;                       // adjust for Inhibit Fetch
+                            }
+                            if (this.presenceTest(this.A)) {
+                                this.C = this.A % 0x8000;
+                                this.L = 0;
+                                this.PROF = 0;                  // require fetch at SEQL
+                                this.AROF = 0;
+                            }
+                        }
                         break;
 
                     case 0x24:          // 4431: SSP=reset sign bit (set positive)
@@ -3841,9 +3976,39 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x31:          // 6131: LBU=branch backward word unconditional
+                        this.adjustAFull();
+                        if (this.L == 0) {
+                            this.C--;                           // adjust for Inhibit Fetch
+                        }
+                        if (this.A < 0x800000000000) {          // simple operand
+                            this.jumpWords(-(this.A % 0x0400));
+                            this.AROF = 0;
+                        } else {                                // descriptor
+                            if (this.presenceTest(this.A)) {
+                                this.C = this.A % 0x8000;
+                                this.L = 0;
+                                this.PROF = 0;                  // require fetch at SEQL
+                                this.AROF = 0;
+                            }
+                        }
                         break;
 
                     case 0x32:          // 6231: LFU=branch forward word unconditional
+                        this.adjustAFull();
+                        if (this.L == 0) {
+                            this.C--;                           // adjust for Inhibit Fetch
+                        }
+                        if (this.A < 0x800000000000) {          // simple operand
+                            this.jumpWords(this.A % 0x0400);
+                            this.AROF = 0;
+                        } else {                                // descriptor
+                            if (this.presenceTest(this.A)) {
+                                this.C = this.A % 0x8000;
+                                this.L = 0;
+                                this.PROF = 0;                  // require fetch at SEQL
+                                this.AROF = 0;
+                            }
+                        }
                         break;
 
                     case 0x34:          // 6431: TIO=interrogate I/O channel
@@ -3882,8 +4047,8 @@ B5500Processor.prototype.run = function() {
                         if (this.presenceTest(this.B)) {
                             this.S = (this.B % 0x40000000) >>> 15;
                             this.C = this.B % 0x8000;
-                            this.loadPviaC();           // P = [C]
                             this.L = 0;
+                            this.PROF = 0;              // require fetch at SECL
                             this.loadBviaS();           // B = [S], fetch MSCW
                             this.S--;
                             this.applyMSCW(this.B);
@@ -4119,6 +4284,9 @@ B5500Processor.prototype.run = function() {
             this.storeForInterrupt(0);  // call directly to avoid resetting registers at top of loop
         } else {
             // otherwise, fetch the next instruction
+            if (!this.PROF) {
+                this.loadPviaC();
+            }
             switch (this.L) {
             case 0:
                 this.T = (((t1=this.P) - t1 % 0x1000000000) / 0x1000000000) % 0x1000;
@@ -4135,8 +4303,8 @@ B5500Processor.prototype.run = function() {
             case 3:
                 this.T = this.P % 0x1000;
                 this.L = 0;
-                this.C++;
-                this.loadPviaC();       // P = [C]
+                this.C++;               // assume no Inhibit Fetch for now and bump C
+                this.PROF = 0;          // invalidate current program word
                 break;
             }
         }
