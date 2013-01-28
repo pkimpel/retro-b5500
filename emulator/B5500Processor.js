@@ -977,7 +977,7 @@ B5500Processor.prototype.streamSourceToDest = function(count, transform) {
         bBit = this.K*6;                // B-bit number
         do {
             this.Y = this.cc.fieldIsolate(this.A, aBit, 6);
-            transform(bBit, count)
+            transform.call(this, bBit, count)
             count--;
             if (bBit < 42) {
                 bBit += 6;
@@ -1022,7 +1022,7 @@ B5500Processor.prototype.streamToDest = function(count, transform) {
         this.cycleCount += count;       // approximate the timing
         bBit = this.K*6;                // B-bit number
         do {
-            if (transform(bBit, count)) {
+            if (transform.call(this, bBit, count)) {
                 count = 0;
             } else {
                 count--;
@@ -1339,6 +1339,9 @@ B5500Processor.prototype.preset = function(runAddr) {
     this.loadPviaC();                   // load the program word to P
     this.T = this.cc.fieldIsolate(this.P, 0, 12);
     this.TROF = 1;
+    this.R = 0;
+    this.S = 0;
+    
 };
 
 /**************************************/
@@ -2347,6 +2350,12 @@ B5500Processor.prototype.computeRelativeAddr = function(offset, cEnabled) {
     } else {
         this.M = (this.R*64) + (offset & 0x3FF);
     }
+
+    // Reset variant-mode R-relative addressing, if enabled
+    if (this.VARF) {
+        this.SALF = 1;
+        this.VARF = 0;
+    }
 };
 
 /**************************************/
@@ -2399,13 +2408,13 @@ B5500Processor.prototype.indexDescriptor = function() {
 
     // Now we have an integerized index value in xm
     if (!interrupted) {
-        if (xs) {                       // oops... negative index
+        if (xs && xm) {                 // oops... negative index
             interrupted = 1;
             if (this.NCSF) {
                 this.I = (this.I & 0x0F) | 0x90;                // set I05/8: invalid-index
                 this.cc.signalInterrupt();
             }
-        } else if (xm >= this.cc.fieldIsolate(aw, 8, 10)) {
+        } else if (xm % 0x0400 >= this.cc.fieldIsolate(aw, 8, 10)) {
             interrupted = 1;            // oops... index out of bounds
             if (this.NCSF) {
                 this.I = (this.I & 0x0F) | 0x90;                // set I05/8: invalid-index
@@ -2522,6 +2531,7 @@ B5500Processor.prototype.enterCharModeInline = function() {
         this.loadAviaS();               // A = [S]: tank the DI address
     }
     this.B = this.buildRCW(0);
+    this.BROF = 1;
     this.adjustBEmpty();
     this.MSFF = 0;
     this.SALF = 1;
@@ -2554,7 +2564,7 @@ B5500Processor.prototype.enterCharModeInline = function() {
 
 /**************************************/
 B5500Processor.prototype.enterSubroutine = function(descriptorCall) {
-    /* Enters a subroutine via the present program descriptor in A as part
+    /* Enters a subroutine via the present Program Descriptor in A as part
     of an OPDC or DESC syllable. Also handles accidental entry */
     var aw = this.A;                    // local copy of word in A reg
     var bw;                             // local copy of word in B reg
@@ -2562,7 +2572,7 @@ B5500Processor.prototype.enterSubroutine = function(descriptorCall) {
     var mode = this.cc.bit(aw, 4);      // descriptor mode bit (1-char mode)
 
     if (arg && !this.MSFF) {
-        ; // just leave the PD on TOS
+        ; // just leave the Program Descriptor on TOS
     } else if (mode && !arg) {
         ; // ditto
     } else {
@@ -2577,6 +2587,7 @@ B5500Processor.prototype.enterSubroutine = function(descriptorCall) {
 
         // Push a RCW
         this.B = this.buildRCW(descriptorCall);
+        this.BROF = 1;
         this.adjustBEmpty();
 
         // Fetch the first word of subroutine code
@@ -2653,10 +2664,9 @@ B5500Processor.prototype.operandCall = function() {
     /* OPDC, the moral equivalent of "load accumulator" on lesser
     machines. Assumes the syllable has already loaded a word into A.
     See Figures 6-1, 6-3, and 6-4 in the B5500 Reference Manual */
-    var aw;                             // local copy of A reg value
+    var aw = this.A;                    // local copy of A reg value
     var interrupted = 0;                // interrupt occurred
 
-    aw = this.A;
     if (aw >= 0x800000000000) {
         // It's not a simple operand
         switch (this.cc.fieldIsolate(aw, 1, 3)) {
@@ -2698,12 +2708,6 @@ B5500Processor.prototype.operandCall = function() {
             // Miscellaneous control word -- leave as is
             break;
         }
-    }
-
-    // Reset variant-mode R-relative addressing, if enabled
-    if (this.VARF && !interrupted) {
-        this.SALF = 1;
-        this.VARF = 0;
     }
 };
 
@@ -2753,12 +2757,6 @@ B5500Processor.prototype.descriptorCall = function() {
             this.A = this.M + 0xA00000000000;
             break;
         }
-    }
-
-    // Reset variant-mode R-relative addressing, if enabled
-    if (this.VARF && !interrupted) {
-        this.SALF = 1;
-        this.VARF = 0;
     }
 };
 
@@ -2834,15 +2832,15 @@ B5500Processor.prototype.run = function() {
                         this.storeBviaS();              // [S] = B
                         this.BROF = 0;
                     }
+                    this.V = 0;
                     this.S = this.F - variant;
                     this.loadBviaS();                   // B = [S]
                     this.S = this.B % 0x8000;
-                    this.V = 0;
                     if (this.B >= 0x800000000000) {     // if it's a descriptor, 
                         this.K = 0;                     // force K to zero and
                         this.presenceTest(this.B);      // just take the side effect of any p-bit interrupt
                     } else {
-                        this.K = this.cc.fieldIsolate(this.B, 18, 3);
+                        this.K = (this.B % 0x40000) >>> 15;
                     }
                     break;
 
@@ -2990,7 +2988,7 @@ B5500Processor.prototype.run = function() {
                         this.storeBviaS();              // will skip off the current word,
                         this.BROF = 0;                  // so store and invalidate B
                     }
-                    t1 = this.S*8 + this.K - variant;
+                    t1 = this.S*8 + this.K + variant;
                     this.S = t1 >>> 3;
                     this.K = t1 & 0x07;
                     break;
@@ -3276,15 +3274,15 @@ B5500Processor.prototype.run = function() {
                     this.cycleCount += variant;
                     this.A = this.B;                    // save B
                     this.AROF = this.BROF;
+                    this.H = 0;
                     this.M = this.F - variant;
                     this.loadBviaM();                   // B = [M]
                     this.M = this.B % 0x8000;
-                    this.H = 0;
                     if (this.B >= 0x800000000000) {     // if it's a descriptor, 
                         this.G = 0;                     // force G to zero and
                         this.presenceTest(this.B);      // just take the side effect of any p-bit interrupt
-                    } else {
-                        this.G = this.cc.fieldIsolate(this.B, 18, 3);
+                    } else {                            // it's an operand
+                        this.G = (this.B % 0x40000) >>> 15;
                     }
                     this.B = this.A;                    // restore B from A
                     this.BROF = this.AROF;
@@ -3489,14 +3487,16 @@ B5500Processor.prototype.run = function() {
             case 2:                     // OPDC: Operand Call
                 this.adjustAEmpty();
                 this.computeRelativeAddr(opcode >>> 2, 1);
-                this.loadAviaM();                   // A = [M]
-                this.operandCall();
+                this.loadAviaM();                
+                if (this.A >= 0x800000000000) {                 // a small optimization for the 
+                    this.operandCall();                         // common case when TOS is an operand
+                }
                 break;
 
             case 3:                     // DESC: Descriptor (name) Call
                 this.adjustAEmpty();
                 this.computeRelativeAddr(opcode >>> 2, 1);
-                this.loadAviaM();                       // A = [M]
+                this.loadAviaM();                      
                 this.descriptorCall();
                 break;
 
@@ -3745,6 +3745,19 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x10:          // 2021: LOD=Load operand
+                        this.adjustAFull();
+                        if (this.A < 0x800000000000) {          // simple operand
+                            this.computeRelativeAddr(this.A, 1);
+                            this.loadAviaM();        
+                        } else if (this.A < 0xC00000000000) {   // absent descriptor
+                            if (this.NCSF) {
+                                this.I = (this.I & 0x0F) | 0x70;// set I05/6/7: p-bit
+                                this.cc.signalInterrupt();
+                            }
+                        } else {                                // present descriptor
+                            this.M = this.A % 0x8000;
+                            this.loadAviaM();
+                        }
                         break;
 
                     case 0x21:          // 4121: ISD=Integer store destructive
