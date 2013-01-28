@@ -20182,3 +20182,104 @@ BEGIN                                                                   28000200
          GO INITIATE;                                                   28018600        
     END;                                                                28018800        
     %***********************************************************        28019000        
+    BOOLEAN SUBROUTINE LABELCHECK;                                      28019200        
+    BEGIN                                                               28019400        
+    TRYNEXT:                                                            28019600        
+         P(WAITIO(LAB INX @120540000000,0,IU),DEL);                     28019800        
+ $ SET OMIT = NOT(B6500LOAD)                                            28020000        
+         IF @40!WAITIO(SPACER,@40,IU) THEN                              28021800        
+              P(WAITIO(@4740000050,0,IU),DEL);                          28022000        
+         IF DSED THEN ABORT;                                            28022200        
+         IF (NOT B6500 AND ((NFLAG(LAB[0]).[6:42] EQV "LABEL  ")!NOT 0  28022400        
+         OR (NFLAG(LAB[2]).[6:24] EQV "FILE")!NOT 0))                   28022600        
+ $ SET OMIT = NOT(B6500LOAD)                                            28022800        
+         THEN BEGIN                                                     28023600        
+              STREAM(A:=[TINU[IU]],T:=T:=SPACE(10));                    28023800        
+              BEGIN SI:=A;SI:=SI+5;DS:=LIT".";DS:=3 CHR;                28024000        
+                   DS:=21 LIT" NOT A LIBRARY TAPE~";                    28024200        
+              END;                                                      28024400        
+              SPOUT(T); T:=1;                                           28024600        
+              END ELSE T:=0;                                            28024800        
+         IF T=0 AND NOT B6500 THEN                                      28025000        
+         IF NFLAG(LAB[2]).[30:18]=0 AND SKIPDIR THEN                    28025200        
+         BEGIN                                                          28025400        
+         SPACITSW:=1; CHKLBL:=FALSE;                                    28025600        
+         GO TO BACK; %BRANCH INTO SPACIT.                               28025800        
+    BAC:                                                                28026000        
+         SPACITSW:=0; CHKLBL:=TRUE;                                     28026200        
+         GO TO TRYNEXT;                                                 28026400        
+         END;                                                           28026600        
+         LABELCHECK:=T;                                                 28026800        
+    END;                                                                28027000        
+    %***********************************************************        28027200        
+    SUBROUTINE FINDTHETAPE;                                             28027400        
+    BEGIN                                                               28027600        
+FINDIT:                                                                 28027800        
+         IF (IU:=FINDINPUT(NM1,NM2,IREEL,-0,0,0,0,0,1,FPBPTR)) < 0      28028000        
+          THEN ABORT:                                                   28028100        
+         NM1.UNITNUM:=0;                                           %148-28028110        
+         IREEL:=RDCTABLE[IU].[14:10]; %FORCE REEL CONTINUITY IF IL-ED.  28028200        
+         RRRMECH:=TWO(IU) OR RRRMECH;                                   28028400        
+         B6500:=PRNTABLE[IU].[2:1];                                     28028600        
+ $ SET OMIT = NOT(B6500LOAD)                                            28028800        
+         IF CHKLBL THEN IF LABELCHECK THEN                              28029400        
+         BEGIN                                                          28029600        
+              SETNOTINUSE(IU,1);                                        28029800        
+              GO FINDIT;                                                28030000        
+         END;                                                           28030200        
+%        STARTIMING(FPBPTR,IU);          DONE IN FINDINPUT              28030400        
+%        M[PRT[P1MIX,3] INX (5|IREEL+3)].[23:1] := 1;                   28030600        
+         RDCTABLE[IU].[8:6]:=P1MIX;                                     28030800        
+         STREAM (S:=PRNTABLE[IU].[18:30],T:=[T]);                       28031000        
+         BEGIN SI:=LOC S; DS:=8DEC; DI:=DI-7; DS:=6FILL; END;           28031200        
+ $ SET OMIT = PACKETS                                                   28031400        
+         FILEMESSAGE(" IN "&TINU[IU][6:30:18],T,                        28032000        
+                     NM1,NM2,IREEL,0,0,OPNMESS);                        28032200        
+    END; % OF FINDTHETAPE                                               28032400        
+    %***********************************************************        28032600        
+    BOOLEAN PROCEDURE ENDOFREEL;                                        28032800        
+    BEGIN                                                               28033000        
+         BLASTQ(IU);                                                    28033200        
+         IF P(WAITIO(LAB INX @120540000000,@2000040,IU),DUP)=@20 THEN   28033400        
+         BEGIN % PAR OR ENDING LABEL:TEST FOR LAST FILE ON TAPE(EOF)    28033600        
+              LAB[4]:=(*P(DUP))&(WAITIO(SPACER,@40,IU)=@40)[47:47:1];   28033800        
+              P(WAITIO(5&@3400[CTF],@377,IU),DEL);                      28034000        
+         END;                                                           28034200        
+ $ SET OMIT = NOT(B6500LOAD)                                            28034400        
+         NT1:=P;                                                        28036000        
+         IF DSED THEN ABORT;                                            28036200        
+         IF ((NOT B6500) AND NFLAG(LAB[4]) AND NT1!@40)                 28036400        
+ $ SET OMIT = NOT(B6500LOAD)                                            28036600        
+         THEN BEGIN                                                     28037200        
+              STOPTIMING(FPBPTR,1023);%                                 28037400        
+              SETNOTINUSE(IU,0);                                        28037600        
+              IREEL:=IREEL+1;                                           28037800        
+ $ SET OMIT = NOT(B6500LOAD);                                           28038000        
+              NM2:=LAB[2];                                              28039200        
+              NM1:=LAB[1];                                              28039400        
+              FINDTHETAPE;                                              28039600        
+              ENDOFREEL:=TRUE;                                          28039800        
+              END ELSE ENDOFREEL:=FALSE;                                28040000        
+    END;      %    OF SUBROUTINE ENDOFREEL                              28040200        
+    %*******************************************************************28040400        
+    SUBROUTINE WRITENDINGLABEL;                                         28040600        
+    BEGIN                                                               28040800        
+         P(WAITIO([TM],@40,OU),DEL);                                    28041000        
+         P(WAITIO(LBL&@5000[CTF],@40,OU),DEL);                          28041400        
+         IF DSED THEN ABORT;                                            28041600        
+    END; % OF WRITE ENDING LABEL                                        28041800        
+    %***********************************************************        28042000        
+    SUBROUTINE SPACIT;%                                                 28042200        
+    BEGIN                                                               28042400        
+ BACK:   WHILE WAITIO(SPACER,MN,IU)!@40 DO                              28042600        
+         BEGIN                                                          28042800        
+              IF DSED THEN ABORT;                                       28043000        
+              IF STOPSET(P1MIX) THEN STOPM(0);                          28043200        
+         END;                                                           28043400        
+         IF ENDOFREEL AND NOT SPACITSW THEN GO BACK;                    28043600        
+         IF SPACITSW THEN GO TO BAC; %BRNACH TO LABELCHECK ELSE EXIT    28043800        
+    END;                                                                28044000        
+    %*******************************************************************28044200        
+    SUBROUTINE SHORTHEADER;                                             28044400        
+    BEGIN                                                               28044600        
+          P(WAITIO(H&@5000[CTF]&20[8:38:10],@40,OU),DEL);               28044800        
