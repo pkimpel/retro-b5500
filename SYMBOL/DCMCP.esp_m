@@ -20283,3 +20283,104 @@ FINDIT:                                                                 28027800
     SUBROUTINE SHORTHEADER;                                             28044400        
     BEGIN                                                               28044600        
           P(WAITIO(H&@5000[CTF]&20[8:38:10],@40,OU),DEL);               28044800        
+          WRITENDINGLABEL;                                              28045000        
+    END;                                                                28045200        
+    %********************************************************           28045400        
+    SUBROUTINEBACKSPACIT;                                               28045600        
+    BEGIN                                                               28045800        
+         WHILE WAITIO(BACKSPACER,MM,OU) ! @40 DO                        28046000        
+         BEGIN                                                          28046200        
+              IF DSED THEN ABORT;                                       28046400        
+              IF STOPSET(P1MIX) THEN STOPM(0);                          28046600        
+         END;                                                           28046800        
+         P(WAITIO([TM],@40,OU),DEL);         % WRITE THE TM BACK        28047000        
+    END;                                                                28047200        
+    %*******************************************************************28047400        
+    BOOLEAN SUBROUTINE NOTLOADINGFROMREEL1;                             28047600        
+    BEGIN %SKIP LAST PORTION OF FILE FROM PREVIOUS REEL                 28047800        
+         SPACIT;                                                        28048000        
+         IF LABELCHECK THEN P(0) ELSE                                   28048200        
+          IF (NFLAG(LAB[2]) EQV "FILE000") = NOT 0 THEN                 28048400        
+             BEGIN REEL1START:=FALSE; P(1) END ELSE P(0);               28048600        
+         NOTLOADINGFROMREEL1:=P;                                        28048800        
+    END;                                                                28049000        
+    %*******************************************************            28049200        
+    P(Z,RCW,MSCW,STF); RCW:=HCW&P(XCH)[CTC];                            28049400        
+    TEMP:=P; FROMCOPY:=(TEMP=0) OR (TEMP=3) OR (TEMP=4)                 28049600        
+    GO TO SWIT[TEMP];                                                   28049800        
+ CASE0:                                                                 28050000        
+ CASE3:                                                                 28050100        
+    TMP:=PRT[P1MIX,3];                                                  28050200        
+    FPBPTR:=FPBPTR+5;                                                   28050400        
+    IF FPTPTR GTR 5 THEN                                                28050600        
+     BEGIN TMP:=GETSPACE(FPBPTR+ETRLNG,FPBAREAV,1)+2;%             %167-28050800        
+     MOVE(FPBPTR,PRT[P1MIX,3],TMP);                                     28051000        
+     FORGETSPACE(PRT[P1MIX,3].[CF]);                                    28051200        
+     NFO[(P1MIX-1)|NDX]:=PRT[P1MIX,3]:=                                 28051400        
+      [M[TMP]]&(FPBPTR+ETRLNG)[8:38:10];                                28051600        
+     END;                                                               28051800        
+    IF TEMP=3                                                           28052000        
+     THEN BEGIN                                                         28052200        
+          STREAM(B:=TMP INX FPBPTR);                                    28052400        
+           BEGIN DS:=16LIT"0DIRCTRY0DISK   "; DS:=24LIT"0"; END;        28052600        
+          STARTIMING(FPBPTR,18);                                        28052800        
+          GO EXIT;                                                      28053000        
+          END                                                           28053200        
+     ELSE                                                               28053400        
+     STREAM(NM1:=NM1:=CCA[CCAIN+1],B:=(TMP INX FPBPTR));                28053600        
+     BEGIN DS:=LIT"0"; SI:=LOC NM1; SI:=SI+1; DS:=7CHR;                 28053800        
+           DS:=8LIT"0FILE000"; DS:=24LIT"0";                            28054000        
+     END;                                                               28054200        
+    IREEL:=1;                                                           28054400        
+    NM1:=CCA[CCAIN+1];                                                  28054600        
+    NM2:="FILE000";                                                     28054800        
+    REEL1START:=TRUE; CHKLBL:=TRUE;                                     28055000        
+TRYAGAIN: FINDTHETAPE;                                                  28055200        
+ $ SET OMIT = NOT(B6500LOAD)                                            28055400        
+    IF NM2!LAB[2] OR IREEL!1 THEN                                       28056000        
+     IF NOT NOTLOADINGFROMREEL1 THEN                                    28056200        
+         BEGIN STREAM(A:=[TINU[IU]],T:=T:=SPACE(10));                   28056400        
+               BEGIN SI:=A;SI:=SI+5;DS:=LIT".";DS:=3CHR;                28056600        
+                     DS:=20 LIT" NOT A LIBRARY TAPE";                   28056800        
+                     DS:=LIT"~";                                        28057000        
+               END;                                                     28057200        
+               SPOUT(T); SETNOTINUSE(IU,1);                             28057400        
+               IREEL:=1;                                                28057600        
+               GO TO TRYAGN;                                            28057800        
+         END;                                                           28058000        
+    NM1:=LAB[1];                                                        28058200        
+    SKIPDIR:=TRUE;                                                      28058400        
+    X:=[M[T:=SPACE(1024)]]&1023[8:38:10];                               28058600        
+    P(WAITIO((                                                          28058800        
+ $ SET OMIT = NOT(B6500LOAD)                                            28059000        
+              X)&@5400[CTF],0,IU),DEL);                                 28059600        
+ $ SET OMIT = NOT(B6500LOAD)                                            28059800        
+    IF DSED THEN ABORT;                                                 28061800        
+    X:=[M[GETSPACE(DA:=M[T-1],0,1)+2]]&DA[8:38:10]; % RET XTRA SPACE    28062000        
+    MOVE(DA,T,X);                                   % AND MAKE X SAVE   28062200        
+    FORGETSPACE(T);                                                     28062400        
+    CHKLBL:=FALSE;                                                      28062600        
+    TMP:=0;                                                             28062800        
+    IF @40=WAITIO(LAP INX @120540000000,@40,IU) THEN                    28063000        
+    IF B6500 THEN P(WAITIO(LAB INX @120540000000,0,IU),DEL) ELSE        28063200        
+              TMP:=ENDOFREEL;                                           28063400        
+    IF NOT TMP THEN% CECK ENDING LABEL IF NOT LAST FILE OR B6500LOAD    28063600        
+    IF ((NOT B6500) AND (NFLAG(LAB[1])EQV NM1)!NOT 0 OR                 28063800        
+        (NFLAG(LAB[2]) EQV "FILE000")!NOT 0)                            28064000        
+ $ SET OMIT = NOT(B6500LOAD)                                            28064200        
+    THEN BEGIN STREAM(A:=[TINU[IU]],TMP:=TMP:=SPACE(10));               28065000        
+         BEGIN SI := A; SI := SI+5; DS := LIT"."; DS := 3 CHR;          28065200        
+               DS := 29 LIT " BAD FILE000 ON LIBRARY TAPE~";            28065400        
+         END;      SPOUT (TMP); ABORT;                                  28065600        
+    END;                                                                28065800        
+    CHKLBL:=TRUE;                                                       28066000        
+ $ SET OMIT = NOT(B6500LOAD)                                            28066200        
+    GO EXIT;                                                            28067000        
+CASE1:                                                                  28067200        
+    FINDTHETAPE; GO EXIT;                                               28067400        
+CASE2: % FROM LIBRARYTRANSFER                                           28067600        
+CASE4: % FROM LIBRARYCOPY                                               28067800        
+    ABORT;                                                              28068000        
+CASE5:                                                                  28068200        
+    OU:=IU:=-1; DS:=@77777; % INITIALIZE                                28068400        
+    FPBPTR:=0;                                                          28068600        
