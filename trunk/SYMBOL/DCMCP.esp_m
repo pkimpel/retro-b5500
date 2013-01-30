@@ -20364,7 +20364,7 @@ TRYAGAIN: FINDTHETAPE;                                                  28055200
     IF @40=WAITIO(LAP INX @120540000000,@40,IU) THEN                    28063000        
     IF B6500 THEN P(WAITIO(LAB INX @120540000000,0,IU),DEL) ELSE        28063200        
               TMP:=ENDOFREEL;                                           28063400        
-    IF NOT TMP THEN% CECK ENDING LABEL IF NOT LAST FILE OR B6500LOAD    28063600        
+    IF NOT TMP THEN% CHECK ENDING LABEL IF NOT LAST FILE OR B6500LOAD   28063600        
     IF ((NOT B6500) AND (NFLAG(LAB[1])EQV NM1)!NOT 0 OR                 28063800        
         (NFLAG(LAB[2]) EQV "FILE000")!NOT 0)                            28064000        
  $ SET OMIT = NOT(B6500LOAD)                                            28064200        
@@ -20384,3 +20384,103 @@ CASE4: % FROM LIBRARYCOPY                                               28067800
 CASE5:                                                                  28068200        
     OU:=IU:=-1; DS:=@77777; % INITIALIZE                                28068400        
     FPBPTR:=0;                                                          28068600        
+    CHKLBL:=TRUE; SKIPDIR:=TRUE;                                        28068800        
+    IOD:=[M[GETSPACE(6,0,1)+2]]&2[8:38:10];                             28069000        
+    WRDSZ:=4 INX IOD;                                                   28069200        
+    AROW:=2 INX IOD;                                                    28069400        
+    AROW[0]:=[M[GETSPACE(902,0,1)+2]]&901[8:38:10];                     28069600        
+    AROW[1]:=AROW[0]&(GETSPACE(902,0,1)+2)[CTC];                        28069800        
+    H:=[M[TYPEDSPACE(42,DISKHEADERAREAV))] & 30[8:38:10];%         %167-28070000        
+         IF DESTIN.UNITNUM = 19 THEN                               %148-28070200        
+     BEGIN                                                              28070400        
+     COMMON:=IF DESTIN.[42:6] NEQ 0 THEN DESTIN OR M ELSE               28070600        
+             IF DESTIN.[40:1] THEN 1 OR M ELSE                          28070800        
+             IF DESTIN.[41:1] THEN 2 OR M ELSE 0;                       28071000        
+     OU:=18;                                                            28071200        
+     STREAM(B:=PRT[P1MIX],3] INX 0);                                    28071400        
+      BEGIN DS:=16LIT"0DIRCTRY0DISK   "; DS:=24LIT"0"; END;             28071600        
+     STARTIMING(0,OU);                                                  28071800        
+     END                                                                28072000        
+     ELSE                                                               28072200        
+     BEGIN OREEL:=1;                                                    28072400        
+     TM:=0&"}~"[1:37:11];                                               28072600        
+     LBL:=[M[TAPELABEL(DESTIN,NM2:-"FILE000",1,1,100)]]&10[8:38:10];    28072800        
+     IF (OU:=LABELASCRATCH(LBL)) LSS 0 THEN ABORT;                      28073000        
+     STREAM(N:=DESTIN,B:=PRT[P1MIX,3] INX 0);                           28073200        
+      BEGIN DS:=LIT"0"; SI:=LOC N; SI:=SI+1; DS:=7CHR;                  28073400        
+            DS:=8LIT"0FILE000"; DS:=24LIT"0";                           28073600        
+      END;                                                              28073800        
+     STARTIMING(0,OU);                                                  28074000        
+     PRNTABLE[OU]:=(*P(DUP)) & (IOD)[15:33:15];                         28074050        
+     SV:=M[FAINFO];                                                     28074200        
+     M[FA+FASZ]:=@14; % TO REMIAN COMPATIBLE WITH EARLIER MCPS          28074400        
+     P(WAITIO(FA&(FASZ+I)[8:38:10]&@5000[CTF],@40,OU),DEL);             28074600        
+     M[FAINFO]:=SV;                                                     28074800        
+     WRITENDINGLABEL;                                                   28075000        
+     END;                                                               28075200        
+    GO EXIT;                                                            28075400        
+CASE6:                                                                  28075600        
+    IF Y.[7:1] AND Y.[27:1] THEN % END OF TAPE                          28075800        
+     IF Y.[24:1]                                                        28076000        
+      THEN                      % EOF ON SOURCE                         28076200        
+       BEGIN                                                            28076400        
+        IF NOT ENDOFREEL THEN                                           28076600        
+         BEGIN                                                          28076800        
+         P(WAITIO(@4740000020,@377,IU),DEL);                            28077200        
+         TEMP:=-1; % FOR NOTCOPIED MESSAGE AT P1                        28077400        
+         IOD[1]:=IOD[0]:=IOMASK; GO P1;                                 28077600        
+         END;                                                           28077800        
+        IF WAITIO(IOD[W] INX @16040540000000,SM,IU) NEQ 0               28078000        
+         THEN GO P1;                                                    28078200        
+        IF IOD[1-W].[7:1] AND Y.[3:4]=IOD[1-W].[3:4] THEN               28078400        
+         BEGIN                                                          28078600        
+         IF WAITIO(IOD[1-W],SM,IU) NEQ 0 THEN GO P1;                    28078800        
+         IOD[1-W]:=(*P(DUP)) OR IOMASK;                                 28079000        
+         END;                                                           28079200        
+       END                                                              28079400        
+      ELSE                                                              28079600        
+       BEGIN                    % EOT ON DESTINATION                    28079800        
+        IF IOD[1-W].[7:1] AND Y.[3:4]=IOD[1-W].[3:4] THEN               28080000        
+         BEGIN                                                          28080200        
+         SLEEP([IOD[1-W]],IOMASK);                                      28080400        
+         IF IOD[1-W].[28:1] THEN GO P3;                                 28080600        
+         IOD[1-W].[27:1]:=0;                                            28080800        
+         END;                                                           28081000        
+TAPEPAR:LBL[4]:=(*P(DUP)) OR 1;                                         28081200        
+        IF LBL[2].[30:18]=0 THEN %FILE000 LAST FILE                     28081400        
+        STREAM(A:=J+2,B:=[LBL[2]]);                                     28081600        
+        BEGIN SI:=LOC A; DI:=DI+5; DS:=3 DEC END;                       28081800        
+        P(WAITIO([TM],@40,OU),DEL);                                     28082000        
+        P(WAITIO(LBL&@5000[CTF],@40,OU),DEL);                           28082200        
+        P(WAITIO([TM],@40,OU),DEL);                                     28082400        
+        STOPTIMING(0,1023);                                             28082600        
+        SETNOTINUSE(OU,1);                                              28082800        
+        LBL[4]:=(*P(DUP)) AND NOT(1);                                   28083000        
+        STREAM(OREEL:=OREEL:=OREEL+1,LBL);                              28083200        
+        BEGIN SI:=LOC OREEL;                                            28083400        
+         DI:=DI+24; DS:=3 DEC;                                          28083600        
+        END;                                                            28083800        
+        IF (OU:=LABELASCRATCH(LBL)) LSS 0 THEN                          28084000        
+         BEGIN COPYING:=FALSE; ABORT; END;                              28084100        
+        STARTIMING(0,OU);                                               28084200        
+        PRNTABLE[OU]:=(*P(DUP)) & (IOD)[15:33:15];                      28084250        
+        DUMPDIR:=TRUE; %DUMP DIRECTORY                                  28084400        
+       END                                                              28084600        
+     ELSE                                                               28084800        
+     IF Y.[7:1] % TAPE PARITY                                           28085000        
+     THEN IF Y.[24:1]                                                   28085200        
+           THEN BEGIN % PARITY ON INPUT TAPE                            28085400        
+P1:             COMPLEXSLEEP((((IOD[0] AND IOD[1]) AND IOMASK) NEQ 0)   28085600        
+                              OR DSED);                                 28085800        
+                NOTCOPIED)27+((TEMP=10)|12)+((TEMP=(-1))|6));           28086000        
+                IF DSED THEN ABORT;                                     28086200        
+                SKIPFILE:=TRUE;                                         28086400        
+P2:             BLASTQ(IU);                                             28086600        
+                P(WAITIO(@4740000020,@377,IU),DEL);                     28086800        
+                IF J NEQ ((FASZ DIV 2)-1) THEN SPACIT;                  28087000        
+                IF OU=18                                                28087200        
+                 THEN P(DIRECTORYSEARCH(MFID,FID,6),DEL)                28087400        
+                 ELSE BEGIN                                             28087600        
+                      BACKSPACIT;                                       28087800        
+                      SHORTHEADER;                                      28088000        
+                      END;                                              28088200        
