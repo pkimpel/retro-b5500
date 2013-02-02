@@ -20484,3 +20484,69 @@ P2:             BLASTQ(IU);                                             28086600
                       BACKSPACIT;                                       28087800        
                       SHORTHEADER;                                      28088000        
                       END;                                              28088200        
+                END                                                     28088400        
+           ELSE BEGIN % PARITY ON OUTPUT TAPE                           28088600        
+P3:             IF IU LSS 16                                            28088800        
+                 THEN BEGIN                                             28089000        
+                      WHILE WAITIO(BACKSPACER,MM,IU) NEQ @40 DO         28089200        
+                       BEGIN                                            28089400        
+                       IF DSED THEN ABORT;                              28089600        
+                       IF STOPSET(P1MIX) THEN STOPM(0);                 28089800        
+                       END;                                             28090000        
+                      P(WAITIO(SPACER,@40,IU),DEL); % READ TM           28090200        
+                   P(WAITIO((*[AROW[0]])&@5400[CTF],@2000000,IU),DEL);  28090400        
+ $ SET OMIT = NOT (B6500LOAD)                                           28090600        
+                   IF M[AROW[0] INX NOT 0] NEQ 30 THEN ABORT;           28091200        
+                      END;                                              28091400        
+                BACKSPACIT;                                             28091600        
+                P(WAITIO(H&@5000[CTF],@40,OU),DEL);                     28091800        
+                OUTAPEPARITY:=TRUE;                                     28092000        
+                GO TAPEPAR;                                             28092200        
+                END                                                     28092400        
+     ELSE BEGIN % DISK PARITY                                           28092600        
+          SKIPFILE:=TRUE;                                               28092800        
+          BACKSPACIT;                                                   28093000        
+          SHORTHEADER;                                                  28093200        
+          NOTCOPIED(35);                                                28093400        
+          P(DIRECTORYSEARCH(-DA.[FF]),13,20),DEL);                      28093600        
+          M[FAINFO+J].[17:1]:=1; % MARK CLOSED FOR ABORT                28093800        
+          M[FAINFO+J].[8:1]:=0; % DONT REMOVE IF UNLOAD            %757-28093900        
+          END;                                                          28094000        
+    GO EXIT;                                                            28094200        
+CASE7:                                                                  28094400        
+    P(M[FA+1],M[FA]); % SAVE NAME FOR UNLOAD                       %757-28094500        
+    M[FA]:=@114; M[FA+1]:=(J+1)|2;%FLAG [0], OFFSET [1]                 28094600        
+    LBL[2].[30:18]:=0; %FILE000                                         28094800        
+    P(WAITIO(LBL&@5000[CTF],@40,OU),DEL);                               28095000        
+    P(WAITIO([TM],@40,OU),DEL);                                         28095400        
+    IF DSED THEN ABORT;                                                 28095600        
+    IOD[0]:=0; W:=1; SIZE:=FASZ+1;                                      28095800        
+    TMP:=M[FA+FASZ]; M[FA+FASZ]:=@14;                                   28096000        
+    IOREQUEST(-(IOD[W]:=(FA INX @500000000)&                            28096200        
+                SIZE[8:38:10]&TINU[OU][3:3:5]) OR @2017700000,          28096400        
+              IOD[W],[IOD[W]]&OU[12:42:6]);                             28096600        
+    COMPLEXSLEEP((((IOD[W]) AND IOMASK)+0) OR DSED);                    28096800        
+    M[FA+FASZ]:=TMP;                                                    28097000        
+    NT1:=P; M[FA]:=NT1; M[FA+1]:=P(XCH); % REPLACE NAMES           %757-28097100        
+    IF DSED THEN ABORT;                                                 28097200        
+    GO EXIT;                                                            28097400        
+CASE9:                                                                  28097600        
+         IF DESTIN.UNITNUM = 19                                    %148-28097800        
+     THEN GO ST                                                         28098000        
+     ELSE BEGIN                                                         28098200        
+          SHORTHEADER;                                                  28098400        
+          IF IU=18 THEN                                                 28098600        
+           BEGIN                                                        28098800        
+           P(DIRECTORYSEARCH(-(DA.[FF]),13,20),DEL);                    28099000        
+           M[FAINFO+J].[17:1]:=1; % MARK CLOSED FOR ABORT               28099200        
+           END     ELSE                                                 28099400        
+           BEGIN                                                        28099600        
+ST:        H[2]:=LAB[2];                                                28099800        
+           SPACIT;                                                      28100000        
+           IF H[2] NEQ LAB[2] THEN ABORT;                               28100200        
+           END;                                                         28100400        
+          END;                                                          28100600        
+    NOTCOPIED(43);                                                      28100800        
+    GO EXIT;                                                            28101000        
+EXIT: P(0,RDS,0,XCH,P&P[CTF],STF);                                      28101200        
+END OF LIBRARYHELP;                                                     28101400        
