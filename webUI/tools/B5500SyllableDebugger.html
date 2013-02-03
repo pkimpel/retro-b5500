@@ -41,6 +41,163 @@ var BICtoANSI = [
         " ", "/", "S", "T", "U", "V", "W", "X",
         "Y", "Z", ",", "%", "!", "=", "]", "\""];
 
+var wordOps = {
+     "0000": "LITC"     // Literal Call (XXX0 or XXX4)
+    ,"0002": "OPDC"     // Operand Call (XXX2 or XXX6)
+    ,"0003": "DESC"     // Descriptor Call (XXX3 or XXX7)
+    ,"0101": "ADD "     // Single Precision Add
+    ,"0301": "SUB "     // Single Precision Subtract
+    ,"0401": "MUL "     // Single Precision Multiply
+    ,"1001": "DIV "     // Single Precision Divide
+    ,"3001": "IDV "     // Integer Divide
+    ,"7001": "RDV "     // Remainder Divide
+    ,"0105": "DLA "     // Double Precision Add
+    ,"0305": "DLS "     // Double Precision Subtract
+    ,"0405": "DLM "     // Double Precision Multiply
+    ,"1005": "DLD "     // Double Precision Divide
+    ,"0111": "PRL "     // Program Release
+    ,"0211": "ITI "     // Interrogate Interrupt
+    ,"0411": "RTR "     // Read Timer
+    ,"1011": "COM "     // Communicate
+    ,"2111": "IOR "     // I/O Release
+    ,"2211": "HP2 "     // Halt P2
+    ,"2411": "ZPI "     // Conditional Halt
+    ,"3011": "SFI "     // Store for Interrupt
+    ,"3411": "SFT "     // Store for Test
+    ,"4111": "IP1 "     // Initiate P1
+    ,"4211": "IP2 "     // Initiate P2
+    ,"4411": "IIO "     // Initiate I/O
+    ,"5111": "IFT "     // Initiate For Test
+    ,"0115": "LNG "     // Logical Negate
+    ,"0215": "LOR "     // Logical OR
+    ,"0415": "LND "     // Logical AND
+    ,"1015": "LQV "     // Logical EQV (Equivalence)
+    ,"2015": "MOP "     // Reset Flag Bit (Make Operand)
+    ,"4015": "MDS "     // Set Flag Bit (Make Descriptor)
+    ,"0121": "CID "     // Conditional Integer Store Destructive
+    ,"0221": "CIN "     // Conditional Integer Store Non-Destructive
+    ,"0421": "STD "     // B Store Destructive
+    ,"1021": "SND "     // B Store Non-Destructive
+    ,"2021": "LOD "     // Load
+    ,"4121": "ISD "     // Integer Store Destructive
+    ,"4221": "ISN "     // Integer Store Non-Destructive
+    ,"0125": "GEQ "     // B Greater Than or Equal To A
+    ,"0225": "GTR "     // B Greater Than A
+    ,"0425": "NEQ "     // B Not Equal To A
+    ,"1025": "XCH "     // Exchange
+    ,"1425": "FTC "     // F Field To Core Field
+    ,"2025": "DUP "     // Duplicate
+    ,"3425": "FTF "     // F Field To F Field
+    ,"4125": "LEQ "     // B Less Than or Equal To A
+    ,"4225": "LSS "     // B Less Than A
+    ,"4425": "EQL "     // B Equal To A
+    ,"5425": "CTC "     // Core Field to C Field
+    ,"7425": "CTF "     // Core Field To F Field
+    ,"0131": "BBC "     // Branch Backward Conditional
+    ,"0231": "BFC "     // Branch Forward Conditional
+    ,"0431": "SSN "     // Set Sign Bit
+    ,"1031": "CHS "     // Change Sign Bit
+    ,"2031": "TOP "     // Test Flag Bit (Test Operand)
+    ,"2131": "LBC "     // Branch Backward Word Conditional
+    ,"2231": "LFC "     // Branch Forward Word Conditional
+    ,"2431": "TUS "     // Interroage Peripheral Status
+    ,"4131": "BBW "     // Branch Backward Unconditional
+    ,"4231": "BFW "     // Branch Forward Unconditional
+    ,"4431": "SSP "     // Reset Sign Bit
+    ,"6131": "LBU "     // Branch Backward Word Unconditional
+    ,"6231": "LFU "     // Branch Forward Word Unconditional
+    ,"6431": "TIO "     // Interrogate I/O Channel
+    ,"7031": "FBS "     // Stack Search For Flag
+    ,"0135": "BRT "     // Branch Return
+    ,"0235": "RTN "     // Return Normal
+    ,"0435": "XIT "     // Exit
+    ,"1235": "RTS "     // Return Special
+    ,"0141": "INX "     // Index
+    ,"0241": "COC "     // Construct Operand Call
+    ,"0441": "MKS "     // Mark Stack
+    ,"1241": "CDC "     // Construct Descriptor Call
+    ,"2141": "SSF "     // F & S Register Set/Store
+    ,"2541": "LLL "     // Link List Lookup
+    ,"4441": "CMN "     // Enter Character Mode In-line
+    ,"XX45": "ISO "     // Variable Field Isolate (XX45)
+    ,"0051": "DEL "     // Delete
+    ,"X051": "CFN "     // Branch Forward Non-Destructive (X051 or X451)
+    ,"X151": "CBN "     // Branch Backward Non-Destructive (X151 or X551)
+    ,"X251": "CFD "     // Branch Forward Destructive (X251 ot X651)
+    ,"X351": "CBD "     // Branch Backward Destructive (X351 or X751)
+    ,"0055": "NOP "     // No Operation (DIA 0)
+    ,"XX55": "DIA "     // Dial A (XX55)
+    ,"0061": "VARI"     // Set Full R-Relative Address Mode (DIB 0)
+    ,"XX61": "DIB "     // Dial B (XX61)
+    ,"XX65": "TRB "     // Transfer Bits (XX65)
+    ,"XX71": "FCL "     // Compare Field Low (XX71)
+    ,"XX75": "FCE "     // Compare Field Equal (XX75)
+};
+
+var charOps = {
+     "0000": "EXC "     // Exit character mode
+    ,"0100": "CMX "     // In-line character mode exit
+    ,"0002": "BSD "     // Skip Bit Destination
+    ,"0003": "BSS "     // Skip Bit Source
+    ,"0004": "RDA "     // Recall Destination Address
+    ,"0005": "TRW "     // Transfer Words
+    ,"0006": "SED "     // Set Destination Address
+    ,"0007": "TDA "     // Transfer Destination Address
+    ,"2411": "ZPI "     // Conditional Halt
+    ,"3011": "SFI "     // Store for Interrupt
+    ,"3411": "SFT "     // Store for Test
+    ,"0012": "TBN "     // Transfer Blank for Non-Numerics
+    ,"0014": "SDA "     // Store Destination Address
+    ,"0015": "SSA "     // Store Source Address
+    ,"0016": "SFD "     // Skip Forward Destination
+    ,"0017": "SRD "     // Skip Reverse Destination
+    ,"0022": "SES "     // Set Source Address
+    ,"0024": "TEQ "     // Test For Equal
+    ,"0025": "TNE "     // Test For Not Equal
+    ,"0026": "TEG "     // Test For Greater or Equal
+    ,"0027": "TGR "     // Test For Greater
+    ,"0030": "SRS "     // Skip Reverse Source
+    ,"0031": "SFS "     // Skip Forward Source
+    ,"0032": "FSUX"     // Field Subtract (AUX)
+    ,"0033": "FADX"     // Field Add (AUX)
+    ,"0034": "TEL "     // Test For Equal or Less
+    ,"0035": "TLS "     // Test For Less
+    ,"0036": "TAN "     // Test For Alphanumeric
+    ,"0037": "BIT "     // Test Bit
+    ,"0040": "INC "     // Increase Tally
+    ,"0041": "STC "     // Store Tally
+    ,"0042": "SEC "     // Set Tally
+    ,"0043": "CRF "     // Call Repeat Field
+    ,"0044": "JNC "     // Jump Out of Loop Conditional
+    ,"0045": "JFC "     // Jump Forward Conditional
+    ,"0046": "JNS "     // Jump Out of Loop
+    ,"0047": "JFW "     // Jump Forward Unconditional
+    ,"0050": "RCA "     // Recall Control Address
+    ,"0051": "ENS "     // End Loop
+    ,"0052": "BNS "     // Begin Loop
+    ,"0053": "RSA "     // Recall Source Address
+    ,"0054": "SCA "     // Store Control Address
+    ,"0055": "JRC "     // Jump Reverse Conditional
+    ,"0056": "TSA "     // Transfer Source Address
+    ,"0057": "JRV "     // Jump Reverse Unconditional
+    ,"0060": "CEQ "     // Compare Equal
+    ,"0061": "CNE "     // Compare Not Equal
+    ,"0062": "CEG "     // Compare Greater or Equal
+    ,"0063": "CGR "     // Compare Greater
+    ,"0064": "BIS "     // Set Bit
+    ,"0065": "BIR "     // Reset Bit
+    ,"0066": "OCV "     // Output Convert
+    ,"0067": "ICV "     // Input Convert
+    ,"0070": "CEL "     // Compare Equal or Less
+    ,"0071": "CLS "     // Compare Less
+    ,"0072": "FSU "     // Field Subtract
+    ,"0073": "FAD "     // Field Add
+    ,"0074": "TRP "     // Transfer Program Characters
+    ,"0075": "TRN "     // Transfer Numerics
+    ,"0076": "TRZ "     // Transfer Zones
+    ,"0077": "TRS "     // Transfer Source Characters
+};
+
 function $$(id) {
     return document.getElementById(id);
 }
@@ -121,9 +278,125 @@ function padOctal(value, octades) {
     var text = value.toString(8);
     var len = text.length;
 
-    while (len++ < octades) {
-        text = "0" + text;
+    if (value >= 0) {
+        while (len++ < octades) {
+            text = "0" + text;
+        }
     }
+    return text;
+}
+
+function decodeSyllable(syllable, mode, level, msff) {
+    /* Decodes the B5500 operator "syllable" and returns a string formatted with the mnemonic description of that syllable.
+    "mode" indicates word (0) or character (1) mode.
+    "level" indicates program (0) or subroutine (1) level.
+    "msff" indicates whether MSFF is set (mark-stack pending) */
+    var opcode = padOctal(syllable, 4);
+    var text = opcode + " = ";
+    var v;
+
+    function decodeRelativeAddress(value, level, msff) {
+        var text;
+
+        if (!level) {
+            text = "R+" + padOctal(value, 4);
+        } else if (value < 512) {
+            text = "R+" + padOctal(value, 3);
+        } else if (value%512 < 256) {
+            if (msff) {
+                text = "[R+7].[18:32]+" + padOctal(value%256, 3);
+            } else {
+                text = "F+" + padOctal(value%256, 3);
+            }
+        } else if (value%256 < 128) {
+            text = "C+" + padOctal(value%128, 3);
+        } else {
+            if (msff) {
+                text = "[R+7].[18:32]-" + padOctal(value%256, 3);
+            } else {
+                text = "F-" + padOctal(value%256, 3);
+            }
+        }
+        return text;
+    }
+
+    if (mode) {                         // CHARACTER MODE
+        v = syllable >>> 6;
+        switch (syllable % 64) {
+        case 0:
+            if (v == 1) {
+                text += charOps[opcode];
+            } else {
+                text += charOps["0000"];
+            }
+            break;
+        case 9:
+            text += wordOps[opcode];
+            break;
+        default:
+            text += charOps[padOctal(syllable % 64, 4)] + " " + padOctal(v, 2) + " (" + v + ")";
+            break;
+        } // switch on lower half of char-mode syllable
+
+    } else {                            // WORD MODE
+        switch (syllable % 4) {
+        case 0:                         // LITC: literal call
+            v = syllable >>> 2;
+            text += wordOps["0000"] + " " + padOctal(v, 4) + " (" + v + ")";
+            break;
+        case 2:                         // OPDC: operand call
+            v = syllable >>> 2;
+            text += wordOps["0002"] + " " + padOctal(v, 4) + " (" +
+                    decodeRelativeAddress(v, level, msff) + ")";
+            break;
+        case 3:                         // DESC: descriptor call
+            v = syllable >>> 2;
+            text += wordOps["0003"] + " " + padOctal(v, 4) + " (" +
+                    decodeRelativeAddress(v, level, msff) + ")";
+            break;
+        case 1:                         // all other operators
+            v = syllable >>> 6;
+            switch (syllable % 64) {
+            case 37:                    // XX45: ISO
+                text += wordOps["XX45"] + " (" + ((v >>> 3)*6 - v%8) + ")";
+                break;
+            case 41:                    // XX51: DEL, CFN, CBN, CFD, CBD
+                if (v == 0) {
+                    text += wordOps[opcode];
+                } else {
+                    v = v >>> 2;
+                    text += wordOps["X" + padOctal(syllable & 0xFF, 3)] + " (" + v + ")";
+                }
+                break;
+            case 45:                    // XX55: NOP, DIA
+                if (v == 0) {
+                    text += wordOps[opcode];
+                } else {
+                    text += wordOps["XX55"] + " (" + ((v >>> 3)*8 + v%8) + ")";
+                }
+                break;
+            case 49:                    // XX61: VARI, DIB
+                if (v == 0) {
+                    text += wordOps[opcode];
+                } else {
+                    text += wordOps["XX61"] + " (" + ((v >>> 3)*8 + v%8) + ")";
+                }
+                break;
+            case 53:                    // XX65: TRB
+                text += wordOps["XX65"] + " (" + v + ")";
+                break;
+            case 57:                    // XX71: FCL
+                text += wordOps["XX71"] + " (" + v + ")";
+                break;
+            case 61:                    // XX75: FCE
+                text += wordOps["XX75"] + " (" + v + ")";
+                break;
+            default:
+                text += wordOps[opcode];
+                break;
+            }
+        } // switch on low-order syllable bits
+    } // if mode
     return text;
 }
 
@@ -243,6 +516,13 @@ function displayMemory() {
     }
 }
 
+function displaySyllable() {
+    /* Decodes the syllable in the T register and formats it for display in the
+    "TMnemonic" table cell */
+
+    setText("TMnemonic", decodeSyllable(cc.P1.T, cc.P1.SALF, cc.P1.MSFF));
+}
+
 function displayRegisters() {
     /* Displays the non-stack processor registers */
 
@@ -253,6 +533,7 @@ function displayRegisters() {
     $$("PROF").checked = (cc.P1.PROF != 0);
     displayOctal("TReg", cc.P1.T, 4);
     $$("TROF").checked = (cc.P1.TROF != 0);
+    displaySyllable();
     displayOctal("EReg", cc.P1.E, 2);
     displayOctal("IReg", cc.P1.I, 3);
     displayOctal("QReg", cc.P1.Q, 4);
@@ -484,7 +765,12 @@ function initialize() {
         cc.P1.PROF = ff_onChange(ev);
     };
     $$("TReg").onchange = function(ev) {
+        var next = cc.P1.C*4 + cc.P1.L - 1;     // back up the auto-L increment
+
         cc.P1.T = reg_onChange(ev);
+        cc.P1.L = next%4;
+        cc.P1.C = (next - cc.P1.L)/4;
+        displaySyllable();
     };
     $$("TROF").onclick = function(ev) {
         cc.P1.TROF = ff_onChange(ev);
@@ -827,9 +1113,10 @@ window.onload = function() {
         <input id=PROF name=PROF type=checkbox value=1><label for=PROF>PROF</label>
 <tr>
     <td class=center>T
-    <td colspan=5>
+    <td>
         <input id=TReg name=TReg type=text class=number size=4 maxlength=4>
         <input id=TROF name=TROF type=checkbox value=1><label for=TROF>TROF</label>
+    <td id=TMnemonic colspan=4>
 <tr>
     <td class=center>E
     <td>

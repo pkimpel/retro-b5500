@@ -2359,6 +2359,22 @@ B5500Processor.prototype.computeRelativeAddr = function(offset, cEnabled) {
 };
 
 /**************************************/
+B5500Processor.prototype.presenceTest = function(word) {
+    /* Tests and returns the presence bit [2:1] of the "word" parameter. If
+    0, the p-bit interrupt is set; otherwise no further action */
+
+    if (word % 0x400000000000 >= 0x200000000000) {
+        return 1;
+    } else {
+        if (this.NCSF) {
+            this.I = (this.I & 0x0F) | 0x70;    // set I05/6/7: p-bit
+            this.cc.signalInterrupt();
+        }
+        return 0;
+    }
+};
+
+/**************************************/
 B5500Processor.prototype.indexDescriptor = function() {
     /* Indexes a descriptor and, if successful leaves the indexed value in
     the A register. Returns 1 if an interrupt is set and the syllable is
@@ -2375,7 +2391,7 @@ B5500Processor.prototype.indexDescriptor = function() {
     this.adjustBFull();
     bw = this.B;
     xm = (bw % 0x8000000000);
-    xe = (bw - xm)/8;
+    xe = (bw - xm)/0x8000000000;
     xs = (xe >>> 7) & 0x01;
     xt = (xe >>> 6) & 0x01;
     xe = (xt ? -(xe & 0x3F) : (xe & 0x3F));
@@ -2430,18 +2446,84 @@ B5500Processor.prototype.indexDescriptor = function() {
 };
 
 /**************************************/
-B5500Processor.prototype.presenceTest = function(word) {
-    /* Tests and returns the presence bit [2:1] of the "word" parameter. If
-    0, the p-bit interrupt is set; otherwise no further action */
+B5500Processor.prototype.integerStore = function(conditional, destructive) {
+    /* Store the value in the B register at the address in the A register (relative
+    or descriptor) and marks the A register empty. "conditional" indicates that
+    integerization is conditional on the type of word in A, and if a descriptor, 
+    whether it has the integer bit set */
+    var aw;                             // local copy of A reg
+    var bw;                             // local copy of B reg
+    var be;                             // B exponent
+    var bm;                             // B mantissa
+    var bo;                             // last B octade shifted off
+    var bs;                             // B mantissa sign
+    var bt;                             // B exponent sign
+    var doStore = 1;                    // okay to store
+    var normalize = 1;                  // okay to integerize
 
-    if (word % 0x400000000000 >= 0x200000000000) {
-        return 1;
-    } else {
-        if (this.NCSF) {
-            this.I = (this.I & 0x0F) | 0x70;    // set I05/6/7: p-bit
-            this.cc.signalInterrupt();
+    this.adjustABFull();
+    aw = this.A;
+    if (aw < 0x800000000000) {          // it's an operand
+        this.computeRelativeAddr(aw, 0);
+    } else {                            // it's a descriptor
+        if (this.presenceTest(aw)) {
+            this.M = aw % 0x8000;
+            if (conditional) {
+                if (aw % 0x20000000 < 0x10000000) {     // [19:1] is the integer bit
+                    normalize = 0;
+                }
+            }
+        } else {
+            doStore = normalize = 0;
         }
-        return 0;
+    }
+    
+    if (normalize) {
+        bw = this.B;
+        bm = (bw % 0x8000000000);
+        be = (bw - bm)/0x8000000000;
+        bs = (be >>> 7) & 0x01;
+        bt = (be >>> 6) & 0x01;
+        be = (bt ? -(be & 0x3F) : (be & 0x3F));
+
+        if (be != 0) {
+            if (be < 0) {               // B exponent is negative
+                do {
+                    this.cycleCount++;
+                    bo = bm % 8;
+                    bm = (bm - bo)/8;
+                } while (++be < 0);
+                if (bs ? bo > 4 : bo >= 4) {
+                    bm++;               // round the B mantissa
+                }
+            } else if (be > 0) {        // B exponent is positive
+                do {
+                    this.cycleCount++;
+                    if (bm < 0x1000000000) {
+                        bm *= 8;
+                    } else {            // oops... integer overflow normalizing the mantisa
+                        doStore = 0;
+                        if (this.NCSF) {
+                            this.I = (this.I & 0x0F) | 0xC0;    // set I07/8: int-overflow
+                            this.cc.signalInterrupt();
+                        break;          // kill the loop
+                        }
+                    }
+                } while (--be > 0);
+            }
+            if (doStore) {
+                this.B = bs*0x400000000000 + bm;
+            }
+        }
+        
+    }
+    
+    if (doStore) {
+        this.storeBviaM();  
+        this.AROF = 0;
+        if (destructive) {
+            this.BROF = 0
+        }
     }
 };
 
@@ -2528,7 +2610,8 @@ B5500Processor.prototype.enterCharModeInline = function() {
         this.A = this.B;                // tank the DI address in A
         this.adjustBEmpty();
     } else {
-        this.loadAviaS();               // A = [S]: tank the DI address
+        this.loadAviaS();               // A = [S]: load the DI address
+        this.AROF = 0;
     }
     this.B = this.buildRCW(0);
     this.BROF = 1;
@@ -2540,25 +2623,16 @@ B5500Processor.prototype.enterCharModeInline = function() {
     this.CWMF = 1;
     this.X = this.S * 0x8000;           // inserting S into X.[18:15], but X is zero at this point
     this.S = 0;
+    this.V = 0;
     this.B = bw = this.A;
-    this.BROF = 1;
-    this.AROF = 0;
-    this.V = this.K = 0;
 
     // execute the portion of CM XX04=RDA operator starting at J=2
-    if (bw < 0x800000000000) {                  // B contains an operand
-        this.S = bw % 0x8000;
+    this.S = bw % 0x8000;
+    if (bw >= 0x800000000000) {         // if it's a descriptor, 
+        this.K = 0;                     // force K to zero and
+        this.presenceTest(bw);          // just take the side effect of any p-bit interrupt
+    } else {
         this.K = (bw % 0x40000) >>> 15;
-    } else {                                    // B contains a descriptor
-        if (bw % 0x400000000000 < 0x200000000000) { // it's an absent descriptor
-            if (this.NCSF) {
-                // NOTE: docs do not mention if this is inhibited in control state, but we assume it is
-                this.I = (this.I & 0x0F) | 0x70;    // set I05/6/7: P-bit
-                this.cc.signalInterrupt();
-            }
-        } else {
-            this.S = bw % 0x8000;
-        }
     }
 };
 
@@ -2835,12 +2909,13 @@ B5500Processor.prototype.run = function() {
                     this.V = 0;
                     this.S = this.F - variant;
                     this.loadBviaS();                   // B = [S]
-                    this.S = this.B % 0x8000;
-                    if (this.B >= 0x800000000000) {     // if it's a descriptor, 
+                    this.BROF = 0;
+                    this.S = (t1 = this.B) % 0x8000;
+                    if (t1 >= 0x800000000000) {         // if it's a descriptor, 
                         this.K = 0;                     // force K to zero and
-                        this.presenceTest(this.B);      // just take the side effect of any p-bit interrupt
+                        this.presenceTest(t1);          // just take the side effect of any p-bit interrupt
                     } else {
-                        this.K = (this.B % 0x40000) >>> 15;
+                        this.K = (t1 % 0x40000) >>> 15;
                     }
                     break;
 
@@ -3732,16 +3807,42 @@ B5500Processor.prototype.run = function() {
 
                 case 0x11:              // XX21: load & store ops
                     switch (variant) {
-                    case 0x01:          // 0121: CID=Conditional integer store descructive
+                    case 0x01:          // 0121: CID=Conditional integer store destructive
+                        this.integerStore(1, 1);
                         break;
 
                     case 0x02:          // 0221: CIN=Conditional integer store nondestructive
+                        this.integerStore(1, 0);
                         break;
 
                     case 0x04:          // 0421: STD=Store destructive
+                        this.adjustABFull();
+                        if (this.A < 0x800000000000) {          // it's an operand
+                            this.computeRelativeAddr(this.A, 0);
+                            this.storeBviaM();  
+                            this.AROF = this.BROF = 0;
+                        } else {                                // it's a descriptor
+                            if (this.presenceTest(this.A)) {
+                                this.M = this.A % 0x8000;
+                                this.storeBviaM();
+                                this.AROF = this.BROF = 0;
+                            }
+                        }
                         break;
 
                     case 0x08:          // 1021: SND=Store nondestructive
+                        this.adjustABFull();
+                        if (this.A < 0x800000000000) {          // it's an operand
+                            this.computeRelativeAddr(this.A, 0);
+                            this.storeBviaM();  
+                            this.AROF = 0;
+                        } else {                                // it's a descriptor
+                            if (this.presenceTest(this.A)) {
+                                this.M = this.A % 0x8000;
+                                this.storeBviaM();
+                                this.AROF = 0;
+                            }
+                        }
                         break;
 
                     case 0x10:          // 2021: LOD=Load operand
@@ -3749,21 +3850,18 @@ B5500Processor.prototype.run = function() {
                         if (this.A < 0x800000000000) {          // simple operand
                             this.computeRelativeAddr(this.A, 1);
                             this.loadAviaM();        
-                        } else if (this.A < 0xC00000000000) {   // absent descriptor
-                            if (this.NCSF) {
-                                this.I = (this.I & 0x0F) | 0x70;// set I05/6/7: p-bit
-                                this.cc.signalInterrupt();
-                            }
-                        } else {                                // present descriptor
-                            this.M = this.A % 0x8000;
+                        } else if (this.presenceTest(this.A)) { 
+                            this.M = this.A % 0x8000;           // present descriptor
                             this.loadAviaM();
                         }
                         break;
 
                     case 0x21:          // 4121: ISD=Integer store destructive
+                        this.integerStore(0, 1);
                         break;
 
                     case 0x22:          // 4221: ISN=Integer store nondestructive
+                        this.integerStore(0, 0);
                         break;
                     }
                     break;

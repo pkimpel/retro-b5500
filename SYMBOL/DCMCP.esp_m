@@ -20550,3 +20550,89 @@ ST:        H[2]:=LAB[2];                                                28099800
     GO EXIT;                                                            28101000        
 EXIT: P(0,RDS,0,XCH,P&P[CTF],STF);                                      28101200        
 END OF LIBRARYHELP;                                                     28101400        
+PROCEDURE LIBRARYTRANSFER;                                              28200000        
+%                                                                       28200002        
+%********************************************************************** 28200004        
+%                                                                       28200006        
+%                                                                       28200008        
+%   LIBRARYTRANSFER PERFORMS THE ACTUAL PHYSICAL TRANSFER OF FILES      28200010        
+%   BASED ON INFORMATION SUPPLIED BY LIBRARYCOPY.  BASICALLY, ALL       28200012        
+%   LIBRARYTRANSFER NEEDS FROM LIBRARYCOPY IS "FA" (THE FILE ARRAY      28200014        
+%   WHICH CONTAINS THE NAME PAIRS TO BE TRANSFERRED), "FAINFO"          28200016        
+%   (THE FILE ARRAY INFORMATION, WHICH CONTAINS NECESSARY INFO.         28200018        
+%    ABOUT EACH NAME PAIR), AND "DESTIN" (THE USER SPECIFIED            28200020        
+%   DESTINATION).                                                       28200022        
+%                                                                       28200024        
+%   TRANSFERS MAY BE MADE FROM TAPE TO TAPE, TAPE TO DISK, OR           28200026        
+%   DISK TO TAPE.  LIBRARYTRANSFER WILL ATTEMPT TO TRANSFER DATA        28200028        
+%   FROM THE INPUT SOURCE SPECIFIED IN THE "FAINFO" ENTRY TO THE        28200030        
+%   UNIT SPECIFIED THRU "DESTIN".  THE BULK OF LIBRARYTRANSFER IS       28200032        
+%   JUST LOOPING THROUGH "FAINFO" USING ONE ENTRY AT A TIME UNTIL       28200034        
+%   THEY ARE EXHAUSTED.  AT EACH CHANGE OF INPUT SOURCE THE FPB         28200036        
+%   IS FIXED UP DIFFERENTLY DEPENDING UPON WHETHER THE JOB WAS          28200038        
+%   FORKED OR NOT (REFER TO DOCUMENTATION).                             28200040        
+%                                                                       28200042        
+%                                                                       28200044        
+%   DA           CURRENT "FAINFO" ENTRY                                 28200046        
+%     .[CF]      IF DISK THEN 18                                        28200048        
+%                IF TAPE THEN UNIT NUMBER OF THE TAPE                   28200050        
+%     .[FF]      IF DISK THEN DISK ADDRESS OF FILE HEADER               28200052        
+%                IF TAPE THEN NUMBER OF THIS FILE ON TAPE               28200054        
+%     .[5:1]     SPECIFIES LATEST VERSION WANTED                        28200056        
+%     .[6:1]     FILE TO BE ADDED                                       28200058        
+%     .[8:1]     FILE TO BE UNLOADED                                    28200060        
+%     .[13:1]    FILE TO BE ADDED (NOT ON DISK)                    %160-28200061        
+%                                                                       28200062        
+% NOTE: ANY OPTIONS SET THAT DO NOT APPLY TO A PARTICULAR               28200064        
+%       CIRCUMSTANCE WILL BE IGNORED                                    28200066        
+%                                                                       28200068        
+%   IU           CURRENT INPUT UNIT                                     28200070        
+%                                                                       28200072        
+%   OU              "    OUTPUT  "                                      28200074        
+%                                                                       28200076        
+%   IREEL        CURRENT INPUT REEL NUMBER (IF TAPE)                    28200078        
+%                                                                       28200080        
+%   OREEL           "    OUTPUT  "    "        "                        28200082        
+%                                                                       28200084        
+%   FA           FILE ARRAY OF NAME PAIRS TO BE TRANSFERRED             28200086        
+%                                                                       28200088        
+%   FAINFO       TRANSFER INFO. FOR EACH NAME PAIR                      28200090        
+%                                                                       28200092        
+%   FPBPTR       CURRENT FPB ENTRY INDEX                                28200094        
+%                                                                       28200096        
+%   H            CURRENT FILE HEADER                                    28200098        
+%                                                                       28200100        
+%   LAB          LAST INPUT LABEL READ                                  28200102        
+%                                                                       28200104        
+%   LBL          LAST OUTPUT LABEL READ                                 28200106        
+%                                                                       28200108        
+%   TOGS.[21:1] (BHS)              INDICATES BAD HEADER                 28200110        
+%        [23:1] (FORKED)           NOT ORIGINATING LIBMAIN/DISK         28200112        
+%        [26:1] (OF)               CURRENT <MFID>/<FID> HAS BEEN        28200114        
+%                                  OPENED EXCLUSIVE                     28200116        
+%                                                                       28200118        
+%        [28:1] (SOMECOPIED)       AT LEAST ONE FILE HAS BEEN           28200120        
+%                                  TRANSFERED                           28200122        
+%        [38:1] (COPYING)          NOTES STAGE OF PROCESSING FOR        28200124        
+%                                  USE BY ABORT                         28200126        
+%        [40:1] (SKIPFILE)         USED TO INDICATE ABRUPT EXIT TO      28200128        
+%                                  NEXT FILE SHOULD BE TAKEN            28200130        
+%                                                                       28200132        
+%                                                                       28200134        
+%********************************************************************** 28200136        
+%                                                                       28200138        
+BEGIN                                                                   28200200        
+    REAL COMMON=-4,                                                     28200400        
+         MSCW=-1,               RCW=+0,                                 28200800        
+         MFID=RCW+1,            FID=MFID+1,                             28201000        
+         XX1=FID+1,             XX2=XX1+1,                              28201200        
+         TMP=XX2+1,             TEMP=TMP+1,                             28201400        
+         FA=TEMP+1,             FAINFO=FA+1,                            28201600        
+         FASZ=FAINFO+1,         FAIN=FASZ+1,                            28201800        
+         IU=FAIN+1,             T=IU+1,                                 28202000        
+         FPBPTR=T+1,            IREEL=FPBPTR+1,                         28202200        
+         NM1=IREEL+1,           NM2=NM1+1,                              28202400        
+         DESTIN=NM2+1,          TOGS=DESTIN+1,                          28202600        
+         DA=TOGS+1,             OU=DA+1,                                28202800        
+         OREEL=OU+1,            N=OREEL+1,                              28203000        
+         CNT=N+1,               INC=CNT+1,                              28203200        
