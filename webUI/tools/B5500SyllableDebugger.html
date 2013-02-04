@@ -372,14 +372,14 @@ function decodeSyllable(syllable, mode, level, msff) {
                 if (v == 0) {
                     text += wordOps[opcode];
                 } else {
-                    text += wordOps["XX55"] + " (" + ((v >>> 3)*8 + v%8) + ")";
+                    text += wordOps["XX55"] + " (" + ((v >>> 3)*6 + v%8) + ")";
                 }
                 break;
             case 49:                    // XX61: VARI, DIB
                 if (v == 0) {
                     text += wordOps[opcode];
                 } else {
-                    text += wordOps["XX61"] + " (" + ((v >>> 3)*8 + v%8) + ")";
+                    text += wordOps["XX61"] + " (" + ((v >>> 3)*6 + v%8) + ")";
                 }
                 break;
             case 53:                    // XX65: TRB
@@ -583,12 +583,12 @@ function stepIt(exec) {
     setText("ARegOrig", padOctal(cc.P1.A, 16));
     setText("BRegOrig", padOctal(cc.P1.B, 16));
 
-    cc.P1.X = 0;
     if (exec) {
         saveT = cc.P1.T;
         saveC = cc.P1.C;
         saveL = cc.P1.L;
         saveP = cc.P1.P;
+        cc.P1.X = 0;
         cc.P1.T = opcode;
     }
     cc.P1.step();
@@ -718,6 +718,10 @@ function checkBrowser() {
 }
 
 function initialize() {
+
+    document.body.addEventListener("error", function(ev) {
+        console.log(ev);
+    }, false);
 
     $$("LogoDiv").onclick = function(ev) {
         displayProcessorState();
@@ -908,11 +912,11 @@ window.onload = function() {
     <th>Addr
     <th>Current (octal)
     <th>BIC
-    <th>FP Value
+    <th>Current (decimal)
     <th>Original (octal)
 <tbody>
 <tr>
-    <td colspan=5 class="center bold">STACK
+    <td colspan=6 class="revcaption">STACK
 <tr>
     <td class=center>A
     <td>
@@ -1008,7 +1012,7 @@ window.onload = function() {
 
 <tbody>
 <tr>
-    <td colspan=5 class="center bold">MEMORY
+    <td colspan=6 class="revcaption">MEMORY
 <tr>
     <td class=center>+4
     <td id=MAddrP4 class="data center">44444
