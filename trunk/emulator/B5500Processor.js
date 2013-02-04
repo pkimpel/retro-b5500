@@ -579,14 +579,14 @@ B5500Processor.prototype.jumpSyllables = function(count) {
 };
 
 /**************************************/
-B5500Processor.prototype.jumpWords = function(count, byWords) {
+B5500Processor.prototype.jumpWords = function(count) {
     /* Adjusts the C register by "count" words (which may be negative). L is set
     to zero. Forces a fetch to reload the P register after C and L are adjusted.
-    On entry, C and L are assumed to be pointing to the next instruction
-    to be executed, not the current one */
+    On entry, C is assumed to be pointing to the CURRENT instruction word, i.e.,
+    Inhibit Fetch and Inhibit Count for Fetch have both been asserted. Any adjustment
+    to C to account for the emulator's automatic C/L increment at SECL is the 
+    responsibility of the caller */
     var addr;
-    
-    /***** ??????? relative to word containing the branch ??????? *****/
     
     this.C += count;
     this.L = 0;
@@ -733,7 +733,7 @@ B5500Processor.prototype.compareSourceWithDest = function(count) {
             } else {                    // strings still equal -- check this character
                 if ((this.Y = this.cc.fieldIsolate(this.A, aBit, 6)) != (this.Z = this.cc.fieldIsolate(this.B, bBit, 6))) {
                     this.Q |= 0x04;     // set Q03F to stop further comparison
-                    this.MSFF = (B5500Processor.collate[this.Y] > B5500Processor.collate[this.Z] ? 1 : 0);
+                    this.MSFF = (B5500Processor.collation[this.Y] > B5500Processor.collation[this.Z] ? 1 : 0);
                 } else {                // strings still equal -- advance to next character
                     count--;
                     if (bBit < 42) {
@@ -774,7 +774,7 @@ B5500Processor.prototype.fieldArithmetic = function(count, adding) {
     var carry = 0;                      // carry/borrow bit
     var compl = false;                  // complement addition (i.e., subtract the digits)
     var MSFF = (this.MSFF != 0);        // get TFFF as a Boolean
-    var Q03F = (this.Q & 0x04 != 0);    // get Q03F as a Boolean
+    var Q03F = ((this.Q & 0x04) != 0);  // get Q03F as a Boolean
     var resultNegative;                 // sign of result is negative
     var sd;                             // digit sum
     var ycompl = false;                 // complement source digits
@@ -972,7 +972,7 @@ B5500Processor.prototype.streamSourceToDest = function(count, transform) {
         if (!this.AROF) {
             this.loadAviaM();           // A = [M]
         }
-        this.cycleCount += count;       // approximate the timing
+        this.cycleCount += count*2;     // approximate the timing
         aBit = this.G*6;                // A-bit number
         bBit = this.K*6;                // B-bit number
         do {
@@ -1019,7 +1019,7 @@ B5500Processor.prototype.streamToDest = function(count, transform) {
         if (!this.BROF) {
             this.loadBviaS();           // B = [S]
         }
-        this.cycleCount += count;       // approximate the timing
+        this.cycleCount += count*2;     // approximate the timing
         bBit = this.K*6;                // B-bit number
         do {
             if (transform.call(this, bBit, count)) {
@@ -1070,16 +1070,16 @@ B5500Processor.prototype.streamInputConvert = function(count) {
         this.K = this.V = 0;
         this.S++;
     }
-    if (count) {                        // count > 0
+    if (count) {                        // no conversion if count is zero
         this.cycleCount += count*2 + 27;
         count = ((count-1) & 0x07) + 1; // limit the count to 8
         if (!this.AROF) {
             this.loadAviaM();           // A = [M]
         }
         
-        // First, assemble the digits into B
+        // First, assemble the digits into B as 4-bit BCD
         do {                            
-            b = b << 4 | ((this.Y = this.cc.fieldIsolate(this.A, this.G*6, 6)) & 0x0F);
+            b = (b << 4) | ((this.Y = this.cc.fieldIsolate(this.A, this.G*6, 6)) & 0x0F);
             if (this.G < 7) {
                 this.G++;
             } else {
@@ -1102,14 +1102,22 @@ B5500Processor.prototype.streamInputConvert = function(count) {
             }
             power *= 2;
             b >>>= 1;
-            if (b & 0x08) {
-                b -= 3;                 // since the low-order digit is >= 8, don't worry about borrow
-            }
+            
+            /* This next part is tricky, and was done by a switching network in the B5500.
+            When a 1 bit is shifted into the high-order position of a BCD decade from its
+            decade to the left, that bit has a place value of 8, but because the number
+            is decimal, it should have a place value of five. Therefore, in EACH such 
+            decade, we need to subtract 3 to get the correct place value. The following
+            statement constructs a mask of 3s in each decade where the high-order bit is
+            set after the shift above, then subtracts that mask from the working B value.
+            See the discussion in Section 2.6 in the Training Manual cited above */
+            
+            b -= ((b & 0x88888888) >>> 3)*3;
         }
         
         // Finally, fix up the binary sign and store the result
         if (a) {                        // zero results have sign bit reset
-            if (this.Y & 0x30 == 0x20) {
+            if ((this.Y & 0x30) == 0x20) {
                 a += 0x400000000000;    // set the sign bit
             }
         }
@@ -1701,7 +1709,7 @@ B5500Processor.prototype.singlePrecisionMultiply = function() {
         this.B = 0;                     // result is all zeroes
     } else {                            // otherwise, let the games begin
         ea = (this.A - ma)/0x8000000000;
-        sa = ((ea >>> 7) & 0x01);
+        sa = (ea >>> 7) & 0x01;
         ea = (ea & 0x40 ? -(ea & 0x3F) : (ea & 0x3F));
 
         eb = (this.B - mb)/0x8000000000;
@@ -1834,7 +1842,7 @@ B5500Processor.prototype.singlePrecisionDivide = function() {
         this.A = this.B = 0;            // result is all zeroes
     } else {                            // otherwise, may the octades always be in your favor
         ea = (this.A - ma)/0x8000000000;
-        sa = ((ea >>> 7) & 0x01);
+        sa = (ea >>> 7) & 0x01;
         ea = (ea & 0x40 ? -(ea & 0x3F) : (ea & 0x3F));
 
         eb = (this.B - mb)/0x8000000000;
@@ -2039,7 +2047,7 @@ B5500Processor.prototype.remainderDivide = function() {
         this.A = this.B = 0;            // result is all zeroes
     } else {                            // otherwise, continue
         ea = (this.A - ma)/0x8000000000;
-        sa = ((ea >>> 7) & 0x01);
+        sa = (ea >>> 7) & 0x01;
         ea = (ea & 0x40 ? -(ea & 0x3F) : (ea & 0x3F));
 
         eb = (this.B - mb)/0x8000000000;
@@ -2140,7 +2148,7 @@ B5500Processor.prototype.doublePrecisionAdd = function(adding) {
     ma = this.A % 0x8000000000;         // extract the A mantissa
     xa = this.B % 0x8000000000;         // extract the A mantissa extension
     ea = (this.A - ma)/0x8000000000;
-    sa = ((ea >>> 7) & 0x01);
+    sa = (ea >>> 7) & 0x01;
     ea = (ea & 0x40 ? -(ea & 0x3F) : (ea & 0x3F));
 
     this.AROF = this.BROF = 0;          // empty the TOS registers
@@ -2861,8 +2869,8 @@ B5500Processor.prototype.run = function() {
             /***********************************************************
             *  Character Mode Syllables                                *
             ***********************************************************/
-            variant = opcode >>> 6;
             do {                        // inner loop to support CRF dynamic repeat count
+                variant = opcode >>> 6;
                 noSECL = 0;             // force off by default (set by CRF)
                 switch (opcode & 0x3F) {
                 case 0x00:              // XX00: CMX, EXC: Exit character mode
@@ -2972,7 +2980,8 @@ B5500Processor.prototype.run = function() {
                         this.loadAviaM();               // A = [M], load A from source address
                     }
                     for (variant=3; variant>0; variant--) {
-                        this.B = (this.B % 0x100000000000000)*0x40 + (this.Y = this.cc.fieldIsolate(this.A, this.G*6, 6));
+                        this.B = (this.B % 0x40000000000)*0x40 + 
+                                 (this.Y = this.cc.fieldIsolate(this.A, this.G*6, 6));
                         if (this.G < 7) {
                             this.G++;
                         } else {
@@ -2982,7 +2991,7 @@ B5500Processor.prototype.run = function() {
                         }
                     } 
                     this.S = this.B % 0x8000;
-                    this.K = this.cc.fieldIsolate(this.B, 18, 3);
+                    this.K = (this.B % 0x40000) >>> 15;
                     this.M = t1;                        // restore M & G
                     this.G = t2;
                     this.AROF = this.BROF = 0;          // invalidate A & B
@@ -3031,9 +3040,9 @@ B5500Processor.prototype.run = function() {
                     this.streamAdjustDestChar();
                     this.A = this.B;                    // save B
                     this.AROF = this.BROF;
-                    this.B = this.K*0x8000 * this.S;
+                    this.B = this.K*0x8000 + this.S;
                     t1 = this.S;                        // save S (not the way the hardware did it)
-                    this.S -= variant;
+                    this.S = this.F - variant;
                     this.storeBviaS();                  // [S] = B
                     this.S = t1;                        // restore S
                     this.B = this.A;                    // restore B from A
@@ -3046,9 +3055,9 @@ B5500Processor.prototype.run = function() {
                     this.streamAdjustSourceChar();
                     this.A = this.B;                    // save B
                     this.AROF = this.BROF;
-                    this.B = this.G*0x8000 * this.M;
+                    this.B = this.G*0x8000 + this.M;
                     t1 = this.M;                        // save M (not the way the hardware did it)
-                    this.M -= variant;
+                    this.M = this.F - variant;
                     this.storeBviaM();                  // [M] = B
                     this.M = t1;                        // restore M
                     this.B = this.A;                    // restore B from A
@@ -3111,8 +3120,8 @@ B5500Processor.prototype.run = function() {
                     if (!this.AROF) {
                         this.loadAviaM();               // A = [M]
                     }
-                    t1 = B5500Processor.collate[this.cc.fieldIsolate(this.A, this.G*6, 6)];
-                    t2 = B5500Processor.collate[variant];
+                    t1 = B5500Processor.collation[this.cc.fieldIsolate(this.A, this.G*6, 6)];
+                    t2 = B5500Processor.collation[variant];
                     this.MSFF = (t1 >= t2 ? 1 : 0);
                     break;
 
@@ -3121,8 +3130,8 @@ B5500Processor.prototype.run = function() {
                     if (!this.AROF) {
                         this.loadAviaM();               // A = [M]
                     }
-                    t1 = B5500Processor.collate[this.cc.fieldIsolate(this.A, this.G*6, 6)];
-                    t2 = B5500Processor.collate[variant];
+                    t1 = B5500Processor.collation[this.cc.fieldIsolate(this.A, this.G*6, 6)];
+                    t2 = B5500Processor.collation[variant];
                     this.MSFF = (t1 > t2 ? 1 : 0);
                     break;
 
@@ -3161,8 +3170,8 @@ B5500Processor.prototype.run = function() {
                     if (!this.AROF) {
                         this.loadAviaM();               // A = [M]
                     }
-                    t1 = B5500Processor.collate[this.cc.fieldIsolate(this.A, this.G*6, 6)];
-                    t2 = B5500Processor.collate[variant];
+                    t1 = B5500Processor.collation[this.cc.fieldIsolate(this.A, this.G*6, 6)];
+                    t2 = B5500Processor.collation[variant];
                     this.MSFF = (t1 <= t2 ? 1 : 0);
                     break;
 
@@ -3171,8 +3180,8 @@ B5500Processor.prototype.run = function() {
                     if (!this.AROF) {
                         this.loadAviaM();               // A = [M]
                     }
-                    t1 = B5500Processor.collate[this.cc.fieldIsolate(this.A, this.G*6, 6)];
-                    t2 = B5500Processor.collate[variant];
+                    t1 = B5500Processor.collation[this.cc.fieldIsolate(this.A, this.G*6, 6)];
+                    t2 = B5500Processor.collation[variant];
                     this.MSFF = (t1 < t2 ? 1 : 0);
                     break;
 
@@ -3183,8 +3192,8 @@ B5500Processor.prototype.run = function() {
                     }
                     this.Y = t1 = this.cc.fieldIsolate(this.A, this.G*6, 6);
                     this.Z = variant;                   // for display only
-                    if (B5500Processor.collate[t1] > B5500Processor.collate[variant]) {       // alphanumeric unless | or !
-                        this.MSFF = (t1 == 0x20 ? 0 : (t1 == 0x3C ? 0 : 1));
+                    if (B5500Processor.collation[t1] > B5500Processor.collation[variant]) {       
+                        this.MSFF = (t1 == 0x20 ? 0 : (t1 == 0x3C ? 0 : 1));    // alphanumeric unless | or !
                     } else {                            // alphanumeric if equal
                         this.Q |= 0x04;                 // set Q03F (display only)
                         this.MSFF = (t1 == variant ? 1 : 0);
@@ -3195,7 +3204,7 @@ B5500Processor.prototype.run = function() {
                     if (!this.AROF) {
                         this.loadAviaM();               // A = [M]
                     }
-                    t1 = (this.Y = this.cc.fieldIsolate(this.A, this.G*6, 6)) >>> 5-this.H;
+                    t1 = (this.Y = this.cc.fieldIsolate(this.A, this.G*6, 6)) >>> (5-this.H);
                     this.MSFF = ((t1 & 0x01) == (variant & 0x01) ? 1 : 0);
                     break;
 
@@ -3241,15 +3250,26 @@ B5500Processor.prototype.run = function() {
                     this.B = this.A;                    // restore B from A
                     this.BROF = this.AROF;
                     this.AROF = 0;                      // invalidate A
-                    noSECL = 1;                         // >>> override normal instruction fetch <<<
                     if (!this.PROF) {
                         this.loadPviaC();               // fetch the program word, if necessary
                     }
                     opcode = this.cc.fieldIsolate(this.P, this.L*12, 12);
-                    if (variant) {                      // if repeat count from parameter > 0
-                        this.T = opcode & 0x3F + variant*0x40;  // apply it to the next syl
-                    } else {                            // otherwise construct JFW (XX47) using
-                        this.T = (opcode & 0xFC0) + 0x27;       // repeat count from next syl (whew!)
+                    if (variant) {                      
+                        // if repeat count from parameter > 0, apply it to the next syllable
+                        this.T = opcode = (opcode & 0x3F) + variant*0x40;   
+                    } else {                            
+                        // otherwise, construct JFW (XX47) using repeat count from next syl (whew!)
+                        this.T = opcode = (opcode & 0xFC0) + 0x27;          
+                    }
+                    
+                    // Since we are bypassing normal SECL behavior, bump the instruction pointer here.
+                    noSECL = 1;                         // >>> override normal instruction fetch <<<
+                    this.PROF = 0;
+                    if (this.L < 3) {
+                        this.L++;
+                    } else {
+                        this.L = 0;
+                        this.C++;
                     }
                     break;
 
@@ -3401,7 +3421,8 @@ B5500Processor.prototype.run = function() {
                         this.loadAviaM();               // A = [M], load A from source address
                     }
                     for (variant=3; variant>0; variant--) {
-                        this.B = (this.B % 0x100000000000000)*0x40 + (this.Y = this.cc.fieldIsolate(this.A, this.G*6, 6));
+                        this.B = (this.B % 0x40000000000)*0x40 + 
+                                 (this.Y = this.cc.fieldIsolate(this.A, this.G*6, 6));
                         if (this.G < 7) {
                             this.G++;
                         } else {
@@ -3411,7 +3432,7 @@ B5500Processor.prototype.run = function() {
                         }
                     } 
                     this.M = this.B % 0x8000;
-                    this.G = this.cc.fieldIsolate(this.B, 18, 3);
+                    this.G = (this.B % 0x40000) >>> 15;
                     break;
 
                 case 0x2F:              // XX57: JRV=Jump reverse unconditional
@@ -3421,21 +3442,25 @@ B5500Processor.prototype.run = function() {
 
                 case 0x30:              // XX60: CEQ=Compare equal
                     this.compareSourceWithDest(variant);
+                    this.H = this.V = 0;
                     this.MSFF = (this.Q & 0x04 ? 0 : 1);                // if !Q03F, S=D
                     break;
 
                 case 0x31:              // XX61: CNE=Compare not equal
                     this.compareSourceWithDest(variant);
+                    this.H = this.V = 0;
                     this.MSFF = (this.Q & 0x04 ? 1 : 0);                // if Q03F, S!=D
                     break;
 
                 case 0x32:              // XX62: CEG=Compare greater or equal
                     this.compareSourceWithDest(variant);
+                    this.H = this.V = 0;
                     this.MSFF = (this.Q & 0x04 ? this.MSFF : 1);        // if Q03F&MSFF, S>D; if !Q03F, S=D
                     break;
 
                 case 0x33:              // XX63: CGR=Compare greater
                     this.compareSourceWithDest(variant);
+                    this.H = this.V = 0;
                     this.MSFF = (this.Q & 0x04 ? this.MSFF : 0);        // if Q03F&MSFF, S>D
                     break;
 
@@ -3457,11 +3482,13 @@ B5500Processor.prototype.run = function() {
 
                 case 0x38:              // XX70: CEL=Compare equal or less
                     this.compareSourceWithDest(variant);
+                    this.H = this.V = 0;
                     this.MSFF = (this.Q & 0x04 ? 1-this.MSFF : 1);      // if Q03F&!MSFF, S<D; if !Q03F, S=D
                     break;
 
                 case 0x39:              // XX71: CLS=Compare less
                     this.compareSourceWithDest(variant);
+                    this.H = this.V = 0;
                     this.MSFF = (this.Q & 0x04 ? 1-this.MSFF : 0);      // if Q03F&!MSFF, S<D
                     break;
 
@@ -3480,7 +3507,7 @@ B5500Processor.prototype.run = function() {
                             this.loadBviaS();           // B = [S]
                         }
                         this.cycleCount += variant;     // approximate the timing
-                        t1 = (this.L*2 + variant & 0x01)*6;     // P-reg bit number
+                        t1 = (this.L*2 + (variant & 0x01))*6;   // P-reg bit number
                         t2 = this.K*6;                          // B-reg bit number
                         do {
                             if (!this.PROF) {
@@ -3529,7 +3556,7 @@ B5500Processor.prototype.run = function() {
 
                 case 0x3E:              // XX76: TRZ=Transfer source zones
                     this.streamSourceToDest(variant, function(bb, count) {
-                        this.B = this.cc.fieldInsert(this.B, bb, 2, this.Y);
+                        this.B = this.cc.fieldInsert(this.B, bb, 2, this.Y >>> 4);
                     });
                     break;
 
@@ -4305,7 +4332,7 @@ B5500Processor.prototype.run = function() {
                 case 0x2D:              // XX55: NOP & DIA=Dial A ops
                     if (opcode & 0xFC0) {
                         this.G = variant >>> 3;
-                        this.H = (variant) & 7;
+                        this.H = variant & 7;
                     // else             // 0055: NOP=no operation (the official one, at least)
                     }
                     break;
@@ -4313,7 +4340,7 @@ B5500Processor.prototype.run = function() {
                 case 0x31:              // XX61: XRT & DIB=Dial B ops
                     if (opcode & 0xFC0) {
                         this.K = variant >>> 3;
-                        this.V = (variant) & 7;
+                        this.V = variant & 7;
                     } else {            // 0061=XRT: temporarily set full PRT addressing mode
                         this.VARF = this.SALF;
                         this.SALF = 0;
