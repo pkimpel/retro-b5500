@@ -20636,3 +20636,92 @@ BEGIN                                                                   28200200
          DA=TOGS+1,             OU=DA+1,                                28202800        
          OREEL=OU+1,            N=OREEL+1,                              28203000        
          CNT=N+1,               INC=CNT+1,                              28203200        
+         OUC=INC+1,             Y=OUC+1,                                28203400        
+         W=Y+1,                 SIZE=W+1,                               28203600        
+         Q=SIZE+1,              J=Q+1,                                  28203800        
+         TM=J+1,                K=TM+1,                                 28204000        
+         U=K+1,                 SV=U+1,                                 28204200        
+         UNITNO=SV+1;                                                   28204400        
+    ARRAY                                                               28204600        
+         H=UNITNO+1[*],         AROW=H+1[*],                            28204800        
+         IOD=AROW+1[*],         LAB=IOD+1[*],                           28205000        
+         LBL=LAB+1[*],          WRDSZ=LBL+1[*];                         28205200        
+    ARRAY HDR=XX1[*];                                                   28205400        
+ $ SET OMIT = NOT(B6500LOAD)                                            28205600        
+    DEFINE                                                              28206400        
+         DSED           = TERMSET(P1MIX)#,                              28206600        
+         SPOUNIT        = 0#,                                           28206800        
+         SPACER         = 5&@1400[CTF]#,                                28207000        
+         MM             = @37700040#,                                   28207200        
+         FINDTHETAPE    = LIBRARYHELP(1)#,                              28207400        
+         ABORT          = LIBRARYHELP(2)#,                              28207600        
+         SWITCHREELS    = LIBRARYHELP(11)#,                             28207650        
+         UNITNUM        = [1:5]#,                                  %160-28207700        
+         LATEST         = DA.[5:1]#,                                    28207800        
+         ADDV           = DA.[6:1]#,                                    28208000        
+         UNLOAD         = DA.[8:1]#,                                    28208200        
+         MUSTADD        = DA.[13:1]#,                              %160-28208300        
+         BHS            = TOGS.[21:1]#,                                 28208400        
+         FORKED         = TOGS.[23:1]#,                                 28208600        
+         B6500          = TOGS.[24:1]#,                                 28208800        
+         OF             = TOGS.[26:1]#,                                 28209000        
+         SOMECOPIED     = TOGS.[28:1]#,                                 28209100        
+         REELSW         = TOGS.[33:1]#,                                 28209200        
+         SKIPDIR        = TOGS.[35:1]#,                                 28209400        
+         SPACITSW       = TOGS.[36:1]#,                                 28209600        
+         CHKLBL         = TOGS.[37:1]#,                                 28209800        
+         COPYING        = TOGS.[38:1]#,                                 28209900        
+         OUTAPEPARITY   = TOGS.[39:1]#,                                 28210000        
+         SKIPFILE       = TOGS.[40:1]#,                                 28210200        
+         NOLBL          = TOGS.[41:1]#,                                 28210400        
+         DUMPDIR        = TOGS.[42:1]#;                                 28210600        
+    LABEL UP,BAC,WATE,LOOP,BACK,TTPF,BH,DK,WY,BADHDR,PRE;               28210800        
+    LABEL TRYNEXT,PARERR,HANDLERR,NEXT,SKIPPER,FALLOUT;                 28211000        
+    %***********************************************************        28211200        
+    DEFINE NOTCOPIED(NOTCOPIED1) =                                      28211400        
+         BEGIN NT3:=NOTCOPIED1; NOCOYMESS; END#;                        28211600        
+    SUBROUTINE NOCOPYMESS;                                              28211800        
+         LBMESS( ABS(MFID), FID, -67, NT3, TINU[IU], SPOUTUNIT, 1 );    28212000        
+    %***********************************************************        28212200        
+    %                                                                   28212201        
+    % - READS BEGINNING LABEL AND TAPE MARK CHECKING FOR                28212202        
+    %   CORRECTNESS OF LIBRARY TAPE SOURCE                              28212203        
+    %                                                                   28212204        
+    %************************************************************       28212205        
+    %                                                                   28212206        
+    BOOLEAN SUBROUTINE LABELCHECK;                                      28212400        
+    BEGIN                                                               28212600        
+    TRYNEXT:                                                            28212800        
+         IF WAITIO(LAB INX @120540000000,@40&@20[CTF],IU)=@40 AND       28213000        
+          NOT B6500 RHWN       % PREMATURE EOT                          28213200        
+           BEGIN STREAM(T:=T:=SPACE(5));                                28213400        
+                 BEGIN DS:=16LIT". PREMATURE EOT~"; END;                28213600        
+                 GO PRE;                                                28213800        
+           END;                                                         28214000        
+ $ SET OMIT = NOT(B6500LOAD)                                            28214600        
+         IF @40!WIATIO(SPACER,@40,IU) THEN                              28216400        
+              P(WAITIO(@4740000005,0,IU),DEL);                          28216600        
+         IF DSED THEN ABORT;                                            28216800        
+         IF (NOT B6500 AND ((NFLAG(LAB[0]).[6:42] EQV "LABEL  ")!NOT 0  28217000        
+         OR (NFLAG(LAB[2]).[6:42] EQV "FILE")!NOT 0))                   28217200        
+ $ SET OMIT = NOT(B6500LOAD)                                            28217400        
+         THEN BEGIN                                                     28218200        
+              STREAM(A:=[TINU[IU]],T:=T:=SPACE(10));                    28218400        
+              BEGIN SI:=A;SI:=SI+5;DS:=LIT".";DS:=3 CHR;                28218600        
+                   DS:=21 LIT" NOT A LIBRARY TAPE~";                    28218800        
+              END;                                                      28219000        
+PRE:          SPOUT(T); T:=1;                                           28219200        
+              END ELSE T:=0;                                            28219400        
+         IF T=0 AND NOT B6500 THEN                                      28219600        
+         IF NFLAG(LAB[2]).[30:18]=0 AND SKIPDIR THEN                    28219800        
+         BEGIN                                                          28220000        
+         SPACITSW:=1; CHKLBL:=FALSE;                                    28220200        
+         GO TO BACK; %BRANCH INTO SPACIT.                               28220400        
+    BAC:                                                                28220600        
+         SPACITSW:=0; CHKLBL:=TRUE;                                     28220800        
+         GO TO TRYNEXT;                                                 28221000        
+         END;                                                           28221200        
+         LABELCHECK:=T;                                                 28221400        
+    END;                                                                28221600        
+    %***********************************************************        28221800        
+    %                                                                   28221801        
