@@ -20725,3 +20725,106 @@ PRE:          SPOUT(T); T:=1;                                           28219200
     END;                                                                28221600        
     %***********************************************************        28221800        
     %                                                                   28221801        
+    % - READS ENDING LABEL CHECKING TO SEE IF INPUT TAPE                28221802        
+    %   REEL SWITCHING IS IN ORDER                                      28221803        
+    %                                                                   28221804        
+    %************************************************************       28221805        
+    %                                                                   28221806        
+    BOOLEAN SUBROUTINE ENDOFREEL;                                       28222000        
+    BEGIN                                                               28222200        
+         BLASTQ(IU);                                                    28222400        
+         IF P(WAITIO(LAB INX @120540000000,@2000040,IU),DUP)=@20 THEN   28222600        
+         BEGIN % PAR ON ENDING LABEL:TEST FOR LAST FILE ON TAPE(EOF)    28222800        
+              LAB[4]:=(*P(DUP))&(WAITIO(SPACER,@40,IU)=@40)[47:47:1];   28223000        
+              P(WAITIO(5&@3400[CTF],@377,IU),DEL);                      28223200        
+         END;                                                           28223400        
+ $ SET OMIT = NOT(B6500LOAD)                                            28223600        
+         IF B6500 THEN P(DEL) ELSE NT1:=P;                              28225000        
+         IF DSED THEN ABORT;                                            28225200        
+         IF ((NOT B6500) AND NFLAG(LAB[4]) AND NT1!@40)                 28225400        
+ $ SET OMIT = NOT(B6500LOAD)                                            28225600        
+         THEN BEGIN                                                     28226200        
+              STOPTIMING(FPBPTR,1023);%                                 28226400        
+              SETNOTINUSE(IU,0);                                        28226600        
+              IREEL:=IREEL+1;                                           28226800        
+ $ SET OMIT = NOT(B6500LOAD)                                            28227000        
+              NM2:=LAB[2];                                              28228200        
+              NM1:=LAB[1];                                              28228400        
+              FINDTHETAPE;                                              28228600        
+              ENDOFREEL:=TRUE;                                          28228800        
+              END ELSE ENDOFREEL:=FALSE;                                28229000        
+    END;      %   OF SUBROUTINE ENDOFREEL                               28229200        
+    %***********************************************************        28229400        
+    SUBROUTINE SPACIT;%                                                 28229600        
+    BEGIN                                                               28229800        
+ BACK:   WHILE WAITIO(SPACER,MM,IU)!@40 DO                              28230000        
+         BEGIN                                                          28230200        
+              IF DSED THEN ABORT;                                       28230400        
+              IF STOPSET(P1MIX) THEN STOPM(0);                          28230600        
+         END;                                                           28230800        
+         IF ENDOFREEL AND NOT SPACITSW THEN GO BACK;                    28231000        
+         IF SPACITSW THEN GO BAC; % BRANCH TO LABELCHECK ELSE EXIT      28231200        
+    END;                                                                28231400        
+    %*******************************************************************28231600        
+    SUBROUTINE WRITENDINGLABEL;                                         28231800        
+    BEGIN                                                               28232000        
+         P(WAITIO([TM],@40,OU),DEL);                                    28232200        
+         P(WAITIO(LBL&@5000[CTF],@40,OU),DEL);                          28232600        
+         IF DSED THEN ABORT;                                            28232800        
+    END; % OF WRITE ENDING LABEL                                        28233000        
+    %***********************************************************        28233200        
+    %                                                                   28233201        
+    % - HANDLES IO"S FOR DISK-TO-TAPE, TAPE-TO-DISK, OR TAPE-           28233202        
+    %   TO-TAPE TRANSFER INCLUDING B6500 TAPE SIZE ALTERATIONS          28233203        
+    %                                                                   28233204        
+    %************************************************************       28233205        
+    %                                                                   28233206        
+    SUBROUTINE IO;                                                      28233400        
+    BEGIN                                                               28233600        
+         SIZE:=IF (N-CNT) GTR 30 THEN 900 ELSE (N-CNT)|30;              28233800        
+         IF U LSS 16                                                    28234000        
+          THEN                                                          28234200        
+          BEGIN                                                         28234400        
+          TMP:=@500000000;                                              28234600        
+          IF IOD[W].[24:1]                                              28234800        
+           THEN TMP:=TMP+B6500                                          28235000        
+           ELSE BEGIN SIZE:=SIZE+B6500; WRDSZ[W]:=SIZE; END;            28235200        
+          IOREQUEST(-(IOD[W]:=9AROW[W] INX TMP)&                        28235400        
+                    SIZE[8:38:10]&                                      28235600        
+                    TINU[U][3:3:5]&                                     28235800        
+                    (NOT IOD[W])[24:24:1]) OR @2017700000,              28236000        
+                    IOD[W],                                             28236200        
+                    [IOD[W]]&U[12:42:6]);                               28236400        
+          END                                                           28236600        
+          ELSE                                                          28236800        
+          BEGIN                                                         28237000        
+          DISKIO(IOD[W],(AROW[W] INX B6500-1)&(NOT IOD[W])[1:24:1],     28237200        
+                 SIZE,Q+CNT);                                           28237400        
+ $ SET OMIT = NOT(STATISTICS)                                           28237600        
+          END;                                                          28238200        
+    END;                                                                28238400        
+    %**********************************************************         28238600        
+    %                                                                   28238601        
+    % - COPYS EACH ROW OF A FILE CHECKING FOR ERRORS, INCORRECT         28238602        
+    %   RECORD SIZE IN TRANSFER, AND KEYIN REEL SWITCHING               28238603        
+    %                                                                   28238604        
+    %************************************************************       28238605        
+    %                                                                   28238606        
+    SUBROUTINE COPYAROW;                                                28238800        
+    BEGIN                                                               28239000        
+         N:=                                                            28239200        
+ $ SET OMIT = NOT(B6500LOAD)                                            28239400        
+         H[8];                                                          28240000        
+         Q:=H[K+9];                                                     28240200        
+         CNT:=W:=INC:=0; OUC:=-30;                                      28240400        
+         IOD[0]:=IOD[1]:=IOMASK;                                        28240600        
+         U:=IU;                                                         28240800        
+LOOP:                                                                   28241000        
+         IO;                                                            28241200        
+WATE:                                                                   28241400        
+         W:=1-W;                                                        28241600        
+         IF IOD[W] NEQ IOMASK THEN                                      28241800        
+          COMPLEXSLEEP((((IOD[W]) AND IOMASK) NEQ 0) OR DSED);          28242000        
+         IF DSED THEN ABORT;                                            28242200        
+         IF (Y:=IOD[W]).[27:2] NEQ 0                                    28242400        
+          THEN BEGIN LIBRARYHELP(6);                                    28242600        
