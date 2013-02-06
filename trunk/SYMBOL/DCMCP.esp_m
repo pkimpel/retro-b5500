@@ -20828,3 +20828,100 @@ WATE:                                                                   28241400
          IF DSED THEN ABORT;                                            28242200        
          IF (Y:=IOD[W]).[27:2] NEQ 0                                    28242400        
           THEN BEGIN LIBRARYHELP(6);                                    28242600        
+                     IF OUTAPEPARITY OR SKIPFILE THEN GO HANDLERR;      28242800        
+               END                                                      28243000        
+          ELSE IF (Y.[7:1] AND Y.[24:1])                                28243200        
+                THEN IF (M[AROW[W] INX NOT 0]) NEQ WRDSZ[W]             28243400        
+                      THEN BEGIN LIBRARYHELP(10);                       28243600        
+                                 GO HANDLERR;                           28243800        
+                           END ELSE ELSE                                28244000        
+         IF JAR[P1MIX[X,9].[1:1] % RC KEYIN                             28244010        
+          THEN BEGIN                                                    28244020        
+                   JAR[P1MIX,9]:=(*P(DUP)) & 0[1:47:1];                 28244030        
+                   SWITCHREELS;                                         28244040        
+               END;                                                     28244050        
+         IF IOD[W].[24:1] % LAST THING DONE ON THIS BUFFER WAS READ     28244200        
+          THEN BEGIN U:=OU; CNT:=OUC:=OUC+30; GO LOOP; END;             28244400        
+         IF (CNT:=INC:=INC+30) LSS N % MORE READING NECESSARY           28244600        
+          THEN BEGIN U:=IU; GO LOOP; END;                               28244800        
+         IF IOD[1-W] NEQ IOMASK                                         28245000        
+          THEN BEGIN IOD[W]:=IOMASK; GO WATE; END;                      28245200        
+HANDLERR:                                                               28245400        
+    END;                                                                28245600        
+    %************************************************************       28245800        
+    P(MSCW,STF); RCW:=RCW&P(..LIBRARYTRANSFER,LOD)[CTC];                28246000        
+    IF FASZ GTR 0 THEN LIBRARYHELP(5) ELSE  IU:=OU:=(FPBPTR:=0)-1; %134-28246200        
+    FOR J:=0 STEP 1 UNTIL (FASZ DIV 2)-1 DO                             28246400        
+    BEGIN                                                               28246600        
+    COPYING:=FALSE;                                                     28246700        
+    %                                                                   28246701        
+    %*******************************************                        28246702        
+    %   FPB FIXUP ON CHANGE OF INPUT SOURCE                             28246703        
+    %*******************************************                        28246704        
+    %                                                                   28246705        
+    IF DA.[CF] NEQ (TMP:=M[SV:=FAINFO+J].[CF]) THEN                     28246800        
+     BEGIN IF IU NEQ (-1) THEN                                          28247000        
+            BEGIN IF IU LSS 16 THEN SETNOTINUSE(IU,0);                  28247200        
+                  STOPTIMING(FPBPTR,1023);                              28247400        
+            END;                                                        28247600        
+           IF FORKED THEN                                               28247800        
+            BEGIN                                                       28248000        
+            STARTIMING(FPBPTR:=5,TMP);                                  28248200        
+            IF TMP LSS 16 THEN                                          28248400        
+             STREAM(MF:=MULTITABLE[TMP],F:=LABELTABLE[TMP],             28248600        
+                    B:=PRT[P1MIX,3] INX 5);                             28248800        
+             BEGIN SI:=LOC MF; DS:=16CHR;                               28249000        
+             END                                                        28249200        
+                          ELSE                                          28249400        
+             STREAM(B:=PRT[P1MIX,3] INX 5);                             28249600        
+             BEGIN DS:=16LIT"0DIRCTRY0DISK   "; END;                    28249800        
+            RDCTABLE[TMP].[8:10]:=P1MIX;                                28250000        
+            END      ELSE                                               28250200        
+            WHILE (TEMP:=M[(NT1:=(PRT[P1MIX,3] INX (FPBPTR:=            28250400        
+                   FPBPTR+5)))+3].[36:6]-1) NEQ TMP DO                  28250600        
+             IF M[NT1+4] LSS 0 THEN % NOT AREADY STOPPED                28250800        
+             BEGIN IF TEMP LSS 16 THEN SETNOTINUSE(TEMP,0);             28251000        
+                   STOPTIMING(FPBPTR,1023);                             28251200        
+             END;                                                       28251400        
+           IU:=TMP; % AT THIS POINT IU CHANGES                          28251600        
+           IF IU LSS 16 THEN                                            28251800        
+           IREEL:=RDCTABLE[IU].[14:10]; % PICK UP REEL NO.              28252000        
+ $ SET OMIT = NOT(B6500LOAD)                                            28252200        
+     END;                                                               28252800        
+    DA:=M[SV];                                                          28253000        
+    MFID:=M[FA+J|2]; FID:=M[FA+1+J|2];                                  28253200        
+    SKIPFILE:=FALSE;                                                    28253400        
+    IF IU=18                                                            28253600        
+     THEN BEGIN                                                         28253800        
+    %                                                                   28253801        
+    %*******************************************                        28253802        
+    %   INPUT SOURCE DISK                                               28253803        
+    %*******************************************                        28253804        
+    %                                                                   28253805        
+          DISKWAIT(-H.[CF],30,DA.[FF]);                                 28254000        
+          IF DESTIN.UNITNUM = 19                                   %148-28254200        
+           THEN BEGIN                                                   28254400        
+                ABORT;                                                  28254600        
+                END                                                     28254800        
+           ELSE BEGIN                                                   28255000        
+    %                                                                   28255001        
+    %*******************************************                        28255002        
+    %   OUTPUT TO TAPE                                                  28255003        
+    %*******************************************                        28255004        
+    %                                                                   28255005        
+TIPE:    STREAM(A:=J+1,B:=[LBL[2]]);                                    28255200        
+         BEGIN SI:=LOC A;DI:=DI+5;DS:=3 DEC END;                        28255400        
+         LABELTABLE[OU]:=-LBL[2]; % ENTER FILE ID FOR OL MESSAGE        28255600        
+         H[9]:=(*P(DUP)) AND 31;                                        28255800        
+         IF NOLBL THEN NOLBL:=FALSE ELSE                                28256000        
+         BEGIN                                                          28256200        
+         P(WIATIO(LBL&@5000[CTF],@40,OU),DEL);                          28256400        
+         P(WAITIO([TM],@40,OU),DEL);                                    28256800        
+         END;                                                           28257200        
+         IF BHS OR (P([H[9]],LOD,DUP)=0 OR P(XCH) GTR 20)               28257400        
+          THEN BEGIN                                                    28257600        
+BADHDR:        LIBRARYHELP(9);                                          28257800        
+               GO NEXT;                                                 28258000        
+               END;                                                     28258200        
+         P(WAITIO(H&@5000[CTF],@40,OU),DEL);                            28258400        
+UP:      COPYING:=TRUE;                                                 28258600        
