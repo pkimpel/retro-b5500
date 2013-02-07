@@ -20925,3 +20925,98 @@ BADHDR:        LIBRARYHELP(9);                                          28257800
                END;                                                     28258200        
          P(WAITIO(H&@5000[CTF],@40,OU),DEL);                            28258400        
 UP:      COPYING:=TRUE;                                                 28258600        
+         IF DSED THEN ABORT;                                            28258700        
+         FOR K:=1 STEP 1 UNTIL H[9].[43:5] DO% WRITE OUT FILE           28258800        
+         IF H[K+9]!0 THEN                                               28259000        
+         BEGIN                                                          28259200        
+            COPYAROW;                                                   28259400        
+            IF OUTAPEPARITY THEN                                        28259600        
+            BEGIN                                                       28259800        
+               OUTAPEPARITY:=FALSE;                                     28260000        
+               GO UP;                                                   28260200        
+            END;                                                        28260400        
+            IF SKIPFILE THEN GO NEXT;                                   28260600        
+            IF STOPSET(P1MIX) THEN STOPM(0);                            28260800        
+         END;                                                           28261000        
+         COPYING:=FALSE;                                                28261100        
+         IF OU LSS 16 THEN WRITENDINGLABEL;                             28261200        
+         IF IU LSS 16 THEN                                              28261400        
+ $ SET OMIT = NOT B6500LOAD                                             28261600        
+         IF WAITIO(SPACER,MM,IU) NEQ @40 THEN                           28262200        
+          BEGIN NOTCOPIED(56); LIBRARYHELP(8); GO NEXT; END;            28262400        
+ $ SET OMIT = PACKETS                                                   28262600        
+          BEGIN                                                         28263200        
+          STREAM(MFID,FID,A:=TINU[IU],B:=TINU[OU],T:=T:=SPACE(10));     28263400        
+          BEGIN SI:=LOC MFID; SI:=SI+1; DS:=7CHR; DS:=LIT"/";           28263600        
+                SI:=SI+1; DS:=7CHR; DS:=13LIT" COPIED FROM ";           28263800        
+                SI:=SI+5; DSD:=3CHR; DS:=4LIT" TO "; SI:=SI+5;          28264000        
+                DS:=3CHR; DS:=LIT"~";                                   28264200        
+          END;                                                          28264400        
+          SPOUTER(T,0,L,LIBMSG);                                        28264600        
+          END;                                                          28264800        
+         SOMECOPIED:=TRUE;                                              28264900        
+         IF IU=18 THEN                                                  28265000        
+          BEGIN P(DIRECTORYSEARCH(-(DS.[FF],13,20),DEL);                28265200        
+                M[FAINFO+J].[17:1]:=1;                                  28265400        
+          END;                                                          28266000        
+         IF OU=18 THEN                                                  28266200        
+          BEGIN P(DIRECTORYSEARCH(-MFID,FID,14),DEL); OE:=0; END;       28266400        
+         IF DUMPDIR THEN                                                28266600        
+          BEGIN LIBRARYHELP(7);                                         28266800        
+                IF (Y:=IOD[W]).[27:2] NEQ 0 THEN                        28267000        
+                 IF Y.[28:1] THEN                                       28267200        
+                  BEGIN STREAM(T:=T:=SPACE(7));                         28267400        
+                     BEGIN DS:=31LIT"PARITY WHILE WRITING DIRECTORY~";  28267600        
+                     END;                                               28267800        
+                        SPOUT(T); ABORT;                                28268000        
+                  END        ELSE                                       28268200        
+                  LIBRARYHELP(6);                                       28268400        
+                IF NOT IOD[W].[27:1] THEN                               28268600        
+                 BEGIN WRITENDINGLABEL; DUMPDIR:=0; END ELSE NOLBL:=1;  28268800        
+          END;                                                          28269000        
+         IF IU LSS 16 THEN                                              28269400        
+ $ SET OMIT = NOT B6500LOAD                                             28269600        
+         GO FALLOUT;                                                    28270200        
+          END;                                                          28270400        
+      END                                                               28270600        
+     ELSE BEGIN       % SOURCE TAPE                                     28270800        
+    %                                                                   28270801        
+    %*******************************************                        28270802        
+    %   INPUT SOURCE TAPE                                               28270803        
+    %*******************************************                        28270804        
+    %                                                                   28270805        
+    %*******************************************                   %160-28270806        
+    %   CHECK IF FILE IS TO BE ADDED                               %160-28270807        
+    %*******************************************                   %160-28270808        
+    %                                                              %160-28270809        
+          IF ADDV THEN                                             %160-28270810        
+          IF NOT MUSTADD THEN                                      %160-28270812        
+          IF DESTIN.UNITNUM = 19 THEN% TAPE TO DISK                %160-28270814        
+          IF DIRECTORYSEARCH(-MFID,FID,5) NEQ 0% ALREADY ON DISK   %160-28270816        
+           THEN BEGIN                                              %160-28270818        
+                LBMESS(ABS(MFID),FID,-67,68,TINU[IU],SPOUTUNIT,LIBMSG); 28270820        
+                IF STOPSET(P1MIX) THEN STOPM(0);                   %160-28270822        
+                IF DSED THEN ABORT;                                %160-28270824        
+                GO NEXT;                                           %160-28270826        
+                END                                                %160-28270828        
+           ELSE BEGIN M[FAINFO+J].[13:1]:=1; MUSTADD:=1 END;       %160-28270830        
+           IF LABELCHECK THEN ABORT;                                    28271000        
+ $ SET OMIT = NOT(B6500LOAD)                                            28271200        
+    %                                                                   28272201        
+    %*******************************************                        28272202        
+    %   POSITION THE TAPE TO CORRECT FILE                               28272203        
+    %   USING INFO. IN "FAINFO" ENTRY (UA)                              28272204        
+    %*******************************************                        28272205        
+    %                                                                   28272206        
+          STREAM(B:=LAB[2],SV:=[SV]);                                   28272400        
+           BEGIN SI:=LOC B; SI:=SI+5; DS:=3OCT; END;                    28272600        
+          IF SV NEQ DA.[FF] THEN BEGIN J:=J-1; GO SKIPPER; END;         28272800        
+          IF WAITIO((*[AROW[0]])&@5400[CTF],@2000000,IU)=@20            28273000        
+           THEN BEGIN P(1); GO BH; END; % RD HDR CHKING FOR PARITY      28273200        
+          MOVE(30+5|B6500,AROW[0].[CF]+B6500,H);                        28273400        
+ $ SET OMIT = NOT B6500LOAD                                             28273600        
+          T:=-1;                                                        28275800        
+          IF (NOT B6500) AND (M[AROW[0] INX NOT 0] NEQ 30)              28276000        
+           THEN P(1)                                                    28276200        
+           ELSE                                                         28276400        
+           BEGIN STREAM(A:=0;D:=H);                                     28276600        
