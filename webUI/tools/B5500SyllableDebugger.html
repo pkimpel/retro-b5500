@@ -20,6 +20,7 @@
 "use strict";
 
 var cc;
+var injected = false;                   // true if syllable manually injected into T
 var memAddr = 0x40;                     // @100
 
 var accessor = {                        // Memory access control block
@@ -564,42 +565,35 @@ function displayProcessorState() {
     window.focus();
 }
 
-function stepIt(exec) {
-    /* Simple test driver for the Processor arithmetic ops */
-    var opcode = 0x02D;                 // NOOP (XX55) by default
-    var opList = $$("OpList")
-    var saveC;
-    var saveL;
-    var saveP;
-    var saveT;
-    var text;
-    var title;
-    var value;
-
-    title = opList.options[opList.selectedIndex].text
-    value = opList.options[opList.selectedIndex].value;
-    opcode = parseInt(value, 8);
+function stepIt() {
+    /* Executes a single instruction. If that syllable was manually injected into
+    the T register, backs up C and L so that the originally-queued syllable can
+    be executed next */
+    var next;
 
     setText("ARegOrig", padOctal(cc.P1.A, 16));
     setText("BRegOrig", padOctal(cc.P1.B, 16));
 
-    if (exec) {
-        saveT = cc.P1.T;
-        saveC = cc.P1.C;
-        saveL = cc.P1.L;
-        saveP = cc.P1.P;
-        cc.P1.X = 0;
-        cc.P1.T = opcode;
+    if (injected) {
+        injected = false;
+        next = cc.P1.C*4 + cc.P1.L - 1;         // back up the auto-L increment
+        cc.P1.L = next%4;
+        cc.P1.C = (next - cc.P1.L)/4;
     }
     cc.P1.step();
-    if (exec) {
-        cc.P1.T = saveT;
-        cc.P1.C = saveC;
-        cc.P1.L = saveL;
-        cc.P1.P = saveP;
-    }
-
     displayProcessorState();
+}
+
+function execIt() {
+    /* Executes one instruction from the drop-down syllable options list, then
+    backs up C and L to prepare for the original instruction in the stream */
+    var opList = $$("OpList")
+    var value;
+
+    value = opList.options[opList.selectedIndex].value;
+    cc.P1.T = parseInt(value, 8);
+    injected = true;
+    stepIt();
 }
 
 function word_onChange(ev) {
@@ -769,11 +763,9 @@ function initialize() {
         cc.P1.PROF = ff_onChange(ev);
     };
     $$("TReg").onchange = function(ev) {
-        var next = cc.P1.C*4 + cc.P1.L - 1;     // back up the auto-L increment
 
         cc.P1.T = reg_onChange(ev);
-        cc.P1.L = next%4;
-        cc.P1.C = (next - cc.P1.L)/4;
+        injected = true;
         displaySyllable();
     };
     $$("TROF").onclick = function(ev) {
@@ -862,7 +854,9 @@ function initialize() {
     $$("MWordP3").onchange = word_onChange;
     $$("MWordP4").onchange = word_onChange;
 
-    document.getElementById("FileSelector").addEventListener("change", fileSelector_onChange, false);
+    $$("FileSelector").addEventListener("change", fileSelector_onChange, false);
+    $$("Step").addEventListener("click", stepIt, false);
+    $$("Exec").addEventListener("click", execIt, false);
 
     cc = new B5500CentralControl();
     cc.powerOn();
@@ -913,7 +907,7 @@ window.onload = function() {
     <th>Current (octal)
     <th>BIC
     <th>Current (decimal)
-    <th>Original (octal)
+    <th>Prior (octal)
 <tbody>
 <tr>
     <td colspan=6 class="revcaption">STACK
@@ -1182,7 +1176,8 @@ window.onload = function() {
 </table>
 
 <p>
-<input id=Step name=Step type=button value="Step" accesskey=P onclick="return stepIt(false)">
+<input id=Step name=Step type=button value="Step" accesskey=P>
+
 &nbsp;
 Syllable:
 <select id=OpList name=OpList>
@@ -1204,7 +1199,7 @@ Syllable:
 </select>
 
 &nbsp;
-<input id=Step name=Exec type=button value="Exec" accesskey=X onclick="return stepIt(true)">
+<input id=Exec name=Exec type=button value="Exec" accesskey=X>
 </p>
 
 </body>

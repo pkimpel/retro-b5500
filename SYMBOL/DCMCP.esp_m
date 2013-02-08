@@ -21019,4 +21019,102 @@ UP:      COPYING:=TRUE;                                                 28258600
           IF (NOT B6500) AND (M[AROW[0] INX NOT 0] NEQ 30)              28276000        
            THEN P(1)                                                    28276200        
            ELSE                                                         28276400        
-           BEGIN STREAM(A:=0;D:=H);                                     28276600        
+           BEGIN STREAM(A:=0:D:=H);                                     28276600        
+                 BEGIN SI:=D; 30(IF SB THEN BEGIN TALLY:=1; JUMP OUT END28276800        
+                                       ELSE SI:=SI+8); A:=TALLY;        28277000        
+                 END;                                                   28277200        
+           IF P THEN P(1)                                               28277400        
+                ELSE IF (NT1:=H[9].[43:5]) GTR 20 OR NT1=0              28277600        
+                     THEN P(1)                                          28277800        
+                     ELSE                                               28278000        
+                     BEGIN SV:=0;                                       28278200        
+                     FOR W:=10 STEP 1 UNTIL 29 DO                       28278400        
+                      BEGIN SV:=SV+(NT2:=(H[W] NEQ 0));                 28278600        
+                            IF W GEQ NT1+10 THEN IF NT2 THEN W:=31;     28278800        
+                      END;                                              28279000        
+                     IF ((W=31) OR (SV GTR NT1) OR ((SV NEQ 0) AND      28279200        
+                        (H[8]=0)))                                      28279400        
+                      THEN P(1)                                         28279600        
+                      ELSE P(0);                                        28279800        
+                     END;                                               28280000        
+           END;                                                         28280200        
+BH:      BHS:=P(XCH);                                                   28280400        
+         IF BHS THEN                                                    28280600        
+          IF DESTIN.UNITNUM = 19 THEN GO BADHDR ELSE GO TTPE;      %148-28280800        
+         IF DESTIN.UNITNUM = 19                                    %148-28281000        
+          THEN                                                          28281200        
+          BEGIN       % TAPE TO DISK (LOAD)                             28281400        
+    %                                                                   28281401        
+    %*******************************************                        28281402        
+    %   OUTPUT TO DISK                                                  28281403        
+    %*******************************************                        28281404        
+    %                                                                   28281405        
+          IF MUSTADD THEN T:=0 ELSE% ADD FILE NOT ON DISK          %160-28281550        
+          IF (T:=DIRECTORYSEARCH(MFID&(3+4|(ADDV))[1:45:3],             28281600        
+                 FID,4+ADDV)) GEQ 2                                     28281800        
+           THEN                                                         28282000        
+           IF T=2 THEN NOTCOPIED(25)                                    28282200        
+                  ELSE BEGIN                                            28282400        
+                   IF (SV:=NOT ADDV AND M[T+2] NEQ 0 AND                28282600        
+                    ((USERCODE[P1MIX] EQV ABS(MCP)) NEQ NOT 0) AND      28282800        
+                    ((USERCODE[P1MIX] EQV ABS(M[T+2])) NEQ NOT 0)) OR   28283000        
+                    (LATEST AND M[T+3].[30:18] GTR H[3].[30:18]) THEN   28283200        
+                    BEGIN                                               28283400        
+                    HEADERUNLOCK(ABS(MFID),FID,T);                      28283600        
+                    T:=-1;                                              28283800        
+                    NOTCOPIED(64-SV|23);                                28284000        
+                    END;                                                28284200        
+                       END                                              28284400        
+           ELSE                                                         28284600        
+           IF T=1 THEN % IT WAS "IF-ED"                                 28284800        
+            BEGIN T:=-1;                                                28285000        
+                  NOTCOPIED(45);                                        28285200        
+            END   ELSE IF DSED THEN ABORT;                              28285400        
+          OE:=(T GEQ 64);                                               28285600        
+          IF T=0 OR (T GEQ 64 AND NOT ADDV) THEN                        28285800        
+          BEGIN  %  LOAD IT                                             28286000        
+              IF T GEQ 64 THEN                                          28286200        
+              IF M[T+8]!H[8] THEN                                       28286400        
+              BEGIN                                                     28286600        
+                   FORGETSPACE(T);                                      28286800        
+                   P(DIRECTORYSEARCH(MFID,FID,6),DEL);                  28287000        
+                   T:=0;                                                28287200        
+              END;                                                      28287400        
+              IF T=0 THEN                                               28287600        
+              BEGIN                                                     28287800        
+                   T:=GETSPACE(30,DISKHEADERAREAV,1)+2;%           %167-28288000        
+                   MOVE(30,T-1,T);                                      28288200        
+                   M[T+4]:=-0&SYSNO[4:46:2]&1[2:47:1];                  28288400        
+              END ELSE                                                  28288600        
+              TMP:=T.[18:15];                                           28288800        
+              HDR := [M[T]] & 30[8:38:10];                              28289000        
+              FOR W:=H[9].[43:5]+10 STEP 1 UNTIL 29 DO H[W]:=0;         28289200        
+              IF (HDR[9]:=(*P(DUP)) AND 31) = 0 THEN HDR[7]:=-1;        28289400        
+              FOR W:=HDR[9]+10 STEP 1 UNTIL 29 DO HDR[W]:=0;            28289600        
+              W:=0;                                                     28289800        
+              WHILE (W:=W+1) LEQ H[9].[43:5] DO                         28290000        
+              IF H[9+W]!0 THEN                                          28290200        
+               IF (H[9+W]:=HDR[9+W]) LEQ 0 THEN                         28290400        
+OK:                IF(H[9+W]:=PETUSERDISK(H[8] OR M,COMMON)) LSS 1 THEN 28290600        
+                   BEGIN                                                28290800        
+WY:                TEMP:=SPACE(10);                                     28291000        
+                   STREAM(J:=JARROW[P1MIX],P1MIX,H:=H[8],M:=MFID,F:=FID,28291200        
+                          TEMP);                                        28291400        
+                   BEGIN DS:=14 LIT "#NO USER DISK:"; SI:=J;SI:=SI+1;   28291600        
+                   DS:=7CHR;DS:=LIT"/";SI:=SI+1;DS:=7CHR;DS:=LIT"=";    28291800        
+                   SI:=LOC P1MIX;DS:=2DEC;J:=DI;DI:=DI-2;DS:=FILL;DI:=J;28292000        
+                   DS:=LIT"(";SI:=LOC M;SI:=SI+1;DS:=7CHR;SI:=SI+1;     28292200        
+                   DS:=LIT"/";DS:=7CHR;DS:=2LIT")-";SI:=LOC H;DS:=8 DEC;28292400        
+                   DS:=7LIT" SEGS.~"; DI:=DI-15; DS:=7FILL;             28292600        
+                   END;                                                 28292800        
+                   SPOUT(TEMP);                                         28293000        
+                   REPLY[P1MIX] := -(TEMP:=VIF&VWY[36:42:6]&            28293200        
+                        VOF[30:42:6]&VOK[24:42:6]);                     28293400        
+                   COMPLEXSLEEP(REPLY[P1MIX]}0 OR DSED                  28293600        
+                                OR PRT(P1MIX,@25]=5);                   28293800        
+                   IF NOT WHYSLEEP(TEMP) THEN GO TO WY;                 28294000        
+                   IF REPLY[P1MIX]=VOK THEN GO TO OK;                   28294200        
+                   IF  REPLY[P1MIX]=VOF THEN                            28294400        
+                   BEGIN COMMON := COMMON AND NOT M; GO TO OK; END;     28294600        
+                   FOR W:=W STEP -1 UNTIL 1 DO                          28294800        
+                        IF H[9+W]!0 THEN                                28295000        
