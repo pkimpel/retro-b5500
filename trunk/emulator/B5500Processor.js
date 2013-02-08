@@ -4483,7 +4483,8 @@ B5500Processor.prototype.schedule = function schedule() {
 B5500Processor.prototype.step = function() {
     /* Single-steps the processor. Normally this will cause one instruction to
     be executed, but note that in case of an interrupt, one or two injected
-    instructions (e.g., SFI followed by ITI) could also be executed. */
+    instructions (e.g., SFI followed by ITI or char-mode CRF followed by lots of
+    things) could also be executed */
 
     this.cycleLimit = 1;
     this.cycleCount = 0;
