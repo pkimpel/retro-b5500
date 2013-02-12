@@ -21118,3 +21118,78 @@ WY:                TEMP:=SPACE(10);                                     28291000
                    BEGIN COMMON := COMMON AND NOT M; GO TO OK; END;     28294600        
                    FOR W:=W STEP -1 UNTIL 1 DO                          28294800        
                         IF H[9+W]!0 THEN                                28295000        
+                        IF HDR[9+W]=0 THEN                              28295200        
+                             FORGETUSERDISK(H[9+W],-H[8]);              28295400        
+                   FORGETSPACE(T);                                      28295600        
+                   IF DSED THEN ABORT;                                  28295800        
+                   IF HDR[9]!0 THEN                                     28296000        
+                   BEGIN                                                28296200        
+                        P(DIRECTORYSEARCH(MFID,FID,14),DEL);            28296400        
+                        OE:=0;                                          28296600        
+                   END;                                                 28296800        
+                   NOTCOPIED(31);                                       28297000        
+                   IF J NEQ ((FASZ DIV 2)-1) THEN SPACIT;               28297200        
+                   GO NEXT;                                             28297400        
+                   END;                                                 28297600        
+              STREAM(A:=[H[1]],D:=DATE);                                28297800        
+              BEGIN SI:=LOC D;DI:=LOC D;DS:=8 OCT;                      28298000        
+                   SI:=SI-4;DI:=A;DS:=4 CHR;                            28298200        
+              END;                                                      28298400        
+              H[4]:=M[T+4]&H[4][8:8:3]&0[11:47:1]&H[4][36:36:6]         28298600        
+                    &H[4][43:43:1];                                     28298800        
+              H[1].[25:23]:=XCLOCK+P)RTR);                              28299000        
+              IF HDR[9]=0 THEN                                          28299200        
+                   ENTERUSERFILE(ABS(MFID),FID,H,[CF]-1)                28299400        
+              ELSE                                                      28299600        
+              BEGIN W:=IF H[9] LSS HDR[9] THEN HDR[9] ELSE H[9];        28299800        
+                   FOR W:=W+9 STEP -1 UNTIL 10 DO                       28300000        
+                   IF H[W]=0 THEN                                       28300200        
+                     IF HDR[W]!0 THEN       % EXTRA ROW IN DISK FILE    28300400        
+                        FORGETUSERDISK(HDR[W],HDR[8]) ELSE ELSE         28300600        
+ $ SET OMIT = NOT SHAREDISK                                             28300800        
+                  ;DISKWAIT(H INX 0,30,TMP);                            28301600        
+              END;                                                      28301800        
+              FORGETSPACE(T);                                           28302000        
+             GO UP;                                                     28302200        
+          END % OF LOAD IT                                              28302400        
+          ELSE IF J=((FASZ DIV 2)-1) THEN GO NEXT ELSE GO SKIPPER;      28302600        
+          END % OF TAPE TO DISK                                         28302800        
+          ELSE GO TIPE;                                                 28303000        
+SKIPPER: DO UNTIL WAITIO(SPACER,MM,IU)=@40 OR DSED;                     28303200        
+         IF STOPSET(P1MIX) THEN STOPM(0);                               28303400        
+         IF DSED THEN ABORT;                                            28303600        
+FALLOUT: IF ENDOFREEL THEN GO SKIPPER;                                  28303800        
+         END;                                                           28304000        
+NEXT:                                                                   28304200        
+    END;                                                                28304400        
+    IF NOT SOMECOPIED THEN                                              28304500        
+     BEGIN STREAM(T:=T:=SPACE(5));                                      28304510        
+           BEGIN DS:=18LIT"NULL LIBRARY COPY~"; END;                    28304520        
+           SPOUT(T);                                                    28304530        
+     END;                                                               28304540        
+    IF OU GEQ 0 THEN % WE HAVE AN OUTPUT UNIT                      %130-28304590        
+    IF (DESTIN.UNITNUM!19) THEN P(WAITIO([TM],@40,OU),DEL);        %148-28304600        
+    IF IU GEQ 0 THEN % WE HAVE AN INPUT  UNIT                      %130-28304700        
+    IF IU LSS 16 THEN SETNOTINUSE(IU,0);                                28304800        
+    IF FORKED                                                           28305000        
+     THEN STOPTIMING(FPBPTR,1023);                                      28305200        
+     ELSE FOR TMP:=FPBPTR SETP 5 UNTIL (NT1:=PRT[P1MIX,3]).[8:10]-5 DO  28305400        
+          IF M[NT1 INX (TMP+4)] LSS 0 THEN                              28305600        
+           BEGIN IF (TEMP:=M[NT1 INX (TMP+3)].[36:6]-1) LSS 16 THEN     28305800        
+            SETNOTINUSE(TEMP,0);                                        28306000        
+            STOPTIMING(TMP,1023);                                       28306200        
+           END;                                                         28306400        
+    IF OU GEQ 0 THEN % WE HAVE AN OUTPUT UNIT                      %130-28306500        
+    IF OU LSS 16 THEN SETNOTINUSE(OU,1);                                28306600        
+    STOPTIMING(0,1023);                                                 28306800        
+ $ SET OMIT = PACKETS                                                   28307000        
+    TMP:=FASZ DIV 2 - 1;                                           %757-28307700        
+    FOR J:=0 STEP 1 UNTIL TMP DO                                   %757-28307705        
+     IF (DS:=M[FAINFO+J]).[CF]=18 THEN % FROM DISK                 %757-28307710        
+      IF UNLOAD THEN                                               %757-28307715        
+       BEGIN MFID:=M[FA+J|2]; FID:=M[FA+1+J|2];                    %757-28307720        
+             P(DIRECTORYSEARCH(-MFID&1[3:47:1].FID,7),DEL);        %757-28307725        
+             IF DSED THEN GO TO INITIATE;                          %757-28307730        
+       END;                                                        %757-28307735        
+    GO INITIATE;                                                        28307800        
+END OF LIBRARYTRANSFER;                                                 28308000        
