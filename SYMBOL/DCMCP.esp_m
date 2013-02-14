@@ -21193,3 +21193,109 @@ NEXT:                                                                   28304200
        END;                                                        %757-28307735        
     GO INITIATE;                                                        28307800        
 END OF LIBRARYTRANSFER;                                                 28308000        
+PROCEDURE LIBRARYCOPY;                                                  28400000        
+%                                                                       28400002        
+%***********************************************************************28400004        
+%                                                                       28400006        
+%                                                                       28400008        
+%   LIBRARYCOPY PERFORMS THE INITIAL SETUP OF FILE NAMES AND            28400010        
+%   INFORMATION BASED ON DATA PASSED THROUGH ESPDISK FROM THE           28400012        
+%   PROCEDURE CCLIB.  THIS INFORMATION WILL BE PLACED IN THE            28400014        
+%   FILE ARRAY "FA" AND ITS COUNTERPART "FAINFO" FOR USE LATER          28400016        
+%   IN LIBRARYTRANSFER.  IT OPERATES ON EACH <COPY SPECIFICATION>       28400018        
+%   (REFER TO BNF DOCUMENTATION) ONE AT A TIME UNTIL THE CONTROL        28400020        
+%   CARD HAS BEEN EXHAUSTED.                                            28400022        
+%                                                                       28400024        
+%   THERE ARE TWO METHODS OF FINDING FILES ON A DISK INPUT SOURCE.      28400026        
+%   ONE IS TO USE IT AS IF IT WERE A LARGE TAPE, USING THE DISK         28400028        
+%   DIRECTORY LIKE A LARGE TAPE DIRECTORY (NOHASH); THE OTHER IS        28400030        
+%   TO USE THE PROCEDURE SEEKNAM TO OBTAIN NAMES VIA A HASHING          28400032        
+%   TECHNIQUE.  IRREGARDLESS OF THE NAME FINDING METHOD, ONCE YOU       28400034        
+%   HAVE A NAME PAIR THE PROCEDURE FOLLOWED IS THE SAME:                28400036        
+%                                                                       28400038        
+%   1:  DETERMINE IF NAME PAIR HAS BEEN ASKED FOR BY CONTROL CARD       28400040        
+%                                                                       28400042        
+%   2:  CHECK TO SEE IF IT APPEARS IN THE "EXCEPT" LIST FOR THAT        28400044        
+%       NAME PAIR                                                       28400046        
+%                                                                       28400048        
+%   3:  IF DISK, MAKE SURE IT IS ACCESSABLE                             28400050        
+%                                                                       28400052        
+%   4:  CHANGE NAME IF SPECIFIED BY "AS" CLAUSE                         28400054        
+%                                                                       28400056        
+%   5:  CHECK THAT NAME PAIR HAS NOT ALREADY BEEN PROCESSED             28400058        
+%                                                                       28400060        
+%   6:  INSERT NAME PAIR INTO "FA"                                      28400062        
+%       INSERT NAME PAIR INFORMATION INTO "FAINFO"                      28400064        
+%                                                                       28400066        
+%   AT STEP 6, IT MUST BE DETERMINED AS TO WHETHER THE USER             28400068        
+%   SPECIFIED MAXIMUM NUMBER OF FILES PER OUTPUT UNIT HAS BEEN          28400070        
+%   EXCEEDED.  IF SO, AN ATTEMPT TO FORK ANOTHER LIBMAIN/DISK TO        28400072        
+%   HANDLE THE CURRENT "FA" WILL BE INITIATED (REFER TO DOCUMENTATION), 28400074        
+%   AND THE PROCESS WILL CONTINUE WITH A NEW "FA".  A LINKED LIST       28400076        
+%   OF "FA"S IS KEPT BY THE ORIGINATING LIBMAIN/DISK FOR THE            28400078        
+%   CONFLICT RESOLUTION OF STEP 5.                                      28400080        
+%                                                                       28400082        
+%                                                                       28400084        
+%   COMMON.[2:1]   INDICATES ORIGINATING LIBMAIN/DISK                   28400086        
+%                                                                       28400088        
+% IF ORIGINATOR...                                                      28400090        
+%                                                                       28400092        
+%         .[3:6]   UNITNO FOR PACKETS                                   28400094        
+%         .[9:9]   MAXIMUM NUMBER OF FILES PER OUTPUT UNIT              28400096        
+%         .[CF]    FIRST ESPDISK SEGMENT ADDRESS                        28400098        
+%                                                                       28400100        
+% IF NOT ORIGINATOR...                                                  28400102        
+%                                                                       28400104        
+%         .[3:45]  DISK ADDRESS OF "FA" AND "FAINFO" FOR THIS           28400106        
+%                  FORKED LIBMAIN/DISK                                  28400108        
+%                                                                       28400110        
+%   FA             FILE ARRAY FOR NAME PAIRS                            28400112        
+%                                                                       28400114        
+%   FAINFO         TRANSFER INFORMATION FOR ASSOCIATED NAME PAIR        28400116        
+%                                                                       28400118        
+%   FAIN           INDEX INTO "FA"                                      28400120        
+%                                                                       28400122        
+%   FASZ           SIZE OF "FA"                                         28400124        
+%                                                                       28400126        
+%   MFID           MULTI-FILE ID                                        28400128        
+%                                                                       28400130        
+%   FID            FILE ID                                              28400132        
+%                                                                       28400134        
+%   ASMFID         MULTI-FILE ID AFTER STEP 4.                          28400136        
+%                                                                       28400138        
+%   ASFID          FILE ID AFTER STEP 4.                                28400140        
+%                                                                       28400142        
+%   FPBPTR         CURRENT INDEX OF FPB ENTRY                           28400144        
+%                                                                       28400146        
+%   DESTIN         USER SPECIFIED DESTINATION                           28400148        
+%                                                                       28400150        
+%   TOGS.[3:1] (ACCESS0)   SPECIFIES CHECK ACCESSD BIT                  28400152        
+%       .[4:1] (EXPIRED)   CHECK FOR FILE BEING EXPIRED                 28400154        
+%       .[7:1] (NOHASH)    USE DISK SERIALLY                            28400156        
+%       .[18:1] (OK)       FILE HAS PASSED STAGE 3.                     28400158        
+%       .[19:1] (INXLST)   FILE OCCURRED IN "EXCEPT" LIST               28400160        
+%       .[20:1] (WEIRDFORK) SOME ALTERATIONS TO "FA" ARE                28400162        
+%                           NECESSARY BEFORE FORKING                    28400164        
+%       .[23:1] (FORKED)   NOT ORIGINATING LIBRARYCOPY                  28400166        
+%       .[25:1] (SOURCEFILEFOUND) AT LEAST ONE FILE FROM THIS           28400168        
+%                                 SOURCE WAS USED                       28400170        
+%                                                                       28400172        
+%   CCA            HOLDS ESPDISK SEGMENTS FROM CCLIB                    28400174        
+%                                                                       28400176        
+%   NA,                                                                 28400178        
+%   EA,                                                                 28400180        
+%   POOL           USED IN PREPROCESSING CONTROL CARD INFO, FROM        28400182        
+%                  CCLIB FOR USE B LIBRARYCOPY                          28400184        
+%                                                                       28400186        
+%   MAX            USER SPECIFIED MAXIMUM NUMBER OF FILES PER           28400188        
+%                  OUTPUT UNIT                                          28400190        
+%                                                                       28400192        
+%   X              DIRECTORY OF CURRENT SOURCE (TAPE OR HOHASH)         28400194        
+%                                                                       28400196        
+%                                                                       28400198        
+%***********************************************************************28400200        
+%                                                                       28400202        
+BEGIN                                                                   28400300        
+    REAL COMMON=-4,                                                     28400400        
+         MFID,FID,ASMFID,ASFID,TMP,TEMP, % ADD NEW LOCALS BEYOND HERE   28400600        
+         FA,FAINFO,FASZ,FAIN,                                           28400800        
