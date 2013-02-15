@@ -21299,3 +21299,72 @@ BEGIN                                                                   28400300
     REAL COMMON=-4,                                                     28400400        
          MFID,FID,ASMFID,ASFID,TMP,TEMP, % ADD NEW LOCALS BEYOND HERE   28400600        
          FA,FAINFO,FASZ,FAIN,                                           28400800        
+         U,T,FPBPTR,EA,NM1,NM2,DESTIN,TOGS,DA,                          28401000        
+         CCAIN,FAIN,NAIN,NA,NASZ,                                       28401200        
+         LSX,BUMPFA,POOL,INDX,                                          28401400        
+         UN,SEG,MAX,K,L,MIDPTR,UNITNO;                                  28401600        
+    ARRAY CCA[*],X[*],PAP[*],LAB[*],LBL[*],WRDSZ[*];                    28401800        
+ $ SET OMIT = NOT(B6500LOAD)                                            28402000        
+    LABEL NEXTNAME,BACK,UP,QUIT,NEXTSEG,NXT,TRANSFER;                   28402800        
+    LABEL NEXTSOURCE,CONTINUE,ON,BADNM;                                 28403000        
+    %                                                                   28403200        
+    %*****************************************************              28403400        
+    %                                                                   28403600        
+    DEFINE                                                              28403800        
+         ACCWESS0  = TOGS.[3:1]#,                                       28404000        
+         EXPIRED   = TOGS.[4:1]#,                                       28404200        
+         NOHASH    = TOGS.[7:1]#,                                       28404400        
+         OK        = TOGS.[18:1]#,                                      28404600        
+         INXLST    = TOGS.[19:1]#,                                      28404800        
+         WEIRDFORK = TOGS.[20:1]#,                                      28405000        
+         FORKED    = TOGS.[23:1]#,                                      28405200        
+         B6500     = TOGS.[24:1]#,                                      28405400        
+         SOURCEFILEFOUND=TOGS.[25:1]#,                                  28405600        
+         REEL1START=TGOS.[34:1]#,                                       28405800        
+    %                                                                   28406000        
+    %*****************************************************              28406200        
+    %                                                                   28406400        
+    DEFINE DSED    = (TERMSET(P1MIX))#,                                 28406600        
+         ABORT     = (LIBRARYHELP(4)#,                                  28406800        
+         RB5       = @3677777777777777#,                                28407000        
+         RB4       = @3577777777777777#,                                28407200        
+         NUMOPT    = 6#,                                                28407400        
+         UNITNUM = [1:5]#,                                         %148-28407500        
+         SPOUTUNIT = 0#;                                                28407600        
+    %*****************************************************              28407700        
+    DEFINE NOTCOPIED(NOTCOPIED1) =                                      28407800        
+         BEGIN NT1:=NOTCOPIED1; NOCOPYMESS; END#;                       28408000        
+    SUBROUTINE NOCOPYMESS;                                              28408200        
+         LBMESS( MFID, FID, -67, NT1, TINU[U], SPOUTUNIT, 1 );     %    28408400        
+    %                                                                   28408600        
+    %*****************************************************              28408800        
+    %                                                                   28409000        
+    SUBROUTINE GETASEGMENT;                                             28409200        
+    BEGIN                                                               28409400        
+         SEG=CCA[29];                                                   28409600        
+         DISKWAIT(-CCA,[CF],30,SEG);                                    28409800        
+         FORGETESPDISK(SEG);                                            28410000        
+         CCAIN:=0;                                                      28410200        
+    END;                                                                28410400        
+    %                                                                   28410600        
+    %*****************************************************              28410800        
+    %                                                                   28411000        
+    % - USED TO CHECK THAT FILE NAME PAIRS HAVE                         28411001        
+    %   NOT APPEARED BEFORE IN THIS OR ANY OTHER "FA"                   28411002        
+    %                                                                   28411003        
+    %******************************************************             28411004        
+    %                                                                   28411005        
+    REAL STREAM PROCEDURE RESOLVE(DIRADDR,MFID); VALUE DIRADDR;         28411200        
+    BEGIN LABEL FOUND,FINIS,AGAIN;                                      28411400        
+         SI:=DIRADDR;                                                   28411600        
+AGAIN:   DI:=MFID;                                                      28411800        
+         IF SC="0" THEN                                                 28412000        
+          BEGIN SI:=SI-8;                                               28412200        
+                IF 16 SC=DC THEN GO FOUND;                              28412400        
+                SI:=SI-24; GO AGAIN;                                    28412600        
+          END      ELSE                                                 28412800        
+         IF SC="+" THEN GO FINIS ELSE                                   28413000        
+          IF SC="&" THEN BEGIN SI:=SI+5; SI:=SC; GO AGAIN; END;         28413200        
+FOUND:   RESOLVE:=SI;                                                   28413400        
+FINIS:                                                                  28413600        
+    END;                                                                28413800        
