@@ -203,6 +203,36 @@ function $$(id) {
     return document.getElementById(id);
 }
 
+function hasClass(id, name) {
+    /* returns true if element "e" has class "name" in its class list */
+    var e = $$(id);
+    var classes = e.className;
+
+    if (!e) {
+        return false;
+    } else if (classes == name) {
+        return true;
+    } else {
+        return (classes.search("\\b" + name + "\\b") >= 0);
+    }
+}
+
+function addClass(id, name) {
+    /* Adds a class "name" to the element "e"s class list */
+    var e = $$(id);
+
+    if (!hasClass(id, name)) {
+        e.className += (" " + name);
+    }
+}
+
+function removeClass(id, name) {
+    /* Removes the class "name" from the element "e"s class list */
+    var e = $$(id);
+
+    e.className = e.className.replace(new RegExp("\\b" + name + "\\b\\s*", "g"), "");
+}
+
 function setText(id, text) {
     /* Replaces the children of the node having id="id" with a text node containing "text" */
     var e = $$(id);
@@ -530,6 +560,7 @@ function displayRegisters() {
     displayOctal("XReg", cc.P1.X, 13);
     displayOctal("CReg", cc.P1.C, 5);
     displayOctal("LReg", cc.P1.L, 1);
+    setText("SylAddr", (cc.P1.C*4 + cc.P1.L).toString(8));
     displayOctal("PReg", cc.P1.P, 16);
     $$("PROF").checked = (cc.P1.PROF != 0);
     displayOctal("TReg", cc.P1.T, 4);
@@ -537,6 +568,11 @@ function displayRegisters() {
     displaySyllable();
     displayOctal("EReg", cc.P1.E, 2);
     displayOctal("IReg", cc.P1.I, 3);
+    if (cc.P1.I) {
+        addClass("IReg", "warn");
+    } else {
+        removeClass("IReg", "warn");
+    }
     displayOctal("QReg", cc.P1.Q, 4);
     displayOctal("MReg", cc.P1.M, 5);
     displayOctal("GReg", cc.P1.G, 1);
@@ -565,7 +601,24 @@ function displayProcessorState() {
     window.focus();
 }
 
-function stepIt() {
+function goIt(ev) {
+    /* Branches to the location specified by the C and L registers: loads
+    P and T to set up for the execution of the instruction at that syllable
+    address, and then advances C/L to the next syllable address */
+
+    cc.P1.loadPviaC();
+    cc.P1.T = cc.P1.cc.fieldIsolate(cc.P1.P, cc.P1.L*12, 12);
+    cc.P1.TROF = 1;
+    if (cc.P1.L < 3) {
+        cc.P1.L++;
+    } else {
+        cc.P1.L = 0;
+        cc.P1.C++;
+    }
+    displayProcessorState();
+}
+
+function stepIt(ev) {
     /* Executes a single instruction. If that syllable was manually injected into
     the T register, backs up C and L so that the originally-queued syllable can
     be executed next */
@@ -584,7 +637,7 @@ function stepIt() {
     displayProcessorState();
 }
 
-function execIt() {
+function execIt(ev) {
     /* Executes one instruction from the drop-down syllable options list, then
     backs up C and L to prepare for the original instruction in the stream */
     var opList = $$("OpList")
@@ -752,9 +805,11 @@ function initialize() {
     };
     $$("CReg").onchange = function(ev) {
         cc.P1.C = reg_onChange(ev);
+        setText("SylAddr", (cc.P1.C*4 + cc.P1.L).toString(8));
     };
     $$("LReg").onchange = function(ev) {
         cc.P1.L = reg_onChange(ev);
+        setText("SylAddr", (cc.P1.C*4 + cc.P1.L).toString(8));
     };
     $$("PReg").onchange = function(ev) {
         cc.P1.P = reg_onChange(ev);
@@ -776,6 +831,11 @@ function initialize() {
     };
     $$("IReg").onchange = function(ev) {
         cc.P1.I = reg_onChange(ev);
+        if (cc.P1.I) {
+            addClass("IReg", "warn");
+        } else {
+            removeClass("IReg", "warn");
+        }
     };
     $$("QReg").onchange = function(ev) {
         cc.P1.Q = reg_onChange(ev);
@@ -855,6 +915,7 @@ function initialize() {
     $$("MWordP4").onchange = word_onChange;
 
     $$("FileSelector").addEventListener("change", fileSelector_onChange, false);
+    $$("GoBtn").addEventListener("click", goIt, false);
     $$("Step").addEventListener("click", stepIt, false);
     $$("Exec").addEventListener("click", execIt, false);
 
@@ -1102,8 +1163,12 @@ window.onload = function() {
     <td>
         <input id=CReg name=CReg type=text class=number size=5 maxlength=5>
     <td class=center>L
-    <td colspan=3>
+    <td colspan=2>
         <input id=LReg name=LReg type=text class=number size=1 maxlength=1>
+        &nbsp;
+        <span id=SylAddr></span>
+    <td class=center>
+        <input id=GoBtn name=GoBtn type=button value="Go To">
 <tr>
     <td class=center>P
     <td colspan=5>
@@ -1173,34 +1238,30 @@ window.onload = function() {
         <input id=SALF name=SALF type=checkbox value=1><label for=SALF>SALF</label>
         &nbsp;&nbsp;
         <input id=VARF name=VARF type=checkbox value=1><label for=VARF>VARF</label>
+<tr>
+    <td colspan=6>
+        <input id=Step name=Step type=button value="Step" accesskey=P>
+        &nbsp;Syllable:
+        <select id=OpList name=OpList>
+            <option value="0055" selected>NOP : No Operation
+            <option value="0101">ADD : Add
+            <option value="0301">SUB : Subtract
+            <option value="0401">MUL : Multiply
+            <option value="1001">DIV : Divide
+            <option value="3001">IDV : Integer Divide
+            <option value="7001">RDV : Remainder Divide
+            <option value="0105">DLA : Add DP
+            <option value="0305">DLS : Subtract DP
+            <option value="0125">GEQ : B GEQ A
+            <option value="0225">GTR : B GTR A
+            <option value="0425">NEQ : B NEQ A
+            <option value="4125">LEQ : B LEQ A
+            <option value="4225">LSS : B LSS A
+            <option value="4425">EQL : B EQL A
+        </select>
+        &nbsp;
+        <input id=Exec name=Exec type=button value="Exec" accesskey=X>
 </table>
-
-<p>
-<input id=Step name=Step type=button value="Step" accesskey=P>
-
-&nbsp;
-Syllable:
-<select id=OpList name=OpList>
-    <option value="0055" selected>NOP : No Operation
-    <option value="0101">ADD : Add
-    <option value="0301">SUB : Subtract
-    <option value="0401">MUL : Multiply
-    <option value="1001">DIV : Divide
-    <option value="3001">IDV : Integer Divide
-    <option value="7001">RDV : Remainder Divide
-    <option value="0105">DLA : Add Double Precision
-    <option value="0305">DLS : Subtract Double Precision
-    <option value="0125">GEQ : B Greater or Equal A
-    <option value="0225">GTR : B Greater Than A
-    <option value="0425">NEQ : B Not Equal A
-    <option value="4125">LEQ : B Less or Equal A
-    <option value="4225">LSS : B Less Than A
-    <option value="4425">EQL : B Equal A
-</select>
-
-&nbsp;
-<input id=Exec name=Exec type=button value="Exec" accesskey=X>
-</p>
 
 </body>
 </html>
