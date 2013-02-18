@@ -1220,7 +1220,7 @@ B5500Processor.prototype.storeForInterrupt = function(forTest) {
     }
 
     if (this.CWMF) {
-        temp = this.S;                  // get the correct TOS address from X
+        temp = this.S;                  // if CM, get the correct TOS address from X
         this.S = (this.X % 0x40000000) >>> 15;
         this.X = this.cc.fieldInsert(this.X, 18, 15, temp);
         if (this.AROF || forTest) {
@@ -1372,13 +1372,13 @@ B5500Processor.prototype.start = function() {
 B5500Processor.prototype.initiate = function(forTest) {
     /* Initiates the processor from interrupt control words stored in the
     stack. Assumes the INCW is in A. "forTest" implies use from IFT */
-    var saveAROF;
-    var saveBROF;
+    var saveAROF = 0;
+    var saveBROF = 0;
     var temp;
 
     // restore the Initiate Control Word or Initiate Test Control Word
     this.S = this.A % 0x8000;
-    this.CWMF = Math.floor(this.A / 0x8000) % 0x02;
+    this.CWMF = (this.A % 0x10000) >>> 15;
     if (forTest) {
         this.TM = Math.floor(this.A / 0x10000) % 0x20;
         this.Z = Math.floor(this.A / 0x400000) % 0x40;
@@ -1389,8 +1389,6 @@ B5500Processor.prototype.initiate = function(forTest) {
         this.TM |= Math.floor(this.A / 0x400000000000) % 0x02 * 128;    // MROF
         // Emulator doesn't support J register, so can't set that from TM
     }
-    this.AROF = 0;
-    this.BROF = 0;
 
     // restore the Interrupt Return Control Word
     this.loadBviaS();                   // B = [S]
@@ -1404,7 +1402,7 @@ B5500Processor.prototype.initiate = function(forTest) {
     this.H = Math.floor(this.B / 0x20000000000) % 0x08;
     this.loadPviaC();                   // load program word to P
     if (this.CWMF || forTest) {
-        saveBROF = Math.floor(this.B / 200000000000) % 0x02;
+        saveBROF = Math.floor(this.B / 0x200000000000) % 0x02;
     }
 
     // restore the Interrupt Control Word
@@ -1437,6 +1435,8 @@ B5500Processor.prototype.initiate = function(forTest) {
             this.S--;
         }
 
+        this.AROF = saveAROF;
+        this.BROF = saveBROF;
         if (this.CWMF) {
             // exchange S with its field in X
             temp = this.S;
@@ -1445,7 +1445,9 @@ B5500Processor.prototype.initiate = function(forTest) {
                   temp * 0x8000 +
                   Math.floor(this.X / 0x40000000) * 0x40000000;
         }
-    // else don't restore A or B for word mode -- will pop up as necessary
+    } else { // don't restore A or B for word mode -- will pop up as necessary
+        this.AROF = 0;
+        this.BROF = 0;
     }
 
     this.T = this.cc.fieldIsolate(this.P, this.L*12, 12);
@@ -2638,7 +2640,6 @@ B5500Processor.prototype.enterCharModeInline = function() {
     this.R = 0;
     this.CWMF = 1;
     this.X = this.S * 0x8000;           // inserting S into X.[18:15], but X is zero at this point
-    this.S = 0;
     this.V = 0;
     this.B = bw = this.A;
 
@@ -3691,9 +3692,9 @@ B5500Processor.prototype.run = function() {
                             this.loadAviaM();
                             if (this.NCSF) {
                                 if (this.A % 0x200000 < 0x100000) {
-                                    this.I = (this.I & 0x0F) | 0x50;    // set I07/I05: program release
+                                    this.I = (this.I & 0x0F) | 0x50;    // set I07/5: program release
                                 } else {
-                                    this.I = (this.I & 0x0F) | 0x60;    // set I07/I06: continuity bit
+                                    this.I = (this.I & 0x0F) | 0x60;    // set I07/6: continuity bit
                                 }
                                 this.cc.signalInterrupt();
                                 this.A = this.M;
