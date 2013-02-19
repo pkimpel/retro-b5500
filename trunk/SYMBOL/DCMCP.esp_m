@@ -21368,3 +21368,64 @@ AGAIN:   DI:=MFID;                                                      28411800
 FOUND:   RESOLVE:=SI;                                                   28413400        
 FINIS:                                                                  28413600        
     END;                                                                28413800        
+    %                                                                   28414000        
+    %*****************************************************              28414200        
+    %                                                                   28414400        
+    % - USED TO RESOLVE CONFLICTS AND PROCESS                           28414401        
+    %   OPTIONS ASSOCIATED ONLY WITH DISK SOURCES                       28414402        
+    %                                                                   28414403        
+    %******************************************************             28414404        
+    %                                                                   28414405        
+    SUBROUTINE SEARCHDIRECTORY;                                         28414600        
+    BEGIN                                                               28414800        
+         OK:= FALSE;                                                    28415000        
+         IF NOT SYSTEMFILE(MFID,FID)                                    28415200        
+         AND ((MFID EQV "BADISK ") NEQ NOT 0)                      %163-28415250        
+          THEN IF (T:=DIRECTORYSEARCH(MFID&1[3:47:1],FID OR M,3)) LSS 6428415400        
+           THEN                                                         28415600        
+                IF T=1 THEN NOTCOPIED(45) ELSE NOTCOPIED(15)            28415800        
+           ELSE BEGIN                                                   28416000        
+                IF M[T+2] NEQ 0 THEN                                    28416200        
+                IF (USERCODE[P1MIX] EQV ABS(MCP)) NEQ NOT 0 THEN        28416400        
+                IF (USERCODE[P1MIX] EQV ABS(M[T+2])) NEQ NOT 0 THEN     28416600        
+                 BEGIN                                                  28416800        
+                 P(DIRECTORYSEARCH(-MFID,FID,13),DEL);                  28417000        
+                 NOTCOPIED(41);                                         28417200        
+                 GO NEXTNAME;                                           28417400        
+                 END;                                                   28417600        
+                IF EXPIRED OR ACCESSED THEN                             28417800        
+                 IF EXPIRED THEN                                        28418000        
+                  BEGIN                                                 28418200        
+                  STREAM(T:=0:A:=CALCULATEPURGE(-M[T+3].[2:10]));       28418400        
+                   BEGIN SI:=LOC A; DI:=LOC T; DS:=8OCT; END;           28418600        
+                  IF P GTR M[T+3].[12:18] THEN OK:=TRUE ELSE            28418800        
+                   P(DIRECTORYSEARCH(-MFID,FID,13),DEL);                28419000        
+                  END ELSE                                              28419200        
+                  IF M[T+4].[11:1] THEN OK:=TRUE ELSE                   28419400        
+                   P(DIRECTORYSEARCH(-MFID,FID,13),DEL)                 28419600        
+                                      ELSE OK:=TRUE;                    28419800        
+                END                                                     28420000        
+          ELSE BEGIN NOTCOPIED(25); T:=2; END;                          28420200        
+NEXTNAME:                                                               28420400        
+         IF T GEQ 64 THEN FORGETSPACE(T);                               28420600        
+    END;                                                                28420800        
+    %                                                                   28421000        
+    %*****************************************************              28421200        
+    %                                                                   28421400        
+    % - USED TO DITECT THAT A PARTICULAR NAME PAIR                      28421401        
+    %   IS WANTED...BASED ON DATA SUPPLIED BY CCLIB                     28421402        
+    %                                                                   28421403        
+    %******************************************************             28421404        
+    %                                                                   28421405        
+    REAL STREAM PROCEDURE COMPARE(MFID,STR); VALUE STR;                 28421600        
+    BEGIN LABEL AG,FINIS;                                               28421800        
+         SI:=STR;                                                       28422000        
+AG:      DI:=MFID;                                                      28422200        
+         IF SC=">" THEN GO FINIS;   % END OF NA                         28422400        
+         IF SC="+" THEN BEGIN SI:=SI+8; DI:=DI+8; END                   28422600        
+                   ELSE IF 8 SC NEQ DC THEN BEGIN SI:=SI+8; GO AG; END; 28422800        
+         IF SC="+" THEN SI:=SI+8                                        28423000        
+                   ELSE IF 8 SC NEQ DC THEN GO AG;                      28423200        
+         SI:=SI=16; COMPARE:=SI;                                        28423400        
+FINIS:                                                                  28423600        
+    END;                                                                28423800        
