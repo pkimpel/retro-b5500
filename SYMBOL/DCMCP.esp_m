@@ -21429,3 +21429,107 @@ AG:      DI:=MFID;                                                      28422200
          SI:=SI=16; COMPARE:=SI;                                        28423400        
 FINIS:                                                                  28423600        
     END;                                                                28423800        
+    %                                                                   28424000        
+    %*****************************************************              28424200        
+    %                                                                   28424400        
+    SUBROUTINE ASIT;                                                    28424600        
+    BEGIN                                                               28424800        
+         IF PAP.[FF]                                                    28425000        
+          THEN BEGIN ASMFID:=IF (NT2:=M[NT1:=PAP.[CF]+(PAP.[FF] DIV 2)])28425200        
+                              LSS 0 THEN MFID ELSE NT2;                 28425400        
+                     ASFID:=IF (NT2:=M[NT1+1]) LSS 0 THEN FID ELSE NT2; 28425600        
+               END                                                      28425800        
+          ELSE BEGIN ASMFID:=MFID;                                      28426000        
+                     ASFID:=FID;                                        28426200        
+               END;                                                     28426400        
+    END;                                                                28426600        
+    %                                                                   28426800        
+    %***************************************************                28427000        
+    %                                                                   28427200        
+    % - THIS ROUTINE IS RESPONSIBLE FOR EXTENDING THE SIZE              28427201        
+    %   OF AN "FA" UNTIL IT NEEDS FORKING, AT WHICH TIME IT             28427202        
+    %   WILL ATTEMPT TO START ANOTHER LIBMAIN/DISK TO HANDLE            28427203        
+    %   THE CURRENT "FA".  PROCESSING SHOULD CONTINUE WITH              28427204        
+    %   A NEW "FA" (REFER TO DOCUMENTATION)                             28427205        
+    %                                                                   28427206        
+    %*******************************************************            28427207        
+    %                                                                   28427208        
+    SUBROUTINE INSERTORFORK;                                            28427400        
+    BEGIN                                                               28427600        
+         IF RESOLVE(FA+FAIN+1,ASMFID)=0                                 28427800        
+          THEN IF (FAIN:=FAIN+2) LSS MAX                                28428000        
+                THEN BEGIN                                              28428200        
+ON:                  IF FAIN GEQ FASZ                                   28428400        
+                      THEN BEGIN                                        28428600        
+                           TMP:=SPACE((FASZ:=FASZ+BUMPFA)+              28428800        
+                                (FASZ DIV 2)+2)+1;                      28429000        
+                           M[TMP-1]:=M[FA-1];                           28429200        
+                           MOVE(TEMP:=FASZ-BUMPFA,FA,TMP);              28429400        
+                           MOVE(TEMP DIV 2,FA+TEMP,TMP+FASZ);           28429600        
+                           FORGETSPACE(FA-1);                           28429800        
+                           FA:=TMP;                                     28430000        
+                           FAINFO:=FA+FASZ;                             28430200        
+                           END;                                         28430400        
+CONTINUE:            M[NT1:=FA+FAIN]:=ASMFID;                           28430600        
+                     M[NT1:=ASFID;                                      28430800        
+                     M[FAINFO+(FAIN DIV 2)]:=T&U[CTC];                  28431000        
+                     SOURCEFILEFOUND:=TRUE;                             28431200        
+                     END                                                28431400        
+                ELSE BEGIN                                              28431600        
+                     IF (U NEQ 18 AND U=M[FAINFO+(FAIN DIV 2)-1].[CF])  28431800        
+                      THEN IF LSX=0 THEN GO ON ELSE                     28432000        
+                            BEGIN                                       28432200        
+                            M[(FAIN:=SPACE(FASZ+(FASX DIV 2)+2)+1)-1]:= 28432400        
+                             (FA+LSX-1)&"&"[1:43:5];                    28432600        
+                            MOVE((SEG:=FAIN-LSX),FA+LSX,EAIN);          28432800        
+                            MOVE(SEG DIV 2,FAINFO+(LSX DIV 2),          28433000        
+                                 EAIN+FASZ);                            28433200        
+                            WEIRDFORK:=TRUE;                            28433400        
+                            FAIN:=LSX;                                  28433600        
+                            END;                                        28433800        
+                     MOVE(FAIN DIV 2,FAINFO,FA+FAIN);                   28434000        
+                     FOR TMP:=5 STEP 5 UNTIL FPBPTR-5 DO                28434200        
+                      IF M[PRT[P1MIX,3] INX (TMP+4)] LSS 0 THEN         28434400        
+                       STOPTIMING(TMP,1023);                            28434600        
+                     LBMESS("LIBMAIN","DISK   ",50,0,0,SPOUTUNIT,1);    28434800        
+                     M[(TMP:=GETSPACE(12,CONTROLCARDAREAV,0)+4)-4] %167-28435000        
+                                                         .AREAMIXF:=0;% 28435010        
+                     IF (INDX:=USERCODE[P1MIX])= ABS (NOT 0) THEN       28435200        
+                      BEGIN INDX:=0; UN:=31; END ELSE UN:=26;           28435400        
+                     EA:=M[FA-1];                                       28435600        
+                     COMMON:=GETUSERDISK(((TEMP:=FAIN+(FAIN DIV 2)+     28435800        
+                             2) DIV 30)+1);                             28436000        
+                     M[FA-1]:=FAIN;                                     28436200        
+                     M[FA+TEMP-2]:=DESTIN;                              28436400        
+                     IF TEMP GTR 900 THEN                               28436600        
+                      BEGIN NAIN:=M[FA+898];                            28436800        
+                            DISKWAIT(FA+899,TEMP-900,COMMON+30);        28437000        
+                            TEMP:=900;                                  28437200        
+                            M[FA+898]:=NAIN;                            28437400        
+                      END;                                              28437600        
+                     DISKWAIT(FA-1,TEMP,COMMON);                        28437800        
+                     M[FA-1]:=EA;                                       28438000        
+                     STREAM(INDX,COMMON,TMP);                           28438200        
+                      BEGIN DS:=8LIT"CC USER="; SI:=LOC INDX; SI:=SI+1; 28438400        
+                      DS:=7CHR; DS:=24LIT";EX LIBMAIN/DISK;COMMON=";    28438600        
+                      DS:=8DEC; DS:=6LIT";END.~";                       28438800        
+                      END;                                              28439000        
+ $ SET OMIT = NOT(PACKETS)                                              28439200        
+                     IF PSEUDOMIX[P1MIX] GEQ 32 THEN                    28439400        
+                      NYLONZIPPER[P1MIX].[2:1]:=0;                      28439600        
+ $ POP OMIT                                                             28439800        
+                     TMP:=TMP&P1MIX[18:42:6]&UN[3:43:5];                28440000        
+                     INDEPENDENTRUNNER(P(.CONTROLCARD).TMP,192);        28440200        
+ $ SET OMIT = NOT(PACKETS)                                              28440400        
+                     IF PSEUDOMIX[P1MIX] GEQ 32 THEN                    28440600        
+                      SLEEP([NYLONZIPPER[P1MIX]],@1000000000000000);    28440800        
+ $ POP OMIT                                                             28441000        
+                     IF WEIRDFORK                                       28441200        
+                      THEN BEGIN                                        28441400        
+                           FA:=FAIN;                                    28441600        
+                           FAINFO:=FA+FASZ;                             28441800        
+                           FAIN:=SEG;                                   28442000        
+                           WEIRDFORK:=FALSE;                            28442200        
+                           END                                          28442400        
+                      ELSE BEGIN                                        28442600        
+                           TMP:=FA+FAIN-1;                              28442800        
