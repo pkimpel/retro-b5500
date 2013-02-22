@@ -21533,3 +21533,104 @@ CONTINUE:            M[NT1:=FA+FAIN]:=ASMFID;                           28430600
                            END                                          28442400        
                       ELSE BEGIN                                        28442600        
                            TMP:=FA+FAIN-1;                              28442800        
+                           M[(FA:=SPACE((FASZ:=BUMPFA)+(FASZ DIV 2)+2)  28443000        
+                            +1)-1]:=TMP&"&"[1:43:5];                    28443200        
+                           FAINFO:=FA+FASZ;                             28443400        
+                           FAIN:=0;                                     28443600        
+                           END;                                         28443800        
+                     LSX:=0;                                            28444000        
+                     IF DESTIN.UNITNUM!19 THEN                     %148-28444100        
+                     BEGIN                                              28444150        
+                     STREAM(A:=MIDPTR:ONE:=1,MID:=[DESTIN]);            28444200        
+                     BEGIN SI:=LOC A; SI:=SI+7; IF SC="0" THEN          28444400        
+                      BEGIN TALLY:=2; SI:=MID; SI:=SI+2;                28444600        
+                      5(IF SC=" " THEN JUMP OUT; SI:=SI+1;              28444800        
+                        TALLY:=TALLY+1); A:=TALLY; DI:=DI+A;            28445000        
+                      DS:=LIT"1";                                       28445200        
+                      END ELSE BEGIN DI:=DI+A; SI:=SI+16; DS:=ADD; END; 28445400        
+                     END;                                               28445600        
+                     MIDPTR:=P;                                         28445800        
+                     END;                                               28445900        
+                     GO CONTINUE;                                       28446000        
+                     END                                                28446200        
+          ELSE IF U=18 THEN P(DIRECTORYSEARCH(-MFID,FID,13),DEL);  %137-28446300        
+    END;                                                                28446400        
+    %                                                                   28446600        
+    %*****************************************************              28446800        
+    %                                                                   28447000        
+    SUBROUTINE SCANEXCEPT;                                              28447200        
+    BEGIN                                                               28447400        
+         FOR L:=0 STEP 2 UNTIL TMP DO                                   28447600        
+         IF (PAP[L] EQV MFID)= NOT 0 OR PAP[L] LSS 0 THEN               28447800        
+         IF (PAP[L+1] EQV FID)= NOT 0 OR PAP[L+1] LSS 0 THEN            28448000        
+          BEGIN INXLST:=TRUE;                                           28448200        
+          IF NOT (PAP[L].[1:1] OR PAP[L+1].[1;1])                       28448400        
+           THEN BEGIN                                                   28448600        
+                PAP[L]:=PAP[TMP];                                       28448800        
+                PAP[L+1]:=PAP[TMP+1];                                   28449000        
+                PAP.[8:10]:=PAP.[8:10]-2;                               28449200        
+                END;                                                    28449400        
+          L:=TMP;                                                       28449600        
+          END;                                                          28449800        
+    END;                                                                28450000        
+    %                                                                   28450200        
+    %*****************************************************              28450400        
+    %                                                                   28450600        
+    %                 CODE STARTS HERE                                  28450800        
+    %                                                                   28451000        
+    %*****************************************************              28451200        
+    %                                                                   28451400        
+    STREAM(B:=PRT[P1MIX,3]); BEGIN 2(DS:=40LIT"0"); END;                28451600        
+    LAB:= ARAYDESC(15,LABELAREAV);                                 %167-28451800        
+    IF NOT COMMON.[2:1] THEN                                            28452000        
+    BEGIN                                                               28452200        
+    DISKWAIT(-[TEMP],1,COMMON);                                         28452400        
+    FA:=TYPEDSPACE(TMP:=TEMP+(TEMP DIV 2)+2,DATAAREAV)+1;%         %167-28452600        
+    FAINFO:=FA+TEMP;                                                    28452800        
+    IF TEMP GTR 900 THEN                                                28453000        
+     BEGIN NAIN:=M[FA+898];                                             28453200        
+           DISKWAIT(-(FA+899),TMP-900,COMMON+30);                       28453400        
+           TMP:=900;                                                    28453600        
+           M[FA+898]:=NAIN;                                             28453800        
+     END;                                                               28454000        
+    DISKWAIT(-(FA-1),TMP,COMMON);                                       28454200        
+    FAIN:=(FASZ:=TEMP)-2;                                               28454400        
+    DESTIN:=M[FAINFO+(FASZ DIV 2)];                                     28454600        
+    FORKED:=TRUE;                                                       28454800        
+    LIBRARYTRANSFER;                                                    28455000        
+    END;                                                                28455200        
+    CCA:= SAVEARRAYDESC(30,ESPDISKAREAV);                          %167-28455400        
+    CCA[29]:=COMMON.[CF];                                               28455600        
+    GETASEGMENT;                                                        28455800        
+    DESTIN:=CCA[1]; % DESTINATION                                       28456000        
+    CCAIN:=2;                                                           28456200        
+    MAX:=COMMON.[9:9]|2;                                                28456400        
+    UNITNO:=COMMON.[3:6];                                               28456600        
+    FA:=TYPEDSPACE((BUMPFA:=FASZ:=IF MAX > 128 THEN 128 ELSE MAX)+ %167-28456800        
+                   (FASZ DIV 2)+2,DATAAREAV)+1;%                   %167-28457000        
+    FAINFO:=FA+FASZ;                                                    28457200        
+    M[FA-1]:=-0;   % MARK INITIAL DIRECTORY                             28457400        
+    FAIN:=-2;                                                           28457600        
+NEXTSOURCE:                                                             28457800        
+    X:=0;                                                               28458000        
+    SOURCEFILEFOUND:=FALSE;                                             28458200        
+    TOGS:=0&CCA[CCAIN+1][3:3:NUMOPT]; % STORE OPTIONS                   28458400        
+    LSX:=FAIN+2;                                                        28458600        
+    POOL:=(EA:=(NA:=SPACE(U:=(NASZ:=CCA[CCAIN+1].[CF]+1)+               28458800        
+        (T:=CCA[CCAIN+1].[FF])+(NASZ DIV 2)))+NASZ)+T;                  28459000        
+    %                                                                   28459001        
+    %*****************************************                          28459002        
+    %   PREPROCESSING OF DATA FROM CCLIB                                28459003        
+    %   INTO A RECOGNIZABLE FORM FOR LIBRARYCOPY                        28459004        
+    %*****************************************                          28459005        
+    %                                                                   28459006        
+    MOVE(U,NA-1,NA);                                                    28459200        
+    EAIN:=NAIN:=-2;                                                     28459400        
+BACK:                                                                   28459600        
+    IF (CCAIN:=CCAIN+2) GEQ 28 THEN GETASEGMENT;                        28459800        
+    T:=CCA[CCAIN];                                                      28460000        
+UP:                                                                     28460200        
+    IF T=@14 THEN GO QUIT;                                              28460400        
+    IF T.[4:2]=0 THEN                                                   28460600        
+     BEGIN M[NA+(NAIN:=NAIN+2)]:=T;                                     28460800        
+           M[NA+NAIN+1]:=CCA[CCAIN+1];                                  28461000        
