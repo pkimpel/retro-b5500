@@ -21634,3 +21634,100 @@ UP:                                                                     28460200
     IF T.[4:2]=0 THEN                                                   28460600        
      BEGIN M[NA+(NAIN:=NAIN+2)]:=T;                                     28460800        
            M[NA+NAIN+1]:=CCA[CCAIN+1];                                  28461000        
+           GO BACK;                                                     28461200        
+     END ELSE K:=0;                                                     28461400        
+    WHILE T.[5:1] DO                                                    28461600        
+     BEGIN M[NT1:=EA+(EAIN:=EAIN+2)]:=(T AND RB5);                      28461800        
+           IF K=0 THEN M[POOL+(NAIN DIV 2)]:=[M[NT1]];                  28462000        
+           M[NT1+1]:=(CCA[CCAIN+1] AND RB5);                            28462200        
+           K:=K+2;                                                      28462400        
+           IF (CCAIN:=CCAIN+2) GEQ 28 THEN GETASEGMENT;                 28462600        
+           T:=CCA[CCAIN];                                               28462800        
+     END;                                                               28463000        
+    M[NT2:=POOL+(NAIN DIV 2)].[8:10]:=K;                                28463200        
+    M[NT2]:=(*P(DUP))&(K|2)[CTF]; % NEEDED TO FIND "AS"                 28463400        
+    IF T.[4:1] THEN                                                     28463600        
+     BEGIN M[NT1:=EA+(EAIN:=EAIN+2)]:=(T AND RB4);                      28463800        
+           IF M[NT2]=0 THEN M[NT2]:=[M[NT1]]&1[32:47:1]                 28464000        
+                       ELSE M[NT2]:=(*P(DUP))&1[32:47:1];               28464200        
+           M[NT1+1]:=(CCA[CCAIN+1] AND RB4);                            28464400        
+           GO BACK;                                                     28464600        
+     END ELSE GO UP;                                                    28464800        
+QUIT:                                                                   28465000        
+    M[NA+NAIN+2]:=0&">"[1:43:5];   % MARK END OF NA                     28465200        
+    %                                                                   28465201        
+    %*****************************************                          28465202        
+    %   BEGIN PROCESSING THE PREPROCESSED DATA                          28465203        
+    %   ACCORDING TO THE SIX STAGES DETAILED ABOVE                      28465204        
+    %*****************************************                          28465205        
+    %                                                                   28465206        
+    IF CCA[CCAIN+1].UNITNUM=19                                     %148-28465400        
+     THEN BEGIN               % SOURCE DISK                             28465600        
+      LIBRARYHELP(3);                                                   28465800        
+      U:=18;                                                            28466000        
+      IF NOHASH                                                         28466200        
+       THEN BEGIN               % GO SERIALLY THRU DIRECTORY            28466400        
+        X:=[M[SPACE(30)]]&30[8:38:10];                                  28466600        
+        DA:=3+DIRECTORYTOP;                                             28466800        
+NEXTSEG:     DISKWAIT(-X.[CF],30,DA:=DA+16);                            28467000        
+        FOR K:=28 STEP -2 UNTIL 0 DO                                    28467200        
+         BEGIN IF DSED THEN ABORT;                                      28467400        
+         IF (MFID:=X[K])=@114 THEN GO TRANSFER;                         28467600        
+         FID:=X[K+1];                                                   28467800        
+         IF MFID=@14 THEN ELSE                                          28468000        
+         IF (INDX:=COMPARE(MFID,NA))=0                                  28468200        
+          THEN                                                          28468400        
+          ELSE BEGIN PAP:=M[NT1:=POOL+((INDX-NA) DIV 2)];               28468600        
+               IF NOT PAP.[7:1] THEN M[NT1].[7:1]:=1;                   28468800        
+               INXLST:=FALSE;                                           28469000        
+               IF (TMP:=PAP.[8:10]-2) GEQ 0 THEN %EXCEPT LIST HERE      28469200        
+                SCANEXCEPT;                                             28469400        
+               IF NOT INXLST THEN                                       28469600        
+                BEGIN SEARCHDIRECTORY;                                  28469800        
+                      T:=0&T[FTF]&TOGS[3:3:NUMOPT];                     28470000        
+                      IF OK THEN BEGIN ASIT; INSERTORFORK; END;         28470200        
+                END;                                                    28470400        
+               END;                                                     28470600        
+         END; % OF K LOOP                                               28470800        
+        GO NEXTSEG;                                                     28471000        
+            END % OF LINEAR SEARCH                                      28471200        
+       ELSE BEGIN            % USE SEARCH                               28471400        
+        FOR K:=0 STEP 2 UNTIL NASZ-3 DO                                 28471600        
+        BEGIN                                                           28471800        
+        NM1:=M[NT1:=NA+K];                                              28472000        
+        NM2:=M[NT1+1];                                                  28472200        
+        L:=0;                                                           28472400        
+        PAP:=M[POOL+(K DIV 2)];                                         28472600        
+NXT:    IF DSED THEN ABORT;                                             28472800        
+        IF (NM1 OR NM2) LSS 0                                           28473000        
+         THEN SEEKNAM(NM1,NM2,L,MFID,FID,DA,PAP)                        28473200        
+         ELSE BEGIN MFID:=NM1; FID:=NM2; L:=1; END;                     28473400        
+        IF L LEQ 0 THEN                                                 28473600        
+         BEGIN SEARCHDIRECTORY;                                         28473800        
+               T:=0&T[FTF]&TOGS[3:3[NUMOPT];                            28474000        
+               IF OK THEN BEGIN ASIT; INSERTORFORK; END;                28474200        
+               IF (NM1 OR NM2) LSS 0 THEN GO NXT;                       28474400        
+         END                                                       %589-28474500        
+        ELSE IF DA=0 THEN LBMESS(NM1,NM2,-67,15,0,SPOUTUNIT,1);    %589-28474600        
+        END; % OF K LOOP                                                28474800        
+            END % OF HASHED SEARCH                                      28475000        
+          END                                                           28475200        
+     ELSE BEGIN                  % SOURCE TAPE                          28475400        
+      LIBRARYHELP(0);                                                   28475600        
+ $ SET OMIT = NOT B6500LOAD                                        %123-28475605        
+      FOR K:=(IF X[0]=@114 AND NOT REEL1START THEN X[1] ELSE 0)         28475800        
+       STEP 2 UNTIL DA-2 DO                                             28476000        
+       BEGIN IF DSED THEN ABORT;                                        28476200        
+       IF ((MFID:=X[K]) OR (FID:=X[K+1])).[1:5] NEQ 0                   28476400        
+        THEN BEGIN NOTCOPIED(37); GO BADNM; END;                        28476600        
+       IF (INDX:=COMPARE(MFID,NA))=0                                    28476800        
+        THEN                                                            28477000        
+        ELSE BEGIN PAP:=M[NT1:=POOL+((INDX-NA) DIV 2)];                 28477200        
+             IF NOT PAP.[7:1] THEN M[NT1].[7:1]:=1;                     28477400        
+             INXLST:=FALSE;                                             28477600        
+             IF (TMP:=PAP.[8:10]-2) GEQ 0 THEN % EXCEPT EXISTS          28477800        
+              SCANEXCEPT;                                               28478000        
+             IF NOT INXLST THEN                                         28478200        
+              BEGIN T:=0&((K DIV 2)+1)[CTF]&TOGS[3:3:NUMOPT];           28478400        
+                    ASIT; INSERTORFORK;                                 28478600        
+              END;                                                      28478800        
