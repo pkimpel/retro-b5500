@@ -229,7 +229,7 @@ B5500DiskUnit.prototype.read = function(finish, buffer, length, mode, control) {
         // A multi-segment read
         } else {                                
             range = window.IDBKeyRange.bound(segAddr, endAddr);
-            txn = this.disk.transacation(euName);
+            txn = this.disk.transaction(euName);
             
             req = txn.objectStore(euName).openCursor(range);
             req.onsuccess = function(ev) {
@@ -368,10 +368,10 @@ B5500DiskUnit.prototype.readCheck = function(finish, length, control) {
     euSize = this.config[euName];
     if (!euSize) {                      // EU does not exist
         finish(this.errorMask | 0x20, 0);       // set D27F for EU not ready
-        // do NOT clear the error mask
+        // DO NOT clear the error mask
     } else if (segAddr < 0) {
         finish(this.errorMask | 0x20, 0);       // set D27F for invalid starting seg address
-        // do NOT clear the error mask
+        // DO NOT clear the error mask
     } else {
         if (endAddr >= euSize) {        // if read is past end of disk
             this.errorMask |= 0x20;     // set D27F for invalid seg address
@@ -385,7 +385,7 @@ B5500DiskUnit.prototype.readCheck = function(finish, length, control) {
         // No length specified, so just finish the I/O
         if (segs < 1) {                         
             finish(this.errorMask, 0);          
-            // do NOT clear the error mask
+            // DO NOT clear the error mask -- will return it on the next interrogate
         
         // A multi-segment read
         } else {                                
@@ -401,7 +401,7 @@ B5500DiskUnit.prototype.readCheck = function(finish, length, control) {
                 } else {                // at end of range
                     setTimeout(function() {
                         finish(that.errorMask, length);
-                        // do NOT clear the error mask
+                        // DO NOT clear the error mask
                     }, finishTime - new Date().getTime());
                 }
             };
@@ -420,6 +420,7 @@ B5500DiskUnit.prototype.readInterrogate = function(finish, control) {
     var segAddr = control % 1000000;    // starting seg address
     var euNumber = (control % 10000000 - segAddr)/1000000;
     var euName = this.euPrefix + euNumber;
+    var that = this;
     
     this.finish = finish;               // for global error handler
     euSize = this.config[euName];
@@ -432,7 +433,7 @@ B5500DiskUnit.prototype.readInterrogate = function(finish, control) {
         }
         setTimeout(function() {
             finish(that.errorMask, length);
-            this.errorMask = 0;
+            that.errorMask = 0;
         }, Math.random()*this.maxLatency*1000);
     }
 };
@@ -452,6 +453,7 @@ B5500DiskUnit.prototype.writeInterrogate = function (finish, control) {
     var segAddr = control % 1000000;    // starting seg address
     var euNumber = (control % 10000000 - segAddr)/1000000;
     var euName = this.euPrefix + euNumber;
+    var that = this;
     
     this.finish = finish;               // for global error handler
     euSize = this.config[euName];
@@ -464,7 +466,7 @@ B5500DiskUnit.prototype.writeInterrogate = function (finish, control) {
         }
         setTimeout(function() {
             finish(that.errorMask, length);
-            this.errorMask = 0;
+            that.errorMask = 0;
         }, Math.random()*this.maxLatency*1000);
     }
 };
