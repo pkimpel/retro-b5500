@@ -318,7 +318,8 @@ function padOctal(value, octades) {
 }
 
 function decodeSyllable(syllable, mode, level, msff) {
-    /* Decodes the B5500 operator "syllable" and returns a string formatted with the mnemonic description of that syllable.
+    /* Decodes the B5500 operator "syllable" and returns a string formatted with the
+    mnemonic description of that syllable.
     "mode" indicates word (0) or character (1) mode.
     "level" indicates program (0) or subroutine (1) level.
     "msff" indicates whether MSFF is set (mark-stack pending) */
@@ -326,26 +327,37 @@ function decodeSyllable(syllable, mode, level, msff) {
     var text = opcode + " = ";
     var v;
 
-    function decodeRelativeAddress(value, level, msff) {
+    function decodeRelativeAddress(value, salf, msff) {
         var text;
 
-        if (!level) {
+        if (!salf) {
             text = "R+" + padOctal(value, 4);
-        } else if (value < 512) {
-            text = "R+" + padOctal(value, 3);
-        } else if (value%512 < 256) {
-            if (msff) {
-                text = "[R+7].[18:32]+" + padOctal(value%256, 3);
-            } else {
-                text = "F+" + padOctal(value%256, 3);
-            }
-        } else if (value%256 < 128) {
-            text = "C+" + padOctal(value%128, 3);
         } else {
-            if (msff) {
-                text = "[R+7].[18:32]-" + padOctal(value%256, 3);
-            } else {
-                text = "F-" + padOctal(value%256, 3);
+            switch ((value >>> 7) & 0x07) {
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+                text = "R+" + padOctal(value, 3);
+                break;
+            case 4:
+            case 5:
+                if (msff) {
+                    text = "[R+7].[18:32]+" + padOctal(value & 0xFF, 3);
+                } else {
+                    text = "F+" + padOctal(value & 0xFF, 3);
+                }
+                break;
+            case 6:
+                text = "C+" + padOctal(value & 0x7F, 3);
+                break;
+            case 7:
+                if (msff) {
+                    text = "[R+7].[18:32]-" + padOctal(value & 0x7F, 3);
+                } else {
+                    text = "F-" + padOctal(value & 0x7F, 3);
+                }
+                break;
             }
         }
         return text;
@@ -722,6 +734,8 @@ function fileLoader_onLoad(ev) {
     var buf = ev.target.result;
     var words = 0;
 
+    cc.clear();
+    cc.P1.clear();
     try {
         words = cc.loadTest(buf, addr);
         alert("File loaded: " + buf.byteLength + " bytes, " +

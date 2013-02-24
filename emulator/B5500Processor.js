@@ -3968,6 +3968,10 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x0C:          // 1425: FTC=F field to core field
+                        this.adjustABFull();
+                        t1 = (this.A % 0x40000000 - this.A % 0x8000)/0x8000;
+                        this.B -= this.B % 0x8000 - t1
+                        this.AROF = 0;
                         break;
 
                     case 0x10:          // 2025: DUP=Duplicate TOS
@@ -3983,6 +3987,11 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x1C:          // 3425: FTF=F field to F field
+                        this.adjustABFull();
+                        t1 = (this.A % 0x40000000 - this.A % 0x8000);
+                        t2 = (this.B % 0x40000000 - this.B % 0x8000);
+                        this.B -= t2 - t1
+                        this.AROF = 0;
                         break;
 
                     case 0x21:          // 4125: LEQ=compare B less or equal to A
@@ -3998,9 +4007,16 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x2C:          // 5425: CTC=core field to C field
+                        this.adjustABFull();
+                        this.B -= this.B % 0x8000 - this.A % 0x8000
+                        this.AROF = 0;
                         break;
 
                     case 0x3C:          // 7425: CTF=core field to F field
+                        this.adjustABFull();
+                        t2 = (this.B % 0x40000000 - this.B % 0x8000);
+                        this.B -= t2 - (this.A % 0x8000)*0x8000;
+                        this.AROF = 0;
                         break;
                     }
                     break;
@@ -4257,11 +4273,15 @@ B5500Processor.prototype.run = function() {
                         switch (this.exitSubroutine(0)) {
                         case 0:
                             this.X = 0;
-                            operandCall();
+                            this.operandCall();
+                            break;
                         case 1:
                             this.Q |= 0x10;             // set Q05F, for display only
                             this.X = 0;
-                            descriptorCall();
+                            this.descriptorCall();
+                            break;
+                        case 2:                         // flag-bit interrupt occurred, do nothing
+                            break;
                         }
                         break;
 
@@ -4278,11 +4298,13 @@ B5500Processor.prototype.run = function() {
                         switch (this.exitSubroutine(0)) {
                         case 0:
                             this.X = 0;
-                            operandCall();
+                            this.operandCall();
+                            break;
                         case 1:
                             this.Q |= 0x10;             // set Q05F, for display only
                             this.X = 0;
-                            descriptorCall();
+                            this.descriptorCall();
+                            break;
                         case 2:                         // flag-bit interrupt occurred, do nothing
                             break;
                         }
@@ -4328,6 +4350,25 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x11:          // 2141: SSF=F & S register set/store
+                        this.adjustABFull();
+                        switch (this.A % 0x04) {
+                        case 0:                                 // store F into B.[18:15]
+                            this.B -= (this.B % 0x40000000 - this.B % 0x8000) - this.F*0x8000;
+                            break;
+                        case 1:                                 // set   F from B.[18:15]
+                            this.F = (this.B % 0x40000000 - this.B % 0x8000)/0x8000;
+                            this.SALF = 1;
+                            this.BROF = 0;
+                            break;
+                        case 2:                                 // store S into B.[33:15]
+                            this.B -= this.B % 0x8000 - this.S;
+                            break;
+                        case 3:                                 // set   S from B.[33:15]
+                            this.S = this.B % 0x8000;
+                            this.BROF = 0;
+                            break;
+                        }
+                        this.AROF = 0;
                         break;
 
                     case 0x15:          // 2541: LLL=link list lookup
