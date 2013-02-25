@@ -652,7 +652,7 @@ B5500IOUnit.prototype.initiateDiskIO = function(u) {
 
 /**************************************/
 B5500IOUnit.prototype.forkIO = function forkIO() {
-    /* Asychrounously nitiates an I/O operation on this I/O Unit for a peripheral device */
+    /* Asynchronously initiates an I/O operation on this I/O Unit for a peripheral device */
     var addr;                           // memory address
     var chars;                          // I/O memory transfer length
     var index;                          // unit index
