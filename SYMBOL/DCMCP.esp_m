@@ -21731,3 +21731,59 @@ NXT:    IF DSED THEN ABORT;                                             28472800
               BEGIN T:=0&((K DIV 2)+1)[CTF]&TOGS[3:3:NUMOPT];           28478400        
                     ASIT; INSERTORFORK;                                 28478600        
               END;                                                      28478800        
+             END;                                                       28479000        
+BADNM:      END; % OF K LOOP                                            28479200        
+TRANSFER:                                                               28479400        
+        FOR K:=0 STEP 1 UNTIL (NASZ DIV 2)-1 DO                         28479600        
+         IF M[POOL INX K].[7:1] THEN ELSE                               28479800        
+          BEGIN MFID:=M[NT1:=NA+(K|2)];                                 28480000        
+                FID:=M[NT1+1];                                          28480200        
+                NOTCOPIED(17-(U=18)|2);                                 28480400        
+          END;                                                          28480600        
+          END;                                                          28480800        
+    IF (CCAIN:=CCAIN+2) GEQ 28 THEN GETASEGMENT;                        28481000        
+     IF NOT SOURCEFILEFOUND THEN                                        28481200        
+      BEGIN IF U LSS 16 THEN SETNOTINUSE(U,0);                          28481400        
+            STOPTIMING(FPBPTR,1023);                                    28481600        
+      END;                                                              28481800        
+    IF X NEQ 0 THEN FORGETSPACE(X);                                     28482000        
+    FORGETSPACE(NA);                                                    28482200        
+    IF CCA[CCAIN]=@114 THEN BEGIN FASZ:=FAIN+2;                         28482400        
+                            FORGETSPACE(CCA);                           28482600        
+                            LIBRARYTRANSFER;                            28482800        
+                            END                                         28483000        
+                       ELSE GO NEXTSOURCE;                              28483200        
+END OF LIBRARYCOPY;                                                     28483400        
+PROCEDURE LIBRARYZERO;                                                  28800000        
+BEGIN                                                                   28801000        
+    REAL COMMON=-4;                                                     28802000        
+    REAL TYPE,SEG,I,J,K,N1,Q,N,W,T,THING,ZEROING;                       28803000        
+    ARRAY S[*],X[*],RSULT[*],BUFADR[*],IOD[*],H[*];                     28804000        
+    LABEL GETONE,LOOP,WATE,ARD;                                         28806000        
+    DEFINE DSED=TERMSET(P1MIX)#;                                        28807000        
+    %*******************************************************            28808000        
+    SUBROUTINE GETASEGMENT;                                             28809000        
+    BEGIN                                                               28810000        
+         SEG:=S[29];                                                    28811000        
+         DISKWAIT(-S,[CF],30,SEG);                                      28812000        
+         FORGETESPDISK(SEG);                                            28813000        
+         I:=0;                                                          28814000        
+    END; % OF GETASEGMENT                                               28815000        
+    %*******************************************************            28816000        
+    SUBROUTINE ABORT;                                                   28817000        
+    BEGIN                                                               28818000        
+         IF ZEROING THEN                                                28821000        
+         BEGIN                                                          28821500        
+         H[4].[43:2]:=1;                                                28822000        
+         H[4].[2:1]:=0;                                                 28822500        
+         DISKWAIT(THING,[CF],30,THING.[FF]);                            28823000        
+         FORGETSPACE(H);                                                28823500        
+         END ELSE                                                       28824000        
+         WHILE S[29] NEQ 0 DO GETASEGMENT;                              28824250        
+         GO INITIATE;                                                   28824500        
+    END; % OF ABORT                                                     28827000        
+    %*******************************************************            28828000        
+    SUBROUTINE IO;                                                      28829000        
+    BEGIN                                                               28830000        
+         STREAM(DSKADR:=Q+N,D:=(BUFFADR INX (2|W)));                    28831000        
+             BEGIN SI:=LOC DSKADR; DS:=8DEC; END;                       28831500        
