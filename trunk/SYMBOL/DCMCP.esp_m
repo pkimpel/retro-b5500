@@ -21787,3 +21787,78 @@ BEGIN                                                                   28801000
     BEGIN                                                               28830000        
          STREAM(DSKADR:=Q+N,D:=(BUFFADR INX (2|W)));                    28831000        
              BEGIN SI:=LOC DSKADR; DS:=8DEC; END;                       28831500        
+         RESULT[W]:=0;                                                  28831600        
+         IOREQUEST(-IOD[W]&@377[25:40:8],                               28832000        
+                   IOD[W]&(IF (T:=N1-N) LSS 63 THEN 512+T ELSE 512+63)  28832500        
+                   [CTF],(W INX RSULT));                                28833000        
+         N:=N+63;                                                       28833500        
+    END; % OF IO                                                        28834000        
+    %***********************************************************        28834500        
+    SUBROUTINE ZEROAROW;                                                28835000        
+    BEGIN                                                               28835500        
+         N1:=W[8];         %NO. OF SEGMENTS/ROW                         28836000        
+         Q:=H[K+9];        %DISK ADDR OF ROW                            28836500        
+         W:=0;             %BUFFER NO.                                  28837000        
+         N:=0;             %INDEX OF SEGMTS                             28837500        
+         IO;                                                            28838000        
+         W:=1;             %SWAP BUFFERS                                28838500        
+         IF N GEQ N1 THEN RSULT[1]:=RSULT[1] OR IOMASK ELSE             28839000        
+LOOP:    IO;                                                            28847000        
+WATE:    COMPLEXSLEEP((((RSULT[1-W]) AND IOMASK)!0) OR DSED);           28848000        
+         IF DSED THEN ABORT;                                            28849000        
+         W~IF (RSULT[0] AND RSULT[1] AND IOMASK)!0 THEN 1-W ELSE        28850000        
+              ((RSULT[1] AND IOMASK)!0);                                28851000        
+         IF N<N1 THEN GO TO LOOP;% ROW IS NOT FINISHED                  28852000        
+         COMPLEXSLEEP((((RSULT[1-W]) AND IOMASK) NEQ 0) OR DSED);       28852100        
+         IF DSED THEN ABORT;                                            28852200        
+    END;%OF ZEROAROW                                                    28853000        
+    %*******************************************************            28854000        
+    S:= ARRAYDESC(30,ESPDISKAREAV);                                %167-28855000        
+    X:=[M[SPACE(1023)]]&1023[8:38:10];                                  28856000        
+    TYPE:=COMMON.[FF];                                                  28857000        
+    S[29]:=COMMON.[CF];                                                 28858000        
+    GETASEGMENT;                                                        28859000        
+    X[0]:=@14;                                                          28860000        
+    MOVE(1022,X,[X[1]]);                                                28861000        
+GETONE:                                                                 28862000        
+    IF DSED THEN ABORT;                                                 28863000        
+    X[J]:=S[I];                                                         28865000        
+    X[J+1]:=S[I+1];                                                     28866000        
+    J:=J+2;                                                             28867000        
+    IF (I:=I+2) GTR 26 THEN GETASEGMENT;                                28868000        
+    IF S[I] NEQ @14 THEN GO GETONE;                                     28868100        
+    FORGETSPACE(S);                    % ZEROING IMPLIES S RETURNED.    28868200        
+    MOVE(J+1,X,S:=GETSPACE(J+1,0,1)+2);% RETURN UNUSED SPACE AND MAKE X 28868300        
+    FORGETSPACE(X);                    % INTO SAVE SPACE.               28868400        
+    X:=[M[S]]&(J+1)[8:38:10];                                           28868500        
+    IOD:=[M[GETSPACE(8,0,1)+2]]&2[8:38:10];                             28869000        
+    RSULT:=(2 INX IOD)&18[8:38:10];                                     28870000        
+    BUFFADR:=(4 INX 100)&4[8:38:10];                                    28871000        
+    IOD[0]:=(BUFFADR INX 0)&1[8:38:10]&3[5:46:2];                       28872000        
+    IOD[1]:=(BUFFADR INX 2)&1[8:38:10]&3[5:46:2];                       28873000        
+    J:=-2;                                                              28877000        
+    ZEROING:=1;                                                         28878000        
+    WHILE X[J~J+2]!@14 DO %                                             28879000        
+    BEGIN                                                               28880000        
+         H:=[M[THING:=DIRECTORYSEARCH(X[J],X[J+1],5)]]&30[8:38:10];     28881000        
+         IF DSED THEN ABORT;                                            28882000        
+         IF THING=0 THEN GO TO ARD;                                     28882100        
+         IF M[THING+4].[42:3]=3 THEN                                    28882120        
+         BEGIN FORGETSPACE(H);                                          28882140        
+              GO TO ARD;                                                28882160        
+         END;                                                           28882180        
+         H[4]:=(*P(DUP))&3[43:46:2]&1[2:47:1]&SYSNO[4:46:2];            28882200        
+         DISKWAIT(THING.[CF],30,THING.[FF]);                            28882400        
+         LBMESS( X[J], X[J+1], 62, 0,0,0, 1 );   % BEING BLANKED OUT    28883000        
+         FOR K~1 STEP 1 UNTIL H[9].[43:5] DO% WRITE OUT FILE, ROW BY ROW28884000        
+         IF H[K+9]!0 THEN BEGIN ZEROAROW;                               28885000        
+                                IF STOPSET(P1MIX) THEN STOPM(0);        28885500        
+                          END;                                          28885600        
+         H[4].[43:2]:=0; % NO LONGER SENSITIVE OR BEING ZEROED          28886000        
+         DISKWAIT(THING.[CF],30,THING.[FF]);                            28887000        
+         FORGETSPACE(H);                                                28888000        
+         P(DIRECTORYSEARCH(X[J],X[J+1],6),DEL);                         28889000        
+ARD:                                                                    28889550        
+    END;                                                                28890000        
+    GO INITIATE;                                                        28891000        
+END; % OF LIBRARYZERO                                                   28892000        
