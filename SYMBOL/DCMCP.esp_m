@@ -21862,3 +21862,84 @@ ARD:                                                                    28889550
     END;                                                                28890000        
     GO INITIATE;                                                        28891000        
 END; % OF LIBRARYZERO                                                   28892000        
+ $ SET OMIT = NOT(AUXMEM)                                               28999999        
+ COMMENT ERRORMESSER IS CALLED BY ERRORFIXER (IF OPTION 33 IS ON) TO    30900000        
+         TYPE OUT A PSEUDO-TERMINAL MESSAGE. IT DOES ABOUT THE SAME     30901000        
+         THING AS THE FIRST PART OF TERMINALMESSAGE;                    30902000        
+ PROCEDURE ERRORMESSER(TYPE); VALUE TYPE: REAL TYPE;                    30903000        
+    BEGIN INTEGER S,ADR,BF,SA,N;                                        30904000        
+          NAME SD;                                                      30905000        
+          LABEL L;                                                      30906000        
+          BF~SPACE(10);                                                 30907000        
+          SD~PRT[P1MIX,4];                                              30908000        
+          NT1~SD[0];                                                    30909000        
+          ADR~M[PRT[P1MIX,8]].[CF];                                     30910000        
+          FOR S~1 STEP 1 UNTIL NT1 DO                                   30911000        
+              IF (SA~SD[S].[18:15])>1023 AND SA{ADR AND SD[S]>0 THEN    30912000        
+              IF M[SA-1].[18:15]+SA}ADR THEN GO L;                      30913000        
+          S~0;                                                          30914000        
+  L:      SD~[M[SPACE(TERMSGSZ)]];                                      30915000        
+          ADR~ADR-SA;                                                   30916000        
+          DISKWAIT(-(SD INX 0),TERMSGSZ,MESSAGETABLE[1].[22:26]);       30917000        
+          N~IF TYPE=1 THEN 11 ELSE IF TYPE=2 THEN 9 ELSE IF TYPE=4 THEN 30918000        
+                   7 ELSE IF TYPE=8 THEN 13 ELSE 5;                     30919000        
+          STREAM(M~[SD[N]],J~[JAR[P1MIX,0]],P1MIX,S,ADR,X~S!0,BF);      30920000        
+          BEGIN SI~M; SI~SI+2; DS~6 CHR; BF~DI; DI~LOC M; SI+SI+1;      30921000        
+                DI~DI+7; DS~CHR; DI~BF; DS~M CHR; DS~8 LIT" BRANCH ";   30922000        
+                SI~J; SI+SI+1; DS~7 CHR; DS~LIT"/";                     30923000        
+                SI~SI+1; DS~7CHR; DS~LIT"="; SI+LOC P1MIX;              30924000        
+                DS~2DEC; BF~DI; DI~DI-2; DS~FILL; DI~BF;                30924500        
+              X(DS~5 LIT", S ="; SI~LOC S; DS~4 DEC; DS~5 LIT", A =";   30925000        
+                   DS~4 DEC; BF~DI; DI~DI-4; DS~3 FILL;                 30926000        
+                   DI~BF; DI~DI-13; DS~3 FILL);                         30927000        
+                DI~BF; DS~ LIT"~";                                      30928000        
+          END;                                                          30929000        
+          FORGETSPACE(SD);                                              30929500        
+          SPOUTER(BF,0,ERRORMSG);                                       30930000        
+    END ERRORMESSER;                                                    30931000        
+ PROCEDURE ERRORFIXER(TYPE); VALUE TYPE; INTEGER TYPE;                  31000000        
+    COMMENT LOOKS FOR RUN-TIME-ERROR ACTION LABELS IN ALGOL PROGRAMS.   31001000        
+         AND HANDLES THEM, RETURNING ONLY IF NO LABEL GIVEN;            31002000        
+    BEGIN ARRAY AIT[*],PRTD[*];                                         31003000        
+          NAME        ADDR;                                             31004000        
+          REAL I, GOT, ADR=ADDR,LABLE;                                  31005000        
+          CHECKSTACKSPACE;                                              31005010        
+                        IF TYPE =2 THEN%OVRFLW                          31005050        
+                        IF JAR[P1MIX,2].[3:1] THEN                      31005100        
+                        IF(PRT[P1MIX,@51]AND @20)!0 THEN                31005200        
+                        BEGIN I!M[ADR~PRT[P1MIX,8] INX 0;               31005300        
+                        STREAM(I~(I INX 0)&I[30:10:2],GOT~[GOT]);       31005310        
+                         BEGIN SI~I;SI~SI-2;DI~DI+6;DS~2 CHR END;       31005320        
+                        IF GOT.[45:3]=5 THEN M[ADR-3]~@7777777777777;   31005330        
+                        M[ADR-2]~@777777777777777;                      31005350        
+                              PRT[P1MIX,@51].[45:2]~2;                  31005400        
+                        GO TO INITIATE;                                 31005500        
+                        END;                                            31005600        
+              PRTD ~ PRTROW[P1MIX];                                     31006100        
+               WHILE (AID~PRTD     [AIDNDX]).PBIT=0 DO                  31007000        
+                   MAKEPRESENT([PRTD     [AITNDX]] INX 0);              31008000        
+              I~AIT[0]+1;                                               31009000        
+              DO I~I-1 UNTIL((GOT~ (ADDR~AIT[I]).OWNBIT AND ( ADR.[CF]  31010000        
+                        =TYPE)) OR(I{1)); % LOOK FOR ENTRY              31011000        
+              IF GOT THEN % WILL REINITIATE THE GUY, SO SET HIM UP      31012000        
+              BEGIN IF (LABLE~M[ ADR.MOM])!0 THEN                       31013000        
+                   IF LABLE!15 THEN                                     31013050        
+                   IF LABLE.BLKCNTR{(PRTD[16]+(LABLE.MOM!0))THEN        31013100        
+                   BEGIN IF PRTD     [CURBLKCNTR]>LABLE.BLKCNTR THEN    31014000        
+                        BEGIN PRTD     [CURBLKCNTR]~LABLE.BLKCNTR+1;    31015000        
+                              ASRL                                      31016000        
+                        END; IF(ADDR~LABLE.MOM)=0 THEN                  31017000        
+                             LABLE.MOM~ADDR~PRTD[10].MOM+2;             31017100        
+                        ADDR~ADDR&ADR[33:33:15];                        31017200        
+ $ SET OMIT = PACKETS                                                   31017209        
+                        ERRORMESSER(TYPE);                              31017220        
+                        IF PRTD[LABLE.[CF]].PBIT=0 THEN                 31017300        
+                             MAKEPRESENT([PRTD[LABLE.[CF]]].[CF]);      31017400        
+                        DO UNTIL(*(ADDR~HUNT(ADDR+1))).[1:3]=4;         31018000        
+                          ADDR    [1]~M[PRTD     [8] INX NOT 0];        31019000        
+                          ADDR    [2]~M[PRTD     [8]]&0[10:10:2]&       31020000        
+               (LABLE)[18:18:15]&PRTD     [(LABLE).[CF]][33:33:15];     31021000        
+                        PRTD     [8]~P(DUP,LOD)&(ADDR INX 2)[33:33:15]; 31022000        
+                        GO INITIATE;                                    31023000        
+         END; END;                                                      31024000        
+    END ERRORFIXER;                                                     31025000        
