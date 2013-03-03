@@ -50,7 +50,7 @@ function B5500Processor(procID, cc) {
 
 /**************************************/
 
-B5500Processor.timeSlice = 5000;        // Standard run() timeslice, about 5ms (we hope) 
+B5500Processor.timeSlice = 5000;        // Standard run() timeslice, about 5ms (we hope)
 B5500Processor.memCycles = 6;           // assume 6 us memory cycle time (the other option was 4 usec)
 
 B5500Processor.collation = [            // index by BIC to get collation value
@@ -104,7 +104,7 @@ B5500Processor.prototype.clear = function() {
     this.X = 0;                         // Mantissa extension for B (loop control in CM)
     this.Y = 0;                         // Serial character register for A
     this.Z = 0;                         // Serial character register for B
-    
+
     this.US14X = 0;                     // STOP OPERATOR switch
 
     this.cycleCount = 0;                // Current cycle count for this.run()
@@ -116,120 +116,16 @@ B5500Processor.prototype.clear = function() {
 };
 
 /**************************************/
-B5500Processor.prototype.access = function(eValue) {
-    /* Access memory based on the E register. If the processor is in normal
-    state, it cannot access the first 512 words of memory => invalid address */
-    var acc = this.accessor;            // get a local reference to the accessor object
-
-    this.E = eValue;                    // Just to show the world what's happening
-    switch (eValue) {
-    case 0x02:                          // A = [S]
-        acc.addr = this.S;
-        acc.MAIL = (this.S < 0x0200 && this.NCSF);
-        this.cc.fetch(acc);
-        this.A = acc.word;
-        this.AROF = 1;
-        break;
-    case 0x03:                          // B = [S]
-        acc.addr = this.S;
-        acc.MAIL = (this.S < 0x0200 && this.NCSF);
-        this.cc.fetch(acc);
-        this.B = acc.word;
-        this.BROF = 1;
-        break;
-    case 0x04:                          // A = [M]
-        acc.addr = this.M;
-        acc.MAIL = (this.M < 0x0200 && this.NCSF);
-        this.cc.fetch(acc);
-        this.A = acc.word;
-        this.AROF = 1;
-        break;
-    case 0x05:                          // B = [M]
-        acc.addr = this.M;
-        acc.MAIL = (this.M < 0x0200 && this.NCSF);
-        this.cc.fetch(acc);
-        this.B = acc.word;
-        this.BROF = 1;
-        break;
-    case 0x06:                          // M = [M].[18:15]
-        acc.addr = this.M;
-        acc.MAIL = (this.M < 0x0200 && this.NCSF);
-        this.cc.fetch(acc);
-        this.M = ((acc.word % 0x40000000) >>> 15) & 0x7FFF;
-        break;
-    case 0x0A:                          // [S] = A
-        acc.addr = this.S;
-        acc.MAIL = (this.S < 0x0200 && this.NCSF);
-        acc.word = this.A;
-        this.cc.store(acc);
-        break;
-    case 0x0B:                          // [S] = B
-        acc.addr = this.S;
-        acc.MAIL = (this.S < 0x0200 && this.NCSF);
-        acc.word = this.B;
-        this.cc.store(acc);
-        break;
-    case 0x0C:                          // [M] = A
-        acc.addr = this.M;
-        acc.MAIL = (this.M < 0x0200 && this.NCSF);
-        acc.word = this.A;
-        this.cc.store(acc);
-        break;
-    case 0x0D:                          // [M] = B
-        acc.addr = this.M;
-        acc.MAIL = (this.M < 0x0200 && this.NCSF);
-        acc.word = this.B;
-        this.cc.store(acc);
-        break;
-    case 0x30:                          // P = [C]
-        acc.addr = this.C;
-        acc.MAIL = (this.C < 0x0200 && this.NCSF);
-        this.cc.fetch(acc);
-        this.P = acc.word;
-        this.PROF = 1;
-        break;
-    default:
-        throw "Invalid E-register value: " + eValue.toString(2);
-        break;
-    }
-
-    this.cycleCount += B5500Processor.memCycles;               
-    if (acc.MAED) {
-        this.I |= 0x02;                 // set I02F: memory address/inhibit error
-        if (this.NCSF || this !== this.cc.P1) {
-            this.cc.signalInterrupt();
-        } else {
-            this.busy = 0;              // P1 invalid address in control state stops the proc
-            this.cycleLimit = 0;        // exit this.run()
-        }
-    } else if (acc.MPED) {
-        this.I |= 0x01;                 // set I01F: memory parity error
-        if (this.NCSF || this !== this.cc.P1) {
-            this.cc.signalInterrupt();
-        } else {
-            this.busy = 0;              // P1 memory parity in control state stops the proc
-            this.cycleLimit = 0;        // exit this.run()
-        }
-    }
-};
-
-/**************************************/
 B5500Processor.prototype.accessError = function() {
     /* Common error handling routine for all memory acccesses */
 
     if (this.accessor.MAED) {
         this.I |= 0x02;                 // set I02F: memory address/inhibit error
-        if (this.NCSF || this !== this.cc.P1) {
-            this.cc.signalInterrupt();
-        } else {
-            this.busy = 0;              // P1 invalid address in control state stops the proc
-            this.cycleLimit = 0;        // exit this.run()
-        }
+        this.cc.signalInterrupt();
     } else if (this.accessor.MPED) {
         this.I |= 0x01;                 // set I01F: memory parity error
-        if (this.NCSF || this !== this.cc.P1) {
-            this.cc.signalInterrupt();
-        } else {
+        this.cc.signalInterrupt();
+        if (this === this.cc.P1 && !this.NCSF) {
             this.busy = 0;              // P1 memory parity in control state stops the proc
             this.cycleLimit = 0;        // exit this.run()
         }
@@ -245,14 +141,14 @@ B5500Processor.prototype.loadAviaS = function() {
     acc.addr = this.S;
     acc.MAIL = (this.S < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
-    this.cycleCount += B5500Processor.memCycles; 
+    this.cycleCount += B5500Processor.memCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
-    } else {        
+    } else {
         this.A = acc.word;
         this.AROF = 1;
     }
-};        
+};
 
 /**************************************/
 B5500Processor.prototype.loadBviaS = function() {
@@ -263,14 +159,14 @@ B5500Processor.prototype.loadBviaS = function() {
     acc.addr = this.S;
     acc.MAIL = (this.S < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
-    this.cycleCount += B5500Processor.memCycles; 
+    this.cycleCount += B5500Processor.memCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
-    } else {        
+    } else {
         this.B = acc.word;
         this.BROF = 1;
     }
-}; 
+};
 
 /**************************************/
 B5500Processor.prototype.loadAviaM = function() {
@@ -281,14 +177,14 @@ B5500Processor.prototype.loadAviaM = function() {
     acc.addr = this.M;
     acc.MAIL = (this.M < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
-    this.cycleCount += B5500Processor.memCycles; 
+    this.cycleCount += B5500Processor.memCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
-    } else {        
+    } else {
         this.A = acc.word;
         this.AROF = 1;
     }
-}; 
+};
 
 /**************************************/
 B5500Processor.prototype.loadBviaM = function() {
@@ -299,14 +195,14 @@ B5500Processor.prototype.loadBviaM = function() {
     acc.addr = this.M;
     acc.MAIL = (this.M < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
-    this.cycleCount += B5500Processor.memCycles; 
+    this.cycleCount += B5500Processor.memCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
-    } else {        
+    } else {
         this.B = acc.word;
         this.BROF = 1;
     }
-}; 
+};
 
 /**************************************/
 B5500Processor.prototype.loadMviaM = function() {
@@ -317,13 +213,13 @@ B5500Processor.prototype.loadMviaM = function() {
     acc.addr = this.M;
     acc.MAIL = (this.M < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
-    this.cycleCount += B5500Processor.memCycles; 
+    this.cycleCount += B5500Processor.memCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
-    } else {        
+    } else {
         this.M = ((acc.word % 0x40000000) >>> 15) & 0x7FFF;
     }
-}; 
+};
 
 /**************************************/
 B5500Processor.prototype.loadPviaC = function() {
@@ -335,13 +231,13 @@ B5500Processor.prototype.loadPviaC = function() {
     acc.MAIL = (this.C < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
     this.PROF = 1;                      // PROF gets set even for invalid address
-    this.cycleCount += B5500Processor.memCycles; 
+    this.cycleCount += B5500Processor.memCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
-    } else {        
+    } else {
         this.P = acc.word;
     }
-}; 
+};
 
 /**************************************/
 B5500Processor.prototype.storeAviaS = function() {
@@ -353,11 +249,11 @@ B5500Processor.prototype.storeAviaS = function() {
     acc.MAIL = (this.S < 0x0200 && this.NCSF);
     acc.word = this.A;
     this.cc.store(acc);
-    this.cycleCount += B5500Processor.memCycles; 
+    this.cycleCount += B5500Processor.memCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     }
-}; 
+};
 
 /**************************************/
 B5500Processor.prototype.storeBviaS = function() {
@@ -369,11 +265,11 @@ B5500Processor.prototype.storeBviaS = function() {
     acc.MAIL = (this.S < 0x0200 && this.NCSF);
     acc.word = this.B;
     this.cc.store(acc);
-    this.cycleCount += B5500Processor.memCycles; 
+    this.cycleCount += B5500Processor.memCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     }
-}; 
+};
 
 /**************************************/
 B5500Processor.prototype.storeAviaM = function() {
@@ -385,11 +281,11 @@ B5500Processor.prototype.storeAviaM = function() {
     acc.MAIL = (this.M < 0x0200 && this.NCSF);
     acc.word = this.A;
     this.cc.store(acc);
-    this.cycleCount += B5500Processor.memCycles; 
+    this.cycleCount += B5500Processor.memCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     }
-}; 
+};
 
 /**************************************/
 B5500Processor.prototype.storeBviaM = function() {
@@ -401,11 +297,11 @@ B5500Processor.prototype.storeBviaM = function() {
     acc.MAIL = (this.M < 0x0200 && this.NCSF);
     acc.word = this.B;
     this.cc.store(acc);
-    this.cycleCount += B5500Processor.memCycles; 
+    this.cycleCount += B5500Processor.memCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     }
-}; 
+};
 
 /**************************************/
 B5500Processor.prototype.adjustAEmpty = function() {
@@ -479,7 +375,7 @@ B5500Processor.prototype.adjustBFull = function() {
 
 /**************************************/
 B5500Processor.prototype.adjustABEmpty = function() {
-    /* Adjusts the A and B registers so that both are empty, pushing the 
+    /* Adjusts the A and B registers so that both are empty, pushing the
     prior contents into memory, as necessary. */
 
     if (this.BROF) {
@@ -571,7 +467,7 @@ B5500Processor.prototype.jumpSyllables = function(count) {
     On entry, C and L are assumed to be pointing to the next instruction
     to be executed, not the current one */
     var addr;
-    
+
     addr = this.C*4 + this.L + count;
     this.C = addr >>> 2;
     this.L = addr & 0x03;
@@ -584,10 +480,10 @@ B5500Processor.prototype.jumpWords = function(count) {
     to zero. Forces a fetch to reload the P register after C and L are adjusted.
     On entry, C is assumed to be pointing to the CURRENT instruction word, i.e.,
     Inhibit Fetch and Inhibit Count for Fetch have both been asserted. Any adjustment
-    to C to account for the emulator's automatic C/L increment at SECL is the 
+    to C to account for the emulator's automatic C/L increment at SECL is the
     responsibility of the caller */
     var addr;
-    
+
     this.C += count;
     this.L = 0;
     this.PROF = 0;                      // require fetch at SECL
@@ -595,7 +491,7 @@ B5500Processor.prototype.jumpWords = function(count) {
 
 /**************************************/
 B5500Processor.prototype.jumpOutOfLoop = function(count) {
-    /* Terminates the current character-mode loop by restoring the prior LCW 
+    /* Terminates the current character-mode loop by restoring the prior LCW
     (or RCW) from the stack to X. If "count" is not zero, adjusts C & L forward
     by that number of syllables and reloads P to branch to the jump-out location,
     otherwise continues in sequence. Uses A to restore X and invalidates A */
@@ -655,19 +551,19 @@ B5500Processor.prototype.streamAdjustDestChar = function() {
 
 /**************************************/
 B5500Processor.prototype.compareSourceWithDest = function(count) {
-    /* Compares source characters to destination characters according to the 
-    processor collating sequence. 
+    /* Compares source characters to destination characters according to the
+    processor collating sequence.
     "count" is the number of source characters to process.
     The result of the comparison is left in two flip-flops:
         Q03F=1: an inequality was detected
         MSFF=1: the inequality was source > destination
-    If the two strings are equal, Q03F and MSFF will both be zero. Once an 
-    inequality is encountered, Q03F will be set to 1 and MSFF (also known as 
-    TFFF) will be set based on the nature of inequality. After this point, the 
-    processor merely advances its address pointers to exhaust the count and does 
-    not fetch additional words from memory. Note that the processor uses Q04F to 
-    inhibit storing the B register at the end of a word boundary. This store 
-    may be required only for the first word in the destination string, if B may 
+    If the two strings are equal, Q03F and MSFF will both be zero. Once an
+    inequality is encountered, Q03F will be set to 1 and MSFF (also known as
+    TFFF) will be set based on the nature of inequality. After this point, the
+    processor merely advances its address pointers to exhaust the count and does
+    not fetch additional words from memory. Note that the processor uses Q04F to
+    inhibit storing the B register at the end of a word boundary. This store
+    may be required only for the first word in the destination string, if B may
     have been left in an updated state by a prior syllable */
     var aBit;                           // A register bit nr
     var bBit;                           // B register bit nr
@@ -689,13 +585,13 @@ B5500Processor.prototype.compareSourceWithDest = function(count) {
         if (!this.AROF) {
             this.loadAviaM();           // A = [M]
         }
-        
+
         // setting Q06F and saving the count in H & V is only significant if this
         // routine is executed as part of Field Add (FAD) or Field Subtract (FSU).
         this.Q |= 0x20;                 // set Q06F
         this.H = count >>> 3;
         this.V = count & 0x07;
-        
+
         aBit = this.G*6;                // A-bit number
         bBit = this.K*6;                // B-bit number
         do {
@@ -763,7 +659,7 @@ B5500Processor.prototype.compareSourceWithDest = function(count) {
                 }
             }
         } while (count);
-        
+
         this.Y = yc;                    // for display only
         this.Z = zc;                    // for display only
     }
@@ -786,14 +682,14 @@ B5500Processor.prototype.fieldArithmetic = function(count, adding) {
     var yd;                             // source digit
     var zcompl = false;                 // complement destination digits
     var zd;                             // destination digit
-    
+
     this.compareSourceWithDest(count);
     this.cycleCount += 2;               // approximate the timing thus far
     if (this.Q & 0x20) {                // Q06F => count > 0, so there's characters to add
         this.Q &= ~(0x28);              // reset Q06F and Q04F
         TFFF = (this.MSFF != 0);        // get TFFF as a Boolean
         Q03F = ((this.Q & 0x04) != 0);  // get Q03F as a Boolean
-        
+
         // Back down the pointers to the last characters of their respective fields
         if (this.K > 0) {
             this.K--;
@@ -809,14 +705,14 @@ B5500Processor.prototype.fieldArithmetic = function(count, adding) {
             this.AROF = 0;
             this.M--;
         }
-        
+
         if (!this.BROF) {
             this.loadBviaS();           // B = [S]
         }
         if (!this.AROF) {
             this.loadAviaM();           // A = [M]
         }
-        
+
         this.Q |= 0x80;                 // set Q08F (for display only)
         aBit = this.G*6;                // A-bit number
         bBit = this.K*6;                // B-bit number
@@ -824,13 +720,13 @@ B5500Processor.prototype.fieldArithmetic = function(count, adding) {
         zd = (this.cc.fieldIsolate(this.B, bBit, 2) == 2 ? 2 : 0); // dest sign
         compl = (yd == zd ? !adding : adding );         // determine if complement needed
         resultNegative = !(                             // determine sign of result
-                (zd == 0 && !compl) || 
+                (zd == 0 && !compl) ||
                 (zd == 0 && Q03F && !TFFF) ||
                 (zd != 0 && compl && Q03F && TFFF ) ||
                 (compl && !Q03F));
         if (compl) {
             this.Q |= 0x42;             // set Q07F and Q02F (for display only)
-            carry = 1;                  // preset the carry/borrow bit (Q07F)        
+            carry = 1;                  // preset the carry/borrow bit (Q07F)
             if (TFFF) {
                 this.Q |= 0x08;         // set Q04F (for display only)
                 zcompl = true;
@@ -838,7 +734,7 @@ B5500Processor.prototype.fieldArithmetic = function(count, adding) {
                 ycompl = true;
             }
         }
-        
+
         this.cycleCount += 4;
         do {
             count--;
@@ -856,9 +752,9 @@ B5500Processor.prototype.fieldArithmetic = function(count, adding) {
                 sd += 0x20;             // set sign (BA) bits in char to binary 10
                 resultNegative = false;
             }
-            
+
             this.B = this.cc.fieldInsert(this.B, bBit, 6, sd);
-            
+
             if (count == 0) {
                 this.storeBviaS();      // [S] = B, store final dest word
             } else {
@@ -883,7 +779,7 @@ B5500Processor.prototype.fieldArithmetic = function(count, adding) {
                 }
             }
         } while (count);
-        
+
         // Now restore the character pointers
         count = this.H*8 + this.V;
         while (count >= 8) {
@@ -891,7 +787,7 @@ B5500Processor.prototype.fieldArithmetic = function(count, adding) {
             this.cycleCount++;
             this.S++;
             this.M++;
-        } 
+        }
         this.cycleCount += count;
         while (count > 0) {
             count--;
@@ -918,12 +814,12 @@ B5500Processor.prototype.fieldArithmetic = function(count, adding) {
 B5500Processor.prototype.streamBitsToDest = function(count, mask) {
     /* Streams a pattern of bits to the destination specified by S, K, and V,
     as supplied by the 48-bit "mask" argument. Partial words are filled from
-    the low-order bits of the mask. Implements the guts of Character-Mode 
-    Bit Set (XX64) and Bit Reset (XX65). Leaves the registers pointing at the 
+    the low-order bits of the mask. Implements the guts of Character-Mode
+    Bit Set (XX64) and Bit Reset (XX65). Leaves the registers pointing at the
     next bit in sequence */
     var bn;                             // field starting bit number
     var fl;                             // field length in bits
-    
+
     if (count) {
         this.cycleCount += count;
         if (!this.BROF) {
@@ -962,10 +858,10 @@ B5500Processor.prototype.streamBitsToDest = function(count, mask) {
 /**************************************/
 B5500Processor.prototype.streamSourceToDest = function(count, transform) {
     /* General driver for character-mode character transfers from source to
-    destination, such as TRS or TRZ. 
+    destination, such as TRS or TRZ.
     "count" is the number of source characters to transfer.
-    "transform" is a function(bBit, count) that determines how the characters 
-    are transferred from the source (A) to destination (B). The Y register will 
+    "transform" is a function(bBit, count) that determines how the characters
+    are transferred from the source (A) to destination (B). The Y register will
     contain the current char during this call */
     var aBit;                           // A register bit nr
     var bBit;                           // B register bit nr
@@ -1013,11 +909,11 @@ B5500Processor.prototype.streamSourceToDest = function(count, transform) {
 
 /**************************************/
 B5500Processor.prototype.streamToDest = function(count, transform) {
-    /* General driver for character-mode character operations on the destination 
-    from a non-A register source, such as TBN. 
-    "count" is the number of characters to transfer. 
-    "transform" is a function(bBit, count) that determines how the characters 
-    are stored to the destination (B). Returning truthy terminates the process 
+    /* General driver for character-mode character operations on the destination
+    from a non-A register source, such as TBN.
+    "count" is the number of characters to transfer.
+    "transform" is a function(bBit, count) that determines how the characters
+    are stored to the destination (B). Returning truthy terminates the process
     without incrementing the destination address */
     var bBit;                           // B register bit nr
 
@@ -1052,7 +948,7 @@ B5500Processor.prototype.streamToDest = function(count, transform) {
 
 /**************************************/
 B5500Processor.prototype.streamInputConvert = function(count) {
-    /* Converts a signed-numeric character field at the source M & G address 
+    /* Converts a signed-numeric character field at the source M & G address
     from decimal to binary, storing the resulting word at the S address and then
     incrementing S. Normally, decimal to binary conversion shouldn't be this
     complex, so we must do it more or less the way the B5500 hardware did, by
@@ -1067,7 +963,7 @@ B5500Processor.prototype.streamInputConvert = function(count) {
     var a = 0;                          // local working copy of A
     var b = 0;                          // local working copy of B
     var power = 1;                      // A-register shif factor
-    
+
     this.streamAdjustSourceChar();
     if (this.BROF) {
         this.storeBviaS();              // [S] = B
@@ -1083,9 +979,9 @@ B5500Processor.prototype.streamInputConvert = function(count) {
         if (!this.AROF) {
             this.loadAviaM();           // A = [M]
         }
-        
+
         // First, assemble the digits into B as 4-bit BCD
-        do {                            
+        do {
             b = (b << 4) | ((this.Y = this.cc.fieldIsolate(this.A, this.G*6, 6)) & 0x0F);
             if (this.G < 7) {
                 this.G++;
@@ -1099,7 +995,7 @@ B5500Processor.prototype.streamInputConvert = function(count) {
                 }
             }
         } while (--count);
-        
+
         // Then do the artful shifting to form the binary value in A
         this.AROF = 0;
         this.B = b;                     // for display purposes only
@@ -1109,26 +1005,26 @@ B5500Processor.prototype.streamInputConvert = function(count) {
             }
             power *= 2;
             b >>>= 1;
-            
+
             /* This next part is tricky, and was done by a switching network in the B5500.
             When a 1 bit is shifted into the high-order position of a BCD decade from its
             decade to the left, that bit has a place value of 8, but because the number
-            is decimal, it should have a place value of five. Therefore, in EACH such 
+            is decimal, it should have a place value of five. Therefore, in EACH such
             decade, we need to subtract 3 to get the correct place value. The following
             statement constructs a mask of 3s in each decade where the high-order bit is
             set after the shift above, then subtracts that mask from the working B value.
             See the discussion in Section 2.6 in the Training Manual cited above */
-            
+
             b -= ((b & 0x88888888) >>> 3)*3;
         }
-        
+
         // Finally, fix up the binary sign and store the result
         if (a) {                        // zero results have sign bit reset
             if ((this.Y & 0x30) == 0x20) {
                 a += 0x400000000000;    // set the sign bit
             }
         }
-        this.A = a;      
+        this.A = a;
         this.storeAviaS();              // [S] = A
         this.S++;
     }
@@ -1136,8 +1032,8 @@ B5500Processor.prototype.streamInputConvert = function(count) {
 
 /**************************************/
 B5500Processor.prototype.streamOutputConvert = function(count) {
-    /* Converts the binary word addressed by M (after word-boundary adjustment) 
-    to decimal BIC at the destination address of S & K. The maximum number of 
+    /* Converts the binary word addressed by M (after word-boundary adjustment)
+    to decimal BIC at the destination address of S & K. The maximum number of
     digits to convert is 8. If the binary value can be represented in "count"
     digits (or the count is zero), the true-false FF, MSFF, is set; otherwise it
     is reset. The sign is stored in low-order character of the result */
@@ -1146,7 +1042,7 @@ B5500Processor.prototype.streamOutputConvert = function(count) {
     var c;                              // converted decimal character
     var d = 0;                          // digit counter
     var power = 1;                      // power-of-64 factor for result digits
-    
+
     this.MSFF = 1;                      // set TFFF unless there's overflow
     this.streamAdjustDestChar();
     if (this.BROF) {
@@ -1158,7 +1054,7 @@ B5500Processor.prototype.streamOutputConvert = function(count) {
         this.M++;
     }
     if (count) {                        // count > 0
-        this.cycleCount += count*2 + 27; 
+        this.cycleCount += count*2 + 27;
         if (!this.AROF) {
             this.loadAviaM();           // A = [M]
         }
@@ -1168,7 +1064,7 @@ B5500Processor.prototype.streamOutputConvert = function(count) {
             if ((this.A % 0x800000000000) >= 0x400000000000) {
                 b = 0x20;               // result is negative, so preset the sign in the low-order digit
             }
-            do {                        // Convert the binary value in A to BIC digits in B 
+            do {                        // Convert the binary value in A to BIC digits in B
                 c = a % 10;
                 a = (a-c)/10;
                 if (c) {
@@ -1182,8 +1078,8 @@ B5500Processor.prototype.streamOutputConvert = function(count) {
         }
         this.AROF = 0;                  // invalidate A
         this.M++;                       // and advance to the next source word
-        
-        // Finally, stream the digits from A (whose value is still in local b) to the destination 
+
+        // Finally, stream the digits from A (whose value is still in local b) to the destination
         this.A = b;                     // for display purposes only
         this.loadBviaS();               // B = [S], restore original value of B
         d = 48 - count*6;               // starting bit in A
@@ -1203,7 +1099,7 @@ B5500Processor.prototype.streamOutputConvert = function(count) {
                 }
             }
         } while (--count);
-    }    
+    }
 };
 
 /**************************************/
@@ -1310,7 +1206,7 @@ B5500Processor.prototype.storeForInterrupt = function(forTest) {
             this.PROF = 0;
             this.busy = 0;
             this.cycleLimit = 0;        // exit this.run()
-            this.cc.HP2F = 1;           
+            this.cc.HP2F = 1;
             this.cc.P2BF = 0;           // tell P1 we've stopped
             if (this.scheduler) {
                 clearTimeout(this.scheduler);
@@ -1356,13 +1252,13 @@ B5500Processor.prototype.preset = function(runAddr) {
     this.TROF = 1;
     this.R = 0;
     this.S = 0;
-    
+
 };
 
 /**************************************/
 B5500Processor.prototype.start = function() {
     /* Initiates the processor by scheduling it on the Javascript thread */
-    
+
     this.busy = 1;
     this.procTime = new Date().getTime()*1000;
     this.scheduler = setTimeout(this.schedule, 0);
@@ -1471,7 +1367,7 @@ B5500Processor.prototype.initiate = function(forTest) {
 B5500Processor.prototype.initiateAsP2 = function() {
     /* Called from Central Control to initiate the processor as P2. Fetches the
     INCW from @10 and calls initiate() */
-    
+
     this.M = 0x08;                    // address of the INCW
     this.loadAviaM();                 // A = [M]
     this.AROF = 1;
@@ -1486,7 +1382,7 @@ B5500Processor.prototype.initiateAsP2 = function() {
 
 /**************************************/
 B5500Processor.prototype.singlePrecisionCompare = function() {
-    /* Algebraically compares the B register to the A register. Function returns 
+    /* Algebraically compares the B register to the A register. Function returns
     -1 if B<A, 0 if B=A, or +1 if B>A. Exits with AROF=0, BROF=1, and A and B as is */
     var ea;                             // signed exponent of A
     var eb;                             // signed exponent of B
@@ -1494,14 +1390,14 @@ B5500Processor.prototype.singlePrecisionCompare = function() {
     var mb;                             // absolute mantissa of B
     var sa;                             // mantissa sign of A (0=positive)
     var sb;                             // mantissa sign of B (ditto)
-    
+
     this.cycleCount += 4;               // estimate some general overhead
     this.adjustABFull();
     this.AROF = 0;                      // A is unconditionally marked empty
     ma = this.A % 0x8000000000;         // extract the A mantissa
     mb = this.B % 0x8000000000;         // extract the B mantissa
-    
-    // Extract the exponents and signs. If the exponents are unequal, normalize 
+
+    // Extract the exponents and signs. If the exponents are unequal, normalize
     // each until the high-order octade is non-zero or the exponents are equal.
     if (ma == 0) {                      // if A mantissa is zero
         ea = sa = 0;                    // consider A to be completely zero
@@ -1510,9 +1406,9 @@ B5500Processor.prototype.singlePrecisionCompare = function() {
         sa = ((ea >>> 7) & 0x01);
         ea = (ea & 0x40 ? -(ea & 0x3F) : (ea & 0x3F));
     }
-    if (mb == 0) {                      // if B mantissa is zero 
+    if (mb == 0) {                      // if B mantissa is zero
         eb = sb = 0;                    // consider B to be completely zero
-    } else {                           
+    } else {
         eb = (this.B - mb)/0x8000000000;
         sb = (eb >>> 7) & 0x01;
         eb = (eb & 0x40 ? -(eb & 0x3F) : (eb & 0x3F));
@@ -1531,7 +1427,7 @@ B5500Processor.prototype.singlePrecisionCompare = function() {
             eb--;
         }
     }
-    
+
     // Compare signs, exponents, and normalized magnitudes, in that order.
     if (sb == sa) {                     // if signs are equal:
         if (eb == ea) {                 // if exponents are equal:
@@ -1554,7 +1450,7 @@ B5500Processor.prototype.singlePrecisionCompare = function() {
 
 /**************************************/
 B5500Processor.prototype.singlePrecisionAdd = function(adding) {
-    /* Adds the contents of the A register to the B register, leaving the result 
+    /* Adds the contents of the A register to the B register, leaving the result
     in B and invalidating A. If "adding" is not true, the sign of A is complemented
     to accomplish subtraction instead of addition */
     var d = 0;                          // the guard (rounding) digit
@@ -1565,20 +1461,20 @@ B5500Processor.prototype.singlePrecisionAdd = function(adding) {
     var sa;                             // mantissa sign of A (0=positive)
     var sb;                             // mantissa sign of B (ditto)
     var xx = 0;                         // local copy of X
-    
+
     this.cycleCount += 4;               // estimate some general overhead
     this.adjustABFull();
     this.AROF = 0;                      // A is unconditionally marked empty
     ma = this.A % 0x8000000000;         // extract the A mantissa
     mb = this.B % 0x8000000000;         // extract the B mantissa
-    
+
     if (ma == 0) {                      // if A mantissa is zero
         if (mb == 0) {                  // and B mantissa is zero
             this.B = 0;                 // result is all zeroes
         } else {
             this.B %= 0x800000000000;   // otherwise, result is B with flag bit reset
         }
-    } else if (mb == 0 && adding) {     // otherwise, if B is zero and we're adding, 
+    } else if (mb == 0 && adding) {     // otherwise, if B is zero and we're adding,
         this.B = this.A % 0x800000000000;       // result is A with flag bit reset
     } else {                            // rats, we actually have to do this
         ea = (this.A - ma)/0x8000000000;
@@ -1633,7 +1529,7 @@ B5500Processor.prototype.singlePrecisionAdd = function(adding) {
             }
         }
 
-        // At this point, the exponents are aligned (or one of the mantissas 
+        // At this point, the exponents are aligned (or one of the mantissas
         // is zero), so do the actual 39-bit addition
         mb = (sb ? -mb : mb) + (sa ^ (adding ? 0 : 1) ? -ma : ma);
 
@@ -1650,7 +1546,7 @@ B5500Processor.prototype.singlePrecisionAdd = function(adding) {
 
             // Normalize and round as necessary
             if (mb < 0x1000000000 && xx >= 0x800000000) {       // Normalization can be required for subtract
-                this.cycleCount++;                              
+                this.cycleCount++;
                 d = (xx - xx%0x1000000000)/0x1000000000;        // get the rounding digit from X
                 xx = (xx%0x1000000000)*8;                       // shift B and X left together
                 mb = mb*8 + d;
@@ -1660,9 +1556,9 @@ B5500Processor.prototype.singlePrecisionAdd = function(adding) {
                 this.cycleCount++;
                 d = mb % 8;                                     // get the rounding digit from B
                 mb = (mb - d)/8;                                // shift right due to overflow
-                eb++; 
+                eb++;
             }
-            
+
             // Note: the Training Manual does not say that rounding is suppressed
             // for add/subtract when the mantissa is all ones, but it does say so
             // for multiply/divide, so we assume it's also the case here.
@@ -1686,13 +1582,13 @@ B5500Processor.prototype.singlePrecisionAdd = function(adding) {
 
             this.X = xx;                                // for display purposes only
             this.B = (sb*128 + eb)*0x8000000000 + mb;   // Final Answer
-        } 
+        }
     }
 };
 
 /**************************************/
 B5500Processor.prototype.singlePrecisionMultiply = function() {
-    /* Multiplies the contents of the A register to the B register, leaving the 
+    /* Multiplies the contents of the A register to the B register, leaving the
     result in B and invalidating A. A double-precision mantissa is developed and
     then normalized and rounded */
     var d;                              // current multiplier digit (octal)
@@ -1705,16 +1601,16 @@ B5500Processor.prototype.singlePrecisionMultiply = function() {
     var sa;                             // mantissa sign of A (0=positive)
     var sb;                             // mantissa sign of B (ditto)
     var xx;                             // local copy of X for multiplier
-    
+
     this.cycleCount += 4;               // estimate some general overhead
     this.adjustABFull();
     this.AROF = 0;                      // A is unconditionally marked empty
     ma = this.A % 0x8000000000;         // extract the A mantissa
     mb = this.B % 0x8000000000;         // extract the B mantissa
-    
+
     if (ma == 0) {                      // if A mantissa is zero
         this.B = 0;                     // result is all zeroes
-    } else if (mb == 0) {               // otherwise, if B is zero, 
+    } else if (mb == 0) {               // otherwise, if B is zero,
         this.B = 0;                     // result is all zeroes
     } else {                            // otherwise, let the games begin
         ea = (this.A - ma)/0x8000000000;
@@ -1748,24 +1644,24 @@ B5500Processor.prototype.singlePrecisionMultiply = function() {
         sb ^= sa;                       // positive if signs are same, negative if different
         xx = mb;                        // move multiplier to X
         mb = 0;                         // initialize high-order part of product
-        
+
         // Now we step through the 13 octades of the multiplier, developing the product
         do {
             d = xx % 8;                 // extract the current multiplier digit
             xx = (xx - d)/8;            // shift the multiplier right one octade
-            
+
             if (d == 0) {               // if multiplier digit is zero
                 this.cycleCount++;      // hardware optimizes this case
             } else {
                 this.cycleCount += 3;   // just estimate the average number of clocks
                 mb += ma*d;             // develop the partial product
             }
-            
+
             d = mb % 8;                 // get the low-order octade of partial product in B
-            mb = (mb - d)/8;            // shift B right one octade 
+            mb = (mb - d)/8;            // shift B right one octade
             mx = mx/8 + d*0x1000000000; // shift B octade into high-order end of extension
         } while (++n < 13);
-        
+
         // Normalize the result
         if (this.Q & 0x10 && mb == 0) { // if it's integer multiply (Q05F) with integer result
             mb = mx;                    // just use the low-order 39 bits
@@ -1781,11 +1677,11 @@ B5500Processor.prototype.singlePrecisionMultiply = function() {
                 eb--;
             }
         }
-        
+
         // Round the result
         this.Q &= ~(0x10);              // reset Q05F
         this.A = 0;                     // required by specs due to the way rounding addition worked
-        
+
         if (xx >= 0x4000000000) {       // if high-order bit of remaining extension is 1
             this.Q |= 0x01              // set Q01F (for display purposes only)
             if (mb < 0x7FFFFFFFFF) {    // if the rounding would not cause overflow
@@ -1793,7 +1689,7 @@ B5500Processor.prototype.singlePrecisionMultiply = function() {
                 mb++;                   // round up the result
             }
         }
-        
+
         if (mb == 0) {                  // don't see how this could be necessary here, but
             this.B = 0;                 // the TM says to do it anyway
         } else {
@@ -1815,14 +1711,14 @@ B5500Processor.prototype.singlePrecisionMultiply = function() {
             }
 
             this.B = (sb*128 + eb)*0x8000000000 + mb;   // Final Answer
-        } 
+        }
     }
     this.X = mx;                        // for display purposes only
 };
 
 /**************************************/
 B5500Processor.prototype.singlePrecisionDivide = function() {
-    /* Divides the contents of the A register into the B register, leaving the 
+    /* Divides the contents of the A register into the B register, leaving the
     result in B and invalidating A. A 14-octade mantissa is developed and
     then normalized and rounded */
     var ea;                             // signed exponent of A
@@ -1834,20 +1730,20 @@ B5500Processor.prototype.singlePrecisionDivide = function() {
     var sa;                             // mantissa sign of A (0=positive)
     var sb;                             // mantissa sign of B (ditto)
     var xx = 0;                         // local copy of X for quotient development
-    
+
     this.cycleCount += 4;               // estimate some general overhead
     this.adjustABFull();
     this.AROF = 0;                      // A is unconditionally marked empty
     ma = this.A % 0x8000000000;         // extract the A mantissa
     mb = this.B % 0x8000000000;         // extract the B mantissa
-    
+
     if (ma == 0) {                      // if A mantissa is zero
         this.A = this.B = 0;            // result is all zeroes
         if (this.NCSF) {
             this.I = (this.I & 0x0F) | 0xD0;    // set I05/7/8: divide by zero
             this.cc.signalInterrupt();
         }
-    } else if (mb == 0) {               // otherwise, if B is zero, 
+    } else if (mb == 0) {               // otherwise, if B is zero,
         this.A = this.B = 0;            // result is all zeroes
     } else {                            // otherwise, may the octades always be in your favor
         ea = (this.A - ma)/0x8000000000;
@@ -1872,13 +1768,13 @@ B5500Processor.prototype.singlePrecisionDivide = function() {
         }
 
         sb ^= sa;                       // positive if signs are same, negative if different
-        
+
         // Now we step through the development of the quotient one octade at a time,
         // tallying the shifts in n until the high-order octade of xx is non-zero (i.e.,
         // normalized). The divisor is in ma and the dividend (which becomes the
         // remainder) is in mb. Since the operands are normalized, this will take
-        // either 13 or 14 shifts. We do the xx shift at the top of the loop so that 
-        // the 14th (rounding) digit will be available in q at the end. The initial 
+        // either 13 or 14 shifts. We do the xx shift at the top of the loop so that
+        // the 14th (rounding) digit will be available in q at the end. The initial
         // shift has no effect, as it operates using zero values for xx and q.
         do {
             xx = xx*8 + q;              // shift quotient digit into the working quotient
@@ -1890,10 +1786,10 @@ B5500Processor.prototype.singlePrecisionDivide = function() {
             }
             mb *= 8;                    // shift the remainder left one octade
         } while (xx < 0x1000000000);
-        
+
         this.cycleCount += n*3;         // just estimate the average number of divide clocks
         eb -= ea + n - 2;               // compute the exponent, accounting for the extra shift
-        
+
         // Round the result (it's already normalized)
         this.A = 0;                     // required by specs due to the way rounding addition worked
         if (q >= 4) {                   // if high-order bit of last quotient digit is 1
@@ -1902,7 +1798,7 @@ B5500Processor.prototype.singlePrecisionDivide = function() {
                 xx++;                   // round up the result
             }
         }
-        
+
         // Check for exponent under/overflow
         if (eb > 63) {
             eb %= 64;
@@ -1927,7 +1823,7 @@ B5500Processor.prototype.singlePrecisionDivide = function() {
 
 /**************************************/
 B5500Processor.prototype.integerDivide = function() {
-    /* Divides the contents of the A register into the B register, leaving the 
+    /* Divides the contents of the A register into the B register, leaving the
     integerized result in B and invalidating A. If the result cannot be expressed
     as an integer, the Integer-Overflow interrupt is set */
     var ea;                             // signed exponent of A
@@ -1939,20 +1835,20 @@ B5500Processor.prototype.integerDivide = function() {
     var sa;                             // mantissa sign of A (0=positive)
     var sb;                             // mantissa sign of B (ditto)
     var xx = 0;                         // local copy of X for quotient development
-    
+
     this.cycleCount += 4;               // estimate some general overhead
     this.adjustABFull();
     this.AROF = 0;                      // A is unconditionally marked empty
     ma = this.A % 0x8000000000;         // extract the A mantissa
     mb = this.B % 0x8000000000;         // extract the B mantissa
-    
+
     if (ma == 0) {                      // if A mantissa is zero
         this.A = this.B = 0;            // result is all zeroes
         if (this.NCSF) {
             this.I = (this.I & 0x0F) | 0xD0;    // set I05/7/8: divide by zero
             this.cc.signalInterrupt();
         }
-    } else if (mb == 0) {               // otherwise, if B is zero, 
+    } else if (mb == 0) {               // otherwise, if B is zero,
         this.A = this.B = 0;            // result is all zeroes
     } else {                            // otherwise, continue
         ea = (this.A - ma)/0x8000000000;
@@ -1975,16 +1871,16 @@ B5500Processor.prototype.integerDivide = function() {
             mb *= 8;                    // shift left
             eb--;
         }
-        
+
         if (ea > eb) {                  // if divisor has greater magnitude
             this.A = this.B = 0;        // quotient is < 1, so set result to zero
         } else {                        // otherwise, do the long division
             sb ^= sa;                   // positive if signs are same, negative if different
 
             // Now we step through the development of the quotient one octade at a time,
-            // similar to that for DIV, but in addition to stopping when the high-order 
+            // similar to that for DIV, but in addition to stopping when the high-order
             // octade of xx is non-zero (i.e., normalized), we can stop if the exponents
-            // becomes equal. Since there is no rounding, we do not need to develop an 
+            // becomes equal. Since there is no rounding, we do not need to develop an
             // extra quotient digit.
             do {
                 this.cycleCount += 3;   // just estimate the average number of clocks
@@ -1996,7 +1892,7 @@ B5500Processor.prototype.integerDivide = function() {
                 mb *= 8;                // shift the remainder left one octade
                 xx = xx*8 + q;          // shift quotient digit into the working quotient
                 if (xx >= 0x1000000000) {
-                    break;              // quotient has become normalized        
+                    break;              // quotient has become normalized
                 } else if (ea < eb) {
                     eb--;               // decrement the B exponent
                 } else {
@@ -2007,11 +1903,11 @@ B5500Processor.prototype.integerDivide = function() {
             if (ea == eb) {
                 eb = 0;                 // integer result developed
             } else {
-                if (this.NCSF) {        // integer overflow result        
+                if (this.NCSF) {        // integer overflow result
                     this.I = (this.I & 0x0F) | 0xC0;    // set I07/8: integer-overflow
                     this.cc.signalInterrupt();
-                }  
-                eb = (eb-ea)%64;               
+                }
+                eb = (eb-ea)%64;
                 if (eb < 0) {
                     eb = (-eb) | 0x40;  // set the exponent sign bit
                 }
@@ -2026,9 +1922,9 @@ B5500Processor.prototype.integerDivide = function() {
 
 /**************************************/
 B5500Processor.prototype.remainderDivide = function() {
-    /* Divides the contents of the A register into the B register, leaving the 
-    remainder result in B and invalidating A. The sign of the result is the sign 
-    of the dividend (B register value). If the quotient cannot be expressed as an 
+    /* Divides the contents of the A register into the B register, leaving the
+    remainder result in B and invalidating A. The sign of the result is the sign
+    of the dividend (B register value). If the quotient cannot be expressed as an
     integer, the Integer-Overflow interrupt is set */
     var ea;                             // signed exponent of A
     var eb;                             // signed exponent of B
@@ -2039,20 +1935,20 @@ B5500Processor.prototype.remainderDivide = function() {
     var sa;                             // mantissa sign of A (0=positive)
     var sb;                             // mantissa sign of B (ditto)
     var xx = 0;                         // local copy of X for quotient development
-    
+
     this.cycleCount += 4;               // estimate some general overhead
     this.adjustABFull();
     this.AROF = 0;                      // A is unconditionally marked empty
     ma = this.A % 0x8000000000;         // extract the A mantissa
     mb = this.B % 0x8000000000;         // extract the B mantissa
-    
+
     if (ma == 0) {                      // if A mantissa is zero
         this.A = this.B = 0;            // result is all zeroes
         if (this.NCSF) {
             this.I = (this.I & 0x0F) | 0xD0;    // set I05/7/8: divide by zero
             this.cc.signalInterrupt();
         }
-    } else if (mb == 0) {               // otherwise, if B is zero, 
+    } else if (mb == 0) {               // otherwise, if B is zero,
         this.A = this.B = 0;            // result is all zeroes
     } else {                            // otherwise, continue
         ea = (this.A - ma)/0x8000000000;
@@ -2075,16 +1971,16 @@ B5500Processor.prototype.remainderDivide = function() {
             mb *= 8;                    // shift left
             eb--;
         }
-        
+
         if (ea > eb) {                  // if divisor has greater magnitude
-            this.A = 0;                 // quotient is < 1, so set A to zero and 
+            this.A = 0;                 // quotient is < 1, so set A to zero and
             this.B %= 0x8000000000000;  // result is original B (less the flag bit)
         } else {                        // otherwise, work remains (so to speak)
             // Now we step through the development of the quotient one octade at a time,
-            // similar to that for DIV, but in addition to stopping when the high-order 
+            // similar to that for DIV, but in addition to stopping when the high-order
             // octade of xx is non-zero (i.e., normalized), we can stop if the exponents
-            // becomes equal. Since there is no rounding, we do not need to develop an 
-            // extra quotient digit. 
+            // becomes equal. Since there is no rounding, we do not need to develop an
+            // extra quotient digit.
             do {
                 this.cycleCount += 3;   // just estimate the average number of clocks
                 q = 0;                  // initialize the quotient digit
@@ -2116,10 +2012,10 @@ B5500Processor.prototype.remainderDivide = function() {
                     eb %= 64;           // use remainder exponent mod 64
                 }
             } else {
-                if (this.NCSF) {        // integer overflow result        
+                if (this.NCSF) {        // integer overflow result
                     this.I = (this.I & 0x0F) | 0xC0;    // set I07/8: integer-overflow
                     this.cc.signalInterrupt();
-                }  
+                }
                 mb = eb = sb = 0;       // result in B will be all zeroes
             }
             if (eb < 0) {
@@ -2136,8 +2032,8 @@ B5500Processor.prototype.remainderDivide = function() {
 /**************************************/
 B5500Processor.prototype.doublePrecisionAdd = function(adding) {
     /* Adds the double-precision contents of the A and B registers to the double-
-    precision contents of the top two words in the memory stack, leaving the result 
-    in A and B. If "adding" is not true, the sign of A is complemented to accomplish 
+    precision contents of the top two words in the memory stack, leaving the result
+    in A and B. If "adding" is not true, the sign of A is complemented to accomplish
     subtraction instead of addition */
     var carry = 0;                      // overflow carry flag
     var d = 0;                          // shifting digit between registers
@@ -2149,10 +2045,10 @@ B5500Processor.prototype.doublePrecisionAdd = function(adding) {
     var sb;                             // mantissa sign of B (ditto)
     var xa;                             // extended mantissa for A
     var xb;                             // extended mantissa for B
-    
+
     // Estimate some general overhead and account for stack manipulation we don't do
     this.cycleCount += B5500Processor.memCycles*4 + 8;
-    
+
     this.adjustABFull();                // extract the top (A) operand fields:
     ma = this.A % 0x8000000000;         // extract the A mantissa
     xa = this.B % 0x8000000000;         // extract the A mantissa extension
@@ -2168,16 +2064,16 @@ B5500Processor.prototype.doublePrecisionAdd = function(adding) {
     sb = (eb >>> 7) & 0x01;
     eb = (eb & 0x40 ? -(eb & 0x3F) : (eb & 0x3F));
 
-    
+
     if (ma == 0 && xa == 0) {           // if A is zero
         if (mb == 0 && xb == 0) {       // and B is zero
             this.A = this.B = 0;        // result is all zeroes
         } else {
             this.A %= 0x800000000000;   // otherwise, result is B with flag bit reset
         }
-    } else if (mb == 0 && xb == 0 && adding) {  // otherwise, if B is zero and we're adding, 
+    } else if (mb == 0 && xb == 0 && adding) {  // otherwise, if B is zero and we're adding,
         this.B = xa;                    // reconstruct A operand with flag bit reset
-        this.A = ((sa*2 + (ea < 0 ? 1 : 0))*64 + (ea < 0 ? -ea : ea))*0x8000000000 + ma;       
+        this.A = ((sa*2 + (ea < 0 ? 1 : 0))*64 + (ea < 0 ? -ea : ea))*0x8000000000 + ma;
     } else {                            // so much for the simple cases...
         // If the exponents are unequal, normalize the larger and scale the smaller
         // until they are in alignment, or one of the mantissas becomes zero
@@ -2225,9 +2121,9 @@ B5500Processor.prototype.doublePrecisionAdd = function(adding) {
             }
         }
 
-        // At this point, the exponents are aligned (or one of the mantissas 
+        // At this point, the exponents are aligned (or one of the mantissas
         // is zero), so do the actual 78-bit addition as two 40-bit, signed, twos-
-        // complement halves. Note that computing the twos-complement of the 
+        // complement halves. Note that computing the twos-complement of the
         // extension requires a borrow from the high-order part, so the borrow
         // is taken from the 40-bit twos-complement base (i.e., using 0xFFFFFFFFFF
         // instead of 0x10000000000).
@@ -2241,15 +2137,15 @@ B5500Processor.prototype.doublePrecisionAdd = function(adding) {
             xa = 0x8000000000 - xa;
             ma = 0xFFFFFFFFFF - ma;
         }
-        
+
         xb += xa;                       // add the extension parts
         if (xb >= 0x8000000000) {               // deal with carry out of extension part
             mb++;                               // into high-order part
             xb %= 0x8000000000;
         }
-        
+
         mb += ma;                       // add the high-order parts
-        
+
         // Check for overflow: if the result occupies more than 40 bits, we know
         // that overflow occurred; otherwise if both internal signs were positive
         // and we have a twos-complement negative result, overflow occurred; otherwise
@@ -2267,8 +2163,8 @@ B5500Processor.prototype.doublePrecisionAdd = function(adding) {
                 mb -= 0x8000000000;                     // and adjust result for the overflow
             }
         }
-        
-        // Determine the resulting sign and decomplement as necessary        
+
+        // Determine the resulting sign and decomplement as necessary
         if (mb < 0x8000000000) {
             sb = 0;                     // it's positive
         } else {
@@ -2276,7 +2172,7 @@ B5500Processor.prototype.doublePrecisionAdd = function(adding) {
             this.cycleCount++;
             xb = 0x8000000000 - xb;
             mb = 0xFFFFFFFFFF - mb;
-        }        
+        }
 
         // Scale or normalize as necessary
         if (carry) {                                    // overflow occurred, so scale it in
@@ -2284,10 +2180,10 @@ B5500Processor.prototype.doublePrecisionAdd = function(adding) {
             d = mb % 8;                                 // get the shift digit from high-order part
             mb = (mb - d)/8 + 0x1000000000;             // shift right and insert the overflow bit
             xb = (xb - xb%8)/8 + d*0x1000000000;        // shift the extension and insert the shift digit
-            eb++; 
+            eb++;
         } else {
             while (mb < 0x1000000000 && mb & xb) {      // Normalize
-                this.cycleCount++;                              
+                this.cycleCount++;
                 d = (xb - xb%0x1000000000)/0x1000000000;// get the rounding digit from X
                 xb = (xb%0x1000000000)*8;               // shift B and X left together
                 mb = mb*8 + d;
@@ -2318,7 +2214,7 @@ B5500Processor.prototype.doublePrecisionAdd = function(adding) {
             this.X = xb;                                // for display purposes only
             this.B = xb;
             this.A = (sb*128 + eb)*0x8000000000 + mb;   // Final Answer
-        } 
+        }
     }
 };
 
@@ -2467,7 +2363,7 @@ B5500Processor.prototype.indexDescriptor = function() {
 B5500Processor.prototype.integerStore = function(conditional, destructive) {
     /* Store the value in the B register at the address in the A register (relative
     or descriptor) and marks the A register empty. "conditional" indicates that
-    integerization is conditional on the type of word in A, and if a descriptor, 
+    integerization is conditional on the type of word in A, and if a descriptor,
     whether it has the integer bit set */
     var aw;                             // local copy of A reg
     var bw;                             // local copy of B reg
@@ -2495,7 +2391,7 @@ B5500Processor.prototype.integerStore = function(conditional, destructive) {
             doStore = normalize = 0;
         }
     }
-    
+
     if (normalize) {
         bw = this.B;
         bm = (bw % 0x8000000000);
@@ -2533,11 +2429,11 @@ B5500Processor.prototype.integerStore = function(conditional, destructive) {
                 this.B = bs*0x400000000000 + bm;
             }
         }
-        
+
     }
-    
+
     if (doStore) {
-        this.storeBviaM();  
+        this.storeBviaM();
         this.AROF = 0;
         if (destructive) {
             this.BROF = 0
@@ -2645,7 +2541,7 @@ B5500Processor.prototype.enterCharModeInline = function() {
 
     // execute the portion of CM XX04=RDA operator starting at J=2
     this.S = bw % 0x8000;
-    if (bw >= 0x800000000000) {         // if it's a descriptor, 
+    if (bw >= 0x800000000000) {         // if it's a descriptor,
         this.K = 0;                     // force K to zero and
         this.presenceTest(bw);          // just take the side effect of any p-bit interrupt
     } else {
@@ -2804,7 +2700,7 @@ B5500Processor.prototype.operandCall = function() {
 
 /**************************************/
 B5500Processor.prototype.descriptorCall = function() {
-    /* DESC, the moral equivalent of "load address" on lesser machines. 
+    /* DESC, the moral equivalent of "load address" on lesser machines.
     Assumes the syllable has already loaded a word into A, and that the
     address of that word is in M.
     See Figures 6-2, 6-3, and 6-4 in the B5500 Reference Manual */
@@ -2861,7 +2757,7 @@ B5500Processor.prototype.run = function() {
     must point to the next syllable to be executed.
     This routine will run while cycleCount < cycleLimit  */
     var noSECL = 0;                     // to support char mode dynamic count from CRF syllable
-    var opcode;                         // copy of T register        
+    var opcode;                         // copy of T register
     var t1;                             // scratch variable for internal instruction use
     var t2;                             // ditto
     var t3;                             // ditto
@@ -2894,13 +2790,13 @@ B5500Processor.prototype.run = function() {
 
                 case 0x02:              // XX02: BSD=Skip bit destination
                     this.cycleCount += variant;
-                    t1 = this.K*6 + this.V + variant; 
-                    while (t1 >= 48) {                  
+                    t1 = this.K*6 + this.V + variant;
+                    while (t1 >= 48) {
                         if (this.BROF) {                // skipped off initial word, so
                             this.storeBviaS();          // [S] = B
                             this.BROF = 0;              // invalidate B
                         }
-                        this.S++;                       
+                        this.S++;
                         t1 -= 48;
                     }
                     this.K = (t1 - (this.V = t1 % 6))/6;
@@ -2908,7 +2804,7 @@ B5500Processor.prototype.run = function() {
 
                 case 0x03:              // XX03: BSS=Skip bit source
                     this.cycleCount += variant;
-                    t1 = this.G*6 + this.H + variant; 
+                    t1 = this.G*6 + this.H + variant;
                     while (t1 >= 48) {
                         this.M++;                       // skipped off initial word, so
                         this.AROF = 0;                  // invalidate A
@@ -2928,7 +2824,7 @@ B5500Processor.prototype.run = function() {
                     this.loadBviaS();                   // B = [S]
                     this.BROF = 0;
                     this.S = (t1 = this.B) % 0x8000;
-                    if (t1 >= 0x800000000000) {         // if it's a descriptor, 
+                    if (t1 >= 0x800000000000) {         // if it's a descriptor,
                         this.K = 0;                     // force K to zero and
                         this.presenceTest(t1);          // just take the side effect of any p-bit interrupt
                     } else {
@@ -2989,7 +2885,7 @@ B5500Processor.prototype.run = function() {
                         this.loadAviaM();               // A = [M], load A from source address
                     }
                     for (variant=3; variant>0; variant--) {
-                        this.B = (this.B % 0x40000000000)*0x40 + 
+                        this.B = (this.B % 0x40000000000)*0x40 +
                                  (this.Y = this.cc.fieldIsolate(this.A, this.G*6, 6));
                         if (this.G < 7) {
                             this.G++;
@@ -2998,7 +2894,7 @@ B5500Processor.prototype.run = function() {
                             this.M++;
                             this.loadAviaM();           // A = [M]
                         }
-                    } 
+                    }
                     this.S = this.B % 0x8000;
                     this.K = (this.B % 0x40000) >>> 15;
                     this.M = t1;                        // restore M & G
@@ -3166,11 +3062,11 @@ B5500Processor.prototype.run = function() {
                     this.M = t1 >>> 3;
                     break;
 
-                case 0x1A:              // XX32: xxx=Field subtract (aux)       
+                case 0x1A:              // XX32: xxx=Field subtract (aux)
                     this.fieldArithmetic(variant, false);
                     break;
 
-                case 0x1B:              // XX33: xxx=Field add (aux)            
+                case 0x1B:              // XX33: xxx=Field add (aux)
                     this.fieldArithmetic(variant, true);
                     break;
 
@@ -3201,7 +3097,7 @@ B5500Processor.prototype.run = function() {
                     }
                     this.Y = t1 = this.cc.fieldIsolate(this.A, this.G*6, 6);
                     this.Z = variant;                   // for display only
-                    if (B5500Processor.collation[t1] > B5500Processor.collation[variant]) {       
+                    if (B5500Processor.collation[t1] > B5500Processor.collation[variant]) {
                         this.MSFF = (t1 == 0x20 ? 0 : (t1 == 0x3C ? 0 : 1));    // alphanumeric unless | or !
                     } else {                            // alphanumeric if equal
                         this.Q |= 0x04;                 // set Q03F (display only)
@@ -3236,7 +3132,7 @@ B5500Processor.prototype.run = function() {
                     this.A = this.B;                    // move saved F address to A (why??)
                     this.B = this.R;                    // copy the TALLY value to B
                     t1 = this.S;                        // save S (not the way the hardware did it)
-                    this.S = this.F - variant;          
+                    this.S = this.F - variant;
                     this.storeBviaS();                  // [S] = B, store the TALLY value
                     this.B = this.A;                    // restore F address from A (why??)
                     this.S = t1;                        // restore S
@@ -3263,14 +3159,14 @@ B5500Processor.prototype.run = function() {
                         this.loadPviaC();               // fetch the program word, if necessary
                     }
                     opcode = this.cc.fieldIsolate(this.P, this.L*12, 12);
-                    if (variant) {                      
+                    if (variant) {
                         // if repeat count from parameter > 0, apply it to the next syllable
-                        this.T = opcode = (opcode & 0x3F) + variant*0x40;   
-                    } else {                            
+                        this.T = opcode = (opcode & 0x3F) + variant*0x40;
+                    } else {
                         // otherwise, construct JFW (XX47) using repeat count from next syl (whew!)
-                        this.T = opcode = (opcode & 0xFC0) + 0x27;          
+                        this.T = opcode = (opcode & 0xFC0) + 0x27;
                     }
-                    
+
                     // Since we are bypassing normal SECL behavior, bump the instruction pointer here.
                     noSECL = 1;                         // >>> override normal instruction fetch <<<
                     this.PROF = 0;
@@ -3306,14 +3202,14 @@ B5500Processor.prototype.run = function() {
 
                 case 0x28:              // XX50: RCA=Recall control address
                     this.cycleCount += variant;
-                    this.A = this.B;                    // save B in A 
+                    this.A = this.B;                    // save B in A
                     this.AROF = this.BROF;
                     t1 = this.S;                        // save S (not the way the hardware did it)
                     this.S = this.F - variant;
                     this.loadBviaS();                   // B = [S]
                     this.S = t1;
                     this.C = this.B % 0x8000;
-                    if (this.B >= 0x800000000000) {     // if it's a descriptor, 
+                    if (this.B >= 0x800000000000) {     // if it's a descriptor,
                         this.L = 0;                     // force L to zero and
                         if (this.presenceTest(this.B)) {// if present, initiate a fetch to P
                             this.PROF = 0;              // require fetch at SECL
@@ -3335,7 +3231,7 @@ B5500Processor.prototype.run = function() {
 
                 case 0x29:              // XX51: ENS=End loop
                     this.cycleCount += 4;
-                    this.A = this.B;                    // save B in A 
+                    this.A = this.B;                    // save B in A
                     this.AROF = this.BROF;
                     t1 = this.X;
                     variant = this.cc.fieldIsolate(t1, 12, 6);  // get repeat count
@@ -3382,7 +3278,7 @@ B5500Processor.prototype.run = function() {
                     this.M = this.F - variant;
                     this.loadBviaM();                   // B = [M]
                     this.M = this.B % 0x8000;
-                    if (this.B >= 0x800000000000) {     // if it's a descriptor, 
+                    if (this.B >= 0x800000000000) {     // if it's a descriptor,
                         this.G = 0;                     // force G to zero and
                         this.presenceTest(this.B);      // just take the side effect of any p-bit interrupt
                     } else {                            // it's an operand
@@ -3428,7 +3324,7 @@ B5500Processor.prototype.run = function() {
                         this.loadAviaM();               // A = [M], load A from source address
                     }
                     for (variant=3; variant>0; variant--) {
-                        this.B = (this.B % 0x40000000000)*0x40 + 
+                        this.B = (this.B % 0x40000000000)*0x40 +
                                  (this.Y = this.cc.fieldIsolate(this.A, this.G*6, 6));
                         if (this.G < 7) {
                             this.G++;
@@ -3437,7 +3333,7 @@ B5500Processor.prototype.run = function() {
                             this.M++;
                             this.loadAviaM();           // A = [M]
                         }
-                    } 
+                    }
                     this.M = this.B % 0x8000;
                     this.G = (this.B % 0x40000) >>> 15;
                     break;
@@ -3577,9 +3473,9 @@ B5500Processor.prototype.run = function() {
                     break;
                 } // end switch for character mode operators
             } while (noSECL);
-            
+
         } else {
-        
+
             /***********************************************************
             *  Word Mode Syllables                                     *
             ***********************************************************/
@@ -3596,8 +3492,8 @@ B5500Processor.prototype.run = function() {
             case 2:                     // OPDC: Operand Call
                 this.adjustAEmpty();
                 this.computeRelativeAddr(opcode >>> 2, 1);
-                this.loadAviaM();                
-                if (this.A >= 0x800000000000) {                 // a small optimization for the 
+                this.loadAviaM();
+                if (this.A >= 0x800000000000) {                 // a small optimization for the
                     this.operandCall();                         // common case when TOS is an operand
                 }
                 break;
@@ -3605,7 +3501,7 @@ B5500Processor.prototype.run = function() {
             case 3:                     // DESC: Descriptor (name) Call
                 this.adjustAEmpty();
                 this.computeRelativeAddr(opcode >>> 2, 1);
-                this.loadAviaM();                      
+                this.loadAviaM();
                 this.descriptorCall();
                 break;
 
@@ -3685,8 +3581,8 @@ B5500Processor.prototype.run = function() {
                         } else if (this.presenceTest(t1)) {
                             this.M = t1 % 0x8000;       // present descriptor
                             t2 = 1;
-                        } else {                        // absent descriptor     
-                            t2 = 0;                     
+                        } else {                        // absent descriptor
+                            t2 = 0;
                         }
                         if (t2) {
                             this.loadAviaM();
@@ -3754,7 +3650,7 @@ B5500Processor.prototype.run = function() {
                                 t2 = 1;
                             } else {
                                 // for an absent descriptor, just leave it on the stack
-                                t2 = 0;                     
+                                t2 = 0;
                             }
                             if (t2) {
                                 this.loadAviaM();
@@ -3902,7 +3798,7 @@ B5500Processor.prototype.run = function() {
                         this.adjustABFull();
                         if (this.A < 0x800000000000) {          // it's an operand
                             this.computeRelativeAddr(this.A, 0);
-                            this.storeBviaM();  
+                            this.storeBviaM();
                             this.AROF = this.BROF = 0;
                         } else {                                // it's a descriptor
                             if (this.presenceTest(this.A)) {
@@ -3917,7 +3813,7 @@ B5500Processor.prototype.run = function() {
                         this.adjustABFull();
                         if (this.A < 0x800000000000) {          // it's an operand
                             this.computeRelativeAddr(this.A, 0);
-                            this.storeBviaM();  
+                            this.storeBviaM();
                             this.AROF = 0;
                         } else {                                // it's a descriptor
                             if (this.presenceTest(this.A)) {
@@ -3932,8 +3828,8 @@ B5500Processor.prototype.run = function() {
                         this.adjustAFull();
                         if (this.A < 0x800000000000) {          // simple operand
                             this.computeRelativeAddr(this.A, 1);
-                            this.loadAviaM();        
-                        } else if (this.presenceTest(this.A)) { 
+                            this.loadAviaM();
+                        } else if (this.presenceTest(this.A)) {
                             this.M = this.A % 0x8000;           // present descriptor
                             this.loadAviaM();
                         }
@@ -4228,20 +4124,17 @@ B5500Processor.prototype.run = function() {
                         break;
 
                     case 0x38:          // 7031: FBS=stack search for flag
-                        // Handbook (bit numbers not reversed!):
-                        //   M + 1, Load A @ M; // why is this incrementing here?
-                        //   A48 & A46 <- 1
-                        //   A47 <- 0, A[45=>16] <- 0;
-                        //   A[15=>1] <- M
-                        // RefMan:
-                        //   stack pop? // described as "Pushup into A occurs if necessary..."
-                        //   isolate lowest 15-bits of TOS // is this A?
-                        //   loop
-                        //     examine word at this base address
-                        //     if flag bit(0) is true, place address in A, present bit(2) is set, exit loop
-                        //     else increment address
-                        //   end loop
-                        this.AROF = 1;
+                        this.adjustAFull();
+                        this.M = this.A % 0x8000;
+                        do {
+                            this.loadAviaM();
+                            if (this.A < 0x800000000000) {
+                                this.M = (this.M+1) % 0x8000;
+                            } else {
+                                this.A = t1 = this.M + 0xA00000000000;
+                                break;                  // flag bit found: stop the search
+                            }
+                        } while (true);
                         break;
                     }
                     break;
@@ -4371,7 +4264,20 @@ B5500Processor.prototype.run = function() {
                         this.AROF = 0;
                         break;
 
-                    case 0x15:          // 2541: LLL=link list lookup
+                    case 0x15:          // 2541: LLL=link list look-up
+                        this.adjustABFull();
+                        t1 = this.A % 0x8000000000;             // test value
+                        this.M = this.B % 0x8000;               // starting link address
+                        do {
+                            this.loadBviaM();
+                            t2 = this.B % 0x8000000000;
+                            if (t2 < t1) {
+                                this.M = t2 % 0x8000;
+                            } else {
+                                this.A = this.M + 0xA00000000000;
+                                break;                          // B >= A: stop look-up
+                            }
+                        } while (true);
                         break;
 
                     case 0x24:          // 4441: CMN=enter character mode inline

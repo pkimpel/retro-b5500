@@ -12,7 +12,7 @@
 * addressable unit to the B5500. This module manages the Electronic Units (EU)
 * and Storage Units (SU) that make up the physical disk storage facility.
 *
-* Physical storage in this implementation is provided by a W3C IndexedDB 
+* Physical storage in this implementation is provided by a W3C IndexedDB
 * database local to the browser in which the emulator is running. This database
 * must have been previously initialized; see tools/B5500ColdLoader.html.
 *
@@ -24,9 +24,9 @@
 *
 * Within an EU, segments are represented in the database as 240-byte Uint8Array
 * objects, each with a database key corresponding to its numeric segment address.
-* The segments are an EU are not pre-allocated, but are created as they are 
+* The segments are an EU are not pre-allocated, but are created as they are
 * written to by IDB put() methods. When reading, any unallocated segments are
-* returned with their bytes set to binary zero, which will be translated to 
+* returned with their bytes set to binary zero, which will be translated to
 * BIC "?" by the IOU for both binary and alpha modes.
 *
 * At present, disk write lockout is not supported. When there are two DFCUs in
@@ -43,9 +43,9 @@
 * and assumes the IOU does any necessary translation.
 *
 * The starting disk segment address for an I/O is passed in the "control"
-* parameter to each of the I/O methods. This is an an alphanumeric value in 
+* parameter to each of the I/O methods. This is an an alphanumeric value in
 * the B5500 memory and I/O Unit. The I/O unit translates this value to binary
-* for the "control" parameter. The low-order six decimal digits of the value 
+* for the "control" parameter. The low-order six decimal digits of the value
 * comprise the segment address within the EU. The seventh decimal digit is the
 * EU number. Any other portion of the value is ignored.
 *
@@ -54,12 +54,12 @@
 * error reporting for the read check is deferred until the next I/O operation
 * (typically an interrogate) against the unit. Therefore, the error mask is
 * cleared at the end of each disk I/O operation (except for read check) instead
-* of at the beginning, and new  errors are OR-ed with any errors persisting from 
+* of at the beginning, and new  errors are OR-ed with any errors persisting from
 * the prior operation.
 *
 * This module attempts to simulate actual disk activity times by delaying the
 * finish() call by an amount of time computed from the numbers of sectors
-* requested and the Model I SU's average 96KC transfer rate, plus a random 
+* requested and the Model I SU's average 96KC transfer rate, plus a random
 * distribution across its 40ms max rotational latency time.
 ************************************************************************
 * 2013-01-19  P.Kimpel
@@ -76,7 +76,7 @@ function B5500DiskUnit(mnemonic, index, designate, statusChange, signal) {
     this.designate = designate;         // IOD unit designate number
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (e.g,. SPO input request)
-    
+
     this.clear();
 }
 
@@ -94,14 +94,14 @@ B5500DiskUnit.prototype.clear = function() {
     this.ready = false;                 // ready status
     this.busy = false;                  // busy status
     this.activeIOUnit = 0;              // I/O unit currently using this device
-    
+
     this.errorMask = 0;                 // error mask for finish()
     this.finish = null;                 // external function to call for I/O completion
-    this.startStamp = null;             // I/O starting timestamp 
+    this.startStamp = null;             // I/O starting timestamp
 
     this.config = null;                 // copy of CONFIG store contents
     this.disk = null;                   // the IDB database object
-    
+
     this.openDatabase();                // attempt to open the IDB database
 };
 
@@ -121,13 +121,13 @@ B5500DiskUnit.prototype.copySegment = function(seg, buffer, offset) {
     /* Copies the bytes from a single segment Uint8Array object to "buffer" starting
     at "offset" for 240 bytes. If "seg" is undefined, copies zero bytes instead */
     var x;
-    
+
     if (seg) {
         for (x=0; x<240; x++) {
             buffer[offset+x] = seg[x];
         }
     } else {
-        for (x=offset+239; x>=0; x--) {
+        for (x=offset+239; x>=offset; x--) {
             buffer[x] = 0;
         }
     }
@@ -162,10 +162,10 @@ B5500DiskUnit.prototype.openDatabase = function() {
         that.disk.onerror = function(ev) {
             alert("Database for \"" + this.mnemonic + "\" open error: " + ev.target.result.error);
         };
-        
+
         that.disk.transaction("CONFIG").objectStore("CONFIG").get(0).onsuccess = function(ev) {
             that.config = ev.target.result;
-            that.statusChange(1);       // report the DFCU as ready to Central Control                
+            that.statusChange(1);       // report the DFCU as ready to Central Control
             // Set up the generic error handler
             that.disk.onerror = function(ev) {
                 that.genericIDBError(ev);
@@ -192,7 +192,7 @@ B5500DiskUnit.prototype.read = function(finish, buffer, length, mode, control) {
     var euNumber = (control % 10000000 - segAddr)/1000000;
     var euName = this.euPrefix + euNumber;
     var endAddr = segAddr+segs-1;       // ending seg address
-    
+
     euSize = this.config[euName];
     if (!euSize) {                      // EU does not exist
         finish(this.errorMask | 0x20, 0);       // set D27F for EU not ready
@@ -207,16 +207,13 @@ B5500DiskUnit.prototype.read = function(finish, buffer, length, mode, control) {
             length = segs*240;          // recompute length and ending seg address
             endAddr = euSize-1;
         }
-        finishTime = new Date().getTime() + 
+        finishTime = new Date().getTime() +
                 (Math.random()*this.maxLatency + segs*240/this.charXferRate)*1000;
-        
-        // No length specified, so just finish the I/O
-        if (segs < 1) {                         
-            finish(this.errorMask, 0);          
+
+        if (segs < 1) {                 // No length specified, so just finish the I/O
+            finish(this.errorMask, 0);
             this.errorMask = 0;
-        
-        // A single-segment read
-        } else if (segs < 2) {                   
+        } else if (segs < 2) {          // A single-segment read
             req = this.disk.transaction(euName).objectStore(euName).get(segAddr);
             req.onsuccess = function(ev) {
                 that.copySegment(ev.target.result, buffer, 0);
@@ -224,13 +221,11 @@ B5500DiskUnit.prototype.read = function(finish, buffer, length, mode, control) {
                     finish(that.errorMask, length);
                     that.errorMask = 0;
                 }, finishTime - new Date().getTime());
-            };
-        
-        // A multi-segment read
-        } else {                                
+            }
+        } else {                        // A multi-segment read
             range = window.IDBKeyRange.bound(segAddr, endAddr);
             txn = this.disk.transaction(euName);
-            
+
             req = txn.objectStore(euName).openCursor(range);
             req.onsuccess = function(ev) {
                 var cursor = ev.target.result;
@@ -289,7 +284,7 @@ B5500DiskUnit.prototype.write = function(finish, buffer, length, mode, control) 
     var euNumber = (control % 10000000 - segAddr)/1000000;
     var euName = this.euPrefix + euNumber;
     var endAddr = segAddr+segs-1;       // ending seg address
-    
+
     euSize = this.config[euName];
     if (!euSize) {                      // EU does not exist
         finish(this.errorMask | 0x20, 0);       // set D27F for EU not ready
@@ -304,16 +299,16 @@ B5500DiskUnit.prototype.write = function(finish, buffer, length, mode, control) 
             length = segs*240;          // recompute length and ending seg address
             endAddr = euSize-1;
         }
-        finishTime = new Date().getTime() + 
+        finishTime = new Date().getTime() +
                 (Math.random()*this.maxLatency + segs*240/this.charXferRate)*1000;
-        
+
         // No length specified, so just finish the I/O
-        if (segs < 1) {                         
-            finish(this.errorMask, 0);          
+        if (segs < 1) {
+            finish(this.errorMask, 0);
             this.errorMask = 0;
-        
+
         // Do the write
-        } else {                                
+        } else {
             txn = this.disk.transaction(euName, "readwrite")
             txn.oncomplete = function(ev) {
                 setTimeout(function() {
@@ -333,21 +328,21 @@ B5500DiskUnit.prototype.write = function(finish, buffer, length, mode, control) 
 /**************************************/
 B5500DiskUnit.prototype.erase = function(finish, length) {
     /* Initiates an erase operation on the unit */
-    
+
     finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
 B5500DiskUnit.prototype.rewind = function(finish) {
     /* Initiates a rewind operation on the unit */
-    
+
     finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
 B5500DiskUnit.prototype.readCheck = function(finish, length, control) {
-    /* Initiates a read check operation on the unit. "length" is in characters; 
-    segment address is in "control". "mode" is ignored. This is essentially a 
+    /* Initiates a read check operation on the unit. "length" is in characters;
+    segment address is in "control". "mode" is ignored. This is essentially a
     read without any data transfer to memory. Note that the errorMask is NOT
     zeroed at the end of the I/O -- it will be reported with the next I/O */
     var euSize;                         // max seg size for EU
@@ -363,7 +358,7 @@ B5500DiskUnit.prototype.readCheck = function(finish, length, control) {
     var euNumber = (control % 10000000 - segAddr)/1000000;
     var euName = this.euPrefix + euNumber;
     var endAddr = segAddr+segs-1;       // ending seg address
-    
+
     this.errorMask = 0;                 // clear any prior error mask
     euSize = this.config[euName];
     if (!euSize) {                      // EU does not exist
@@ -379,19 +374,16 @@ B5500DiskUnit.prototype.readCheck = function(finish, length, control) {
             length = segs*240;          // recompute length and ending seg address
             endAddr = euSize-1;
         }
-        finishTime = new Date().getTime() + 
+        finishTime = new Date().getTime() +
                 (Math.random()*this.maxLatency + segs*240/this.charXferRate)*1000;
-        
-        // No length specified, so just finish the I/O
-        if (segs < 1) {                         
-            finish(this.errorMask, 0);          
+
+        if (segs < 1) {                 // No length specified, so just finish the I/O
+            finish(this.errorMask, 0);
             // DO NOT clear the error mask -- will return it on the next interrogate
-        
-        // A multi-segment read
-        } else {                                
+        } else {                        // A multi-segment read
             range = window.IDBKeyRange.bound(segAddr, endAddr);
             txn = this.disk.transacation(euName);
-            
+
             req = txn.objectStore(euName).openCursor(range);
             req.onsuccess = function(ev) {
                 var cursor = ev.target.result;
@@ -421,7 +413,7 @@ B5500DiskUnit.prototype.readInterrogate = function(finish, control) {
     var euNumber = (control % 10000000 - segAddr)/1000000;
     var euName = this.euPrefix + euNumber;
     var that = this;
-    
+
     this.finish = finish;               // for global error handler
     euSize = this.config[euName];
     if (!euSize) {                      // EU does not exist
@@ -445,16 +437,16 @@ B5500DiskUnit.prototype.writeInterrogate = function (finish, control) {
     read check operation. This implementation assumes completion will be delayed
     by a random amount of time based on rotational latency for the EU to search for
     the address */
-    
+
     /* Note: until disk write lockout is implemented, this operation is identical
     to readInterrogate() */
-    
+
     var euSize;                         // max seg size for EU
     var segAddr = control % 1000000;    // starting seg address
     var euNumber = (control % 10000000 - segAddr)/1000000;
     var euName = this.euPrefix + euNumber;
     var that = this;
-    
+
     this.finish = finish;               // for global error handler
     euSize = this.config[euName];
     if (!euSize) {                      // EU does not exist

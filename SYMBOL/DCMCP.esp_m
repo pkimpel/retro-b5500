@@ -21943,3 +21943,75 @@ END; % OF LIBRARYZERO                                                   28892000
                         GO INITIATE;                                    31023000        
          END; END;                                                      31024000        
     END ERRORFIXER;                                                     31025000        
+PROCEDURE JOBMESS(MIX,Q,A,B,C,D); VALUE MIX,Q,A,B,C,D;%                 32000000        
+    REAL MIX,Q,A,B,C,D;%                                                32000100        
+    COMMENT : THIS PROCEDURE CAN BE USED TO BUILD AND SPOUT A MESSAGE   32000110        
+              THAT IS TO BE PRECEEDED BY A <JOB SPECIFIER> WHICH IT     32000120        
+              BUILDS AUTOMATICALLY FOR THE MIX GIVEN;                   32000130        
+    BEGIN REAL BUF,T;%                                                  32000200        
+ $ SET OMIT = NOT(PACKETS)                                              32000249        
+         REAL UNITNO;                                                   32000250        
+ $ POP OMIT                                                             32000251        
+         LABEL EXIT;                                                    32000280        
+         BUF ~ SPACE(9);                                                32000300        
+         IF MIX = 0 THEN                                                32000400        
+         BEGIN T:=SPACE(30);DISKWAIT(-T,30,0);                          32000500        
+               STREAM(M:=M[T+10+5|SYSNO],F:=M[T+11+5|SYSNO],BUF);       32000510        
+               BEGIN DS:=3 LIT" D:"; SI:=LOC M; SI:=SI+1; DS:=7 CHR;    32000520        
+                     DS:=LIT"/";SI:=SI+1;DS:=7CHR;DS:=3LIT"= 0";        32000530        
+               END;                                                     32000540        
+               FORGETSPACE(T);                                          32000600        
+               T:=(BUF+2)&5[30:45:3];                                   32000650        
+         END ELSE%                                                      32000700        
+         IF JARROW[MIX[!0 THEN                                          32000750        
+         BEGIN; STREAM(C!0:R~ IF (T~ PRYOR[MIX])<0 THEN T ELSE T INX 0, 32000800        
+           J ~ JARROW[MIX],MIX,A ~ IF JAR[MIX,0]<0 THEN JAR[MIX,30]     32000810        
+           ELSE 0,BUF);                                                 32000812        
+         BEGIN DS ~ LIT " "; SI ~ LOC R; DS ~ 6 DEC;%                   32000850        
+              DI ~ DI-6; DS ~ 5 FILL; DI ~ BUF; DI ~ DI+7;%             32001000        
+              DS ~ LIT ":"; SI ~ J;                                     32001100        
+              IF SC="+" THEN                                            32001120        
+                   BEGIN  SI ~ SI+1; DS ~ 7 CHR; DS ~ LIT " ";          32001140        
+                          SI ~ SI+1; DS ~ 7 CHR; DS ~ LIT "/";          32001160        
+                          SI ~ LOC A; SI ~ SI+1; DS ~ 7 CHR;            32001180        
+                   END ELSE                                             32001200        
+                   BEGIN  SI ~ SI+1; DS ~ 7 CHR; DS ~ LIT "/";          32001220        
+                          SI ~ SI+1; DS ~ 7 CHR;                        32001240        
+                   END;                                                 32001260        
+              DS ~ LIT "="; SI ~ LOC MIX; DS ~ 2 DEC;%                  32001300        
+              C ~ DI; DI ~ DI -2; DS ~ 2 FILL;%                         32001400        
+         END STREAM;                                                    32001450        
+         T := POLISH;                                                   32001475        
+ $ SET OMIT = NOT(PACKETS)                                              32001499        
+         IF Q.[CF]=MIX THEN UNITNO:=PSEUDOMIX[MIX];                     32001500        
+ $ POP OMIT                                                             32001501        
+         END ELSE                      % NO SUCH MIX                    32001550        
+         BEGIN FORGETSPACE(BUF);                                        32001575        
+              GO TO EXIT;                                               32001600        
+         END;                                                           32001625        
+         STREAM(A~[A],Z~0,T);%                                          32001700        
+         BEGIN SI ~ A; DS ~ LIT " ";%                                   32001800        
+              4(IF SC ! "+" THEN                                        32001900        
+              BEGIN TALLY ~ 7; SI ~ SI +1;     %                        32001910        
+                   6(L: IF SC = "0" THEN%                               32001920        
+                   BEGIN TALLY ~ TALLY + 63; SI ~ SI + 1;               32002000        
+                   END ELSE JUMP OUT);%                                 32002050        
+                   Z ~ TALLY; DS ~ Z CHR;%                              32002070        
+              END ELSE SI ~ SI + 8);%                                   32002090        
+              DS ~ LIT "~";%                                            32002100        
+         END STREAM;%                                                   32002200        
+         SPOUTER(BUF & Q[9:9:9],UNITNO,1);                              32002300        
+EXIT:                                                                   32002350        
+    END JOBMESS;%                                                       32002400        
+PROCEDURE MIXPRINT(Q); VALUE Q; REAL Q;                                 32100000        
+    COMMENT THIS PROCEDURE INVOKES JOBMESS TO TYPE THE JOB SPECIFIERS   32100010        
+         OF EACH ACTIVE MIX;%                                           32100020        
+    BEGIN REAL T,I;                                                     32100100        
+         FOR I~1 STEP 1 UNTIL MIXMAX DO                                 32100200        
+         IF JAR[I,*] ! 0 THEN%                                          32100300        
+         BEGIN JOBMESS(I,Q,-0,-0,-0,-0); T ~ 1 END;%                    32100350        
+         IF NOT T THEN% NULL MIX                                        32100400        
+         BEGIN; STREAM(T~T~SPACE(2)); DS~11LIT " NULL MIX~";%           32100500        
+              SPOUT(T & Q[9:9:9]);%                                     32100600        
+         END NULL MIX;                                                  32100700        
+    END MIXPRINT;%                                                      32100800        
