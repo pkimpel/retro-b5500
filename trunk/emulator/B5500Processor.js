@@ -2246,7 +2246,7 @@ B5500Processor.prototype.computeRelativeAddr = function(offset, cEnabled) {
             break;
         case 6:
             if (cEnabled) {
-                this.M = this.C + (offset & 0x7F);
+                this.M = (this.L ? this.C : this.C-1) + (offset & 0x7F); // adjust C for fetch
             } else {
                 this.M = this.R*64 + (offset & 0x7F);
             }
@@ -2400,7 +2400,7 @@ B5500Processor.prototype.integerStore = function(conditional, destructive) {
         bt = (be >>> 6) & 0x01;
         be = (bt ? -(be & 0x3F) : (be & 0x3F));
 
-        if (be != 0) {
+        if (be != 0) {                  // is B non-integer?
             if (be < 0) {               // B exponent is negative
                 do {
                     this.cycleCount++;
@@ -3935,7 +3935,7 @@ B5500Processor.prototype.run = function() {
                                 if (this.presenceTest(this.A)) {
                                     this.C = this.A % 0x8000;
                                     this.L = 0;
-                                    this.PROF = 0;              // require fetch at SEQL
+                                    this.PROF = 0;              // require fetch at SECL
                                     this.AROF = 0;
                                 }
                             }
@@ -3958,7 +3958,7 @@ B5500Processor.prototype.run = function() {
                                 if (this.presenceTest(this.A)) {
                                     this.C = this.A % 0x8000;
                                     this.L = 0;
-                                    this.PROF = 0;              // require fetch at SEQL
+                                    this.PROF = 0;              // require fetch at SECL
                                     this.AROF = 0;
                                 }
                             }
@@ -4002,7 +4002,7 @@ B5500Processor.prototype.run = function() {
                                 if (this.presenceTest(this.A)) {
                                     this.C = this.A % 0x8000;
                                     this.L = 0;
-                                    this.PROF = 0;              // require fetch at SEQL
+                                    this.PROF = 0;              // require fetch at SECL
                                     this.AROF = 0;
                                 }
                             }
@@ -4025,7 +4025,7 @@ B5500Processor.prototype.run = function() {
                                 if (this.presenceTest(this.A)) {
                                     this.C = this.A % 0x8000;
                                     this.L = 0;
-                                    this.PROF = 0;              // require fetch at SEQL
+                                    this.PROF = 0;              // require fetch at SECL
                                     this.AROF = 0;
                                 }
                             }
@@ -4050,7 +4050,7 @@ B5500Processor.prototype.run = function() {
                             if (this.presenceTest(this.A)) {
                                 this.C = this.A % 0x8000;
                                 this.L = 0;
-                                this.PROF = 0;                  // require fetch at SEQL
+                                this.PROF = 0;                  // require fetch at SECL
                                 this.AROF = 0;
                             }
                         }
@@ -4068,7 +4068,7 @@ B5500Processor.prototype.run = function() {
                             if (this.presenceTest(this.A)) {
                                 this.C = this.A % 0x8000;
                                 this.L = 0;
-                                this.PROF = 0;                  // require fetch at SEQL
+                                this.PROF = 0;                  // require fetch at SECL
                                 this.AROF = 0;
                             }
                         }
@@ -4093,7 +4093,7 @@ B5500Processor.prototype.run = function() {
                             if (this.presenceTest(this.A)) {
                                 this.C = this.A % 0x8000;
                                 this.L = 0;
-                                this.PROF = 0;                  // require fetch at SEQL
+                                this.PROF = 0;                  // require fetch at SECL
                                 this.AROF = 0;
                             }
                         }
@@ -4111,7 +4111,7 @@ B5500Processor.prototype.run = function() {
                             if (this.presenceTest(this.A)) {
                                 this.C = this.A % 0x8000;
                                 this.L = 0;
-                                this.PROF = 0;                  // require fetch at SEQL
+                                this.PROF = 0;                  // require fetch at SECL
                                 this.AROF = 0;
                             }
                         }
@@ -4127,12 +4127,13 @@ B5500Processor.prototype.run = function() {
                         this.adjustAFull();
                         this.M = this.A % 0x8000;
                         do {
+                            this.cycleCount += 2;               // approximate the timing
                             this.loadAviaM();
                             if (this.A < 0x800000000000) {
                                 this.M = (this.M+1) % 0x8000;
                             } else {
                                 this.A = t1 = this.M + 0xA00000000000;
-                                break;                  // flag bit found: stop the search
+                                break;                          // flag bit found: stop the search
                             }
                         } while (true);
                         break;
@@ -4269,6 +4270,7 @@ B5500Processor.prototype.run = function() {
                         t1 = this.A % 0x8000000000;             // test value
                         this.M = this.B % 0x8000;               // starting link address
                         do {
+                            this.cycleCount += 2;               // approximate the timing
                             this.loadBviaM();
                             t2 = this.B % 0x8000000000;
                             if (t2 < t1) {
@@ -4307,7 +4309,7 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x29:              // XX51: delete & conditional branch ops
-                    if (variant == 0) { // 0051=DEL: delete TOS
+                    if (variant < 4) {  // 0051=DEL: delete TOS (or field branch with zero-length field)
                        if (this.AROF) {
                            this.AROF = 0;
                        } else if (this.BROF) {
@@ -4316,17 +4318,51 @@ B5500Processor.prototype.run = function() {
                            this.S--;
                        }
                     } else {
+                        this.adjustABFull();
+                        t2 = variant >>> 2;                     // field length (1-15 bits)
+                        t1 = this.cc.fieldIsolate(this.B, this.G*6+this.H, t2);
+                        this.cycleCount += this.G + this.H + (t2 >>> 1);        // approximate the shift counts
+                        this.AROF = 0;                          // A is unconditionally empty at end
+
                         switch (variant & 0x03) {
-                        case 0x00:      // X051/X451: CFN=non-zero field branch forward nondestructive
-                            break;
-
-                        case 0x01:      // X151/X551: CBN=non-zero field branch backward nondestructive
-                            break;
-
                         case 0x02:      // X251/X651: CFD=non-zero field branch forward destructive
+                            this.BROF = 0;
+                            // no break: fall through
+                        case 0x00:      // X051/X451: CFN=non-zero field branch forward nondestructive
+                            if (t1) {
+                                if (this.A < 0x800000000000) {  // simple operand
+                                    this.jumpSyllables(this.A % 0x1000);
+                                } else {                        // descriptor
+                                    if (this.L == 0) {
+                                        this.C--;               // adjust for Inhibit Fetch
+                                    }
+                                    if (this.presenceTest(this.A)) {
+                                        this.C = this.A % 0x8000;
+                                        this.L = 0;
+                                        this.PROF = 0;          // require fetch at SEQL
+                                    }
+                                }
+                            }
                             break;
 
                         case 0x03:      // X351/X751: CBD=non-zero field branch backward destructive
+                            this.BROF = 0;
+                            // no break: fall through
+                        case 0x01:      // X151/X551: CBN=non-zero field branch backward nondestructive
+                            if (t1) {
+                                if (this.A < 0x800000000000) {  // simple operand
+                                    this.jumpSyllables(-(this.A % 0x1000));
+                                } else {                        // descriptor
+                                    if (this.L == 0) {
+                                        this.C--;               // adjust for Inhibit Fetch
+                                    }
+                                    if (this.presenceTest(this.A)) {
+                                        this.C = this.A % 0x8000;
+                                        this.L = 0;
+                                        this.PROF = 0;          // require fetch at SEQL
+                                    }
+                                }
+                            }
                             break;
                         }
                     }

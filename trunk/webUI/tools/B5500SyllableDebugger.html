@@ -1,4 +1,4 @@
-f<!DOCTYPE html>
+<!DOCTYPE html>
 <head>
 <title>B5500 Processor Syllable Debugger</title>
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -22,6 +22,7 @@ f<!DOCTYPE html>
 var cc;
 var injected = false;                   // true if syllable manually injected into T
 var memAddr = 0x40;                     // @100
+var stopAddress = 0;                    // run-until-address stop point
 
 var accessor = {                        // Memory access control block
     requestorID: "A",                   // Memory requestor ID
@@ -649,16 +650,32 @@ function stepIt(ev) {
     displayProcessorState();
 }
 
-function execIt(ev) {
-    /* Executes one instruction from the drop-down syllable options list, then
-    backs up C and L to prepare for the original instruction in the stream */
-    var opList = $$("OpList")
-    var value;
+function runIt(ev) {
+    /* Steps through instructions continuously until the C register matches the
+    StopAddr address. StopAddr can be changed while running. Setting it to zero
+    (or blank) will halt the continuous stepping */
+    var stopAddr = $$("StopAddr");
 
-    value = opList.options[opList.selectedIndex].value;
-    cc.P1.T = parseInt(value, 8);
-    injected = true;
-    stepIt();
+    function syllabicate() {
+        if (stopAddress && cc.P1.C != stopAddress) {
+            cc.P1.step();
+            displayProcessorState();
+            if (isNaN(stopAddress)) {
+                stopAddr.style.backgroundColor = "red";
+                stopAddress = 0;            // bad address -- kill the loop
+            } else {
+                setTimeout(syllabicate, 1);
+            }
+        } else {
+            stopAddr.style.backgroundColor = "";
+        }
+    }
+
+    setText("ARegOrig", "");
+    setText("BRegOrig", "");
+    injected = false;
+    stopAddr.style.backgroundColor = "green";
+    syllabicate();
 }
 
 function word_onChange(ev) {
@@ -928,10 +945,14 @@ function initialize() {
     $$("MWordP3").onchange = word_onChange;
     $$("MWordP4").onchange = word_onChange;
 
+    $$("StopAddr").onchange = function(ev) {
+        stopAddress = reg_onChange(ev);
+    };
+
     $$("FileSelector").addEventListener("change", fileSelector_onChange, false);
     $$("GoBtn").addEventListener("click", goIt, false);
-    $$("Step").addEventListener("click", stepIt, false);
-    $$("Exec").addEventListener("click", execIt, false);
+    $$("StepBtn").addEventListener("click", stepIt, false);
+    $$("RunBtn").addEventListener("click", runIt, false);
 
     cc = new B5500CentralControl();
     cc.powerOn();
@@ -944,11 +965,12 @@ function initialize() {
     cc.P1.loadPviaC();
     cc.P1.T = cc.fieldIsolate(cc.P1.P, 0, 12);
     cc.P1.TROF = 1;
-    cc.P1.L = 1;                        // point to the next instruction
+    cc.P1.L = 1;                        // point to the next syllable
 
     cc.P1.NCSF = 0;                     // initiate test in control state
 
     displayProcessorState();
+    displayOctal("StopAddr", stopAddress, 5);
 }
 
 window.onload = function() {
@@ -1253,30 +1275,15 @@ window.onload = function() {
         &nbsp;&nbsp;
         <input id=VARF name=VARF type=checkbox value=1><label for=VARF>VARF</label>
 <tr>
-    <td colspan=6>&nbsp;
+    <td colspan=6 class=revcaption>Manual Control
 <tr>
-    <td colspan=6>
-        <input id=Step name=Step type=button value="Step" accesskey=P>
-        &nbsp;Syllable:
-        <select id=OpList name=OpList>
-            <option value="0055" selected>NOP : No Operation
-            <option value="0101">ADD : Add
-            <option value="0301">SUB : Subtract
-            <option value="0401">MUL : Multiply
-            <option value="1001">DIV : Divide
-            <option value="3001">IDV : Integer Divide
-            <option value="7001">RDV : Remainder Divide
-            <option value="0105">DLA : Add DP
-            <option value="0305">DLS : Subtract DP
-            <option value="0125">GEQ : B GEQ A
-            <option value="0225">GTR : B GTR A
-            <option value="0425">NEQ : B NEQ A
-            <option value="4125">LEQ : B LEQ A
-            <option value="4225">LSS : B LSS A
-            <option value="4425">EQL : B EQL A
-        </select>
+    <td colspan=2 class=center>
+        <input id=StepBtn name=StepBtn type=button value="Step" accesskey=P>
+    <td colspan=4 class=rj>
+        Stop at
+        <input id=StopAddr name=StopAddr type=text class=number size=5 maxlength=5>
         &nbsp;
-        <input id=Exec name=Exec type=button value="Exec" accesskey=X>
+        <input id=RunBtn name=RunBtn type=button value="Run" accesskey=X>
 </table>
 
 </body>
