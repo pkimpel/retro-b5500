@@ -22015,3 +22015,51 @@ PROCEDURE MIXPRINT(Q); VALUE Q; REAL Q;                                 32100000
               SPOUT(T & Q[9:9:9]);%                                     32100600        
          END NULL MIX;                                                  32100700        
     END MIXPRINT;%                                                      32100800        
+ $ SET OMIT = NOT(DATACOM AND DCSPO)                                    34999999        
+PROCEDURE DOLITTLE(OK,T,A,B,Z); VALUE T,A,B; REAL OK,T,A,B,Z;           36001000        
+BEGIN COMMENT FILE Q&A;                                                 36002000        
+LABEL E,L; REAL Q; NAME N=Z;                                            36003000        
+DEFINE X=REPLY[P1MIX]#, DS=TERMSET(P1MIX)#;                             36004000        
+IF OK THEN GO E;                                                        36005000        
+L:  FILEMESS(A,B,N[0],N[1],N[2],N[3],N[4]);                             36006000        
+IF AUTODS THEN TERMINATE(P1MIX&61[CTF]) ELSE                       %747-36006500        
+    BEGIN X~-T&1[2:47:1]; COMPLEXSLEEP(X>0 OR Q~OK OR DS); END;    %747-36007000        
+IF DS THEN GO E; IF NOT Q THEN IF NOT WHYSLEEP(T) THEN GO L;            36008000        
+E:  NT6~X; X~0                                                          36009000        
+END OF DOLITTLE;                                                        36010000        
+REAL PROCEDURE FINDOUTPUT(MID,FID,REEL,CDATE,CYCLE,TYPE,FORMS,KIND);    37000000        
+              VALUE MID,FID,REEL,CDATE,CYCLE,TYPE,FORMS;                37001000        
+              REAL MID,FID,REEL,CDATE,CYCLE,TYPE,FORMS,KIND;            37002000        
+BEGIN INTEGER GOTL,GOTT,GOTB,GOTP,GOTC;                                 37003000        
+      REAL U;                                                           37003100        
+      LABEL EXIT,SW,ON,OWT,AROUND,OUKID,X,ROUND,CLAIMT,THERE,SOMEWHERE; 37004000        
+      REAL MID=MID;  % FAKE OUT COMPILER                                37004100        
+ $ SET OMIT = NOT(PACKETS)                                              37004199        
+      REAL FREEF; LABEL FREEL; % FILE TO BE PRINTED ALONE               37004200        
+ $ POP OMIT                                                             37004201        
+LABEL W3;                                                               37005000        
+              DEFINE DSED = TERMSET(P1MIX)#;                            37006000        
+      LABEL CP,MT,SU,PP,CKFM,DOITOVER;                               %P 37007000        
+      DEFINE PNTOG=(TYPE=0 OR TYPE GEQ 20)#;                            37007100        
+      DEFINE MAYBE(MAYBE1)=(IF FORMS THEN MAYBE1 ELSE 0)[30:42:6]#;     37007200        
+      DEFINE UNITNUM = [1:5]#;                                     %148-37007300        
+      SWITCH TYPESW~CP,ROUND,MT,SU,ROUND,SU,ROUND,PP,PP,MT;          %P 37008000        
+      REAL SUBROUTINE PRINTER;%                                         37009000        
+      BEGIN IF LABELTABLE[20]=0 THEN BEGIN U~20; P(1) END ELSE%         37010000        
+            IF LABELTABLE[21]=0 THEN BEGIN U~21; P(1) END ELSE P(0);%   37011000        
+            PRINTER~GOTL+P;                                             37012000        
+      END PRINTER;%                                                     37013000        
+      REAL SUBROUTINE PTPUNCH;%                                         37014000        
+      BEGIN IF LABELTABLE[26]=0 THEN BEGIN U~26; P(1) END ELSE%         37015000        
+            IF LABELTABLE[29]=0 THEN BEGIN U~29; P(1) END ELSE P(0);%   37016000        
+            PTPUNCH~GOTP~P;%                                            37017000        
+      END PTPUNCH;%                                                     37018000        
+      REAL T1,T2,T3;%                                                   37019000        
+      REAL SUBROUTINE PUNCH;%                                           37019100        
+      BEGIN IF LABELTABLE[22]=0 THEN BEGIN U~22;P(1) END ELSE P(0);     37019200        
+            PUNCH~GOTC~P;                                               37019300        
+      END PUNCH;                                                        37019400        
+      REAL SUBROUTINE MAGTAPE;%                                         37020000        
+      BEGIN IF NOT(GOTL OR GOTB OR GOTC) THEN%                          37021000        
+      BEGIN IF (U:=T1,UNTINUM) ! 0 THEN                            %148-37022000        
+            BEGIN U:=U-1; P(LABELTABLE[U]=0); GO OWT; END;         %148-37022100        
