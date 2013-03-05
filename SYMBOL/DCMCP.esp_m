@@ -22063,3 +22063,101 @@ LABEL W3;                                                               37005000
       BEGIN IF NOT(GOTL OR GOTB OR GOTC) THEN%                          37021000        
       BEGIN IF (U:=T1,UNTINUM) ! 0 THEN                            %148-37022000        
             BEGIN U:=U-1; P(LABELTABLE[U]=0); GO OWT; END;         %148-37022100        
+            IF T1 ! 0 THEN                                         %148-37022200        
+            BEGIN FOR U~0 SETP 1 UNTIL 15 DO%                           37023000        
+                  IF (MULTITABLE[U] EQV T1)=NOT 0 THEN%                 37024000        
+                  IF LABELTABLE[U]<0 THEN%                              37025000        
+                  IF RDCTABLE[U].[8:6]=P1MIX THEN%                      37026000        
+                  IF (T3~PRNTABLE[U])<0 THEN%                           37027000        
+                  IF T3.[15:15]!0 THEN % DONT USE NONEXISTENT FIB  %548-37027500        
+                  IF M[M[T3.[15:15]-3] INX 5].[41:1] THEN%              37028000        
+                  BEGIN P(1); GO OWT END;%                              37029000        
+            END;%                                                       37030000        
+            FOR U~0 STEP ` UNTIL 15 DO%                                 37031000        
+            IF LABELTABLE[U]=0 THEN BEGIN P(1); GO OWT END;%            37032000        
+      END;%                                                             37033000        
+            P(0);%                                                      37034000        
+      OWT:  MAGTAPE~GOTT~P;%                                            37035000        
+      END MAGTAPE;%                                                     37036000        
+      SUBROUTINE BADFM;     %BUILD AND SPOUT BAD FM MESSAGE %           37036100        
+      BEGIN                                                  %RHR       37036200        
+           T1~SPACE(10);                                                37036300        
+           STREAM(A~TINU[U],MX~P1MIX,T1);                    %RHR       37036400        
+           BEGIN DS~19 LIT "INVALID INPUT UNIT ";            %RHR       37036500        
+                SI~LOC MX; DS~2 DEC; DS~2 LIT"FM";           %RHR       37036600        
+                SI~LOC A; SI~SI-5; DS~3 CHR;                 %RHR       37036800        
+                DS~LIT "~"; DI~DI-8; DS~FILL;                %RHR       37036900        
+           END; SPOUT(T1);                                   %RHR       37037000        
+           LABELTABLE[U]~@114; READY~READY AND (U~NOT TWO(U));          37037100        
+           RRRMECH~RRRMECH AND U; SAVEWORD~SAVEWORD AND U;   %RHR       37037200        
+      END BADFM SUBROUTIN;                                   %RHR       37037300        
+      REAL SUBROUTINE BKUPTAPE;%                                        37038000        
+      BEGIN IF NOT(GOTL OR GOTC) THEN                                   37039000        
+            FOR U~0 STEP 1 UNTIL 15 DO%                                 37040000        
+            IF (LABELTABLE[U] EQV T3)=NOT 0 THEN%                       37041000        
+            IF (MULTITABLE[U] EQV T2)=NOT 0 THEN%                       37042000        
+            BEGIN P(1); GO AROUND END;%                                 37043000        
+            P(0);                                                       37044000        
+AROUND:     BKUPTAPE~GOTB~P;%                                           37045000        
+      END BKUPTAPE;%                                                    37046000        
+ $ SET OMIT = NOT(PACKETS)                                              37046004        
+         FREEF:=TYPE.[1:1]; TYPE:=ABS(TYPE);                            37046005        
+ $ POP OMIT                                                             37046006        
+      IF TYPE>1 AND TYPE!4 AND TYPE!6 AND TYPE<15 THEN GO SOMEWHERE;    37046020        
+ ROUND:  IF TYPE=1 OR TYPE=4 OR (TYPE>16 AND TYPE<19) THEN              37046040        
+         IF PRINTER THEN BEGIN KIND~1; GO CKFM END;                  %P 37046060        
+         IF TYPE=0 OR (TYPE>20 AND TYPE) THEN                           37046070        
+         IF PUNCH THEN BEGIN KIND~6; GO CKFM END;                       37046075        
+         IF TYPE=4 OR TYPE=6 OR TYPE=16 OR TYPE=18 OR                   37046080        
+         (TYPE GEQ 20 AND NOT TYPE.[46:1]) THEN                         37046090        
+         BEGIN T1~0; T2~IF TYPE GEQ 20 THEN "PUTMCP " ELSE "PBTMCP ";   37046100        
+               T3~@122212342546447;                                     37046110        
+               IF BKUPTAPE THEN GO THERE;                            %P 37046120        
+               IF MAGTAPE THEN                                       %P 37046140        
+CLAIMT:       BEGIN MULTITABLE[U]~T2; LABELTABLE[U]~-T3;             %P 37046160        
+                   RRRMECH~TWO(U) OR RRRMECH;                        %P 37046170        
+                   IF REEL=0 THEN REEL~1;                               37046175        
+                   RDCTABLE[U]~P(DUP,LOD)&REEL[14:38:10];          %745-37046177        
+                                  &CDATE[24:31:17]&CYCLE[41:41:7]; %745-37046178        
+                   T1~GETSPACE(10,0,0)+4;                            %P 37046180        
+                        STREAM(U:=TINU[U],N:=PRNTABLE[U],[30:18],       37046190        
+                             A~REEL,B~DATE,C~CYCLE,D~0,PN~TYPE GEQ 20,  37046192        
+                             T~T1-2);                                   37046194        
+                   BEGIN DS~12LIT" NEW PBT ON"; SI~LOC U; SI~SI+5;   %P 37046200        
+                             PN(D~DI; DI~DI-6; DS~2LIT"UT"; DI~D);      37046205        
+                        DS~3 CHR;DS~25LIT"~ LABEL  0PBTMCP 0BACK-UP";%P 37046210        
+                             PN(D~DI; DI~DI-14; DS~2LIT"UT"; DI~D);     37046212        
+                             SI := LOC A; DS := 3 DEC;                  37046215        
+                            SI:=SI+3;DS:=5CHR;SI:=SI+7;DI:=DI+1;DS:=CHR;37046217        
+                             15(DS:=2 LIT"0");DI:=DI-11;SI:=LOC N;      37046220        
+                             DS:=5 DEC;                                 37046221        
+                   END;                                              %P 37046240        
+                   P(WAITIO(T1&8[8:38:10]&5[21:45:3],0,U),DEL);      %P 37046260        
+                   SPOUT(T1-2);                                         37046270        
+                   T1.[1:11]:=@17437;                                   37046280        
+                   P(WAITIO([T1],0,U),DEL);                          %P 37046300        
+THERE:             LABELTABLE[U].[1:5]~@20; KIND~7; GO EXIT          %P 37046320        
+         END; END;                                                   %P 37046340        
+      IF (TYPE GEQ 15 AND TYPE LEQ 18) OR TYPE GEQ 22 THEN              37046350        
+         BEGIN                                                          37046360        
+ $ SET OMIT = NOT(PACKETS)                                              37046369        
+         IF (T1:=PSEUDOMIX[P1MIX])!0 AND TYPE<22 AND NOT FREEF THEN     37046370        
+         BEGIN                                                          37046380        
+              T:=T1-32;                                                 37046390        
+              T2:=PACKETPBD[T1];                                        37046400        
+              T3:=CIDTABLE[T1,6].[6:24];                                37046410        
+              IF T2=0 OR T3=0 OR (T2+10)>1000 THEN GO FREEL;            37046420        
+              PACKETPBD[T1]:=T2+10;                                     37046430        
+         END ELSE                                                       37046440        
+ $ POP OMIT                                                             37046441        
+         BEGIN                                                          37046450        
+ $ SET OMIT = NOT(PACKETS)                                              37046459        
+FREEL:                                                                  37046460        
+ $ POP OMIT                                                             37046461        
+              T3:=NEXTCDNUM(1);                                         37046470        
+              T2:=001;                                                  37046480        
+         END;                                                           37046490        
+         KIND:=12;                                                      37046500        
+         STREAM(T3,T2,D:=T1:=U:=SPACE(30));                             37046520        
+              BEGIN                                                     37046530        
+                   DS~8 LIT"0@+1.013";                                  37046540        
