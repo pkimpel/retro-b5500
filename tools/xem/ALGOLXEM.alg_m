@@ -1689,7 +1689,8 @@ PROCEDURE PACKEBCDICTOBIC(S, SX, D, DX, N);                             00900200
   SB:= 45-(SX MOD 6)*8;                                                 00902400          
   DW:= DX DIV 8;                                                        00902500          
   DB:= 47-(DX MOD 8)*6;                                                 00902600          
-  REPLACE POINTER(S[SX],8) BY POINTER(S[SX],8) FOR N WITH EBCDICTOBIC;  00902700          
+  REPLACE POINTER(S[SX DIV 6],8)+(SX MOD 6) BY                          00902700          
+      POINTER(S[SX DIV 6],8)+(SX MOD 6) FOR N WITH EBCDICTOBIC;         00902720          
   SA:= S[SW];                                                           00902800          
   DA:= D[DW];                                                           00902900          
   NC:= N;                                                               00903000          
@@ -1775,7 +1776,8 @@ PROCEDURE UNPACKBICTOEBCDIC(S, SX, D, DX, N);                           00906000
     END WHILE;                                                          00911000          
                                                                         00911100          
   D[DW]:= DA;                                                           00911200          
-  REPLACE POINTER(D[DX],8) BY POINTER(D[DX],8) FOR N WITH BICTOEBCDIC;  00911300          
+  REPLACE POINTER(D[DX DIV 6],8)+(DX MOD 6) BY                          00911300          
+      POINTER(D[DX DIV 6],8)+(DX MOD 6) FOR N WITH BICTOEBCDIC;         00911320          
   END UNPACKBICTOEBCDIC;                                                00911400          
                                                                         00920000          
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00920100          
@@ -3297,9 +3299,9 @@ COMMENT  "BLANKET" BLANKS OUT N+1 WORDS IN "THERE";                     09000000
     N2:= MIN(OFFSET(P)-1, 118);                                         09730000=01828500=
     WRITE(LINE,                                                         09735000=01829100=
  $ SET OMIT = NOT ALGOL                                                 09735100=01829900=
-           <X18,"BURROUGHS B-5700 ALGOLXEM COMPILER MARK ",             09735120          
+           <X21,"retro-B5500 ALGOLXEM COMPILER MARK ",                  09735120          
  $ POP OMIT SET OMIT = ALGOL                                            09735140          
-           <X18,"BURROUGHS B-5700 TSPOLXEM COMPILER MARK ",             09735160          
+           <X21,"retro-B5500 TSPOLXEM COMPILER MARK ",                  09735160          
  $ POP OMIT                                                             09735180          
 "XVI.0.122"                                                             09735200=01831000=
            ,"  ",A6,"DAY, ",I4,"-",A2,"-",A2,",  ",I2,":",A2,X1,A3,     09735300=01832000=
