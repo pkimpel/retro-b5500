@@ -1581,7 +1581,8 @@ PROCEDURE PACKEBCDICTOBIC(S, SX, D, DX, N);                             02200300
   SB:= 45-(SX MOD 6)*8;                                                 02202500          
   DW:= DX DIV 8;                                                        02202600          
   DB:= 47-(DX MOD 8)*6;                                                 02202700          
-  REPLACE POINTER(S[SX],8) BY POINTER(S[SX],8) FOR N WITH EBCDICTOBIC;  02202800          
+  REPLACE POINTER(S[SX DIV 6],8)+(SX MOD 6) BY                          02202800          
+      POINTER(S[SX DIV 6],8)+(SX MOD 6) FOR N WITH EBCDICTOBIC;         02202820          
   SA:= S[SW];                                                           02202900          
   DA:= D[DW];                                                           02203000          
   NC:= N;                                                               02203100          
@@ -1667,7 +1668,8 @@ PROCEDURE UNPACKBICTOEBCDIC(S, SX, D, DX, N);                           02206100
     END WHILE;                                                          02211100          
                                                                         02211200          
   D[DW]:= DA;                                                           02211300          
-  REPLACE POINTER(D[DX],8) BY POINTER(D[DX],8) FOR N WITH BICTOEBCDIC;  02211400          
+  REPLACE POINTER(D[DX DIV 6],8)+(DX MOD 6) BY                          02211400          
+      POINTER(D[DX DIV 6],8)+(DX MOD 6) FOR N WITH BICTOEBCDIC;         02211420          
   END UNPACKBICTOEBCDIC;                                                02211500          
                                                                         02220000          
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%02220100          
@@ -2741,7 +2743,7 @@ COMMENT  "BLANKET" BLANKS OUT N+1 WORDS IN "THERE";                     07315000
     REPLACE P:POINTER(EBCDICBUFF,8) BY DISK.LTITLE;                     07790000=01828500=
     N2:= MIN(OFFSET(P)-1, 118);                                         07795000=01828500=
     WRITE(LINE,                                                         07800000=01835500=
-           <X18, "BURROUGHS B-5700 ESPOLXEM COMPILER MARK ",            07802000          
+           <X21, "retro-B5500 ESPOLXEM COMPILER MARK ",                 07802000          
 "XVI.0.00"                                                              07805000=01835500=
            ,"  ",A6,"DAY, ",I4,"-",A2,"-",A2,",  ",I2,":",A2,X1,A3,     07806000=01832000=
           ////X*,A*,/X*,*("=")//>,                                      07808000          
