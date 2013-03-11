@@ -22161,3 +22161,277 @@ FREEL:                                                                  37046460
          STREAM(T3,T2,D:=T1:=U:=SPACE(30));                             37046520        
               BEGIN                                                     37046530        
                    DS~8 LIT"0@+1.013";                                  37046540        
+                   DS:=7 LIT"8400000";DS:=10 LIT"0";                    37046560        
+                   SI:=LOC T3;SI:=SI+4; DS:=4 CHR;                      37046580        
+                   SI:=LOC T2; DS:=3 DEC;                               37046590        
+                   46(DS~4 LIT"0");                                     37046600        
+              END; M[T1+1]+M[T1+8]~ PBDROWSZ+1;                         37046620        
+ $ SET OMIT = NOT(SHAREDISK)                                            37046624        
+              M[T1+5]~MID&(TYPE GEQ 22)[3:47:1]; % CP BK UP TOG         37046630        
+              GO EXIT                                                %P 37046640        
+         END;                                                        %P 37046660        
+ W3:     FILEMESS("#      "                                             37046680        
+                  &(IF TYPE = 6 OR TYPE = 20 THEN " "                   37046685        
+                    ELSE (IF PNTOG THEN "CP" ELSE "LP"))[12:36:12]      37046690        
+                  & (IF TYPE < 2 THEN "   "                             37046700        
+                   ELSE IF TYPE GEQ 20 THEN "PUT" ELSE "PBT")[30:30:18],37046710        
+                  " .. RQD" & (IF FORMS THEN "FM" ELSE "  ")[12:36:12], 37046720        
+                  MID, FID, REEL, CDATE, CYCLE);                        37046730        
+         IF AUTODS THEN TERMINATE(P1MIX&61[CTF]) ELSE              %747-37046735        
+         BEGIN                                                     %747-37046737        
+         REPLY[P1MIX] := -VWY & VOU[36:42:6] & MAYBE(VFW);              37046740        
+         COMPLEXSLEEP(((IF (TYPE!6 AND TYPE!20) THEN IF PNTOG THEN      37046760        
+                  PUNCH ELSE PRINTER ELSE 0) OR REPLY[P1MIX]            37046770        
+                  >0 OR(IF TYPE>1 THEN BKUPTAPE OR MAGTAPE ELSE 0) OR   37046780        
+                  DSED);                                           %747-37046800        
+         END;                                                      %747-37046805        
+         IF DSED THEN GO TO X;                                     %747-37046810        
+         IF NOT(GOTB OR GOTT OR GOTL OR GOTC) THEN                      37046820        
+         BEGIN IF NOT WHYSLEEP(VWY&VOU[36:42:6]&MAYBE(VFM))             37046825        
+                  THEN GO TO W3;                                        37046826        
+              IF REPLY[P1MIX] = VOK THEN GO TO W3;                      37046829        
+              IF REPLY[P1MIX].[CF] = VFM THEN BEGIN                     37046830        
+                 LABELTABLE[U:=REPLY[P1MIX].[FF]] := -FID;              37046835        
+                 MULTITABLE[U] := MID;  KIND := UNIT[U].[1:4];          37046840        
+                 GO EXIT;                                               37046845        
+              END;                                                      37046850        
+              IF PNTOG THEN BEGIN U:=REPLY[P1MIX].[FF]; GO CP END;      37046855        
+ OUKID:       TYPE~IF (U~REPLY[P1MIX].[FF])=1 THEN 4 ELSE            %P 37046860        
+                   IF U=2 THEN 1 ELSE IF U=3 THEN 6 ELSE 15;            37046880        
+              REPLY[P1MIX]~0; GO  ROUND;                             %P 37046900        
+         END; REPLY[P1MIX]~0;                                        %P 37046920        
+         IF GOTB THEN GO THERE ELSE IF GOTT THEN GO CLAIMT ELSE         37046940        
+         IF GOTC THEN KIND~6 ELSE KIND~1;                               37046950        
+ CKFM:   IF FORMS THEN                                               %P 37046960        
+         BEGIN LABELTABLE[U]~-FID; MULTITABLE[U]~MID;                %P 37046980        
+              DOLITTLE(FALSE,                                           37047000        
+                       VWY&VOK[35:42:6]&VOU[30:42:6]&VFM[24:24:6],      37047010        
+              "#... FM"&TINU[U][12:30:18],"RQD    ",MID);               37047020        
+              IF NT6=VOK THEN GO EXIT;                                  37047100        
+              IF DSED THEN GO TO INITIATE;                              37047250        
+              KIND:=LABELTABLE[U]:=MULTITABLE[U]:=GOTL:=GOTP:=U:=0;     37047500        
+              IF NT6.[CF]=VFM THEN                                      37047600        
+              IF (U:=NT6.[FF]) ! 20 AND U ! 21 AND KIND = 1   OR        37047605        
+                  U ! 22 AND KIND = 6 THEN                              37047610        
+              BEGIN BADFM; GO ROUND END ELSE                            37047615        
+              BEGIN LABELTABLE[U]~-FID;                      %RWR       37047625        
+                    MULTITABLE[U]~MID; KIND~UNIT[U].[1:4];  %RWR        37047650        
+                    GO EXIT;                                 %RWR       37047660        
+              END ELSE BEGIN REPLY[P1MIX]~NT6; GO OUKID; END; %RWR      37047670        
+         END; GO X;                                                  %P 37047700        
+SOMEWHERE: IF NOT FORMS THEN GO SW;                                     37047800        
+         DOLITTLE(FALSE,VWY&VFM[36:42:6],"#FM RQD",0,MID); U:=NT6.[FF]; 37048000        
+         IF NOT DSED THEN                                               37048100        
+         IF U LSS 16 THEN                                               37048200        
+         IF PRINTABLE[U].[1:1] THEN ELSE                           %764-37048300        
+              BEGIN LABELTABLE[U]:=-(*P(DUP));GO TO SOMEWHERE;END; %764-37048310        
+         GO TO X;                                                       37048400        
+SW:   GO TO TYPESW[TYPE];%                                              37056000        
+CP:   TYPE~IF U=1 THEN 21 ELSE IF U=3 THEN 20 ELSE                      37058000        
+           IF U=5 THEN 0 ELSE 22; REPLY[P1MIX]~0; GO ROUND;             37059000        
+PP:   DOLITTLE(PTPUNCH,VWY,"#PP RQD",0,MID); GO X;                      37085000        
+SU:   T1~FID.[6:18];%                                                   37096000        
+      FOR U~0 STEP 1 UNTIL 31 DO%                                       37097000        
+      IF TINU[U].[30:18]=T1 THEN GO ON;%                                37098000        
+      GO TO MT;%                                                        37099000        
+ON:   DOLITTLE(LABELTABLE[U]=0,VWY,"#...   "&T1[12:30:18],              37100000        
+      "RQD    ",MID); GO X;                                             37100010        
+MT:   T1~MID;%                                                          37112000        
+      DOLITTLE(MAGTAPE,VWY,"#MT RQD",IF MID.UNITNUM!0 THEN         %148-37113000        
+                "ON  ..."&TINU[MID,UNITNUM-1][30:30:18]            %148-37113100        
+                ELSE 0,MID);                                       %148-37113200        
+      IF DSED THEN GO TO X;                                             37121000        
+      IF (T1~PRNTABLE[U].[15:15])!0 THEN%                               37122000        
+      BEGIN FILECLOSE(T1&3[18:33:15]);%                                 37123000        
+            M[M[T1-3] INX 5].[38:4]~1;%                                 37124000        
+      END;%                                                             37125000        
+X:    IF DSED THEN U~-1 ELSE                                            37172000        
+      BEGIN KIND~UNIT[U].[1:4];                                         37173000        
+      LABELTABLE[U]~-FID; MULTITABLE[U]~MID;%                           37174000        
+      RDCTABLE[U]~P(DUP,LOD)&REEL[14:38:10]&CDATE[24:31:17]             37174100        
+                   &CYCLE[41:41:7];                                     37174200        
+      END; EXIT: FINDOUTPUT~U                                           37175000        
+END FINDOUTPUT;%                                                        37176000        
+REAL PROCEDURE FINDINPUT(MID,FID,REEL,CDATE,CYCLE,COBOL,UL,OF,MODE,FN); 37177000        
+                  VALUE  MID,FID,REEL,CDATE,CYCLE,COBOL,   OF,MODE,FN;% 37178000        
+                  REAL   MID,FID,REEL,CDATE,CYCLE,COBOL,UL,OF,MODE,FN;% 37179000        
+BEGIN REAL T1,T2,U,LO,HI,FIRST,IL;                                      37180000        
+      REAL A=COBOL;                                                     37180100        
+      INTEGER S,COUNT;                                                  37180200        
+      INTEGER USASI=IL;                                                 37180300        
+      ARRAY FPB=LO[*];                                                  37180400        
+      LABEL LOOK,SEE,SRCHOUT;                                           37180500        
+      LABEL START,WHY,SXIT,X,Y,READALABEL,REW,EXIT;                     37180600        
+      LABEL ONN,DUN,FAIL;                                               37180650        
+      DEFINE UNLABELED = UL#;                                           37180700        
+      DEFINE UNITNUM = [1:5]#;                                     %148-37180800        
+                                                                        37180990        
+      REAL SUBROUTINE DSED; DSED:=TERMSET(P1MIX);                       37181000        
+                                                                        37185300        
+      SUBROUTINE CHECKTERMIX;  % LET CALLER ATTEND HIS RESPONSIBILITIES.37185310        
+      BEGIN                                                             37185320        
+         IF DSED THEN                                                   37185330        
+         BEGIN                                                          37185340        
+              IF JAR[P1MIX,9].SYSJOBF THEN     % MCP JOB                37185350        
+              BEGIN                                                     37185370        
+                   U:=-1;                                               37185380        
+                   GO TO EXIT;                                          37185390        
+              END ELSE GO TO INITIATE;                                  37185400        
+         END;                                                           37185410        
+      END;    %   CHECKTERMIX                                           37185420        
+                                                                        37185990        
+      REAL SUBROUTINE SEARCH;%                                          37186000        
+      BEGIN COUNT:=0;                                                   37186500        
+         IF NOT DSED THEN                                               37186750        
+         BEGIN                                                          37187000        
+              IF (LO:=(HI:=MID.UNITNUM-1)) GEQ 0 THEN              %148-37187100        
+                 IF LABELTABLE[LO] GTR @314 THEN                   %148-37187110        
+                    BEGIN COUNT~COUNT+1; P(LO,XCH);                %148-37187120        
+                    MID~MULTITABLE[LO];   GO SEE;                  %148-37187130        
+                    END;                                                37187140        
+ $ SET OMIT = NOT PACKETS                                               37187200        
+              IF (LO:=(HI:=PSEUDOMIX[P1MIX]))!0 THEN                    37187250        
+ $ SET OMIT = PACKETS                                                   37187375        
+    LOOK:     FOR U:=LO STEP 1 UNTIL HI DO                              37188500        
+              BEGIN IF S GEQ 0 THEN                                     37188750        
+                   IF (LABELTABLE[U] EQV (-@14))=NOT 0 THEN             37189000        
+                   COMPLEXSLEEP((LABELTABLE[U] EQV (-@14))!NOT 0 OR     37189250        
+                        (IF U<32 THEN UNIT[U].[13:5]=16 ELSE 0));       37189500        
+                  IF (LABELTABLE[U] EQV FID)=NOT 0 THEN%                37190000        
+                  IF (MULTITABLE[U] EQV MID)=NOT 0 THEN%                37191000        
+                  IF ((T1~RDCTABLE[U]).[14:10]=REEL) OR (REEL=0) THEN%  37192000        
+                  IF (T1.[24:17]=CDATE) OR (CDATE=0) THEN%              37193000        
+                  IF (T1.[41:7]=CYCLE) OR (CYCLE=0) THEN%               37194000        
+                  BEGIN                                                 37195000        
+                       COUNT:=COUNT+1; P(U,XCH);                        37195030        
+                  END;                                                  37195040        
+              END;                                                      37195050        
+    FAIL:                                                               37195100        
+         IF LO = HI THEN IF COUNT = 1 THEN GO SEE ELSE                  37195200        
+         IF LO=0 THEN IF (LO:=JAR[P1MIX,6].[2:6])=23 OR LO=24           37195250        
+         THEN HI:=LO ELSE GO TO ONN ELSE                                37195280        
+ONN:     BEGIN LO:=23; HI:=24; END ELSE                            %754-37195300        
+         IF LO=23 THEN BEGIN LO:= 0; HI:=15; END ELSE GO TO DUN;        37195400        
+         GO TO LOOK;                                                    37195450        
+DUN:              IF CYCLE.[1:1] THEN % PBT                             37195500        
+                       BEGIN                                            37195550        
+                       IF COUNT=0 THEN IF FID.[1:5]<3 THEN              37195600        
+                       BEGIN FID.[1:5]~FID.[1:5]+1;                     37195650        
+                             LO~0; HI~15; GO LOOK;                      37195700        
+                       END ELSE FID.[1:5]~1;                            37195750        
+                       GO SRCHOUT;                                      37195800        
+                  END;                                                  37195850        
+                  IF COUNT=0 THEN                                       37196200        
+                  IF MID!0 THEN%                                        37197000        
+                  IF NOT CDATE.[1:1] THEN % NOT LIBMAIN/DISK            37197500        
+                  FOR U~0 STEP 1 UNTIL 15 DO%                           37198000        
+                  IF (MULTITABLE[U] EQV MID)=NOT 0 THEN%                37199000        
+                  IF (RDCTABLE[U].[24:17]=CDATE) OR (CDATE=0) THEN      37199100        
+                  IF LABELTABLE[U]>0 THEN%                              37200000        
+                  BEGIN COUNT~COUNT+1;                                  37201000        
+                        P(U,XCH);                                       37202000        
+                  END ELSE%                                             37203000        
+                  IF RDCTABLE[U].[8:6]=P1MIX THEN%                      37204000        
+                  IF (T1~M[M[PRNTABLE[U].[15:15]-3] INX 5]).[41:1] THEN 37205000        
+                       IF T1.[43:1] OR T1.[40:1]=0 THEN%                37206000        
+                  BEGIN COUNT~COUNT+1; P(U,XCH) END;                    37207000        
+    SEE:                                                                37207500        
+            END;                                                        37208000        
+      SRCHOUT:                                                          37208500        
+            SEARCH~S~COUNT>0;                                           37209000        
+      END SEARCH;%                                                      37210000        
+                                                                        37210090        
+      REAL SUBROUTINE RESEARCH;                                         37210100        
+      BEGIN                                                             37210150        
+            S:=-2;                                                      37210175        
+            P(SEARCH);                                                  37210200        
+            DO P(DEL) UNTIL (COUNT:=COUNT-1) LSS 0;                     37210250        
+            RESEARCH~S;                                                 37210300        
+      END RESEARCH;                                                     37210400        
+                                                                        37210990        
+      REAL SUBROUTINE REED;%                                            37211000        
+      BEGIN IF CHI~WAITIO(T1,LO&@377[18:33:15],U) AND @367)!0 THEN      37212000        
+            IF CHI AND NOT LO)!0 THEN                                   37213000        
+      BEGIN BLASTQ(U); SETNOTINUSE(U,0); STOPTIMING(FN,1023);           37214000        
+                  FILEMESS(-:PARITY ","ON ... "&TINU[U][24:30:18],%     37215000        
+                           MID,FID,REEL,CDATE,CYCLE);%                  37216000        
+            END;%                                                       37217000        
+            IF DSED THEN                                                37218000        
+            BEGIN                                                       37218100        
+              SETNOTINUSE(U,0);                                         37218200        
+              STOPTIMING(FN,1023);                                      37218300        
+              CHECKTERMIX;                                              37218400        
+            END;                                                        37219000        
+            REED~HI;%                                                   37220000        
+      END REED;%                                                        37221000        
+                                                                        37221090        
+      SUBROUTINE SEARCHCOM; % FILE SEARCH FOR COM 30                    37221100        
+      BEGIN P(DEL);                                                     37221120        
+           IF NOT SEARCH THEN U:=-1 ELSE                                37221140        
+           IF COUNT=1 THEN U:=P ELSE                                    37221160        
+           BEGIN                                                        37221180        
+                S:=COUNT; T1:=0;                                        37221200        
+                COUNT:=IF COUNT>8 THEN 8 ELSE COUNT;                    37221220        
+                WHILE (COUNT:=COUNT-1) GEQ 0 DO                         37221240        
+                BEGIN U:=P;                                             37221260        
+                     IF T1 THEN                                         37221280        
+                     BEGIN                                              37221300        
+                          T1:=0; M[A].[30:18]:=TINU[U].[30:18];         37221320        
+                          A:=A+1;                                       37221340        
+                     END ELSE                                           37221360        
+                     BEGIN                                              37221380        
+                          T1:=1; M[A].[12:18]:=TINU[U].[30:18];         37221400        
+                     END;                                               37221420        
+                END;                                                    37221440        
+                U:=-5;                                                  37221460        
+           END;                                                         37221480        
+           GO EXIT;                                                     37221500        
+      END;                                                              37221520        
+                                                                        37221990        
+START:%                                                                 37222000        
+       IF UL<0 THEN SEARCHCOM ELSE                                      37222100        
+       IF UL THEN GO TO WHY ELSE %                                      37222500        
+      IF NOT SEARCH THEN%                                               37223000        
+WHY:  BEGIN FILEMESS("#NO FIL",IF MID.UNITNUM!0 THEN               %148-37224000        
+                     "ON  ..."&TINU[MID.UNITNUM-1][30:30:18]       %148-37224100        
+                     ELSE 0,MID,FID,REEL,CDATE,CYCLE);             %148-37224200        
+            FIRST:=VOK&VWY[36:42:6]&VUL[30:42:6]&VIL[24:42:6];          37225000        
+            IF COBOL THEN                                               37225050        
+               FIRST:=FIRST&(VOF|OF)[18:42:6]&(VFR|UL)[12:42:6];        37225100        
+            IF AUTODS THEN TERMINATE(P1MIX&61[CTF]) ELSE           %747-37225800        
+            BEGIN                                                  %747-37225900        
+            REPLY[P1MIX]~-FIRST&1[2:47:1];                              37226000        
+            COMPLEXSLEEP(RESEARCH OR (REPLY[P1MIX]>0) OR DSED);         37227000        
+            END;                                                   %747-37227100        
+            CHECKTERMIX;                                                37228000        
+            IF S THEN S~SEARCH ELSE                                     37229000        
+            BEGIN IF NOT WHYSLEEP(FIRST) THEN GO TO WHY;                37229500        
+                  IF (T2:=(T1:=REPLY[P1MIX]).[FF]) GTR 64 THEN % IL     37230000        
+                  BEGIN STREAM(T2:);                           % MID/FID37230250        
+                        BEGIN SI:=T2;                                   37230500        
+                        LL:   SI:=SI+1; IF SC!"L" THEN GO TO LL;        37230750        
+                              SI:=SI+1; T2:=SI;                         37231000        
+                        END;                                            37231250        
+                        T2:=P;                                          37231500        
+                        NAMEID(HI,T2); MID:=HI; NAMEID(HI,T2);          37232000        
+                        NAMEID(HI,T2); FID:=HI;                         37232250        
+                        FORGETSPACE(T1.[FF]-1);                         37232500        
+                        GO TO Y;                                        37232750        
+                  END;                                                  37233000        
+                  IF T1=VOK THEN GO TO Y;                      % OK     37233250        
+                  IF NOT (IL:=T1.[CF]=VIL) THEN                % OF, FR 37233500        
+                  BEGIN U:=-1;                                          37233750        
+                        REPLY[P1MIX]:=0;                                37234000        
+                        GO TO EXIT;                                     37234250        
+                  END;                                                  37234500        
+                  UNLABELED~-LABELTABLE[U~T1.[18:15]]=@314;%            37235000        
+                  P(U);                                                 37235100        
+                  COUNT:=1;                                             37235250        
+                  IF LABELTABLE[U]=0 THEN                               37235500        
+                  BEGIN MULTITABLE[U]:=MID;                             37235750        
+                       LABELTABLE[U]:=FID;                              37236000        
+                  END ELSE                                              37236250        
+                  BEGIN MID:=MULTITABLE[U].[6:42];                      37236500        
+                       FID:=LABELTABLE[U].[6:42];                       37236750        
+                  END;                                                  37237000        
+            END;                                                        37238000        
