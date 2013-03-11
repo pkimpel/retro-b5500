@@ -1,0 +1,260 @@
+ $ SET LINEINFO                                                         00000100          
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00001000          
+%%  SRCE/MISC/B5500/INCL2OMIT                                         %%00001100          
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00001200          
+%   CONVERTS $INCLUDE AND $OMIT PRAGMAS IN THE B5500 MARK XIII MCP      00001300          
+%   SOURCE TO THE NEWER $OMIT SCHEME USED IN LATER RELEASES. READS THE  00001400          
+%   MCP SOURCE FROM INTNAME "SOURCE" AND WRITES CHANGED LINES TO        00001500          
+%   INTNAME "PATCH".                                                    00001600          
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00010000          
+% 2013-03-08  P.KIMPEL                                                  00010010          
+%   ORIGINAL VERSION.                                                   00010020          
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00099900          
+                                                                        00100000          
+BEGIN                                                                   00100100          
+DEFINE                                                                  00100200          
+  ALL1 =                REAL(NOT FALSE) #;                              00100300          
+                                                                        00100400          
+INTEGER                                                                 00100500          
+  LASTSEQNR,                                                            00100600          
+  LEFT,                                                                 00100700          
+  OMITDEPTH,                                                            00100750          
+  OMITTYPE,                                                             00100800          
+  POPCOUNT,                                                             00100900          
+  POPSEQNR,                                                             00101000          
+  STOPSEQNR,                                                            00101100          
+  THISSEQNR,                                                            00101200          
+  TOKLEFT,                                                              00101300          
+  TOKLENGTH,                                                            00101400          
+  TOKOFFSET,                                                            00101500          
+  X;                                                                    00101600          
+                                                                        00101700          
+POINTER                                                                 00101800          
+  P;                                                                    00101900          
+                                                                        00102000          
+ARRAY                                                                   00102100          
+  POPLIST[0:15];                                                        00102200          
+                                                                        00102300          
+EBCDIC ARRAY                                                            00102400          
+  PREC[0:89],                                                           00102500          
+  REC[0:89],                                                            00102600          
+  TOKEN[0:89];                                                          00102700          
+                                                                        00102800          
+FILE                                                                    00102900          
+  SOURCE(KIND=DISK, DEPENDENTSPECS, FILEUSE=IN,                         00103000          
+      TITLE="SRCE/MISC/B5500/MARKXIII/MCP."),                           00103100          
+  PATCH(KIND=DISK, MAXRECSIZE=15, BLOCKSIZE=420, FRAMESIZE=48,          00103200          
+      AREAS=10, AREASIZE=1008, FLEXIBLE, FILEKIND=ESPOLSYMBOL,          00103300          
+      TITLE="PATCH/MISC/B5500/MARKXIII/MCP/INCL2OMIT.");                00103350          
+                                                                        00103400          
+TRUTHSET                                                                00103500          
+  NUMBERS ("0123456789"),                                               00103600          
+  ALPHANUM (NUMBERS OR "ABCDEFGHIJKLMNOPQRSTUVWXYZ");                   00103700          
+                                                                        00300000          
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00300100          
+INTEGER PROCEDURE SCANNER;                                              00300200          
+  BEGIN                                                                 00300300          
+  INTEGER                                                               00300400          
+    LEFT;                                                               00300500          
+  POINTER                                                               00300600          
+    P;                                                                  00300700          
+                                                                        00300800          
+  SCAN P:REC[TOKOFFSET] FOR LEFT:TOKLEFT WHILE=" ";                     00300900          
+  IF LEFT = 0 THEN                                                      00301000          
+    BEGIN                                                               00301100          
+    TOKLENGTH:= TOKLEFT:= 0;                                            00301200          
+    REPLACE TOKEN BY 48"00";                                            00301300          
+    END                                                                 00301400          
+  ELSE                                                                  00301500          
+    BEGIN                                                               00301600          
+    TOKOFFSET:= *+TOKLEFT-LEFT;                                         00301700          
+    IF P IN NUMBERS THEN                                                00301800          
+      REPLACE TOKEN[1] BY P FOR TOKLEFT:LEFT WHILE IN NUMBERS           00301900          
+    ELSE IF P IN ALPHANUM THEN                                          00302000          
+      REPLACE TOKEN[1] BY P FOR TOKLEFT:LEFT WHILE IN ALPHANUM          00302100          
+    ELSE                                                                00302200          
+      BEGIN                                                             00302300          
+      REPLACE TOKEN[1] BY P FOR 1;                                      00302400          
+      TOKLEFT:= LEFT-1;                                                 00302500          
+      END;                                                              00302600          
+                                                                        00302700          
+    TOKLENGTH:= LEFT-TOKLEFT;                                           00302800          
+    TOKOFFSET:= *+TOKLENGTH;                                            00302900          
+    REPLACE TOKEN BY TOKLENGTH.[7:48] FOR 1;                            00303000          
+    END;                                                                00303100          
+                                                                        00303200          
+  SCANNER:= TOKLENGTH;                                                  00303300          
+  END SCANNER;                                                          00303400          
+                                                                        00303500          
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00303600          
+INTEGER PROCEDURE INSERTPOP(STOPSEQNR);                                 00303700          
+  VALUE STOPSEQNR;                                                      00303800          
+  INTEGER STOPSEQNR;                                                    00303900          
+  BEGIN                                                                 00304000          
+  INTEGER                                                               00304100          
+    X;                                                                  00304200          
+                                                                        00304300          
+  X:= POPLIST[0];                                                       00304400          
+  IF X > 0 THEN                                                         00304500          
+    X:= MASKSEARCH(0, ALL1, POPLIST[X]);                                00304600          
+                                                                        00304700          
+  IF X < 1 THEN                                                         00304800          
+    BEGIN                                                               00304850          
+    X:= POPLIST[0]:= *+1;                                               00304900          
+    IF SIZE(POPLIST) <= X THEN                                          00305000          
+      RESIZE(POPLIST, X+16, RETAIN);                                    00305100          
+    END;                                                                00305200          
+                                                                        00305300          
+  POPLIST[X]:= STOPSEQNR;                                               00305400          
+  OMITDEPTH:= *+1;                                                      00305450          
+  INSERTPOP:= X;                                                        00305500          
+  END INSERTPOP;                                                        00305600          
+                                                                        00305700          
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00305800          
+INTEGER PROCEDURE REMOVEPOP(STOPSEQNR);                                 00305900          
+  VALUE STOPSEQNR;                                                      00306000          
+  INTEGER STOPSEQNR;                                                    00306100          
+  BEGIN                                                                 00306200          
+  INTEGER                                                               00306300          
+    X;                                                                  00306400          
+                                                                        00306500          
+  X:= POPLIST[0];                                                       00306600          
+  WHILE X > 0 DO                                                        00306700          
+    BEGIN                                                               00306800          
+    IF POPLIST[X] > STOPSEQNR THEN                                      00306900          
+      X:= *-1                                                           00307000          
+    ELSE                                                                00307100          
+      BEGIN                                                             00307200          
+      REMOVEPOP:= POPLIST[X];                                           00307300          
+      POPLIST[X]:= 0;                                                   00307400          
+      IF POPLIST[0] = X THEN                                            00307500          
+        POPLIST[0]:= *-1;                                               00307600          
+                                                                        00307700          
+      X:= 0;                            % KILL THE LOOP                 00307800          
+      IF OMITDEPTH > 0 THEN                                             00307820          
+        OMITDEPTH:= *-1;                                                00307840          
+      END;                                                              00307900          
+    END;                                                                00308000          
+  END REMOVEPOP;                                                        00308100          
+                                                                        00900000          
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00900100          
+%%  OUTER BLOCK                                                         00900200          
+                                                                        00900300          
+REPLACE REC BY " " FOR 72, "0" FOR 8, " " FOR 10;                       00900500          
+REPLACE REC BY "$# MARKXIII/MCP INCL2OMIT";                             00900600          
+WRITE(PATCH, 15, REC);                                                  00900700          
+                                                                        00900800          
+WHILE NOT READ(SOURCE, 15, REC) DO                                      00900900          
+  BEGIN                                                                 00901000          
+  TOKOFFSET:= 0;                                                        00901100          
+  TOKLEFT:= 72;                                                         00901200          
+  LASTSEQNR:= THISSEQNR;                                                00901300          
+  THISSEQNR:= INTEGER(REC[72], 8);                                      00901400          
+  IF THISSEQNR <= LASTSEQNR THEN                                        00901500          
+    DISPLAY("SEQUENCE ERROR " !! STRING(LASTSEQNR,8) !! " : " !!        00901600          
+        STRING(THISSEQNR,8));                                           00901700          
+                                                                        00901800          
+  POPCOUNT:= 0;                                                         00901900          
+  POPSEQNR:= REMOVEPOP(THISSEQNR);                                      00901950          
+  WHILE POPSEQNR > 0 DO                                                 00902000          
+    BEGIN                                                               00902100          
+    IF POPSEQNR >= THISSEQNR THEN                                       00902200          
+      BEGIN                                                             00902250          
+      POPCOUNT:= *+1;                                                   00902300          
+      POPSEQNR:= REMOVEPOP(THISSEQNR);                                  00902320          
+      END                                                               00902340          
+    ELSE                                                                00902400          
+      BEGIN                                                             00902500          
+      REPLACE PREC BY " " FOR 72, POPSEQNR FOR 8 DIGITS, " " FOR 10;    00902600          
+      REPLACE P:PREC BY " $POP OMIT";                                   00902700          
+      LASTSEQNR:= POPSEQNR;                                             00902710          
+      DO BEGIN                                                          00902720          
+        POPSEQNR:= REMOVEPOP(THISSEQNR);                                00902730          
+        IF POPSEQNR = LASTSEQNR THEN                                    00902740          
+          REPLACE P:P BY " OMIT";                                       00902750          
+        END                                                             00902760          
+      UNTIL POPSEQNR ^= LASTSEQNR;                                      00902770          
+      WRITE(PATCH, 15, PREC);                                           00902800          
+      END;                                                              00903000          
+    END WHILE;                                                          00903100          
+                                                                        00903200          
+  SCANNER;                                                              00903300          
+  IF TOKEN ^= 48"01""$" THEN                                            00903400          
+    IF POPCOUNT > 0 THEN                                                00903405          
+      BEGIN                                                             00903410          
+      REPLACE PREC BY " " FOR 72, THISSEQNR-1 FOR 8 DIGITS, " " FOR 10; 00903415          
+      REPLACE P:PREC BY " $POP ";                                       00903420          
+      WHILE POPCOUNT > 0 DO                                             00903425          
+        BEGIN                                                           00903430          
+        REPLACE P:P BY "OMIT ";                                         00903435          
+        POPCOUNT:= *-1;                                                 00903440          
+        END WHILE;                                                      00903445          
+      WRITE(PATCH, 15, PREC);                                           00903450          
+      END;                                                              00903455          
+  ELSE                                                                  00903460          
+    BEGIN                                                               00903500          
+    SCANNER;                                                            00903600          
+    OMITTYPE:= (IF TOKEN=48"07""INCLUDE" THEN 1 ELSE                    00903700          
+                IF TOKEN=48"04""OMIT" THEN 2 ELSE 0);                   00903800          
+    IF OMITTYPE > 0 THEN                                                00903900          
+      BEGIN                                                             00904000          
+      SCANNER;                                                          00904100          
+      IF TOKEN[1] IN NUMBERS FOR TOKLENGTH THEN                         00904200          
+        BEGIN                                                           00904300          
+        STOPSEQNR:= INTEGER(TOKEN[1], TOKLENGTH);                       00904400          
+        SCANNER;                                                        00904500          
+        IF TOKEN = 48"01""," THEN                                       00904600          
+          SCANNER;                                                      00904700          
+                                                                        00904800          
+        IF TOKEN = 48"02""IF" THEN                                      00904900          
+          BEGIN                                                         00905000          
+          REPLACE PREC BY " " FOR 90;                                   00905100          
+          REPLACE P:PREC BY " $";                                       00905200          
+          IF POPCOUNT > 0 THEN                                          00905300          
+            BEGIN                                                       00905400          
+            REPLACE P:P BY "POP ";                                      00905500          
+            WHILE POPCOUNT > 0 DO                                       00905600          
+              BEGIN                                                     00905700          
+              REPLACE P:P BY "OMIT ";                                   00905800          
+              POPCOUNT:= *-1;                                           00905900          
+              END WHILE;                                                00906000          
+            END;                                                        00906100          
+                                                                        00906200          
+          INSERTPOP(STOPSEQNR);                                         00906250          
+          REPLACE P:P BY "SET OMIT=";                                   00906300          
+          IF OMITTYPE = 1 THEN                                          00906400          
+            REPLACE P:P BY "NOT";                                       00906500          
+                                                                        00906600          
+          REPLACE P:P BY "(";                                           00906700          
+          SCANNER;                                                      00906800          
+          DO BEGIN                                                      00906900          
+            REPLACE P:P BY TOKEN[1] FOR TOKLENGTH, " ";                 00907000          
+            SCANNER;                                                    00907100          
+            END                                                         00907200          
+          UNTIL TOKLENGTH = 0 OR TOKEN=48"01"";";                       00907300          
+          IF TOKEN = 48"01"";" THEN                                     00907320          
+            SCANNER;                                                    00907340          
+                                                                        00907360          
+          REPLACE P:P-1 BY ") ";                                        00907400          
+          IF OMITDEPTH > 1 THEN                                         00907420          
+            REPLACE P:P BY "OR OMIT ";                                  00907440          
+                                                                        00907450          
+          WHILE TOKLENGTH > 0 DO                                        00907500          
+            BEGIN                                                       00907600          
+            REPLACE P:P BY TOKEN[1] FOR TOKLENGTH, " ";                 00907700          
+            SCANNER;                                                    00907800          
+            END WHILE;                                                  00907900          
+                                                                        00908000          
+          REPLACE PREC[72] BY THISSEQNR FOR 8 DIGITS;                   00908100          
+          WRITE(PATCH, 15, PREC);                                       00908200          
+          END;                                                          00908300          
+                                                                        00908400          
+        END;                                                            00908500          
+      END;                                                              00908600          
+    END;                                                                00908700          
+  END READ SOURCE;                                                      00908800          
+                                                                        00908900          
+CLOSE(PATCH, CRUNCH);                                                   00909000          
+CLOSE(SOURCE);                                                          00909100          
+                                                                        00999800          
+END.                                                                    00999900          
