@@ -1404,14 +1404,14 @@ B5500Processor.prototype.singlePrecisionCompare = function() {
     } else {
         ea = (this.A - ma)/0x8000000000;
         sa = ((ea >>> 7) & 0x01);
-        ea = (ea & 0x40 ? -(ea & 0x3F) : (ea & 0x3F));
+        ea = (ea & 0x40 ? -(ea & 0x3F) : (ea & 0x3F)) + 0x40;
     }
     if (mb == 0) {                      // if B mantissa is zero
         eb = sb = 0;                    // consider B to be completely zero
     } else {
         eb = (this.B - mb)/0x8000000000;
         sb = (eb >>> 7) & 0x01;
-        eb = (eb & 0x40 ? -(eb & 0x3F) : (eb & 0x3F));
+        eb = (eb & 0x40 ? -(eb & 0x3F) : (eb & 0x3F)) + 0x40;
     }
     if (ma) {                           // normalize the A mantissa
         while (ma < 0x1000000000 && ea != eb) {
@@ -3982,7 +3982,7 @@ B5500Processor.prototype.run = function() {
                     case 0x10:          // 2031: TOP=test flag bit (test for operand)
                         this.adjustAEmpty();
                         this.adjustBFull();
-                        this.A = (this.B % 0x800000000000 ? 0 : 1);
+                        this.A = (this.B - this.B % 0x800000000000 ? 0 : 1);
                         this.AROF = 1;
                         break;
 
@@ -4249,13 +4249,13 @@ B5500Processor.prototype.run = function() {
                         case 0:                                 // store F into B.[18:15]
                             this.B -= (this.B % 0x40000000 - this.B % 0x8000) - this.F*0x8000;
                             break;
-                        case 1:                                 // set   F from B.[18:15]
+                        case 1:                                 // store S into B.[33:15]
+                            this.B -= this.B % 0x8000 - this.S;
+                            break;
+                        case 2:                                 // set   F from B.[18:15]
                             this.F = (this.B % 0x40000000 - this.B % 0x8000)/0x8000;
                             this.SALF = 1;
                             this.BROF = 0;
-                            break;
-                        case 2:                                 // store S into B.[33:15]
-                            this.B -= this.B % 0x8000 - this.S;
                             break;
                         case 3:                                 // set   S from B.[33:15]
                             this.S = this.B % 0x8000;
