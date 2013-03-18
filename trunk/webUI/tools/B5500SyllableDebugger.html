@@ -375,10 +375,11 @@ function decodeSyllable(syllable, mode, level, msff) {
             }
             break;
         case 9:
-            text += wordOps[opcode];
+            text += wordOps[opcode] || "????";
             break;
         default:
-            text += charOps[padOctal(syllable % 64, 4)] + " " + padOctal(v, 2) + " (" + v + ")";
+            text += (charOps[padOctal(syllable % 64, 4)] || "????") + " " +
+                padOctal(v, 2) + " (" + v + ")";
             break;
         } // switch on lower half of char-mode syllable
 
@@ -461,7 +462,11 @@ function displayNumber(id, value) {
     var t = (e & 0x40) >>> 6;           // get the exponent sign
 
     e = (t ? -(e & 0x3F) : (e & 0x3F)); // get signed value of exponent
-    setText(id, (Math.pow(8, e)*(s ? -m : m)).toPrecision(12));
+    if (e) {
+        setText(id, (Math.pow(8, e)*(s ? -m : m)).toPrecision(12));
+    } else {
+        setText(id, m.toString());
+    }
 }
 
 function displayBIC(id, value) {
@@ -605,13 +610,38 @@ function displayRegisters() {
     $$("VARF").checked = (cc.P1.VARF != 0);
 }
 
-function displayProcessorState() {
+function displayCentralControl() {
+    /* Displays the I/O and interrupt status in Central Control */
+    var cells;
+    var s;
+    var ubm = cc.unitBusyMask;
+    var usm = cc.unitStatusMask;
+    var x;
+
+    $$("AD1F").className = (cc.AD1F ? "busy" : "notReady");
+    $$("AD2F").className = (cc.AD2F ? "busy" : "notReady");
+    $$("AD3F").className = (cc.AD3F ? "busy" : "notReady");
+    $$("AD4F").className = (cc.AD4F ? "busy" : "notReady");
+
+    for (x=3; x<=16; x++) {
+        s = "CCI" + (x+100).toString().substring(1) + "F";
+        $$(s).className = (cc[s] ? "busy" : "notReady");
+    }
+
+    cells = $$("CCPeripheralRow").cells;
+    for (x=17; x<=47; x++) {
+        cells[x-16].className = (cc.bit(usm, x) ? (cc.bit(ubm, x) ? "busy" : "ready") : "notReady");
+    }
+}
+
+function displaySystemState() {
     /* Extracts and displays the current processor state on the web page */
 
     displayStack();
     displayMemory();
     displayRegisters();
-    window.focus();
+    displayCentralControl();
+    //window.focus();
 }
 
 function goIt(ev) {
@@ -628,7 +658,7 @@ function goIt(ev) {
         cc.P1.L = 0;
         cc.P1.C++;
     }
-    displayProcessorState();
+    displaySystemState();
 }
 
 function stepIt(ev) {
@@ -637,6 +667,7 @@ function stepIt(ev) {
     be executed next */
     var next;
 
+    ev.target.disabled = true;
     setText("ARegOrig", padOctal(cc.P1.A, 16));
     setText("BRegOrig", padOctal(cc.P1.B, 16));
 
@@ -647,35 +678,47 @@ function stepIt(ev) {
         cc.P1.C = (next - cc.P1.L)/4;
     }
     cc.P1.step();
-    displayProcessorState();
+    displaySystemState();
+    ev.target.disabled = false;
 }
 
 function runIt(ev) {
     /* Steps through instructions continuously until the C register matches the
     StopAddr address. StopAddr can be changed while running. Setting it to zero
     (or blank) will halt the continuous stepping */
+    var runBtn = $$("RunBtn");
+    var saveStopAddress = stopAddress;
     var stopAddr = $$("StopAddr");
 
     function syllabicate() {
         if (stopAddress && cc.P1.C != stopAddress) {
             cc.P1.step();
-            displayProcessorState();
+            displaySystemState();
             if (isNaN(stopAddress)) {
+                stopAddress = 0;            // bad address
                 stopAddr.style.backgroundColor = "red";
-                stopAddress = 0;            // bad address -- kill the loop
+                runBtn.value = "Run";
             } else {
-                setTimeout(syllabicate, 1);
+                setTimeout(syllabicate, 0);
             }
         } else {
+            stopAddress = saveStopAddress;
             stopAddr.style.backgroundColor = "";
+            stopAddr.value = padOctal(stopAddress, stopAddr.maxLength);
+            runBtn.value = "Run";
         }
     }
 
-    setText("ARegOrig", "");
-    setText("BRegOrig", "");
-    injected = false;
-    stopAddr.style.backgroundColor = "green";
-    syllabicate();
+    if (runBtn.value != "Run") {
+        stopAddress = 0;                // stop syllabicating
+    } else {
+        setText("ARegOrig", "");
+        setText("BRegOrig", "");
+        injected = false;
+        stopAddr.style.backgroundColor = "green";
+        runBtn.value = "Stop";
+        syllabicate();
+    }
 }
 
 function word_onChange(ev) {
@@ -763,7 +806,7 @@ function fileLoader_onLoad(ev) {
     }
     if (words > 0) {
         cc.P1.preset(0x10);             // execute from address @20
-        displayProcessorState();
+        displaySystemState();
     }
 }
 
@@ -802,7 +845,7 @@ function initialize() {
     }, false);
 
     $$("LogoDiv").onclick = function(ev) {
-        displayProcessorState();
+        displaySystemState();
     };
 
     $$("AReg").onchange = function(ev) {
@@ -969,7 +1012,7 @@ function initialize() {
 
     cc.P1.NCSF = 0;                     // initiate test in control state
 
-    displayProcessorState();
+    displaySystemState();
     displayOctal("StopAddr", stopAddress, 5);
 }
 
@@ -1283,7 +1326,68 @@ window.onload = function() {
         Stop at
         <input id=StopAddr name=StopAddr type=text class=number size=5 maxlength=5>
         &nbsp;
-        <input id=RunBtn name=RunBtn type=button value="Run" accesskey=X>
+        <input id=RunBtn name=RunBtn type=button value="Run" accesskey=R>
+</table>
+
+<table id=CentralControl>
+<colgroup>
+    <col span=32 style="width:3%">
+</colgroup>
+<thead>
+<tr id=CCInterruptRow>
+    <td>CC:
+    <td id=AD1F>IOU1                    <!-- I/O unit 1 busy                            -->
+    <td id=AD2F>IOU2                    <!-- I/O unit 2 busy                            -->
+    <td id=AD3F>IOU3                    <!-- I/O unit 3 busy                            -->
+    <td id=AD4F>IOU4                    <!-- I/O unit 4 busy                            -->
+    <td id=CCI03F>TIMR                  <!-- Time interval interrupt                    -->
+    <td id=CCI04F>IOBZ                  <!-- I/O busy interrupt                         -->
+    <td id=CCI05F>KBD                   <!-- Keyboard request interrupt                 -->
+    <td id=CCI06F>PR1F                  <!-- Printer 1 finished interrupt               -->
+    <td id=CCI07F>PR2F                  <!-- Printer 2 finished interrupt               -->
+    <td id=CCI08F>IO1F                  <!-- I/O unit 1 finished interrupt (RD in @14)  -->
+    <td id=CCI09F>IO2F                  <!-- I/O unit 2 finished interrupt (RD in @15)  -->
+    <td id=CCI10F>IO3F                  <!-- I/O unit 3 finished interrupt (RD in @16)  -->
+    <td id=CCI11F>IO4F                  <!-- I/O unit 4 finished interrupt (RD in @17)  -->
+    <td id=CCI12F>P2BZ                  <!-- P2 busy interrupt                          -->
+    <td id=CCI13F>INQ                   <!-- Remote inquiry request interrupt           -->
+    <td id=CCI14F>SPEC                  <!-- Special interrupt #1 (not used)            -->
+    <td id=CCI15F>DK1F                  <!-- Disk file #1 read check finished           -->
+    <td id=CCI16F>DK2F                  <!-- Disk file #2 read check finished           -->
+    <td colspan=13>
+<tr id=CCPeripheralRow>
+    <td>PER:
+    <td id=DCA>DCA                      <!-- 17 -->
+    <td id=PPB>PPB                      <!-- 18 -->
+    <td id=PRB>PRB                      <!-- 19 -->
+    <td id=PRA>PRA                      <!-- 20 -->
+    <td id=PPA>PPA                      <!-- 21 -->
+    <td id=SPO>SPO                      <!-- 22 -->
+    <td id=CRB>CRB                      <!-- 23 -->
+    <td id=CRA>CRA                      <!-- 24 -->
+    <td id=CPA>CPA                      <!-- 25 -->
+    <td id=LPB>LPB                      <!-- 26 -->
+    <td id=LPA>LPA                      <!-- 27 -->
+    <td id=DKB>DKB                      <!-- 28 -->
+    <td id=DKA>DKA                      <!-- 29 -->
+    <td id=DRB>DRB                      <!-- 30 -->
+    <td id=DRA>DRA                      <!-- 31 -->
+    <td id=MTT>MTT                      <!-- 32 -->
+    <td id=MTS>MTS                      <!-- 33 -->
+    <td id=MTR>MTR                      <!-- 34 -->
+    <td id=MTP>MTP                      <!-- 35 -->
+    <td id=MTN>MTN                      <!-- 36 -->
+    <td id=MTM>MTM                      <!-- 37 -->
+    <td id=MTL>MTL                      <!-- 38 -->
+    <td id=MTK>MTK                      <!-- 39 -->
+    <td id=MTJ>MTJ                      <!-- 40 -->
+    <td id=MTH>MTH                      <!-- 41 -->
+    <td id=MTF>MTF                      <!-- 42 -->
+    <td id=MTE>MTE                      <!-- 43 -->
+    <td id=MTD>MTD                      <!-- 44 -->
+    <td id=MTC>MTC                      <!-- 45 -->
+    <td id=MTB>MTB                      <!-- 46 -->
+    <td id=MTA>MTA                      <!-- 47 -->
 </table>
 
 </body>

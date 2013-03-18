@@ -528,15 +528,15 @@ B5500IOUnit.prototype.finish = function () {
         break;
     case "2":
         this.store(0x0D);
-        this.cc.CCI08F = 1;             // set I/O Finished #2
+        this.cc.CCI09F = 1;             // set I/O Finished #2
         break;
     case "3":
         this.store(0x0E);
-        this.cc.CCI08F = 1;             // set I/O Finished #3
+        this.cc.CCI10F = 1;             // set I/O Finished #3
         break;
     case "4":
         this.store(0x0F);
-        this.cc.CCI08F = 1;             // set I/O Finished #4
+        this.cc.CCI11F = 1;             // set I/O Finished #4
         break;
     }
 
