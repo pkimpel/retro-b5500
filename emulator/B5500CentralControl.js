@@ -42,7 +42,7 @@ function B5500CentralControl() {
 
     // Instance variables and flags
     this.poweredUp = 0;                 // System power indicator
-    this.unitStatusMask = 0;            // Peripheral unit ready-status bitmask 
+    this.unitStatusMask = 0;            // Peripheral unit ready-status bitmask
     this.unitBusyMask = 0;              // Peripheral unit busy-status bitmask
 
     this.PB1L = 0;                      // 0=> PA is P1, 1=> PB is P1
@@ -61,92 +61,92 @@ function B5500CentralControl() {
 /**************************************/
     /* Global constants */
 
-B5500CentralControl.version = "0.01";
+B5500CentralControl.version = "0.02";
 
 B5500CentralControl.rtcTick = 1000/60; // Real-time clock period, milliseconds
 
 B5500CentralControl.pow2 = [ // powers of 2 from 0 to 52
-                     0x1,              0x2,              0x4,              0x8, 
-                    0x10,             0x20,             0x40,             0x80, 
-                   0x100,            0x200,            0x400,            0x800, 
-                  0x1000,           0x2000,           0x4000,           0x8000, 
-                 0x10000,          0x20000,          0x40000,          0x80000, 
-                0x100000,         0x200000,         0x400000,         0x800000, 
-               0x1000000,        0x2000000,        0x4000000,        0x8000000, 
-              0x10000000,       0x20000000,       0x40000000,       0x80000000, 
-             0x100000000,      0x200000000,      0x400000000,      0x800000000, 
-            0x1000000000,     0x2000000000,     0x4000000000,     0x8000000000, 
-           0x10000000000,    0x20000000000,    0x40000000000,    0x80000000000, 
-          0x100000000000,   0x200000000000,   0x400000000000,   0x800000000000, 
-         0x1000000000000,  0x2000000000000,  0x4000000000000,  0x8000000000000, 
+                     0x1,              0x2,              0x4,              0x8,
+                    0x10,             0x20,             0x40,             0x80,
+                   0x100,            0x200,            0x400,            0x800,
+                  0x1000,           0x2000,           0x4000,           0x8000,
+                 0x10000,          0x20000,          0x40000,          0x80000,
+                0x100000,         0x200000,         0x400000,         0x800000,
+               0x1000000,        0x2000000,        0x4000000,        0x8000000,
+              0x10000000,       0x20000000,       0x40000000,       0x80000000,
+             0x100000000,      0x200000000,      0x400000000,      0x800000000,
+            0x1000000000,     0x2000000000,     0x4000000000,     0x8000000000,
+           0x10000000000,    0x20000000000,    0x40000000000,    0x80000000000,
+          0x100000000000,   0x200000000000,   0x400000000000,   0x800000000000,
+         0x1000000000000,  0x2000000000000,  0x4000000000000,  0x8000000000000,
         0x10000000000000];
 
 B5500CentralControl.mask2 = [ // (2**n)-1 For n From 0 to 52
-                     0x0,              0x1,              0x3,              0x7, 
-                    0x0F,             0x1F,             0x3F,             0x7F, 
-                   0x0FF,            0x1FF,            0x3FF,            0x7FF, 
-                  0x0FFF,           0x1FFF,           0x3FFF,           0x7FFF, 
-                 0x0FFFF,          0x1FFFF,          0x3FFFF,          0x7FFFF, 
-                0x0FFFFF,         0x1FFFFF,         0x3FFFFF,         0x7FFFFF, 
-               0x0FFFFFF,        0x1FFFFFF,        0x3FFFFFF,        0x7FFFFFF, 
-              0x0FFFFFFF,       0x1FFFFFFF,       0x3FFFFFFF,       0x7FFFFFFF, 
-             0x0FFFFFFFF,      0x1FFFFFFFF,      0x3FFFFFFFF,      0x7FFFFFFFF, 
-            0x0FFFFFFFFF,     0x1FFFFFFFFF,     0x3FFFFFFFFF,     0x7FFFFFFFFF, 
-           0x0FFFFFFFFFF,    0x1FFFFFFFFFF,    0x3FFFFFFFFFF,    0x7FFFFFFFFFF, 
-          0x0FFFFFFFFFFF,   0x1FFFFFFFFFFF,   0x3FFFFFFFFFFF  , 0x7FFFFFFFFFFF, 
-         0x0FFFFFFFFFFFF,  0x1FFFFFFFFFFFF,  0x3FFFFFFFFFFFF,  0x7FFFFFFFFFFFF, 
+                     0x0,              0x1,              0x3,              0x7,
+                    0x0F,             0x1F,             0x3F,             0x7F,
+                   0x0FF,            0x1FF,            0x3FF,            0x7FF,
+                  0x0FFF,           0x1FFF,           0x3FFF,           0x7FFF,
+                 0x0FFFF,          0x1FFFF,          0x3FFFF,          0x7FFFF,
+                0x0FFFFF,         0x1FFFFF,         0x3FFFFF,         0x7FFFFF,
+               0x0FFFFFF,        0x1FFFFFF,        0x3FFFFFF,        0x7FFFFFF,
+              0x0FFFFFFF,       0x1FFFFFFF,       0x3FFFFFFF,       0x7FFFFFFF,
+             0x0FFFFFFFF,      0x1FFFFFFFF,      0x3FFFFFFFF,      0x7FFFFFFFF,
+            0x0FFFFFFFFF,     0x1FFFFFFFFF,     0x3FFFFFFFFF,     0x7FFFFFFFFF,
+           0x0FFFFFFFFFF,    0x1FFFFFFFFFF,    0x3FFFFFFFFFF,    0x7FFFFFFFFFF,
+          0x0FFFFFFFFFFF,   0x1FFFFFFFFFFF,   0x3FFFFFFFFFFF  , 0x7FFFFFFFFFFF,
+         0x0FFFFFFFFFFFF,  0x1FFFFFFFFFFFF,  0x3FFFFFFFFFFFF,  0x7FFFFFFFFFFFF,
         0x0FFFFFFFFFFFFF] ;
 
-// The following two-dimensional array translates unit designates to a unique 1-relative 
-// peripheral unit index. This index is the same as the unit's ready-status bit number, 
-// which is why they are in the range 17..47. The [0] dimension determines the index 
-// when writing; the [1] dimension determines the index when reading. This approach 
-// is necessary since some unit designates map to two different devices depending 
+// The following two-dimensional array translates unit designates to a unique 1-relative
+// peripheral unit index. This index is the same as the unit's ready-status bit number,
+// which is why they are in the range 17..47. The [0] dimension determines the index
+// when writing; the [1] dimension determines the index when reading. This approach
+// is necessary since some unit designates map to two different devices depending
 // on IOD.[24:1], e.g. designate 14=CPA/CRA (status bits 23/24).
 
 B5500CentralControl.unitIndex = [
      // 0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
-    [null,  47,null,  46,  31,  45,  29,  44,  30,  43,  25,  42,  28,  41,null,  40, 
-       17,  39,  21,  38,  18,  37,  27,  36,null,  35,  26,  34,null,  33,  22,  32],    
-    [null,  47,null,  46,  31,  45,  29,  44,  30,  43,  24,  42,  28,  41,  23,  40, 
+    [null,  47,null,  46,  31,  45,  29,  44,  30,  43,  25,  42,  28,  41,null,  40,
+       17,  39,  21,  38,  18,  37,  27,  36,null,  35,  26,  34,null,  33,  22,  32],
+    [null,  47,null,  46,  31,  45,  29,  44,  30,  43,  24,  42,  28,  41,  23,  40,
        17,  39,  20,  38,  19,  37,null,  36,null,  35,null,  34,null,  33,  22,  32]];
-       
-// The following object maps the unit mnemonics from B5500SystemConfiguration.units 
+
+// The following object maps the unit mnemonics from B5500SystemConfiguration.units
 // to the attributes needed to configure the CC unit[] array.
 
 B5500CentralControl.unitSpecs = {
     SPO: {unitIndex: 22, designate: 30, unitClass: B5500SPOUnit},
-    DKA: {unitIndex: 29, designate:  6, unitClass: B5500DiskUnit}, 
-    DKB: {unitIndex: 28, designate: 12, unitClass: B5500DiskUnit}, 
-    CRA: {unitIndex: 24, designate: 10, unitClass: null}, 
-    CRB: {unitIndex: 23, designate: 14, unitClass: null}, 
-    CPA: {unitIndex: 25, designate: 10, unitClass: null}, 
-    LPA: {unitIndex: 27, designate: 22, unitClass: null}, 
-    LPB: {unitIndex: 26, designate: 26, unitClass: null}, 
-    PRA: {unitIndex: 20, designate: 18, unitClass: null}, 
-    PRB: {unitIndex: 19, designate: 20, unitClass: null}, 
-    PPA: {unitIndex: 21, designate: 18, unitClass: null}, 
-    PPB: {unitIndex: 18, designate: 20, unitClass: null}, 
-    DCA: {unitIndex: 17, designate: 16, unitClass: null}, 
+    DKA: {unitIndex: 29, designate:  6, unitClass: B5500DiskUnit},
+    DKB: {unitIndex: 28, designate: 12, unitClass: B5500DiskUnit},
+    CRA: {unitIndex: 24, designate: 10, unitClass: null},
+    CRB: {unitIndex: 23, designate: 14, unitClass: null},
+    CPA: {unitIndex: 25, designate: 10, unitClass: null},
+    LPA: {unitIndex: 27, designate: 22, unitClass: null},
+    LPB: {unitIndex: 26, designate: 26, unitClass: null},
+    PRA: {unitIndex: 20, designate: 18, unitClass: null},
+    PRB: {unitIndex: 19, designate: 20, unitClass: null},
+    PPA: {unitIndex: 21, designate: 18, unitClass: null},
+    PPB: {unitIndex: 18, designate: 20, unitClass: null},
+    DCA: {unitIndex: 17, designate: 16, unitClass: null},
     DRA: {unitIndex: 31, designate:  4, unitClass: null},
     DRB: {unitIndex: 30, designate:  8, unitClass: null},
-    MTA: {unitIndex: 47, designate:  1, unitClass: null}, 
-    MTB: {unitIndex: 46, designate:  3, unitClass: null}, 
-    MTC: {unitIndex: 45, designate:  5, unitClass: null}, 
-    MTD: {unitIndex: 44, designate:  7, unitClass: null}, 
-    MTE: {unitIndex: 43, designate:  9, unitClass: null}, 
-    MTF: {unitIndex: 42, designate: 11, unitClass: null}, 
-    MTH: {unitIndex: 41, designate: 13, unitClass: null}, 
-    MTJ: {unitIndex: 40, designate: 15, unitClass: null}, 
-    MTK: {unitIndex: 39, designate: 17, unitClass: null}, 
-    MTL: {unitIndex: 38, designate: 19, unitClass: null}, 
-    MTM: {unitIndex: 37, designate: 21, unitClass: null}, 
-    MTN: {unitIndex: 36, designate: 23, unitClass: null}, 
-    MTP: {unitIndex: 35, designate: 25, unitClass: null}, 
-    MTR: {unitIndex: 34, designate: 27, unitClass: null}, 
-    MTS: {unitIndex: 33, designate: 29, unitClass: null}, 
-    MTT: {unitIndex: 32, designate: 31, unitClass: null}}; 
-    
+    MTA: {unitIndex: 47, designate:  1, unitClass: null},
+    MTB: {unitIndex: 46, designate:  3, unitClass: null},
+    MTC: {unitIndex: 45, designate:  5, unitClass: null},
+    MTD: {unitIndex: 44, designate:  7, unitClass: null},
+    MTE: {unitIndex: 43, designate:  9, unitClass: null},
+    MTF: {unitIndex: 42, designate: 11, unitClass: null},
+    MTH: {unitIndex: 41, designate: 13, unitClass: null},
+    MTJ: {unitIndex: 40, designate: 15, unitClass: null},
+    MTK: {unitIndex: 39, designate: 17, unitClass: null},
+    MTL: {unitIndex: 38, designate: 19, unitClass: null},
+    MTM: {unitIndex: 37, designate: 21, unitClass: null},
+    MTN: {unitIndex: 36, designate: 23, unitClass: null},
+    MTP: {unitIndex: 35, designate: 25, unitClass: null},
+    MTR: {unitIndex: 34, designate: 27, unitClass: null},
+    MTS: {unitIndex: 33, designate: 29, unitClass: null},
+    MTT: {unitIndex: 32, designate: 31, unitClass: null}};
+
 
 /**************************************/
 B5500CentralControl.prototype.clear = function() {
@@ -262,7 +262,7 @@ B5500CentralControl.prototype.fieldIsolate = function(word, start, width) {
 
 /**************************************/
 B5500CentralControl.prototype.fieldInsert = function(word, start, width, value) {
-    /* Inserts a bit field from the low-order bits of value ([48-width:width]) 
+    /* Inserts a bit field from the low-order bits of value ([48-width:width])
     into word.[start:width] and returns the updated word */
     var ue = 48-start;                  // word upper power exponent
     var le = ue-width;                  // word lower power exponent
@@ -550,7 +550,7 @@ B5500CentralControl.prototype.tock = function tock() {
 /**************************************/
 B5500CentralControl.prototype.haltP2 = function() {
     /* Called by P1 to halt P2. storeForInterrupt() will set P2BF=0 */
-    
+
     this.HP2F = 1;
     // We know P2 is not currently running on this thread, so save its registers
     if (this.P2 && this.P2BF) {
@@ -703,7 +703,7 @@ B5500CentralControl.prototype.loadComplete = function loadComplete() {
     } else {                            // Nothing finished yet (or there was an error)
         that.loadTimer = setTimeout(that.loadComplete, 100);
     }
-    
+
     if (completed) {
         that.loadTimer = null;
         that.LOFF = 0;
@@ -771,7 +771,7 @@ B5500CentralControl.prototype.loadTest = function(buf, loadAddr) {
         throw "cc.loadTest: Cannot load with system powered off"
     } else {
         while (bytes > 6) {
-            word = data.getUint8(x)* 0x10000000000 + 
+            word = data.getUint8(x)* 0x10000000000 +
                    data.getUint8(x+1)* 0x100000000 +
                    data.getUint8(x+2)*   0x1000000 +
                    data.getUint8(x+3)*     0x10000 +
@@ -820,47 +820,47 @@ B5500CentralControl.prototype.configureSystem = function() {
     var u;
     var unitClass;
     var x;
-    
+
     function makeChange(cc, maskBit) {
         return function(ready) {
             cc.unitStatusMask = (ready ? cc.bitSet(cc.unitStatusMask, maskBit)
                                        : cc.bitReset(cc.unitStatusMask, maskBit));
         };
     }
-    
+
     function makeSignal(cc, mnemonic) {
         switch (mnemonic) {
         case "SPO":
             return function() {
-                cc.CCI05F = 1; 
+                cc.CCI05F = 1;
                 cc.signalInterrupt();
             };
             break;
         case "LPA":
             return function() {
                 cc.setUnitBusy(27, 0);
-                cc.CCI06F = 1; 
+                cc.CCI06F = 1;
                 cc.signalInterrupt();
             };
             break;
         case "LPB":
             return function() {
                 cc.setUnitBusy(26, 0);
-                cc.CCI07F = 1; 
+                cc.CCI07F = 1;
                 cc.signalInterrupt();
             };
             break;
         case "DKA":
             return function() {
                 cc.setUnitBusy(29, 0);
-                cc.CCI15F = 1; 
+                cc.CCI15F = 1;
                 cc.signalInterrupt();
             };
             break;
         case "DKB":
             return function() {
                 cc.setUnitBusy(28, 0);
-                cc.CCI16F = 1; 
+                cc.CCI16F = 1;
                 cc.signalInterrupt();
             };
             break;
@@ -892,7 +892,7 @@ B5500CentralControl.prototype.configureSystem = function() {
             this.memMod[x] = new Float64Array(this.addressSpace[x]);
         }
     }
-    
+
     // Configure the peripheral units
     for (mnem in cfg.units) {
         if (cfg.units[mnem]) {
@@ -900,7 +900,7 @@ B5500CentralControl.prototype.configureSystem = function() {
             if (specs) {
                 unitClass = specs.unitClass || B5500DummyUnit;
                 if (unitClass) {
-                    u = new unitClass(mnem, specs.unitIndex, specs.designate, 
+                    u = new unitClass(mnem, specs.unitIndex, specs.designate,
                         makeChange(this, specs.unitIndex), makeSignal(this, mnem));
                     this.unit[specs.unitIndex] = u;
                 }

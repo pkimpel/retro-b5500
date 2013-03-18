@@ -22435,3 +22435,160 @@ WHY:  BEGIN FILEMESS("#NO FIL",IF MID.UNITNUM!0 THEN               %148-37224000
                        FID:=LABELTABLE[U].[6:42];                       37236750        
                   END;                                                  37237000        
             END;                                                        37238000        
+           REPLY[P1MIX]:=0;                                             37239000        
+      END;%                                                             37240000        
+      IF COUNT {0 THEN GO TO START;                                %120-37240050        
+      IF COUNT>1 THEN                                                   37240100        
+SXIT: BEGIN FILEMESS("#DUP   ","FIL    ",MID,FID,REEL,CDATE,CYCLE);     37240200        
+            WHILE (COUNT~COUNT-1)}0 DO                                  37240300        
+            BEGIN IF (U~P)<16 THEN IF MID!0 THEN                        37240400        
+                  IF (T1~PRNTABLE[U].[15:15])!0 THEN                    37240500        
+                     FILECLOSE(T1&@12[18:33:15]);                       37240600        
+                  STREAM(X~[TINU[U]]:D~S~SPACE(10));                    37240700        
+                  BEGIN SI~X; SI~SI+5; DS~8 LIT " DUP ON ";             37240800        
+                        DS~3 CHR; DS~LIT "~";                           37240900        
+                        X~DI;                                           37240910        
+                  END;                                                  37241000        
+                  T1~P;                                                 37241010        
+                  IF U}32 THEN IF CIDROW[U   -32]!0 THEN                37241020        
+                        STREAM(DK~CIDTABLE[U   -32,2],T1);              37241030        
+                             BEGIN DI~DI-1; DS~6 LIT ",DECK ";          37241040        
+                             SI~LOC DK; SI~SI+1; DS~7 CHR;              37241050        
+                             END;                                       37241060        
+                  SPOUT(5);                                             37241100        
+            END;                                                        37241200        
+            REPLY[P1MIX]:= -VWY&VOK[36:42:6]&VIL[30:42:6];              37241300        
+            COMPLEXSLEEP(DSED OR (REPLY[P1MIX]>0));                     37241400        
+            CHECKTERMIX;                                                37241500        
+            IF (T1:=REPLY[P1MIX]).[33:15]=VIL THEN                      37241510        
+              BEGIN REPLY[P1MIX]~0;                                     37241520        
+                    IF T1.[FF] > 64 THEN GO SXIT;                       37241525        
+                    P(T1.[18:15]);                                      37241530        
+                    GO TO X;                                            37241540        
+              END;                                                      37241550        
+            IF NOT WHYSLEEP(VWY&VOK[36:42:6]&VIL[30:42;6]) THEN         37241600        
+               BEGIN S:=SEARCH;GO SXIT END;                             37241610        
+Y:          REPLY[P1MIX]:=0; GO TO START;                               37241700        
+      END;                                                              37241800        
+X:                                                                      37241810        
+      LABELTABLE[U~P].[1:5]~@20;                                        37241900        
+      IF NOT UNLABELED THEN                                             37242000        
+      BEGIN FPB:=PRT[P1MIX,3];                                          37242100        
+           FPB[FN]:=MID;                                                37242200        
+           FPB[FN+1]:=FID;                                              37242300        
+      END;                                                              37242400        
+      IF U LSS 16 THEN                                                  37242600        
+      IF MID!0 THEN                                                     37242800        
+      BEGIN IF (T1!PRNTABLE[U].[15:15])!0 THEN%                         37243000        
+            BEGIN FILECLOSE(T1&3[18:33:15]);%                           37244000        
+                  M[M[T1-3] INX 5].[39:4]~1;%                           37245000        
+            END;%                                                       37246000        
+            RRRMECH~TWO(U) OR RRRMECH; STARTIMING(FN,U);                37248000        
+            IF UNLABELED OR IL OR CYCLE.[1:1] THEN GO EXIT;             37248500        
+            T1 ~ SPACE(11)&10[8:38:10]&MODE[21:47:1]%                   37249000        
+               &3[23:46:2];%                                            37250000        
+            LO~@40; FIRST~1;%                                           37251000        
+READALABEL: IF REED ! 0 THEN IF FIRST THEN%                             37252000        
+REW:        BEGIN FIRST~WAITIO(@4200000000,0,U); GO READALABEL END ELSE 37253000        
+            BEGIN SETNOTINUSE(U,I); FORGETSPACE(T1.[33:15]);            37254000        
+                  STOPTIMING(FN,1023); GO TO START END;                 37255000        
+            STREAM(Y:=0:X:=0,T1);                                       37255100        
+                BEGIN  DI:=LOC X; DS:=8 LIT "VOL1HDR1";                 37255200        
+                       SI:=T1; DI:=DI-8;                                37255300        
+                      IF 4 SC=DC THEN TALLY:=1 ELSE                     37255400        
+                    BEGIN  SI:=T1; IF 4 SC=DC THEN TALLY:=2; END;       37255500        
+                       Y:=TALLY;                                        37255700        
+                END;                                                    37255800        
+             IF(USASI:=P)>0 THEN USASITAPE(T1.[CF],USASI,2,U,0);        37255900        
+            STREAM(M~0,F~0,R~0,D~0,C~0:S~T1 INX 1);%                    37256000        
+            BEGIN SI~S; SI~LOC M; DS~2 WDS; DS~3 OCT;%                  37257000        
+                  DS:=5 OCT;DS:=2 OCT;                                  37258000        
+            END;%                                                       37259000        
+            IF (P=CYCLE OR CYCLE=0) AND (P(XCH)=CDATE OR CDATE=0) AND%  37260000        
+               (P(XCH)=REEL OR REEL=0)AND ((P(XCH) EQV FID)=NOT 0) AND% 37261000        
+               ((P(XCH) EQV MID)=NOT 0) THEN%                           37262000        
+            BEGIN FORGETSPACE(T1.[33:15]); T1~@340000005;%              37263000        
+                  LO~0;T1~REED; GO TO EXIT;%                            37264000        
+            END;%                                                       37265000        
+            IF FIRST THEN GO REW;%                                      37266000        
+         LO:=@60; DO UNTIL (FIRST:=REED).[42:1]; DO UNTIL REED.[42:1];  37267000        
+         IF USASI>0 THEN DO UNTIL REED.[42:1] ELSE FIRST:=REED;         37267050        
+            LO~@40; GO READALABEL;                                      37267100        
+      END;%                                                             37268000        
+EXIT: FINDINPUT~U;%                                                     37269000        
+END FINDINPUT;%                                                         37270000        
+PROCEDURE STARTIMING(FN,U); VALUE FN,U; REAL FN,U;%                     37271000        
+BEGIN ARRAY FPB[*]; INTEGER I,J;%                                       37272000        
+      FPB~PRT[P1MIX,3];%                                                37273000        
+      IF U<32 THEN                                                      37273100        
+BEGIN IF FPB[FN+4]}0 THEN                                               37274000        
+      BEGIN IF (I+FPB[FN+3].[36:6])!0 THEN%                             37275000        
+            IF I NEQ U+1 OR FPB[FN+2].[8:10] NEQ RDCTABLE[U].[14:10]    37276000        
+            THEN                                                        37276010        
+            IF (I~FPB.[8:10])<(1023-ETRLNG) THEN                        37276100        
+            BEGIN J~GETSPACE(I+ETRLNG,2,1)+2;%                          37277000        
+ $ SET OMIT = SHAREDISK                                                 37277999        
+                  MOVE(I,FPB,J);%                                       37278000        
+ $ POP OMIT                                                             37278001        
+ $ SET OMIT = NOT SHAREDISK                                             37278099        
+                  MOVE(ETRLNG,[FPB[FN]],J+I);%                          37278200        
+                  FORGETSPACE(FPB.[33:15]);%                            37279000        
+                  NFO[(P1MIX-1)|NDX]~                                   37279100        
+                  PRT[P1MIX,3]~FPB~[M[J]]&(I+ETRLNG)[8:38:10];%         37280000        
+                  FPB[FN+4]+0; FPB[FN+3].[24:12]~0;%                    37281000        
+            END;%                                                       37282000        
+            FPB[FN+4]~FPB[FN+4]-CLOCK-P(RTR);%                          37283000        
+            FPB[FN+3].[36:6]~U+1;%                                      37284000        
+           IF U LSS 16 THEN% RDC & PRN LOG ENTRIES                      37284100        
+           BEGIN ;                                                      37284110        
+           STREAM(R:=RDCTABLE[U].[14:10],D:=RDCTABLE[U].[24:17],        37284120        
+                  C:=RDCTABLE[U].[41:7],T:=[FPB[FN  +2]]);              37284130        
+           BEGIN SI:=LOC R;DS:=3DEC;DS:=5DEC;DS:=DEC END;               37284140        
+           FPB[FN  +3].[6:17]:=PRNTABLE[U].[31;17];                     37284150        
+           END;                                                         37284310        
+END   END ELSE                                                          37285000        
+BEGIN IF (I:=FPB[FN+4]) LSS 0 THEN                                      37285100        
+      BEGIN FPB[FN+4]~I+CLOCK+P(RTR); I~FPB[FN+3].[36:6]-1;             37285200        
+            FPB[FN+3].[24:12]~P(DUP).[24:12]+(J~TINU[I].[18:12]);       37285300        
+            IF I<16 THEN                                                37285305        
+                          IF J>0 THEN FILEMESS("#    IO"&TINU[I]        37285310        
+                    [12:30:18],-RETRIES",FPB[FN],FPB[FN+1],J,0,0); %715-37285320        
+            TINU[I].[18:12]~0;                                          37285400        
+END END END TIMING;                                                     37285500        
+REAL PROCEDURE DISKADDRESS(MID,FID,FPB3,A,H,IO);                 % (SHM)37286000        
+   VALUE MID,FID,FPB3,A,H,IO;                                    % (SHM)37286100        
+   REAL MID,FID,FPB3,A,IO;                                       % (SHM)37286200        
+   ARRAY H[*];                                                          37286300        
+BEGIN LABEL EOF, EOF2;                                                  37287000        
+      INTEGER I;                                                        37287250        
+      REAL T, V;                                                        37287500        
+      IF A}0 THEN%                                                      37288000        
+      BEGIN T~(A DIV H[0].[30:12])|H[0].[42:6];%                        37289000        
+            IF H[9] LEQ I:=(IF H[1]=0 THEN 0 ELSE T DIV H[1]) THEN      37290000        
+            GO TO EOF;                                                  37290100        
+            IF H[I:=I+10]=0 THEN      % NEW ROW NEEDED.                 37291000        
+              IF IO THEN GO TO EOF ELSE  % EOF ON A READ.               37291200        
+              IF IO=2 THEN               % CALLED FROM FILEOPEN SO      37291400        
+                 BEGIN                   % DONT EXPAND THE FILE YET.    37291600        
+                 T:=1;                                                  37291800        
+                 GO TO EOF2;                                            37292000        
+                 END                                                    37292200        
+              ELSE                                                      37292400        
+              IF H[4] THEN            % IN DIRECTORY, UPDATE HEADER.    37292600        
+                 P(DIRECTORYSEARCH(-MID,FID,-H&I[CTF]),DEL)             37292800        
+              ELSE                    % NOT IN DIREECTORY.              37293000        
+                 BEGIN                                           % (SHM)37293010        
+                 IF (V:=FPB3.[18:5]) GTR 0 THEN % EU SPECIFIED   % (SHM)37293020        
+                    V:=(IF V GTR 20 THEN 0 ELSE -V) ELSE         % (SHM)37293030        
+                 IF (V:=FPB3.[16:2]) GTR 0 THEN % SPEED SPECIFIED %(SHM)37293040        
+                    V:=(IF V GTR 2 THEN 0 ELSE V) ELSE           % (SHM)37293050        
+                 V:=0; % NO SPEED OR EU SPECIFIED                % (SHM)37293060        
+                 H[I] := PETUSERDISK(H[8],V);                    % (SHM)37293070        
+                 END;                                            % (SHM)37293330        
+            T~H[I]+I~T MOD H[1];%                                       37294000        
+            STREAM(D~[T]); BEGIN SI~D; DS~8 DEC END;%                   37295000        
+      END ELSE%                                                         37296000        
+EOF:  T~0;%                                                             37297000        
+EOF2:                                                                   37297500        
+      DISKADDRESS~T;%                                                   37298000        
+END DISKADDRESS;%                                                       37299000        

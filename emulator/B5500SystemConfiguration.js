@@ -34,8 +34,8 @@ var B5500SystemConfiguration = {
                 false,                  // Memory module 3 available (4KW)
                 true,                   // Memory module 4 available (4KW)
                 true,                   // Memory module 5 available (4KW)
-                false,                  // Memory module 6 available (4KW)
-                false],                 // Memory module 7 available (4KW)
+                true,                   // Memory module 6 available (4KW)
+                true],                  // Memory module 7 available (4KW)
 
     units: {
         SPO:    true,                   // SPO keyboard/printer

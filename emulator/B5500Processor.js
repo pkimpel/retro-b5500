@@ -645,7 +645,11 @@ B5500Processor.prototype.compareSourceWithDest = function(count) {
                             this.Q |= 0x08;     // set Q04F so we won't store B anymore
                         }
                         this.S++;
-                        this.loadBviaS();       // B = [S]
+                        if (count > 0) {
+                            this.loadBviaS();   // B = [S]
+                        } else {
+                            this.BROF = 0;
+                        }
                     }
                     if (aBit < 42) {
                         aBit += 6;
@@ -654,7 +658,11 @@ B5500Processor.prototype.compareSourceWithDest = function(count) {
                         aBit = 0;
                         this.G = 0;
                         this.M++;
-                        this.loadAviaM();       // A = [M]
+                        if (count > 0) {
+                            this.loadAviaM();   // A = [M]
+                        } else {
+                            this.AROF = 0;
+                        }
                     }
                 }
             }
@@ -856,15 +864,76 @@ B5500Processor.prototype.streamBitsToDest = function(count, mask) {
 };
 
 /**************************************/
+B5500Processor.prototype.streamProgramToDest = function(count) {
+    /* Implements the TRP (Transfer Program Characters) character-mode syllable */
+    var bBit;                           // B register bit nr
+    var bw;                             // current B register value
+    var c;                              // current character
+    var pBit;                           // P register bit nr
+    var pw;                             // current P register value
+
+    this.streamAdjustDestChar();
+    if (count) {                        // count > 0
+        if (!this.BROF) {
+            this.loadBviaS();           // B = [S]
+        }
+        if (!this.PROF) {
+            this.loadPviaC();           // fetch the program word, if necessary
+        }
+        this.cycleCount += count;       // approximate the timing
+        pBit = (this.L*2 + (count % 2))*6;      // P-reg bit number
+        pw = this.P;
+        bBit = this.K*6;                        // B-reg bit number
+        bw = this.B;
+        do {
+            c = this.cc.fieldIsolate(pw, pBit, 6);
+            bw = this.cc.fieldInsert(bw, bBit, 6, c)
+            count--;
+            if (bBit < 42) {
+                bBit += 6;
+                this.K++;
+            } else {
+                bBit = 0;
+                this.K = 0;
+                this.B = bw;
+                this.storeBviaS();      // [S] = B
+                this.S++;
+                if (count > 0 && count < 8) {   // only need to load B if a partial word is left
+                    this.loadBviaS();   // B = [S]
+                    bw = this.B;
+                } else {
+                    this.BROF = 0;
+                }
+            }
+            if (pBit < 42) {
+                pBit += 6;
+                if (!(count % 2)) {
+                    this.L++;
+                }
+            } else {
+                pBit = 0;
+                this.L = 0;
+                this.C++;
+                this.loadPviaC();       // P = [C]
+                pw = this.P;
+            }
+        } while (count);
+        this.B = bw;
+        this.Y = c;                     // for display purposes only
+    }
+};
+
+/**************************************/
 B5500Processor.prototype.streamSourceToDest = function(count, transform) {
     /* General driver for character-mode character transfers from source to
     destination, such as TRS or TRZ.
     "count" is the number of source characters to transfer.
-    "transform" is a function(bBit, count) that determines how the characters
-    are transferred from the source (A) to destination (B). The Y register will
-    contain the current char during this call */
+    "transform" is a function(bBit, c, count) that determines how the characters
+    are transferred from the source (A) to destination (B) */
     var aBit;                           // A register bit nr
+    var aw;                             // current A register word
     var bBit;                           // B register bit nr
+    var c;                              // current character
 
     this.streamAdjustSourceChar();
     this.streamAdjustDestChar();
@@ -877,10 +946,11 @@ B5500Processor.prototype.streamSourceToDest = function(count, transform) {
         }
         this.cycleCount += count*2;     // approximate the timing
         aBit = this.G*6;                // A-bit number
+        aw = this.A;
         bBit = this.K*6;                // B-bit number
         do {
-            this.Y = this.cc.fieldIsolate(this.A, aBit, 6);
-            transform.call(this, bBit, count)
+            c = this.cc.fieldIsolate(aw, aBit, 6);
+            transform.call(this, bBit, c, count)
             count--;
             if (bBit < 42) {
                 bBit += 6;
@@ -890,8 +960,10 @@ B5500Processor.prototype.streamSourceToDest = function(count, transform) {
                 this.K = 0;
                 this.storeBviaS();      // [S] = B
                 this.S++;
-                if (count < 8) {        // only need to load B if a partial word is left
+                if (count > 0 && count < 8) {   // only need to load B if a partial word is left
                     this.loadBviaS();   // B = [S]
+                } else {
+                    this.BROF = 0;
                 }
             }
             if (aBit < 42) {
@@ -901,9 +973,15 @@ B5500Processor.prototype.streamSourceToDest = function(count, transform) {
                 aBit = 0;
                 this.G = 0;
                 this.M++;
-                this.loadAviaM();       // A = [M]
+                if (count > 0) {        // only need to load A if there's more to do
+                    this.loadAviaM();   // A = [M]
+                    aw = this.A;
+                } else {
+                    this.AROF = 0;
+                }
             }
-        } while (count)
+        } while (count);
+        this.Y = c;                     // for display purposes only
     }
 };
 
@@ -937,12 +1015,14 @@ B5500Processor.prototype.streamToDest = function(count, transform) {
                     this.K = 0;
                     this.storeBviaS();  // [S] = B
                     this.S++;
-                    if (count < 8) {    // only need to reload B if a partial word is left
+                    if (count > 0 && count < 8) {   // only need to load B if a partial word is left
                         this.loadBviaS();   // B = [S]
+                    } else {
+                        this.BROF = 0;
                     }
                 }
             }
-        } while (count)
+        } while (count);
     }
 };
 
@@ -2779,7 +2859,9 @@ B5500Processor.prototype.run = function() {
                 noSECL = 0;             // force off by default (set by CRF)
                 switch (opcode & 0x3F) {
                 case 0x00:              // XX00: CMX, EXC: Exit character mode
-                    this.adjustBEmpty();                // store destination string
+                    if (this.BROF) {
+                        this.storeBviaS();              // store destination string
+                    }
                     this.S = this.F;
                     this.loadBviaS();                   // B = [S], fetch the RCW
                     this.exitSubroutine(variant & 0x01);// exit vs. exit inline
@@ -3404,51 +3486,12 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x3C:              // XX74: TRP=Transfer program characters
-                    this.streamAdjustDestChar();
-                    if (variant) {                      // count > 0
-                        if (!this.BROF) {
-                            this.loadBviaS();           // B = [S]
-                        }
-                        this.cycleCount += variant;     // approximate the timing
-                        t1 = (this.L*2 + (variant & 0x01))*6;   // P-reg bit number
-                        t2 = this.K*6;                          // B-reg bit number
-                        do {
-                            if (!this.PROF) {
-                                this.loadPviaC();       // fetch the program word, if necessary
-                            }
-                            this.Y = this.cc.fieldIsolate(this.P, t1, 6);
-                            this.B = this.cc.fieldInsert(this.B, t2, 6, this.Y)
-                            if (t2 < 42) {
-                                t2 += 6;
-                                this.K++;
-                            } else {
-                                t2 = 0;
-                                this.K = 0;
-                                this.storeBviaS();      // [S] = B
-                                this.S++;
-                                if (variant < 8) {      // just a partial word left
-                                    this.loadBviaS();   // B = [S]
-                                }
-                            }
-                            if (t1 < 42) {
-                                t1 += 6;
-                                if (!(variant & 0x01)) {
-                                    this.L++;
-                                }
-                            } else {
-                                t1 = 0;
-                                this.L = 0;
-                                this.C++;
-                                this.loadPviaC();       // P = [C]
-                            }
-                        } while (--variant);
-                    }
+                    this.streamProgramToDest(variant);
                     break;
 
                 case 0x3D:              // XX75: TRN=Transfer source numerics
                     this.MSFF = 0;                      // initialize true-false FF
-                    this.streamSourceToDest(variant, function(bb, count) {
-                        var c = this.Y;
+                    this.streamSourceToDest(variant, function(bb, c, count) {
 
                         if (count == 1 && (c & 0x30) == 0x20) {
                             this.MSFF = 1;              // neg. sign
@@ -3458,14 +3501,14 @@ B5500Processor.prototype.run = function() {
                     break;
 
                 case 0x3E:              // XX76: TRZ=Transfer source zones
-                    this.streamSourceToDest(variant, function(bb, count) {
-                        this.B = this.cc.fieldInsert(this.B, bb, 2, this.Y >>> 4);
+                    this.streamSourceToDest(variant, function(bb, c, count) {
+                        this.B = this.cc.fieldInsert(this.B, bb, 2, c >>> 4);
                     });
                     break;
 
                 case 0x3F:              // XX77: TRS=Transfer source characters
-                    this.streamSourceToDest(variant, function(bb, count) {
-                        this.B = this.cc.fieldInsert(this.B, bb, 6, this.Y);
+                    this.streamSourceToDest(variant, function(bb, c, count) {
+                        this.B = this.cc.fieldInsert(this.B, bb, 6, c);
                     });
                     break;
 
