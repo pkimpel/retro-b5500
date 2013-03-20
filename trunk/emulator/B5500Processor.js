@@ -2590,7 +2590,7 @@ B5500Processor.prototype.applyRCW = function(word, inline) {
     this.V = f = word % 8;              //   [7:3], V
     word = (word-f)/8;
     this.H = word % 8;                  //   [4:3], H
-    word = (word - word % 0x10)/0x10;
+    word = (word - word % 16)/16;
     return word % 2;                    //   [2:1], DESC bit
 };
 
@@ -2634,9 +2634,8 @@ B5500Processor.prototype.enterSubroutine = function(descriptorCall) {
     /* Enters a subroutine via the present Program Descriptor in A as part
     of an OPDC or DESC syllable. Also handles accidental entry */
     var aw = this.A;                    // local copy of word in A reg
-    var bw;                             // local copy of word in B reg
     var arg = this.cc.bit(aw, 5);       // descriptor argument bit
-    var mode = this.cc.bit(aw, 4);      // descriptor mode bit (1-char mode)
+    var mode = this.cc.bit(aw, 4);      // descriptor mode bit (1=char mode)
 
     if (arg && !this.MSFF) {
         ; // just leave the Program Descriptor on TOS
@@ -2650,6 +2649,7 @@ B5500Processor.prototype.enterSubroutine = function(descriptorCall) {
             this.B = this.buildMSCW();
             this.BROF = 1;
             this.adjustBEmpty();
+            this.F = this.S;
         }
 
         // Push a RCW
@@ -2705,7 +2705,7 @@ B5500Processor.prototype.exitSubroutine = function(inline) {
         }
     } else {                            // flag bit is set
         result = this.applyRCW(this.B, inline);
-        this.X = this.B % 0x8000000000; // save F setting from MSCW to restore S at end
+        this.X = this.B % 0x8000000000; // save F setting from RCW to restore S at end
 
         this.S = this.F;
         this.loadBviaS();               // B = [S], fetch the MSCW
@@ -4496,6 +4496,7 @@ B5500Processor.prototype.run = function() {
         /***************************************************************
         *   SECL: Syllable Execution Complete Level                    *
         ***************************************************************/
+
         if ((this === this.cc.P1 ? this.cc.IAR : this.I) && this.NCSF) {
             // there's an interrupt and we're in normal state
             this.T = 0x0609;            // inject 3011=SFI into T
