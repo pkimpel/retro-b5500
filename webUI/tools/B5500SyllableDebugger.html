@@ -19,9 +19,12 @@
 <script>
 "use strict";
 
+const timerCycles = 1000;               // Number of instructions per pseudo-timer interrupt
+
 var cc;
 var injected = false;                   // true if syllable manually injected into T
 var memAddr = 0x40;                     // @100
+var runSilently = false;                // true if system state is not to be refreshed after each step
 var stopAddress = 0;                    // run-until-address stop point
 
 var accessor = {                        // Memory access control block
@@ -465,7 +468,7 @@ function displayNumber(id, value) {
     if (e) {
         setText(id, (Math.pow(8, e)*(s ? -m : m)).toPrecision(12));
     } else {
-        setText(id, m.toString());
+        setText(id, (s ? -m : m).toString());
     }
 }
 
@@ -686,26 +689,49 @@ function runIt(ev) {
     /* Steps through instructions continuously until the C register matches the
     StopAddr address. StopAddr can be changed while running. Setting it to zero
     (or blank) will halt the continuous stepping */
+    var count = timerCycles;
     var runBtn = $$("RunBtn");
     var saveStopAddress = stopAddress;
     var stopAddr = $$("StopAddr");
 
     function syllabicate() {
-        if (stopAddress && cc.P1.C != stopAddress) {
+        do {
             cc.P1.step();
-            displaySystemState();
-            if (isNaN(stopAddress)) {
-                stopAddress = 0;            // bad address
-                stopAddr.style.backgroundColor = "red";
-                runBtn.value = "Run";
-            } else {
-                setTimeout(syllabicate, 0);
+            if (cc.P1.S > 0x7FFF) {
+                alert("P1.S out of range");
+                stopAddress = 0;
             }
+            /***************************
+            if (cc.P1.R != 0) {
+                alert("P1.R not zero");
+                stopAddress = 0;
+            }
+            ***************************/
+            if (--count <= 0) {
+                count = timerCycles;
+                cc.CCI03F = 1;          // set timer interrupt
+                cc.signalInterrupt();
+                break;                  // exit loop to pick up events
+            }
+        } while (runSilently && stopAddress && cc.P1.C != stopAddress);
+
+        if (stopAddress && cc.P1.C != stopAddress) {
+            setTimeout(syllabicate, 0);
+            if (!runSilently) {
+                displaySystemState();
+            }
+        } else if (isNaN(stopAddress)) {
+            stopAddress = 0;            // bad address
+            stopAddr.style.backgroundColor = "red";
+            runBtn.value = "Run";
         } else {
             stopAddress = saveStopAddress;
             stopAddr.style.backgroundColor = "";
             stopAddr.value = padOctal(stopAddress, stopAddr.maxLength);
             runBtn.value = "Run";
+            if (runSilently) {
+                displaySystemState();
+            }
         }
     }
 
@@ -786,6 +812,12 @@ function tos_onChange(ev, bicID, valueID, origID) {
         displayNumber(valueID, value);
     }
     return value;
+}
+
+function runSilently_onClick(ev) {
+    /* Handle the onchange event for the RunSilently checkbox */
+
+    runSilently = ev.target.checked;
 }
 
 function fileLoader_onLoad(ev) {
@@ -996,6 +1028,7 @@ function initialize() {
     $$("GoBtn").addEventListener("click", goIt, false);
     $$("StepBtn").addEventListener("click", stepIt, false);
     $$("RunBtn").addEventListener("click", runIt, false);
+    $$("RunSilently").addEventListener("click", runSilently_onClick, false);
 
     cc = new B5500CentralControl();
     cc.powerOn();
@@ -1014,6 +1047,7 @@ function initialize() {
 
     displaySystemState();
     displayOctal("StopAddr", stopAddress, 5);
+    $$("RunSilently").checked = runSilently;
 }
 
 window.onload = function() {
@@ -1040,6 +1074,11 @@ window.onload = function() {
 </p>
 
 <table id=RegisterBank1 class="normal border">
+<colgroup>
+    <col span=4>
+    <col style="width:12em">
+    <col>
+</colgroup>
 <thead>
 <tr>
     <th>Reg
@@ -1232,6 +1271,14 @@ window.onload = function() {
 </table>
 
 <table id=RegisterBank2 class="normal border">
+<colgroup>
+    <col style="width:2em">
+    <col style="width:10em">
+    <col style="width:2em">
+    <col style="width:7em">
+    <col style="width:2em">
+    <col style="width:7em">
+</colgroup>
 <tbody>
 <tr>
     <td class=center>X
@@ -1327,6 +1374,10 @@ window.onload = function() {
         <input id=StopAddr name=StopAddr type=text class=number size=5 maxlength=5>
         &nbsp;
         <input id=RunBtn name=RunBtn type=button value="Run" accesskey=R>
+<tr>
+    <td colspan=6 class=rj>
+        <label for=RunSilently>Run Silently</label>
+        <input id=RunSilently name=RunSilently type=checkbox value=1>
 </table>
 
 <table id=CentralControl>

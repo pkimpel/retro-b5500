@@ -544,7 +544,7 @@ B5500CentralControl.prototype.tock = function tock() {
         *************************************/
     }
     interval = (that.nextTimeStamp += B5500CentralControl.rtcTick) - thisTime;
-    that.timer = setTimeout(function() {that.tock()}, (interval < 0 ? 1 : interval));
+    that.timer = setTimeout(that.tock, (interval < 0 ? 1 : interval));
 };
 
 /**************************************/
