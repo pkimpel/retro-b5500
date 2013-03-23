@@ -7,107 +7,122 @@
 <meta http-equiv="Content-Style-Type" content="text/css">
 <link id=defaultStyleSheet rel=stylesheet type="text/css" href="B5500Console.css">
 
-<script src="/B5500/B5500DummyUnit.js"></script>
-<script src="/B5500/B5500SPOUnit.js"></script>
-<script src="/B5500/B5500DiskUnit.js"></script>
+<script src="./B5500DummyUnit.js"></script>
+<script src="./B5500SPOUnit.js"></script>
+<script src="./B5500DiskUnit.js"></script>
 
-<script src="/B5500EMU/B5500SystemConfiguration.js"></script>
-<script src="/B5500EMU/B5500CentralControl.js"></script>
-<script src="/B5500EMU/B5500Processor.js"></script>
-<script src="/B5500EMU/B5500IOUnit.js"></script>
+<script src="../emulator/B5500SystemConfiguration.js"></script>
+<script src="../emulator/B5500CentralControl.js"></script>
+<script src="../emulator/B5500Processor.js"></script>
+<script src="../emulator/B5500IOUnit.js"></script>
 
 <script>
 window.onload = function() {
+    var aControl;
+    var aNormal;
+    var bControl;
+    var bNormal;
+    var boundBlinkenlicht;
     var cc = new B5500CentralControl();
-    var paPanel;
-    var paState = 0;
-    var paTimer = null;
-    var pbState = 0;
-    var pbTimer = null;
+    var timer;
+    var timerInterval = 50;             // milliseconds
 
-    var PAStateChange = function() {
-        var aNormal =  document.getElementById("ANormalBtn");
-        var aControl = document.getElementById("AControlBtn");
-        var delay = Math.random();
+    function $$(id) {
+        return document.getElementById(id)
+    }
 
-        if (paState || !pbState) {          // PA will go to Normal State onlyl if PB is already in Normal State
-            paState = 0;
-            aNormal.className = "yellowButton";
-            aControl.className = "yellowButton yellowLit";
-            delay = Math.log(delay+1)*250;
-        } else {
-            paState = 1;
-            aNormal.className = "yellowButton yellowLit";
-            aControl.className = "yellowButton";
-            delay = Math.log(2-delay)*delay*250;
-        }
-        paTimer = setTimeout(PAStateChange, delay);
-    };
+    function bindMethod(f, context) {
+        return function() {f.apply(context, arguments)};
+    }
 
-    var PBStateChange = function() {
-        var bNormal =  document.getElementById("BNormalBtn");
-        var delay = Math.random();
-
-        if (pbState) {
-            pbState = 0;
-            bNormal.className = "yellowButton";
-            delay = Math.log(delay+1)*1000;
-        } else {
-            pbState = 1;
-            bNormal.className = "yellowButton yellowLit";
-            delay = Math.log(2-delay)*delay*delay*1000;
-        }
-        pbTimer = setTimeout(PBStateChange, delay);
-    };
-
-    var PowerOnBtn_Click = function() {
-        document.getElementById("PowerOnBtn").className = "whiteButton whiteLit";
-        document.getElementById("AControlBtn").className = "yellowButton yellowLit";
-        paState = pbState = 0;
-        paTimer = setTimeout(PAStateChange, 3000);
-        pbTimer = setTimeout(PBStateChange, 10000);
+    function PowerOnBtn_Click(ev) {
+        $$("PowerOnBtn").className = "whiteButton whiteLit";
+        $$("AControlBtn").className = "yellowButton yellowLit";
         cc.powerOn();
-        /******
-        if (!paPanel) {
-            paPanel = window.open("B5500ProcessorPanel.html", "PAPanel", "resizable=yes,scrollbars=yes,width=1,height=1");
-        }
-        *****/
+        $$("LoadBtn").disabled = false;
         return true;
-    };
+    }
 
-    var PowerOffBtn_Click = function() {
-        paState = pbSate = 0;
-        document.getElementById("PowerOnBtn").className = "whiteButton";
-        document.getElementById("ANormalBtn").className = "yellowButton";
-        document.getElementById("AControlBtn").className = "yellowButton";
-        document.getElementById("BNormalBtn").className = "yellowButton";
+    function PowerOffBtn_Click(ev) {
+        $$("PowerOnBtn").className = "whiteButton";
+        $$("ANormalBtn").className = "yellowButton";
+        $$("AControlBtn").className = "yellowButton";
+        $$("BNormalBtn").className = "yellowButton";
         cc.powerOff();
-        /*****
-        if (paPanel) {
-            paPanel.close();
-            paPanel = null;
-        }
-        *****/
-        if (paTimer) {
-            clearTimeout(paTimer);
-            paTimer = null;
-        }
-        if (pbTimer) {
-            clearTimeout(pbTimer);
-            pbTimer = null;
+        $$("HaltBtn").disabled = true;
+        $$("LoadBtn").disabled = true;
+        if (timer) {
+            clearTimeout(timer);
+            timer = null;
         }
         return true;
-    };
+    }
+
+    function HaltBtn_Click(ev) {
+        cc.halt();
+        $$("HaltBtn").disabled = true;
+        $$("LoadBtn").disabled = false;
+        if (timer) {
+            clearTimeout(timer);
+            timer = null;
+        }
+    }
+
+    function LoadBtn_Click(ev) {
+        cc.load();
+        $$("HaltBtn").disabled = false;
+        $$("LoadBtn").disabled = true;
+        boundBlinkenlicht();
+    }
+
+    function dasBlinkenlicht() {
+        var pa = cc.PA;
+        var pb = cc.PB;
+
+        if (pa) {
+            if (!pa.busy) {
+                aControl.className = "yellowButton";
+                aNormal.className = "yellowButton";
+            } else if (pa.NCSF) {
+                aControl.className = "yellowButton";
+                aNormal.className = "yellowButton yellowLit";
+            } else {
+                aNormal.className = "yellowButton";
+                if (pa === cc.P1) {
+                    aControl.className = "yellowButton yellowLit";
+                }
+            }
+        }
+        if (pb) {
+            if (!pb.busy) {
+                bControl.className = "yellowButton";
+                bNormal.className = "yellowButton";
+            } else if (pb.NCSF) {
+                bControl.className = "yellowButton";
+                bNormal.className = "yellowButton yellowLit";
+            } else {
+                bNormal.className = "yellowButton";
+                if (pb === cc.P1) {
+                    bControl.className = "yellowButton yellowLit";
+                }
+            }
+        }
+
+        timer = setTimeout(boundBlinkenlicht, timerInterval);
+    }
 
     /***** window.onload() outer block *****/
 
-    document.getElementById("PowerOnBtn").onclick = function() {
-        return PowerOnBtn_Click();
-    };
+    $$("PowerOnBtn").addEventListener("click", PowerOnBtn_Click);
+    $$("PowerOffBtn").addEventListener("click", PowerOffBtn_Click);
+    $$("HaltBtn").addEventListener("click", HaltBtn_Click);
+    $$("LoadBtn").addEventListener("click", LoadBtn_Click);
 
-    document.getElementById("PowerOffBtn").onclick = function() {
-        return PowerOffBtn_Click();
-    };
+    aControl = $$("AControlBtn");
+    aNormal  = $$("ANormalBtn");
+    bControl = $$("BControlBtn");
+    bNormal  = $$("BNormalBtn");
+    boundBlinkenlicht = bindMethod(dasBlinkenlicht, this);
 };
 </script>
 </head>
@@ -115,11 +130,11 @@ window.onload = function() {
 <body>
 
 <div id=consoleDiv>
-    <button id=HaltBtn class=blackButton>HALT</button>
+    <button id=HaltBtn class=blackButton DISABLED>HALT</button>
 
     <button id=NotReadyBtn class=yellowButton>NOT READY</button>
     <button id=LoadSelectBtn class=blackButton>LOAD SELECT</button>
-    <button id=LoadBtn class=blackButton>LOAD</button>
+    <button id=LoadBtn class=blackButton DISABLED>LOAD</button>
 
     <button id=MemoryCheckBtn class=yellowButton>MEMORY CHECK</button>
     <button id=ANormalBtn class=yellowButton>A NORMAL</button>

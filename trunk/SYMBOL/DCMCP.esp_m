@@ -22592,3 +22592,98 @@ EOF:  T~0;%                                                             37297000
 EOF2:                                                                   37297500        
       DISKADDRESS~T;%                                                   37298000        
 END DISKADDRESS;%                                                       37299000        
+PROCEDURE SETNOTINUSE(U,RWL); VALUE U,RWL; REAL U,RWL;                  37302000        
+BEGIN REAL I,J;                                                         37303000        
+      IF U<16 THEN P(WAITIO(@4200000000,@377,U),DEL);                   37303200        
+      SLEEP([TOGLE],STATUSMASK);                                        37304000        
+      RRRMECH~((I~TWO(U)) AND SAVEWORD) OR ((I~NOT I) AND RRRMECH);%    37305000        
+      READY~READY AND I;%                                               37306000        
+      IF RWL THEN                                                       37312000        
+BEGIN                                                                   37313000        
+      STREAM(S~[TINU[U]],M~MULTITABLE[U],F~LABELTABLE[U],               37314000        
+             N~IF U<16 THEN PRNTABLE[U].[30:18] ELSE 0,                 37314100        
+             T:=MULTITABLE[U]=0, TT:=U GEQ 16, D:=J:=SPACE(10));        37314200        
+            BEGIN SI~S; SI~SI+5; DS~LIT "#"; DS~3 CHR;%                 37315000        
+                  DS~6 LIT " RW/L "; SI~LOC M; SI~SI+1;                 37316000        
+                  DS~7 CHR; DS~LIT " "; SI~SI+1; DS~7 CHR;              37316100        
+                  T(M~DI;DI~DI-15;DS~7FILL;DI~M); TT(JUMP               37316200        
+                  OUT TO LA); DS~LIT "("; DS~5 DEC; DS~LIT")";          37316300        
+            LA:   DS~LIT "~";                                           37316400        
+            END;%                                                       37317000        
+         SPOUT(J);                                                      37318000        
+      LABELTABLE[U]~@214;                                               37318100        
+END ELSE LABELTABLE[U]~@114;                                            37319000        
+      MULTITABLE[U]~RDCTABLE[U]~0;                                      37319010        
+      IF U<16 THEN PRNTABLE[U]~0 ;                                      37319020        
+END SETNOTINUSE;                                                        37319100        
+PROCEDURE BLASTQ(U);                                                    37320000        
+VALUE U;  REAL U;                                                       37321000        
+BEGIN                                                                   37322000        
+    REAL I,X;                                                           37323000        
+    BOOLEAN SUBROUTINE CHECKIO;                                         37323100        
+    BEGIN                                                               37323200        
+         CHECKIO:=(I:=UNIT[U]).[5:8]!0 OR (I.[14:1] AND I.[13:5]!@31);  37323300        
+    END;                                                                37323400        
+    IF CHECKIO THEN COMPLEXSLEEP(NOT CHECKIO);                          37324000        
+    IF I.[16:1] THEN                   % SKIP I/O IN PROCESS            37326000        
+    BEGIN I:=NFLAG(LOCATQUE[X:=I.[FF]]);                                37327000        
+         LOCATQUE[X].[FF]:=@77777;                                      37328000        
+         UNIT[U].[CF]:=X;                                               37329000        
+    END ELSE                                                            37330000        
+         UNIT[U].[5:43]:=(NOT 0).[18:30];                               37331000        
+    WHILE (I:=I.[FF])!@77777 DO                                         37332000        
+    BEGIN RETURNIOSPACE(I);                                             37333000        
+         I:=NFLAG(LOCATQUE[I]);                                         37334000        
+    END;                                                                37335000        
+END BLASTQ;                                                             37336000        
+PROCEDURE BUILDLABEL(LABLE,MID,FID,REEL,CDATE,CYCLE,PFACT,PTN,BLKODE,%  37337000        
+                     BSIZE,RSIZE);%                                     37338000        
+                  VALUE LABLE,MID,FID,REEL,CDATE,CYCLE,PFACT,PTN,BLKODE,37339000        
+                        BSIZE,RSIZE;%                                   37340000        
+                  ARRAY LABLE[*];%                                      37341000        
+                  REAL  MID,FID,REEL,CDATE,CYCLE,PFACT,PTN,BLKODE,%     37342000        
+                        BSIZE,RSIZE;%                                   37343000        
+BEGIN;STREAM(D~[PFACT]); BEGIN SI~D; SI~SI+5; DS~3 OCT END;%            37344000        
+      PFACT~CALCULATEPURGE(PFACT);%                                     37345000        
+      STREAM(S~M[MID],LABLE);%                                          37346000        
+      BEGIN DS~8 LIT " LABEL  "; SI~S; DS~2 WDS;%                       37347000        
+            DS~3 DEC; DS~5 DEC; DS~2 DEC; SI~SI+3; DS~5 CHR;%           37348000        
+            DS~14 LIT "0"; DS~5 DEC; SI~SI+7; DS~CHR;%                  37349000        
+            DS~5 DEC; DS~5 DEC; DS~11 LIT "0"%                          37350000        
+      END;%                                                             37351000        
+      IF (RSIZE~LABLE.[8:10])>10 THEN%                                  37352000        
+      STREAM(J~JARROW[P1MIX],D~[LABLE[10]]);%                           37353000        
+      BEGIN SI~J; SI~SI+1; DS~LIT " "; DS~7 CHR;%                       37354000        
+            SI~SI+1; DS~LIT "/"; DS~7 CHR; 12(DS~2 LIT " ");%           37355000        
+END   END GUILDLABEL;%                                                  37356000        
+ $ SET OMIT = PACKETS                                                   37356999        
+ $ SET OMIT = NOT(PACKETS)                                              37357299        
+PROCEDURE FILEMESSAGE(I,K,M,F,R,D,C,TYPE);                              37357300        
+     VALUE I,K,M,F,R,D,C,TYPE;                                          37357400        
+     REAL I,K,M,F,R,D,C,TYPE;                                           37357500        
+ $ POP OMIT                                                             37357501        
+BEGIN REAL Z,L;%                                                        37359000        
+      L~SPACE(12);%                                                     37360000        
+      STREAM(Z:I~[I],J~[JAR[P1MIX,*]],P1MIX,L);                         37361000        
+      BEGIN SI~I;                                                       37362000        
+            IF SC="+" THEN BEGIN TALLY~1; DS~LIT "-"; SI~SI+1 END ELSE% 37363000        
+            BEGIN SI~SI+1; IF SC!"#" THEN DS~LIT " " END;%              37364000        
+            DS~7 CHR; DS~LIT " "; L~DI;%                                37365000        
+            2(DI~LOC Z; IF 8 SC!DC THEN BEGIN DI~L; SI~SI-7; DS~7 CHR;% 37366000        
+                                              DS~LIT " "; L~DI END);%   37367000        
+            DI~L; SI~SI+1; DS~7 CHR; DS~LIT " "; L~DI;%                 37368000        
+            3(DI~LOC Z; IF 8 SC!DC THEN BEGIN DI~L; SI~SI-8; DS~7 DEC;  37369000        
+                                              L~DI; DI~DI-7; DS~6 FILL; 37370000        
+                                              DI~L; DS~LIT " "; L~DI;   37371000        
+                                        END);                           37372000        
+            DI~L; DS~SI-1; DS~LIT ":";%                                 37375000        
+            Z~TALLY; SI~LOC Z; SI~SI+7;%                                37376000        
+            IF SC="0" THEN BEGIN SI~J; SI~SI+1; DS~7 CHR; DS~LIT "/";%  37377000        
+                                 SI~SI+1; DS~7 CHR; DS~LIT "=";%        37378000        
+                                 SI~LOC P1MIX; DS~2 DEC;                37379000        
+                                 L~DI; DI~DI-2; DS~FILL; DI~L END;      37379500        
+            DS~LIT "~";%                                                37380000        
+      END;%                                                             37381000        
+      IF P THEN BEGIN TERMINATE(P1MIX); TERMINALMESSAGE(-L) END;%       37382000        
+      SPOUTER(L,0,TYPE);                                                37383000        
+END FILEMESS;%                                                          37384000        

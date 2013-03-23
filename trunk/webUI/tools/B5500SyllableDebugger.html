@@ -7,23 +7,24 @@
 <meta http-equiv="Content-Style-Type" content="text/css">
 <link id=defaultStyleSheet rel=stylesheet type="text/css" href="B5500SyllableDebugger.css">
 
-<script src="/B5500/B5500DummyUnit.js"></script>
-<script src="/B5500/B5500SPOUnit.js"></script>
-<script src="/B5500/B5500DiskUnit.js"></script>
+<script src="/B5500/webUI/B5500DummyUnit.js"></script>
+<script src="/B5500/webUI/B5500SPOUnit.js"></script>
+<script src="/B5500/webUI/B5500DiskUnit.js"></script>
 
-<script src="/B5500EMU/B5500SystemConfiguration.js"></script>
-<script src="/B5500EMU/B5500CentralControl.js"></script>
-<script src="/B5500EMU/B5500Processor.js"></script>
-<script src="/B5500EMU/B5500IOUnit.js"></script>
+<script src="/B5500/emulator/B5500SystemConfiguration.js"></script>
+<script src="/B5500/emulator/B5500CentralControl.js"></script>
+<script src="/B5500/emulator/B5500Processor.js"></script>
+<script src="/B5500/emulator/B5500IOUnit.js"></script>
 
 <script>
 "use strict";
 
-const timerCycles = 1000;               // Number of instructions per pseudo-timer interrupt
+var runningCycles = 1000;               // Number of instructions per run-mode interval
 
 var cc;
 var injected = false;                   // true if syllable manually injected into T
 var memAddr = 0x40;                     // @100
+var running = false;                    // true if in run mode
 var runSilently = false;                // true if system state is not to be refreshed after each step
 var stopAddress = 0;                    // run-until-address stop point
 
@@ -647,6 +648,15 @@ function displaySystemState() {
     //window.focus();
 }
 
+function establishSilence(beQuiet) {
+    /* Maintains synchronization between the global "runSilently" flag, the
+    RunSilently checkbox, and cc.inhCCI03F */
+
+    runSilently = beQuiet;
+    cc.inhCCI03F = !(beQuiet && running);
+    $$("RunSilently").checked = beQuiet;
+}
+
 function goIt(ev) {
     /* Branches to the location specified by the C and L registers: loads
     P and T to set up for the execution of the instruction at that syllable
@@ -689,7 +699,7 @@ function runIt(ev) {
     /* Steps through instructions continuously until the C register matches the
     StopAddr address. StopAddr can be changed while running. Setting it to zero
     (or blank) will halt the continuous stepping */
-    var count = timerCycles;
+    var count = runningCycles;
     var runBtn = $$("RunBtn");
     var saveStopAddress = stopAddress;
     var stopAddr = $$("StopAddr");
@@ -708,9 +718,7 @@ function runIt(ev) {
             }
             ***************************/
             if (--count <= 0) {
-                count = timerCycles;
-                cc.CCI03F = 1;          // set timer interrupt
-                cc.signalInterrupt();
+                count = runningCycles;
                 break;                  // exit loop to pick up events
             }
         } while (runSilently && stopAddress && cc.P1.C != stopAddress);
@@ -724,11 +732,15 @@ function runIt(ev) {
             stopAddress = 0;            // bad address
             stopAddr.style.backgroundColor = "red";
             runBtn.value = "Run";
+            running = false;
+            cc.inhCCI03F = true;
         } else {
             stopAddress = saveStopAddress;
             stopAddr.style.backgroundColor = "";
             stopAddr.value = padOctal(stopAddress, stopAddr.maxLength);
             runBtn.value = "Run";
+            running = false;
+            cc.inhCCI03F = true;
             if (runSilently) {
                 displaySystemState();
             }
@@ -743,6 +755,8 @@ function runIt(ev) {
         injected = false;
         stopAddr.style.backgroundColor = "green";
         runBtn.value = "Stop";
+        running = true;
+        cc.inhCCI03F = !runSilently;
         syllabicate();
     }
 }
@@ -817,7 +831,7 @@ function tos_onChange(ev, bicID, valueID, origID) {
 function runSilently_onClick(ev) {
     /* Handle the onchange event for the RunSilently checkbox */
 
-    runSilently = ev.target.checked;
+    establishSilence(ev.target.checked);
 }
 
 function fileLoader_onLoad(ev) {
@@ -849,6 +863,10 @@ function fileSelector_onChange(ev) {
 
     reader.onload = fileLoader_onLoad;
     reader.readAsArrayBuffer(f);
+}
+
+function hardwareLoad_onClick(ev) {
+    /* Handle the "Hardware Load" button click */
 }
 
 function checkBrowser() {
@@ -1025,6 +1043,7 @@ function initialize() {
     };
 
     $$("FileSelector").addEventListener("change", fileSelector_onChange, false);
+    $$("HardwareLoad").addEventListener("click", hardwareLoad_onClick, false);
     $$("GoBtn").addEventListener("click", goIt, false);
     $$("StepBtn").addEventListener("click", stepIt, false);
     $$("RunBtn").addEventListener("click", runIt, false);
@@ -1032,7 +1051,6 @@ function initialize() {
 
     cc = new B5500CentralControl();
     cc.powerOn();
-    cc.clear();
 
     cc.P1.S = 0x40;                     // stack at @100
     cc.P1.R = 0x005;                    // PRT at @500 (R has addr div 64)
@@ -1047,7 +1065,7 @@ function initialize() {
 
     displaySystemState();
     displayOctal("StopAddr", stopAddress, 5);
-    $$("RunSilently").checked = runSilently;
+    establishSilence(runSilently);
 }
 
 window.onload = function() {
@@ -1071,6 +1089,8 @@ window.onload = function() {
 <h3>B5500 Syllable Debugger</h3>
 <p>
     <input id=FileSelector type=file size=60>
+    &nbsp;&nbsp;
+    <input id=HardwareLoad type=button value="Hardware Load">
 </p>
 
 <table id=RegisterBank1 class="normal border">
