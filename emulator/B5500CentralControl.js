@@ -46,14 +46,16 @@ function B5500CentralControl() {
     this.unitBusyMask = 0;              // Peripheral unit busy-status bitmask
 
     this.PB1L = 0;                      // 0=> PA is P1, 1=> PB is P1
+    this.inhCCI03F = 0;                 // 0=> allow timer interrupts; 1=> inhibit 'em
     this.cardLoadSelect = 0;            // 0=> load from disk/drum; 1=> load from cards
 
     this.nextTimeStamp = 0;             // Next actual Date.getTime() for timer tick
     this.timer = null;                  // Reference to the RTC setTimeout id.
     this.loadTimer = null;              // Reference to the load setTimeout id.
 
-    this.tock.that = this;              // Establish contexts for when called from setTimeout().
-    this.loadComplete.that = this;
+    // Establish contexts for asynchronously-called methods
+    this.boundTock = B5500CentralControl.bindMethod(this.tock, this);
+    this.boundLoadComplete = B5500CentralControl.bindMethod(this.loadComplete, this);
 
     this.clear();                       // Create and initialize the Central Control state
 }
@@ -61,7 +63,7 @@ function B5500CentralControl() {
 /**************************************/
     /* Global constants */
 
-B5500CentralControl.version = "0.02";
+B5500CentralControl.version = "0.03";
 
 B5500CentralControl.rtcTick = 1000/60; // Real-time clock period, milliseconds
 
@@ -149,16 +151,23 @@ B5500CentralControl.unitSpecs = {
 
 
 /**************************************/
+B5500CentralControl.bindMethod = function(f, context) {
+    /* Returns a new function that binds the function "f" to the object "context".
+    Note that this is a constructor property function, NOT an instance method of
+    the CC object */
+
+    return (function() {f.apply(context, arguments)});
+};
+
+/**************************************/
 B5500CentralControl.prototype.clear = function() {
     /* Initializes (and if necessary, creates) the system and starts the
     real-time clock */
 
     if (this.timer) {
         clearTimeout(this.timer);
+        this.timer = null;
     }
-
-    this.nextTimeStamp = new Date().getTime() + B5500CentralControl.rtcTick;
-    this.timer = setTimeout(this.tock, B5500CentralControl.rtcTick);
 
     this.IAR = 0;                       // Interrupt address register
     this.TM = 0;                        // Real-time clock (6 bits, 60 ticks per second)
@@ -531,20 +540,19 @@ B5500CentralControl.prototype.clearInterrupt = function() {
 B5500CentralControl.prototype.tock = function tock() {
     /* Handles the 1/60th second real-time clock tick */
     var interval;                       // milliseconds to next tick
-    var that = tock.that;               // capture the current closure context
     var thisTime = new Date().getTime();
 
-    if (that.TM < 63) {
-        that.TM++;
+    if (this.TM < 63) {
+        this.TM++;
     } else {
-        that.TM = 0;
-        /********** INHIBIT FOR NOW **********
-        that.CCI03F = 1;                // set timer interrupt
-        that.signalInterrupt();
-        *************************************/
+        this.TM = 0;
+        if (!this.inhCCI03F) {
+            this.CCI03F = 1;            // set timer interrupt
+            this.signalInterrupt();
+        }
     }
-    interval = (that.nextTimeStamp += B5500CentralControl.rtcTick) - thisTime;
-    that.timer = setTimeout(that.tock, (interval < 0 ? 1 : interval));
+    interval = (this.nextTimeStamp += B5500CentralControl.rtcTick) - thisTime;
+    this.timer = setTimeout(this.boundTock, (interval < 0 ? 1 : interval));
 };
 
 /**************************************/
@@ -653,6 +661,15 @@ B5500CentralControl.prototype.setUnitBusy = function(index, busy) {
 B5500CentralControl.prototype.halt = function() {
     /* Halts the processors. Any in-process I/Os are allowed to complete */
 
+    if (this.timer) {
+        clearTimeout(this.timer);
+        this.timer = null;
+    }
+    if (this.loadTimer) {
+        clearTimeout(this.loadTimer);
+        this.loadTimer = null;
+    }
+
     if (this.PA && this.PA.busy) {
         this.PA.busy = 0;
         this.PA.cycleLimit = 0;
@@ -670,11 +687,6 @@ B5500CentralControl.prototype.halt = function() {
             this.PB.scheduler = null;
         }
     }
-
-    if (this.loadTimer) {
-        clearTimeout(this.loadTimer);
-        this.loadTimer = null;
-    }
 };
 
 /**************************************/
@@ -682,33 +694,32 @@ B5500CentralControl.prototype.loadComplete = function loadComplete() {
     /* Monitors an initial load I/O operation for complete status.
     When complete, initiates P1 */
     var completed = false;              // true if some I/O Unit finished
-    var that = loadComplete.that;       // capture the current closure context
 
-    if (that.CCI08F) {                  // I/O Unit 1 finished
+    if (this.CCI08F) {                  // I/O Unit 1 finished
         completed = true;
-        that.CCI08F = 0;
-        that.AD1F = 0;
-    } else if (that.CCI09F) {           // I/O Unit 2 finished
+        this.CCI08F = 0;
+        this.AD1F = 0;
+    } else if (this.CCI09F) {           // I/O Unit 2 finished
         completed = true;
-        that.CCI09F = 0;
-        that.AD2F = 0;
-    } else if (that.CCI10F) {           // I/O Unit 3 finished
+        this.CCI09F = 0;
+        this.AD2F = 0;
+    } else if (this.CCI10F) {           // I/O Unit 3 finished
         completed = true;
-        that.CCI10F = 0;
-        that.AD3F = 0;
-    } else if (that.CCI11F) {           // I/O Unit 4 finished
+        this.CCI10F = 0;
+        this.AD3F = 0;
+    } else if (this.CCI11F) {           // I/O Unit 4 finished
         completed = true;
-        that.CCI11F = 0;
-        that.AD4F = 0;
-    } else {                            // Nothing finished yet (or there was an error)
-        that.loadTimer = setTimeout(that.loadComplete, 100);
+        this.CCI11F = 0;
+        this.AD4F = 0;
+    //} else {                            // Nothing finished yet (or there was an error)
+    //    this.loadTimer = setTimeout(this.boundLoadComplete, 1000);
     }
 
     if (completed) {
-        that.loadTimer = null;
-        that.LOFF = 0;
-        that.P1.preset(0x10);           // start execution at C=@20
-        that.P1.start();                // let'er rip
+        this.loadTimer = null;
+        this.LOFF = 0;
+        this.P1.preset(0x10);           // start execution at C=@20
+        this.P1.start();                // let'er rip
     }
 };
 
@@ -718,23 +729,21 @@ B5500CentralControl.prototype.load = function() {
 
     if (this.P1 && !this.P1.busy) {
         this.clear();
+        this.nextTimeStamp = new Date().getTime() + B5500CentralControl.rtcTick;
+        this.timer = setTimeout(this.boundTock, B5500CentralControl.rtcTick);
         this.LOFF = 1;
         if (this.IO1 && this.IO1.REMF && !this.AD1F) {
             this.AD1F = 1;
-            this.IO1.initiateLoad(this.cardLoadSelect);
-            this.loadComplete();
+            this.IO1.initiateLoad(this.cardLoadSelect, this.boundLoadComplete);
         } else if (this.IO2 && this.IO2.REMF && !this.AD2F) {
             this.AD2F = 1;
-            this.IO2.initiateLoad(this.cardLoadSelect);
-            this.loadComplete();
+            this.IO2.initiateLoad(this.cardLoadSelect, this.boundLoadComplete);
         } else if (this.IO3 && this.IO3.REMF && !this.AD3F) {
             this.AD3F = 1;
-            this.IO3.initiateLoad(this.cardLoadSelect);
-            this.loadComplete();
+            this.IO3.initiateLoad(this.cardLoadSelect, this.boundLoadComplete);
         } else if (this.IO4 && this.IO4.REMF && !this.AD4F) {
             this.AD4F = 1;
-            this.IO4.initiateLoad(this.cardLoadSelect);
-            this.loadComplete();
+            this.IO4.initiateLoad(this.cardLoadSelect, this.boundLoadComplete);
         } else {
             this.CCI04F = 1;                // set I/O busy interrupt
         }
@@ -744,11 +753,11 @@ B5500CentralControl.prototype.load = function() {
 /**************************************/
 B5500CentralControl.prototype.loadTest = function(buf, loadAddr) {
     /* Loads a test codestream into memory starting at B5500 word address
-       "loadAddr" from the ArrayBuffer "buf". Returns the number of B5500
-       words loaded into memory. Note that when loading an ESPOL "DISK" file,
-       the first executable location is @20, so you will typically want to load
-       to address 0 and call cc.runTest(0x10) [where 0x10 = @20]. This routine
-       should not be used to load ESPOL "DECK" files */
+    "loadAddr" from the ArrayBuffer "buf". Returns the number of B5500
+    words loaded into memory. Note that when loading an ESPOL "DISK" file,
+    the first executable location is @20, so you will typically want to load
+    to address 0 and call cc.runTest(0x10) [where 0x10 = @20]. This routine
+    should not be used to load ESPOL "DECK" files */
     var addr = loadAddr;            // starting B5500 memory address
     var bytes = buf.byteLength;
     var data = new DataView(buf);   // use DataView() to avoid problems with littleendians.
@@ -799,8 +808,8 @@ B5500CentralControl.prototype.loadTest = function(buf, loadAddr) {
 /**************************************/
 B5500CentralControl.prototype.runTest = function(runAddr) {
     /* Executes a test program previously loaded by this.loadTest on processor
-       P1. "runAddr" is the B5500 word address at which execution will begin
-       (typically 0x10 [octal 20]) */
+    P1. "runAddr" is the B5500 word address at which execution will begin
+    (typically 0x10 [octal 20]) */
 
     this.clear();
     this.loadTimer = null;
@@ -908,7 +917,7 @@ B5500CentralControl.prototype.configureSystem = function() {
         }
     }
 
-    // Peripheral unit configuration should take place here once we have it.
+    this.clear();
 };
 
 /**************************************/

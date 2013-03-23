@@ -43,7 +43,9 @@ function B5500Processor(procID, cc) {
         MPED: 0,                           // Truthy if memory parity error
         MAED: 0                            // Truthy if memory address/inhibit error
     };
-    this.schedule.that = this;          // Establish context for when called from setTimeout()
+
+    // Establish context for asynchronously-called methods
+    this.boundSchedule = B5500CentralControl.bindMethod(this.schedule, this);
 
     this.clear();                       // Create and initialize the processor state
 }
@@ -1341,7 +1343,7 @@ B5500Processor.prototype.start = function() {
 
     this.busy = 1;
     this.procTime = new Date().getTime()*1000;
-    this.scheduler = setTimeout(this.schedule, 0);
+    this.scheduler = setTimeout(this.boundSchedule, 0);
 };
 
 /**************************************/
@@ -1457,7 +1459,7 @@ B5500Processor.prototype.initiateAsP2 = function() {
 
     // Now start scheduling P2 on the Javascript thread
     this.procTime = new Date().getTime()*1000;
-    this.scheduler = setTimeout(this.schedule, 0);
+    this.scheduler = setTimeout(this.boundSchedule, 0);
 };
 
 /**************************************/
@@ -3418,6 +3420,7 @@ B5500Processor.prototype.run = function() {
                     }
                     this.M = this.B % 0x8000;
                     this.G = (this.B % 0x40000) >>> 15;
+                    this.AROF = 0;                      // invalidate A
                     break;
 
                 case 0x2F:              // XX57: JRV=Jump reverse unconditional
@@ -4535,8 +4538,8 @@ B5500Processor.prototype.run = function() {
 /**************************************/
 B5500Processor.prototype.schedule = function schedule() {
     /* Schedules the processor run time and attempts to throttle performance
-    to approximate that of a real B5500. Well, at least we hope this will run
-    fast enough that the performance will need to be throttled. It establishes
+    to approximate that of a real B5500 (well, at least we hope this will run
+    fast enough that the performance will need to be throttled). It establishes
     a timeslice in terms of a number of processor "cycles" of 1 microsecond
     each and calls run() to execute at most that number of cycles. run()
     counts up cycles until it reaches this limit or some terminating event
@@ -4545,20 +4548,19 @@ B5500Processor.prototype.schedule = function schedule() {
     throttling the performance and allowing other modules a chance at the
     Javascript execution thread. */
     var delayTime;
-    var that = schedule.that;
 
-    that.scheduler = null;
-    that.cycleLimit = B5500Processor.timeSlice;
-    that.cycleCount = 0;
+    this.scheduler = null;
+    this.cycleLimit = B5500Processor.timeSlice;
+    this.cycleCount = 0;
 
-    that.run();
+    this.run();                         // execute syllables for the timeslice
 
-    that.totalCycles += that.cycleCount
-    that.procTime += that.cycleCount;
-    if (that.busy) {
-        delayTime = that.procTime/1000 - new Date().getTime();
-        that.procSlack += delayTime;
-        that.scheduler = setTimeout(that.schedule, (delayTime < 0 ? 1 : delayTime));
+    this.totalCycles += this.cycleCount
+    this.procTime += this.cycleCount;
+    if (this.busy) {
+        delayTime = this.procTime/1000 - new Date().getTime();
+        this.procSlack += delayTime;
+        this.scheduler = setTimeout(this.boundSchedule, (delayTime < 0 ? 1 : delayTime));
     }
 };
 

@@ -22,15 +22,18 @@
 * Electronics Units specified by the "euSet" constant, each consisting of the number
 * of 30-word segments (sectors) specified by the "EUn" properties of "euSet".
 *
-* If the ColdStart box is checked on the page, the disk directory structure on
+* If the ColdStart button is clicked on the page, the disk directory structure on
 * EU0 is overwritten with a new, empty directory structure, and a default set of
-* the system parameters are created.
+* the system parameters is created.
 *
+* Once the disk subsystem has been coldstarted, you can load files from a local
+* file on your workstation. You can run the loader to load files without cold-
+* starting first, but the disk subsystem must have been previously coldstarted
+* in order to load any files.
 *
-*=======================================================================
-* The script then reads a Burroughs B5500 Library/Maintenance tape as one
-* large blob and extracts all files, converting the 6-bit B5500 Internal Code
-* (BIC) characters to 8-bit ASCII. All files are extracted.
+* To load files, use the file picker on the upper-right of the page (usually
+* identified by a "Browse" or "Choose File" button) and select a blob file that
+* represents a Burroughs B5500 Library/Maintenance tape.
 *
 * The blob is assumed to be in the so-called ".bcd" format. Each 7-bit frame
 * from the tape is represented as one 8-bit unsigned byte. The low-order six
@@ -39,11 +42,19 @@
 * at the start of a physical tape block. Tape marks (EOF) are indicated by a
 * block containing a single 0x8F byte.
 *
-* The extraction process is driven by the tape directory at the beginning of
-* the tape volume. Continuation "reels" are not currently supported.
+* After selecting the file, the page will display the file directory on the tape.
+* Each file name has a checkbox to its left that will select that file as one to
+* be loaded. Radio buttons on the right may be used optionally to designate one
+* of the selected files as the MCP and another as the System Intrinsics (INT).
+* Marking a file as the MCP or Intrinsics causes the bootstrap parameters in
+* sector 0 of DKA EU0 to be updated accordingly.
 *
-* To use, select the .bcd file using the file selection control on the page.
-* The script writes a log of activity to the web page.
+* Once you have selected the files to load, click the "Load" button at the bottom
+* of the page. The page will output a log of the load activity at the end of the
+* page.
+*
+* The files to be loaded must be on one contiguous tape image, contained in one
+* blob file. Continuation "reels" are not currently supported.
 ************************************************************************
 * 2012-12-29  P.Kimpel
 *   Original version, from B5500LibMaintExtract.html.
@@ -51,14 +62,14 @@
 "use strict";
 
 window.onload = function() {
-    const configName = "CONFIG";        // database configuration store name
-    const dbName = "B5500DiskUnit";     // IDB database name
-    const dbVersion = 1;                // current IDB database version
-    const directoryTop = 2000;          // start of directory area
-    const directoryEnd = 3008;          // end of directory area
-    const euSize = 200000;              // model I size (5 Storage Units: 6MW or 48MC)
-    const euPrefix = "EU";              // prefix for EU object store names
-    const tapeMark = 0x8F;              // .bcd file tapemark (EOF) octet code
+    var configName = "CONFIG";          // database configuration store name
+    var dbName = "B5500DiskUnit";       // IDB database name
+    var dbVersion = 1;                  // current IDB database version
+    var directoryTop = 2000;            // start of directory area
+    var directoryEnd = 3008;            // end of directory area
+    var euSize = 200000;                // model I size (5 Storage Units: 6MW or 48MC)
+    var euPrefix = "EU";                // prefix for EU object store names
+    var tapeMark = 0x8F;                // .bcd file tapemark (EOF) octet code
 
     var availDisk = null;               // available disk space map
     var config = null;                  // copy of CONFIG store contents
@@ -1642,6 +1653,15 @@ window.onload = function() {
         function initializeDirectory(config) {
             /* Initializes the directory structure on EU0. "config" is the
             database CONFIG structure */
+            var b55Date;
+            var stamp = new Date();
+            var x;
+
+            // Compute a 1980s date based on today's date, formatted as BIC
+            x = stamp.getTime() - new Date(stamp.getFullYear, stamp.getMonth(), 1);
+            x = Math.floor(x/86400000) + 1;                         // day-of-year number
+            b55Date = (((8*64 + stamp.getYear()%10)*64 +
+                    Math.floor(x/100))*64 + Math.floor(x/10)%10)*64 + x%10;
 
             // Initialize the directory labels segment
             stringToANSI("0000001?", fileLabels, 14*16);            // @114, last-entry marker
@@ -1713,7 +1733,7 @@ window.onload = function() {
                                                     //  1:  UNUSED
                        0;                           //  0: (flag bit)
 
-            info[ 1] = 0x8000001;           // Date: BIC "00080001" = 80001 = 1980-01-01
+            info[ 1] = b55Date;             // date as BIC
             info[ 2] = config.eus;          // number of EUs
             info[ 3] = 0;                   // not used
             info[ 4] = directoryEnd;        // DIRECT deck option

@@ -60,6 +60,9 @@ function B5500IOUnit(ioUnitID, cc) {
     this.bufferArea = new ArrayBuffer(16384);
     this.buffer = new Uint8Array(this.bufferArea);
 
+    // Establish contexts for asynchronously-called methods
+    this.boundForkIO = B5500CentralControl.bindMethod(this.forkIO, this);
+
     this.clear();                       // Create and initialize the processor state
 }
 
@@ -554,11 +557,9 @@ B5500IOUnit.prototype.makeFinish = function(f) {
 };
 
 /**************************************/
-B5500IOUnit.prototype.finishGeneric = function(errorMask, length) {
-    /* Handles a generic I/O finish when no word-count update or input data
-    transfer is needed. Can also be used to apply common error mask posting
-    at the end of specialized finish handlers. Note that this turns off the
-    busyUnit mask bit in CC */
+B5500IOUnit.prototype.decodeErrorMask = function(errorMask) {
+    /* Decodes the errorMask returned by the device drivers and ORs it into
+    the D-register error bits */
 
     if (errorMask & 0x01) {this.D32F = 1}
     if (errorMask & 0x02) {this.D31F = 1}
@@ -567,6 +568,16 @@ B5500IOUnit.prototype.finishGeneric = function(errorMask, length) {
     if (errorMask & 0x10) {this.D28F = 1}
     if (errorMask & 0x20) {this.D27F = 1}
     if (errorMask & 0x40) {this.D26F = 1}
+};
+
+/**************************************/
+B5500IOUnit.prototype.finishGeneric = function(errorMask, length) {
+    /* Handles a generic I/O finish when no word-count update or input data
+    transfer is needed. Can also be used to apply common error mask posting
+    at the end of specialized finish handlers. Note that this turns off the
+    busyUnit mask bit in CC */
+
+    this.decodeErrorMask(errorMask);
     this.cc.setUnitBusy(this.busyUnit, 0);
     this.finish();
 };
@@ -758,7 +769,6 @@ B5500IOUnit.prototype.initiate = function() {
     actual I/O operation to run asynchronously from the processor. Of course, in a browser
     environment, all of the Javascript action occurs on one thread, so this allows us to
     multiplex what are supposed to be asynchronous operations on that thread */
-    var that = this;                    // Establish object context for the callback
 
     this.clearD();
     this.AOFF = 0;
@@ -774,7 +784,56 @@ B5500IOUnit.prototype.initiate = function() {
         } else {
             this.D31F = 0;              // reset the IOD-fetch error condition
             this.D = this.W;
-            this.forkHandle = setTimeout(function() {that.forkIO()}, 0);
+            this.forkHandle = setTimeout(this.boundForkIO, 0);
+        }
+    }
+};
+
+/**************************************/
+B5500IOUnit.prototype.initiateLoad = function(cardLoadSelect, loadComplete) {
+    /* Initiates a hardware load operation on this I/O unit. "cardLoadSelect" is true
+    if the load is to come from the card reader, otherwise it will come from sector 1
+    of DKA EU0. "loadComplete" is called on completion of the I/O.
+    CentralControl calls this function in response to the Load button being
+    pressed and released. Since there is no IOD in memory, we must generate one in the
+    D register and initiate the I/O intrinsically. Note that if the I/O has an error,
+    the RD is not stored and the I/O finish interrupt is not set in CC */
+    var index;
+    var u;
+
+    function finishDiskLoad(errorMask, length) {
+        var memWords = Math.floor((length+7)/8);
+
+        this.storeBuffer(length, 0, this.D21F, memWords);
+        this.decodeErrorMask(errorMask);
+        this.cc.setUnitBusy(this.busyUnit, 0);
+        if (errorMask) {
+            this.busy = 0;
+            this.busyUnit = 0;
+        } else {
+            this.finish();
+        }
+        loadComplete();
+    }
+
+    this.clearD();
+    if (cardLoadSelect) {
+        alert("Card Load Select is not yet implemented");
+    } else {
+        this.D = 0x0600009F8010;        // unit 6, read, 63 segs, addr @00020
+        this.Dunit = 6;                 // 6=DKA
+        this.D24F = 1;                  // read
+        this.LP = 63;                   // 63 sectors
+        this.Daddress = 0x10;           // memory address @20
+        this.busyUnit = index = B5500CentralControl.unitIndex[this.D24F & 1][this.Dunit & 0x1F];
+        if (this.cc.testUnitBusy(index)) {
+            this.D32F = 1;              // set unit busy error
+        } else if (!this.cc.testUnitReady(index)) {
+            this.D30F = 1;              // set unit not-ready error
+        } else {
+            this.cc.setUnitBusy(index, 1);
+            u = this.cc.unit[index];
+            u.read(this.makeFinish(finishDiskLoad), this.buffer, 63*240, this.D21F, 1);
         }
     }
 };
