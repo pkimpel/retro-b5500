@@ -62,6 +62,10 @@ function B5500IOUnit(ioUnitID, cc) {
 
     // Establish contexts for asynchronously-called methods
     this.boundForkIO = B5500CentralControl.bindMethod(this.forkIO, this);
+    this.boundFinishGeneric = this.makeFinish(this.finishGeneric);
+    this.boundFinishBusy = this.makeFinish(this.finishBusy);
+    this.boundFinishDiskRead = this.makeFinish(this.finishDiskRead);
+    this.boundFinishSPORead = this.makeFinish(this.finishSPORead);
 
     this.clear();                       // Create and initialize the processor state
 }
@@ -571,6 +575,18 @@ B5500IOUnit.prototype.decodeErrorMask = function(errorMask) {
 };
 
 /**************************************/
+B5500IOUnit.prototype.finishBusy = function(errorMask, length) {
+    /* Handles a generic I/O finish when no word-count update or input data
+    transfer is needed, but leaves the unit marked as busy in CC. This is needed
+    by device operations that have a separate completion signal, such as line
+    printer finish and disk read-check. The completion signal is responsible for
+    resetting unit busy status */
+
+    this.decodeErrorMask(errorMask);
+    this.finish();
+};
+
+/**************************************/
 B5500IOUnit.prototype.finishGeneric = function(errorMask, length) {
     /* Handles a generic I/O finish when no word-count update or input data
     transfer is needed. Can also be used to apply common error mask posting
@@ -636,15 +652,15 @@ B5500IOUnit.prototype.initiateDiskIO = function(u) {
         }
 
         if (this.D18F) {                // mem inhibit => read check operation
-            u.readCheck(this.makeFinish(this.finishGeneric), segChars, segAddr);
+            u.readCheck(this.boundFinishBusy, segChars, segAddr);
         } else if (this.D23F && this.DwordCount == 0) {
             if (this.D24F) {            // read interrogate operation
-                u.readInterrogate(this.makeFinish(this.finishGeneric), segAddr);
+                u.readInterrogate(this.boundFinishGeneric, segAddr);
             } else {                    // write interrogate operation
-                u.writeInterrogate(this.makeFinish(this.finishGeneric), segAddr);
+                u.writeInterrogate(this.boundFinishGeneric, segAddr);
             }
         } else if (this.D24F) {         // it's a read data operation
-            u.read(this.makeFinish(this.finishDiskRead), this.buffer, segChars, this.D21F, segAddr);
+            u.read(this.boundFinishDiskRead, this.buffer, segChars, this.D21F, segAddr);
         } else {                        // it's a write data operation
             memWords = (this.D23F ? this.DwordCount : segWords);
             if (segWords <= memWords) { // transfer size is limited by number of segs
@@ -656,8 +672,44 @@ B5500IOUnit.prototype.initiateDiskIO = function(u) {
                     this.buffer[x++] = c;
                 }
             }
-            u.write(this.makeFinish(this.finishGeneric), this.buffer, segChars, this.D21F, segAddr);
+            u.write(this.boundFinishGeneric, this.buffer, segChars, this.D21F, segAddr);
         }
+    }
+};
+
+/**************************************/
+B5500IOUnit.prototype.initiatePrinterIO = function(u) {
+    /* Initiates an I/O to a Line Printer unit */
+    var addr = this.Daddress;           // initial data transfer address
+    var cc;                             // carriage control value to driver
+    var chars;                          // characters to print
+    var memWords;                       // words to fetch from memory
+
+    if (this.D24F) {
+        this.D30F = 1;                  // can't read from the printer
+        this.finish();
+    } else {
+        memWords = this.DwordCount;
+        if (memWords > 0) {
+            chars = memWords*8;
+        } else {
+            memWords = 17;              // assume a 132-character printer
+            chars = 132;
+        }
+        cc = this.LP;
+        if (cc & 0x0F) {
+            cc = -(cc & 0x0F);          // skip to channel after print
+        } else if (cc & 0x10) {
+            cc = 2;                     // double space after print
+        } else if (cc & 0x20) {
+            cc = 1;                     // single space after print
+        } else {
+            cc = 0;                     // zero space after print
+        }
+        this.fetchBuffer(1, memWords);
+        this.DwordCount = memWords*32;  // actual word count in D.[8:5], D.[13:5]=0
+        this.Daddress = addr-1;         // printer accesses memory backwards, so final address is initial-1
+        u.write(this.boundFinishBusy, this.buffer, chars, 0, cc);
     }
 };
 
@@ -673,8 +725,8 @@ B5500IOUnit.prototype.forkIO = function forkIO() {
     this.forkHandle = null;             // clear the setTimeout() handle
 
     x = this.D;                         // explode the D-register into its fields
-    this.Dunit = this.cc.fieldIsolate(x, 3, 5);
-    this.DwordCount = this.cc.fieldIsolate(x, 8, 10);
+    this.Dunit = (x%0x200000000000 - x%0x10000000000)/0x10000000000;    // [3:5]
+    this.DwordCount = (x%0x10000000000 - x%0x40000000)/0x40000000;      // [8:10]
     x = x % 0x40000000;                 // isolate low-order 30 bits
     this.D18F = (x >>> 29) & 1;         // memory inhibit
     this.D21F = (x >>> 26) & 1;         // mode
@@ -704,7 +756,7 @@ B5500IOUnit.prototype.forkIO = function forkIO() {
         // printer designates
         case 22:
         case 26:
-            this.D30F = 1; this.finish(); // >>> temp until implemented <<<
+            this.initiatePrinterIO(u);
             break;
 
         // datacom designate
@@ -725,10 +777,10 @@ B5500IOUnit.prototype.forkIO = function forkIO() {
         // SPO designate
         case 30:
             if (this.D24F) {
-                u.read(this.makeFinish(this.finishSPORead), this.buffer, 0x7FFF, 0, 0);
+                u.read(this.boundFinishSPORead, this.buffer, 0x7FFF, 0, 0);
             } else {
                 chars = this.fetchBufferWithGM(1, 0x7FFF);
-                u.write(this.makeFinish(this.finishGeneric), this.buffer, chars, 0, 0);
+                u.write(this.boundFinishGeneric, this.buffer, chars, 0, 0);
             }
             break;
 

@@ -41,7 +41,7 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal) {
         this.window.close();            // destroy the previously-existing window
         this.window = null;
     }
-    this.window = window.open("./B5500SPOUnit.html", "SPOWin", "scrollbars,resizable,width=600,height=500");
+    this.window = window.open("/B5500/webUI/B5500SPOUnit.html", "SPOWin", "scrollbars,resizable,width=600,height=500");
     this.window.onload = function() {
         that.spoOnload();
     };
@@ -459,12 +459,12 @@ B5500SPOUnit.prototype.spoOnload = function() {
     };
 
     this.window.onkeypress = function(ev) {
-        if (ev.keyCode == 191) ev.preventDefault();
+        if (ev.keyCode == 191) {ev.preventDefault()};
         that.keyPress(ev);
     };
 
     this.window.onkeydown = function(ev) {
-        if (ev.keyCode == 191) ev.preventDefault();
+        if (ev.keyCode == 191) {ev.preventDefault()};
         that.keyDown(ev);
     };
 

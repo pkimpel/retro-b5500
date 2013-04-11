@@ -24,6 +24,7 @@ window.onload = function() {
     var bNormal;
     var boundBlinkenlicht;
     var cc = new B5500CentralControl();
+    var lastBusyMask = 0;
     var timer;
     var timerInterval = 50;             // milliseconds
 
@@ -62,10 +63,12 @@ window.onload = function() {
         cc.halt();
         $$("HaltBtn").disabled = true;
         $$("LoadBtn").disabled = false;
+        /*****
         if (timer) {
             clearTimeout(timer);
             timer = null;
         }
+        *****/
     }
 
     function LoadBtn_Click(ev) {
@@ -73,6 +76,38 @@ window.onload = function() {
         $$("HaltBtn").disabled = false;
         $$("LoadBtn").disabled = true;
         boundBlinkenlicht();
+    }
+
+    function displayCentralControl() {
+        /* Displays the I/O and interrupt status in Central Control */
+        var cells;
+        var s;
+        var busyMask = cc.unitBusyMask;
+        var busyChange = lastBusyMask ^ busyMask;
+        var x;
+
+        lastBusyMask = busyMask;
+
+        $$("AD1F").className = (cc.AD1F ? "busy" : "");
+        $$("AD2F").className = (cc.AD2F ? "busy" : "");
+        $$("AD3F").className = (cc.AD3F ? "busy" : "");
+        $$("AD4F").className = (cc.AD4F ? "busy" : "");
+
+        for (x=3; x<=16; x++) {
+            s = "CCI" + (x+100).toString().substring(1) + "F";
+            $$(s).className = (cc[s] ? "busy" : "");
+        }
+
+        cells = $$("CCPeripheralRow").cells;
+        x = 47;
+        while (busyChange) {
+            if (busyChange & 0x01) {
+                cells[x-17].className = (busyMask & 0x01 ? "busy" : "");
+            }
+            busyMask >>>= 1;
+            busyChange >>>= 1;
+            x--;
+        }
     }
 
     function dasBlinkenlicht() {
@@ -107,22 +142,45 @@ window.onload = function() {
                 }
             }
         }
-
+        displayCentralControl();
         timer = setTimeout(boundBlinkenlicht, timerInterval);
+    }
+
+    function checkBrowser() {
+        /* Checks whether this browser can support the necessary stuff */
+        var missing = "";
+
+        if (!window.indexedDB) {missing += ", IndexedDB"}
+        if (!window.ArrayBuffer) {missing += ", ArrayBuffer"}
+        if (!window.DataView) {missing += ", DataView"}
+        if (!window.Blob) {missing += ", Blob"}
+        if (!window.File) {missing += ", File"}
+        if (!window.FileReader) {missing += ", FileReader"}
+        if (!window.FileList) {missing += ", FileList"}
+
+        if (missing.length == 0) {
+            return false;
+        } else {
+            alert("No can do... your browser does not support the following features:\n" +
+                missing.substring(2));
+            return true;
+        }
     }
 
     /***** window.onload() outer block *****/
 
-    $$("PowerOnBtn").addEventListener("click", PowerOnBtn_Click);
-    $$("PowerOffBtn").addEventListener("click", PowerOffBtn_Click);
-    $$("HaltBtn").addEventListener("click", HaltBtn_Click);
-    $$("LoadBtn").addEventListener("click", LoadBtn_Click);
+    if (!checkBrowser()) {
+        $$("PowerOnBtn").addEventListener("click", PowerOnBtn_Click);
+        $$("PowerOffBtn").addEventListener("click", PowerOffBtn_Click);
+        $$("HaltBtn").addEventListener("click", HaltBtn_Click);
+        $$("LoadBtn").addEventListener("click", LoadBtn_Click);
 
-    aControl = $$("AControlBtn");
-    aNormal  = $$("ANormalBtn");
-    bControl = $$("BControlBtn");
-    bNormal  = $$("BNormalBtn");
-    boundBlinkenlicht = bindMethod(dasBlinkenlicht, this);
+        aControl = $$("AControlBtn");
+        aNormal  = $$("ANormalBtn");
+        bControl = $$("BControlBtn");
+        bNormal  = $$("BNormalBtn");
+        boundBlinkenlicht = bindMethod(dasBlinkenlicht, this);
+    }
 };
 </script>
 </head>
@@ -149,6 +207,65 @@ window.onload = function() {
         <img id=BurroughsLogoImage src="Burroughs-Logo-Neg.jpg">
     </div>
     <div id=B5500Logo> B 5500 </div>
+
+    <table id=CentralControl>
+    <colgroup>
+        <col span=32 style="width:3%">
+    </colgroup>
+    <thead>
+    <tr id=CCInterruptRow>
+        <td id=AD1F>IOU1                <!-- I/O unit 1 busy                            -->
+        <td id=AD2F>IOU2                <!-- I/O unit 2 busy                            -->
+        <td id=AD3F>IOU3                <!-- I/O unit 3 busy                            -->
+        <td id=AD4F>IOU4                <!-- I/O unit 4 busy                            -->
+        <td id=CCI03F>TIMR              <!-- Time interval interrupt                    -->
+        <td id=CCI04F>IOBZ              <!-- I/O busy interrupt                         -->
+        <td id=CCI05F>KBD               <!-- Keyboard request interrupt                 -->
+        <td id=CCI06F>PR1F              <!-- Printer 1 finished interrupt               -->
+        <td id=CCI07F>PR2F              <!-- Printer 2 finished interrupt               -->
+        <td id=CCI08F>IO1F              <!-- I/O unit 1 finished interrupt (RD in @14)  -->
+        <td id=CCI09F>IO2F              <!-- I/O unit 2 finished interrupt (RD in @15)  -->
+        <td id=CCI10F>IO3F              <!-- I/O unit 3 finished interrupt (RD in @16)  -->
+        <td id=CCI11F>IO4F              <!-- I/O unit 4 finished interrupt (RD in @17)  -->
+        <td id=CCI12F>P2BZ              <!-- P2 busy interrupt                          -->
+        <td id=CCI13F>INQ               <!-- Remote inquiry request interrupt           -->
+        <td id=CCI14F>SPEC              <!-- Special interrupt #1 (not used)            -->
+        <td id=CCI15F>DK1F              <!-- Disk file #1 read check finished           -->
+        <td id=CCI16F>DK2F              <!-- Disk file #2 read check finished           -->
+        <td colspan=13>
+    <tr id=CCPeripheralRow>
+        <td id=DCA>DCA                  <!-- 17 -->
+        <td id=PPB>PPB                  <!-- 18 -->
+        <td id=PRB>PRB                  <!-- 19 -->
+        <td id=PRA>PRA                  <!-- 20 -->
+        <td id=PPA>PPA                  <!-- 21 -->
+        <td id=SPO>SPO                  <!-- 22 -->
+        <td id=CRB>CRB                  <!-- 23 -->
+        <td id=CRA>CRA                  <!-- 24 -->
+        <td id=CPA>CPA                  <!-- 25 -->
+        <td id=LPB>LPB                  <!-- 26 -->
+        <td id=LPA>LPA                  <!-- 27 -->
+        <td id=DKB>DKB                  <!-- 28 -->
+        <td id=DKA>DKA                  <!-- 29 -->
+        <td id=DRB>DRB                  <!-- 30 -->
+        <td id=DRA>DRA                  <!-- 31 -->
+        <td id=MTT>MTT                  <!-- 32 -->
+        <td id=MTS>MTS                  <!-- 33 -->
+        <td id=MTR>MTR                  <!-- 34 -->
+        <td id=MTP>MTP                  <!-- 35 -->
+        <td id=MTN>MTN                  <!-- 36 -->
+        <td id=MTM>MTM                  <!-- 37 -->
+        <td id=MTL>MTL                  <!-- 38 -->
+        <td id=MTK>MTK                  <!-- 39 -->
+        <td id=MTJ>MTJ                  <!-- 40 -->
+        <td id=MTH>MTH                  <!-- 41 -->
+        <td id=MTF>MTF                  <!-- 42 -->
+        <td id=MTE>MTE                  <!-- 43 -->
+        <td id=MTD>MTD                  <!-- 44 -->
+        <td id=MTC>MTC                  <!-- 45 -->
+        <td id=MTB>MTB                  <!-- 46 -->
+        <td id=MTA>MTA                  <!-- 47 -->
+    </table>
 </div>
 
 </body>

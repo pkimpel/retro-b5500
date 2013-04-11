@@ -128,7 +128,7 @@ B5500DiskUnit.prototype.copySegment = function(seg, buffer, offset) {
         }
     } else {
         for (x=offset+239; x>=offset; x--) {
-            buffer[x] = 0;
+            buffer[x] = 0x23;           // ASCII "#", translates as alpha to BIC "0" = @00
         }
     }
 };
@@ -363,9 +363,11 @@ B5500DiskUnit.prototype.readCheck = function(finish, length, control) {
     euSize = this.config[euName];
     if (!euSize) {                      // EU does not exist
         finish(this.errorMask | 0x20, 0);       // set D27F for EU not ready
+        this.signal();
         // DO NOT clear the error mask
     } else if (segAddr < 0) {
         finish(this.errorMask | 0x20, 0);       // set D27F for invalid starting seg address
+        this.signal();
         // DO NOT clear the error mask
     } else {
         if (endAddr >= euSize) {        // if read is past end of disk
@@ -379,10 +381,12 @@ B5500DiskUnit.prototype.readCheck = function(finish, length, control) {
 
         if (segs < 1) {                 // No length specified, so just finish the I/O
             finish(this.errorMask, 0);
+            this.signal();
             // DO NOT clear the error mask -- will return it on the next interrogate
         } else {                        // A multi-segment read
             range = window.IDBKeyRange.bound(segAddr, endAddr);
-            txn = this.disk.transacation(euName);
+            txn = this.disk.transaction(euName);
+            finish(that.errorMask, length);     // post I/O complete now -- DFCU will signal when check finished
 
             req = txn.objectStore(euName).openCursor(range);
             req.onsuccess = function(ev) {
@@ -392,7 +396,7 @@ B5500DiskUnit.prototype.readCheck = function(finish, length, control) {
                     cursor.continue();
                 } else {                // at end of range
                     setTimeout(function() {
-                        finish(that.errorMask, length);
+                        that.signal();
                         // DO NOT clear the error mask
                     }, finishTime - new Date().getTime());
                 }
