@@ -1654,14 +1654,17 @@ window.onload = function() {
             /* Initializes the directory structure on EU0. "config" is the
             database CONFIG structure */
             var b55Date;
+            var b55Time;
             var stamp = new Date();
             var x;
 
             // Compute a 1980s date based on today's date, formatted as BIC
-            x = stamp.getTime() - new Date(stamp.getFullYear, stamp.getMonth(), 1);
+            x = stamp.getTime() - new Date(stamp.getFullYear(), 0, 1).getTime();
             x = Math.floor(x/86400000) + 1;                         // day-of-year number
             b55Date = (((8*64 + stamp.getYear()%10)*64 +
                     Math.floor(x/100))*64 + Math.floor(x/10)%10)*64 + x%10;
+            b55Time = Math.floor(((stamp.getHours()*60 + stamp.getMinutes())*60 +
+                    stamp.getSeconds())*60 + stamp.getMilliseconds()*60/1000);
 
             // Initialize the directory labels segment
             stringToANSI("0000001?", fileLabels, 14*16);            // @114, last-entry marker
@@ -1690,8 +1693,8 @@ window.onload = function() {
                        pow2[47-44] +                // 44: print EOJ
                        pow2[47-43] +                // 43: type file open
                        pow2[47-42] +                // 42: call TERMINATE procedure
-                       pow2[47-41] +                // 41: initialize date @ H/L
-                       pow2[47-40] +                // 40: initialize time @ H/L
+                                                    // 41: initialize date @ H/L
+                                                    // 40: initialize time @ H/L
                                                     // 39: use only one breakout tape
                                                     // 38: automatically print pbt
                        pow2[47-37] +                // 37: clear write ready status @ terminal
@@ -1733,7 +1736,7 @@ window.onload = function() {
                                                     //  1:  UNUSED
                        0;                           //  0: (flag bit)
 
-            info[ 1] = b55Date;             // date as BIC
+            info[ 1] = b55Date;             // YYDDD date as BIC
             info[ 2] = config.eus;          // number of EUs
             info[ 3] = 0;                   // not used
             info[ 4] = directoryEnd;        // DIRECT deck option
@@ -1741,7 +1744,7 @@ window.onload = function() {
             info[ 6] = 0;                   // first control deck queued
             info[ 7] = 0;                   // last control deck queued
             info[ 8] = 0;                   // next number available for printer backup disk
-            info[ 9] = 100;                 // multiprocessing core factor
+            info[ 9] = 100*0x40000000;      // multiprocessing core factor * 100
             info[10] = 0;                   // SPO stations (through info[15])
             info[11] = 0;
             info[12] = 0;
@@ -1750,7 +1753,7 @@ window.onload = function() {
             info[15] = 0;
             info[16] = 15;                  // Q value for datacom input
             info[17] = 0;                   // remote SPO mask
-            info[18] = 0;                   // time of day (XCLOCK)
+            info[18] = b55Time;             // time of day (XCLOCK)
             info[19] = 0;                   // FENCE address (TSSMCP only)
             info[20] = 0;                   // log pointer
             info[21] = 0;                   // status of schedule lines (TSSMCP only)

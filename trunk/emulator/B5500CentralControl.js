@@ -63,7 +63,7 @@ function B5500CentralControl() {
 /**************************************/
     /* Global constants */
 
-B5500CentralControl.version = "0.03";
+B5500CentralControl.version = "0.04";
 
 B5500CentralControl.rtcTick = 1000/60; // Real-time clock period, milliseconds
 
