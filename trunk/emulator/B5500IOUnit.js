@@ -644,7 +644,7 @@ B5500IOUnit.prototype.initiateDiskIO = function(u) {
     } else {
         this.Daddress++;                // bump memory address past the seg address word
         w = this.W;                     // convert address word to binary
-        for (x=0; x<7; x++) {
+        for (x=0; x<7; x++) {           // 7 decimal digits: 1 for EU, 6 for EU-relative address
             c = w % 0x40;               // get low-order six bits of word
             segAddr += (c % 0x10)*p;    // isolate the numeric portion and accumulate
             w = (w-c)/0x40;             // shift word right six bits
@@ -716,7 +716,6 @@ B5500IOUnit.prototype.initiatePrinterIO = function(u) {
 /**************************************/
 B5500IOUnit.prototype.forkIO = function forkIO() {
     /* Asynchronously initiates an I/O operation on this I/O Unit for a peripheral device */
-    var addr;                           // memory address
     var chars;                          // I/O memory transfer length
     var index;                          // unit index
     var u;                              // peripheral unit object
@@ -746,6 +745,7 @@ B5500IOUnit.prototype.forkIO = function forkIO() {
     } else {
         this.cc.setUnitBusy(index, 1);
         u = this.cc.unit[index];
+
         switch(this.Dunit) {
         // disk designates
         case 6:

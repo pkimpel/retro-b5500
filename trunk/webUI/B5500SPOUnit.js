@@ -365,7 +365,7 @@ B5500SPOUnit.prototype.keyDown = function(ev) {
             result = false;
             break;
         case 8:                     // Backspace
-            setTimeout(that.backspaceChar(), nextTime-stamp);
+            setTimeout(this.backspaceChar, nextTime-stamp);
             result = false;
             break;
         case 13:                    // Enter

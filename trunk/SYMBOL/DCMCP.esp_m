@@ -22886,3 +22886,169 @@ BEGIN REAL RCW=+0,MSCW=-2;                                              38001000
                    FPB[FNUM  ]:=MFID:=FID;                         %126-38013030        
                    FPB[FNUM+1]:=FID :=USERCODE[P1MIX];             %126-38013040        
                    END;                                            %126-38013050        
+              IF NFLAG(FIX[14]~FLAG(FILEHEADER(MFID                     38013100        
+ $ SET OMIT = NOT SHAREDISK                                             38013199        
+                  ,FID&FIB[5][1:45:1],FIB[8].[20:5]                     38013300        
+                  ,FIB[8].[25:23],BLEN,RLEN,STATE)))<6 THEN             38013400        
+              BEGIN P(DEL);                                             38013500        
+                   TOG:= 1;                                             38013510        
+ $ SET OMIT = NOT SHAREDISK                                             38013519        
+                   GO TO EXIT;                                          38013600        
+              END;                                                      38013700        
+              IF FIB[8].[20:28]!0 THEN FPB[FNUM+2].[18:30]~DATE ELSE    38013900        
+                BEGIN% OLD FILE,VERIFY LABEL EQUATION DATE IF ANY       38014000        
+                     HEADER := FIB[14];%                                38014100        
+                     STREAM(H:=HEADER[3].[30:18],B:=[T2]);              38014200        
+                     BEGIN SI:=LOC H; DS:=8 DEC; END;%                  38014300        
+                AGN: IF CDATE NEQ 0 AND CDATE NEQ HEADER[3].[30:18] THEN38014400        
+                     BEGIN% WRITE DATE CHECK MESSAGE                    38014500        
+         DOLITTLE(FALSE,                                                38014600        
+                  VWY&VOF[36:42:6]&VOK[30:42:6],                        38014610        
+         "#DAT CK"," =00000"&T2[18:18:30],MFID);                        38014620        
+                          IF TERMSET(P1MIX) THEN                        38014700        
+                          BEGIN                                         38014800        
+                              FORGETSPACE(DIRECTORYSEARCH(MFID,FID,     38014900        
+ $ SET OMIT = NOT SHAREDISK                                             38014949        
+                                          FIB[5].[13:3]+10));           38015000        
+                              GO TO INITIATE;                           38015100        
+                          END;%                                         38015200        
+                          IF P(NT6,DUP)=VOK OR P(XCH)=VOF THEN CDATE~0; 38015400        
+                          GO AGN                                        38015500        
+                     END;% VERIFICATION                                 38015600        
+                     FPB[FNUM+2].[18:30]:=T2;% BCL DATE                 38015700        
+                END OLD FILES;%                                         38015800        
+                STARTIMING(FNUM,18);%                                   38015900        
+                FPB:=PRT[P1MIX,3];     % STARTIMING MOVES THE FPB       38015950        
+            END;%                                                       38016000        
+            HEADER~FIB[14];%                                            38020000        
+            KIND~4; U~18;%                                              38021000        
+            MODE~0;%                                                    38022000        
+            IF NOT COBOL THEN UNLABELED~1;%                             38023000        
+            CNTCTL~BLEN{1023;%                                          38024000        
+ $ SET OMIT = NOT SHAREDISK                                             38024004        
+         IF COBOL>0 AND (FIB[13].[22:1] OR TYPE=10 OR TYPE=26) THEN     38024100        
+         BEGIN     COBOL:=3;              %IF COBOL-IO OR COBOL-RANDOM  38024200        
+                   BLEN := BLEN + RLEN;   % THEN CHANGE BUFFSIZE TO     38024300        
+         END;                             %  BUFFSIZE + RECSIZE         38024400        
+            GETBUFFERS((IF CNTCTL THEN BLEN%                            38025000        
+                                  ELSE ((BLEN+29) DIV 30)|30)+1,%       38026000        
+                       NBUFS,U,ALPHA);%                                 38027000        
+            IF COBOL = 3 THEN             %IF COBOL-IO OR COBOL-RANDOM  38027100        
+         BEGIN     COBOL := 1;            % THEN CHANGE BUFFSIZE TO     38027200        
+                   BLEN := BLEN - RLEN;   % BUFFSIZE - RECSIZE          38027300        
+         END;                             % (SEE ABOVE                  38027400        
+            FIB[16]~M[ALPHA]&CNTCTL[23:47:1]&10[24:47:1]%               38028000        
+                  &((BLEN+29) DIV 30)[27:42:6]%                         38029000        
+                  &(IF CNTCTL THEN BLEN ELSE 1023)[8:38:10]%            38030000        
+                  &TINU[18][3:3:5] OR M OR IOMASK;%                     38031000        
+            FIB[16].[2:1]:=(HEADER.[31:2] AND (IO+1))!0;                38032000        
+               FIB[5].[1:1]:= NOT FIB[16].[2:1];                        38033000        
+               IF FIB[5].[1:1] THEN                                     38034000        
+           FOR MASK:=10 STEP 1 UNTIL 29 DO HEADER[MASK]:=0;             38035000        
+            FIB[19]~(IF DIREC THEN BLEN-RLEN+1 ELSE 1)                  38036000        
+                    INX FIB[16]&0[27:27:6];                             38037000        
+            IF STATE.[46:2]!0 THEN FIB[19].[8:10]~RLEN;%                38038000        
+            FS[P1MIX,(T2:=(FNUM DIV ETRLNG)).[40:4]]~(*P(DUP)) OR       38039000        
+              (TWO(0&T2[43:44:4])|((NOT HEADER).[31:2]));               38040000        
+            T2~IF COBOL THEN 0 ELSE FIB[19].[33:15]-FIB[16].[33:15];    38041000        
+               FIB[10].[3:15]:=M[ALPHA]-2;   %HEAD OF BUFFER RING       38041100        
+            FOR MASK~0 STEP 1 UNTIL NBUFS-1 DO%                         38042000        
+            M[ALPHA+MASK]~(P(DUP,LOD)+T2)%                              38043000        
+                          &P(FLAG(FIB[19-ABS(3|COBOL)]),XCH)[CTC];      38044000        
+            FIB[16]:=FIB[16] OR M;                                      38045000        
+            FIB[5].[45:1]~0;                                            38045100        
+            IF P([FIB[14]],LOD).[FF]=2 THEN FIB[5].[11:2]~1;%INPUT ONLY.38045105        
+            IF HEADER[4].[10:1] AND NOT IO THEN                         38045110        
+              FILEMESS(-"CODE   ","FILE   ",MFID,FID,0,0,0);            38045120        
+ $ SET OMIT = NOT(PACKETS)                                              38045149        
+              IF PSEUDOMIX[P1MIX]!0 THEN                                38045150        
+              IF NOT FIB[5].[41:1] THEN                                 38045155        
+              FILEMESSAGE((IF IO THEN " IN " ELSE "OUT")                38045160        
+              &TINU[U][6:30:18], IF ACCESS=0 THEN " SER   "             38045200        
+              ELSE IF ACCESS=1 THEN IF TYPE=26 THEN " PRO   "           38045300        
+              ELSE " RDM   " ELSE " UPD   ",                            38045310        
+              MFID,FID,0,0,0,64);                                       38045400        
+ $ POP OMIT                                                             38045501        
+      END DISKSETUP;%                                                   38046000        
+      P(RCW,MSCW,STF);                                                  38047000        
+      RCW:=RCW&P(XCH)[CTC];                                             38048000        
+      DISKSETUP;                                                        38049000        
+      IF COBOL<0 THEN   % ADJUST UPPER BOUND FOR COBOL 68               38049200        
+         BEGIN  MASK ~ (IF IO AND NOT FIB[13].[22:1]                    38049300        
+                   THEN HEADER[7]                                       38049400        
+                   ELSE  (((HEADER[9] | HEADER[1]) DIV                  38049500        
+                            HEADER[0].[42:6]) | HEADER[0].[30:12]) - 1);38049600        
+         IF FIB[3]=0 OR FIB[3]>MASK THEN FIB[3]~MASK; %LESSOR OF 2 EVILS38049700        
+         END;                                                           38049800        
+      IF P(TYPE,DUP)=10 OR P(XCH)=26 THEN                               38050000        
+      BEGIN                                                             38051000        
+           IF COBOL<1 THEN     % ALGOL OR COBOL 68                      38052000        
+              FOR MASK ~ 0 STEP 1 UNTIL NBUFS-1 DO                      38053000        
+              IF COBOL THEN M[M[ALPHA+MASK] INX NOT 2] ~ NOT 0          38053500        
+                        ELSE M[ALPHA+MASK]~P(DUP,LOD)&1[27:47:1];       38054000        
+             FIB[6]~FIB[7]~0;%                                          38055000        
+             FIB[17]~IF IO THEN 0 ELSE BLEN;%                           38056000        
+      END ELSE                                                          38057000        
+      BEGIN                                                             38058000        
+             T2~(MFID~FIB[16).[33:15];%                                 38059000        
+             FIV7~FIB[7];                                               38060000        
+             IF COBOL THEN%                                             38061000        
+              BEGIN  IF COBOL>0 THEN                                    38062000        
+                        IF NOT (FIB7=0 OR FIB[13].[22:1]) THEN          38062500        
+                        BEGIN  FIB7 ~ FIB7 - 1;                         38063000        
+                               OPTIONAL ~ NBUFS - 1;                    38063500        
+                        END ELSE  OPTIONAL ~ NBUFS - 2                  38064000        
+                        ELSE BEGIN      % COBOL 68                      38064200        
+                             OPTIONAL ~ NBUFS - 1;                      38064400        
+                             IF DIREC THEN FIB7 ~ FIB[7] ~ FIB[3];      38064600        
+                             END;                                       38065000        
+                   FID~FIB[16];%                                        38066000        
+                   MASK~0;%                                             38067000        
+             END ELSE%                                                  38068000        
+             BEGIN OPTIONAL~NBUFS-1;%                                   38069000        
+                   MASK~(FID~FIB[19]).[33:15]-T2;%                      38070000        
+             END;%                                                      38071000        
+             IF (STATE.[46:2]!0 AND NOT COBOL) OR IO THEN               38072000        
+             IF M[ALPHA].]2:1] THEN                                     38073000        
+             FOR T1~0 STEP 1 UNTIL OPTIONAL DO%                         38074000        
+             BEGIN IF (M[T2]:=                                          38074500        
+                     DISKADDRESS(FPB[FNUM], FPB[FNUM+1], FPB[FNUM+3],   38075000        
+                     FORMS:=((HEADER[0].[30:12]|T1)&DIREC[1:47:1])+FIB7,38075500        
+                     HEADER, IO&(NOT HEADER[4])[46:47:1])) > 1 THEN     38076000        
+                   BEGIN                                                38076500        
+                        IF (USERCODE[P1MIX] EQV MCP)!NOT 0 THEN         38077000        
+                        IF P(M[MFID],DUP).[3:6]=0 AND                   38077500        
+                          P(XCH)<DIRDSK|DSKTOG THEN                     38078000        
+                        BEGIN                                           38078500        
+                             TERMINATE(P1MIX);                          38079000        
+                             TERMINALMESSAGE(30);                       38079500        
+                        END;                                            38080000        
+                        IOREQUEST(FLAG(FID),MFID&1[24:47:1],M[T2-2]);   38080500        
+                        M[ALPHA]:=FLAG(MFID)&0[26:26:7] AND NOT         38081000        
+                          (M OR IOMASK);                                38081250        
+                   END ELSE                                             38081500        
+                   IF M[T2]=0 THEN     % EOF IF INPUT, FULL HDR IF OUTPT38081750        
+                     M[ALPHA]:=P(DUP,LOD)&1[27:47:1] AND NOT M;         38082000        
+                   IF COBOL<0 THEN M[M[ALPHA] INX NOT 2] ~              38082400        
+                      (IF FORMS}0 THEN FORMS DIV FIB[11] ELSE NOT 0);   38082500        
+                   STREAM(N~NBUFS-1,T~M[ALPHA],ALPHA);%                 38083000        
+                   BEGIN SI~ALPHA; SI~SI+8; DS~N WDS;%                  38084000        
+                         SI~LOC T; DS~WDS;%                             38085000        
+                   END;%                                                38086000        
+                  MFID.[33:15]~T2~M[T2-2].[18:15];%                     38087000        
+                   FID.[33:15]~T2+MASK;%                                38088000        
+             END;%                                                      38089000        
+             IF (NBUFS-1)!OPTIONAL THEN FIB[16].[33:15]~M[ALPHA] ;%     38090000        
+             FORMS~(FORMS~FIB7 MOD HEADER[0].[30:12])|RLEN;             38091000        
+            SLEEP([M[ALPHA]],IOMASK);%                                  38092000        
+             IF COBOL } 0 THEN          % NOT COBOL 68                  38092900        
+              IF FIB[13].[22:1]THEN M[ALPHA].[33:15]~FIB[16]INX 1 ELSE  38093000        
+             M[ALPHA].[33:15]~FIB[16].[33:15]+FORMS+1;%                 38094000        
+              IF (NBUFS-1)!OPTIONAL AND IO AND NOT FIB[13].[22:1] THEN  38095000        
+                   FIB[ 17 ]~0  ELSE                                    38096000        
+             FIB[17]~IF DIREC THEN FORMS~RLEN%                          38097000        
+                              ELSE BLEN-FORMS;%                         38098000        
+      END;                                                              38099000        
+EXIT:                                                                   38099100        
+      P(P&RCW[CTC],0,RDS,0,XCH,P&P[CTF],STF);                           38100000        
+END DISKFILEOPEN;                                                       38101000        

@@ -712,9 +712,16 @@ function runIt(ev) {
                 stopAddress = 0;
             }
             /***************************
-            if (cc.P1.R != 0) {
-                alert("P1.R not zero");
-                stopAddress = 0;
+            if (cc.P1.C < 0x40) {
+                // There is an interrupt
+                switch (cc.P1.C) {
+                case 0x31:              // P1 invalid address
+                case 0x32:              // P1 stack overflow
+                case 0x3C:              // P1 integer overflow
+                    alert("Unexpected Processor Interrupt occurred");
+                    stopAddress = 0;
+                    break;
+                }
             }
             ***************************/
             if (--count <= 0) {
@@ -865,6 +872,10 @@ function fileSelector_onChange(ev) {
 
 function hardwareLoad_onClick(ev) {
     /* Handle the "Hardware Load" button click */
+
+    cc.clear();
+    cc.P1.clear();
+    cc.load(true);
 }
 
 function checkBrowser() {
