@@ -55,7 +55,6 @@ function B5500CentralControl() {
 
     // Establish contexts for asynchronously-called methods
     this.boundTock = B5500CentralControl.bindMethod(this.tock, this);
-    this.boundLoadComplete = B5500CentralControl.bindMethod(this.loadComplete, this);
 
     this.clear();                       // Create and initialize the Central Control state
 }
@@ -63,7 +62,7 @@ function B5500CentralControl() {
 /**************************************/
     /* Global constants */
 
-B5500CentralControl.version = "0.04";
+B5500CentralControl.version = "0.05";
 
 B5500CentralControl.rtcTick = 1000/60; // Real-time clock period, milliseconds
 
@@ -156,7 +155,7 @@ B5500CentralControl.bindMethod = function(f, context) {
     Note that this is a constructor property function, NOT an instance method of
     the CC object */
 
-    return (function() {f.apply(context, arguments)});
+    return function() {f.apply(context, arguments)};
 };
 
 /**************************************/
@@ -420,7 +419,7 @@ B5500CentralControl.prototype.signalInterrupt = function() {
              : this.CCI16F      ? 0x1F  // @37: Disk file 2 read check finished
              : p1.I & 0x04      ? 0x32  // @62: P1 stack overflow
              : p1.I & 0xF0      ? (p1.I >>> 4) + 0x30   // @64-75: P1 syllable-dependent
-             : (p2 = this.P2) ?
+             : (p2 = this.P2) ?         // Yes, Virginia, this should actually be an assignment...
                   ( p2.I & 0x01 ? 0x20  // @40: P2 memory parity error
                   : p2.I & 0x02 ? 0x21  // @41: P2 invalid address error
                   : p2.I & 0x04 ? 0x22  // @42: P2 stack overflow
@@ -690,7 +689,7 @@ B5500CentralControl.prototype.halt = function() {
 };
 
 /**************************************/
-B5500CentralControl.prototype.loadComplete = function loadComplete() {
+B5500CentralControl.prototype.loadComplete = function loadComplete(dontStart) {
     /* Monitors an initial load I/O operation for complete status.
     When complete, initiates P1 */
     var completed = false;              // true if some I/O Unit finished
@@ -711,21 +710,25 @@ B5500CentralControl.prototype.loadComplete = function loadComplete() {
         completed = true;
         this.CCI11F = 0;
         this.AD4F = 0;
-    //} else {                            // Nothing finished yet (or there was an error)
-    //    this.loadTimer = setTimeout(this.boundLoadComplete, 1000);
     }
 
     if (completed) {
         this.loadTimer = null;
         this.LOFF = 0;
         this.P1.preset(0x10);           // start execution at C=@20
-        this.P1.start();                // let'er rip
+        if (!dontStart) {
+            this.P1.start();            // let'er rip
+        }
     }
 };
 
 /**************************************/
-B5500CentralControl.prototype.load = function() {
-    /* Initiates a Load operation to start the system */
+B5500CentralControl.prototype.load = function(dontStart) {
+    /* Initiates a Load operation to start the system. If "dontStart" is truthy, then
+    only the MCP bootstrap is loaded into memory -- P1 is not started */
+    var boundLoadComplete = (function(that, dontStart) {
+        return function() {return that.loadComplete(dontStart)}
+    })(this, dontStart);
 
     if (this.P1 && !this.P1.busy) {
         this.clear();
@@ -734,18 +737,18 @@ B5500CentralControl.prototype.load = function() {
         this.LOFF = 1;
         if (this.IO1 && this.IO1.REMF && !this.AD1F) {
             this.AD1F = 1;
-            this.IO1.initiateLoad(this.cardLoadSelect, this.boundLoadComplete);
+            this.IO1.initiateLoad(this.cardLoadSelect, boundLoadComplete);
         } else if (this.IO2 && this.IO2.REMF && !this.AD2F) {
             this.AD2F = 1;
-            this.IO2.initiateLoad(this.cardLoadSelect, this.boundLoadComplete);
+            this.IO2.initiateLoad(this.cardLoadSelect, boundLoadComplete);
         } else if (this.IO3 && this.IO3.REMF && !this.AD3F) {
             this.AD3F = 1;
-            this.IO3.initiateLoad(this.cardLoadSelect, this.boundLoadComplete);
+            this.IO3.initiateLoad(this.cardLoadSelect, boundLoadComplete);
         } else if (this.IO4 && this.IO4.REMF && !this.AD4F) {
             this.AD4F = 1;
-            this.IO4.initiateLoad(this.cardLoadSelect, this.boundLoadComplete);
+            this.IO4.initiateLoad(this.cardLoadSelect, boundLoadComplete);
         } else {
-            this.CCI04F = 1;                // set I/O busy interrupt
+            this.CCI04F = 1;            // set I/O busy interrupt
         }
     }
 };
@@ -777,7 +780,7 @@ B5500CentralControl.prototype.loadTest = function(buf, loadAddr) {
     }
 
     if (!this.poweredUp) {
-        throw "cc.loadTest: Cannot load with system powered off"
+        throw "cc.loadTest: Cannot load with system powered off";
     } else {
         while (bytes > 6) {
             word = data.getUint8(x)* 0x10000000000 +
@@ -876,23 +879,23 @@ B5500CentralControl.prototype.configureSystem = function() {
         default:
             return function() {};
             break;
-        };
+        }
     }
 
     // ***** !! inhibit for now ***** // this.DD = new B5500DistributionAndDisplay(this);
 
     // Configure the processors
-    if (cfg.PA) {this.PA = new B5500Processor("A", this)};
-    if (cfg.PB) {this.PB = new B5500Processor("B", this)};
+    if (cfg.PA) {this.PA = new B5500Processor("A", this)}
+    if (cfg.PB) {this.PB = new B5500Processor("B", this)}
 
     // Determine P1/P2
     this.PB1L = (cfg.PB1L ? 1 : 0);
 
     // Configure the I/O Units
-    if (cfg.IO1) {this.IO1 = new B5500IOUnit("1", this)};
-    if (cfg.IO2) {this.IO2 = new B5500IOUnit("2", this)};
-    if (cfg.IO3) {this.IO3 = new B5500IOUnit("3", this)};
-    if (cfg.IO4) {this.IO4 = new B5500IOUnit("4", this)};
+    if (cfg.IO1) {this.IO1 = new B5500IOUnit("1", this)}
+    if (cfg.IO2) {this.IO2 = new B5500IOUnit("2", this)}
+    if (cfg.IO3) {this.IO3 = new B5500IOUnit("3", this)}
+    if (cfg.IO4) {this.IO4 = new B5500IOUnit("4", this)}
 
     // Configure memory
     for (x=0; x<8; x++) {

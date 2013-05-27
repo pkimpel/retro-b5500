@@ -195,7 +195,7 @@ B5500DiskUnit.prototype.read = function(finish, buffer, length, mode, control) {
 
     euSize = this.config[euName];
     if (!euSize) {                      // EU does not exist
-        finish(this.errorMask | 0x20, 0);       // set D27F for EU not ready
+        finish(this.errorMask | 0x20, 0);       // set D27F for EU not ready/not present
         this.errorMask = 0;
     } else if (segAddr < 0) {
         finish(this.errorMask | 0x20, 0);       // set D27F for invalid starting seg address

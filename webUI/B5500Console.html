@@ -25,6 +25,8 @@ window.onload = function() {
     var boundBlinkenlicht;
     var cc = new B5500CentralControl();
     var lastBusyMask = 0;
+    var procRate;      
+    var procSlack;
     var timer;
     var timerInterval = 50;             // milliseconds
 
@@ -63,12 +65,6 @@ window.onload = function() {
         cc.halt();
         $$("HaltBtn").disabled = true;
         $$("LoadBtn").disabled = false;
-        /*****
-        if (timer) {
-            clearTimeout(timer);
-            timer = null;
-        }
-        *****/
     }
 
     function LoadBtn_Click(ev) {
@@ -111,6 +107,7 @@ window.onload = function() {
     }
 
     function dasBlinkenlicht() {
+        var et;
         var pa = cc.PA;
         var pb = cc.PB;
 
@@ -127,6 +124,9 @@ window.onload = function() {
                     aControl.className = "yellowButton yellowLit";
                 }
             }
+            et = new Date().getTime()*1000 - pa.procStart;
+            procRate.innerHTML = ((pa.procTime - pa.procStart)/et*100).toFixed(1) + "%";
+            //procSlack.innerHTML = (pa.procSlack/et*100).toFixed(1) + "%";
         }
         if (pb) {
             if (!pb.busy) {
@@ -179,6 +179,8 @@ window.onload = function() {
         aNormal  = $$("ANormalBtn");
         bControl = $$("BControlBtn");
         bNormal  = $$("BNormalBtn");
+        procRate = $$("procRate");
+        procSlack = $$("procSlack");
         boundBlinkenlicht = bindMethod(dasBlinkenlicht, this);
     }
 };
@@ -206,7 +208,7 @@ window.onload = function() {
     <div id=BurroughsLogo>
         <img id=BurroughsLogoImage src="Burroughs-Logo-Neg.jpg">
     </div>
-    <div id=B5500Logo> B 5500 </div>
+    <div id=B5500Logo><img src="retro-B5500-Logo.png" alt="retro-B5500 logo"><!-- B 5500 --></div>
 
     <table id=CentralControl>
     <colgroup>
@@ -233,6 +235,7 @@ window.onload = function() {
         <td id=CCI15F>DK1F              <!-- Disk file #1 read check finished           -->
         <td id=CCI16F>DK2F              <!-- Disk file #2 read check finished           -->
         <td colspan=13>
+        <td id=procSlack>
     <tr id=CCPeripheralRow>
         <td id=DCA>DCA                  <!-- 17 -->
         <td id=PPB>PPB                  <!-- 18 -->
@@ -265,6 +268,7 @@ window.onload = function() {
         <td id=MTC>MTC                  <!-- 45 -->
         <td id=MTB>MTB                  <!-- 46 -->
         <td id=MTA>MTA                  <!-- 47 -->
+        <td id=procRate>
     </table>
 </div>
 
