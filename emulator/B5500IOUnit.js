@@ -63,6 +63,7 @@ function B5500IOUnit(ioUnitID, cc) {
     // Establish contexts for asynchronously-called methods
     this.boundForkIO = B5500CentralControl.bindMethod(this.forkIO, this);
     this.boundFinishGeneric = this.makeFinish(this.finishGeneric);
+    this.boundFinishGenericRead = this.makeFinish(this.finishGenericRead);
     this.boundFinishBusy = this.makeFinish(this.finishBusy);
     this.boundFinishDiskRead = this.makeFinish(this.finishDiskRead);
     this.boundFinishSPORead = this.makeFinish(this.finishSPORead);
@@ -132,7 +133,7 @@ B5500IOUnit.BCLANSItoBIC = [            // Index by 8-bit BCL-as-ANSI to get 6-b
         0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C]; // F0-FF
 
 /**************************************/
-B5500IOUnit.prototype.clear = function() {
+B5500IOUnit.prototype.clear = function clear() {
     /* Initializes (and if necessary, creates) the I/O Unit state */
 
     this.W = 0;                         // Memory buffer register
@@ -187,7 +188,7 @@ B5500IOUnit.prototype.clear = function() {
 };
 
 /**************************************/
-B5500IOUnit.prototype.clearD = function() {
+B5500IOUnit.prototype.clearD = function clearD() {
     /* Clears the D-register and the exploded field variables used internally */
 
     this.D = 0;
@@ -209,7 +210,7 @@ B5500IOUnit.prototype.clearD = function() {
 };
 
 /**************************************/
-B5500IOUnit.prototype.fetch = function(addr) {
+B5500IOUnit.prototype.fetch = function fetch(addr) {
     /* Fetch a word from memory at address "addr" and leave it in the W register.
     Returns 1 if a memory access error occurred, 0 if no error */
     var acc = this.accessor;            // get a local reference to the accessor object
@@ -231,7 +232,7 @@ B5500IOUnit.prototype.fetch = function(addr) {
 };
 
 /**************************************/
-B5500IOUnit.prototype.store = function(addr) {
+B5500IOUnit.prototype.store = function store(addr) {
     /* Store a word in memory at address "addr" from the W register.
     Returns 1 if a memory access error occurred, 0 if no error */
     var acc = this.accessor;            // get a local reference to the accessor object
@@ -250,7 +251,7 @@ B5500IOUnit.prototype.store = function(addr) {
 };
 
 /**************************************/
-B5500IOUnit.prototype.fetchBuffer = function(mode, words) {
+B5500IOUnit.prototype.fetchBuffer = function fetchBuffer(mode, words) {
     /* Fetches words from memory starting at this.Daddress and coverts the
     BIC characters to ANSI or BCLANSI in this.buffer. "mode": 0=BCLANSI, 1=ANSI;
     "words": maximum number of words to transfer. At exit, updates this.Daddress
@@ -300,7 +301,7 @@ B5500IOUnit.prototype.fetchBuffer = function(mode, words) {
 };
 
 /**************************************/
-B5500IOUnit.prototype.fetchBufferWithGM = function(mode, words) {
+B5500IOUnit.prototype.fetchBufferWithGM = function fetchBufferWithGM(mode, words) {
     /* Fetches words from memory starting at this.Daddress and coverts the
     BIC characters to ANSI or BCLANSI in this.buffer. "mode": 0=BCLANSI, 1=ANSI;
     "words": maximum number of words to transfer. The transfer can be terminated
@@ -356,7 +357,7 @@ B5500IOUnit.prototype.fetchBufferWithGM = function(mode, words) {
 };
 
 /**************************************/
-B5500IOUnit.prototype.storeBuffer = function(chars, offset, mode, words) {
+B5500IOUnit.prototype.storeBuffer = function storeBuffer(chars, offset, mode, words) {
     /* Converts characters in this.buffer from ANSI or BCLANSI to BIC, assembles
     them into words, and stores the words into memory starting at this.Daddress.
     "chars": the number of characters to store, starting at "offset" in the buffer;
@@ -428,7 +429,7 @@ B5500IOUnit.prototype.storeBuffer = function(chars, offset, mode, words) {
 };
 
 /**************************************/
-B5500IOUnit.prototype.storeBufferWithGM = function(chars, offset, mode, words) {
+B5500IOUnit.prototype.storeBufferWithGM = function storeBufferWithGM(chars, offset, mode, words) {
     /* Converts characters in this.buffer from ANSI to BIC, assembles them into
     words, and stores the words into memory starting at this.Daddress.
     "chars": the number of characters to store, starting at "offset" in the buffer;
@@ -507,7 +508,7 @@ B5500IOUnit.prototype.storeBufferWithGM = function(chars, offset, mode, words) {
 };
 
 /**************************************/
-B5500IOUnit.prototype.finish = function () {
+B5500IOUnit.prototype.finish = function finish() {
     /* Called to finish an I/O operation on this I/O Unit. Constructs and stores
     the result descriptor, sets the appropriate I/O Finished interrupt in CC */
 
@@ -553,7 +554,7 @@ B5500IOUnit.prototype.finish = function () {
 };
 
 /**************************************/
-B5500IOUnit.prototype.makeFinish = function(f) {
+B5500IOUnit.prototype.makeFinish = function makeFinish(f) {
     /* Utility function to create a closure for I/O finish handlers */
     var that = this;
 
@@ -561,7 +562,7 @@ B5500IOUnit.prototype.makeFinish = function(f) {
 };
 
 /**************************************/
-B5500IOUnit.prototype.decodeErrorMask = function(errorMask) {
+B5500IOUnit.prototype.decodeErrorMask = function decodeErrorMask(errorMask) {
     /* Decodes the errorMask returned by the device drivers and ORs it into
     the D-register error bits */
 
@@ -575,7 +576,7 @@ B5500IOUnit.prototype.decodeErrorMask = function(errorMask) {
 };
 
 /**************************************/
-B5500IOUnit.prototype.finishBusy = function(errorMask, length) {
+B5500IOUnit.prototype.finishBusy = function finishBusy(errorMask, length) {
     /* Handles a generic I/O finish when no word-count update or input data
     transfer is needed, but leaves the unit marked as busy in CC. This is needed
     by device operations that have a separate completion signal, such as line
@@ -587,7 +588,7 @@ B5500IOUnit.prototype.finishBusy = function(errorMask, length) {
 };
 
 /**************************************/
-B5500IOUnit.prototype.finishGeneric = function(errorMask, length) {
+B5500IOUnit.prototype.finishGeneric = function finishGeneric(errorMask, length) {
     /* Handles a generic I/O finish when no word-count update or input data
     transfer is needed. Can also be used to apply common error mask posting
     at the end of specialized finish handlers. Note that this turns off the
@@ -599,7 +600,16 @@ B5500IOUnit.prototype.finishGeneric = function(errorMask, length) {
 };
 
 /**************************************/
-B5500IOUnit.prototype.finishSPORead = function(errorMask, length) {
+B5500IOUnit.prototype.finishGenericRead = function finishGenericRead(errorMask, length) {
+    /* Handles a generic I/O finish when input data transfer, and optionally,
+    word-count update, is needed. Note that this turns off the busyUnit mask bit in CC */
+
+    this.storeBuffer(length, 0, 1, (this.D23F ? this.DwordCount : 0x7FFF));
+    this.finishGeneric(errorMask, length);
+};
+
+/**************************************/
+B5500IOUnit.prototype.finishSPORead = function finishSPORead(errorMask, length) {
     /* Handles I/O finish for a SPO keyboard input operation */
 
     this.storeBufferWithGM(length, 0, 1, 0x7FFF);
@@ -607,7 +617,7 @@ B5500IOUnit.prototype.finishSPORead = function(errorMask, length) {
 };
 
 /**************************************/
-B5500IOUnit.prototype.finishDiskRead = function(errorMask, length) {
+B5500IOUnit.prototype.finishDiskRead = function finishDiskRead(errorMask, length) {
     /* Handles I/O finish for a DFCU data read operation */
     var segWords = Math.floor((length+7)/8);
     var memWords = (this.D23F ? this.DwordCount : segWords);
@@ -620,7 +630,7 @@ B5500IOUnit.prototype.finishDiskRead = function(errorMask, length) {
 };
 
 /**************************************/
-B5500IOUnit.prototype.initiateDiskIO = function(u) {
+B5500IOUnit.prototype.initiateDiskIO = function initiateDiskIO(u) {
     /* Initiates an I/O to the Disk File Control Unit. The disk address is fetched from
     the first word of the memory area and converted to binary for the DFCU module. Read
     check and interrogate operations are determined from their respective IOD bits. If
@@ -678,7 +688,7 @@ B5500IOUnit.prototype.initiateDiskIO = function(u) {
 };
 
 /**************************************/
-B5500IOUnit.prototype.initiatePrinterIO = function(u) {
+B5500IOUnit.prototype.initiatePrinterIO = function initiatePrinterIO(u) {
     /* Initiates an I/O to a Line Printer unit */
     var addr = this.Daddress;           // initial data transfer address
     var cc;                             // carriage control value to driver
@@ -766,12 +776,22 @@ B5500IOUnit.prototype.forkIO = function forkIO() {
 
         // card #1 reader/punch
         case 10:
-            this.D30F = 1; this.finish(); // >>> temp until implemented <<<
+            if (this.D24F) {            // CRA
+                u.read(this.boundFinishGenericRead, this.buffer, (this.D21F ? 160 : 80), this.D21F, 0);
+            } else {                    // CPA
+                this.D30F = 1;          // >>> temp until CPA implemented <<<
+                this.finish();
+            }
             break;
 
         // card #2 reader
         case 14:
-            this.D30F = 1; this.finish(); // >>> temp until implemented <<<
+            if (this.D24F) {
+                u.read(this.boundFinishGenericRead, this.buffer, (this.D21F ? 160 : 80), this.D21F, 0);
+            } else {
+                this.D30F = 1;          // can't write to CRB, report as not ready
+                this.finish();
+            }
             break;
 
         // SPO designate
@@ -812,7 +832,7 @@ B5500IOUnit.prototype.forkIO = function forkIO() {
 };
 
 /**************************************/
-B5500IOUnit.prototype.initiate = function() {
+B5500IOUnit.prototype.initiate = function initiate() {
     /* Initiates an I/O operation on this I/O Unit. When P1 executes an IIO instruction,
     it calls the CentralControl.initiateIO() function, which selects an idle I/O Unit and
     calls this function for that unit. Thus, at entry we are still running on top of the
@@ -842,7 +862,7 @@ B5500IOUnit.prototype.initiate = function() {
 };
 
 /**************************************/
-B5500IOUnit.prototype.initiateLoad = function(cardLoadSelect, loadComplete) {
+B5500IOUnit.prototype.initiateLoad = function initiateLoad(cardLoadSelect, loadComplete) {
     /* Initiates a hardware load operation on this I/O unit. "cardLoadSelect" is true
     if the load is to come from the card reader, otherwise it will come from sector 1
     of DKA EU0. "loadComplete" is called on completion of the I/O.
@@ -850,10 +870,11 @@ B5500IOUnit.prototype.initiateLoad = function(cardLoadSelect, loadComplete) {
     pressed and released. Since there is no IOD in memory, we must generate one in the
     D register and initiate the I/O intrinsically. Note that if the I/O has an error,
     the RD is not stored and the I/O finish interrupt is not set in CC */
+    var chars;
     var index;
     var u;
 
-    function finishDiskLoad(errorMask, length) {
+    function finishLoad(errorMask, length) {
         var memWords = Math.floor((length+7)/8);
 
         this.storeBuffer(length, 0, this.D21F, memWords);
@@ -870,22 +891,28 @@ B5500IOUnit.prototype.initiateLoad = function(cardLoadSelect, loadComplete) {
 
     this.clearD();
     if (cardLoadSelect) {
-        alert("Card Load Select is not yet implemented");
-    } else {
-        this.D = 0x0600009F8010;        // unit 6, read, 63 segs, addr @00020
-        this.Dunit = 6;                 // 6=DKA
+        this.D = 0x0A0004800010;        // unit 10, read, binary mode, addr @00020
+        this.Dunit = 10;                // 10=CRA
         this.D24F = 1;                  // read
+        chars = 20*8;
+    } else {
+        this.D = 0x0600009F8010;        // unit 6, read, alpha mode, 63 segs, addr @00020
+        this.Dunit = 6;                 // 6=DKA
+        this.D21F = 0;                  // alpha mode
         this.LP = 63;                   // 63 sectors
-        this.Daddress = 0x10;           // memory address @20
-        this.busyUnit = index = B5500CentralControl.unitIndex[this.D24F & 1][this.Dunit & 0x1F];
-        if (this.cc.testUnitBusy(index)) {
-            this.D32F = 1;              // set unit busy error
-        } else if (!this.cc.testUnitReady(index)) {
-            this.D30F = 1;              // set unit not-ready error
-        } else {
-            this.cc.setUnitBusy(index, 1);
-            u = this.cc.unit[index];
-            u.read(this.makeFinish(finishDiskLoad), this.buffer, 63*240, this.D21F, 1);
-        }
+        chars = 63*240;
+    }
+
+    this.D24F = 1;                      // read
+    this.Daddress = 0x10;               // memory address @20
+    this.busyUnit = index = B5500CentralControl.unitIndex[this.D24F & 1][this.Dunit & 0x1F];
+    if (this.cc.testUnitBusy(index)) {
+        this.D32F = 1;                  // set unit busy error
+    } else if (!this.cc.testUnitReady(index)) {
+        this.D30F = 1;                  // set unit not-ready error
+    } else {
+        this.cc.setUnitBusy(index, 1);
+        u = this.cc.unit[index];
+        u.read(this.makeFinish(finishLoad), this.buffer, chars, this.D21F, 1);
     }
 };

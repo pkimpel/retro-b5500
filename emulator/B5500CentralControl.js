@@ -62,7 +62,7 @@ function B5500CentralControl() {
 /**************************************/
     /* Global constants */
 
-B5500CentralControl.version = "0.05";
+B5500CentralControl.version = "0.06";
 
 B5500CentralControl.rtcTick = 1000/60; // Real-time clock period, milliseconds
 
@@ -119,8 +119,8 @@ B5500CentralControl.unitSpecs = {
     SPO: {unitIndex: 22, designate: 30, unitClass: B5500SPOUnit},
     DKA: {unitIndex: 29, designate:  6, unitClass: B5500DiskUnit},
     DKB: {unitIndex: 28, designate: 12, unitClass: B5500DiskUnit},
-    CRA: {unitIndex: 24, designate: 10, unitClass: null},
-    CRB: {unitIndex: 23, designate: 14, unitClass: null},
+    CRA: {unitIndex: 24, designate: 10, unitClass: B5500CardReader},
+    CRB: {unitIndex: 23, designate: 14, unitClass: B5500CardReader},
     CPA: {unitIndex: 25, designate: 10, unitClass: null},
     LPA: {unitIndex: 27, designate: 22, unitClass: null},
     LPB: {unitIndex: 26, designate: 26, unitClass: null},
@@ -150,7 +150,7 @@ B5500CentralControl.unitSpecs = {
 
 
 /**************************************/
-B5500CentralControl.bindMethod = function(f, context) {
+B5500CentralControl.bindMethod = function bindMethod(f, context) {
     /* Returns a new function that binds the function "f" to the object "context".
     Note that this is a constructor property function, NOT an instance method of
     the CC object */
@@ -159,7 +159,7 @@ B5500CentralControl.bindMethod = function(f, context) {
 };
 
 /**************************************/
-B5500CentralControl.prototype.clear = function() {
+B5500CentralControl.prototype.clear = function clear() {
     /* Initializes (and if necessary, creates) the system and starts the
     real-time clock */
 
@@ -218,7 +218,7 @@ B5500CentralControl.prototype.clear = function() {
 };
 
 /**************************************/
-B5500CentralControl.prototype.bit = function(word, bit) {
+B5500CentralControl.prototype.bit = function bit(word, bit) {
     /* Extracts and returns the specified bit from the word */
     var e = 47-bit;                     // word lower power exponent
     var p;                              // bottom portion of word power of 2
@@ -231,7 +231,7 @@ B5500CentralControl.prototype.bit = function(word, bit) {
 };
 
 /**************************************/
-B5500CentralControl.prototype.bitSet = function(word, bit) {
+B5500CentralControl.prototype.bitSet = function bitSet(word, bit) {
     /* Sets the specified bit in word and returns the updated word */
     var ue = 48-bit;                    // word upper power exponent
     var le = ue-1;                      // word lower power exponent
@@ -245,7 +245,7 @@ B5500CentralControl.prototype.bitSet = function(word, bit) {
 };
 
 /**************************************/
-B5500CentralControl.prototype.bitReset = function(word, bit) {
+B5500CentralControl.prototype.bitReset = function bitReset(word, bit) {
     /* Resets the specified bit in word and returns the updated word */
     var ue = 48-bit;                    // word upper power exponent
     var le = ue-1;                      // word lower power exponent
@@ -258,7 +258,7 @@ B5500CentralControl.prototype.bitReset = function(word, bit) {
 };
 
 /**************************************/
-B5500CentralControl.prototype.fieldIsolate = function(word, start, width) {
+B5500CentralControl.prototype.fieldIsolate = function fieldIsolate(word, start, width) {
     /* Extracts a bit field [start:width] from word and returns the field */
     var le = 48-start-width;            // lower power exponent
     var p;                              // bottom portion of word power of 2
@@ -269,7 +269,7 @@ B5500CentralControl.prototype.fieldIsolate = function(word, start, width) {
 };
 
 /**************************************/
-B5500CentralControl.prototype.fieldInsert = function(word, start, width, value) {
+B5500CentralControl.prototype.fieldInsert = function fieldInsert(word, start, width, value) {
     /* Inserts a bit field from the low-order bits of value ([48-width:width])
     into word.[start:width] and returns the updated word */
     var ue = 48-start;                  // word upper power exponent
@@ -284,7 +284,7 @@ B5500CentralControl.prototype.fieldInsert = function(word, start, width, value) 
 };
 
 /**************************************/
-B5500CentralControl.prototype.fieldTransfer = function(word, wstart, width, value, vstart) {
+B5500CentralControl.prototype.fieldTransfer = function fieldTransfer(word, wstart, width, value, vstart) {
     /* Inserts a bit field from value.[vstart:width] into word.[wstart:width] and
     returns the updated word */
     var ue = 48-wstart;                 // word upper power exponent
@@ -304,7 +304,7 @@ B5500CentralControl.prototype.fieldTransfer = function(word, wstart, width, valu
 };
 
 /**************************************/
-B5500CentralControl.prototype.fetch = function(acc) {
+B5500CentralControl.prototype.fetch = function fetch(acc) {
     /* Called by a requestor module passing accessor object "acc" to fetch a
     word from memory. */
     var addr = acc.addr;
@@ -348,7 +348,7 @@ B5500CentralControl.prototype.fetch = function(acc) {
 };
 
 /**************************************/
-B5500CentralControl.prototype.store = function(acc) {
+B5500CentralControl.prototype.store = function store(acc) {
     /* Called by requestor module passing accessor object "acc" to store a
     word into memory. */
     var addr = acc.addr;
@@ -392,7 +392,7 @@ B5500CentralControl.prototype.store = function(acc) {
 };
 
 /**************************************/
-B5500CentralControl.prototype.signalInterrupt = function() {
+B5500CentralControl.prototype.signalInterrupt = function signalInterrupt() {
     /* Called by all modules to signal that an interrupt has occurred and
     to invoke the interrupt prioritization mechanism. This will result in
     an updated vector address in the IAR. Can also be called to reprioritize
@@ -430,7 +430,7 @@ B5500CentralControl.prototype.signalInterrupt = function() {
 };
 
 /**************************************/
-B5500CentralControl.prototype.clearInterrupt = function() {
+B5500CentralControl.prototype.clearInterrupt = function clearInterrupt() {
     /* Resets an interrupt based on the current setting of this.IAR, then
     reprioritizes any remaining interrupts, leaving the new vector address
     in this.IAR. */
@@ -555,7 +555,7 @@ B5500CentralControl.prototype.tock = function tock() {
 };
 
 /**************************************/
-B5500CentralControl.prototype.haltP2 = function() {
+B5500CentralControl.prototype.haltP2 = function haltP2() {
     /* Called by P1 to halt P2. storeForInterrupt() will set P2BF=0 */
 
     this.HP2F = 1;
@@ -566,7 +566,7 @@ B5500CentralControl.prototype.haltP2 = function() {
 };
 
 /**************************************/
-B5500CentralControl.prototype.initiateP2 = function() {
+B5500CentralControl.prototype.initiateP2 = function initiateP2() {
     /* Called by P1 to initiate P2. Assumes that an INCW has been stored at
     memory location @10. If P2 is busy or not present, sets the P2 busy
     interrupt. Otherwise, loads the INCW into P2's A register and initiates
@@ -583,7 +583,7 @@ B5500CentralControl.prototype.initiateP2 = function() {
 };
 
 /**************************************/
-B5500CentralControl.prototype.initiateIO = function() {
+B5500CentralControl.prototype.initiateIO = function initiateIO() {
     /* Selects an I/O unit and initiates an I/O */
 
     if (this.IO1 && this.IO1.REMF && !this.AD1F) {
@@ -605,7 +605,7 @@ B5500CentralControl.prototype.initiateIO = function() {
 };
 
 /**************************************/
-B5500CentralControl.prototype.interrogateIOChannel = function() {
+B5500CentralControl.prototype.interrogateIOChannel = function interrogateIOChannel() {
     /* Returns a value as for the processor TIO syllable indicating the first
     available and non-busy I/O Unit */
 
@@ -623,7 +623,7 @@ B5500CentralControl.prototype.interrogateIOChannel = function() {
 };
 
 /**************************************/
-B5500CentralControl.prototype.interrogateUnitStatus = function() {
+B5500CentralControl.prototype.interrogateUnitStatus = function interrogateUnitStatus() {
     /* Returns a bitmask as for the processor TUS syllable indicating the
     ready status of all peripheral units */
 
@@ -631,7 +631,7 @@ B5500CentralControl.prototype.interrogateUnitStatus = function() {
 };
 
 /**************************************/
-B5500CentralControl.prototype.testUnitReady = function(index) {
+B5500CentralControl.prototype.testUnitReady = function testUnitReady(index) {
     /* Determines whether the unit index "index" is currently in ready status.
     Returns 1 if ready, 0 if not ready */
 
@@ -639,7 +639,7 @@ B5500CentralControl.prototype.testUnitReady = function(index) {
 };
 
 /**************************************/
-B5500CentralControl.prototype.testUnitBusy = function(index) {
+B5500CentralControl.prototype.testUnitBusy = function testUnitBusy(index) {
     /* Determines whether the unit index "index" is currently in use by any other
     I/O Unit. Returns 1 if busy, 0 if not busy */
 
@@ -647,7 +647,7 @@ B5500CentralControl.prototype.testUnitBusy = function(index) {
 };
 
 /**************************************/
-B5500CentralControl.prototype.setUnitBusy = function(index, busy) {
+B5500CentralControl.prototype.setUnitBusy = function setUnitBusy(index, busy) {
     /* Sets or resets the unit-busy mask bit for unit index "index" */
 
     if (index) {
@@ -657,7 +657,7 @@ B5500CentralControl.prototype.setUnitBusy = function(index, busy) {
 };
 
 /**************************************/
-B5500CentralControl.prototype.halt = function() {
+B5500CentralControl.prototype.halt = function halt() {
     /* Halts the processors. Any in-process I/Os are allowed to complete */
 
     if (this.timer) {
@@ -723,10 +723,10 @@ B5500CentralControl.prototype.loadComplete = function loadComplete(dontStart) {
 };
 
 /**************************************/
-B5500CentralControl.prototype.load = function(dontStart) {
+B5500CentralControl.prototype.load = function load(dontStart) {
     /* Initiates a Load operation to start the system. If "dontStart" is truthy, then
     only the MCP bootstrap is loaded into memory -- P1 is not started */
-    var boundLoadComplete = (function(that, dontStart) {
+    var boundLoadComplete = (function boundLoadComplete(that, dontStart) {
         return function() {return that.loadComplete(dontStart)}
     })(this, dontStart);
 
@@ -754,7 +754,7 @@ B5500CentralControl.prototype.load = function(dontStart) {
 };
 
 /**************************************/
-B5500CentralControl.prototype.loadTest = function(buf, loadAddr) {
+B5500CentralControl.prototype.loadTest = function loadTest(buf, loadAddr) {
     /* Loads a test codestream into memory starting at B5500 word address
     "loadAddr" from the ArrayBuffer "buf". Returns the number of B5500
     words loaded into memory. Note that when loading an ESPOL "DISK" file,
@@ -809,7 +809,7 @@ B5500CentralControl.prototype.loadTest = function(buf, loadAddr) {
 };
 
 /**************************************/
-B5500CentralControl.prototype.runTest = function(runAddr) {
+B5500CentralControl.prototype.runTest = function runTest(runAddr) {
     /* Executes a test program previously loaded by this.loadTest on processor
     P1. "runAddr" is the B5500 word address at which execution will begin
     (typically 0x10 [octal 20]) */
@@ -822,7 +822,7 @@ B5500CentralControl.prototype.runTest = function(runAddr) {
 };
 
 /**************************************/
-B5500CentralControl.prototype.configureSystem = function() {
+B5500CentralControl.prototype.configureSystem = function configureSystem() {
     /* Establishes the hardware module configuration from the
     B5500SystemConfiguration module */
     var cfg = B5500SystemConfiguration;
@@ -834,7 +834,7 @@ B5500CentralControl.prototype.configureSystem = function() {
     var x;
 
     function makeChange(cc, maskBit) {
-        return function(ready) {
+        return function statusChange(ready) {
             cc.unitStatusMask = (ready ? cc.bitSet(cc.unitStatusMask, maskBit)
                                        : cc.bitReset(cc.unitStatusMask, maskBit));
         };
@@ -843,41 +843,41 @@ B5500CentralControl.prototype.configureSystem = function() {
     function makeSignal(cc, mnemonic) {
         switch (mnemonic) {
         case "SPO":
-            return function() {
+            return function signalSPO() {
                 cc.CCI05F = 1;
                 cc.signalInterrupt();
             };
             break;
         case "LPA":
-            return function() {
+            return function signalLPA() {
                 cc.setUnitBusy(27, 0);
                 cc.CCI06F = 1;
                 cc.signalInterrupt();
             };
             break;
         case "LPB":
-            return function() {
+            return function signalLPB() {
                 cc.setUnitBusy(26, 0);
                 cc.CCI07F = 1;
                 cc.signalInterrupt();
             };
             break;
         case "DKA":
-            return function() {
+            return function signalDKA() {
                 cc.setUnitBusy(29, 0);
                 cc.CCI15F = 1;
                 cc.signalInterrupt();
             };
             break;
         case "DKB":
-            return function() {
+            return function signalDKB() {
                 cc.setUnitBusy(28, 0);
                 cc.CCI16F = 1;
                 cc.signalInterrupt();
             };
             break;
         default:
-            return function() {};
+            return function signalDefault() {};
             break;
         }
     }
@@ -924,7 +924,7 @@ B5500CentralControl.prototype.configureSystem = function() {
 };
 
 /**************************************/
-B5500CentralControl.prototype.powerOn = function() {
+B5500CentralControl.prototype.powerOn = function powerOn() {
     /* Powers up the system and establishes the hardware module configuration.
     Redundant power-ons are ignored. */
 
@@ -935,7 +935,7 @@ B5500CentralControl.prototype.powerOn = function() {
 };
 
 /**************************************/
-B5500CentralControl.prototype.powerOff = function() {
+B5500CentralControl.prototype.powerOff = function powerOff() {
     /* Powers down the system and deallocates the hardware modules.
     Redundant power-offs are ignored. */
     var x;
