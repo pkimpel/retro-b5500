@@ -36,12 +36,13 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal) {
     this.printChar.that = this;
     this.outputChar.that = this;
 
-    this.window = window.open("", "SPOWin");
+    this.window = window.open("", mnemonic);
     if (this.window) {
         this.window.close();            // destroy the previously-existing window
         this.window = null;
     }
-    this.window = window.open("/B5500/webUI/B5500SPOUnit.html", "SPOWin", "scrollbars,resizable,width=600,height=500");
+    this.doc = null;
+    this.window = window.open("/B5500/webUI/B5500SPOUnit.html", mnemonic, "scrollbars,resizable,width=600,height=500");
     this.window.onload = function() {
         that.spoOnload();
     };
@@ -54,7 +55,7 @@ B5500SPOUnit.prototype.spoRemote = 2;
 B5500SPOUnit.prototype.spoInput = 3;
 B5500SPOUnit.prototype.spoOutput = 4;
 
-B5500SPOUnit.prototype.keyFilter = [            // Filter keyCode values to valid B5500 ones
+B5500SPOUnit.prototype.keyFilter = [    // Filter keyCode values to valid BIC ones
         0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,  // 00-0F
         0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,  // 10-1F
         0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x3F,0x28,0x29,0x2A,0x2B,0x2C,0x2D,0x2E,0x2F,  // 20-2F
@@ -65,11 +66,12 @@ B5500SPOUnit.prototype.keyFilter = [            // Filter keyCode values to vali
         0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x7B,0x7C,0x7D,0x7E,0x3F]; // 70-7F
 
 /**************************************/
-B5500SPOUnit.prototype.$$ = function(e) {
-    return this.doc.getElementById(e)};
+B5500SPOUnit.prototype.$$ = function $$(e) {
+    return this.doc.getElementById(e);
+};
 
 /**************************************/
-B5500SPOUnit.prototype.clear = function() {
+B5500SPOUnit.prototype.clear = function clear() {
     /* Initializes (and if necessary, creates) the SPO unit state */
 
     this.ready = false;                 // ready status
@@ -89,7 +91,7 @@ B5500SPOUnit.prototype.clear = function() {
 };
 
 /**************************************/
-B5500SPOUnit.prototype.hasClass = function(e, name) {
+B5500SPOUnit.prototype.hasClass = function hasClass(e, name) {
     /* returns true if element "e" has class "name" in its class list */
     var classes = e.className;
 
@@ -103,7 +105,7 @@ B5500SPOUnit.prototype.hasClass = function(e, name) {
 };
 
 /**************************************/
-B5500SPOUnit.prototype.addClass = function(e, name) {
+B5500SPOUnit.prototype.addClass = function addClass(e, name) {
     /* Adds a class "name" to the element "e"s class list */
 
     if (!this.hasClass(e, name)) {
@@ -112,14 +114,14 @@ B5500SPOUnit.prototype.addClass = function(e, name) {
 };
 
 /**************************************/
-B5500SPOUnit.prototype.removeClass = function(e, name) {
+B5500SPOUnit.prototype.removeClass = function removeClass(e, name) {
     /* Removes the class "name" from the element "e"s class list */
 
     e.className = e.className.replace(new RegExp("\\b" + name + "\\b\\s*", "g"), "");
 };
 
 /**************************************/
-B5500SPOUnit.prototype.setNotReady = function() {
+B5500SPOUnit.prototype.setNotReady = function setNotReady() {
     /* Sets the status of the SPO to Not Ready */
 
     if (this.spoState == this.spoLocal) {
@@ -130,7 +132,7 @@ B5500SPOUnit.prototype.setNotReady = function() {
 };
 
 /**************************************/
-B5500SPOUnit.prototype.setReady = function() {
+B5500SPOUnit.prototype.setReady = function setReady() {
     /* Sets the status of the SPO to Ready */
 
     if (this.spoState == this.spoNotReady) {
@@ -140,7 +142,7 @@ B5500SPOUnit.prototype.setReady = function() {
 };
 
 /**************************************/
-B5500SPOUnit.prototype.setLocal = function() {
+B5500SPOUnit.prototype.setLocal = function setLocal() {
     /* Sets the status of the SPO to Local */
 
     if (this.spoState == this.spoRemote) {
@@ -160,7 +162,7 @@ B5500SPOUnit.prototype.setLocal = function() {
 };
 
 /**************************************/
-B5500SPOUnit.prototype.setRemote = function() {
+B5500SPOUnit.prototype.setRemote = function setRemote() {
     /* Sets the status of the SPO to Remote */
 
     if (this.spoState == this.spoLocal) {
@@ -172,7 +174,7 @@ B5500SPOUnit.prototype.setRemote = function() {
 };
 
 /**************************************/
-B5500SPOUnit.prototype.appendEmptyLine = function() {
+B5500SPOUnit.prototype.appendEmptyLine = function appendEmptyLine() {
     /* Removes excess lines already printed, then appends a new <pre> element
     to the <iframe>, creating an empty text node inside the new element */
     var count = this.paper.childNodes.length;
@@ -259,7 +261,7 @@ B5500SPOUnit.prototype.outputChar = function outputChar() {
 };
 
 /**************************************/
-B5500SPOUnit.prototype.terminateInput = function() {
+B5500SPOUnit.prototype.terminateInput = function terminateInput() {
     /* Handles the End of Message event. Turns off then Input Request lamp, then
     calls outputChar(), which will find bufIndex==bufLength, output a new-line,
     set the state to Remote, and call finish() for us. Slick, eh? */
@@ -273,7 +275,7 @@ B5500SPOUnit.prototype.terminateInput = function() {
 };
 
 /**************************************/
-B5500SPOUnit.prototype.cancelInput = function() {
+B5500SPOUnit.prototype.cancelInput = function cancelInput() {
     /* Handles the Error message event. This is identical to terminateInput(),
     but it also sets a parity error so the input message will be rejected */
 
@@ -287,7 +289,7 @@ B5500SPOUnit.prototype.cancelInput = function() {
 };
 
 /**************************************/
-B5500SPOUnit.prototype.keyPress = function(ev) {
+B5500SPOUnit.prototype.keyPress = function keyPress(ev) {
     /* Handles keyboard character events. Depending on the state of the unit,
     either buffers the character for transmission to the I/O Unit, simply echos
     it to the printer, or ignores it altogether */
@@ -334,7 +336,7 @@ B5500SPOUnit.prototype.keyPress = function(ev) {
 };
 
 /**************************************/
-B5500SPOUnit.prototype.keyDown = function(ev) {
+B5500SPOUnit.prototype.keyDown = function keyDown(ev) {
     /* Handles key-down events to capture ESC, BS, and Enter keystrokes */
     var that = this;
     var c = ev.keyCode;
@@ -392,7 +394,7 @@ B5500SPOUnit.prototype.keyDown = function(ev) {
 };
 
 /**************************************/
-B5500SPOUnit.prototype.printText = function(msg, finish) {
+B5500SPOUnit.prototype.printText = function printText(msg, finish) {
     /* Utility function to convert a string to a Typed Array buffer and queue
     it for printing. This is intended only for printing an initialization message
     in Local state */
@@ -413,12 +415,13 @@ B5500SPOUnit.prototype.printText = function(msg, finish) {
 };
 
 /**************************************/
-B5500SPOUnit.prototype.spoOnload = function() {
+B5500SPOUnit.prototype.spoOnload = function spoOnload() {
     /* Initializes the SPO window and user interface */
     var that = this;
     var x;
 
     this.doc = this.window.document;
+    this.doc.title = "retro-B5500 " + this.mnemonic;
     this.paper = this.$$("SPOUT").contentDocument.body;
     this.$$("SPOUT").contentDocument.head.innerHTML += "<style>" +
             "BODY {background-color: #FFE} " +
@@ -427,7 +430,7 @@ B5500SPOUnit.prototype.spoOnload = function() {
 
     this.window.resizeTo(this.window.outerWidth+this.$$("SPODiv").scrollWidth-this.window.innerWidth+8,
                          this.window.outerHeight+this.$$("SPODiv").scrollHeight-this.window.innerHeight+8);
-    this.window.moveTo(0/*screen.availWidth-this.window.outerWidth-8*/, screen.availHeight-this.window.outerHeight-8);
+    this.window.moveTo(0, screen.availHeight-this.window.outerHeight);
     this.window.focus();
 
     this.$$("SPORemoteBtn").onclick = function() {
@@ -479,7 +482,7 @@ B5500SPOUnit.prototype.spoOnload = function() {
 };
 
 /**************************************/
-B5500SPOUnit.prototype.read = function(finish, buffer, length, mode, control) {
+B5500SPOUnit.prototype.read = function read(finish, buffer, length, mode, control) {
     /* Initiates a read operation on the unit */
 
     this.errorMask = 0;
@@ -506,14 +509,14 @@ B5500SPOUnit.prototype.read = function(finish, buffer, length, mode, control) {
 };
 
 /**************************************/
-B5500SPOUnit.prototype.space = function(finish, length, control) {
+B5500SPOUnit.prototype.space = function space(finish, length, control) {
     /* Initiates a space operation on the unit */
 
     finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
-B5500SPOUnit.prototype.write = function(finish, buffer, length, mode, control) {
+B5500SPOUnit.prototype.write = function write(finish, buffer, length, mode, control) {
     /* Initiates a write operation on the unit */
 
     this.errorMask = 0;
@@ -540,35 +543,35 @@ B5500SPOUnit.prototype.write = function(finish, buffer, length, mode, control) {
 };
 
 /**************************************/
-B5500SPOUnit.prototype.erase = function(finish, length) {
+B5500SPOUnit.prototype.erase = function erase(finish, length) {
     /* Initiates an erase operation on the unit */
 
     finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
-B5500SPOUnit.prototype.rewind = function(finish) {
+B5500SPOUnit.prototype.rewind = function rewind(finish) {
     /* Initiates a rewind operation on the unit */
 
     finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
-B5500SPOUnit.prototype.readCheck = function(finish, length, control) {
+B5500SPOUnit.prototype.readCheck = function readCheck(finish, length, control) {
     /* Initiates a read check operation on the unit */
 
     finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
-B5500SPOUnit.prototype.readInterrogate = function(finish, control) {
+B5500SPOUnit.prototype.readInterrogate = function readInterrogate(finish, control) {
     /* Initiates a read interrogate operation on the unit */
 
     finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
-B5500SPOUnit.prototype.writeInterrogate = function (finish, control) {
+B5500SPOUnit.prototype.writeInterrogate = function writeInterrogate(finish, control) {
     /* Initiates a write interrogate operation on the unit */
 
     finish(0x04, 0);                    // report unit not ready

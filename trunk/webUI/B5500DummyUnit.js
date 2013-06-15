@@ -27,75 +27,75 @@ function B5500DummyUnit(mnemonic, index, designate, statusChange, signal) {
     this.designate = designate;         // IOD unit designate number
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (e.g,. SPO input request)
-    
+
     this.clear();
 }
 
 /**************************************/
-B5500DummyUnit.prototype.clear = function() {
+B5500DummyUnit.prototype.clear = function clear() {
     /* Initializes (and if necessary, creates) the processor state */
 
     this.ready = false;                 // ready status
     this.busy = false;                  // busy status
     this.activeIOUnit = 0;              // I/O unit currently using this device
-    
+
     this.errorMask = 0;                 // error mask for finish()
     this.finish = null;                 // external function to call for I/O completion
-    this.buffer = null;                 // 
+    this.buffer = null;                 //
 };
 
 /**************************************/
-B5500DummyUnit.prototype.read = function(finish, buffer, length, mode, control) {
+B5500DummyUnit.prototype.read = function read(finish, buffer, length, mode, control) {
     /* Initiates a read operation on the unit */
-    
+
     finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
-B5500DummyUnit.prototype.space = function(finish, length, control) {
+B5500DummyUnit.prototype.space = function space(finish, length, control) {
     /* Initiates a space operation on the unit */
 
     finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
-B5500DummyUnit.prototype.write = function(finish, buffer, length, mode, control) {
+B5500DummyUnit.prototype.write = function write(finish, buffer, length, mode, control) {
     /* Initiates a write operation on the unit */
 
     finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
-B5500DummyUnit.prototype.erase = function(finish, length) {
+B5500DummyUnit.prototype.erase = function erase(finish, length) {
     /* Initiates an erase operation on the unit */
-    
+
     finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
-B5500DummyUnit.prototype.rewind = function(finish) {
+B5500DummyUnit.prototype.rewind = function rewind(finish) {
     /* Initiates a rewind operation on the unit */
-    
+
     finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
-B5500DummyUnit.prototype.readCheck = function(finish, length, control) {
+B5500DummyUnit.prototype.readCheck = function readCheck(finish, length, control) {
     /* Initiates a read check operation on the unit */
-    
+
     finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
-B5500DummyUnit.prototype.readInterrogate = function(finish, control) {
+B5500DummyUnit.prototype.readInterrogate = function readInterrogate(finish, control) {
     /* Initiates a read interrogate operation on the unit */
-    
+
     finish(0x04, 0);                    // report unit not ready
 };
 
 /**************************************/
-B5500DummyUnit.prototype.writeInterrogate = function (finish, control) {
+B5500DummyUnit.prototype.writeInterrogate = function writeInterrogate(finish, control) {
     /* Initiates a write interrogate operation on the unit */
-    
+
     finish(0x04, 0);                    // report unit not ready
 };
