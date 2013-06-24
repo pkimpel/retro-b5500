@@ -9,6 +9,10 @@
 
 <style>
 
+BODY {
+    position:           relative;
+    margin:             1ex}
+
 BUTTON.greenButton {
     background-color:   #060;
     color:              white;
@@ -49,10 +53,13 @@ BUTTON.redLit {
     background-color:   #F00}
 
 #CardReaderPanel {
-    position:           relative;
+    position:           absolute;
+    top:                30px;
+    left:               1ex;
+    color:              white;
     background-color:   #666;
-    width:              280px;
-    height:             112px;
+    width:              700px;
+    height:             150px;
     border:             1px solid black;
     border-radius:      8px;
     padding:            0;
@@ -82,24 +89,43 @@ BUTTON.redLit {
     position:           absolute;
     top:                56px;
     left:               8px;
-    width:              120px}
+    width:              100%;
+    border:             1px solid white}
 
 #CRProgressBar {
     position:           absolute;
     top:                84px;
     left:               8px;
-    width:              262px}
+    width:              680px;
+    border:             1px solid white}
+
+#CROutHopperFrame {
+    position:           absolute;
+    top:                106px;
+    left:               8px;
+    width:              680px;
+    height:             32px;
+    margin-top:         1px;
+    border:             1px solid white;
+    color:              black;
+    background-color:   white;
+    font-family:        Lucida Sans Typewriter, Courier New, Courier, monospace;
+    font-size:          8pt;
+    font-weight:        normal}
 </style>
 
 <script>
 "use strict";
 
-window.onload = function() {
+window.addEventListener("load", function() {
     var buffer = "";
     var bufferLength = 0;
     var bufferOffset = 0;
     var eofArmed = 0;
     var panel = $$("TextPanel");
+    var outHopperFrame = $$("CROutHopperFrame");
+    var outHopper;
+    //var endOfOutHopper;
 
     var eolRex = /([^\n\r\f]*)((:?\r[\n\f]?)|\n|\f)?/g;
     var blankCard = "                                                                                "; // 80 spaces
@@ -141,14 +167,14 @@ window.onload = function() {
         e.className = e.className.replace(new RegExp("\\b" + name + "\\b\\s*", "g"), "");
     }
 
-    function appendLine(panel, text) {
+    function appendLine(text) {
         /* Appends "text"+NL as a new text node to the panel DOM element */
         var e = document.createTextNode(text + "\n");
 
         panel.appendChild(e);
     }
 
-    function clearPanel(panel) {
+    function clearPanel() {
         /* Clears the text panel */
         var kid;
 
@@ -189,6 +215,7 @@ window.onload = function() {
         var bx = bufferOffset;
         var card;
         var cardLength;
+        var line;
         var match;
 
         if (bx >= bufferLength) {
@@ -199,19 +226,26 @@ window.onload = function() {
             match = eolRex.exec(buffer);
             if (!match) {
                 card = blankCard;
+                line = "";
             } else {
                 bx += match[0].length;
                 card = match[1];
                 cardLength = card.length;
                 if (cardLength < 80) {
+                    line = card;
                     card += blankCard.substring(0, 80-cardLength);
                 } else if (cardLength > 80) {
-                    card = card.substring(0, 80);
+                    line = card = card.substring(0, 80);
                 }
             }
 
             $$("CRProgressBar").value = bufferLength-bx;
-            appendLine(panel, card);
+            //appendLine(card);
+            while (outHopper.childNodes.length > 1) {
+                outHopper.removeChild(outHopper.firstChild);
+            }
+            outHopper.appendChild(document.createTextNode("\n"));
+            outHopper.appendChild(document.createTextNode(line));
 
             if (readerState == readerReady) {
                 setTimeout(readACard, 60000/cardsPerMinute);
@@ -228,7 +262,7 @@ window.onload = function() {
             if (bufferOffset >= bufferLength) {
                 //alert("Empty hopper.");
                 if (eofArmed) {
-                    appendLine(panel, "\\\\\\\\\\  [EOF]  /////");
+                    appendLine("\\\\\\\\\\  [EOF]  /////");
                     armEOF(false);
                 }
             } else {
@@ -254,13 +288,26 @@ window.onload = function() {
         armEOF(!eofArmed);
     }
 
+    function CRProgressBar_onclick(ev) {
+        /* Handle the click event for the "input hopper" progress bar */
+
+        if (bufferOffset < bufferLength && readerState == readerNotReady) {
+            if (confirm("Do you want to clear the reader input hopper?")) {
+                buffer = "";
+                bufferLength = 0;
+                bufferOffset = 0;
+                $$("CRProgressBar").value = 0;
+            }
+        }
+    }
+
     function fileLoader_onLoad(ev) {
         /* Handle the onload event for a Text FileReader */
 
         if (bufferOffset < bufferLength) {
             buffer = buffer.substring(bufferOffset);
         } else {
-            clearPanel(panel);
+            clearPanel();
             buffer = "";
         }
 
@@ -317,7 +364,18 @@ window.onload = function() {
     $$("CRStartBtn").addEventListener("click", CRStartBtn_onclick, false);
     $$("CRStopBtn").addEventListener("click", CRStopBtn_onclick, false);
     $$("CREOFBtn").addEventListener("click", CREOFBtn_onclick, false);
-}
+    $$("CRProgressBar").addEventListener("click", CRProgressBar_onclick, false);
+
+    outHopperFrame.contentDocument.head.innerHTML += "<style>" +
+            "BODY {background-color: #F0DCB0} " +
+            "PRE {margin: 0; font-size: 8pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
+            "</style>";
+    outHopper = document.createElement("pre");
+    outHopperFrame.contentDocument.body.appendChild(outHopper);
+    //endOfOutHopper = document.createElement("div");
+    //endOfOutHopper.appendChild(document.createTextNode("\xA0"));
+    //outHopperFrame.contentDocument.body.appendChild(endOfOutHopper);
+}, false);
 </script>
 </head>
 
@@ -332,9 +390,11 @@ window.onload = function() {
     <button id=CREOFBtn         class="redButton">EOF</button>
     <button id=CRStopBtn        class="redButton">STOP</button>
 
-    <input id=CRFileSelector type=file size=29>
+    <input id=CRFileSelector type=file size=90>
 
-    <progress id=CRProgressBar min=0 max=100 value=0>
+    <progress id=CRProgressBar min=0 max=100 value=0 title="Click to clear input hopper"></progress>
+
+    <iframe id=CROutHopperFrame scrolling=auto></iframe>
 </div>
 
 <pre id=TextPanel>

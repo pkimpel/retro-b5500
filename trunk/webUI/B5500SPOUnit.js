@@ -42,10 +42,13 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal) {
         this.window = null;
     }
     this.doc = null;
-    this.window = window.open("/B5500/webUI/B5500SPOUnit.html", mnemonic, "scrollbars,resizable,width=600,height=500");
-    this.window.onload = function() {
+    this.paper = null;
+    this.endOfPaper = null;
+    this.window = window.open("/B5500/webUI/B5500SPOUnit.html", mnemonic,
+            "scrollbars,resizable,width=600,height=500");
+    this.window.addEventListener("load", function() {
         that.spoOnload();
-    };
+    }, false);
 }
 
 // this.spoState enumerations
@@ -178,21 +181,20 @@ B5500SPOUnit.prototype.appendEmptyLine = function appendEmptyLine() {
     /* Removes excess lines already printed, then appends a new <pre> element
     to the <iframe>, creating an empty text node inside the new element */
     var count = this.paper.childNodes.length;
-    var line = document.createElement("pre");
+    var line = this.doc.createTextNode("");
 
+    this.printChar(0x0A);               // newline
     while (count-- > this.maxScrollLines) {
         this.paper.removeChild(this.paper.firstChild);
     }
-    line.appendChild(document.createTextNode(""));
     this.paper.appendChild(line);
-    line.scrollIntoView();
 };
 
 /**************************************/
 B5500SPOUnit.prototype.backspaceChar = function backspaceChar() {
     /* Handles backspace for SPO input */
     var that = backspaceChar.that;
-    var line = that.paper.lastChild.lastChild;
+    var line = that.paper.lastChild;
 
     if (that.bufLength > 0) {
         that.bufIndex--;
@@ -209,9 +211,13 @@ B5500SPOUnit.prototype.backspaceChar = function backspaceChar() {
 B5500SPOUnit.prototype.printChar = function printChar(c) {
     /* Echoes the character code "c" to the SPO printer */
     var that = printChar.that;
-    var line = that.paper.lastChild.lastChild;
+    var line = that.paper.lastChild;
+    var len = line.nodeValue.length;
 
-    if (line.nodeValue.length < 72) {
+    if (len < 1) {
+        line.nodeValue = String.fromCharCode(c);
+        that.endOfPaper.scrollIntoView();
+    } else if (len < 72) {
         line.nodeValue += String.fromCharCode(c);
     } else {
          line.nodeValue = line.nodeValue.substring(0, 71) + String.fromCharCode(c);
@@ -422,7 +428,12 @@ B5500SPOUnit.prototype.spoOnload = function spoOnload() {
 
     this.doc = this.window.document;
     this.doc.title = "retro-B5500 " + this.mnemonic;
-    this.paper = this.$$("SPOUT").contentDocument.body;
+    this.paper = this.doc.createElement("pre");
+    this.paper.appendChild(this.doc.createTextNode(""));
+    this.$$("SPOUT").contentDocument.body.appendChild(this.paper);
+    this.endOfPaper = this.doc.createElement("div");
+    //this.endOfPaper.appendChild(this.doc.createTextNode("\xA0"));
+    this.$$("SPOUT").contentDocument.body.appendChild(this.endOfPaper);
     this.$$("SPOUT").contentDocument.head.innerHTML += "<style>" +
             "BODY {background-color: #FFE} " +
             "PRE {margin: 0; font-size: 10pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
@@ -475,6 +486,7 @@ B5500SPOUnit.prototype.spoOnload = function spoOnload() {
         this.appendEmptyLine();
     }
     this.setReady();
+    this.window.focus();
     this.printText("retro-B5500 Emulator Version " + B5500CentralControl.version, function() {
         that.setRemote();
         that.appendEmptyLine();

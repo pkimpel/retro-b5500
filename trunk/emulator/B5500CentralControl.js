@@ -42,8 +42,8 @@ function B5500CentralControl() {
 
     // Instance variables and flags
     this.poweredUp = 0;                 // System power indicator
+
     this.unitStatusMask = 0;            // Peripheral unit ready-status bitmask
-    this.unitBusyMask = 0;              // Peripheral unit busy-status bitmask
 
     this.PB1L = 0;                      // 0=> PA is P1, 1=> PB is P1
     this.inhCCI03F = 0;                 // 0=> allow timer interrupts; 1=> inhibit 'em
@@ -51,7 +51,6 @@ function B5500CentralControl() {
 
     this.nextTimeStamp = 0;             // Next actual Date.getTime() for timer tick
     this.timer = null;                  // Reference to the RTC setTimeout id.
-    this.loadTimer = null;              // Reference to the load setTimeout id.
 
     // Establish contexts for asynchronously-called methods
     this.boundTock = B5500CentralControl.bindMethod(this.tock, this);
@@ -62,9 +61,10 @@ function B5500CentralControl() {
 /**************************************/
     /* Global constants */
 
-B5500CentralControl.version = "0.06";
+B5500CentralControl.version = "0.07";
 
-B5500CentralControl.rtcTick = 1000/60; // Real-time clock period, milliseconds
+B5500CentralControl.memCycles = 4;      // assume 4 µs memory cycle time (the other option was 6 µs)
+B5500CentralControl.rtcTick = 1000/60;  // Real-time clock period, milliseconds
 
 B5500CentralControl.pow2 = [ // powers of 2 from 0 to 52
                      0x1,              0x2,              0x4,              0x8,
@@ -121,9 +121,9 @@ B5500CentralControl.unitSpecs = {
     DKB: {unitIndex: 28, designate: 12, unitClass: B5500DiskUnit},
     CRA: {unitIndex: 24, designate: 10, unitClass: B5500CardReader},
     CRB: {unitIndex: 23, designate: 14, unitClass: B5500CardReader},
-    CPA: {unitIndex: 25, designate: 10, unitClass: null},
-    LPA: {unitIndex: 27, designate: 22, unitClass: null},
-    LPB: {unitIndex: 26, designate: 26, unitClass: null},
+    CPA: {unitIndex: 25, designate: 10, unitClass: B5500CardPunch},
+    LPA: {unitIndex: 27, designate: 22, unitClass: B5500DummyPrinter},
+    LPB: {unitIndex: 26, designate: 26, unitClass: B5500DummyPrinter},
     PRA: {unitIndex: 20, designate: 18, unitClass: null},
     PRB: {unitIndex: 19, designate: 20, unitClass: null},
     PPA: {unitIndex: 21, designate: 18, unitClass: null},
@@ -203,6 +203,13 @@ B5500CentralControl.prototype.clear = function clear() {
     this.CTMF = 0;                      // Commence timing FF
     this.P2BF = 0;                      // Processor 2 busy FF
     this.HP2F = 1;                      // Halt processor 2 FF
+
+    this.interruptMask = 0;             // Interrupt status mask
+    this.interruptLatch = 0;            // Interrupt latched status (reset by console UI)
+    this.iouMask = 0;                   // I/O Unit busy status mask
+    this.iouLatch = 0;                  // I/O Unit busy latched status (reset by console UI)
+    this.unitBusyLatch = 0;             // Peripheral unit latched status (reset by console UI)
+    this.unitBusyMask = 0;              // Peripheral unit busy-status bitmask
 
     if (this.PA) {
         this.PA.clear();
@@ -427,6 +434,11 @@ B5500CentralControl.prototype.signalInterrupt = function signalInterrupt() {
                   : 0
                   )
              : 0;                       // no interrupt set
+
+     if (this.IAR) {
+         this.interruptMask = this.bitSet(this.interruptMask, 65-this.IAR);
+         this.interruptLatch = this.bitSet(this.interruptLatch, 65-this.IAR);
+     }
 };
 
 /**************************************/
@@ -437,100 +449,107 @@ B5500CentralControl.prototype.clearInterrupt = function clearInterrupt() {
     var p1 = this.P1;
     var p2 = this.P2;
 
-    switch (this.IAR) {
-    case 0x12:                          // @22: Time interval
-        this.CCI03F = 0;
-        break;
-    case 0x13:                          // @23: I/O busy
-        this.CCI04F = 0;
-        break;
-    case 0x14:                          // @24: Keyboard request
-        this.CCI05F = 0;
-        break;
-    case 0x15:                          // @25: Printer 1 finished
-        this.CCI06F = 0;
-        break;
-    case 0x16:                          // @26: Printer 2 finished
-        this.CCI07F = 0;
-        break;
-    case 0x17:                          // @27: I/O 1 finished
-        this.CCI08F = 0;
-        this.AD1F = 0;                          // make unit non-busy
-        break;
-    case 0x18:                          // @30: I/O 2 finished
-        this.CCI09F = 0;
-        this.AD2F = 0;                          // make unit non-busy
-        break;
-    case 0x19:                          // @31: I/O 3 finished
-        this.CCI10F = 0;
-        this.AD3F = 0;                          // make unit non-busy
-        break;
-    case 0x1A:                          // @32: I/O 4 finished
-        this.CCI11F = 0;
-        this.AD4F = 0;                          // make unit non-busy
-        break;
-    case 0x1B:                          // @33: P2 busy
-        this.CCI12F = 0;
-        break;
-    case 0x1C:                          // @34: Inquiry request
-        this.CCI13F = 0;
-        break;
-    case 0x1D:                          // @35: Special interrupt 1
-        this.CCI14F = 0;
-        break;
-    case 0x1E:                          // @36: Disk file 1 read check finished
-        this.CCI15F = 0;
-        break;
-    case 0x1F:                          // @37: Disk file 2 read check finished
-        this.CCI16F = 0;
-        break;
+    if (this.IAR) {
+        this.interruptMask = this.bitReset(this.interruptMask, 65-this.IAR)
+        switch (this.IAR) {
+        case 0x12:                      // @22: Time interval
+            this.CCI03F = 0;
+            break;
+        case 0x13:                      // @23: I/O busy
+            this.CCI04F = 0;
+            break;
+        case 0x14:                      // @24: Keyboard request
+            this.CCI05F = 0;
+            break;
+        case 0x15:                      // @25: Printer 1 finished
+            this.CCI06F = 0;
+            break;
+        case 0x16:                      // @26: Printer 2 finished
+            this.CCI07F = 0;
+            break;
+        case 0x17:                      // @27: I/O 1 finished
+            this.CCI08F = 0;
+            this.AD1F = 0;                      // make unit non-busy
+            this.iouMask &= 0xE;
+            break;
+        case 0x18:                      // @30: I/O 2 finished
+            this.CCI09F = 0;
+            this.AD2F = 0;                      // make unit non-busy
+            this.iouMask &= 0xD;
+            break;
+        case 0x19:                      // @31: I/O 3 finished
+            this.CCI10F = 0;
+            this.AD3F = 0;                      // make unit non-busy
+            this.iouMask &= 0xB;
+            break;
+        case 0x1A:                      // @32: I/O 4 finished
+            this.CCI11F = 0;
+            this.AD4F = 0;                      // make unit non-busy
+            this.iouMask &= 0x7;
+            break;
+        case 0x1B:                      // @33: P2 busy
+            this.CCI12F = 0;
+            break;
+        case 0x1C:                      // @34: Inquiry request
+            this.CCI13F = 0;
+            break;
+        case 0x1D:                      // @35: Special interrupt 1
+            this.CCI14F = 0;
+            break;
+        case 0x1E:                      // @36: Disk file 1 read check finished
+            this.CCI15F = 0;
+            break;
+        case 0x1F:                      // @37: Disk file 2 read check finished
+            this.CCI16F = 0;
+            break;
 
-    case 0x20:                          // @40: P2 memory parity error
-        if (p2) {p2.I &= 0xFE}
-        break;
-    case 0x21:                          // @41: P2 invalid address error
-        if (p2) {p2.I &= 0xFD}
-        break;
-    case 0x22:                          // @42: P2 stack overflow
-        if (p2) {p2.I &= 0xFB}
-        break;
-    case 0x24:                          // @44-55: P2 syllable-dependent
-    case 0x25:
-    case 0x26:
-    case 0x27:
-    case 0x28:
-    case 0x29:
-    case 0x2A:
-    case 0x2B:
-    case 0x2C:
-    case 0x2D:
-        if (p2) {p2.I &= 0x0F}
-        break;
+        case 0x20:                      // @40: P2 memory parity error
+            if (p2) {p2.I &= 0xFE}
+            break;
+        case 0x21:                      // @41: P2 invalid address error
+            if (p2) {p2.I &= 0xFD}
+            break;
+        case 0x22:                      // @42: P2 stack overflow
+            if (p2) {p2.I &= 0xFB}
+            break;
+        case 0x24:                      // @44-55: P2 syllable-dependent
+        case 0x25:
+        case 0x26:
+        case 0x27:
+        case 0x28:
+        case 0x29:
+        case 0x2A:
+        case 0x2B:
+        case 0x2C:
+        case 0x2D:
+            if (p2) {p2.I &= 0x0F}
+            break;
 
-    case 0x30:                          // @60: P1 memory parity error
-        p1.I &= 0xFE;
-        break;
-    case 0x31:                          // @61: P1 invalid address error
-        p1.I &= 0xFD;
-        break;
-    case 0x32:                          // @62: P1 stack overflow
-        p1.I &= 0x0B;
-        break;
-    case 0x34:                          // @64-75: P1 syllable-dependent
-    case 0x35:
-    case 0x36:
-    case 0x37:
-    case 0x38:
-    case 0x39:
-    case 0x3A:
-    case 0x3B:
-    case 0x3C:
-    case 0x3D:
-        p1.I &= 0x0F;
-        break;
+        case 0x30:                      // @60: P1 memory parity error
+            p1.I &= 0xFE;
+            break;
+        case 0x31:                      // @61: P1 invalid address error
+            p1.I &= 0xFD;
+            break;
+        case 0x32:                      // @62: P1 stack overflow
+            p1.I &= 0x0B;
+            break;
+        case 0x34:                      // @64-75: P1 syllable-dependent
+        case 0x35:
+        case 0x36:
+        case 0x37:
+        case 0x38:
+        case 0x39:
+        case 0x3A:
+        case 0x3B:
+        case 0x3C:
+        case 0x3D:
+            p1.I &= 0x0F;
+            break;
 
-    default:                            // no interrupt vector was set
-        break;
+        default:                        // no interrupt vector was set
+            break;
+        }
     }
     this.signalInterrupt();
 };
@@ -551,7 +570,7 @@ B5500CentralControl.prototype.tock = function tock() {
         }
     }
     interval = (this.nextTimeStamp += B5500CentralControl.rtcTick) - thisTime;
-    this.timer = setTimeout(this.boundTock, (interval < 0 ? 1 : interval));
+    this.timer = setTimeout(this.boundTock, (interval < 1 ? 1 : interval));
 };
 
 /**************************************/
@@ -588,15 +607,23 @@ B5500CentralControl.prototype.initiateIO = function initiateIO() {
 
     if (this.IO1 && this.IO1.REMF && !this.AD1F) {
         this.AD1F = 1;
+        this.iouMask |= 0x1;
+        this.iouLatch |= 0x1;
         this.IO1.initiate();
     } else if (this.IO2 && this.IO2.REMF && !this.AD2F) {
         this.AD2F = 1;
+        this.iouMask |= 0x2;
+        this.iouLatch |= 0x2;
         this.IO2.initiate();
     } else if (this.IO3 && this.IO3.REMF && !this.AD3F) {
         this.AD3F = 1;
+        this.iouMask |= 0x4;
+        this.iouLatch |= 0x4;
         this.IO3.initiate();
     } else if (this.IO4 && this.IO4.REMF && !this.AD4F) {
         this.AD4F = 1;
+        this.iouMask |= 0x8;
+        this.iouLatch |= 0x8;
         this.IO4.initiate();
     } else {
         this.CCI04F = 1;                // set I/O busy interrupt
@@ -651,9 +678,40 @@ B5500CentralControl.prototype.setUnitBusy = function setUnitBusy(index, busy) {
     /* Sets or resets the unit-busy mask bit for unit index "index" */
 
     if (index) {
-        this.unitBusyMask = (busy ? this.bitSet(this.unitBusyMask, index)
-                                  : this.bitReset(this.unitBusyMask, index));
+        if (busy) {
+            this.unitBusyMask = this.bitSet(this.unitBusyMask, index);
+            this.unitBusyLatch = this.bitSet(this.unitBusyLatch, index);
+        } else {
+            this.unitBusyMask = this.bitReset(this.unitBusyMask, index);
+        }
     }
+};
+
+/**************************************/
+B5500CentralControl.prototype.fetchInterruptLatch = function fetchInterruptLatch() {
+    /* Returns and resets this.interruptLatch; used by console UI */
+    var latch = this.interruptLatch;
+
+    this.interruptLatch = this.interruptMask;
+    return latch;
+};
+
+/**************************************/
+B5500CentralControl.prototype.fetchIOUnitLatch = function fetchIOUnitLatch() {
+    /* Returns and resets this.iouLatch; used by console UI */
+    var latch = this.iouLatch;
+
+    this.iouLatch = this.iouMask;
+    return latch;
+};
+
+/**************************************/
+B5500CentralControl.prototype.fetchUnitBusyLatch = function fetchUnitBusyLatch() {
+    /* Returns and resets this.unitBusyLatch; used by console UI */
+    var latch = this.unitBusyLatch;
+
+    this.unitBusyLatch = this.unitBusyMask;
+    return latch;
 };
 
 /**************************************/
@@ -663,10 +721,6 @@ B5500CentralControl.prototype.halt = function halt() {
     if (this.timer) {
         clearTimeout(this.timer);
         this.timer = null;
-    }
-    if (this.loadTimer) {
-        clearTimeout(this.loadTimer);
-        this.loadTimer = null;
     }
 
     if (this.PA && this.PA.busy) {
@@ -698,22 +752,25 @@ B5500CentralControl.prototype.loadComplete = function loadComplete(dontStart) {
         completed = true;
         this.CCI08F = 0;
         this.AD1F = 0;
+        this.iouMask &= 0xE;
     } else if (this.CCI09F) {           // I/O Unit 2 finished
         completed = true;
         this.CCI09F = 0;
         this.AD2F = 0;
+        this.iouMask &= 0xD;
     } else if (this.CCI10F) {           // I/O Unit 3 finished
         completed = true;
         this.CCI10F = 0;
         this.AD3F = 0;
+        this.iouMask &= 0xB;
     } else if (this.CCI11F) {           // I/O Unit 4 finished
         completed = true;
         this.CCI11F = 0;
         this.AD4F = 0;
+        this.iouMask &= 0x7;
     }
 
     if (completed) {
-        this.loadTimer = null;
         this.LOFF = 0;
         this.P1.preset(0x10);           // start execution at C=@20
         if (!dontStart) {
@@ -737,15 +794,23 @@ B5500CentralControl.prototype.load = function load(dontStart) {
         this.LOFF = 1;
         if (this.IO1 && this.IO1.REMF && !this.AD1F) {
             this.AD1F = 1;
+            this.iouMask |= 0x1;
+            this.iouLatch |= 0x1;
             this.IO1.initiateLoad(this.cardLoadSelect, boundLoadComplete);
         } else if (this.IO2 && this.IO2.REMF && !this.AD2F) {
             this.AD2F = 1;
+            this.iouMask |= 0x2;
+            this.iouLatch |= 0x2;
             this.IO2.initiateLoad(this.cardLoadSelect, boundLoadComplete);
         } else if (this.IO3 && this.IO3.REMF && !this.AD3F) {
             this.AD3F = 1;
+            this.iouMask |= 0x4;
+            this.iouLatch |= 0x4;
             this.IO3.initiateLoad(this.cardLoadSelect, boundLoadComplete);
         } else if (this.IO4 && this.IO4.REMF && !this.AD4F) {
             this.AD4F = 1;
+            this.iouMask |= 0x8;
+            this.iouLatch |= 0x8;
             this.IO4.initiateLoad(this.cardLoadSelect, boundLoadComplete);
         } else {
             this.CCI04F = 1;            // set I/O busy interrupt
@@ -815,7 +880,6 @@ B5500CentralControl.prototype.runTest = function runTest(runAddr) {
     (typically 0x10 [octal 20]) */
 
     this.clear();
-    this.loadTimer = null;
     this.LOFF = 0;
     this.P1.preset(runAddr);
     this.P1.start();
@@ -850,28 +914,26 @@ B5500CentralControl.prototype.configureSystem = function configureSystem() {
             break;
         case "LPA":
             return function signalLPA() {
-                cc.setUnitBusy(27, 0);
                 cc.CCI06F = 1;
                 cc.signalInterrupt();
             };
             break;
         case "LPB":
             return function signalLPB() {
-                cc.setUnitBusy(26, 0);
                 cc.CCI07F = 1;
                 cc.signalInterrupt();
             };
             break;
         case "DKA":
             return function signalDKA() {
-                cc.setUnitBusy(29, 0);
+                cc.setUnitBusy(29, 0);          // Is this needed here ??
                 cc.CCI15F = 1;
                 cc.signalInterrupt();
             };
             break;
         case "DKB":
             return function signalDKB() {
-                cc.setUnitBusy(28, 0);
+                cc.setUnitBusy(28, 0);          // Is this needed here ??
                 cc.CCI16F = 1;
                 cc.signalInterrupt();
             };

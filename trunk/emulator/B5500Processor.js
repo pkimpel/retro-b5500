@@ -52,8 +52,7 @@ function B5500Processor(procID, cc) {
 
 /**************************************/
 
-B5500Processor.timeSlice = 5000;        // Standard run() timeslice, about 5ms (we hope)
-B5500Processor.memCycles = 6;           // assume 6 us memory cycle time (the other option was 4 usec)
+B5500Processor.timeSlice = 16000;       // Standard run() timeslice in clocks (about 16ms, we hope)
 
 B5500Processor.collation = [            // index by BIC to get collation value
     53, 54, 55, 56, 57, 58, 59, 60,             // @00: 0 1 2 3 4 5 6 7
@@ -112,9 +111,9 @@ B5500Processor.prototype.clear = function clear() {
     this.cycleCount = 0;                // Current cycle count for this.run()
     this.cycleLimit = 0;                // Cycle limit for this.run()
     this.totalCycles = 0;               // Total cycles executed on this processor
-    this.procStart = 0;                 // Javascript time that the processor started running, µs
-    this.procTime = 0;                  // Total processor running time, based on cycles executed, µs
-    this.procSlack = 0;                 // Total processor throttling delay, µs
+    this.procStart = 0;                 // Javascript time that the processor started running, ms
+    this.procTime = 0;                  // Total processor running time, ms
+    this.procSlack = 0;                 // Total processor throttling delay, ms
     this.busy = 0;                      // Processor is running, not idle or halted
 };
 
@@ -144,7 +143,7 @@ B5500Processor.prototype.loadAviaS = function loadAviaS() {
     acc.addr = this.S;
     acc.MAIL = (this.S < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
-    this.cycleCount += B5500Processor.memCycles;
+    this.cycleCount += B5500CentralControl.memCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     } else {
@@ -162,7 +161,7 @@ B5500Processor.prototype.loadBviaS = function loadBviaS() {
     acc.addr = this.S;
     acc.MAIL = (this.S < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
-    this.cycleCount += B5500Processor.memCycles;
+    this.cycleCount += B5500CentralControl.memCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     } else {
@@ -180,7 +179,7 @@ B5500Processor.prototype.loadAviaM = function loadAviaM() {
     acc.addr = this.M;
     acc.MAIL = (this.M < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
-    this.cycleCount += B5500Processor.memCycles;
+    this.cycleCount += B5500CentralControl.memCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     } else {
@@ -198,7 +197,7 @@ B5500Processor.prototype.loadBviaM = function loadBviaM() {
     acc.addr = this.M;
     acc.MAIL = (this.M < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
-    this.cycleCount += B5500Processor.memCycles;
+    this.cycleCount += B5500CentralControl.memCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     } else {
@@ -216,7 +215,7 @@ B5500Processor.prototype.loadMviaM = function loadMviaM() {
     acc.addr = this.M;
     acc.MAIL = (this.M < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
-    this.cycleCount += B5500Processor.memCycles;
+    this.cycleCount += B5500CentralControl.memCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     } else {
@@ -234,7 +233,7 @@ B5500Processor.prototype.loadPviaC = function loadPviaC() {
     acc.MAIL = (this.C < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
     this.PROF = 1;                      // PROF gets set even for invalid address
-    this.cycleCount += B5500Processor.memCycles;
+    this.cycleCount += B5500CentralControl.memCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     } else {
@@ -252,7 +251,7 @@ B5500Processor.prototype.storeAviaS = function storeAviaS() {
     acc.MAIL = (this.S < 0x0200 && this.NCSF);
     acc.word = this.A;
     this.cc.store(acc);
-    this.cycleCount += B5500Processor.memCycles;
+    this.cycleCount += B5500CentralControl.memCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     }
@@ -268,7 +267,7 @@ B5500Processor.prototype.storeBviaS = function storeBviaS() {
     acc.MAIL = (this.S < 0x0200 && this.NCSF);
     acc.word = this.B;
     this.cc.store(acc);
-    this.cycleCount += B5500Processor.memCycles;
+    this.cycleCount += B5500CentralControl.memCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     }
@@ -284,7 +283,7 @@ B5500Processor.prototype.storeAviaM = function storeAviaM() {
     acc.MAIL = (this.M < 0x0200 && this.NCSF);
     acc.word = this.A;
     this.cc.store(acc);
-    this.cycleCount += B5500Processor.memCycles;
+    this.cycleCount += B5500CentralControl.memCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     }
@@ -300,7 +299,7 @@ B5500Processor.prototype.storeBviaM = function storeBviaM() {
     acc.MAIL = (this.M < 0x0200 && this.NCSF);
     acc.word = this.B;
     this.cc.store(acc);
-    this.cycleCount += B5500Processor.memCycles;
+    this.cycleCount += B5500CentralControl.memCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     }
@@ -1344,7 +1343,7 @@ B5500Processor.prototype.start = function start() {
     /* Initiates the processor by scheduling it on the Javascript thread */
 
     this.busy = 1;
-    this.procTime = this.procStart = new Date().getTime()*1000;
+    this.procStart = new Date().getTime();
     this.scheduler = setTimeout(this.boundSchedule, 0);
 };
 
@@ -2136,7 +2135,7 @@ B5500Processor.prototype.doublePrecisionAdd = function doublePrecisionAdd(adding
     var xb;                             // extended mantissa for B
 
     // Estimate some general overhead and account for stack manipulation we don't do
-    this.cycleCount += B5500Processor.memCycles*4 + 8;
+    this.cycleCount += B5500CentralControl.memCycles*4 + 8;
 
     this.adjustABFull();                // extract the top (A) operand fields:
     ma = this.A % 0x8000000000;         // extract the A mantissa
@@ -2363,8 +2362,9 @@ B5500Processor.prototype.computeRelativeAddr = function computeRelativeAddr(offs
 
 /**************************************/
 B5500Processor.prototype.presenceTest = function presenceTest(word) {
-    /* Tests and returns the presence bit [2:1] of the "word" parameter. If
-    0, the p-bit interrupt is set; otherwise no further action */
+    /* Tests and returns the presence bit [2:1] of the "word" parameter,
+    which it assumes is a control word. If [2:1] is 0, the p-bit interrupt
+    is set; otherwise no further action */
 
     if (word % 0x400000000000 >= 0x200000000000) {
         return 1;
@@ -2629,11 +2629,11 @@ B5500Processor.prototype.enterCharModeInline = function enterCharModeInline() {
 
     // execute the portion of CM XX04=RDA operator starting at J=2
     this.S = bw % 0x8000;
-    if (bw >= 0x800000000000) {         // if it's a descriptor,
-        this.K = 0;                     // force K to zero and
-        this.presenceTest(bw);          // just take the side effect of any p-bit interrupt
+    if (bw < 0x800000000000) {          // if it's an operand
+        this.K = (bw % 0x40000) >>> 15; // set K from [30:3]
     } else {
-        this.K = (bw % 0x40000) >>> 15;
+        this.K = 0;                     // otherwise, force K to zero and
+        this.presenceTest(bw);          // just take the side effect of any p-bit interrupt
     }
 };
 
@@ -2726,7 +2726,7 @@ B5500Processor.prototype.exitSubroutine = function exitSubroutine(inline) {
             do {
                 this.S = (this.B % 0x40000000) >>> 15;
                 this.loadBviaS();       // B = [S], fetch prior MSCW
-            } while ((this.B % 0x100000000 - this.B % 0x80000000)/0x80000000 == 1); // MSFF
+            } while ((this.B % 0x100000000 - this.B % 0x80000000)/0x80000000); // MSFF
             this.S = this.R*64 + 7;
             this.storeBviaS();          // [S] = B, store last MSCW at [R]+7
         }
@@ -2916,11 +2916,11 @@ B5500Processor.prototype.run = function run() {
                     this.loadBviaS();                   // B = [S]
                     this.BROF = 0;
                     this.S = (t1 = this.B) % 0x8000;
-                    if (t1 >= 0x800000000000) {         // if it's a descriptor,
-                        this.K = 0;                     // force K to zero and
-                        this.presenceTest(t1);          // just take the side effect of any p-bit interrupt
+                    if (t1 < 0x800000000000) {         // if it's an operand,
+                        this.K = (t1 % 0x40000) >>> 15;// set K from [30:3]
                     } else {
-                        this.K = (t1 % 0x40000) >>> 15;
+                        this.K = 0;                     // otherwise, force K to zero and
+                        this.presenceTest(t1);          // just take the side effect of any p-bit interrupt
                     }
                     break;
 
@@ -3300,15 +3300,16 @@ B5500Processor.prototype.run = function run() {
                     this.S = this.F - variant;
                     this.loadBviaS();                   // B = [S]
                     this.S = t1;
-                    if (this.B >= 0x800000000000) {     // if it's a descriptor,
-                        if (this.presenceTest(this.B)) {// if present, initiate a fetch to P
+                    t2 = this.B;
+                    if (t2 >= 0x800000000000) {         // if it's a descriptor,
+                        if (this.presenceTest(t2)) {    // if present, initiate a fetch to P
                             this.C = this.B % 0x8000;   // get the word address,
                             this.L = 0;                 // force L to zero and
                             this.PROF = 0;              // require fetch at SECL
                         }
                     } else {
-                        this.C = this.B % 0x8000;
-                        t1 = (this.B % 0x4000000000 - this.B % 0x1000000000)/0x1000000000;
+                        this.C = t2 % 0x8000;
+                        t1 = (t2 % 0x4000000000 - t2 % 0x1000000000)/0x1000000000;
                         if (t1 < 3) {                   // if not a descriptor, increment the address
                             this.L = t1+1;
                         } else {
@@ -3370,12 +3371,13 @@ B5500Processor.prototype.run = function run() {
                     this.H = 0;
                     this.M = this.F - variant;
                     this.loadBviaM();                   // B = [M]
-                    this.M = this.B % 0x8000;
-                    if (this.B >= 0x800000000000) {     // if it's a descriptor,
-                        this.G = 0;                     // force G to zero and
-                        this.presenceTest(this.B);      // just take the side effect of any p-bit interrupt
-                    } else {                            // it's an operand
-                        this.G = (this.B % 0x40000) >>> 15;
+                    t1 = this.B;
+                    this.M = t1 % 0x8000;
+                    if (t1 < 0x800000000000) {          // if it's an operand,
+                        this.G = (t1 % 0x40000) >>> 15; // set G from [30:3]
+                    } else {                            //
+                        this.G = 0;                     // otherwise, force G to zero and
+                        this.presenceTest(t1);          // just take the side effect of any p-bit interrupt
                     }
                     this.B = this.A;                    // restore B from A
                     this.BROF = this.AROF;
@@ -4211,20 +4213,24 @@ B5500Processor.prototype.run = function run() {
 
                     case 0x02:          // 0235: RTN=return normal
                         this.adjustAFull();
-                        this.S = this.F;
-                        this.loadBviaS();               // B = [S], fetch the RCW
-                        switch (this.exitSubroutine(0)) {
-                        case 0:
-                            this.X = 0;
-                            this.operandCall();
-                            break;
-                        case 1:
-                            this.Q |= 0x10;             // set Q05F, for display only
-                            this.X = 0;
-                            this.descriptorCall();
-                            break;
-                        case 2:                         // flag-bit interrupt occurred, do nothing
-                            break;
+                        // If A is an operand or a present descriptor, proceed with the return,
+                        // otherwise throw a p-bit interrupt (this isn't well-documented)
+                        if (this.A < 0x800000000000 || this.presenceTest(this.A)) {
+                            this.S = this.F;
+                            this.loadBviaS();           // B = [S], fetch the RCW
+                            switch (this.exitSubroutine(0)) {
+                            case 0:
+                                this.X = 0;
+                                this.operandCall();
+                                break;
+                            case 1:
+                                this.Q |= 0x10;         // set Q05F, for display only
+                                this.X = 0;
+                                this.descriptorCall();
+                                break;
+                            case 2:                     // flag-bit interrupt occurred, do nothing
+                                break;
+                            }
                         }
                         break;
 
@@ -4237,20 +4243,24 @@ B5500Processor.prototype.run = function run() {
 
                     case 0x0A:          // 1235: RTS=return special
                         this.adjustAFull();
-                        // Note that RTS assumes the RCW is pointed to by S, not F
-                        this.loadBviaS();               // B = [S], fetch the RCW
-                        switch (this.exitSubroutine(0)) {
-                        case 0:
-                            this.X = 0;
-                            this.operandCall();
-                            break;
-                        case 1:
-                            this.Q |= 0x10;             // set Q05F, for display only
-                            this.X = 0;
-                            this.descriptorCall();
-                            break;
-                        case 2:                         // flag-bit interrupt occurred, do nothing
-                            break;
+                        // If A is an operand or a present descriptor, proceed with the return,
+                        // otherwise throw a p-bit interrupt (this isn't well-documented)
+                        if (this.A < 0x800000000000 || this.presenceTest(this.A)) {
+                            // Note that RTS assumes the RCW is pointed to by S, not F
+                            this.loadBviaS();           // B = [S], fetch the RCW
+                            switch (this.exitSubroutine(0)) {
+                            case 0:
+                                this.X = 0;
+                                this.operandCall();
+                                break;
+                            case 1:
+                                this.Q |= 0x10;         // set Q05F, for display only
+                                this.X = 0;
+                                this.descriptorCall();
+                                break;
+                            case 2:                     // flag-bit interrupt occurred, do nothing
+                                break;
+                            }
                         }
                         break;
                     }
@@ -4536,7 +4546,7 @@ B5500Processor.prototype.run = function run() {
                 break;
             }
         }
-    } while ((this.cycleCount += 2) < this.cycleLimit);
+    } while ((this.cycleCount += 1) < this.cycleLimit);
 };
 
 /**************************************/
@@ -4548,10 +4558,13 @@ B5500Processor.prototype.schedule = function schedule() {
     each and calls run() to execute at most that number of cycles. run()
     counts up cycles until it reaches this limit or some terminating event
     (such as a halt), then exits back here. If the processor remains active,
-    this routine will reschedule itself for an appropriate later time, thereby
+    this routine will reschedule itself after an appropriate delay, thereby
     throttling the performance and allowing other modules a chance at the
-    Javascript execution thread. */
-    var delayTime;
+    Javascript execution thread */
+    var delayTime;                      // delay until next run() for this processor, ms
+    var elapsedTime;                    // elapsed real time for this run() call, ms
+    var startTime = new Date().getTime(); // starting time for this run() call, ms
+    var stopTime;                       // ending time for this run() call, ms
 
     this.scheduler = null;
     this.cycleLimit = B5500Processor.timeSlice;
@@ -4559,12 +4572,14 @@ B5500Processor.prototype.schedule = function schedule() {
 
     this.run();                         // execute syllables for the timeslice
 
+    stopTime = new Date().getTime();
+    elapsedTime = stopTime - startTime;
+    this.procTime += elapsedTime;
     this.totalCycles += this.cycleCount;
-    this.procTime += this.cycleCount;
     if (this.busy) {
-        delayTime = this.procTime - new Date().getTime()*1000;
+        delayTime = this.cycleCount/1000 - elapsedTime;
         this.procSlack += delayTime;
-        this.scheduler = setTimeout(this.boundSchedule, (delayTime > 0 ? delayTime/1000 : 1));
+        this.scheduler = setTimeout(this.boundSchedule, (delayTime > 0 ? delayTime : 1));
     }
 };
 

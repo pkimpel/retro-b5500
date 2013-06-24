@@ -73,9 +73,6 @@ function B5500IOUnit(ioUnitID, cc) {
 
 /**************************************/
 
-B5500IOUnit.timeSlice = 5000;           // Standard run() timeslice, about 5ms (we hope)
-B5500IOUnit.memCycles = 6;              // assume 6 us memory cycle time (the other option was 4 usec)
-
 B5500IOUnit.BICtoANSI = [               // Index by 6-bit BIC to get 8-bit ANSI code
         0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,        // 00-07, @00-07
         0x38,0x39,0x23,0x40,0x3F,0x3A,0x3E,0x7D,        // 08-1F, @10-17
@@ -219,7 +216,7 @@ B5500IOUnit.prototype.fetch = function fetch(addr) {
     this.cc.fetch(acc);
     this.W = acc.word;
 
-    this.cycleCount += B5500IOUnit.memCycles;
+    this.cycleCount += B5500CentralControl.memCycles;
     if (acc.MAED) {
         this.D26F = 1;                  // set memory address error
         return 1;
@@ -241,7 +238,7 @@ B5500IOUnit.prototype.store = function store(addr) {
     acc.word = this.W;
     this.cc.store(acc);
 
-    this.cycleCount += B5500IOUnit.memCycles;
+    this.cycleCount += B5500CentralControl.memCycles;
     if (acc.MAED) {
         this.D26F = 1;                  // set memory address error
         return 1;
@@ -699,12 +696,18 @@ B5500IOUnit.prototype.initiatePrinterIO = function initiatePrinterIO(u) {
         this.D30F = 1;                  // can't read from the printer
         this.finish();
     } else {
-        memWords = this.DwordCount;
-        if (memWords > 0) {
-            chars = memWords*8;
+        if (this.D18F) {
+            chars = memWords = 0;
         } else {
-            memWords = 17;              // assume a 132-character printer
-            chars = 132;
+            memWords = (this.D23F ? this.DwordCount : 0);
+            if (memWords > 0) {
+                chars = memWords*8;
+            } else {
+                memWords = 17;          // assume a 132-character printer
+                chars = 132;
+            }
+            this.fetchBuffer(1, memWords);
+            this.Daddress = (addr-1) & 0x7FFF;      // printer accesses memory backwards, so final address is initial-1
         }
         cc = this.LP;
         if (cc & 0x0F) {
@@ -716,10 +719,8 @@ B5500IOUnit.prototype.initiatePrinterIO = function initiatePrinterIO(u) {
         } else {
             cc = 0;                     // zero space after print
         }
-        this.fetchBuffer(1, memWords);
         this.DwordCount = memWords*32;  // actual word count in D.[8:5], D.[13:5]=0
-        this.Daddress = addr-1;         // printer accesses memory backwards, so final address is initial-1
-        u.write(this.boundFinishBusy, this.buffer, chars, 0, cc);
+        u.write(this.boundFinishGeneric, this.buffer, chars, 0, cc);
     }
 };
 
@@ -779,8 +780,11 @@ B5500IOUnit.prototype.forkIO = function forkIO() {
             if (this.D24F) {            // CRA
                 u.read(this.boundFinishGenericRead, this.buffer, (this.D21F ? 160 : 80), this.D21F, 0);
             } else {                    // CPA
-                this.D30F = 1;          // >>> temp until CPA implemented <<<
-                this.finish();
+                this.fetchBuffer(1, 10);
+                this.D21F = 0;                  // force alpha mode
+                this.DwordCount = 10;           // word count to 10
+                x = (this.D % 0x10000) >>> 15;  // D32F = select alternate stacker
+                u.write(this.boundFinishGeneric, this.buffer, 80, 0, x);
             }
             break;
 
@@ -893,7 +897,7 @@ B5500IOUnit.prototype.initiateLoad = function initiateLoad(cardLoadSelect, loadC
     if (cardLoadSelect) {
         this.D = 0x0A0004800010;        // unit 10, read, binary mode, addr @00020
         this.Dunit = 10;                // 10=CRA
-        this.D24F = 1;                  // read
+        this.D21F = 1;                  // binary mode
         chars = 20*8;
     } else {
         this.D = 0x0600009F8010;        // unit 6, read, alpha mode, 63 segs, addr @00020

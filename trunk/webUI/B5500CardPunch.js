@@ -1,0 +1,322 @@
+/***********************************************************************
+* retro-b5500/emulator B5500CardPunch.js
+************************************************************************
+* Copyright (c) 2013, Nigel Williams and Paul Kimpel.
+* Licensed under the MIT License, see
+*       http://www.opensource.org/licenses/mit-license.php
+************************************************************************
+* B5500 Card Punch Peripheral Unit module.
+*
+* Defines a card punch peripheral unit type.
+*
+************************************************************************
+* 2013-06-16  P.Kimpel
+*   Original version, from B5500CardReader.js & B5500DummyPrinter.js.
+***********************************************************************/
+"use strict";
+
+/**************************************/
+function B5500CardPunch(mnemonic, unitIndex, designate, statusChange, signal) {
+    /* Constructor for the CardPunch object */
+    var that = this;
+
+    this.mnemonic = mnemonic;           // Unit mnemonic
+    this.unitIndex = unitIndex;         // Ready-mask bit number
+    this.designate = designate;         // IOD unit designate number
+    this.statusChange = statusChange;   // external function to call for ready-status change
+    this.signal = signal;               // external function to call for special signals (not used here)
+
+    this.clear();
+
+    this.window = window.open("", mnemonic);
+    if (this.window) {
+        this.window.close();            // destroy the previously-existing window
+        this.window = null;
+    }
+    this.doc = null;
+    this.stacker1 = null;
+    this.endOfStacker1 = null;
+    this.stacker2 = null;
+    this.endOfStacker2 = null;
+    this.window = window.open("/B5500/webUI/B5500CardPunch.html", mnemonic,
+            "scrollbars=no,resizable,width=700,height=500");
+    this.window.addEventListener("load", function() {
+        that.punchOnload();
+    }, false);
+}
+
+B5500CardPunch.prototype.cardsPerMinute = 300;  // Punch speed
+B5500CardPunch.prototype.maxScrollLines = 800;  // Maximum punch stacker scrollback (stacker capacity)
+
+/**************************************/
+B5500CardPunch.prototype.$$ = function $$(e) {
+    return this.doc.getElementById(e);
+};
+
+/**************************************/
+B5500CardPunch.prototype.clear = function clear() {
+    /* Initializes (and if necessary, creates) the punch unit state */
+
+    this.ready = false;                 // ready status
+    this.busy = false;                  // busy status
+    this.activeIOUnit = 0;              // I/O unit currently using this device
+
+    this.errorMask = 0;                 // error mask for finish()
+    this.finish = null;                 // external function to call for I/O completion
+
+    this.runoutArmed = false;           // EOF button: armed state
+    this.stopCount = 0;                 // stopCount for clearing the input buffer
+    this.stacker1Count = 0;             // cards in stacker #1
+    this.stacker2Count = 0;             // cards in stacker #2
+};
+
+/**************************************/
+B5500CardPunch.prototype.hasClass = function hasClass(e, name) {
+    /* returns true if element "e" has class "name" in its class list */
+    var classes = e.className;
+
+    if (!e) {
+        return false;
+    } else if (classes == name) {
+        return true;
+    } else {
+        return (classes.search("\\b" + name + "\\b") >= 0);
+    }
+};
+
+/**************************************/
+B5500CardPunch.prototype.addClass = function addClass(e, name) {
+    /* Adds a class "name" to the element "e"s class list */
+
+    if (!this.hasClass(e, name)) {
+        e.className += (" " + name);
+    }
+};
+
+/**************************************/
+B5500CardPunch.prototype.removeClass = function removeClass(e, name) {
+    /* Removes the class "name" from the element "e"s class list */
+
+    e.className = e.className.replace(new RegExp("\\b" + name + "\\b\\s*", "g"), "");
+};
+
+/**************************************/
+B5500CardPunch.prototype.setPunchReady = function setPunchReady(ready) {
+    /* Controls the ready-state of the card punch */
+
+    if (ready && !this.ready) {
+        this.statusChange(1);
+        this.removeClass(this.$$("CPNotReadyLight"), "redLit");
+        this.ready = true;
+        if (this.runoutArmed) {
+            if (this.stacker1Count || this.stacker2Count) {
+                if (this.window.confirm("Empty both " + this.mnemonic + " stackers?")) {
+                    this.stacker1Count = this.stacker2Count = 0;
+                    this.$$("CPStacker1Bar").value = 0;
+                    this.$$("CPStacker2Bar").value = 0;
+                    while (this.stacker1.firstChild) {
+                        this.stacker1.removeChild(this.stacker1.firstChild);
+                    }
+                    while (this.stacker2.firstChild) {
+                        this.stacker2.removeChild(this.stacker2.firstChild);
+                    }
+                }
+            }
+            this.armRunout(false);
+        }
+    } else if (!ready && this.ready) {
+        this.statusChange(0);
+        this.addClass(this.$$("CPNotReadyLight"), "redLit");
+        this.ready = false;
+    }
+};
+
+/**************************************/
+B5500CardPunch.prototype.armRunout = function armRunout(armed) {
+    /* Controls the arming/disarming of the EOF signal when starting with
+    an empty input stacker */
+
+    if (armed && !this.ready) {
+        this.addClass(this.$$("CPRunoutBtn"), "redLit");
+        this.runoutArmed = true;
+    } else {
+        this.removeClass(this.$$("CPRunoutBtn"), "redLit");
+        this.runoutArmed = false;
+    }
+};
+
+/**************************************/
+B5500CardPunch.prototype.CPStartBtn_onclick = function CPStartBtn_onclick(ev) {
+    /* Handle the click event for the START button */
+    var that = this;
+
+    if (!this.ready) {
+        this.stopCount = 0;
+        if (this.bufIndex < this.bufLength) {
+        }
+        this.setPunchReady(true);
+    }
+};
+
+/**************************************/
+B5500CardPunch.prototype.CPStopBtn_onclick = function CPStopBtn_onclick(ev) {
+    /* Handle the click event for the STOP button */
+
+    if (this.ready) {
+        this.setPunchReady(false);
+    } else if (this.runoutArmed) {
+        this.armRunout(false);
+    }
+};
+
+/**************************************/
+B5500CardPunch.prototype.CPRunoutBtn_onclick = function CPRunoutBtn_onclick(ev) {
+    /* Handle the click event for the EOF button */
+
+    this.armRunout(!this.runoutArmed);
+};
+
+/**************************************/
+B5500CardPunch.prototype.punchOnload = function punchOnload() {
+    /* Initializes the punch window and user interface */
+    var that = this;
+
+    this.doc = this.window.document;
+    this.doc.title = "retro-B5500 " + this.mnemonic;
+
+    this.stacker1Frame = this.$$("CPStacker1Frame");
+    this.stacker1Frame.contentDocument.head.innerHTML += "<style>" +
+            "BODY {background-color: #F0DCB0; margin: 2px} " +
+            "PRE {margin: 0; font-size: 9pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
+            "</style>";
+    this.stacker1 = this.doc.createElement("pre");
+    this.stacker1Frame.contentDocument.body.appendChild(this.stacker1);
+    this.endOfStacker1 = this.doc.createElement("div");
+    this.stacker1Frame.contentDocument.body.appendChild(this.endOfStacker1);
+
+    this.stacker2Frame = this.$$("CPStacker2Frame");
+    this.stacker2Frame.contentDocument.head.innerHTML += "<style>" +
+            "BODY {background-color: #F0DCB0; margin: 2px} " +
+            "PRE {margin: 0; font-size: 9pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
+            "</style>";
+    this.stacker2 = this.doc.createElement("pre");
+    this.stacker2Frame.contentDocument.body.appendChild(this.stacker2);
+    this.endOfStacker2 = this.doc.createElement("div");
+    this.stacker2Frame.contentDocument.body.appendChild(this.endOfStacker2);
+
+    this.window.moveTo(0, 180);
+    this.window.resizeTo(this.window.outerWidth+this.$$("CPDiv").scrollWidth-this.window.innerWidth+12,
+                         this.window.outerHeight+this.$$("CPDiv").scrollHeight-this.window.innerHeight+12);
+
+    this.armRunout(false);
+    this.setPunchReady(true);
+
+    this.$$("CPStartBtn").addEventListener("click", function(ev) {
+        that.CPStartBtn_onclick(ev);
+    }, false);
+
+    this.$$("CPStopBtn").addEventListener("click", function(ev) {
+        that.CPStopBtn_onclick(ev);
+    }, false);
+
+    this.$$("CPRunoutBtn").addEventListener("click", function(ev) {
+        that.CPRunoutBtn_onclick(ev);
+    }, false);
+
+    this.$$("CPStacker1Bar").max = this.maxScrollLines;
+    this.$$("CPStacker2Bar").max = this.maxScrollLines;
+};
+
+/**************************************/
+B5500CardPunch.prototype.appendLine = function appendLine(stacker, text) {
+    /* Removes excess lines already printed, then appends a new <pre> element
+    to the <iframe>, creating an empty text node inside the new element */
+    var count = stacker.childNodes.length;
+    var line = this.doc.createTextNode(text || "");
+
+    //while (count-- > this.maxScrollLines) {
+    //    stacker.removeChild(stacker.firstChild);
+    //}
+    stacker.appendChild(line);
+};
+
+/**************************************/
+B5500CardPunch.prototype.read = function read(finish, buffer, length, mode, control) {
+    /* Initiates a read operation on the unit */
+
+    finish(0x04, 0);                    // report unit not ready
+};
+
+/**************************************/
+B5500CardPunch.prototype.space = function space(finish, length, control) {
+    /* Initiates a space operation on the unit */
+
+    finish(0x04, 0);                    // report unit not ready
+};
+
+/**************************************/
+B5500CardPunch.prototype.write = function write(finish, buffer, length, mode, control) {
+    /* Initiates a write operation on the unit */
+    var text;
+    var that = this;
+
+    this.errorMask = 0;
+    this.busy = true;
+    text = String.fromCharCode.apply(null, buffer.subarray(0, length));
+    //console.log("WRITE:  L=" + length + ", M=" + mode + ", C=" + control + " : " + text);
+    if (control) {
+        this.appendLine(this.stacker2, text + "\n");
+        this.endOfStacker2.scrollIntoView();
+        this.$$("CPStacker2Bar").value = (++this.stacker2Count);
+        if (this.stacker2Count >= this.maxScrollLines) {
+            this.setPunchReady(false);
+        }
+    } else {
+        this.appendLine(this.stacker1, text + "\n");
+        this.endOfStacker1.scrollIntoView();
+        this.$$("CPStacker1Bar").value = (++this.stacker1Count);
+        if (this.stacker1Count >= this.maxScrollLines) {
+            this.setPunchReady(false);
+        }
+    }
+
+    setTimeout(function() {
+        that.busy = false;
+        finish(that.errorMask, length);
+    }, 60000/this.cardsPerMinute);
+};
+
+/**************************************/
+B5500CardPunch.prototype.erase = function erase(finish, length) {
+    /* Initiates an erase operation on the unit */
+
+    finish(0x04, 0);                    // report unit not ready
+};
+
+/**************************************/
+B5500CardPunch.prototype.rewind = function rewind(finish) {
+    /* Initiates a rewind operation on the unit */
+
+    finish(0x04, 0);                    // report unit not ready
+};
+
+/**************************************/
+B5500CardPunch.prototype.readCheck = function readCheck(finish, length, control) {
+    /* Initiates a read check operation on the unit */
+
+    finish(0x04, 0);                    // report unit not ready
+};
+
+/**************************************/
+B5500CardPunch.prototype.readInterrogate = function readInterrogate(finish, control) {
+    /* Initiates a read interrogate operation on the unit */
+
+    finish(0x04, 0);                    // report unit not ready
+};
+
+/**************************************/
+B5500CardPunch.prototype.writeInterrogate = function writeInterrogate(finish, control) {
+    /* Initiates a write interrogate operation on the unit */
+
+    finish(0x04, 0);                    // report unit not ready
+};
