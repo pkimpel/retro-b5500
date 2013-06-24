@@ -1685,15 +1685,14 @@ window.onload = function() {
                 stringToANSI("0000001?", fileLabels, labelx-16);        // @114, last-entry marker
                 stringToANSI("00000000", fileLabels, labelx-8);
             }
-            header[0] = 0x0141;             // BIC "51" = @0501 = 1 rec/block, 1 seg/block
-            header[3] = 0x1001200;          // Date: BIC "00010180" = 1980-01-01
+            header[0] = 0x0181;             // BIC "61" = @0601 = 6 rec/block, 1 seg/block
+            header[3] = (365*0x40000 + 10180) * 0x40000 + 10180; // save=365, create+update=1980-01-01
             header[7] = -1;                 // currently has no records
             header[8] = areasize;
             header[9] = 1;                  // number of areas
             header[10] = 0;                 // row address unallocated
             wordsToANSI(header, 0, 30, buffer, 0);
             eu.put(buffer, directoryTop + 18 - fileNr);
-
             fileNr++;
         }
 
@@ -1756,7 +1755,7 @@ window.onload = function() {
                        pow2[47-28] +                // 28: prevent I/O below user disk area
                        pow2[47-27] +                // 27: prevent disk RELEASE statement
                        pow2[47-26] +                // 26: printer backup disk release
-                                                    // 25: check memory links
+                       pow2[47-25] +                // 25: check memory links
                        pow2[47-24] +                // 24: type disk error messages
                        pow2[47-23] +                // 23: disk logging
                        pow2[47-22] +                // 22: suppress library error messages

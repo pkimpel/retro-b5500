@@ -43,8 +43,8 @@ var B5500SystemConfiguration = {
         DKB:    false,                  // Disk File Control B
         CRA:    true,                   // Card Reader A
         CRB:    false,                  // Card Reader B
-        CPA:    false,                  // Card Punch A
-        LPA:    false,                  // Line Printer A
+        CPA:    true,                   // Card Punch A
+        LPA:    true,                   // Line Printer A
         LPB:    false,                  // Line Printer B
         PRA:    false,                  // Paper Tape Reader A
         PRB:    false,                  // Paper Tape Reader B
