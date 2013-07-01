@@ -43,7 +43,7 @@ function B5500DummyPrinter(mnemonic, unitIndex, designate, statusChange, signal)
         that.printerOnload();
     }, false);
 }
-B5500DummyPrinter.prototype.linesPerMinute = 800;  // Printer speed
+B5500DummyPrinter.prototype.linesPerMinute = 1040; // B329 line printer
 B5500DummyPrinter.maxScrollLines = 150000;         // Maximum printer scrollback (about a box of paper)
 
 
@@ -60,8 +60,34 @@ B5500DummyPrinter.prototype.clear = function clear() {
     this.busy = false;                  // busy status
     this.activeIOUnit = 0;              // I/O unit currently using this device
 
+    this.lastClickStamp = 0;            // last click time for double-click detection
+
     this.errorMask = 0;                 // error mask for finish()
     this.finish = null;                 // external function to call for I/O completion
+};
+
+/**************************************/
+B5500SPOUnit.prototype.tearPaper = function tearPaper(ev) {
+    /* Handles an event to clear the "paper" from the printer */
+
+    if (confirm("Do you want to clear the \"paper\" from the printer?")) {
+        while (this.paper.firstChild) {
+            this.paper.removeChild(this.paper.firstChild);
+        }
+    }
+};
+
+/**************************************/
+B5500DummyPrinter.prototype.appendLine = function appendLine(text) {
+    /* Removes excess lines already printed, then appends a new <pre> element
+    to the <iframe>, creating an empty text node inside the new element */
+    var count = this.paper.childNodes.length;
+    var line = this.doc.createTextNode(text || "");
+
+    while (count-- > this.maxScrollLines) {
+        this.paper.removeChild(this.paper.firstChild);
+    }
+    this.paper.appendChild(line);
 };
 
 /**************************************/
@@ -79,20 +105,19 @@ B5500DummyPrinter.prototype.printerOnload = function printerOnload() {
     this.window.moveTo(40, 40);
     this.window.resizeTo(1000, screen.availHeight*0.80);
 
+    this.window.addEventListener("click", function(ev) {
+        var stamp = new Date().getTime();
+
+        // a kludge, but this is the DUMMY printer....
+        if (stamp - this.lastClickStamp < 500) {
+            that.ripPaper(ev);
+            that.lastClickStamp = 0;    // no triple-clicking allowed
+        } else {
+            that.lastClickStamp = stamp;
+        }
+    }, false);
+
     this.statusChange(1);
-};
-
-/**************************************/
-B5500DummyPrinter.prototype.appendLine = function appendLine(text) {
-    /* Removes excess lines already printed, then appends a new <pre> element
-    to the <iframe>, creating an empty text node inside the new element */
-    var count = this.paper.childNodes.length;
-    var line = this.doc.createTextNode(text || "");
-
-    while (count-- > this.maxScrollLines) {
-        this.paper.removeChild(this.paper.firstChild);
-    }
-    this.paper.appendChild(line);
 };
 
 /**************************************/
