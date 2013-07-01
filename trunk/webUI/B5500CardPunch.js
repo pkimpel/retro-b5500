@@ -186,7 +186,7 @@ B5500CardPunch.prototype.punchOnload = function punchOnload() {
 
     this.stacker1Frame = this.$$("CPStacker1Frame");
     this.stacker1Frame.contentDocument.head.innerHTML += "<style>" +
-            "BODY {background-color: #F0DCB0; margin: 2px} " +
+            "BODY {background-color: #F7E7CE; margin: 2px} " +
             "PRE {margin: 0; font-size: 9pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
             "</style>";
     this.stacker1 = this.doc.createElement("pre");
@@ -196,7 +196,7 @@ B5500CardPunch.prototype.punchOnload = function punchOnload() {
 
     this.stacker2Frame = this.$$("CPStacker2Frame");
     this.stacker2Frame.contentDocument.head.innerHTML += "<style>" +
-            "BODY {background-color: #F0DCB0; margin: 2px} " +
+            "BODY {background-color: #F7E7CE; margin: 2px} " +
             "PRE {margin: 0; font-size: 9pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
             "</style>";
     this.stacker2 = this.doc.createElement("pre");

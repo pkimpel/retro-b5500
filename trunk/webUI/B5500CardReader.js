@@ -46,7 +46,7 @@ function B5500CardReader(mnemonic, unitIndex, designate, statusChange, signal) {
 
 B5500CardReader.prototype.eolRex = /([^\n\r\f]*)((:?\r[\n\f]?)|\n|\f)?/g;
 
-B5500CardReader.prototype.cardsPerMinute = 800;
+B5500CardReader.prototype.cardsPerMinute = 1400;        // B129 card reader
 
 B5500CardReader.prototype.cardFilter = [ // Filter ASCII character values to valid BIC ones
         0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,  // 00-0F
@@ -193,10 +193,19 @@ B5500CardReader.prototype.fileSelector_onChange = function fileSelector_onChange
     function fileLoader_onLoad(ev) {
         /* Handle the onload event for a Text FileReader */
 
-        if (that.bufIndex < that.bufLength) {
-            that.buffer = that.buffer.substring(that.bufIndex) + ev.target.result;
-        } else {
+        if (that.bufIndex >= that.bufLength) {
             that.buffer = ev.target.result;
+        } else {
+            switch (that.buffer.charAt(that.buffer.length-1)) {
+            case "\r":
+            case "\n":
+            case "\f":
+                break;                  // do nothing -- the last card has a delimiter
+            default:
+                that.buffer += "\n";    // so the next deck starts on a new line
+                break;
+            }
+            that.buffer = that.buffer.substring(that.bufIndex) + ev.target.result;
         }
 
         that.bufIndex = 0;
@@ -215,6 +224,7 @@ B5500CardReader.prototype.readCardAlpha = function readCardAlpha(buffer, length)
     image as necessary to the I/O buffer length. Invalid BCL characters are
     translated to ASCII "?" and the invalid character bit is set in the errorMask.
     Returns the raw card image as a string */
+    var c;                              // current character
     var card;                           // card image
     var cardLength;                     // length of card image
     var match;                          // result of eolRex.exec()
@@ -233,7 +243,12 @@ B5500CardReader.prototype.readCardAlpha = function readCardAlpha(buffer, length)
             cardLength = length;
         }
         for (x=0; x<cardLength; x++) {
-            if ((buffer[x] = this.cardFilter[card.charCodeAt(x) & 0x7F]) == 0x3F) {     // intentional assignment
+            c = card.charCodeAt(x);
+            if (c == 0x3F && x > 0) {   // an actual "?"
+                buffer[x] = 0x3F;
+            } else if (c > 0x7F) {      // Unicode R Us -- NOT!
+                this.errorMask |= 0x08;
+            } else if ((buffer[x] = this.cardFilter[c]) == 0x3F) {      // intentional assignment
                 this.errorMask |= 0x08;
             }
         }
@@ -296,7 +311,7 @@ B5500CardReader.prototype.readerOnload = function readerOnload() {
 
     this.outHopperFrame = this.$$("CROutHopperFrame");
     this.outHopperFrame.contentDocument.head.innerHTML += "<style>" +
-            "BODY {background-color: #F0DCB0; margin: 2px} " +
+            "BODY {background-color: #F7E7CE; margin: 2px} " +
             "PRE {margin: 0; font-size: 9pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
             "</style>";
     this.outHopper = this.doc.createElement("pre");

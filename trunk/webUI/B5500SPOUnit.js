@@ -187,6 +187,7 @@ B5500SPOUnit.prototype.appendEmptyLine = function appendEmptyLine() {
     while (count-- > this.maxScrollLines) {
         this.paper.removeChild(this.paper.firstChild);
     }
+    this.endOfPaper.scrollIntoView();
     this.paper.appendChild(line);
 };
 
@@ -216,7 +217,6 @@ B5500SPOUnit.prototype.printChar = function printChar(c) {
 
     if (len < 1) {
         line.nodeValue = String.fromCharCode(c);
-        that.endOfPaper.scrollIntoView();
     } else if (len < 72) {
         line.nodeValue += String.fromCharCode(c);
     } else {
@@ -247,7 +247,7 @@ B5500SPOUnit.prototype.outputChar = function outputChar() {
             that.printCol = 72;
             setTimeout(that.outputChar, delay);
         }
-    } else if (that.printCol == 72) {   // delay to fake the output of a new-line
+    } else if (that.printCol == 72) {   // delay to fake the output of a carriage-return
         that.printCol++;
         setTimeout(that.outputChar, delay+that.charPeriod);
     } else {                            // actually output the CR/LF
@@ -355,44 +355,49 @@ B5500SPOUnit.prototype.keyDown = function keyDown(ev) {
     } else {
         nextTime = stamp + this.charPeriod;
     }
-    this.nextCharTime = nextTime;
 
-    if (this.spoState == this.spoRemote) {
-        if (c == 27) {
-            if (that.spoState == that.spoRemote) {
-                that.signal();
-            } else if (that.spoState == that.spoOutput) {
-                that.signal();
-            }
+    switch (c) {
+    case 27:                    // ESC
+        switch (this.spoState) {
+        case this.spoRemote:
+        case this.spoOutput:
+            this.signal();
             result = false;
-        }
-    } else if (this.spoState == this.spoInput) {
-        switch (c) {
-        case 27:                    // ESC
+            break;
+        case this.spoInput:
             this.cancelInput();
             result = false;
             break;
-        case 8:                     // Backspace
+        }
+        break;
+    case 8:                     // Backspace
+        switch (this.spoState) {
+        case this.spoInput:
+        case this.spoLocal:
             setTimeout(this.backspaceChar, nextTime-stamp);
+            this.nextCharTime = nextTime;
             result = false;
             break;
-        case 13:                    // Enter
+        }
+        break;
+    case 13:                    // Enter
+        switch (this.spoState) {
+        case this.spoInput:
             this.terminateInput();
+            this.nextCharTime = nextTime;
+            result = false;
+            break
+        case this.spoLocal:
+            setTimeout(function() {
+                that.appendEmptyLine();
+            }, nextTime-stamp+this.charPeriod);
+            this.nextCharTime = nextTime;
             result = false;
             break;
         }
-    } else if (this.spoState == this.spoLocal) {
-        switch (c) {
-        case 8:                     // Backspace
-            setTimeout(that.backspaceChar, nextTime-stamp);
-            result = false;
-            break;
-        case 13:                    // Enter
-            setTimeout(function() {that.appendEmptyLine()}, nextTime-stamp+this.charPeriod);
-            result = false;
-            break;
-        }
+        break;
     }
+
     if (!result) {
         ev.preventDefault();
     }
@@ -432,7 +437,7 @@ B5500SPOUnit.prototype.spoOnload = function spoOnload() {
     this.paper.appendChild(this.doc.createTextNode(""));
     this.$$("SPOUT").contentDocument.body.appendChild(this.paper);
     this.endOfPaper = this.doc.createElement("div");
-    //this.endOfPaper.appendChild(this.doc.createTextNode("\xA0"));
+    this.endOfPaper.appendChild(this.doc.createTextNode("\xA0"));
     this.$$("SPOUT").contentDocument.body.appendChild(this.endOfPaper);
     this.$$("SPOUT").contentDocument.head.innerHTML += "<style>" +
             "BODY {background-color: #FFE} " +
@@ -444,43 +449,43 @@ B5500SPOUnit.prototype.spoOnload = function spoOnload() {
     this.window.moveTo(0, screen.availHeight-this.window.outerHeight);
     this.window.focus();
 
-    this.$$("SPORemoteBtn").onclick = function() {
+    this.$$("SPORemoteBtn").addEventListener("click", function() {
         that.setRemote();
-    };
+    }, false);
 
-    this.$$("SPOPowerBtn").onclick = function() {
+    this.$$("SPOPowerBtn").addEventListener("click", function() {
         that.window.alert("Don't DO THAT");
-    };
+    }, false);
 
-    this.$$("SPOLocalBtn").onclick = function() {
+    this.$$("SPOLocalBtn").addEventListener("click", function() {
         that.setLocal();
-    };
+    }, false);
 
-    this.$$("SPOInputRequestBtn").onclick = function() {
+    this.$$("SPOInputRequestBtn").addEventListener("click", function() {
         if (that.spoState == that.spoRemote) {
             that.signal();
         } else if (that.spoState == that.spoOutput) {
             that.signal();
         }
-    };
+    }, false);
 
-    this.$$("SPOErrorBtn").onclick = function() {
+    this.$$("SPOErrorBtn").addEventListener("click", function() {
         that.cancelInput();
-    };
+    }, false);
 
-    this.$$("SPOEndOfMessageBtn").onclick = function() {
+    this.$$("SPOEndOfMessageBtn").addEventListener("click", function() {
         that.terminateInput();
-    };
+    }, false);
 
-    this.window.onkeypress = function(ev) {
+    this.window.addEventListener("keypress", function(ev) {
         if (ev.keyCode == 191) {ev.preventDefault()};
         that.keyPress(ev);
-    };
+    }, false);
 
-    this.window.onkeydown = function(ev) {
+    this.window.addEventListener("keydown", function(ev) {
         if (ev.keyCode == 191) {ev.preventDefault()};
         that.keyDown(ev);
-    };
+    }, false);
 
     for (x=0; x<32; x++) {
         this.appendEmptyLine();

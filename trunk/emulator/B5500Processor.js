@@ -52,7 +52,9 @@ function B5500Processor(procID, cc) {
 
 /**************************************/
 
-B5500Processor.timeSlice = 16000;       // Standard run() timeslice in clocks (about 16ms, we hope)
+B5500Processor.timeSlice = 4000;        // this.run() timeslice, clocks
+B5500Processor.minDelay = 4;            // minimum schedule() delay, ms
+B5500Processor.maxDelay = 20;           // maximum schedule() delay, ms
 
 B5500Processor.collation = [            // index by BIC to get collation value
     53, 54, 55, 56, 57, 58, 59, 60,             // @00: 0 1 2 3 4 5 6 7
@@ -108,13 +110,13 @@ B5500Processor.prototype.clear = function clear() {
 
     this.US14X = 0;                     // STOP OPERATOR switch
 
+    this.busy = 0;                      // Processor is running, not idle or halted
     this.cycleCount = 0;                // Current cycle count for this.run()
     this.cycleLimit = 0;                // Cycle limit for this.run()
     this.totalCycles = 0;               // Total cycles executed on this processor
     this.procStart = 0;                 // Javascript time that the processor started running, ms
-    this.procTime = 0;                  // Total processor running time, ms
+    this.procTime = 0.001;              // Total processor running time, ms
     this.procSlack = 0;                 // Total processor throttling delay, ms
-    this.busy = 0;                      // Processor is running, not idle or halted
 };
 
 /**************************************/
@@ -1284,17 +1286,9 @@ B5500Processor.prototype.storeForInterrupt = function storeForInterrupt(forTest)
         if (this === this.cc.P1) {
             this.T = 0x89;              // inject 0211=ITI into T register
         } else {
-            this.T = 0;                 // idle the processor
-            this.TROF = 0;
-            this.PROF = 0;
-            this.busy = 0;
-            this.cycleLimit = 0;        // exit this.run()
+            this.stop();                // idle the processor
             this.cc.HP2F = 1;
             this.cc.P2BF = 0;           // tell P1 we've stopped
-            if (this.scheduler) {
-                clearTimeout(this.scheduler);
-                this.scheduler = null;
-            }
         }
         this.CWMF = 0;
     } else if (forTest) {
@@ -1341,10 +1335,31 @@ B5500Processor.prototype.preset = function preset(runAddr) {
 /**************************************/
 B5500Processor.prototype.start = function start() {
     /* Initiates the processor by scheduling it on the Javascript thread */
+    var stamp = new Date().getTime();
 
     this.busy = 1;
-    this.procStart = new Date().getTime();
+    this.procStart = stamp;
+    this.procTime -= stamp;
     this.scheduler = setTimeout(this.boundSchedule, 0);
+};
+
+/**************************************/
+B5500Processor.prototype.stop = function stop() {
+    /* Stops running the processor on the Javascript thread */
+    var stamp = new Date().getTime();
+
+    this.T = 0;
+    this.TROF = 0;
+    this.PROF = 0;
+    this.busy = 0;
+    this.cycleLimit = 0;        // exit this.run()
+    if (this.scheduler) {
+        clearTimeout(this.scheduler);
+        this.scheduler = null;
+    }
+    while (this.procTime < 0) {
+        this.procTime += stamp;
+    }
 };
 
 /**************************************/
@@ -1540,15 +1555,22 @@ B5500Processor.prototype.singlePrecisionCompare = function singlePrecisionCompar
 B5500Processor.prototype.singlePrecisionAdd = function singlePrecisionAdd(adding) {
     /* Adds the contents of the A register to the B register, leaving the result
     in B and invalidating A. If "adding" is not true, the sign of A is complemented
-    to accomplish subtraction instead of addition */
+    to accomplish subtraction instead of addition.
+    The B5500 did this by complement arithmetic, exchanging operands as necessary,
+    and maintaining a bunch of Q-register flags to keep it all straight. This
+    routine takes a more straightforward approach, doing algebraic arithmetic on
+    the A and B mantissas and maintaining separate extensions (X registers) for
+    scaling A and B. Only one register will be scaled, so the other extension will
+    always be zero */
     var d = 0;                          // the guard (rounding) digit
     var ea;                             // signed exponent of A
     var eb;                             // signed exponent of B
-    var ma;                             // absolute mantissa of A*8
-    var mb;                             // absolute mantissa of B*8
+    var ma;                             // absolute mantissa of A
+    var mb;                             // absolute mantissa of B
     var sa;                             // mantissa sign of A (0=positive)
     var sb;                             // mantissa sign of B (ditto)
-    var xx = 0;                         // local copy of X
+    var xa = 0;                         // extension to A for scaling (pseudo X)
+    var xb = 0;                         // extension to B for scaling (pseudo X)
 
     this.cycleCount += 4;               // estimate some general overhead
     this.adjustABFull();
@@ -1564,9 +1586,9 @@ B5500Processor.prototype.singlePrecisionAdd = function singlePrecisionAdd(adding
         }
     } else if (mb == 0 && adding) {     // otherwise, if B is zero and we're adding,
         this.B = this.A % 0x800000000000;       // result is A with flag bit reset
-    } else {                            // rats, we actually have to do this
+    } else {                            // rats, we actually have to do this...
         ea = (this.A - ma)/0x8000000000;
-        sa = ((ea >>> 7) & 0x01);
+        sa = (adding ? (ea >>> 7) & 0x01 : 1-((ea >>> 7) & 0x01));
         ea = (ea & 0x40 ? -(ea & 0x3F) : (ea & 0x3F));
 
         eb = (this.B - mb)/0x8000000000;
@@ -1586,13 +1608,13 @@ B5500Processor.prototype.singlePrecisionAdd = function singlePrecisionAdd(adding
             while (ea != eb) {
                 this.cycleCount++;
                 d = mb % 8;
-                mb = (mb - d)/8;        // shift right into X
-                xx = (xx - xx%8)/8 + d*0x1000000000;
+                mb = (mb - d)/8;        // shift right into extension
+                xb = (xb - xb%8)/8 + d*0x1000000000;
                 if (mb) {
                     eb++;
                 } else {
                     eb = ea;            // if B=0, result will have exponent of A
-                    // should we clear X at this point to prevent rounding of A?
+                    xb = 0;             // prevent rounding of result
                 }
             }
         } else if (ea < eb) {
@@ -1606,40 +1628,56 @@ B5500Processor.prototype.singlePrecisionAdd = function singlePrecisionAdd(adding
             while (eb != ea) {
                 this.cycleCount++;
                 d =  ma % 8;
-                ma = (ma -d)/8;         // shift right into X
-                xx = (xx - xx%8)/8 + d*0x1000000000;
+                ma = (ma - d)/8;        // shift right into extension
+                xa = (xa - xa%8)/8 + d*0x1000000000;
                 if (ma) {
                     ea++;
                 } else {
                     ea = eb;            // if A=0, kill the scaling loop
-                    // should we clear X at this point to prevent rounding of B?
+                    xa = 0;             // prevent rounding of result
                 }
             }
         }
 
         // At this point, the exponents are aligned (or one of the mantissas
-        // is zero), so do the actual 39-bit addition
-        mb = (sb ? -mb : mb) + (sa ^ (adding ? 0 : 1) ? -ma : ma);
+        // is zero), so do the actual 39-bit additions of mantissas and extensions
 
-        if (mb == 0) {
-            this.B = 0;
-        } else {
-            // Determine the resulting sign
-            if (mb >= 0) {
-                sb = 0;
-            } else {
-                sb = 1;
-                mb = -mb;
+        xb = (sb ? -xb : xb) + (sa ? -xa : xa);         // compute the extension
+        if (xb < 0) {
+            xb += 0x8000000000;                                 // adjust for underflow in the extension
+            mb += (sb ? 1 : -1);                                // adjust B for borrow into extension
+        } else if (xb > 0x8000000000) {
+            xb -= 0x8000000000;                                 // adjust for overflow in the extension
+            mb += (sb? -1 : 1);                                 // adjust B for carry from extension
+        }
+
+        mb = (sb ? -mb : mb) + (sa ? -ma : ma);         // compute the mantissa
+        if (mb == 0) {                                  // if the mantissa is zero...
+            this.B = 0;                                         // the whole result is zero, and we're done
+        } else {                                        // otherwise, determine the resulting sign
+            if (mb > 0) {                               // if positive...
+                sb = 0;                                         // reset the B sign bit
+            } else {                                    // if negative...
+                sb = 1;                                         // set the B sign bit
+                mb = -mb;                                       // negate the B mantissa
+                if (xb) {                                       // if non-zero octades have been shifted into X (and ONLY if... learned THAT the hard way...)
+                    xb = 0x8000000000 - xb;                     // negate the extension in X
+                    mb--;                                       // and adjust for borrow into X
+                }
             }
 
             // Normalize and round as necessary
-            if (mb < 0x1000000000 && xx >= 0x800000000) {       // Normalization can be required for subtract
-                this.cycleCount++;
-                d = (xx - xx%0x1000000000)/0x1000000000;        // get the rounding digit from X
-                xx = (xx%0x1000000000)*8;                       // shift B and X left together
-                mb = mb*8 + d;
-                eb--;
-                d = (xx - xx%0x1000000000)/0x1000000000;        // get the next rounding digit from X
+            if (mb < 0x1000000000) {                            // Normalization can be required for subtract
+                if (xb < 0x800000000) {                         // if first two octades in X < @04 then
+                    d = 0;                                      // no rounding will take place
+                } else {
+                    this.cycleCount++;
+                    d = (xb - xb%0x1000000000)/0x1000000000;    // get the rounding digit from X
+                    xb = (xb%0x1000000000)*8;                   // shift B and X left together
+                    mb = mb*8 + d;
+                    eb--;
+                    d = (xb - xb%0x1000000000)/0x1000000000;    // get the next rounding digit from X
+                }
             } else if (mb >= 0x8000000000) {                    // Scaling can be required for add
                 this.cycleCount++;
                 d = mb % 8;                                     // get the rounding digit from B
@@ -1665,10 +1703,10 @@ B5500Processor.prototype.singlePrecisionAdd = function singlePrecisionAdd(adding
                     this.cc.signalInterrupt();
                 }
             } else if (eb < 0) {
-                eb = (-eb) | 0x40;      // set the exponent sign bit
+                eb = (-eb) | 0x40;                      // set the exponent sign bit
             }
 
-            this.X = xx;                                // for display purposes only
+            this.X = xb;                                // for display purposes only
             this.B = (sb*128 + eb)*0x8000000000 + mb;   // Final Answer
         }
     }
@@ -1685,7 +1723,7 @@ B5500Processor.prototype.singlePrecisionMultiply = function singlePrecisionMulti
     var ma;                             // absolute mantissa of A
     var mb;                             // absolute mantissa of B
     var mx = 0;                         // local copy of X for product extension
-    var n = 0;                          // local copy of N (octade counter)
+    var n;                              // local copy of N (octade counter)
     var sa;                             // mantissa sign of A (0=positive)
     var sb;                             // mantissa sign of B (ditto)
     var xx;                             // local copy of X for multiplier
@@ -1734,7 +1772,7 @@ B5500Processor.prototype.singlePrecisionMultiply = function singlePrecisionMulti
         mb = 0;                         // initialize high-order part of product
 
         // Now we step through the 13 octades of the multiplier, developing the product
-        do {
+        for (n=0; n<13; n++) {
             d = xx % 8;                 // extract the current multiplier digit
             xx = (xx - d)/8;            // shift the multiplier right one octade
 
@@ -1748,7 +1786,7 @@ B5500Processor.prototype.singlePrecisionMultiply = function singlePrecisionMulti
             d = mb % 8;                 // get the low-order octade of partial product in B
             mb = (mb - d)/8;            // shift B right one octade
             mx = mx/8 + d*0x1000000000; // shift B octade into high-order end of extension
-        } while (++n < 13);
+        } // for (n)
 
         // Normalize the result
         if (this.Q & 0x10 && mb == 0) { // if it's integer multiply (Q05F) with integer result
@@ -1770,7 +1808,7 @@ B5500Processor.prototype.singlePrecisionMultiply = function singlePrecisionMulti
         this.Q &= ~(0x10);              // reset Q05F
         this.A = 0;                     // required by specs due to the way rounding addition worked
 
-        if (xx >= 0x4000000000) {       // if high-order bit of remaining extension is 1
+        if (mx >= 0x4000000000) {       // if high-order bit of remaining extension is 1
             this.Q |= 0x01;             // set Q01F (for display purposes only)
             if (mb < 0x7FFFFFFFFF) {    // if the rounding would not cause overflow
                 this.cycleCount++;
@@ -1788,14 +1826,16 @@ B5500Processor.prototype.singlePrecisionMultiply = function singlePrecisionMulti
                     this.I = (this.I & 0x0F) | 0xB0;    // set I05/6/8: exponent-overflow
                     this.cc.signalInterrupt();
                 }
-            } else if (eb < -63) {
-                eb = ((-eb) % 64) | 0x40;       // mod the exponent and set its sign
-                if (this.NCSF) {
-                    this.I = (this.I & 0x0F) | 0xA0;    // set I06/8: exponent-underflow
-                    this.cc.signalInterrupt();
-                }
             } else if (eb < 0) {
-                eb = (-eb) | 0x40;      // set the exponent sign bit
+                if (eb >= -63) {
+                    eb = (-eb) | 0x40;                  // set the exponent sign bit
+                } else {
+                    eb = ((-eb) % 64) | 0x40;           // mod the exponent and set its sign
+                    if (this.NCSF) {
+                        this.I = (this.I & 0x0F) | 0xA0;// set I06/8: exponent-underflow
+                        this.cc.signalInterrupt();
+                    }
+                }
             }
 
             this.B = (sb*128 + eb)*0x8000000000 + mb;   // Final Answer
@@ -1894,14 +1934,16 @@ B5500Processor.prototype.singlePrecisionDivide = function singlePrecisionDivide(
                 this.I = (this.I & 0x0F) | 0xB0;    // set I05/6/8: exponent-overflow
                 this.cc.signalInterrupt();
             }
-        } else if (eb < -63) {
-            eb = ((-eb) % 64) | 0x40;   // mod the exponent and set its sign
-            if (this.NCSF) {
-                this.I = (this.I & 0x0F) | 0xA0;    // set I06/8: exponent-underflow
-                this.cc.signalInterrupt();
-            }
         } else if (eb < 0) {
-            eb = (-eb) | 0x40;          // set the exponent sign bit
+            if (eb >= -63) {
+                eb = (-eb) | 0x40;                  // set the exponent sign bit
+            } else {
+                eb = ((-eb) % 64) | 0x40;           // mod the exponent and set its sign
+                if (this.NCSF) {
+                    this.I = (this.I & 0x0F) | 0xA0;// set I06/8: exponent-underflow
+                    this.cc.signalInterrupt();
+                }
+            }
         }
 
         this.B = (sb*128 + eb)*0x8000000000 + xx;   // Final Answer
@@ -2123,12 +2165,11 @@ B5500Processor.prototype.doublePrecisionAdd = function doublePrecisionAdd(adding
     precision contents of the top two words in the memory stack, leaving the result
     in A and B. If "adding" is not true, the sign of A is complemented to accomplish
     subtraction instead of addition */
-    var carry = 0;                      // overflow carry flag
-    var d = 0;                          // shifting digit between registers
+    var d;                              // shifting digit between registers
     var ea;                             // signed exponent of A
     var eb;                             // signed exponent of B
-    var ma;                             // absolute mantissa of A*8
-    var mb;                             // absolute mantissa of B*8
+    var ma;                             // absolute mantissa of A
+    var mb;                             // absolute mantissa of B
     var sa;                             // mantissa sign of A (0=positive)
     var sb;                             // mantissa sign of B (ditto)
     var xa;                             // extended mantissa for A
@@ -2141,7 +2182,7 @@ B5500Processor.prototype.doublePrecisionAdd = function doublePrecisionAdd(adding
     ma = this.A % 0x8000000000;         // extract the A mantissa
     xa = this.B % 0x8000000000;         // extract the A mantissa extension
     ea = (this.A - ma)/0x8000000000;
-    sa = (ea >>> 7) & 0x01;
+    sa = (adding ? (ea >>> 7) & 0x01 : 1-((ea >>> 7) & 0x01));
     ea = (ea & 0x40 ? -(ea & 0x3F) : (ea & 0x3F));
 
     this.AROF = this.BROF = 0;          // empty the TOS registers
@@ -2210,78 +2251,49 @@ B5500Processor.prototype.doublePrecisionAdd = function doublePrecisionAdd(adding
         }
 
         // At this point, the exponents are aligned (or one of the mantissas
-        // is zero), so do the actual 78-bit addition as two 40-bit, signed, twos-
-        // complement halves. Note that computing the twos-complement of the
-        // extension requires a borrow from the high-order part, so the borrow
-        // is taken from the 40-bit twos-complement base (i.e., using 0xFFFFFFFFFF
-        // instead of 0x10000000000).
-        if (sb) {                       // if B negative, compute B 2s complement
-            this.cycleCount += 2;
-            xb = 0x8000000000 - xb;
-            mb = 0xFFFFFFFFFF - mb;
-        }
-        if (sa ^ (adding ? 0 : 1)) {    // if A negative XOR subtracting, compute A 2s complement
-            this.cycleCount += 2;
-            xa = 0x8000000000 - xa;
-            ma = 0xFFFFFFFFFF - ma;
+        // is zero), so do the actual 78-bit addition.
+
+        xb = (sb ? -xb : xb) + (sa ? -xa : xa);         // compute the extension
+        if (xb < 0) {
+            xb += 0x8000000000;                                 // adjust for underflow in the extension
+            mb += (sb ? 1 : -1);                                // adjust B for borrow into extension
+        } else if (xb > 0x8000000000) {
+            xb -= 0x8000000000;                                 // adjust for overflow in the extension
+            mb += (sb? -1 : 1);                                 // adjust B for carry from extension
         }
 
-        xb += xa;                       // add the extension parts
-        if (xb >= 0x8000000000) {               // deal with carry out of extension part
-            mb++;                               // into high-order part
-            xb %= 0x8000000000;
-        }
-
-        mb += ma;                       // add the high-order parts
-
-        // Check for overflow: if the result occupies more than 40 bits, we know
-        // that overflow occurred; otherwise if both internal signs were positive
-        // and we have a twos-complement negative result, overflow occurred; otherwise
-        // if both internal signs were negative and we have a positive result,
-        // overflow occurred. Set the carry flag and adjust the result as necessary.
-        if (mb >= 0x10000000000) {                      // if result overflowed 40 bits
-            carry = 1;                                  // set the carry flag
-            mb -= 0x8000000000;                         // and adjust result for the overflow
-        } else if (sb == (sa ^ (adding ? 0 : 1))) {     // if the signs of the internal addition are the same
-            if (sb && mb < 0x8000000000) {              // if signs were negative and result is positive
-                carry = 1;                              // overflow occurred: set carry flag
-                mb += 0x8000000000;                     // and adjust result for the overflow
-            } else if (!sb && mb >= 0x8000000000) {     // if signs were positive and result is negative
-                carry = 1;                              // overflow occurred: set the carry flag
-                mb -= 0x8000000000;                     // and adjust result for the overflow
+        mb = (sb ? -mb : mb) + (sa ? -ma : ma);         // compute the mantissa
+        if (mb > 0) {                                   // if positive...
+            sb = 0;                                             // reset the B sign bit
+        } else {                                        // if negative...
+            sb = 1;                                             // set the B sign bit
+            mb = -mb;                                           // negate the B mantissa
+            if (xb) {                                           // if the extension is non-zero
+                xb = 0x8000000000 - xb;                         // negate the extension
+                mb--;                                           // and adjust for borrow into the extension
             }
         }
 
-        // Determine the resulting sign and decomplement as necessary
-        if (mb < 0x8000000000) {
-            sb = 0;                     // it's positive
-        } else {
-            sb = 1;                     // it's negative
-            this.cycleCount++;
-            xb = 0x8000000000 - xb;
-            mb = 0xFFFFFFFFFF - mb;
-        }
-
         // Scale or normalize as necessary
-        if (carry) {                                    // overflow occurred, so scale it in
+        if (mb >= 0x8000000000) {                       // If overflowed 39 bits, scale result
             this.cycleCount++;
-            d = mb % 8;                                 // get the shift digit from high-order part
-            mb = (mb - d)/8 + 0x1000000000;             // shift right and insert the overflow bit
-            xb = (xb - xb%8)/8 + d*0x1000000000;        // shift the extension and insert the shift digit
+            d = mb % 8;                                         // get the rounding digit from B
+            mb = (mb - d)/8;                                    // shift mantissa right due to overflow
+            xb = (xb - xb%8)/8 + d*0x1000000000;                // shift extension right and insert mantissa digit
             eb++;
-        } else {
-            while (mb < 0x1000000000 && mb & xb) {      // Normalize
+        } else {                                        // Otherwise, normalize as necessary
+            while (mb < 0x1000000000 && mb && xb) {
                 this.cycleCount++;
-                d = (xb - xb%0x1000000000)/0x1000000000;// get the rounding digit from X
-                xb = (xb%0x1000000000)*8;               // shift B and X left together
+                d = (xb - xb%0x1000000000)/0x1000000000;        // get the high-order digit from the extension
+                xb = (xb%0x1000000000)*8;                       // shift B and X left together
                 mb = mb*8 + d;
                 eb--;
             }
         }
 
-        if (mb == 0 && xb == 0) {
-            this.A = this.B = 0;
-        } else {
+        if (mb == 0 && xb == 0) {                       // if the mantissa is zero...
+            this.A = this.B = 0;                                // the whole result is zero, and we're done
+        } else {                                        // otherwise, determine the resulting sign
             // Check for exponent over/underflow
             if (eb > 63) {
                 eb %= 64;
@@ -2289,14 +2301,16 @@ B5500Processor.prototype.doublePrecisionAdd = function doublePrecisionAdd(adding
                     this.I = (this.I & 0x0F) | 0xB0;    // set I05/6/8: exponent-overflow
                     this.cc.signalInterrupt();
                 }
-            } else if (eb < -63) {
-                eb = ((-eb) % 64) | 0x40;               // mod the exponent and set its sign
-                if (this.NCSF) {
-                    this.I = (this.I & 0x0F) | 0xA0;    // set I06/8: exponent-underflow
-                    this.cc.signalInterrupt();
-                }
             } else if (eb < 0) {
-                eb = (-eb) | 0x40;                      // set the exponent sign bit
+                if (eb >= -63) {
+                    eb = (-eb) | 0x40;                  // set the exponent sign bit
+                } else {
+                    eb = ((-eb) % 64) | 0x40;           // mod the exponent and set its sign
+                    if (this.NCSF) {
+                        this.I = (this.I & 0x0F) | 0xA0;// set I06/8: exponent-underflow
+                        this.cc.signalInterrupt();
+                    }
+                }
             }
 
             this.X = xb;                                // for display purposes only
@@ -3672,7 +3686,7 @@ B5500Processor.prototype.run = function run() {
                     case 0x04:          // 0411: RTR=Read Timer
                         if (!this.NCSF) {               // control-state only
                             this.adjustAEmpty();
-                            this.A = this.cc.CCI03F*64 + this.cc.TM;
+                            this.A = this.cc.readTimer();
                             this.AROF = 1;
                         }
                         break;
@@ -4561,10 +4575,9 @@ B5500Processor.prototype.schedule = function schedule() {
     this routine will reschedule itself after an appropriate delay, thereby
     throttling the performance and allowing other modules a chance at the
     Javascript execution thread */
+    var clockOff;                       // ending time for this run() call, ms
     var delayTime;                      // delay until next run() for this processor, ms
-    var elapsedTime;                    // elapsed real time for this run() call, ms
-    var startTime = new Date().getTime(); // starting time for this run() call, ms
-    var stopTime;                       // ending time for this run() call, ms
+    var runTime = this.procTime;        // real-world processor running time, ms
 
     this.scheduler = null;
     this.cycleLimit = B5500Processor.timeSlice;
@@ -4572,23 +4585,34 @@ B5500Processor.prototype.schedule = function schedule() {
 
     this.run();                         // execute syllables for the timeslice
 
-    stopTime = new Date().getTime();
-    elapsedTime = stopTime - startTime;
-    this.procTime += elapsedTime;
+    clockOff = new Date().getTime();
+    while (runTime < 0) {
+        runTime += clockOff;
+    }
     this.totalCycles += this.cycleCount;
     if (this.busy) {
-        delayTime = this.cycleCount/1000 - elapsedTime;
-        this.procSlack += delayTime;
-        this.scheduler = setTimeout(this.boundSchedule, (delayTime > 0 ? delayTime : 1));
+        // delayTime is the number of milliseconds the processor is running ahead of
+        // real-world time. Web browsers have a certain minimum delay. If the delay
+        // is less than that, we yield to the event loop, but otherwise continue (real
+        // time should eventually catch up -- we hope)
+        delayTime = this.totalCycles/1000 - runTime;
+        if (delayTime < B5500Processor.minDelay) {
+            setImmediate(this.boundSchedule);           // just execute pending events
+        } else {
+            if (delayTime > B5500Processor.maxDelay) {
+                delayTime = B5500Processor.maxDelay;
+            }
+            this.procSlack += delayTime;
+            this.scheduler = setTimeout(this.boundSchedule, delayTime);
+        }
     }
 };
 
 /**************************************/
 B5500Processor.prototype.step = function step() {
     /* Single-steps the processor. Normally this will cause one instruction to
-    be executed, but note that in case of an interrupt, one or two injected
-    instructions (e.g., SFI followed by ITI or char-mode CRF followed by lots of
-    things) could also be executed */
+    be executed, but note that in the case of an interrupt or char-mode CRF, one
+    or two injected instructions (e.g., SFI followed by ITI) could also be executed */
 
     this.cycleLimit = 1;
     this.cycleCount = 0;

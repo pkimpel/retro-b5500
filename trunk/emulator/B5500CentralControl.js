@@ -61,7 +61,7 @@ function B5500CentralControl() {
 /**************************************/
     /* Global constants */
 
-B5500CentralControl.version = "0.07";
+B5500CentralControl.version = "0.08";
 
 B5500CentralControl.memCycles = 4;      // assume 4 µs memory cycle time (the other option was 6 µs)
 B5500CentralControl.rtcTick = 1000/60;  // Real-time clock period, milliseconds
@@ -574,6 +574,14 @@ B5500CentralControl.prototype.tock = function tock() {
 };
 
 /**************************************/
+B5500CentralControl.prototype.readTimer = function readTimer() {
+    /* Returns the value of the 1/60th second timer */
+    var thisTime = new Date().getTime();
+
+    return this.CCI03F*64 + this.TM;
+};
+
+/**************************************/
 B5500CentralControl.prototype.haltP2 = function haltP2() {
     /* Called by P1 to halt P2. storeForInterrupt() will set P2BF=0 */
 
@@ -724,21 +732,11 @@ B5500CentralControl.prototype.halt = function halt() {
     }
 
     if (this.PA && this.PA.busy) {
-        this.PA.busy = 0;
-        this.PA.cycleLimit = 0;
-        if (this.PA.scheduler) {
-            clearTimeout(this.PA.scheduler);
-            this.PA.scheduler = null;
-        }
+        this.PA.halt();
     }
 
     if (this.PB && this.PB.busy) {
-        this.PB.busy = 0;
-        this.PB.cycleLimit = 0;
-        if (this.PB.scheduler) {
-            clearTimeout(this.PB.scheduler);
-            this.PB.scheduler = null;
-        }
+        this.PB.halt();
     }
 };
 
