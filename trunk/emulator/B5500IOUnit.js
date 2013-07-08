@@ -45,7 +45,7 @@ function B5500IOUnit(ioUnitID, cc) {
     this.ioUnitID = ioUnitID;           // I/O Unit ID ("1", "2", "3", or "4")
     this.cc = cc;                       // Reference back to Central Control module
 
-    this.forkHandle = null;             // Reference to current setTimeout id
+    this.forkHandle = null;             // Reference to current setImmediate id
     this.accessor = {                   // Memory access control block
         requestorID: ioUnitID,             // Memory requestor ID
         addr: 0,                           // Memory address
@@ -67,6 +67,8 @@ function B5500IOUnit(ioUnitID, cc) {
     this.boundFinishBusy = this.makeFinish(this.finishBusy);
     this.boundFinishDiskRead = this.makeFinish(this.finishDiskRead);
     this.boundFinishSPORead = this.makeFinish(this.finishSPORead);
+
+    this.initiateStamp = 0;             // Timestamp of last I/O initiation on this unit
 
     this.clear();                       // Create and initialize the processor state
 }
@@ -173,14 +175,13 @@ B5500IOUnit.prototype.clear = function clear() {
     this.busy = 0;                      // I/O Unit is busy
     this.busyUnit = 0;                  // Peripheral unit index currently assigned to the I/O Unit
 
-    this.cycleCount = 0;                // Current cycle count for this.run()
-    this.cycleLimit = 0;                // Cycle limit for this.run()
+    this.cycleCount = 0;                // Current cycle count for this I/O unit
     this.totalCycles = 0;               // Total cycles executed on this I/O Unit
     this.ioUnitTime = 0;                // Total I/O Unit running time, based on cycles executed
     this.ioUnitSlack = 0;               // Total I/O Unit throttling delay, milliseconds
 
     if (this.forkHandle) {
-        clearTimeout(this.forkHandle);
+        clearImmediate(this.forkHandle);
     }
 };
 
@@ -216,7 +217,7 @@ B5500IOUnit.prototype.fetch = function fetch(addr) {
     this.cc.fetch(acc);
     this.W = acc.word;
 
-    this.cycleCount += B5500CentralControl.memCycles;
+    this.cycleCount += B5500CentralControl.memReadCycles;
     if (acc.MAED) {
         this.D26F = 1;                  // set memory address error
         return 1;
@@ -238,7 +239,7 @@ B5500IOUnit.prototype.store = function store(addr) {
     acc.word = this.W;
     this.cc.store(acc);
 
-    this.cycleCount += B5500CentralControl.memCycles;
+    this.cycleCount += B5500CentralControl.memWriteCycles;
     if (acc.MAED) {
         this.D26F = 1;                  // set memory address error
         return 1;
@@ -732,7 +733,7 @@ B5500IOUnit.prototype.forkIO = function forkIO() {
     var u;                              // peripheral unit object
     var x;                              // temp number variable
 
-    this.forkHandle = null;             // clear the setTimeout() handle
+    this.forkHandle = null;             // clear the setImmediate() handle
 
     x = this.D;                         // explode the D-register into its fields
     this.Dunit = (x%0x200000000000 - x%0x10000000000)/0x10000000000;    // [3:5]
@@ -756,6 +757,7 @@ B5500IOUnit.prototype.forkIO = function forkIO() {
     } else {
         this.cc.setUnitBusy(index, 1);
         u = this.cc.unit[index];
+        u.initiateStamp = this.initiateStamp;
 
         switch(this.Dunit) {
         // disk designates
@@ -846,6 +848,7 @@ B5500IOUnit.prototype.initiate = function initiate() {
     environment, all of the Javascript action occurs on one thread, so this allows us to
     multiplex what are supposed to be asynchronous operations on that thread */
 
+    this.initiateStamp = new Date().getTime();
     this.clearD();
     this.AOFF = 0;
     this.EXNF = 0;
@@ -860,7 +863,7 @@ B5500IOUnit.prototype.initiate = function initiate() {
         } else {
             this.D31F = 0;              // reset the IOD-fetch error condition
             this.D = this.W;
-            this.forkHandle = setTimeout(this.boundForkIO, 0);
+            this.forkHandle = setImmediate(this.boundForkIO);
         }
     }
 };
@@ -893,6 +896,7 @@ B5500IOUnit.prototype.initiateLoad = function initiateLoad(cardLoadSelect, loadC
         loadComplete();
     }
 
+    this.initiateStamp = new Date().getTime();
     this.clearD();
     if (cardLoadSelect) {
         this.D = 0x0A0004800010;        // unit 10, read, binary mode, addr @00020
@@ -917,6 +921,7 @@ B5500IOUnit.prototype.initiateLoad = function initiateLoad(cardLoadSelect, loadC
     } else {
         this.cc.setUnitBusy(index, 1);
         u = this.cc.unit[index];
+        u.initiateStamp = this.initiateStamp;
         u.read(this.makeFinish(finishLoad), this.buffer, chars, this.D21F, 1);
     }
 };

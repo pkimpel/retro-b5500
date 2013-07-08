@@ -26,6 +26,8 @@ function B5500CardReader(mnemonic, unitIndex, designate, statusChange, signal) {
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (not used here)
 
+    this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
+
     this.clear();
 
     this.window = window.open("", mnemonic);
@@ -185,10 +187,12 @@ B5500CardReader.prototype.CRProgressBar_onclick = function CRProgressBar_onclick
 
 /**************************************/
 B5500CardReader.prototype.fileSelector_onChange = function fileSelector_onChange(ev) {
-    /* Handle the <input type=file> onchange event when a file is selected */
-    var f = ev.target.files[0];
-    var reader = new FileReader();
+    /* Handle the <input type=file> onchange event when files are selected. For each
+    file, load it and add it to the "input hopper" of the reader */
+    var deck;
+    var f = ev.target.files;
     var that = this;
+    var x;
 
     function fileLoader_onLoad(ev) {
         /* Handle the onload event for a Text FileReader */
@@ -214,8 +218,11 @@ B5500CardReader.prototype.fileSelector_onChange = function fileSelector_onChange
         that.$$("CRProgressBar").max = that.bufLength;
     }
 
-    reader.onload = fileLoader_onLoad;
-    reader.readAsText(f);
+    for (x=f.length-1; x>=0; x--) {
+        deck = new FileReader();
+        deck.onload = fileLoader_onLoad;
+        deck.readAsText(f[x]);
+    }
 };
 
 /**************************************/
@@ -379,7 +386,7 @@ B5500CardReader.prototype.read = function read(finish, buffer, length, mode, con
         setTimeout(function() {
             that.busy = false;
             finish(that.errorMask, length);
-        }, 60000/this.cardsPerMinute);
+        }, 60000/this.cardsPerMinute + this.initiateStamp - new Date().getTime());
 
         while (this.outHopper.childNodes.length > 1) {
             this.outHopper.removeChild(this.outHopper.firstChild);

@@ -61,9 +61,11 @@ function B5500CentralControl() {
 /**************************************/
     /* Global constants */
 
-B5500CentralControl.version = "0.08";
+B5500CentralControl.version = "0.09";
 
-B5500CentralControl.memCycles = 4;      // assume 4 탎 memory cycle time (the other option was 6 탎)
+B5500CentralControl.memReadCycles = 2;  // assume 2 탎 memory read cycle time (the other option was 3 탎)
+B5500CentralControl.memWriteCycles = 4; // assume 4 탎 memory write cycle time (the other option was 6 탎)
+B5500CentralControl.minDelay = 4;       // minimum setTimeout() delay, ms
 B5500CentralControl.rtcTick = 1000/60;  // Real-time clock period, milliseconds
 
 B5500CentralControl.pow2 = [ // powers of 2 from 0 to 52
@@ -570,7 +572,12 @@ B5500CentralControl.prototype.tock = function tock() {
         }
     }
     interval = (this.nextTimeStamp += B5500CentralControl.rtcTick) - thisTime;
-    this.timer = setTimeout(this.boundTock, (interval < 1 ? 1 : interval));
+    if (interval >= B5500CentralControl.minDelay) {
+        this.timer = setTimeout(this.boundTock, interval);
+    } else {
+        this.timer = null;
+        setImmediate(this.boundTock);
+    }
 };
 
 /**************************************/
@@ -732,11 +739,11 @@ B5500CentralControl.prototype.halt = function halt() {
     }
 
     if (this.PA && this.PA.busy) {
-        this.PA.halt();
+        this.PA.stop();
     }
 
     if (this.PB && this.PB.busy) {
-        this.PB.halt();
+        this.PB.stop();
     }
 };
 
@@ -787,8 +794,8 @@ B5500CentralControl.prototype.load = function load(dontStart) {
 
     if (this.P1 && !this.P1.busy) {
         this.clear();
-        this.nextTimeStamp = new Date().getTime() + B5500CentralControl.rtcTick;
-        this.timer = setTimeout(this.boundTock, B5500CentralControl.rtcTick);
+        this.nextTimeStamp = new Date().getTime();
+        this.tock();
         this.LOFF = 1;
         if (this.IO1 && this.IO1.REMF && !this.AD1F) {
             this.AD1F = 1;

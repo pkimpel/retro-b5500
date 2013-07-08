@@ -48,13 +48,16 @@ function B5500Processor(procID, cc) {
     this.boundSchedule = B5500CentralControl.bindMethod(this.schedule, this);
 
     this.clear();                       // Create and initialize the processor state
+
+    this.delayDeltaAvg = 0;             // Average difference between requested and actual setTimeout() delays, ms
+    this.delayLastStamp = 0;            // Timestamp of last setTimeout() delay, ms
+    this.delayRequested = 0;            // Last requested setTimeout() delay, ms
 }
 
 /**************************************/
 
 B5500Processor.timeSlice = 4000;        // this.run() timeslice, clocks
-B5500Processor.minDelay = 4;            // minimum schedule() delay, ms
-B5500Processor.maxDelay = 20;           // maximum schedule() delay, ms
+B5500Processor.delaySamples = 1000;     // this.delayThreshold sampling average basis
 
 B5500Processor.collation = [            // index by BIC to get collation value
     53, 54, 55, 56, 57, 58, 59, 60,             // @00: 0 1 2 3 4 5 6 7
@@ -111,8 +114,11 @@ B5500Processor.prototype.clear = function clear() {
     this.US14X = 0;                     // STOP OPERATOR switch
 
     this.busy = 0;                      // Processor is running, not idle or halted
-    this.cycleCount = 0;                // Current cycle count for this.run()
+    this.controlCycles = 0;             // Current control-state cycle count (for UI display)
+    this.cycleCount = 0;                // Cycle count for current syllable
     this.cycleLimit = 0;                // Cycle limit for this.run()
+    this.normalCycles = 0;              // Current normal-state cycle count (for UI display)
+    this.runCycles = 0;                 // Current cycle cound for this.run()
     this.totalCycles = 0;               // Total cycles executed on this processor
     this.procStart = 0;                 // Javascript time that the processor started running, ms
     this.procTime = 0.001;              // Total processor running time, ms
@@ -145,7 +151,7 @@ B5500Processor.prototype.loadAviaS = function loadAviaS() {
     acc.addr = this.S;
     acc.MAIL = (this.S < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
-    this.cycleCount += B5500CentralControl.memCycles;
+    this.cycleCount += B5500CentralControl.memReadCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     } else {
@@ -163,7 +169,7 @@ B5500Processor.prototype.loadBviaS = function loadBviaS() {
     acc.addr = this.S;
     acc.MAIL = (this.S < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
-    this.cycleCount += B5500CentralControl.memCycles;
+    this.cycleCount += B5500CentralControl.memReadCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     } else {
@@ -181,7 +187,7 @@ B5500Processor.prototype.loadAviaM = function loadAviaM() {
     acc.addr = this.M;
     acc.MAIL = (this.M < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
-    this.cycleCount += B5500CentralControl.memCycles;
+    this.cycleCount += B5500CentralControl.memReadCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     } else {
@@ -199,7 +205,7 @@ B5500Processor.prototype.loadBviaM = function loadBviaM() {
     acc.addr = this.M;
     acc.MAIL = (this.M < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
-    this.cycleCount += B5500CentralControl.memCycles;
+    this.cycleCount += B5500CentralControl.memReadCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     } else {
@@ -217,7 +223,7 @@ B5500Processor.prototype.loadMviaM = function loadMviaM() {
     acc.addr = this.M;
     acc.MAIL = (this.M < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
-    this.cycleCount += B5500CentralControl.memCycles;
+    this.cycleCount += B5500CentralControl.memReadCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     } else {
@@ -235,7 +241,7 @@ B5500Processor.prototype.loadPviaC = function loadPviaC() {
     acc.MAIL = (this.C < 0x0200 && this.NCSF);
     this.cc.fetch(acc);
     this.PROF = 1;                      // PROF gets set even for invalid address
-    this.cycleCount += B5500CentralControl.memCycles;
+    this.cycleCount += B5500CentralControl.memReadCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     } else {
@@ -253,7 +259,7 @@ B5500Processor.prototype.storeAviaS = function storeAviaS() {
     acc.MAIL = (this.S < 0x0200 && this.NCSF);
     acc.word = this.A;
     this.cc.store(acc);
-    this.cycleCount += B5500CentralControl.memCycles;
+    this.cycleCount += B5500CentralControl.memWriteCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     }
@@ -269,7 +275,7 @@ B5500Processor.prototype.storeBviaS = function storeBviaS() {
     acc.MAIL = (this.S < 0x0200 && this.NCSF);
     acc.word = this.B;
     this.cc.store(acc);
-    this.cycleCount += B5500CentralControl.memCycles;
+    this.cycleCount += B5500CentralControl.memWriteCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     }
@@ -285,7 +291,7 @@ B5500Processor.prototype.storeAviaM = function storeAviaM() {
     acc.MAIL = (this.M < 0x0200 && this.NCSF);
     acc.word = this.A;
     this.cc.store(acc);
-    this.cycleCount += B5500CentralControl.memCycles;
+    this.cycleCount += B5500CentralControl.memWriteCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     }
@@ -301,7 +307,7 @@ B5500Processor.prototype.storeBviaM = function storeBviaM() {
     acc.MAIL = (this.M < 0x0200 && this.NCSF);
     acc.word = this.B;
     this.cc.store(acc);
-    this.cycleCount += B5500CentralControl.memCycles;
+    this.cycleCount += B5500CentralControl.memWriteCycles;
     if (acc.MAED || acc.MPED) {
         this.accessError();
     }
@@ -1340,7 +1346,9 @@ B5500Processor.prototype.start = function start() {
     this.busy = 1;
     this.procStart = stamp;
     this.procTime -= stamp;
-    this.scheduler = setTimeout(this.boundSchedule, 0);
+    this.delayLastStamp = stamp;
+    this.delayRequested = 0;
+    setImmediate(this.boundSchedule);
 };
 
 /**************************************/
@@ -2176,7 +2184,7 @@ B5500Processor.prototype.doublePrecisionAdd = function doublePrecisionAdd(adding
     var xb;                             // extended mantissa for B
 
     // Estimate some general overhead and account for stack manipulation we don't do
-    this.cycleCount += B5500CentralControl.memCycles*4 + 8;
+    this.cycleCount += B5500CentralControl.memWriteCycles*4 + 8;
 
     this.adjustABFull();                // extract the top (A) operand fields:
     ma = this.A % 0x8000000000;         // extract the A mantissa
@@ -2873,6 +2881,7 @@ B5500Processor.prototype.run = function run() {
         this.Y = 0;
         this.Z = 0;
         opcode = this.T;
+        this.cycleCount = 1;            // general syllable execution overhead
 
         if (this.CWMF) {
             /***********************************************************
@@ -4560,7 +4569,13 @@ B5500Processor.prototype.run = function run() {
                 break;
             }
         }
-    } while ((this.cycleCount += 1) < this.cycleLimit);
+
+        if (this.NCSF) {
+            this.normalCycles += this.cycleCount;
+        } else {
+            this.controlCycles += this.cycleCount;
+        }
+    } while ((this.runCycles += this.cycleCount) < this.cycleLimit);
 };
 
 /**************************************/
@@ -4577,33 +4592,40 @@ B5500Processor.prototype.schedule = function schedule() {
     Javascript execution thread */
     var clockOff;                       // ending time for this run() call, ms
     var delayTime;                      // delay until next run() for this processor, ms
-    var runTime = this.procTime;        // real-world processor running time, ms
+    var runTime;                        // real-world processor running time, ms
 
     this.scheduler = null;
     this.cycleLimit = B5500Processor.timeSlice;
-    this.cycleCount = 0;
+    this.runCycles = 0;
 
     this.run();                         // execute syllables for the timeslice
 
     clockOff = new Date().getTime();
+    runTime = this.procTime;
     while (runTime < 0) {
         runTime += clockOff;
     }
-    this.totalCycles += this.cycleCount;
+    this.totalCycles += this.runCycles;
+    if (this.delayRequested) {
+        delayTime = clockOff - this.delayLastStamp - this.delayRequested;
+        this.delayDeltaAvg = (this.delayDeltaAvg*(B5500Processor.delaySamples-1) +
+                delayTime)/B5500Processor.delaySamples;
+    }
+
     if (this.busy) {
         // delayTime is the number of milliseconds the processor is running ahead of
         // real-world time. Web browsers have a certain minimum delay. If the delay
         // is less than that, we yield to the event loop, but otherwise continue (real
         // time should eventually catch up -- we hope)
         delayTime = this.totalCycles/1000 - runTime;
-        if (delayTime < B5500Processor.minDelay) {
+        this.delayLastStamp = clockOff;
+        if (delayTime < B5500CentralControl.minDelay) {
+            this.delayRequested = 0;
             setImmediate(this.boundSchedule);           // just execute pending events
         } else {
-            if (delayTime > B5500Processor.maxDelay) {
-                delayTime = B5500Processor.maxDelay;
-            }
-            this.procSlack += delayTime;
             this.scheduler = setTimeout(this.boundSchedule, delayTime);
+            this.delayRequested = delayTime;
+            this.procSlack += delayTime;
         }
     }
 };
@@ -4615,10 +4637,9 @@ B5500Processor.prototype.step = function step() {
     or two injected instructions (e.g., SFI followed by ITI) could also be executed */
 
     this.cycleLimit = 1;
-    this.cycleCount = 0;
+    this.runCycles = 0;
 
     this.run();
 
-    this.totalCycles += this.cycleCount;
-    this.procTime += this.cycleCount;
+    this.totalCycles += this.runCycles;
 };

@@ -78,6 +78,8 @@ function B5500DiskUnit(mnemonic, index, designate, statusChange, signal) {
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (e.g,. SPO input request)
 
+    this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
+
     this.clear();
 }
 
@@ -208,7 +210,7 @@ B5500DiskUnit.prototype.read = function read(finish, buffer, length, mode, contr
             length = segs*240;          // recompute length and ending seg address
             endAddr = euSize-1;
         }
-        finishTime = new Date().getTime() +
+        finishTime = this.initiateStamp +
                 (Math.random()*this.maxLatency + segs*240/this.charXferRate)*1000;
 
         if (segs < 1) {                 // No length specified, so just finish the I/O
@@ -300,7 +302,7 @@ B5500DiskUnit.prototype.write = function write(finish, buffer, length, mode, con
             length = segs*240;          // recompute length and ending seg address
             endAddr = euSize-1;
         }
-        finishTime = new Date().getTime() +
+        finishTime = this.initiateStamp +
                 (Math.random()*this.maxLatency + segs*240/this.charXferRate)*1000;
 
         // No length specified, so just finish the I/O
@@ -377,7 +379,7 @@ B5500DiskUnit.prototype.readCheck = function readCheck(finish, length, control) 
             length = segs*240;          // recompute length and ending seg address
             endAddr = euSize-1;
         }
-        finishTime = new Date().getTime() +
+        finishTime = this.initiateStamp +
                 (Math.random()*this.maxLatency + segs*240/this.charXferRate)*1000;
 
         if (segs < 1) {                 // No length specified, so just finish the I/O
@@ -431,7 +433,7 @@ B5500DiskUnit.prototype.readInterrogate = function readInterrogate(finish, contr
         setTimeout(function readInterrogateTimeout() {
             finish(that.errorMask, length);
             that.errorMask = 0;
-        }, Math.random()*this.maxLatency*1000);
+        }, Math.random()*this.maxLatency*1000 + this.initiateStamp - new Date().getTime());
     }
 };
 
@@ -464,6 +466,6 @@ B5500DiskUnit.prototype.writeInterrogate = function writeInterrogate(finish, con
         setTimeout(function writeInterrogateTimeout() {
             finish(that.errorMask, length);
             that.errorMask = 0;
-        }, Math.random()*this.maxLatency*1000);
+        }, Math.random()*this.maxLatency*1000 + this.initiateStamp - new Date().getTime());
     }
 };

@@ -24,14 +24,14 @@ var B5500SystemConfiguration = {
 
     IO1:        true,                   // I/O Unit 1 available
     IO2:        true,                   // I/O Unit 2 available
-    IO3:        false,                  // I/O Unit 3 available
+    IO3:        true,                   // I/O Unit 3 available
     IO4:        false,                  // I/O Unit 4 available
 
     memMod: [
                 true,                   // Memory module 0 available (4KW)
                 true,                   // Memory module 1 available (4KW)
-                false,                  // Memory module 2 available (4KW)
-                false,                  // Memory module 3 available (4KW)
+                true,                   // Memory module 2 available (4KW)
+                true,                   // Memory module 3 available (4KW)
                 true,                   // Memory module 4 available (4KW)
                 true,                   // Memory module 5 available (4KW)
                 true,                   // Memory module 6 available (4KW)
