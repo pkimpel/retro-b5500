@@ -30,6 +30,8 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal) {
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (e.g,. SPO input request)
 
+    this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
+
     this.clear();
 
     this.backspaceChar.that = this;     // Store object context for these functions

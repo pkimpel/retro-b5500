@@ -26,6 +26,8 @@ function B5500CardPunch(mnemonic, unitIndex, designate, statusChange, signal) {
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (not used here)
 
+    this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
+
     this.clear();
 
     this.window = window.open("", mnemonic);
@@ -283,7 +285,7 @@ B5500CardPunch.prototype.write = function write(finish, buffer, length, mode, co
     setTimeout(function() {
         that.busy = false;
         finish(that.errorMask, length);
-    }, 60000/this.cardsPerMinute);
+    }, 60000/this.cardsPerMinute + this.initiateStamp - new Date().getTime());
 };
 
 /**************************************/

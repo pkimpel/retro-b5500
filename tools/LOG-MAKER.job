@@ -1,0 +1,35 @@
+?COMPILE LOG/MAKER ALGOL GO
+?DATA CARD
+$ CARD LIST SINGLE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  LOG/MAKER                                                         %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   THIS PROGRAM WILL INITIALIZE THE B5500 MCP SYSTEM/LOG FILE.
+%   CAUTION: THIS PROGRAM SHOULD NOT BE USED IF THE LOG ALREADY EXISTS.
+%            IT MAY REMOVE THE EXISTING LOG. YOU MAY WISH TO USE AN 
+%            "LN" MESSAGE FIRST.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 2013-07-05  P.KIMPEL
+%   ORIGINAL VERSION.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+BEGIN
+DEFINE
+  LOGSEGS =             20000 #;
+SAVE FILE OUT 
+  LOG DISK SERIAL [1:LOGSEGS] "SYSTEM" "LOG" (1, 5, 30, SAVE 365);
+ARRAY
+  BUF [0:29];
+  
+BUF[0] ~ 0;
+BUF[1] ~ LOGSEGS;
+BUF[4] ~ "DISKLOG";
+WRITE(LOG, 5, BUF[*]);
+
+BUF[0] ~ 4;
+BUF[1] ~ BUF[4] ~ 0;
+WRITE(LOG, 5, BUF[*]);
+
+LOCK(LOG);
+END.
+?END

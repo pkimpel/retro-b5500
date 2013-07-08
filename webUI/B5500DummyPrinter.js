@@ -27,6 +27,8 @@ function B5500DummyPrinter(mnemonic, unitIndex, designate, statusChange, signal)
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (e.g,. Printer Finished)
 
+    this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
+
     this.clear();
 
     this.window = window.open("", mnemonic);
@@ -154,7 +156,7 @@ B5500DummyPrinter.prototype.write = function write(finish, buffer, length, mode,
         this.paper.appendChild(this.doc.createElement("hr"));
     }
 
-    setTimeout(this.signal, 60000/this.linesPerMinute);
+    setTimeout(this.signal, 60000/this.linesPerMinute + this.initiateStamp - new Date().getTime());
     finish(0, 0);
     this.endOfPaper.scrollIntoView();
 };
