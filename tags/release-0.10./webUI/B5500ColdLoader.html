@@ -1,0 +1,2067 @@
+<!DOCTYPE html>
+<head>
+<title>B5500 Disk Subsystem Coldstart Loader</title>
+<meta name="Author" content="Paul Kimpel">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta http-equiv="Content-Script-Type" content="text/javascript">
+<meta http-equiv="Content-Style-Type" content="text/css">
+
+<script>
+/***********************************************************************
+* retro-b5500/webUI B5500ColdLoader.html
+************************************************************************
+* Copyright (c) 2012, Paul Kimpel.
+* Licensed under the MIT License,
+*       see http://www.opensource.org/licenses/mit-license.php
+************************************************************************
+* B5500 Disk Subsystem Coldstart Loader.
+*
+* This script opens an IndexedDB database in the browser (creating it first, if
+* necessary) and initializes it as a B5500 Head-per-Track disk file subsystem.
+* It creates, as necessary, a separate IDB object store for for the number of
+* Electronics Units specified by the "euSet" constant, each consisting of the number
+* of 30-word segments (sectors) specified by the "EUn" properties of "euSet".
+*
+* If the ColdStart button is clicked on the page, the disk directory structure on
+* EU0 is overwritten with a new, empty directory structure, and a default set of
+* the system parameters is created.
+*
+* Once the disk subsystem has been coldstarted, you can load files from a local
+* file on your workstation. You can run the loader to load files without cold-
+* starting first, but the disk subsystem must have been previously coldstarted
+* in order to load any files.
+*
+* To load files, use the file picker on the upper-right of the page (usually
+* identified by a "Browse" or "Choose File" button) and select a blob file that
+* represents a Burroughs B5500 Library/Maintenance tape.
+*
+* The blob is assumed to be in the so-called ".bcd" format. Each 7-bit frame
+* from the tape is represented as one 8-bit unsigned byte. The low-order six
+* bits (mask 0x3F) contain the character value. The next bit (mask 0x40) is
+* the parity bit, and the high-order bit (mask 0x80) indicates the byte is
+* at the start of a physical tape block. Tape marks (EOF) are indicated by a
+* block containing a single 0x8F byte.
+*
+* After selecting the file, the page will display the file directory on the tape.
+* Each file name has a checkbox to its left that will select that file as one to
+* be loaded. Radio buttons on the right may be used optionally to designate one
+* of the selected files as the MCP and another as the System Intrinsics (INT).
+* Marking a file as the MCP or Intrinsics causes the bootstrap parameters in
+* sector 0 of DKA EU0 to be updated accordingly.
+*
+* Once you have selected the files to load, click the "Load" button at the bottom
+* of the page. The page will output a log of the load activity at the end of the
+* page.
+*
+* The files to be loaded must be on one contiguous tape image, contained in one
+* blob file. Continuation "reels" are not currently supported.
+************************************************************************
+* 2012-12-29  P.Kimpel
+*   Original version, from B5500LibMaintExtract.html.
+***********************************************************************/
+"use strict";
+
+if (!window.indexedDB) {                // for Safari, mostly
+    window.indexedDB = window.webkitIndexedDB || window.mozIndexedDB;
+}
+
+window.addEventListener("load", function() {
+    var configName = "CONFIG";          // database configuration store name
+    var dbName = "B5500DiskUnit";       // IDB database name
+    var dbVersion = 1;                  // current IDB database version
+    var directoryTop = 2000;            // start of directory area
+    var directoryEnd = 3008;            // end of directory area
+    var euSize = 200000;                // model I size (5 Storage Units: 6MW or 48MC)
+    var euPrefix = "EU";                // prefix for EU object store names
+    var tapeMark = 0x8F;                // .bcd file tapemark (EOF) octet code
+
+    var availDisk = null;               // available disk space map
+    var config = null;                  // copy of CONFIG store contents
+    var disk = null;                    // the IDB database object
+    var panel = document.getElementById("TextPanel");
+    var tapeBlob = null;                // blob read from .bcd file
+    var tapeData = null;                // tape blob as a DataView
+    var tapeDir = [];                   // contents of tape directory from .bcd blob
+
+    var euSet = {EU0: euSize, EU1: euSize};
+
+    var tapeCtl = {
+        data:           null,
+        offset:         0,
+        dataLength:     -1,
+        eof:            false,
+        eot:            false,
+        blockCount:     0,
+        blockLength:    0};
+
+    var BICtoANSIChar = [               // Index by 6-bit BIC to get ANSI character
+            "0", "1", "2", "3", "4", "5", "6", "7",
+            "8", "9", "#", "@", "?", ":", ">", "}",
+            "+", "A", "B", "C", "D", "E", "F", "G",
+            "H", "I", ".", "[", "&", "(", "<", "~",
+            "|", "J", "K", "L", "M", "N", "O", "P",
+            "Q", "R", "$", "*", "-", ")", ";", "{",
+            " ", "/", "S", "T", "U", "V", "W", "X",
+            "Y", "Z", ",", "%", "!", "=", "]", "\""];
+
+    var BICtoANSI = [                   // Index by 6-bit BIC to get 8-bit ANSI code
+        0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,        // 00-07, @00-07
+        0x38,0x39,0x23,0x40,0x3F,0x3A,0x3E,0x7D,        // 08-1F, @10-17
+        0x2B,0x41,0x42,0x43,0x44,0x45,0x46,0x47,        // 10-17, @20-27
+        0x48,0x49,0x2E,0x5B,0x26,0x28,0x3C,0x7E,        // 18-1F, @30-37
+        0x7C,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,        // 20-27, @40-47
+        0x51,0x52,0x24,0x2A,0x2D,0x29,0x3B,0x7B,        // 28-2F, @50-57
+        0x20,0x2F,0x53,0x54,0x55,0x56,0x57,0x58,        // 30-37, @60-67
+        0x59,0x5A,0x2C,0x25,0x21,0x3D,0x5D,0x22];       // 38-3F, @70-77
+
+    var BICtoBCLANSI = [                // Index by 6-bit BIC to get 8-bit BCL-as-ANSI code
+        0x23,0x31,0x32,0x33,0x34,0x35,0x36,0x37,        // 00-07, @00-07
+        0x38,0x39,0x40,0x3F,0x30,0x3A,0x3E,0x7D,        // 08-1F, @10-17
+        0x2C,0x2F,0x53,0x54,0x55,0x56,0x57,0x58,        // 10-17, @20-27
+        0x59,0x5A,0x25,0x21,0x20,0x3D,0x5D,0x22,        // 18-1F, @30-37
+        0x24,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,        // 20-27, @40-47
+        0x51,0x52,0x2A,0x2D,0x7C,0x29,0x3B,0x7B,        // 28-2F, @50-57
+        0x2B,0x41,0x42,0x43,0x44,0x45,0x46,0x47,        // 30-37, @60-67
+        0x48,0x49,0x5B,0x26,0x2E,0x28,0x3C,0x7E];       // 38-3F, @70-77
+
+    var ANSItoBIC = [                   // Index by 8-bit ANSI to get 6-bit BIC (upcased, invalid=>"?")
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 00-0F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 10-1F
+        0x30,0x3C,0x3F,0x0A,0x2A,0x3B,0x1C,0x0C,0x1D,0x2D,0x2B,0x10,0x3A,0x2C,0x1A,0x31,  // 20-2F
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0D,0x2E,0x1E,0x3D,0x0E,0x0C,  // 30-3F
+        0x0B,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x21,0x22,0x23,0x24,0x25,0x26,  // 40-4F
+        0x27,0x28,0x29,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x1B,0x0C,0x3E,0x0C,0x0C,  // 50-5F
+        0x0C,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x21,0x22,0x23,0x24,0x25,0x26,  // 60-6F
+        0x27,0x28,0x29,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x2F,0x20,0x0F,0x1F,0x0C,  // 70-7F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 80-8F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 90-9F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // A0-AF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // B0-BF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // C0-CF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // D0-DF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // E0-EF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C]; // F0-FF
+
+    var BCLANSItoBIC = [                // Index by 8-bit BCL-as-ANSI to get 6-bit BIC (upcased, invalid=>"?")
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 00-0F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 10-1F
+        0x1C,0x1B,0x1F,0x00,0x20,0x1A,0x3B,0x0C,0x3D,0x2D,0x2A,0x30,0x10,0x2B,0x3C,0x11,  // 20-2F
+        0x0C,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0D,0x2E,0x3E,0x1D,0x0E,0x0B,  // 30-3F
+        0x0A,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x21,0x22,0x23,0x24,0x25,0x26,  // 40-4F
+        0x27,0x28,0x29,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x3A,0x0C,0x1E,0x0C,0x0C,  // 50-5F
+        0x0C,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x21,0x22,0x23,0x24,0x25,0x26,  // 60-6F
+        0x27,0x28,0x29,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x2F,0x2C,0x0F,0x3F,0x0C,  // 70-7F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 80-8F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 90-9F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // A0-AF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // B0-BF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // C0-CF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // D0-DF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // E0-EF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C]; // F0-FF
+
+    var pow2 = [                        // powers of 2 from 0 to 52
+                     0x1,              0x2,              0x4,              0x8,
+                    0x10,             0x20,             0x40,             0x80,
+                   0x100,            0x200,            0x400,            0x800,
+                  0x1000,           0x2000,           0x4000,           0x8000,
+                 0x10000,          0x20000,          0x40000,          0x80000,
+                0x100000,         0x200000,         0x400000,         0x800000,
+               0x1000000,        0x2000000,        0x4000000,        0x8000000,
+              0x10000000,       0x20000000,       0x40000000,       0x80000000,
+             0x100000000,      0x200000000,      0x400000000,      0x800000000,
+            0x1000000000,     0x2000000000,     0x4000000000,     0x8000000000,
+           0x10000000000,    0x20000000000,    0x40000000000,    0x80000000000,
+          0x100000000000,   0x200000000000,   0x400000000000,   0x800000000000,
+         0x1000000000000,  0x2000000000000,  0x4000000000000,  0x8000000000000,
+        0x10000000000000];
+
+    /**************************************/
+    function $$(id) {
+        return document.getElementById(id);
+    }
+
+    /**************************************/
+    function bit(word, bit) {
+        /* Extracts and returns the specified bit from the word */
+        var e = 47-bit;                     // word lower power exponent
+        var p;                              // bottom portion of word power of 2
+
+        if (e > 0) {
+            return ((word - word % (p = pow2[e]))/p) % 2;
+        } else {
+            return word % 2;
+        }
+    };
+
+    /**************************************/
+    function fieldIsolate(word, start, width) {
+        /* Extracts a bit field [start:width] from word and returns the field */
+        var le = 48-start-width;            // lower power exponent
+        var p;                              // bottom portion of word power of 2
+
+        return (le == 0 ? word : (word - word % (p = pow2[le]))/p) % pow2[width];
+    };
+
+    /**************************************/
+    function spout(text) {
+        /* Appends "text"+NL as a new text node to the panel DOM element */
+        var e = document.createTextNode(text + "\n");
+
+        panel.appendChild(e);
+        $$("PageBottom").scrollIntoView();
+    }
+
+    /**************************************/
+    function clearPanel() {
+        /* Clears the text panel */
+        var kid;
+
+        while (kid = panel.firstChild) {
+            panel.removeChild(kid);
+        }
+    }
+
+    /**************************************/
+    function parseNumber(s) {
+        /* Parses the string "s" as a base-10 number. Returns 0 if it is not a number */
+        var n = parseInt(s, 10);
+
+        return (isNaN(n) ? 0 : n);
+    }
+
+    /**************************************/
+    function rtrim(s) {
+        /* Trims trailing spaces from "s" and returns the resulting string */
+        var m = s.match(/^(.*?) *$/);
+
+        return m[1];
+    }
+
+    /**************************************/
+    function padToLength(text, len) {
+        /* Converts the input string "text" to exactly "len" characters,
+        truncating or padding on the right with spaces as necessary */
+        var x = text.length;
+
+        if (x > len) {
+            return text.substring(0, len);
+        } else {
+            x = len-x;
+            while (x-- > 0) {
+                text += " ";
+            }
+            return text;
+        }
+    }
+
+    /**************************************/
+    function stringToANSI(text, bytes, bx, asBinary) {
+        /* Translates the characters in a string to upper case, and then to ANSI
+        byte-array format. "text" is the input string, "bytes" is the Uint8Array
+        output buffer, and "bx" is the offset into that output buffer. If "asBinary" is
+        truthy, the translation is binary, otherwise it is done as BCLANSI */
+        var len = text.length;
+        var table1 = (asBinary ? BICtoANSI : BICtoBCLANSI);
+        var utxt = text.toUpperCase();
+        var x;
+
+        bx = bx || 0;
+        for (x=0; x<len; x++) {
+            bytes[bx++] = table1[ANSItoBIC[utxt.charCodeAt(x) & 0xFF]];
+        }
+    }
+
+    /**************************************/
+    function ANSItoString(bytes, bx, bLength, asBinary) {
+        /* Translates a portion of an ANSI byte array to a string and returns it.
+        "bytes" = the Uint8Array byte array
+        "bx" = 0-relative offset into "bytes"
+        "bLength" = number of bytes to translate
+        "asBinary" = if truthy, then binary translation is done; otherwise
+                     B5500 BCLANSI translation is done */
+        var table = (asBinary ? ANSItoBIC : BCLANSItoBIC);
+        var text = "";
+        var x;
+
+        if (bLength < 0) {
+            bLength = -bLength;
+        }
+        for (x=0; x<bLength; x++) {
+            text += BICtoANSIChar[table[bytes[bx+x]]];
+        }
+        return text;
+    }
+
+    /**************************************/
+    function wordsToANSI(words, wx, wLength, bytes, bx, asBinary) {
+        /* Translates an array of B5500 words to ANSI byte-array format.
+        "words" = the array of words
+        "wx" = the starting index in "words"
+        "wLength" = the number of words to translate
+        "bytes" = a Uint8Array array
+        "bx" = the starting index in "bytes" to store the translated data
+        "asBinary" = if truthy, then binary translation is done; otherwise
+                     B5500 BCLANSI translation is done */
+        var c;
+        var table = (asBinary ? BICtoANSI : BICtoBCLANSI);
+        var w;
+        var x;
+        var y;
+        var z;
+
+        bx = bx || 0;
+        if (wLength < 0) {
+            wLength = -wLength;
+        }
+        for (x=0; x<wLength; x++) {
+            w = words[wx+x] || 0;
+            for (y=0; y<8; y++) {
+                z = w % 0x40000000000;
+                c = (w-z)/0x40000000000;
+                bytes[bx++] = table[c];
+                w = z*64;
+            }
+        }
+    }
+
+    /**************************************/
+    function ANSItoWords(bytes, bx, bLength, words, wx, asBinary) {
+        /* Translates a portion of an ANSI byte array to a sequence of B5500 words.
+        "bytes" = the Uint8Array byte array
+        "bx" = 0-relative offset into "bytes"
+        "bLength" = number of bytes to translate
+        "words" = the word array
+        "wx" = 0-relative offset into "words" to store the translated data
+        "asBinary" = if truthy, then binary translation is done; otherwise
+                     B5500 BCLANSI translation is done */
+        var cx = 0;
+        var w = 0;
+        var table = (asBinary ? ANSItoBIC : BCLANSItoBIC);
+        var x;
+
+        wx = wx || 0;
+        if (bLength < 0) {
+            bLength = -bLength;
+        }
+        for (x=0; x<bLength; x++) {
+            if (cx >= 8) {
+                words[wx++] = w;
+                w = cx = 0;
+            }
+            w = w*64 + table[bytes[bx+x]];
+            cx++;
+        }
+        while (cx++ < 8) {
+            w *= 64;
+        }
+        words[wx++] = w;
+    }
+
+    /**************************************/
+    function makeAvailable(addr, size) {
+        /* Returns "size" segments starting at "addr" to the "availDisk" map.
+        No attempt at space consolidate is made, presently, since it is likely
+        we are replacing the same file with the same size rows */
+
+        availDisk.push({addr: addr, size: size});
+    }
+
+    /**************************************/
+    function removeAvailable(addr, size) {
+        /* Removes "size" segments starting at "addr" from the "availDisk" map */
+        var avAddr;
+        var avEnd;
+        var endAddr = addr+size-1;
+        var ex;
+        var found = false;
+        var mx;
+
+        for (mx=availDisk.length-1; mx>=0; mx--) {
+            avAddr = availDisk[mx].addr;
+            avEnd = availDisk[mx].size + avAddr - 1;
+            if (avAddr <= addr && avEnd >= endAddr) {
+                found = true;
+                if (avAddr == addr) {           // remove space from the front of this entry
+                    availDisk[mx].addr += size;
+                    availDisk[mx].size -= size;
+                } else if (avEnd == endAddr) {  // remove space from the end
+                    availDisk[mx].size -= size;
+                } else {                        // remove space from the middle
+                    // See if we can find a zero-length entry to reuse for the second area
+                    for (ex=availDisk.length-1; ex>=0; ex--) {
+                        if (availDisk[ex].size == 0) {
+                            break;
+                        }
+                    }
+                    if (ex <= 0) {
+                        ex = availDisk.length;
+                        availDisk.push({});
+                    }
+                    availDisk[mx].size = addr-avAddr;
+                    availDisk[ex].addr = endAddr+1;
+                    availDisk[ex].size = avEnd-endAddr;
+                }
+                break;
+            }
+        }
+        if (!found) {
+            alert("removeAvailable: No map entry covers address " + addr + " for " + size + " segments");
+        }
+    }
+
+    /**************************************/
+    function findDiskSpace(size) {
+        /* Searches the "availDisk" map for an available area of sufficient size,
+        removes it from the map, and returns the starting address. Returns -1 if no
+        suitable area can be found */
+        var addr;
+        var avSize;
+        var mx;
+        var bestx = -1;
+        var bestSize = 0;
+
+        for (mx=availDisk.length-1; mx>=0; mx--) {
+            avSize = availDisk[mx].size;
+            if (avSize >= size) {
+                 if (avSize == size) {          // we will take this one
+                     bestx = mx;
+                     break;
+                 } else if (bestx < 0 || bestSize > avSize) {
+                     bestx = mx;
+                     bestSize = avSize;
+                 }
+            }
+        }
+        if (bestx < 0) {
+            return -1;                          // no area found
+        } else {
+            addr = availDisk[bestx].addr;
+            availDisk[bestx].addr += size;
+            availDisk[bestx].size -= size;
+            return addr;
+        }
+    }
+
+    /**************************************/
+    function readDiskBlock(eu, addr, segs, block, callback) {
+        /* Reads a block from the disk "eu" at "addr" for "segs" segments, translates
+        it to words in the "block" array, then calls "callback" passing the address
+        and block */
+        var bx = 0;
+        var nextAddr = addr;
+        var range = IDBKeyRange.bound(addr, addr+segs-1);
+        var req = eu.openCursor(range);
+        var x;
+
+        req.onsuccess = function(ev) {
+            var cursor = ev.target.result;
+
+            if (cursor) {
+                while (cursor.key > nextAddr) {
+                    for (x=0; x<30; x++) {
+                        block[bx++] = 0;
+                    }
+                    nextAddr++;
+                }
+                ANSItoWords(cursor.value, 0, 240, block, bx);
+                bx += 30;
+                nextAddr++;
+                cursor.continue();
+            } else {
+                while (nextAddr < addr+segs) {
+                    for (x=0; x<30; x++) {
+                        block[bx++] = 0;
+                    }
+                    nextAddr++;
+                }
+                callback(addr, block);
+            }
+        };
+    }
+
+    /**************************************/
+    function writeDiskWords(eu, addr, words, wx, wLength) {
+        /* Translates the B5500 words in "words" starting at "wx" for "wLength" words
+        to BCLANSI and writes the block one segment at a time to the "eu", starting at
+        segment "addr" */
+        var segment = new Uint8Array(240);
+
+        while (wLength > 30) {
+            wordsToANSI(words, wx, 30, segment, 0);
+            eu.put(segment, addr);
+            addr++;
+            wLength -= 30;
+            wx += 30;
+        }
+        wordsToANSI(words, wx, wLength, segment, 0);
+        for (wx=wLength*8; wx<240; wx++) {
+            segment[wx] = 0x26;         // fill partial seg with ASCII "&" => BCL " " => BIC @60
+        }
+        eu.put(segment, addr);
+    }
+
+    /**************************************/
+    function readTextBlock(ctl) {
+        /* Reads the next block from the tape, translating the character frames to ANSI
+           character codes and returning the data as a string. A block is terminated when
+           the next frame has its high-order bit set, or the end of the data is reached.
+           The string returned is always at least one character in length, unless the block
+           is a tapeMark  (in which case the "eof" property is set) or the end of the data
+           has been reached (in which case the "eof" and "eot" properties are set) */
+        var c;
+        var data = ctl.data;
+        var limit = ctl.dataLength;
+        var text = "";
+        var x = ctl.offset;
+
+        if (x >= limit) {
+           ctl.eof = true;
+           ctl.eot = true;
+           ctl.blockLength = 0;
+        } else {
+            c = data.getUint8(x);
+            if (c == tapeMark) {
+                 ctl.eof = true;
+                 ctl.offset = x+1;
+                 ctl.blockLength = 0;
+            } else {
+                 do {
+                     text += BICtoANSIChar[c & 0x3F];
+                     if (++x < limit) {
+                         c = data.getUint8(x);
+                     } else {
+                         c = tapeMark;  // to kill the loop
+                     }
+                 } while (c < 128);
+                 ctl.eof = false;
+                 ctl.blockLength = x - ctl.offset;
+                 ctl.offset = x;
+                 ctl.blockCount++;
+            }
+        }
+        return text;
+    }
+
+    /**************************************/
+    function readWordBlock(ctl) {
+        /* Reads the next block from the tape, translating the character frames to an array
+           of B5500 binary words and returning the array. A block is terminated when
+           the next frame has its high-order bit set, or the end of the data is reached.
+           The array returned is always at least one element in length, unless the block
+           is a tapeMark  (in which case the "eof" property is set) or the end of the data
+           has been reached (in which case the "eof" and "eot" properties are set) */
+        var c;
+        var data = ctl.data;
+        var limit = ctl.dataLength;
+        var w = 0;
+        var words = [];
+        var wx = 0;
+        var x = ctl.offset;
+
+        if (x >= limit) {
+           ctl.eof = true;
+           ctl.eot = true;
+           ctl.blockLength = 0;
+        } else {
+            c = data.getUint8(x);
+            if (c == tapeMark) {
+                 ctl.eof = true;
+                 ctl.offset = x+1;
+                 ctl.blockLength = 0;
+            } else {
+                 do {
+                     if (wx < 8) {
+                         w = w*64 + (c & 0x3F);
+                         wx++;
+                     } else {
+                         words.push(w);
+                         w = c & 0x3F;
+                         wx = 1;
+                     }
+                     if (++x < limit) {
+                         c = data.getUint8(x);
+                     } else {
+                         c = tapeMark;  // to kill the loop
+                     }
+                 } while (c < 128);
+
+                 // Right-justify the last word as necessary
+                 while (wx++ < 8) {
+                     w *= 64;
+                 }
+                 words.push(w);
+                 ctl.eof = false;
+                 ctl.blockLength = x - ctl.offset;
+                 ctl.offset = x;
+                 ctl.blockCount++;
+            }
+        }
+        return words;
+    }
+
+    /**************************************/
+    function readTapeLabel(ctl) {
+        /* Reads the next block from the tape and determines if it is a B5500 tape label.
+           If so, decodes the label into a label object and returns the object */
+        var rec;
+        var s;
+
+        var lab = {
+            isLabel:    false,
+            text:       "",
+            heading:    "",
+            mfid:       "",
+            fid:        "",
+            reel:       0,
+            dateWritten:0,
+            cycle:      0,
+            datePurge:  0,
+            sentinel:   0,
+            blockCount: 0,
+            recordCount:0,
+            memdumpKey: 0,
+            tapeNumber: ""};
+
+        rec = readTextBlock(ctl);
+        if (!ctl.eof) {
+            lab.text = rec;
+            if (ctl.blockLength == 80 && (s = rec.substring(0, 8)) == " LABEL  ") {
+                lab.isLabel = true;
+                lab.heading = s;
+                lab.mfid = rec.substring(9, 16);
+                lab.fid = rec.substring(17, 24);
+                lab.reel = parseNumber(rec.substring(24, 27));
+                lab.dateWritten = parseNumber(rec.substring(27, 32));
+                lab.cycle = parseNumber(rec.substring(32, 34));
+                lab.datePurge = parseNumber(rec.substring(34, 39));
+                lab.sentinel = parseNumber(rec.substring(39, 40));
+                lab.blockCount = parseNumber(rec.substring(40, 45));
+                lab.recordCount = parseNumber(rec.substring(45, 52));
+                lab.memdumpKey = parseNumber(rec.substring(52, 53));
+                lab.tapeNumber = rec.substring(53, 58);
+            }
+        }
+        return lab;
+    }
+
+    /**************************************/
+    function readTapeDirectory(ctl) {
+        /* Reads the Lib/Maint tape directory and returns and array of file names, indexed
+           starting at 1. If the directory is invalid, returns an empty array */
+        var dir = [];
+        var done;
+        var fid;
+        var lab;
+        var lab2;
+        var mfid;
+        var rec;
+        var w;
+        var x;
+
+        lab = readTapeLabel(ctl);
+        if (ctl.eof) {
+            spout("TapeDir: EOF encountered when tape label expected, block=" + ctl.blockCount);
+        } else if (!lab.isLabel) {
+            spout(lab.text);
+            spout("TapeDir: Above block encountered when a tape label was expected, block=" + ctl.blockCount);
+        } else {
+            dir.push(rtrim(lab.mfid) + "/" + rtrim(lab.fid));   // store the tape name in dir[0]
+            rec = readTextBlock(ctl);
+            if (!ctl.eof) {
+                spout("TapeDir: EOF expected after starting label, block=" + ctl.blockCount);
+            }
+
+            do {
+                rec = readTextBlock(ctl);
+                if (!ctl.eof) {
+                    x = 0;
+                    done = false;
+                    do {
+                        if (x+8 > rec.length) {
+                            spout("TapeDir: No terminating entry, block=" + ctl.blockCount + ", x=" + x);
+                            done = true;
+                        } else if (rec.substring(x, x+8) == "0000000?") {
+                            done = true;
+                        } else if (x+16 > rec.length) {
+                            spout("TapeDir: Truncated directory entry, block=" + ctl.blockCount + ", x=" + x);
+                            done = true;
+                        } else {
+                            mfid = rec.substring(x+1, x+8);
+                            fid = rec.substring(x+9, x+16);
+                            dir.push(rtrim(mfid) + "/" + rtrim(fid));
+                            x += 16;
+                        }
+                    } while (!done);
+                }
+            } while (!ctl.eof);
+
+            lab2 = readTapeLabel(ctl);
+            if (!lab2.isLabel) {
+                spout("TapeDir: Tape label expected after directory, block=" + ctl.blockCount);
+            } else if (lab2.mfid != lab.mfid || lab2.fid != lab.fid) {
+                spout("TapeDir: Directory ending label mismatch, block=" + ctl.blockCount);
+            }
+        }
+        return dir;
+    }
+
+    /**************************************/
+    function readDiskHeader(ctl) {
+        /* Reads the next block from the tape blob and (partially) decodes it as a B5500
+           disk header, returning the header object */
+        var block;
+
+        var header = {
+            recordLength:       0,
+            blockLength:        0,
+            recordsPerBlock:    0,
+            segmentsPerBlock:   0,
+            logCreationDate:    0,
+            logCreationTime:    0,
+            lastAccessDate:     0,
+            creationDate:       0,
+            fileClass:          0,
+            fileType:           0,
+            recordCount:        0,
+            segmentsPerRow:     0,
+            maxRows:            0,
+            rowAddress:         [],
+            words:              []};
+
+        block = readWordBlock(ctl);
+        if (ctl.eof) {
+            spout("DiskHeader: EOF encountered reading header, block=" + ctl.blockCount);
+        } else if (block.length < 11) {
+            spout("DiskHeader: header too short, got " + block.length + ", block=" + ctl.blockCount);
+        } else {
+            header.recordLength =       fieldIsolate(block[0],  0, 15);
+            header.blockLength =        fieldIsolate(block[0], 15, 15);
+            header.recordsPerBlock =    fieldIsolate(block[0], 30, 12);
+            header.segmentsPerBlock =   fieldIsolate(block[0], 42,  6);
+            header.logCreationDate =    fieldIsolate(block[1],  6, 18);
+            header.logCreationTime =    fieldIsolate(block[1], 25, 23);
+            header.lastAccessDate =     fieldIsolate(block[3], 12, 18);
+            header.creationDate =       fieldIsolate(block[3], 30, 18);
+            header.fileClass =          fieldIsolate(block[4],  9,  2);
+            header.fileType =           fieldIsolate(block[4], 36,  6);
+            header.recordCount =        block[7];
+            header.segmentsPerRow =     block[8];
+            header.maxRows =            fieldIsolate(block[9], 43,  5);
+            header.rowAddress =         block.slice(10);
+            header.words =              block;          // save the raw header words
+        }
+        return header;
+    }
+
+    /**************************************/
+    function loadFileRow(ctl, eu, addr, segsPerRow) {
+        /* Extracts the next row from the tape blob and writes it to the "eu" disk unit */
+        var block;
+        var blockSegs;
+        var done = false;
+        var segs = 0;
+        var wordCount;
+
+        do {
+            block = readWordBlock(ctl);
+            if (ctl.eof) {
+                done = true;
+            } else {
+                wordCount = block.length;
+                blockSegs = Math.floor((wordCount+29)/30);
+                if (segs+blockSegs > segsPerRow) {
+                    done = true;
+                    alert("loadFileRow: row too long: " + segs);
+                    blockSegs = segsPerRow - segs;
+                    wordCount = blockSegs*30;
+                }
+                if (wordCount > 0) {
+                    writeDiskWords(eu, addr, block, 0, wordCount);
+                    addr += blockSegs;
+                    segs += blockSegs;
+                }
+                if (segs >= segsPerRow) {
+                    done = true;
+                }
+            }
+        } while (!done);
+    }
+
+    /**************************************/
+    function loadFile(ctl, fileNr, eu, diskHeader) {
+        /* Extracts the next file in sequence from the tape blob, converts the data
+        from BIC to ANSI, and writes it a row at a time to the disk "eu".
+        Establishes the "diskHeader" disk file header from the tape and updates the
+        disk header address row words as the rows are allocated and written to the disk.
+        Returns the disk address of the first row loaded */
+        var addr;
+        var block;
+        var firstRowAddr = -1;
+        var lab;
+        var lab2;
+        var rowCount = 0;
+        var tapeHeader;
+        var text;
+        var x;
+
+        lab = readTapeLabel(ctl);
+        if (ctl.eof) {
+            spout("loadFile: EOF encountered when tape label expected, block=" + ctl.blockCount);
+        } else if (!lab.isLabel) {
+            spout(lab.text);
+            spout("loadFile: Above block encountered when a tape label was expected, block=" + ctl.blockCount);
+        } else {
+            block = readWordBlock(ctl);
+            if (!ctl.eof) {
+                spout("loadFile: EOF expected after starting label, block=" + ctl.blockCount);
+            }
+            tapeHeader = readDiskHeader(ctl);
+
+            // Display a bunch of header detail values
+            spout("    " + lab.mfid + "/" + lab.fid +
+                  ": REC=" + tapeHeader.recordLength +
+                  ", BLK=" + tapeHeader.blockLength +
+                  ", RPB=" + tapeHeader.recordsPerBlock +
+                  ", SPB=" + tapeHeader.segmentsPerBlock +
+                  ", LCD=" + tapeHeader.logCreationDate +
+                  ", LCT=" + tapeHeader.logCreationTime +
+                  ", LAD=" + tapeHeader.lastAccessDate +
+                  ", CRD=" + tapeHeader.creationDate +
+                  ", FCL=" + tapeHeader.fileClass +
+                  ", FTY=" + tapeHeader.fileType +
+                  ", CNT=" + tapeHeader.recordCount +
+                  ", SPR=" + tapeHeader.segmentsPerRow +
+                  ", MXR=" + tapeHeader.maxRows);
+
+            text = "        Rows @ [";
+            for (x=0; x<tapeHeader.rowAddress.length; x++) {
+                if (x>0) {
+                    text += ", ";
+                }
+                text += tapeHeader.rowAddress[x].toString(10);
+                if (tapeHeader.rowAddress[x] != 0) {
+                    rowCount++;
+                }
+            }
+            spout(text + "], allocated=" + rowCount);
+
+            // Copy the header words from the tape to the disk header
+            for (x=0; x<30; x++) {
+                diskHeader[x] = tapeHeader.words[x] || 0;
+            }
+
+            // Load the rows and update the disk header address words
+            for (x=0; x<tapeHeader.maxRows; x++) {
+                if (diskHeader[10+x] > 0) {
+                    addr = findDiskSpace(tapeHeader.segmentsPerRow);
+                    if (addr < 0) {
+                        alert("Cannot get space for row #" + x);
+                        diskHeader[10+x] = 0;
+                    } else {
+                        diskHeader[10+x] = addr;
+                        loadFileRow(ctl, eu, addr, tapeHeader.segmentsPerRow);
+                        if (firstRowAddr < 0) {
+                            firstRowAddr = addr;
+                        }
+                    }
+                }
+            }
+
+            block = readWordBlock(ctl);
+            if (!ctl.eof) {
+                spout("loadFile: EOF expected after last data row, block=" + ctl.blockCount);
+            }
+
+            lab2 = readTapeLabel(ctl);
+            if (!lab2.isLabel) {
+                spout("loadFile: Tape label expected after file data, block=" + ctl.blockCount);
+            } else if (lab2.mfid != lab.mfid || lab2.fid != lab.fid) {
+                spout("loadFile: File ending label mismatch, block=" + ctl.blockCount);
+            }
+        }
+        return firstRowAddr;
+    }
+
+    /**************************************/
+    function skipTapeFile(ctl, fileNr) {
+        /* Spaces over the next file in the tape blob */
+        var block;
+        var lab;
+        var lab2;
+
+        lab = readTapeLabel(ctl);
+        if (ctl.eof) {
+            spout("skipTapeFile: EOF encountered when tape label expected, block=" + ctl.blockCount);
+        } else if (!lab.isLabel) {
+            spout(lab.text);
+            spout("skipTapeFile: Above block encountered when a tape label was expected, block=" + ctl.blockCount);
+        } else {
+            block = readWordBlock(ctl);
+            if (!ctl.eof) {
+                spout("skipTapeFile: EOF expected after starting label, block=" + ctl.blockCount);
+            }
+
+            do {
+               block = readWordBlock(ctl);
+            } while (!ctl.eof);
+
+            lab2 = readTapeLabel(ctl);
+            if (!lab2.isLabel) {
+                spout("skipTapeFile: Tape label expected after file data, block=" + ctl.blockCount);
+            } else if (lab2.mfid != lab.mfid || lab2.fid != lab.fid) {
+                spout("skipTapeFile: File ending label mismatch, block=" + ctl.blockCount);
+            }
+        }
+    }
+
+    /**************************************/
+    function findDiskFile(mfid, fid, eu, successor) {
+        /* Searches for an existing disk file named "mfid"/"fid". If found, calls the
+        "successor" function, passing its directory block, address, and slot number.
+        If not found, calls the successor function with a block containing an available
+        slot, its address, and slot number. The block address will be negative if the
+        name is not found */
+        var availAddr = -1;
+        var availBlock = null;
+        var availSlot = -1;
+        var block = new Array(480);
+
+        function searchDirBlock(addr, block) {
+            /* Searches the directory block "block" for a file named "mfid" and "fid".
+            If found or at end, calls the successor function, otherwiseadvances to
+            the next block */
+            var atEnd = false;
+            var bx;
+            var found = false;
+            var namex;
+            var rowMax;
+            var rowSize;
+            var rx;
+
+            // Step through the file name entries backwards
+            for (namex=14; namex>=0; namex--) {
+                bx = namex*2 + 450;
+                if (block[bx] == 0x4C) {        // 0x4C=@114, end-of-directory marker
+                    atEnd = true;
+                    if (availAddr < 0) {
+                        availAddr = addr;
+                        availSlot = namex;
+                        availBlock = block;
+                    }
+                    break;
+                } else if (block[bx] == 0x0C) { // 0x0C=@14, available directory slot
+                    if (availAddr < 0) {
+                        availAddr = addr;
+                        availSlot = namex;
+                        availBlock = block;
+                    }
+                } else {                        // check for a name match
+                    if (block[bx] == mfid && block[bx+1] == fid) {
+                        found = true;
+                        availAddr = addr;
+                        availSlot = namex;
+                        availBlock = block;
+                        break;
+                    }
+                }
+            }
+            if (found) {
+                successor(availAddr, availBlock, availSlot);
+            } else if (atEnd) {
+                successor(-availAddr, availBlock, availSlot);
+            } else {
+                readDiskBlock(eu, addr+16, 16, block, searchDirBlock);
+            }
+
+        }
+
+        /***** outer block of findDiskFile *****/
+
+        readDiskBlock(eu, directoryTop+4, 16, block, searchDirBlock);
+    }
+
+    /**************************************/
+    function loadTapeFile(tapeCtl, topFileNr, fileNr) {
+        /* Locates and loads the next selected file from the tape blob. On
+        completion, if there are more file to load, chains itself for the next one */
+        var names = [0, 0];
+        var buf = new Uint8Array(16);
+        var euName = euPrefix + "0";
+        var txn = disk.transaction(euName, "readwrite");
+        var eu = txn.objectStore(euName);
+        var fid;
+        var mfid;
+        var loadAsInt;
+        var loadAsMCP;
+        var firstRowAddr = -1;
+        var nameParts;
+
+        function loadFileHost(addr, block, slot) {
+            /* Controls the loading of the current file from tape and updates
+            the disk directory with the new file information */
+            var extendDirectory = false;
+            var diskHeader;
+            var hx = slot*30;
+            var nx = slot*2 + 450;
+            var rowMax;
+            var rowSize;
+            var x;
+
+            if (addr < 0) {
+                addr = -addr;
+                diskHeader = new Array(30);
+            } else {
+                diskHeader = block.slice(hx, hx+30);
+                // Deallocate the existing rows
+                rowSize = diskHeader[8];
+                rowMax = fieldIsolate(diskHeader[9], 43,  5);
+                for (x=0; x<rowMax; x++) {
+                    if (diskHeader[10+x] > 0) {
+                        makeAvailable(diskHeader[10+x], rowSize);
+                    }
+                }
+            }
+
+            firstRowAddr = loadFile(tapeCtl, fileNr, eu, diskHeader);
+
+            // Move the new header into the directory block
+            for (x=0; x<30; x++) {
+                block[hx+x] = diskHeader[x] || 0;
+            }
+
+            // Check if using the last slot in the directory
+            if (block[nx] == 0x4C) {
+                if (slot > 0) {
+                    block[nx-2] = 0x4C;
+                    block[nx-1] = 0;
+                } else {
+                    extendDirectory = true;
+                }
+            }
+
+            // Update the file name label words and write the block
+            block[nx] = mfid;
+            block[nx+1] = fid;
+            writeDiskWords(eu, addr, block, 0, 480);
+
+            if (extendDirectory) {
+                block = new Array(30);
+                for (x=0; x<30; x+=2) {
+                    block[x] = 0x4C;    // = @114, end of directory marker
+                    block[x+1] = 0;
+                }
+                writeDiskWords(eu, addr+31, block, 0, 30);
+            }
+
+            // Check to see if seg.0 must be updated for MCP or Intrinsics
+            if (loadAsMCP || loadAsInt) {
+                readDiskBlock(eu, 0, 1, block, function(addr, block) {
+                    if (loadAsMCP) {
+                        block[10] = mfid;
+                        block[11] = fid;
+                        block[12] = firstRowAddr;
+                    }
+                    if (loadAsInt) {
+                        block[13] = mfid;
+                        block[14] = fid;
+                    }
+                    writeDiskWords(eu, 0, block, 0, 30);
+                });
+            }
+        }
+
+        /***** loadTapeFile outer block *****/
+
+        while (!$$("File_" + fileNr).checked) {
+            spout("Skipping #" + fileNr + ": " + tapeDir[fileNr]);
+            skipTapeFile(tapeCtl, fileNr);
+            fileNr++;
+        }
+        txn.oncomplete = function(ev) {
+            if (fileNr < topFileNr) {
+                loadTapeFile(tapeCtl, topFileNr, fileNr+1);
+            } else {
+                alert("Tape load completed");
+            }
+        };
+
+        nameParts = tapeDir[fileNr].split("/");
+        mfid = "0" + padToLength(nameParts[0] || " ", 7);
+        fid =  "0" + padToLength(nameParts[1] || " ", 7);
+        stringToANSI(mfid, buf, 0, true);
+        stringToANSI(fid,  buf, 8, true);
+        ANSItoWords(buf, 0, 16, names, 0, true);
+        mfid = names[0];
+        fid =  names[1];
+        loadAsMCP = $$("AsMCP_" + fileNr).checked;
+        loadAsInt = $$("AsINT_" + fileNr).checked;
+
+        spout(" ");
+        spout("Loading #" + fileNr + ": " + tapeDir[fileNr]);
+        findDiskFile(mfid, fid, eu, loadFileHost);
+    }
+
+    /**************************************/
+    function loadFromTape(ev) {
+        /* Event handler that responds to the "Load" button and initiates the load of
+        the files selected on the UI page */
+        var cb;
+        var fileNr;
+        var topFileNr = 0;
+        var x;
+
+        for (x=1; x<tapeDir.length; x++) {
+            cb = $$("File_" + x);
+            if (cb && cb.checked) {
+                topFileNr = x;
+            }
+        }
+        if (topFileNr <= 0) {
+            alert("loadFromTape: no files selected");
+        } else {
+            loadTapeFile(tapeCtl, topFileNr, 1);
+        }
+    }
+
+    /**************************************/
+    function directoryComplement(successor) {
+        /* Reads the existing directory structure to develop the global "availDisk" map
+        map of available areas on EU0. When finished, calls the "successor" function */
+        var block = new Array(480);
+        var eu;
+        var euName = euPrefix + "0";
+        var txn;
+
+        function complementDirBlock(addr, block) {
+            /* Complements "availDisk" from the entries in the resulting block; if
+            not the last block, advances to the next block */
+            var atEnd = false;
+            var bx;
+            var namex;
+            var rowAddr;
+            var rowMax;
+            var rowSize;
+            var rx;
+
+            // Step through the file name entries backwards
+            for (namex=14; namex>=0; namex--) {
+                bx = namex*2 + 450;
+                if (block[bx] == 0x4C) {        // 0x4C=@114, end-of-directory marker
+                    atEnd = true;
+                    break;
+                } else if (block[bx] != 0x0C) { // 0x0C=@14, available directory slot
+                    // Got a live one -- complement its in-use space
+                    bx = namex*30;
+                    rowSize = block[bx+8];
+                    rowMax = fieldIsolate(block[bx+9], 43,  5);
+                    for (rx=0; rx<rowMax; rx++) {
+                        rowAddr = block[bx+10+rx];
+                        if (rowAddr > 0 && rowAddr < 1000000) { // ignore rows not on EU0
+                            removeAvailable(rowAddr, rowSize);
+                        }
+                    }
+                }
+            }
+            if (atEnd) {
+                successor();
+            } else {
+                readDiskBlock(eu, addr+16, 16, block, complementDirBlock);
+            }
+
+        }
+
+        /***** outer block of directoryComplement *****/
+
+        if (!config.EU0) {
+            alert("No EU0 in disk configuration -- cannot load");
+        } else {
+            availDisk = [{addr: directoryEnd+4, size: config.EU0-directoryEnd-4}];
+            txn = disk.transaction(euName);
+            eu = txn.objectStore(euName);
+            readDiskBlock(eu, directoryTop+4, 16, block, complementDirBlock);
+        }
+    }
+
+    /**************************************/
+    function fileLoader_onLoad(ev) {
+        /* Handle the onload event for an ArrayBuffer FileReader */
+        var body = $$("TapeDirBody");
+        var cell;
+        var e;
+        var row;
+        var text = "";
+        var x = 0;
+
+        clearPanel();
+        while (body.firstChild) {
+            body.removeChild(body.firstChild);
+        }
+
+        tapeBlob = ev.target.result;
+        tapeData = new DataView(tapeBlob);      // use DataView() to avoid problems with little-endians.
+
+        tapeCtl.data = tapeData;
+        tapeCtl.offset = 0;
+        tapeCtl.dataLength = tapeBlob.byteLength;
+        tapeCtl.eof = false;
+        tapeCtl.eot = false;
+        tapeCtl.blockCount = 0;
+
+        tapeDir = readTapeDirectory(tapeCtl);
+
+        row = document.createElement("tr");
+        // File number and checkbox (empty)
+        cell = document.createElement("td");
+        cell.colSpan=2;
+        row.appendChild(cell);
+        // File name
+        cell = document.createElement("td");
+        cell.appendChild(document.createTextNode("(none)"));
+        row.appendChild(cell);
+        // Load as MCP for no selection
+        cell = document.createElement("td");
+        cell.className = "center";
+        e = document.createElement("input");
+        e.type = "radio";
+        e.id = "AsMCP_0";
+        e.value = "0";
+        e.name = "AsMCP";
+        e.checked = true;
+        cell.appendChild(e);
+        row.appendChild(cell);
+        // Load as Intrinsics for no selection
+        cell = document.createElement("td");
+        cell.className = "center";
+        e = document.createElement("input");
+        e.type = "radio";
+        e.id = "AsINT_0";
+        e.value = "0";
+        e.name = "AsINT";
+        e.checked = true;
+        cell.appendChild(e);
+        row.appendChild(cell);
+        body.appendChild(row);
+
+        for (x=1; x<tapeDir.length; x++) {
+            row = document.createElement("tr");
+            // File number
+            cell = document.createElement("td");
+            cell.className = "rj";
+            cell.appendChild(document.createTextNode(x.toFixed(0)));
+            row.appendChild(cell);
+            // Load selection checkbox
+            cell = document.createElement("td");
+            cell.className = "center";
+            e = document.createElement("input");
+            e.type = "checkbox";
+            e.id = "File_" + x;
+            e.value = "File_" + x;
+            cell.appendChild(e);
+            row.appendChild(cell);
+            // File ID
+            cell = document.createElement("td");
+            cell.appendChild(document.createTextNode(tapeDir[x]));
+            row.appendChild(cell);
+            // Load as MCP selection radio button
+            cell = document.createElement("td");
+            cell.className = "center";
+            e = document.createElement("input");
+            e.type = "radio";
+            e.id = "AsMCP_" + x;
+            e.value = x;
+            e.name = "AsMCP";
+            cell.appendChild(e);
+            row.appendChild(cell);
+            // Load as Intrinsics selection radio button
+            cell = document.createElement("td");
+            cell.className = "center";
+            e = document.createElement("input");
+            e.type = "radio";
+            e.id = "AsINT_" + x;
+            e.value = x;
+            e.name = "AsINT";
+            cell.appendChild(e);
+            row.appendChild(cell);
+            body.appendChild(row);
+        }
+
+        directoryComplement(function() {
+            var x;
+
+            $$("TapeDirDiv").style.display = "block";
+            $$("LoadBtn").disabled = false;
+
+            // Debug dump of avail table
+            spout("Disk Available-Space Table:");
+            for (x=0; x<availDisk.length; x++) {
+                spout(x.toFixed(0) + ": " + availDisk[x].addr + ":" + availDisk[x].size);
+            }
+        });
+    }
+
+    /**************************************/
+    function fileSelector_onChange(ev) {
+        /* Handle the <input type=file> onchange event when a file is selected */
+        var f = ev.target.files[0];
+        var reader = new FileReader();
+
+        //alert("File selected: " + f.name +
+        //        "\nModified " + f.lastModifiedDate +
+        //        "\nType=" + f.type + ", Size=" + f.size + " octets");
+
+        reader.onload = fileLoader_onLoad;
+        reader.readAsArrayBuffer(f);
+    }
+
+    /**************************************/
+    function initializeDisk() {
+        /* Performs a B5500 Cold Start by initializing the directory structure on
+        the disk, building segment 0, and loading the bootstrap, overwriting (and
+        destroying) whatever else was there before */
+        var buffer = new Uint8Array(240);
+        var eu;
+        var euName = euPrefix + "0";
+        var fileLabels = new Uint8Array(240);
+        var fileNr = 0;
+        var info = [];
+        var segNr = directoryEnd + 4;
+        var shar = [];
+        var txn;
+        var zeroes = new Uint8Array(240);
+        var x;
+
+        function loadBootstrap() {
+            /* Creates the Halt/Load Button Card image and stores it in segment 1 */
+            /* Note: this has been replaced by loadKernel -- not used */
+            var w = [];
+
+            w[ 0] = parseInt("0441341003604231", 8);
+            w[ 1] = parseInt("7500000000000023", 8);
+            w[ 2] = parseInt("0211001441310435", 8);
+            w[ 3] = parseInt("7012700704210014", 8);
+            w[ 4] = parseInt("4411005441314155", 8);
+            w[ 5] = parseInt("6461106500000425", 8);
+            w[ 6] = parseInt("0074013100644131", 8);
+            w[ 7] = parseInt("0000006200644131", 8);
+            w[ 8] = parseInt("0000006601044131", 8);
+            w[ 9] = parseInt("0000007201244131", 8);
+            w[10] = parseInt("0000007601444131", 8);
+            w[11] = parseInt("5140000040700137", 8);
+            w[12] = parseInt("5140000047700461", 8);
+            w[13] = parseInt("5140000047704223", 8);
+            w[14] = parseInt("7700000000000037", 8);
+            w[15] = parseInt("0153020404050000", 8);
+            w[16] = parseInt("0167010604410440", 8);
+            w[17] = parseInt("0163010604410010", 8);
+            w[18] = parseInt("0157010604410660", 8);
+            w[19] = parseInt("0600017205204131", 8);
+            wordsToANSI(w, 0, 30, buffer, 0);
+            eu.put(buffer, 1);
+        }
+
+        function loadKernel() {
+            /* Creates the Kernel bootstrap loaderand stores it starting in
+            segment 1. This code was generated using the Mark XVI KERNEL source
+            and XVI ESPOLXEM compiler */
+            var addr = 1;               // Bootstrap starts at segment 1
+            var w = [];
+
+            w[ 0] = parseInt("0740623100000000", 8);
+            w[ 1] = parseInt("0000000000000000", 8);
+            w[ 2] = parseInt("0211101607302231", 8);
+            w[ 3] = parseInt("0004613100000000", 8);
+            w[ 4] = parseInt("0000000000000000", 8);
+            w[ 5] = parseInt("0014613100000000", 8);
+            w[ 6] = parseInt("0020613100000000", 8);
+            w[ 7] = parseInt("0060202102350000", 8);
+            w[ 8] = parseInt("0064202102350000", 8);
+            w[ 9] = parseInt("0070202102350000", 8);
+            w[10] = parseInt("0074202102350000", 8);
+            w[11] = parseInt("0000000000000000", 8);
+            w[12] = parseInt("0050613100000000", 8);
+            w[13] = parseInt("0000000000000000", 8);
+            w[14] = parseInt("0060613100000000", 8);
+            w[15] = parseInt("0064613100000000", 8);
+            w[16] = parseInt("0000000000000000", 8);
+            w[17] = parseInt("0000000000000000", 8);
+            w[18] = parseInt("0000000000000000", 8);
+            w[19] = parseInt("0000000000000000", 8);
+            w[20] = parseInt("0000000000000000", 8);
+            w[21] = parseInt("0000000000000000", 8);
+            w[22] = parseInt("0000000000000000", 8);
+            w[23] = parseInt("0000000000000000", 8);
+            w[24] = parseInt("0000000000000000", 8);
+            w[25] = parseInt("0000000000000000", 8);
+            w[26] = parseInt("0000000000000000", 8);
+            w[27] = parseInt("0000000000000000", 8);
+            w[28] = parseInt("0000000000000000", 8);
+            w[29] = parseInt("0000000000000000", 8);
+            wordsToANSI(w, 0, 30, buffer, 0);
+            eu.put(buffer, addr++);
+
+            w[ 0] = parseInt("0000000000000000", 8);
+            w[ 1] = parseInt("0000000000000000", 8);
+            w[ 2] = parseInt("0000000000000000", 8);
+            w[ 3] = parseInt("0534623100000000", 8);
+            w[ 4] = parseInt("0000000000000000", 8);
+            w[ 5] = parseInt("0000000000000000", 8);
+            w[ 6] = parseInt("0000000000000000", 8);
+            w[ 7] = parseInt("0000000000000000", 8);
+            w[ 8] = parseInt("0000000000000000", 8);
+            w[ 9] = parseInt("0000000000000000", 8);
+            w[10] = parseInt("0000000000000000", 8);
+            w[11] = parseInt("0000000000000000", 8);
+            w[12] = parseInt("0000000000000000", 8);
+            w[13] = parseInt("0000000000000000", 8);
+            w[14] = parseInt("0000000000000000", 8);
+            w[15] = parseInt("0000000000000000", 8);
+            w[16] = parseInt("0000000000000000", 8);
+            w[17] = parseInt("0000000000000000", 8);
+            w[18] = parseInt("0000000000000000", 8);
+            w[19] = parseInt("0000000000000000", 8);
+            w[20] = parseInt("0000000000000000", 8);
+            w[21] = parseInt("0000000000000000", 8);
+            w[22] = parseInt("0000000000000000", 8);
+            w[23] = parseInt("0000000000000000", 8);
+            w[24] = parseInt("0000000000000000", 8);
+            w[25] = parseInt("0000000000000000", 8);
+            w[26] = parseInt("0000000000000000", 8);
+            w[27] = parseInt("0000000000000000", 8);
+            w[28] = parseInt("0000000000000000", 8);
+            w[29] = parseInt("0000000000000000", 8);
+            wordsToANSI(w, 0, 30, buffer, 0);
+            eu.put(buffer, addr++);
+
+            w[ 0] = parseInt("0000000000000000", 8);
+            w[ 1] = parseInt("0000000000000000", 8);
+            w[ 2] = parseInt("0000000000000000", 8);
+            w[ 3] = parseInt("0000000000000000", 8);
+            w[ 4] = parseInt("0000000000000000", 8);
+            w[ 5] = parseInt("0000000000000000", 8);
+            w[ 6] = parseInt("0000000000000000", 8);
+            w[ 7] = parseInt("0000000000000000", 8);
+            w[ 8] = parseInt("0000000000000000", 8);
+            w[ 9] = parseInt("0000000000000000", 8);
+            w[10] = parseInt("0000000000000000", 8);
+            w[11] = parseInt("0000000000000000", 8);
+            w[12] = parseInt("0000000000000000", 8);
+            w[13] = parseInt("0000000000000000", 8);
+            w[14] = parseInt("0000000000000000", 8);
+            w[15] = parseInt("0000000000000000", 8);
+            w[16] = parseInt("0000000000000000", 8);
+            w[17] = parseInt("0000000000000000", 8);
+            w[18] = parseInt("0000000000000000", 8);
+            w[19] = parseInt("0000000000000000", 8);
+            w[20] = parseInt("0000000000000000", 8);
+            w[21] = parseInt("0000000000000000", 8);
+            w[22] = parseInt("0000000000000000", 8);
+            w[23] = parseInt("0000000000000000", 8);
+            w[24] = parseInt("0000000000000000", 8);
+            w[25] = parseInt("0000000000000000", 8);
+            w[26] = parseInt("0000000000000000", 8);
+            w[27] = parseInt("0000000000000000", 8);
+            w[28] = parseInt("0000000000000000", 8);
+            w[29] = parseInt("0000000000000000", 8);
+            wordsToANSI(w, 0, 30, buffer, 0);
+            eu.put(buffer, addr++);
+
+            w[ 0] = parseInt("0000000000000000", 8);
+            w[ 1] = parseInt("0000000000000000", 8);
+            w[ 2] = parseInt("0000000000000000", 8);
+            w[ 3] = parseInt("0000000000000000", 8);
+            w[ 4] = parseInt("0000000000000000", 8);
+            w[ 5] = parseInt("0000000000000000", 8);
+            w[ 6] = parseInt("0000000000000000", 8);
+            w[ 7] = parseInt("0000000000000000", 8);
+            w[ 8] = parseInt("0000000000000000", 8);
+            w[ 9] = parseInt("0000000000000000", 8);
+            w[10] = parseInt("0000000000000000", 8);
+            w[11] = parseInt("0000000000000000", 8);
+            w[12] = parseInt("0000000000000000", 8);
+            w[13] = parseInt("0000000000000000", 8);
+            w[14] = parseInt("0000000000000000", 8);
+            w[15] = parseInt("0000000000000000", 8);
+            w[16] = parseInt("0000000000000000", 8);
+            w[17] = parseInt("0000000000000000", 8);
+            w[18] = parseInt("0000000000000000", 8);
+            w[19] = parseInt("0000000000000000", 8);
+            w[20] = parseInt("0000000000000000", 8);
+            w[21] = parseInt("0000000000000000", 8);
+            w[22] = parseInt("5000000000000000", 8);
+            w[23] = parseInt("0000000000000000", 8);
+            w[24] = parseInt("0000000000000000", 8);
+            w[25] = parseInt("0000000000000000", 8);
+            w[26] = parseInt("7560020000000367", 8);
+            w[27] = parseInt("7660220000000022", 8);
+            w[28] = parseInt("7560070000000371", 8);
+            w[29] = parseInt("7560140000000400", 8);
+            wordsToANSI(w, 0, 30, buffer, 0);
+            eu.put(buffer, addr++);
+
+            w[ 0] = parseInt("0400001421410230", 8);
+            w[ 1] = parseInt("1003014102301003", 8);
+            w[ 2] = parseInt("0141202111120055", 8);
+            w[ 3] = parseInt("0101102510211003", 8);
+            w[ 4] = parseInt("0141000010250421", 8);
+            w[ 5] = parseInt("0211023010030141", 8);
+            w[ 6] = parseInt("2021111600550225", 8);
+            w[ 7] = parseInt("0024223102301003", 8);
+            w[ 8] = parseInt("0141000010250421", 8);
+            w[ 9] = parseInt("0044613100550055", 8);
+            w[10] = parseInt("0000000000010000", 8);
+            w[11] = parseInt("0000000000070000", 8);
+            w[12] = parseInt("0004101441211020", 8);
+            w[13] = parseInt("2021062001411003", 8);
+            w[14] = parseInt("0141777462551261", 8);
+            w[15] = parseInt("1265101004210204", 8);
+            w[16] = parseInt("1003014110102021", 8);
+            w[17] = parseInt("5355304510250421", 8);
+            w[18] = parseInt("0204100301412021", 8);
+            w[19] = parseInt("1003014102001025", 8);
+            w[20] = parseInt("0421021010030141", 8);
+            w[21] = parseInt("0064102504210441", 8);
+            w[22] = parseInt("1642005502041003", 8);
+            w[23] = parseInt("0141202154251032", 8);
+            w[24] = parseInt("0000442504740231", 8);
+            w[25] = parseInt("0224100301410004", 8);
+            w[26] = parseInt("1012045510451025", 8);
+            w[27] = parseInt("0421020410030141", 8);
+            w[28] = parseInt("2021100301411646", 8);
+            w[29] = parseInt("0055022410030141", 8);
+            wordsToANSI(w, 0, 30, buffer, 0);
+            eu.put(buffer, addr++);
+
+            w[ 0] = parseInt("2021745550610265", 8);
+            w[ 1] = parseInt("1025042104411652", 8);
+            w[ 2] = parseInt("0055020410030141", 8);
+            w[ 3] = parseInt("2021542510320051", 8);
+            w[ 4] = parseInt("0204100301412021", 8);
+            w[ 5] = parseInt("1003014116560055", 8);
+            w[ 6] = parseInt("0224100301412021", 8);
+            w[ 7] = parseInt("7455506102651025", 8);
+            w[ 8] = parseInt("0421044116520055", 8);
+            w[ 9] = parseInt("0204100301412021", 8);
+            w[10] = parseInt("5425103200510210", 8);
+            w[11] = parseInt("1003014102101003", 8);
+            w[12] = parseInt("0141202102241003", 8);
+            w[13] = parseInt("0141202100240401", 8);
+            w[14] = parseInt("0101102504210204", 8);
+            w[15] = parseInt("1003014120211003", 8);
+            w[16] = parseInt("0141000010250421", 8);
+            w[17] = parseInt("0220100301410441", 8);
+            w[18] = parseInt("0204100301412021", 8);
+            w[19] = parseInt("1662005501411032", 8);
+            w[20] = parseInt("1025042102201003", 8);
+            w[21] = parseInt("0141202100004425", 8);
+            w[22] = parseInt("0024213100041003", 8);
+            w[23] = parseInt("0141001010121025", 8);
+            w[24] = parseInt("0421021410030141", 8);
+            w[25] = parseInt("0004101210250421", 8);
+            w[26] = parseInt("0210100301412021", 8);
+            w[27] = parseInt("1012100304211002", 8);
+            w[28] = parseInt("0004100301412021", 8);
+            w[29] = parseInt("4125004022310230", 8);
+            wordsToANSI(w, 0, 30, buffer, 0);
+            eu.put(buffer, addr++);
+
+            w[ 0] = parseInt("1003014116660055", 8);
+            w[ 1] = parseInt("1025042102341003", 8);
+            w[ 2] = parseInt("0141167200551025", 8);
+            w[ 3] = parseInt("0421024010030141", 8);
+            w[ 4] = parseInt("1676005510250421", 8);
+            w[ 5] = parseInt("0441170200551032", 8);
+            w[ 6] = parseInt("0051000000140131", 8);
+            w[ 7] = parseInt("0200100301410444", 8);
+            w[ 8] = parseInt("1025042104411706", 8);
+            w[ 9] = parseInt("0055023010030141", 8);
+            w[10] = parseInt("2021021510360200", 8);
+            w[11] = parseInt("1003014100501025", 8);
+            w[12] = parseInt("0421044117120055", 8);
+            w[13] = parseInt("0230100301412021", 8);
+            w[14] = parseInt("0215103602001003", 8);
+            w[15] = parseInt("0141000010250421", 8);
+            w[16] = parseInt("0441171600550230", 8);
+            w[17] = parseInt("1003014120210215", 8);
+            w[18] = parseInt("1036023010030141", 8);
+            w[19] = parseInt("0230100301412021", 8);
+            w[20] = parseInt("0200010110250421", 8);
+            w[21] = parseInt("0064100301411722", 8);
+            w[22] = parseInt("0055102504210070", 8);
+            w[23] = parseInt("1003014117260055", 8);
+            w[24] = parseInt("1025042100741003", 8);
+            w[25] = parseInt("0141173200551025", 8);
+            w[26] = parseInt("0421100200100301", 8);
+            w[27] = parseInt("1003042110020224", 8);
+            w[28] = parseInt("1003014120217455", 8);
+            w[29] = parseInt("2461026502141003", 8);
+            wordsToANSI(w, 0, 30, buffer, 0);
+            eu.put(buffer, addr++);
+
+            w[ 0] = parseInt("0141202174552261", 8);
+            w[ 1] = parseInt("0265100304210004", 8);
+            w[ 2] = parseInt("0014214100000010", 8);
+            w[ 3] = parseInt("2141006410030141", 8);
+            w[ 4] = parseInt("4231000401042231", 8);
+            w[ 5] = parseInt("0024413100550055", 8);
+            w[ 6] = parseInt("0140004000000000", 8);
+            w[ 7] = parseInt("0000000000004060", 8);
+            w[ 8] = parseInt("0140000100000000", 8);
+            w[ 9] = parseInt("0000000000006060", 8);
+            w[10] = parseInt("0140000040100000", 8);
+            w[11] = parseInt("3145652143312460", 8);
+            w[12] = parseInt("2124245125626260", 8);
+            w[13] = parseInt("2646516044234737", 8);
+            w[14] = parseInt("0740000000000046", 8);
+            w[15] = parseInt("0140000047704235", 8);
+            w[16] = parseInt("0140000047700473", 8);
+            w[17] = parseInt("0140000041200017", 8);
+            w[18] = parseInt("0441023201004441", 8);
+            w[19] = parseInt("0253010453527705", 8);
+            w[20] = parseInt("3705005101002411", 8);
+            w[21] = parseInt("0000102642314006", 8);
+            w[22] = parseInt("0235000000000000", 8);
+            w[23] = parseInt("0000700744110220", 8);
+            w[24] = parseInt("1003014104411022", 8);
+            w[25] = parseInt("1025042102201003", 8);
+            w[26] = parseInt("0141202141552345", 8);
+            w[27] = parseInt("4004042140060024", 8);
+            w[28] = parseInt("0415000044250140", 8);
+            w[29] = parseInt("0131400602350000", 8);
+            wordsToANSI(w, 0, 30, buffer, 0);
+            eu.put(buffer, addr++);
+
+            w[ 0] = parseInt("0441100202001003", 8);
+            w[ 1] = parseInt("0141202101017006", 8);
+            w[ 2] = parseInt("5355304544410222", 8);
+            w[ 3] = parseInt("0104106601007006", 8);
+            w[ 4] = parseInt("1003014120210555", 8);
+            w[ 5] = parseInt("1045003402317006", 8);
+            w[ 6] = parseInt("0060715503610565", 8);
+            w[ 7] = parseInt("7004042102201003", 8);
+            w[ 8] = parseInt("0141044170061032", 8);
+            w[ 9] = parseInt("1025042102201003", 8);
+            w[10] = parseInt("0141202100004425", 8);
+            w[11] = parseInt("0100013104350000", 8);
+            w[12] = parseInt("0000000000000000", 8);
+            w[13] = parseInt("0000000000000000", 8);
+            w[14] = parseInt("0000000000000000", 8);
+            w[15] = parseInt("0000000000000000", 8);
+            wordsToANSI(w, 0, 30, buffer, 0);
+            eu.put(buffer, addr++);
+        }
+
+        function enterFile(mfid, fid, areas, areasize) {
+            /* Enters a file into the disk directory. This routine will only create
+            one directory block, so do not call this routine more than 15 times.
+            Only the first row is allocated. Returns the next available segment address */
+            var header = [];
+            var labelx = 240-(fileNr+1)*16;
+
+            stringToANSI(padToLength(mfid, 7), fileLabels, labelx+1);
+            stringToANSI(padToLength(fid, 7),  fileLabels, labelx+9);
+            if (labelx > 15) {
+                stringToANSI("0000001?", fileLabels, labelx-16);        // @114, last-entry marker
+                stringToANSI("00000000", fileLabels, labelx-8);
+            }
+            header[0] = 0x41;               // BIC "11" = @0101 = 1 rec/block, 1 seg/block
+            header[3] = 0x1001200;          // Date: BIC "00010180" = 1980-01-01
+            header[7] = areas*areasize-1;
+            header[8] = areasize;
+            header[9] = areas;
+            header[10] = segNr;
+            wordsToANSI(header, 0, 30, buffer, 0);
+            eu.put(buffer, directoryTop + 18 - fileNr);
+
+            segNr += areasize;
+            fileNr++;
+        }
+
+        function createSystemLog(areasize) {
+            /* Creates an empty SYSTEM/LOG file. This uses the same mechanism as enterFile(),
+            so do not call this plus enterFile() more than 15 times */
+            var header = [];
+            var labelx = 240-(fileNr+1)*16;
+
+            stringToANSI(padToLength("SYSTEM", 7), fileLabels, labelx+1);
+            stringToANSI(padToLength("LOG", 7),  fileLabels, labelx+9);
+            if (labelx > 15) {
+                stringToANSI("0000001?", fileLabels, labelx-16);        // @114, last-entry marker
+                stringToANSI("00000000", fileLabels, labelx-8);
+            }
+            header[0] = ((5*0x8000 + 30)*0x8000 + 6)*0x1000 + 1;
+                                            // 5 words/rec, 30 words/block, 6 rec/block, 1 seg/block
+            header[3] = (365*0x40000 + 80001) * 0x40000 + 80001; // save=365, create+update=1980-01-01
+            header[7] = -1;                 // currently has no records
+            header[8] = areasize;
+            header[9] = 1;                  // number of areas
+            header[10] = 0;                 // row address unallocated
+            wordsToANSI(header, 0, 30, buffer, 0);
+            eu.put(buffer, directoryTop + 18 - fileNr);
+            fileNr++;
+        }
+
+        function initializeDirectory(config) {
+            /* Initializes the directory structure on EU0. "config" is the
+            database CONFIG structure */
+            var b55Date;
+            var b55Time;
+            var stamp = new Date();
+            var x;
+
+            // Compute a 1980s date based on today's date, formatted as BIC
+            x = stamp.getTime() - new Date(stamp.getFullYear(), 0, 1).getTime();
+            x = Math.floor(x/86400000) + 1;                         // day-of-year number
+            b55Date = (((8*64 + stamp.getYear()%10)*64 +
+                    Math.floor(x/100))*64 + Math.floor(x/10)%10)*64 + x%10;
+            b55Time = Math.floor(((stamp.getHours()*60 + stamp.getMinutes())*60 +
+                    stamp.getSeconds())*60 + stamp.getMilliseconds()*60/1000);
+
+            // Initialize the directory labels segment
+            stringToANSI("0000001?", fileLabels, 14*16);            // @114, last-entry marker
+            stringToANSI("00000000", fileLabels, 14*16+8);
+
+            // Initialize segment 0
+            shar[ 0] = 1;                   // number of shared-disk systems
+            shar[ 1] = directoryTop;
+            shar[ 2] = 0;
+            shar[ 3] = 0;
+            shar[ 4] = directoryEnd;        // DIRECT deck option
+            wordsToANSI(shar, 0, 30, buffer, 0);
+            eu.put(buffer, 0);
+
+            // Load the Halt Load Button Card image
+            loadKernel();                       // load the Kernel bootstrap program
+
+            // Note: it is not necessary the clear out the ESPDISK area, since on a
+            // cold start the entire EU object store is cleared.
+
+            // Initialize the DIRECTORYTOP segment
+            info[ 0] =                      // option word
+                                                    // 47: use DRA
+                                                    // 46: use DRB
+                       pow2[47-45] +                // 45: print BOJ
+                       pow2[47-44] +                // 44: print EOJ
+                       pow2[47-43] +                // 43: type file open
+                       pow2[47-42] +                // 42: call TERMINATE procedure
+                                                    // 41: initialize date @ H/L
+                                                    // 40: initialize time @ H/L
+                                                    // 39: use only one breakout tape
+                       pow2[47-36] +                // 38: automatically print pbt
+                       pow2[47-37] +                // 37: clear write ready status @ terminal
+                       pow2[47-36] +                // 36: write disc. code on terminal
+                       pow2[47-35] +                // 35: type when compiler files open & close
+                       pow2[47-34] +                // 34: type file close
+                       pow2[47-33] +                // 33: error msgs when progr recovery used
+                       pow2[47-32] +                // 32: type MT retention messages
+                       pow2[47-31] +                // 31: type library messages
+                       pow2[47-30] +                // 30: type schedule messages
+                       pow2[47-29] +                // 29: type file security messages
+                       pow2[47-28] +                // 28: prevent I/O below user disk area
+                       pow2[47-27] +                // 27: prevent disk RELEASE statement
+                       pow2[47-26] +                // 26: printer backup disk release
+                       pow2[47-25] +                // 25: check memory links
+                       pow2[47-24] +                // 24: type disk error messages
+                       pow2[47-23] +                // 23: disk logging
+                       pow2[47-22] +                // 22: suppress library error messages
+                       pow2[47-21] +                // 21: go to printer back-up only
+                       pow2[47-20] +                // 20: dont stack files on PB tapes
+                       pow2[47-19] +                // 19: print set or reset messages
+                                                    // 18: no user disk will unload expired
+                       pow2[47-17] +                // 17: run all decks(SHAREDISK)
+                                                    // 16: olay core to ECM(AUXMEM)
+                       pow2[47-15] +                // 15: job core estimates(STATISTICS)
+                                                    // 14: olay data to ECM(AUXMEM)
+                       pow2[47-13] +                // 13: makes system hang on should-HL msg
+                                                    // 12: enables datacom(TSS, if not DCP)
+                       pow2[47-11] +                // 11: library messages for CANDE
+                       pow2[47-10] +                // 10: ZIP decks to run on batch(SHAREDISK)
+                                                    //  9: controls running of batch jobs on TSS
+                                                    //  8:  UNUSED
+                                                    //  7:  UNUSED
+                                                    //  6:  UNUSED
+                                                    //  5:  UNUSED
+                                                    //  4:  UNUSED
+                                                    //  3:  UNUSED
+                       pow2[47- 2] +                //  2: Model III I/O channels
+                                                    //  1:  UNUSED
+                       0;                           //  0: (flag bit)
+
+            info[ 1] = b55Date;             // YYDDD date as BIC
+            info[ 2] = config.eus;          // number of EUs
+            info[ 3] = 0;                   // not used
+            info[ 4] = directoryEnd;        // DIRECT deck option
+            info[ 5] = 0;                   // last number used for control deck
+            info[ 6] = 0;                   // first control deck queued
+            info[ 7] = 0;                   // last control deck queued
+            info[ 8] = 0;                   // next number available for printer backup disk
+            info[ 9] = 100*0x40000000;      // multiprocessing core factor * 100
+            info[10] = 0;                   // SPO stations (through info[15])
+            info[11] = 0;
+            info[12] = 0;
+            info[13] = 0;
+            info[14] = 0;
+            info[15] = 0;
+            info[16] = 15;                  // Q value for datacom input
+            info[17] = 0;                   // remote SPO mask
+            info[18] = b55Time;             // time of day (XCLOCK)
+            info[19] = 0;                   // FENCE address (TSSMCP only)
+            info[20] = 0;                   // log pointer
+            info[21] = 0;                   // status of schedule lines (TSSMCP only)
+            info[22] = 0;                   // log serial number fields
+            info[23] = 0;                   // not used
+            info[24] = 0;                   // DKA SU configuration
+            info[25] = 0;                   // DKA, continued
+            info[26] = 0;                   // DKB SU configuration (if no DFX)
+            info[27] = 0;                   // DKB, continued
+            info[28] = directoryTop;        // disk address of DIRECTORYTOP
+            wordsToANSI(info, 0, 30, buffer, 0);
+            eu.put(buffer, directoryTop);
+
+            // Create a file entry for the system log
+            createSystemLog(20000);
+            /** enterFile("SYSTEM", "LOG", 1, 20000); **/
+
+            // Store the directory labels segment
+            eu.put(fileLabels, directoryTop + 19);  // write the directory block file labels
+        }
+
+        /***** Start of initializeDisk *****/
+
+        wordsToANSI(shar, 0, 30, zeroes, 0);            // create a segment buffer of zeroes
+        wordsToANSI(shar, 0, 30, fileLabels, 0);        // initialize the file name label block
+
+        // Start a transaction
+        txn = disk.transaction([euName, "CONFIG"], "readwrite");
+        txn.oncomplete = function(ev) {
+            alert("Cold Start completed successfully");
+        };
+
+        eu = txn.objectStore(euName);
+        txn.objectStore("CONFIG").get(0).onsuccess = function(ev) {
+            config = ev.target.result;                  // global assignment
+            if (!config) {
+                alert("No CONFIG object in database");
+                txn.abort();
+            } else {
+                // If we're going to cold start, may as well start with an empty EU store
+                eu.clear().onsuccess = function(ev) {
+                    initializeDirectory(config);
+                }
+            }
+        };
+    }
+
+    /**************************************/
+    function configureDatabase(ev) {
+        /* Handles the onupgradeneeded event for the database */
+        var configStore = null;
+        var disk = ev.target.result;
+        var stores = disk.objectStoreNames;
+
+        function configureEUs(configStore, config) {
+            var euName;
+
+            // Note: for now we will not worry about shrinking or deleting EUs that
+            // are in conflict with the contents of euSet.
+
+            for (euName in euSet) {
+                if (euName.indexOf("EU") == 0) {
+                    if (!config[euName]) {
+                        config[euName] = euSet[euName];
+                    }
+                    if (stores.contains(euName)) {
+                        if (euSet[euName] > config[euName]) {
+                            config[euName] = euSet[euName];
+                        }
+                    } else {
+                        config[euName] = euSet[euName];
+                        config.eus++;
+                        disk.createObjectStore(euName);
+                    }
+                }
+            }
+            configStore.put(config, 0);
+        }
+
+        if (stores.contains(configName)) {
+            configStore = disk.transaction(configName).objectStore(configName);
+            configStore.get(0).onsuccess = function(ev) {
+                config = ev.target.result || {eus:0};
+                configureEUs(configStore, config);
+            };
+        } else {
+            config = {eus:0};
+            configStore = disk.createObjectStore(configName);
+            configureEUs(configStore, config);
+        }
+    }
+
+    /**************************************/
+    function genericDBError(ev) {
+        /* Formats a generic alert when otherwise-unhandled database errors occur */
+        var disk = ev.currentTarget.result;
+
+        alert("Database \"" + disk.name + "\" error: " + ev.target.result.error);
+    }
+
+    /**************************************/
+    function dumpDisk() {
+        /* Dumps the initial and directory portions of the disk */
+        var txn = disk.transaction("EU0");
+        var endKey = directoryTop+100;
+        var eu = txn.objectStore("EU0");
+        var range = IDBKeyRange.upperBound(endKey);
+        var req = eu.openCursor(range);
+        var lastKey = -1;
+
+        spout("===== START OF DISK DUMP =====");
+        req.onsuccess = function(ev) {
+            var cursor = ev.target.result;
+
+            if (cursor) {
+                if (cursor.key-lastKey > 1) {
+                    spout("----- " + (cursor.key-lastKey-1) + " unallocated segments -----");
+                }
+                spout(cursor.key + ": " + ANSItoString(cursor.value, 0, cursor.value.length));
+                lastKey = cursor.key;
+                cursor.continue();
+            } else {
+                if (endKey > lastKey) {
+                    spout("----- " + (endKey-lastKey) + " unallocated segments thru " + endKey + " -----");
+                }
+                spout("===== END OF DISK DUMP =====");
+            }
+        };
+    }
+
+    /**************************************/
+    function openDatabase(name, version) {
+        /* Attempts to open the disk subsystem database for the specified "name"
+        and "version". Stores the IDB database object in "disk" if successful, or
+        stores null if unsuccessful */
+        var db = null;
+        var req;
+
+        req = window.indexedDB.open(name, version);
+
+        req.onerror = function(ev) {
+            alert("Cannot open disk database: " + ev.target.error);
+        };
+
+        req.onblocked = function(ev) {
+            alert("Database.open is blocked -- cannot continue");
+        };
+
+        req.onupgradeneeded = configureDatabase;
+
+        req.onsuccess = function(ev) {
+            disk = ev.target.result;    // save the object reference globally for later use
+            disk.onerror = genericDBError;
+            alert("Disk database opened: " + name + " #" + disk.version);
+            $$("ColdstartBtn").disabled = false;
+            $$("FileSelector").disabled = false;
+
+            //  dumpDisk();             // <<<<<<<<<<<<<< DEBUG <<<<<<<<<<<<<<<<<
+
+            disk.transaction("CONFIG").objectStore("CONFIG").get(0).onsuccess = function(ev) {
+                config = ev.target.result;
+            };
+        };
+
+    }
+
+    /**************************************/
+    function checkBrowser() {
+        /* Checks whether this browser can support the necessary stuff */
+        var missing = "";
+
+        if (!window.File) {missing += ", File"}
+        if (!window.FileReader) {missing += ", FileReader"}
+        if (!window.FileList) {missing += ", FileList"}
+        if (!window.Blob) {missing += ", Blob"}
+        if (!window.ArrayBuffer) {missing += ", ArrayBuffer"}
+        if (!window.DataView) {missing += ", DataView"}
+        if (!window.indexedDB) {missing += ", IndexedDB"}
+
+        if (missing.length == 0) {
+            return false;
+        } else {
+            alert("No can do... your browser does not support the following features:\n" +
+                missing.substring(2));
+            return true;
+        }
+    }
+
+    /********** Start of window.onload() **********/
+
+    if (!checkBrowser()) {
+        $$("FileSelector").addEventListener("change", fileSelector_onChange, false);
+        $$("ColdstartBtn").addEventListener("click", function(ev) {
+            if (confirm("Are you sure you want to do a COLD START?")) {
+                initializeDisk();
+            }
+        }, false);
+        $$("LoadBtn").addEventListener("click", loadFromTape);
+        openDatabase(dbName, dbVersion);
+    }
+}, false);
+</script>
+
+<style>
+BODY {
+    font-family:        Arial, Helvetica, sans-serif;
+    font-size:          small}
+TABLE {
+    border-collapse:    collapse}
+TH {
+    vertical-align:     bottom}
+DIV#TapeDirDiv {
+    display:            none}
+TBODY#TapeDirBody {
+    font-family:        Courier New, Courier, monospace}
+.center {
+    text-align:         center}
+.rj {
+    text-align:         right}
+</style>
+</head>
+
+<body>
+
+<div style="position:relative; width:100%; height:3em">
+    <div style="position:absolute; left:0; top:0; width:auto">
+        <img src="../webUI/retro-B5500-Logo.png" alt="retro-B5500 Logo" style="float:left">
+        &nbsp;Disk SubSystem Coldstart Loader
+    </div>
+    <div style="text-align:center">
+        <input id=ColdstartBtn type=button value="Cold Start" DISABLED>
+    </div>
+    <div style="position:absolute; top:0; right:0; width:auto">
+        <input id=FileSelector type=file size=60 DISABLED>
+    </div>
+
+</div>
+
+<div id=TapeDirDiv>
+    <table id=TapeDirTable border=1 cellspacing=0 cellpadding=1>
+    <thead>
+    <tr>
+        <th>Nr
+        <th>Load
+        <th>File ID
+        <th>as MCP
+        <th>as INT
+    <tbody id=TapeDirBody>
+    </table>
+    <br><input id=LoadBtn type=button value="Load" accessKey=L DISABLED>
+</div>
+
+<pre id=TextPanel>
+</pre>
+
+<div id=PageBottom>
+</div>
+
+</body>
+</html>

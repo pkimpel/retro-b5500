@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<head>
+<title>retro-B5500 Emulator Operator Console</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta name="Author" content="Nigel Williams & Paul Kimpel">
+<meta http-equiv="Content-Script-Type" content="text/javascript">
+<meta http-equiv="Content-Style-Type" content="text/css">
+<link id=defaultStyleSheet rel=stylesheet type="text/css" href="B5500Console.css">
+
+<script src="./setImmediate.js"></script>
+
+<script src="./B5500DummyUnit.js"></script>
+<script src="./B5500SPOUnit.js"></script>
+<script src="./B5500DiskUnit.js"></script>
+<script src="./B5500CardReader.js"></script>
+<script src="./B5500CardPunch.js"></script>
+<script src="./B5500DummyPrinter.js"></script>
+
+<script src="../emulator/B5500SystemConfiguration.js"></script>
+<script src="../emulator/B5500CentralControl.js"></script>
+<script src="../emulator/B5500Processor.js"></script>
+<script src="../emulator/B5500IOUnit.js"></script>
+
+<script>
+"use strict";
+
+if (!window.indexedDB) {                // for Safari, mostly
+    window.indexedDB = window.webkitIndexedDB || window.mozIndexedDB;
+}
+
+window.addEventListener("load", function() {
+    var aControl;
+    var aNormal;
+    var bControl;
+    var bNormal;
+    var boundBlinkenlicht;
+    var cc = new B5500CentralControl();
+    var intLightsMap = new Array(48);
+    var iouLightsMap = new Array(4);
+    var lastInterruptMask = 0;
+    var lastIOUMask = 0;
+    var lastUnitBusyMask = 0;
+    var lastPANormalRate = -1;
+    var lastPAControlRate = -1;
+    var lastPBNormalRate = -1;
+    var lastPBControlRate = -1;
+    var perLightsMap = new Array(48);
+    var procDelay;
+    var procSlack;
+    var timer;
+    var timerInterval = 50;             // milliseconds
+
+    function $$(id) {
+        return document.getElementById(id)
+    }
+
+    function bindMethod(f, context) {
+        return function() {f.apply(context, arguments)};
+    }
+
+    function PowerOnBtn_Click(ev) {
+        $$("PowerOnBtn").className = "whiteButton whiteLit";
+        $$("AControlBtn").className = "yellowButton yellowLit";
+        cc.powerOn();
+        $$("PowerOnBtn").disabled = true;
+        $$("PowerOffBtn").disabled = false;
+        $$("LoadBtn").disabled = false;
+        $$("HaltBtn").disabled = true;
+        boundBlinkenlicht();
+        window.focus();
+        return true;
+    }
+
+    function PowerOffBtn_Click(ev) {
+        $$("PowerOnBtn").className = "whiteButton";
+        $$("ANormalBtn").className = "yellowButton";
+        $$("AControlBtn").className = "yellowButton";
+        $$("BNormalBtn").className = "yellowButton";
+        cc.powerOff();
+        $$("PowerOnBtn").disabled = false;
+        $$("PowerOffBtn").disabled = true;
+        $$("HaltBtn").disabled = true;
+        $$("LoadBtn").disabled = true;
+        if (timer) {
+            clearTimeout(timer);
+            timer = null;
+        }
+        return true;
+    }
+
+    function HaltBtn_Click(ev) {
+        cc.halt();
+        $$("HaltBtn").disabled = true;
+        $$("LoadBtn").disabled = false;
+    }
+
+    function LoadBtn_Click(ev) {
+        var result;
+
+        result = cc.load(false);
+        switch (result) {
+        case 0:                         // load initiated successfully
+            $$("HaltBtn").disabled = false;
+            $$("LoadBtn").disabled = true;
+            break;
+        case 1:
+            alert("P1 busy or not available");
+            break;
+        case 2:
+            alert("SPO is not ready");
+            break;
+        case 3:
+            alert("SPO is busy");
+            break;
+        default:
+            alert("cc.load() result = " + result);
+            break;
+        }
+    }
+
+    function LoadSelectBtn_Click(ev) {
+        if (cc.cardLoadSelect) {
+            cc.cardLoadSelect = 0;
+            $$("LoadSelectBtn").className = "blackButton blackLit silverBorder";
+        } else {
+            cc.cardLoadSelect = 1;
+            $$("LoadSelectBtn").className = "blackButton blackLit yellowBorder";
+        }
+    }
+
+    function displayCentralControl() {
+        /* Displays the I/O and interrupt status in Central Control */
+        var cells;
+        var s;
+        var interruptMask = cc.fetchInterruptLatch() % 0x4000;
+        var interruptChange = lastInterruptMask ^ interruptMask;
+        var iouMask = cc.fetchIOUnitLatch();
+        var iouChange = lastIOUMask ^ iouMask;
+        var unitBusyMask = cc.fetchUnitBusyLatch();
+        var unitBusyChange = lastUnitBusyMask ^ unitBusyMask;
+        var x;
+
+        lastInterruptMask = interruptMask;
+        lastIOUMask = iouMask;
+        lastUnitBusyMask = unitBusyMask;
+
+        $$("AD1F").className = (cc.AD1F ? "busy" : "");
+        $$("AD2F").className = (cc.AD2F ? "busy" : "");
+        $$("AD3F").className = (cc.AD3F ? "busy" : "");
+        $$("AD4F").className = (cc.AD4F ? "busy" : "");
+
+        x = 0;
+        while (iouChange) {
+            if (iouChange & 0x01) {
+                iouLightsMap[x].className = (iouMask & 0x01 ? "busy" : "");
+            }
+            iouMask >>>= 1;
+            iouChange >>>= 1;
+            x++;
+        }
+
+        x = 47;
+        while (interruptChange) {
+            if (interruptChange & 0x01) {
+                intLightsMap[x].className = (interruptMask & 0x01 ? "busy" : "");
+            }
+            interruptMask >>>= 1;
+            interruptChange >>>= 1;
+            x--;
+        }
+
+        x = 47;
+        while (unitBusyChange) {
+            if (unitBusyChange & 0x01) {
+                perLightsMap[x].className = (unitBusyMask & 0x01 ? "busy" : "");
+            }
+            unitBusyMask >>>= 1;
+            unitBusyChange >>>= 1;
+            x--;
+        }
+    }
+
+    function dasBlinkenlicht() {
+        var et;
+        var pa = cc.PA;
+        var pb = cc.PB;
+        var stamp = new Date().getTime();
+        var stateRate;
+
+        if (pa) {
+            if (!pa.busy) {
+                if (lastPAControlRate != -1) {
+                    lastPAControlRate = -1;
+                    aControl.className = "yellowButton";
+                    aNormal.className = "yellowButton";
+                }
+            } else {
+                stateRate = Math.round(pa.normalCycles/(pa.normalCycles+pa.controlCycles)*6);
+                if (stateRate != lastPANormalRate) {
+                    lastPANormalRate = stateRate;
+                    switch (stateRate) {
+                    case 0:
+                        aNormal.className = "yellowButton";
+                        break;
+                    case 1:
+                        aNormal.className = "yellowButton yellowLit1";
+                        break;
+                    case 2:
+                        aNormal.className = "yellowButton yellowLit2";
+                        break;
+                    case 3:
+                        aNormal.className = "yellowButton yellowLit3";
+                        break;
+                    case 4:
+                        aNormal.className = "yellowButton yellowLit4";
+                        break;
+                    case 5:
+                        aNormal.className = "yellowButton yellowLit5";
+                        break;
+                    default:
+                        aNormal.className = "yellowButton yellowLit";
+                        break;
+                    }
+                }
+
+                stateRate = 6 - stateRate;
+                if (stateRate != lastPAControlRate) {
+                    lastPAControlRate = stateRate;
+                    switch (stateRate) {
+                    case 0:
+                        aControl.className = "yellowButton";
+                        break;
+                    case 1:
+                        aControl.className = "yellowButton yellowLit1";
+                        break;
+                    case 2:
+                        aControl.className = "yellowButton yellowLit2";
+                        break;
+                    case 3:
+                        aControl.className = "yellowButton yellowLit3";
+                        break;
+                    case 4:
+                        aControl.className = "yellowButton yellowLit4";
+                        break;
+                    case 5:
+                        aControl.className = "yellowButton yellowLit5";
+                        break;
+                    default:
+                        aControl.className = "yellowButton yellowLit";
+                        break;
+                    }
+                }
+
+                pa.controlCycles = pa.normalCycles = 0;
+
+                et = pa.procTime;
+                while (et < 0) {
+                  et += stamp;
+                }
+                procDelay.innerHTML = pa.delayDeltaAvg.toFixed(3);
+                procSlack.innerHTML = (pa.procSlack/et*100).toFixed(1) + "%";
+            }
+        }
+
+        if (pb) {
+            if (!pb.busy) {
+                if (lastPBControlRate != -1) {
+                    bControl.className = "yellowButton";
+                    bNormal.className = "yellowButton";
+                    lastPBControlRate = -1;
+                }
+            } else {
+                stateRate = Math.round(pb.normalCycles/(pb.normalCycles+pb.controlCycles)*6);
+                if (stateRate != lastPBNormalRate) {
+                    lastPBNormalRate = stateRate;
+                    switch (stateRate) {
+                    case 0:
+                        bNormal.className = "yellowButton";
+                        break;
+                    case 1:
+                        bNormal.className = "yellowButton yellowLit1";
+                        break;
+                    case 2:
+                        bNormal.className = "yellowButton yellowLit2";
+                        break;
+                    case 3:
+                        bNormal.className = "yellowButton yellowLit3";
+                        break;
+                    case 4:
+                        bNormal.className = "yellowButton yellowLit4";
+                        break;
+                    case 5:
+                        bNormal.className = "yellowButton yellowLit5";
+                        break;
+                    default:
+                        bNormal.className = "yellowButton yellowLit";
+                        break;
+                    }
+                }
+
+                stateRate = 6 - stateRate;
+                if (stateRate != lastPBControlRate) {
+                    lastPBControlRate = stateRate;
+                    switch (stateRate) {
+                    case 0:
+                        bControl.className = "yellowButton";
+                        break;
+                    case 1:
+                        bControl.className = "yellowButton yellowLit1";
+                        break;
+                    case 2:
+                        bControl.className = "yellowButton yellowLit2";
+                        break;
+                    case 3:
+                        bControl.className = "yellowButton yellowLit3";
+                        break;
+                    case 4:
+                        bControl.className = "yellowButton yellowLit4";
+                        break;
+                    case 5:
+                        bControl.className = "yellowButton yellowLit5";
+                        break;
+                    default:
+                        bControl.className = "yellowButton yellowLit";
+                        break;
+                    }
+                }
+
+                pb.controlCycles = pb.normalCycles = 0;
+            }
+        }
+
+        displayCentralControl();
+        timer = setTimeout(boundBlinkenlicht, timerInterval);
+    }
+
+    function buildLightMaps() {
+        /* Builds tables of the DOM entries for the annunciator lights, for efficient access */
+        var mnem;
+        var spec;
+        var x;
+
+        iouLightsMap[0] = $$("AD1F");
+        iouLightsMap[1] = $$("AD2F");
+        iouLightsMap[2] = $$("AD3F");
+        iouLightsMap[3] = $$("AD4F");
+
+        for (x=3; x<=16; x++) {
+            intLightsMap[50-x] = $$("CCI" + (x+100).toString().substring(1) + "F");
+        }
+
+        for (mnem in B5500CentralControl.unitSpecs) {
+            spec = B5500CentralControl.unitSpecs[mnem];
+            perLightsMap[spec.unitIndex] = $$(mnem);
+        }
+    }
+
+    function checkBrowser() {
+        /* Checks whether this browser can support the necessary stuff */
+        var missing = "";
+
+        if (!window.indexedDB) {missing += ", IndexedDB"}
+        if (!window.ArrayBuffer) {missing += ", ArrayBuffer"}
+        if (!window.DataView) {missing += ", DataView"}
+        if (!window.Blob) {missing += ", Blob"}
+        if (!window.File) {missing += ", File"}
+        if (!window.FileReader) {missing += ", FileReader"}
+        if (!window.FileList) {missing += ", FileList"}
+        if (!window.postMessage) {missing += ", window.postMessage"}
+
+        if (missing.length == 0) {
+            return false;
+        } else {
+            alert("No can do... your browser does not support the following features:\n" +
+                missing.substring(2));
+            return true;
+        }
+    }
+
+    /***** window.onload() outer block *****/
+
+    $$("RetroVersion").innerHTML = B5500CentralControl.version;
+    if (!checkBrowser()) {
+        $$("PowerOnBtn").addEventListener("click", PowerOnBtn_Click);
+        $$("PowerOffBtn").addEventListener("click", PowerOffBtn_Click);
+        $$("HaltBtn").addEventListener("click", HaltBtn_Click);
+        $$("LoadBtn").addEventListener("click", LoadBtn_Click);
+        $$("LoadSelectBtn").addEventListener("click", LoadSelectBtn_Click);
+
+        aControl = $$("AControlBtn");
+        aNormal  = $$("ANormalBtn");
+        bControl = $$("BControlBtn");
+        bNormal  = $$("BNormalBtn");
+        procDelay = $$("procDelay");
+        procSlack = $$("procSlack");
+        boundBlinkenlicht = bindMethod(dasBlinkenlicht, this);
+        buildLightMaps();
+    }
+}, false);
+</script>
+</head>
+
+<body>
+
+<div id=consoleDiv>
+    <button id=HaltBtn class="blackButton blackLit" DISABLED>HALT</button>
+
+    <button id=NotReadyBtn class=yellowButton>NOT READY</button>
+    <button id=LoadSelectBtn class="blackButton blackLit silverBorder">LOAD SELECT</button>
+    <button id=LoadBtn class="blackButton blackLit" DISABLED>LOAD</button>
+
+    <button id=MemoryCheckBtn class=yellowButton>MEMORY CHECK</button>
+    <button id=ANormalBtn class=yellowButton>A NORMAL</button>
+    <button id=AControlBtn class=yellowButton>A CONTROL</button>
+    <button id=BNormalBtn class=yellowButton>B NORMAL</button>
+    <button id=BControlBtn class=yellowButton>B CONTROL</button>
+
+    <button id=PowerOnBtn class=whiteButton>POWER<br>ON</button>
+    <button id=PowerOffBtn class="blackButton blackLit" DISABLED>POWER OFF</button>
+
+    <div id=BurroughsLogo>
+        <img id=BurroughsLogoImage src="Burroughs-Logo-Neg.jpg" alt="Burroughs logo">
+    </div>
+    <div id=RetroVersion>
+        ?.??
+    </div>
+    <div id=B5500Logo>
+        <img src="retro-B5500-Logo.png" alt="retro-B5500 logo"><!-- B 5500 -->
+    </div>
+
+    <table id=CentralControl>
+    <colgroup>
+        <col span=32 class=AnnunciatorCol>
+        <col>
+    </colgroup>
+    <tbody>
+    <tr id=CCInterruptRow>
+        <td id=AD1F>IOU1                <!-- I/O unit 1 busy                            -->
+        <td id=AD2F>IOU2                <!-- I/O unit 2 busy                            -->
+        <td id=AD3F>IOU3                <!-- I/O unit 3 busy                            -->
+        <td id=AD4F>IOU4                <!-- I/O unit 4 busy                            -->
+        <td id=CCI03F>TIMR              <!-- Time interval interrupt                    -->
+        <td id=CCI04F>IOBZ              <!-- I/O busy interrupt                         -->
+        <td id=CCI05F>KBD               <!-- Keyboard request interrupt                 -->
+        <td id=CCI06F>PR1F              <!-- Printer 1 finished interrupt               -->
+        <td id=CCI07F>PR2F              <!-- Printer 2 finished interrupt               -->
+        <td id=CCI08F>IO1F              <!-- I/O unit 1 finished interrupt (RD in @14)  -->
+        <td id=CCI09F>IO2F              <!-- I/O unit 2 finished interrupt (RD in @15)  -->
+        <td id=CCI10F>IO3F              <!-- I/O unit 3 finished interrupt (RD in @16)  -->
+        <td id=CCI11F>IO4F              <!-- I/O unit 4 finished interrupt (RD in @17)  -->
+        <td id=CCI12F>P2BZ              <!-- P2 busy interrupt                          -->
+        <td id=CCI13F>INQ               <!-- Remote inquiry request interrupt           -->
+        <td id=CCI14F>SPEC              <!-- Special interrupt #1 (not used)            -->
+        <td id=CCI15F>DK1F              <!-- Disk file #1 read check finished           -->
+        <td id=CCI16F>DK2F              <!-- Disk file #2 read check finished           -->
+        <td colspan=13>
+        <td id=procSlack>
+        <td class=busy>PA Slack
+    <tr id=CCPeripheralRow>
+        <td id=DCA>DCA                  <!-- 17 -->
+        <td id=PPB>PPB                  <!-- 18 -->
+        <td id=PRB>PRB                  <!-- 19 -->
+        <td id=PRA>PRA                  <!-- 20 -->
+        <td id=PPA>PPA                  <!-- 21 -->
+        <td id=SPO>SPO                  <!-- 22 -->
+        <td id=CRB>CRB                  <!-- 23 -->
+        <td id=CRA>CRA                  <!-- 24 -->
+        <td id=CPA>CPA                  <!-- 25 -->
+        <td id=LPB>LPB                  <!-- 26 -->
+        <td id=LPA>LPA                  <!-- 27 -->
+        <td id=DKB>DKB                  <!-- 28 -->
+        <td id=DKA>DKA                  <!-- 29 -->
+        <td id=DRB>DRB                  <!-- 30 -->
+        <td id=DRA>DRA                  <!-- 31 -->
+        <td id=MTA>MTA                  <!-- 47 -->
+        <td id=MTB>MTB                  <!-- 46 -->
+        <td id=MTC>MTC                  <!-- 45 -->
+        <td id=MTD>MTD                  <!-- 44 -->
+        <td id=MTE>MTE                  <!-- 43 -->
+        <td id=MTF>MTF                  <!-- 42 -->
+        <td id=MTH>MTH                  <!-- 41 -->
+        <td id=MTJ>MTJ                  <!-- 40 -->
+        <td id=MTK>MTK                  <!-- 39 -->
+        <td id=MTL>MTL                  <!-- 38 -->
+        <td id=MTM>MTM                  <!-- 37 -->
+        <td id=MTN>MTN                  <!-- 36 -->
+        <td id=MTP>MTP                  <!-- 35 -->
+        <td id=MTR>MTR                  <!-- 34 -->
+        <td id=MTS>MTS                  <!-- 33 -->
+        <td id=MTT>MTT                  <!-- 32 -->
+        <td id=procDelay>
+        <td class=busy>PA Delay
+    </table>
+</div>
+
+</body>
+</html>

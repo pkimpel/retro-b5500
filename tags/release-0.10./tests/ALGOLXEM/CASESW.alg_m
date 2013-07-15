@@ -1,0 +1,55 @@
+$ SET LIST $ PRT DEBUGN                                                 00000100120418PK  
+%    CASE VS. SWITCH      10/01/70              ROSE & PK               00002000          
+BEGIN                                                                   00003000          
+INTEGER I, J, K;                                                        00004000          
+FILE OUT PR 18 (2,15);                                                  00005000          
+BEGIN         %%% INNER BLOCK %%%                                       00006000          
+REAL X, Y, Z;                                                           00007000          
+LABEL L1, L2, L3;                                                       00008000          
+SWITCH S ~ L1, L2, L3;                                                  00008500          
+ALPHA ARRAY A[0:I], B[0:2|I];                                           00009000120418PK  
+FORMAT F1 (X20,O,X5,2O);                                                00010000          
+                                                                        00011000          
+STREAM PROCEDURE MOVEPRT (PRT25, A, N1, N2);                            00012000          
+  VALUE N1, N2;                                                         00013000          
+BEGIN                                                                   00014000          
+  SI ~ LOC PRT25;   SI ~ SI - 21;                                       00015000          
+  DI ~ A;                                                               00016000          
+  N1(2(DS ~ 32 WDS));   N2(DS ~ WDS);                                   00017000          
+END MOVEPRT;                                                            00018000          
+                                                                        00019000          
+STREAM PROCEDURE BINOCT (N1, N2, S, D);                                 00020000          
+  VALUE N1, N2;                                                         00021000          
+BEGIN                                                                   00022000          
+  SI ~ S;                                                               00023000          
+  DI ~ D;                                                               00024000          
+  N1(32(32(DS~ 3 RESET; 3(IF SB THEN DS ~ SET ELSE DS ~ RESET;          00025000          
+                          SKIP SB))));                                  00026000          
+  N2(16(DS ~ 3 RESET;   3(IF SB THEN DS ~ SET ELSE DS ~ RESET;          00027000          
+                          SKIP SB)));                                   00028000          
+END BINOCT;                                                             00029000          
+                                                                        00030000          
+L1:                                                                     00031000          
+  J ~ 3;   GO TO S[J];                                                  00032000          
+L2:                                                                     00033000          
+  CASE J MOD 10 OF                                                      00034000          
+    BEGIN                                                               00035000          
+      J ~ 3;                                                            00036000          
+      K ~ J;                                                            00037000          
+      X ~ K +J;                                                         00038000          
+      Y ~ X ~ SQRT(X);                                                  00039000          
+      ;                                                                 00040000          
+      Z ~ 2|Y + 6.0;                                                    00041000120418PK  
+      ;                                                                 00042000          
+      K ~ 5000;                                                         00043000          
+    END CASE;                                                           00044000          
+L3:                                                                     00045000          
+  MOVEPRT (I, A[*], I DIV 64, I MOD 64);                                00046000          
+  BINOCT (I DIV 64, I MOD 64, A[*], B[*]);                              00047000          
+  FOR J ~ 0 STEP 1 UNTIL I DO                                           00048000          
+    BEGIN                                                               00049000          
+      BINOCT (0, 1, J, Y);                                              00050000          
+      WRITE (PR, F1, Y, B[J|2], B[J|2+1]);                              00051000120418PK  
+    END;                                                                00052000          
+  END INNER BLOCK;                                                      00053000          
+END.                                                                    00054000          
