@@ -30,6 +30,7 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal) {
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (e.g,. SPO input request)
 
+    this.timer = null;                  // setTimeout() token
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
 
     this.clear();
@@ -40,7 +41,7 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal) {
 
     this.window = window.open("", mnemonic);
     if (this.window) {
-        this.window.close();            // destroy the previously-existing window
+        this.shutDown();                // destroy the previously-existing window
         this.window = null;
     }
     this.doc = null;
@@ -244,19 +245,19 @@ B5500SPOUnit.prototype.outputChar = function outputChar() {
             that.printChar(that.buffer[that.bufIndex]);
             that.bufIndex++;
             that.printCol++;
-            setTimeout(that.outputChar, delay);
+            this.timer = setTimeout(that.outputChar, delay);
         } else {                        // set up for the final CR/LF
             that.printCol = 72;
-            setTimeout(that.outputChar, delay);
+            this.timer = setTimeout(that.outputChar, delay);
         }
     } else if (that.printCol == 72) {   // delay to fake the output of a carriage-return
         that.printCol++;
-        setTimeout(that.outputChar, delay+that.charPeriod);
+        this.timer = setTimeout(that.outputChar, delay+that.charPeriod);
     } else {                            // actually output the CR/LF
         that.appendEmptyLine();
         if (that.bufIndex < that.bufLength) {
             that.printCol = 0;          // more characters to print after the CR/LF
-            setTimeout(that.outputChar, delay);
+            this.timer = setTimeout(that.outputChar, delay);
         } else {                        // message text is exhausted
             that.finish(that.errorMask, that.bufLength);  // report finish with any errors
             if (that.spoLocalRequested) {
@@ -305,7 +306,6 @@ B5500SPOUnit.prototype.keyPress = function keyPress(ev) {
     var c = ev.charCode;
     var index = this.bufLength;
     var nextTime;
-    var result = true;
     var stamp = new Date().getTime();
 
     if (this.nextCharTime > stamp) {
@@ -320,27 +320,25 @@ B5500SPOUnit.prototype.keyPress = function keyPress(ev) {
             if (this.printCol < 72) {
                 this.printCol++;
             }
-            setTimeout(function() {that.printChar(c)}, nextTime-stamp);
+            this.timer = setTimeout(function() {that.printChar(c)}, nextTime-stamp);
         }
         if (c == 126) {                 // "~" (B5500 group-mark)
             c = this.keyFilter[c];
             if (this.printCol < 72) {
                 this.printCol++;
             }
-            setTimeout(function() {that.printChar(c)}, nextTime-stamp);
+            this.timer = setTimeout(function() {that.printChar(c)}, nextTime-stamp);
             this.nextCharTime = nextTime + this.charPeriod;
             this.terminateInput();
         }
     } else if (this.spoState == this.spoLocal) {
         if (c >= 32 && c <= 126) {
             c = this.keyFilter[c];
-            setTimeout(function() {that.printChar(c)}, nextTime-stamp);
+            this.timer = setTimeout(function() {that.printChar(c)}, nextTime-stamp);
         }
     }
-    if (!result) {
-        ev.preventDefault();
-    }
-    return result;
+
+    ev.preventDefault();
 };
 
 /**************************************/
@@ -376,7 +374,7 @@ B5500SPOUnit.prototype.keyDown = function keyDown(ev) {
         switch (this.spoState) {
         case this.spoInput:
         case this.spoLocal:
-            setTimeout(this.backspaceChar, nextTime-stamp);
+            this.timer = setTimeout(this.backspaceChar, nextTime-stamp);
             this.nextCharTime = nextTime;
             result = false;
             break;
@@ -390,7 +388,7 @@ B5500SPOUnit.prototype.keyDown = function keyDown(ev) {
             result = false;
             break
         case this.spoLocal:
-            setTimeout(function() {
+            this.timer = setTimeout(function() {
                 that.appendEmptyLine();
             }, nextTime-stamp+this.charPeriod);
             this.nextCharTime = nextTime;
@@ -403,7 +401,6 @@ B5500SPOUnit.prototype.keyDown = function keyDown(ev) {
     if (!result) {
         ev.preventDefault();
     }
-    return result;
 };
 
 /**************************************/
@@ -425,6 +422,16 @@ B5500SPOUnit.prototype.printText = function printText(msg, finish) {
     this.nextCharTime = new Date().getTime();
     this.finish = finish;
     this.outputChar();                  // start the printing process
+};
+
+/**************************************/
+B5500SPOUnit.prototype.beforeUnload = function beforeUnload(ev) {
+    var msg = "Closing this window will make the device unusable.\n" +
+              "Suggest you stay on the page and minimize this window instead";
+
+    ev.preventDefault();
+    ev.returnValue = msg;
+    return msg;
 };
 
 /**************************************/
@@ -450,6 +457,16 @@ B5500SPOUnit.prototype.spoOnload = function spoOnload() {
                          this.window.outerHeight+this.$$("SPODiv").scrollHeight-this.window.innerHeight+8);
     this.window.moveTo(0, screen.availHeight-this.window.outerHeight);
     this.window.focus();
+
+    this.window.addEventListener("beforeunload", this.beforeUnload, false);
+
+    this.window.addEventListener("keypress", function(ev) {
+        that.keyPress(ev);
+    }, false);
+
+    this.window.addEventListener("keydown", function(ev) {
+        that.keyDown(ev);
+    }, false);
 
     this.$$("SPORemoteBtn").addEventListener("click", function() {
         that.setRemote();
@@ -477,16 +494,6 @@ B5500SPOUnit.prototype.spoOnload = function spoOnload() {
 
     this.$$("SPOEndOfMessageBtn").addEventListener("click", function() {
         that.terminateInput();
-    }, false);
-
-    this.window.addEventListener("keypress", function(ev) {
-        if (ev.keyCode == 191) {ev.preventDefault()};
-        that.keyPress(ev);
-    }, false);
-
-    this.window.addEventListener("keydown", function(ev) {
-        if (ev.keyCode == 191) {ev.preventDefault()};
-        that.keyDown(ev);
     }, false);
 
     for (x=0; x<32; x++) {
@@ -594,4 +601,15 @@ B5500SPOUnit.prototype.writeInterrogate = function writeInterrogate(finish, cont
     /* Initiates a write interrogate operation on the unit */
 
     finish(0x04, 0);                    // report unit not ready
+};
+
+/**************************************/
+B5500SPOUnit.prototype.shutDown = function shutDown() {
+    /* Shuts down the device */
+
+    if (this.timer) {
+        clearTimeout(this.timer);
+    }
+    this.window.removeEventListener("beforeunload", this.beforeUnload, false);
+    this.window.close();
 };

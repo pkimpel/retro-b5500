@@ -28,6 +28,7 @@ function B5500DummyUnit(mnemonic, index, designate, statusChange, signal) {
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (e.g,. SPO input request)
 
+    this.timer = null;                  // setTimeout() token
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
 
     this.clear();
@@ -100,4 +101,14 @@ B5500DummyUnit.prototype.writeInterrogate = function writeInterrogate(finish, co
     /* Initiates a write interrogate operation on the unit */
 
     finish(0x04, 0);                    // report unit not ready
+};
+
+/**************************************/
+B5500DummyUnit.prototype.shutDown = function shutDown() {
+    /* Shuts down the device */
+
+    if (this.timer) {
+        clearTimeout(this.timer);
+    }
+    // this device has no window to close
 };

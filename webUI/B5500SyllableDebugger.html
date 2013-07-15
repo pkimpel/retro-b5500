@@ -24,6 +24,10 @@
 <script>
 "use strict";
 
+if (!window.indexedDB) {                // for Safari, mostly
+    window.indexedDB = window.webkitIndexedDB || window.mozIndexedDB;
+}
+
 var runningCycles = 1000;               // Number of instructions per run-mode interval
 
 var cc;
@@ -877,12 +881,29 @@ function fileSelector_onChange(ev) {
 
 function hardwareLoad_onClick(ev) {
     /* Handle the "Hardware Load" button click */
+    var result;
 
     cc.clear();
-    cc.P1.clear();
-    cc.cardLoadSelect = $$("CardLoadSelect").checked;
-    cc.load(true);
-    displaySystemState();
+    result = cc.load(true);
+    switch (result) {
+    case 0:                         // load initiated successfully
+        cc.P1.clear();
+        cc.cardLoadSelect = $$("CardLoadSelect").checked;
+        displaySystemState();
+        break;
+    case 1:
+        alert("P1 busy or not available");
+        break;
+    case 2:
+        alert("SPO is not ready");
+        break;
+    case 3:
+        alert("SPO is busy");
+        break;
+    default:
+        alert("cc.load() result = " + result);
+        break;
+    }
 }
 
 function checkBrowser() {

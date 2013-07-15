@@ -61,7 +61,7 @@ function B5500CentralControl() {
 /**************************************/
     /* Global constants */
 
-B5500CentralControl.version = "0.09";
+B5500CentralControl.version = "0.10";
 
 B5500CentralControl.memReadCycles = 2;  // assume 2 탎 memory read cycle time (the other option was 3 탎)
 B5500CentralControl.memWriteCycles = 4; // assume 4 탎 memory write cycle time (the other option was 6 탎)
@@ -788,11 +788,18 @@ B5500CentralControl.prototype.loadComplete = function loadComplete(dontStart) {
 B5500CentralControl.prototype.load = function load(dontStart) {
     /* Initiates a Load operation to start the system. If "dontStart" is truthy, then
     only the MCP bootstrap is loaded into memory -- P1 is not started */
+    var result;
     var boundLoadComplete = (function boundLoadComplete(that, dontStart) {
         return function() {return that.loadComplete(dontStart)}
     })(this, dontStart);
 
-    if (this.P1 && !this.P1.busy) {
+    if (!this.P1 || this.P1.busy) {     // P1 is busy or not available
+        result = 1;
+    } else if (!this.testUnitReady(22)) { // SPO not ready
+        result = 2;
+    } else if (this.testUnitBusy(22)) { // SPO is busy
+        result = 3;
+    } else {                            // ready to rock 'n roll
         this.clear();
         this.nextTimeStamp = new Date().getTime();
         this.tock();
@@ -820,7 +827,9 @@ B5500CentralControl.prototype.load = function load(dontStart) {
         } else {
             this.CCI04F = 1;            // set I/O busy interrupt
         }
+        result = 0;                     // all is copacetic
     }
+    return result;
 };
 
 /**************************************/
@@ -1005,13 +1014,21 @@ B5500CentralControl.prototype.powerOn = function powerOn() {
 B5500CentralControl.prototype.powerOff = function powerOff() {
     /* Powers down the system and deallocates the hardware modules.
     Redundant power-offs are ignored. */
-    var x;
+    var that = this;
 
-    if (this.poweredUp) {
-        this.halt();
+    function shutDown() {
+        var x;
+
         if (this.timer) {
             clearTimeout(this.timer);
             this.timer = null;
+        }
+
+        // Shut down the peripheral devices
+        for (x=0; x<this.unit.length; x++) {
+            if (this.unit[x]) {
+                this.unit[x].shutDown();
+            }
         }
 
         // Deallocate the system modules
@@ -1028,5 +1045,13 @@ B5500CentralControl.prototype.powerOff = function powerOff() {
         }
 
         this.poweredUp = 0;
+    }
+
+    if (this.poweredUp) {
+        this.halt();
+        // Wait a little while for I/Os, etc., to finish
+        setTimeout(function() {
+            shutDown.call(that);
+        }, 1000)
     }
 };

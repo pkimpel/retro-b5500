@@ -26,13 +26,14 @@ function B5500CardReader(mnemonic, unitIndex, designate, statusChange, signal) {
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (not used here)
 
+    this.timer = null;                  // setTimeout() token
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
 
     this.clear();
 
     this.window = window.open("", mnemonic);
     if (this.window) {
-        this.window.close();            // destroy the previously-existing window
+        this.shutDown();                // destroy the previously-existing window
         this.window = null;
     }
     this.doc = null;
@@ -175,7 +176,7 @@ B5500CardReader.prototype.CRProgressBar_onclick = function CRProgressBar_onclick
     /* Handle the click event for the "input hopper" progress bar */
 
     if (this.bufIndex < this.bufLength && !this.ready) {
-        if (confirm((this.bufLength-this.bufIndex).toString() + " of " + this.bufLength.toString() +
+        if (this.window.confirm((this.bufLength-this.bufIndex).toString() + " of " + this.bufLength.toString() +
                      " characters remaining to read.\nDo you want to clear the reader input hopper?")) {
             this.buffer = "";
             this.bufLength = 0;
@@ -304,6 +305,16 @@ B5500CardReader.prototype.readCardBinary = function readCardBinary(buffer, lengt
 };
 
 /**************************************/
+B5500CardReader.prototype.beforeUnload = function beforeUnload(ev) {
+    var msg = "Closing this window will make the device unusable.\n" +
+              "Suggest you stay on the page and minimize this window instead";
+
+    ev.preventDefault();
+    ev.returnValue = msg;
+    return msg;
+};
+
+/**************************************/
 B5500CardReader.prototype.readerOnload = function readerOnload() {
     /* Initializes the reader window and user interface */
     var that = this;
@@ -318,11 +329,13 @@ B5500CardReader.prototype.readerOnload = function readerOnload() {
 
     this.outHopperFrame = this.$$("CROutHopperFrame");
     this.outHopperFrame.contentDocument.head.innerHTML += "<style>" +
-            "BODY {background-color: #F7E7CE; margin: 2px} " +
+            "BODY {background-color: #FFE; margin: 2px} " +
             "PRE {margin: 0; font-size: 9pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
             "</style>";
     this.outHopper = this.doc.createElement("pre");
     this.outHopperFrame.contentDocument.body.appendChild(this.outHopper);
+
+    this.window.addEventListener("beforeunload", this.beforeUnload, false);
 
     this.armEOF(false);
     this.setReaderReady(false);
@@ -383,7 +396,7 @@ B5500CardReader.prototype.read = function read(finish, buffer, length, mode, con
             this.setReaderReady(false);
         }
 
-        setTimeout(function() {
+        this.timer = setTimeout(function() {
             that.busy = false;
             finish(that.errorMask, length);
         }, 60000/this.cardsPerMinute + this.initiateStamp - new Date().getTime());
@@ -443,4 +456,15 @@ B5500CardReader.prototype.writeInterrogate = function writeInterrogate(finish, c
     /* Initiates a write interrogate operation on the unit */
 
     finish(0x04, 0);                    // report unit not ready
+};
+
+/**************************************/
+B5500CardReader.prototype.shutDown = function shutDown() {
+    /* Shuts down the device */
+
+    if (this.timer) {
+        clearTimeout(this.timer);
+    }
+    this.window.removeEventListener("beforeunload", this.beforeUnload, false);
+    this.window.close();
 };
