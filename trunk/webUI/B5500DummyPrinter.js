@@ -27,13 +27,14 @@ function B5500DummyPrinter(mnemonic, unitIndex, designate, statusChange, signal)
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (e.g,. Printer Finished)
 
+    this.timer = null;                  // setTimeout() token
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
 
     this.clear();
 
     this.window = window.open("", mnemonic);
     if (this.window) {
-        this.window.close();            // destroy the previously-existing window
+        this.shutDown();                // destroy the previously-existing window
         this.window = null;
     }
     this.doc = null;
@@ -62,17 +63,15 @@ B5500DummyPrinter.prototype.clear = function clear() {
     this.busy = false;                  // busy status
     this.activeIOUnit = 0;              // I/O unit currently using this device
 
-    this.lastClickStamp = 0;            // last click time for double-click detection
-
     this.errorMask = 0;                 // error mask for finish()
     this.finish = null;                 // external function to call for I/O completion
 };
 
 /**************************************/
-B5500SPOUnit.prototype.tearPaper = function tearPaper(ev) {
+B5500DummyPrinter.prototype.ripPaper = function ripPaper(ev) {
     /* Handles an event to clear the "paper" from the printer */
 
-    if (confirm("Do you want to clear the \"paper\" from the printer?")) {
+    if (this.window.confirm("Do you want to clear the \"paper\" from the printer?")) {
         while (this.paper.firstChild) {
             this.paper.removeChild(this.paper.firstChild);
         }
@@ -93,6 +92,16 @@ B5500DummyPrinter.prototype.appendLine = function appendLine(text) {
 };
 
 /**************************************/
+B5500DummyPrinter.prototype.beforeUnload = function beforeUnload(ev) {
+    var msg = "Closing this window will make the device unusable.\n" +
+              "Suggest you stay on the page and minimize this window instead";
+
+    ev.preventDefault();
+    ev.returnValue = msg;
+    return msg;
+};
+
+/**************************************/
 B5500DummyPrinter.prototype.printerOnload = function printerOnload() {
     /* Initializes the line printer window and user interface */
     var that = this;
@@ -108,16 +117,12 @@ B5500DummyPrinter.prototype.printerOnload = function printerOnload() {
     this.window.resizeTo(1000, screen.availHeight*0.80);
 
     this.window.addEventListener("click", function(ev) {
-        var stamp = new Date().getTime();
-
-        // a kludge, but this is the DUMMY printer....
-        if (stamp - this.lastClickStamp < 500) {
+        if (ev.detail == 2) { // check for left-button double-click
             that.ripPaper(ev);
-            that.lastClickStamp = 0;    // no triple-clicking allowed
-        } else {
-            that.lastClickStamp = stamp;
         }
     }, false);
+
+    this.window.addEventListener("beforeunload", this.beforeUnload, false);
 
     this.statusChange(1);
 };
@@ -156,7 +161,8 @@ B5500DummyPrinter.prototype.write = function write(finish, buffer, length, mode,
         this.paper.appendChild(this.doc.createElement("hr"));
     }
 
-    setTimeout(this.signal, 60000/this.linesPerMinute + this.initiateStamp - new Date().getTime());
+    this.timer = setTimeout(this.signal,
+        60000/this.linesPerMinute + this.initiateStamp - new Date().getTime());
     finish(0, 0);
     this.endOfPaper.scrollIntoView();
 };
@@ -204,4 +210,15 @@ B5500DummyPrinter.prototype.writeInterrogate = function writeInterrogate(finish,
     console.log("WRITEG: L=" + length + ", M=" + mode + ", C=" + control + " : " +
         String.fromCharCode.apply(null, buffer.subarray(0, length)));
     finish(0x04, 0);
+};
+
+/**************************************/
+B5500DummyPrinter.prototype.shutDown = function shutDown() {
+    /* Shuts down the device */
+
+    if (this.timer) {
+        clearTimeout(this.timer);
+    }
+    this.window.removeEventListener("beforeunload", this.beforeUnload, false);
+    this.window.close();
 };

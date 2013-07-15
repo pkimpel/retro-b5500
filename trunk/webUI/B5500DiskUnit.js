@@ -78,6 +78,7 @@ function B5500DiskUnit(mnemonic, index, designate, statusChange, signal) {
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (e.g,. SPO input request)
 
+    this.timer = null;                  // setTimeout() token
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
 
     this.clear();
@@ -220,7 +221,7 @@ B5500DiskUnit.prototype.read = function read(finish, buffer, length, mode, contr
             req = this.disk.transaction(euName).objectStore(euName).get(segAddr);
             req.onsuccess = function singleReadOnsuccess(ev) {
                 that.copySegment(ev.target.result, buffer, 0);
-                setTimeout(function singleReadTimeout() {
+                this.timer = setTimeout(function singleReadTimeout() {
                     finish(that.errorMask, length);
                     that.errorMask = 0;
                 }, finishTime - new Date().getTime());
@@ -252,7 +253,7 @@ B5500DiskUnit.prototype.read = function read(finish, buffer, length, mode, contr
                         bx += 240;
                         segAddr++;
                     }
-                    setTimeout(function rangeReadTimeout() {
+                    this.timer = setTimeout(function rangeReadTimeout() {
                         finish(that.errorMask, length);
                         that.errorMask = 0;
                     }, finishTime - new Date().getTime());
@@ -314,7 +315,7 @@ B5500DiskUnit.prototype.write = function write(finish, buffer, length, mode, con
         } else {
             txn = this.disk.transaction(euName, "readwrite")
             txn.oncomplete = function writeComplete(ev) {
-                setTimeout(function writeTimeout() {
+                this.timer = setTimeout(function writeTimeout() {
                     finish(that.errorMask, length);
                     that.errorMask = 0;
                 }, finishTime - new Date().getTime());
@@ -398,7 +399,7 @@ B5500DiskUnit.prototype.readCheck = function readCheck(finish, length, control) 
                 if (cursor) {           // found a segment at some address in range
                     cursor.continue();
                 } else {                // at end of range
-                    setTimeout(function readCheckTimeout() {
+                    this.timer = setTimeout(function readCheckTimeout() {
                         that.signal();
                         // DO NOT clear the error mask
                     }, finishTime - new Date().getTime());
@@ -430,7 +431,7 @@ B5500DiskUnit.prototype.readInterrogate = function readInterrogate(finish, contr
         if (segAddr < 0 || segAddr >= euSize) { // if read is past end of disk
             this.errorMask |= 0x20;     // set D27F for invalid seg address
         }
-        setTimeout(function readInterrogateTimeout() {
+        this.timer = setTimeout(function readInterrogateTimeout() {
             finish(that.errorMask, length);
             that.errorMask = 0;
         }, Math.random()*this.maxLatency*1000 + this.initiateStamp - new Date().getTime());
@@ -463,9 +464,19 @@ B5500DiskUnit.prototype.writeInterrogate = function writeInterrogate(finish, con
         if (segAddr < 0 || segAddr >= euSize) { // if read is past end of disk
             this.errorMask |= 0x20;     // set D27F for invalid seg address
         }
-        setTimeout(function writeInterrogateTimeout() {
+        this.timer = setTimeout(function writeInterrogateTimeout() {
             finish(that.errorMask, length);
             that.errorMask = 0;
         }, Math.random()*this.maxLatency*1000 + this.initiateStamp - new Date().getTime());
     }
+};
+
+/**************************************/
+B5500DiskUnit.prototype.shutDown = function shutDown() {
+    /* Shuts down the device */
+
+    if (this.timer) {
+        clearTimeout(this.timer);
+    }
+    // this device has no window to close
 };

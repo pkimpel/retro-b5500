@@ -26,13 +26,14 @@ function B5500CardPunch(mnemonic, unitIndex, designate, statusChange, signal) {
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (not used here)
 
+    this.timer = null;                  // setTimeout() token
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
 
     this.clear();
 
     this.window = window.open("", mnemonic);
     if (this.window) {
-        this.window.close();            // destroy the previously-existing window
+        this.shutDown();                // destroy the previously-existing window
         this.window = null;
     }
     this.doc = null;
@@ -179,6 +180,16 @@ B5500CardPunch.prototype.CPRunoutBtn_onclick = function CPRunoutBtn_onclick(ev) 
 };
 
 /**************************************/
+B5500CardPunch.prototype.beforeUnload = function beforeUnload(ev) {
+    var msg = "Closing this window will make the device unusable.\n" +
+              "Suggest you stay on the page and minimize this window instead";
+
+    ev.preventDefault();
+    ev.returnValue = msg;
+    return msg;
+};
+
+/**************************************/
 B5500CardPunch.prototype.punchOnload = function punchOnload() {
     /* Initializes the punch window and user interface */
     var that = this;
@@ -188,7 +199,7 @@ B5500CardPunch.prototype.punchOnload = function punchOnload() {
 
     this.stacker1Frame = this.$$("CPStacker1Frame");
     this.stacker1Frame.contentDocument.head.innerHTML += "<style>" +
-            "BODY {background-color: #F7E7CE; margin: 2px} " +
+            "BODY {background-color: #FFE; margin: 2px} " +
             "PRE {margin: 0; font-size: 9pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
             "</style>";
     this.stacker1 = this.doc.createElement("pre");
@@ -198,7 +209,7 @@ B5500CardPunch.prototype.punchOnload = function punchOnload() {
 
     this.stacker2Frame = this.$$("CPStacker2Frame");
     this.stacker2Frame.contentDocument.head.innerHTML += "<style>" +
-            "BODY {background-color: #F7E7CE; margin: 2px} " +
+            "BODY {background-color: #FFE; margin: 2px} " +
             "PRE {margin: 0; font-size: 9pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
             "</style>";
     this.stacker2 = this.doc.createElement("pre");
@@ -209,6 +220,8 @@ B5500CardPunch.prototype.punchOnload = function punchOnload() {
     this.window.moveTo(0, 180);
     this.window.resizeTo(this.window.outerWidth+this.$$("CPDiv").scrollWidth-this.window.innerWidth+12,
                          this.window.outerHeight+this.$$("CPDiv").scrollHeight-this.window.innerHeight+12);
+
+    this.window.addEventListener("beforeunload", this.beforeUnload, false);
 
     this.armRunout(false);
     this.setPunchReady(true);
@@ -282,7 +295,7 @@ B5500CardPunch.prototype.write = function write(finish, buffer, length, mode, co
         }
     }
 
-    setTimeout(function() {
+    this.timer = setTimeout(function() {
         that.busy = false;
         finish(that.errorMask, length);
     }, 60000/this.cardsPerMinute + this.initiateStamp - new Date().getTime());
@@ -321,4 +334,15 @@ B5500CardPunch.prototype.writeInterrogate = function writeInterrogate(finish, co
     /* Initiates a write interrogate operation on the unit */
 
     finish(0x04, 0);                    // report unit not ready
+};
+
+/**************************************/
+B5500CardPunch.prototype.shutDown = function shutDown() {
+    /* Shuts down the device */
+
+    if (this.timer) {
+        clearTimeout(this.timer);
+    }
+    this.window.removeEventListener("beforeunload", this.beforeUnload, false);
+    this.window.close();
 };
