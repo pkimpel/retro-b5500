@@ -1,0 +1,1557 @@
+?EXECUTE PATCH/MERGE
+?FILE CARD = PMCARD
+?DATA PMCARD
+$@CARD CONFLICTS LISTI MERGE ZIP
+$. 20 PATCHES FOR ESPOL
+$*COMPILE ESPOL16/DISK ALGOL LIBRARY
+$* ALGOL STACK  = 1000
+$*ALGOL FILE TAPE = SYMBOL/ESPOL16 DISK SERIAL
+$* FILE LINE = LINE PRINT OR BACK UP
+$* DATA CARD
+$-   ***** THIS LISTING SHOWS PATCHES IMPLEMENTED AT UCSC *****
+$ TAPE LIST PRT CHECK
+$ SET LISTA SINGLE FORMAT PRT XREF LIST TAPE
+$#PATCH NUMBER 101 FOR ESPOL CONTAINS 2 CARD
+        IF T = INFO[GT1, GT2] THEN BEGIN                                02877010
+            T:= 0; GO TO COMPLETE END;                                  02877020
+$:THIS PATCH ELIMINATES A COMPILER LOOP CAUSED WHEN A FORMAL PARAMETER
+$: IN A PROCEDURE DECLARATION IS NOT INDICATED IN THE SPECIFICIATION
+$: LIST
+$:**********************************************************************
+$#PATCH NUMBER 102 FOR ESPOL CONTAINS 1 CARD
+   IF BUP ! BUP:=BUP- TAKE(BUP + 1).PURPT THEN                          14088000
+$: THIS PATCH ELEMINATES A COMPILER LOOP CAUSED WHEN THE FORMAL
+$: PARAMETER IN A PROCEDURE DECLARATION IS FOLLOWED BY A COMMA.
+$:
+$:**********************************************************************
+$#PATCH NUMBER 103 FOR ESPOL CONTAINS 2 CARDS
+FOUND:                                                                  02315000
+     IF OPINX +1>OPARSIZE THEN FLAG(602) ELSE % TOO MANY USER OPTIONS   02316000
+$: THIS PATCH CORRECTS AN INVALID INDEX CONDITION CAUSED WHEN TOO MANY
+$: USER OPTIONS HAVE BEEN SPECIFIED.
+$:**********************************************************************
+$#PATCH NUMBER 104 FOR ESPOL CONTATNS 4 CARDS
+FLAG (120);                                                             07025000
+FCR:= (LCR:=MKABS(CBUFF[9]))-9;                                         07025010
+    IF LISTER THEN PRINTCARD;                                           07025020
+FCR:= (LCR:=MKABS(TBUFF[9]))-9  END;                                    07025030
+$:THIS PATCH CORRECTS A PROBLEM WHERE A PATCH CARD IS LOST WHEN BEGIN
+$:END PAIRS ARE NOT MATCHED AND PATCH CARD SEQUENCE NUMBERS ARE GREATER
+$:THAN THE SEQUENCE NUMRER OF THE "END."CARD IN THE SOURCE FILE.
+$:**********************************************************************
+$#PATCH NUMBER 105 FOR ESPOL CONTAINS 11 CARDS
+LABEL ENDREADTAPE, EOFT;                                                02201510
+READ (TAPE, 10, TBUFF[*])[EOFT];                                        02201750
+                LCR:=MKABS(TBUFF[9]);                                   02202000
+GO TO ENDREADTAPE;                                                      02202010
+EOFT:                                                                   02202020
+DEFINEARRAY[25]:="ND;END."& "E"[1:43:5];                                02202030
+DEFINEARRAY[34]:="9999" & "9999"[1:25:23];                              02202040
+TLCR:= MKABS(DEFINEARRAY[34]);                                          02202050
+PUTSEQNO (DEFINEARRAY[33],TLCR-8);                                      02202060
+TURNONSTOPLIGHT("%", TLCR-8);                                           02202070
+ENDREADTAPE:                                                            02202080
+$: THIS PATCH CORRECTS AN EOF NO LABEL ENCOUNTERED WHEN THE SOURCE
+$: "END" CARD IS PATCHED OVER AND THE PATCH DECK CONTAINS CARD SEQUENCE
+$:NUMBERS GREATER THAN THE SEQUENCE NUMBER OF THE "END." CARD IN THE
+$:SOURCE FILE.
+$:**********************************************************************
+$#PATCH NUMBER 106 FOR ESPOL CONTAINS 2 CARDS.
+                   IF ERRNUM = 200 THEN I := 1/0; % SEGMENT TOO LARGE.  05107100
+                   IF ERRNUM = 611 THEN I := 1/0; % ERRMAX EXCEEDED.    05107200
+$: DATE 6/27/75                                                         99990000
+$: BY MWG - MSA CENTRAL.                                                99990100
+$: THIS PATCH CAUSES ESPOL TO ABORT WITH A DIVIDE BY ZERO ERROR FOR     99990300
+$: THE ERRORS "SEGMENT TOO LARGE" AND "ERROR LIMIT EXCEEDED".           99990400
+$#PATCH NUMBER 107 FOR ESPOL CONTAINS 12 CARDS.                         00000000
+                  LABEL EXIT,NEXTCHK;                                   06315000
+                  IF STEPI = RTBRKET THEN % WE WILL TAKE CARE OF THE RES06320000
+                    IF (FIRST := ELBAT[I-3].ADDRESS) |                  06320100
+                       (THIRD := ELBAT[I-1].ADDRESS) ! 0 THEN           06320200
+                      BEGIN                                             06320300
+                        SECOND := 48 - THIRD; % SOURCE IS RIGHT JUST,   06320400
+                        GO TO NEXTCHK;                                  06320500
+                      END                                               06320600
+                    ELSE % BAD BITS, FALL THROUGH TO ERROR.             06320700
+                  ELSE % MAYBE A COLON.                                 06320800
+                    IF ELCLASS = COLON THEN %                           06320900
+   NEXTCHK:       IF FIRST + THIRD { 48 THEN % SO FAR SO GOOD.          06327000
+$: DATE 1/22/76                                                         99990000
+$: BY JTC - MSA CENTRAL                                                 99990100
+$: THIS PATCH ALTERS THE SYNTAX FOR THE CONCATENATE OPERATOR TO ALLOW   99990200
+$: THE SECOND VALUE IN THE CONCAT, LIST TO BE OMITTED (THE              99990300
+$: STARTING BIT NUMBER FN THE SOURCE WORD) IF THE RIGHT-MOST            99990400
+$: N BITS ARE BEING SELECTED FROM THE SOURCE WORD. THUS                 99990500
+$:                                                                      99990600
+$:                I := I & J [2:20]                                     99990700
+$:                                                                      99990800
+$: IS THE SAME AS                                                       99990900
+$:                                                                      99991000
+$:                I := I & J [2:28:20]                                  99991100
+$:                                                                      99991200
+$: THIS IS ESPECIALLY CONVENIENT FOR ESPOL SINCE THIS ALLOWS SOME       99991300
+$: FIELD DEFINES TO BE USED IN CONCATENATE EXPRESSIONS, THIS IF WE      99991400
+$: HAVE THE FOLLOWING FIELD DEFINITION                                  99991500
+$:                                                                      99991600
+$:                PBIT = [2:1]                                          99991700
+$:                                                                      99991800
+$:                                                                      99991900
+$: WE CAN USE THE SAME FIELD DEFINITION IN A CONCATENATE STATEMENT      99992000
+$: AS FOLLOWS                                                           99992100
+$:                                                                      99992200
+$:                DESC := DESC & 1 PBIT                                 99992300
+$:                                                                      99992400
+$:                                                                      99992500
+$: NOTE: FUTURE PATCHES TO THE MCP AND INTRINSICS WILL TAKE ADVANTAGE   99992600
+$: OF THIS PATCH.                                                       99992700
+$#PATCH NUMBER 108 FOR ESPOL CONTATNS 252 CARDS                         00000000
+         XREFBIT        = 26#,                                          01001170
+         BENDBIT        = 27#,                                          01001171
+         USEROPINX      = 28#;                                          01001172
+         XREF           = OPTIONWORD.[XREFBIT:1] #,                     01001461
+         BEND           = OPTIONWORD.[BENDBIT:1]#,                      01001462
+DEFINE XREFINFO(XREFINFO1,XREFINFO2)=                                   01001750
+          XINFO[XREFINFO1,(XREFINFO2)DIV 2]#,                           01001760
+       XMARK= IF XREF THEN XREFAY2[XREFPT-1].[1:1]-1#;                  01001770
+     ARRAY XREFAY2[0:29],XREFAY1[0:10],XINFO[0:31,0:127];               01007100
+INTEGER XREFPT,XLUN;                                                %DFB01007200
+ ARRAY BEGINSTACK[0:255]; INTEGER BSPOINT;                              01007600
+ BOOLEAN DEFINING;                                                      01007650
+     FILE DSK1 DISK SERIAL [20:816](2,10,30);                           01561085
+     FILE DSK2 DISK SERIAL [20:450](2,30,30);                           01561087
+ PROCEDURE BEGINPRINT;                                                  02196510
+BEGIN                                                                   02196520
+      STREAM PROCEDURE STUFF(N,L); VALUE N;                             02196530
+     BEGIN                                                              02196540
+           DI:=L; DS:=8 LIT " "; SI:=L; DS:=13 WDS;                     02196550
+           SI:=LOC N; DS:=8 DEC;                                        02196560
+     END;                                                               02196570
+      STUFF(BEGINSTACK[BSPOINT],LIN);                                   02196580
+      IF NOHEADING THEN DATIME; WRITELINE;                              02196590
+END BEGINPRINT;                                                         02196610
+ CARDNUMBER:=CONV(INFO[LASTSEQROW,LASTSEQUENCE-1],5,8);                 02214260
+$                                                                       02228000
+      CARDNUMBER:= IF SEQTOG THEN TOTALNO+ADDVALUE ELSE                 02234800
+                CONV(INFO[LASTSEQROW,LASTSEQUENCE-1],5,8);              02234900
+ IF Q = "4XREF0" THEN BEGIN SWITCHIT(XREFBIT); IF BOOLEAN(XMODE) THEN   02419100
+      DEFINING := BOOLEAN(REAL(DEFINING)&L[1:47:1]);                    02419110
+                          GO AGAIN END;                                 02419120
+ IF Q = "4BEND0" THEN BEGIN SWITCHIT(BENDBIT); GO AGAIN END;            02419200
+      IF XREF THEN                                                      02882100
+      IF GT1!1 THEN                                                     02882200
+      BEGIN                                                             02882300
+           IF XREFPT=30 THEN                                            02882400
+           BEGIN                                                        02882500
+                WRITE (DSK2,30,XREFAY2[*]);                             02882600
+                XREFPT ~ 0;                                             02882700
+           END;                                                         02882800
+           XREFAY2[XREFPT]-CARDNUMBER&XREFINFO(GT1,GT2)[09:36:12];      02882900
+           XREFPT ~ XREFPT+1;                                           02882910
+      END;                                                              02882920
+ IF NOT DEFINING THEN                                                   02910100
+ IF T.CLASS = BEGINV THEN                                               02910200
+      BEGINSTACK[BSPOINT:=BSPOINT+1]:=CARDNUMBER ELSE                   02910300
+ IF T.CLASS = ENDV THEN                                                 02910400
+BEGIN                                                                   02910500
+       IF LISTER THEN IF BEND THEN BEGINPRINT;                          02910600
+       BSPOINT:= BSPOINT - REAL(BSPOINT > 0); % PREVENT INVALID INDEX   02910700
+END;                                                                    02910800
+                      "4BEND0",0,        % 50, 51                       09251285
+                      "4XREF0",0,        % 52, 53                       09251286
+STREAM PROCEDURE XREFMOVE(S,C,SN,SQ,L,D);                           %DFB13301100
+    VALUE C,L;                                                      %DFB13301130
+    BEGIN                                                           %DFB13301160
+         DI:=D;                                                     %DFB13301190
+         DS:= 8 LIT" ";                                             %DFB13301220
+         SI:=D;                                                     %DFB13301250
+         DS:=8 WDS;                                                 %DFB13301280
+         DI:=D;                                                     %DFB13301310
+         SI:=S;                                                     %DFB13301340
+         SI:=SI+3;                                                  %DFB13301370
+         DS:=C CHR;                                                 %DFB13301400
+         DI:= D;                                                    %DFB13301430
+          DI:=DI+60;                                                %DFB13301460
+         SI:=SN;                                                    %DFB13301490
+         DS:=4 DFC;                                                 %DFB13301520
+         SI:=SQ                                                     %DFB13301610
+         DS:=8 DFC;                                                 %DFB13301640
+         SI:=LOC L;                                                 %DFB13301670
+         DS:=WDS;                                                   %DFB13301700
+    END;                                                            %DFB13301730
+         IF XREF AND (NOT PTOG OR STREAMTOG) THEN                       13310100
+   BEGIN                                                            %DFB13310200
+   XREFMOVE(ACCUM[1],COUNT,SGNO ,CARDNUMBER,                        %DFB13310300
+            XREFINFO(NEXTINFO.LINKR,NEXTINFO.LINKC):=XLUNI:=XLUN+L, %DFB13310400
+               XREFAY1);                                                13310450
+   WRITE(DSKL,10,XREFAY1[*]);                                       %DFB13310500
+   END;                                                             %DFB13310600
+           IF XREF AND PTOG THEN                                        13341200
+              XREFPT:=XREFPT-REAL(ELBAT[I]!0); % GET RID OF LAST CREF   13341300
+$VOIDT 13366105                                                         13366001
+         DEFINING := BOOLEAN(REAL(DEFINING) & 1[47:47:1]);              14255500
+         DEFINING := BOOLEAN(REAL(DEFINING) & 0[47:47:1]);              14268500
+L1:                                                                     15092000
+       XMARK;                                                           15092010
+       IF TALL.FORMALNAME THEN                                          15092020
+     ENDOFITALL:                                                        16495210
+IF XREF OR DEFINING.[1:1] THEN                                          16495300
+     BEGIN DEFINE LSS = <#,GTR=>#,NEQ= !#,LEQ ={=#;                 %DFB17002000
+                DEFINE XREFINFO =INFO#;                                 17002005
+     CLOSE(CARD,RELEASE);                                               17002490
+     CLOSE(TAPE,RELEASE);                                               17002500
+                    LOCK(NEWTAPE);                                      17002510
+     WRITE(LINE[PAGE]);                                                 17002520
+    FOR XREFPT:=XREFPT STEP 1 UNTIL 29 DO XREFAY2[XREFPT]:=100000000;   17003000
+  WRITE(DSK2,30,XREFAY2[*]);                                        %DFB17004000
+                  TOTALNO~REAL(XLUN >500)|1000+3000+XLUN;               17004500
+        XREFPT~XLUN~0;                                              %DFB17004600
+         BEGIN                                                      %DFB17005000
+         BOOLEAN PROCEDURE INPUT1(A);                               %DFB17006000
+            ARRAY A[0];                                             %DFB17007000
+            BEGIN                                                   %DFB17008000
+            LABEL L,EOF;                                            %DFB17009000
+            READ(DSK1,10,A[*])[EOF];                                %DFB17010000
+            GO TO L;                                                %DFB17011000
+            EOF: INPUT1:=TRUE;                                      %DFB17012000
+                 REWIND(DSK1);                                      %DFB17013000
+            L:                                                      %DFB17014000
+            END;                                                    %DFB17015000
+         PROCEDURE OUTPUT1(B,A);                                    %DFB17016000
+           VALUE B;                                                 %DFB17017000
+           BOOLEAN B;                                               %DFB17018000
+           ARRAY A[0];                                              %DFB17019000
+              BEGIN                                                 %DFB17020000
+              IF B THEN                                             %DFB17021000
+                REWIND(DSK1)                                        %DFB17022000
+              ELSE                                                  %DFB17023000
+                BEGIN                                               %DFB17024000
+                A[9]:=XREFINFO(A[9].LINKR,A[9].LINKC):=XLUN:=XLUN+1;%DFB17025000
+                WRITE(DSK1,10,A[*]);                                %DFB17026000
+                END;                                                %DFB17027000
+              END;                                                  %DFB17028000
+         BOOLEAN STREAM PROCEDURE COMPS1(A,B);                      %DFB17029000
+          BEGIN                                                     %DFB17030000
+          SI:=A;                                                    %DFB17031000
+          DI:=B;                                                    %DFB17032000
+          IF 63 SC LSS DC THEN TALLY:=1;                            %DFB17033000
+          COMPS1:=TALLY;                                            %DFB17034000
+          END;                                                      %DFB17035000
+        STREAM PROCEDURE HVS1(A);                                   %DFB17036000
+          BEGIN                                                     %DFB17037000
+          DI:=A;                                                    %DFB17038000
+          DS:=8 LIT "9";                                            %DFB17039000
+          SI:=A;                                                    %DFB17040000
+          DS:= 7 WDS;                                               %DFB17041000
+          END;                                                      %DFB17042000
+        BOOLEAN PROCEDURE COMP1(A,B);                               %DFB17042100
+                ARRAY A,B[0];                                       %DFB17042200
+                COMP1:=COMPS1(A,B);                                 %DFB17042300
+        PROCEDURE HV1(A);                                           %DFB17042400
+                ARRAY A[0];                                         %DFB17042500
+                HVS1(A);                                            %DFB17042600
+        XLUN:=0;                                                    %DFB17043000
+        REWIND(DSK1);                                               %DFB17044000
+        SORT(OUTPUT1,INPUT1,0,HV1,COMP1,10,TOTALNO    );            %DFB17045000
+    END;                                                            %DFB17046000
+    BEGIN                                                           %DFB17047000
+        STREAM PROCEDURE PUP(S,D);                                  %DFB17048000
+          BEGIN                                                     %DFB17049000
+          SI:=S;                                                    %DFB17050000
+          DI:=D;                                                    %DFB17051000
+        DS:=7 WDS; 8(DS:=8 LIT " ");                                    17052000
+$VOIDT 17054551                                                         17053000
+           END;                                                     %DFB17055000
+         STREAM PROCEDURE PUP1(S,D);                                    17055100
+         BEGIN                                                          17055200
+         SI:=S; SI:=SI+32; SI:=SI+28;                                   17055300
+         DI:=D; DS:=2 LIT " "; DS:=4 CHR; DS:=2 LIT " *";               17055400
+         DS:=9 CHR; DS:=LIT "*"; DS:= 38 LIT " ";                       17055500
+         END;                                                           17055550
+          STREAM PROCEDURE PUP2(STAR,S,C,D);                            17056000
+          VALUE STAR,S,C;                                               17056500
+           BEGIN                                                    %DFB17057000
+           DI:=D;                                                   %DFB17058000
+         C(DI:=DI+10);                                                  17059000
+                               STAR(DI~DI-1; DS~LIT"*");                17059100
+           SI:=LOC S;                                               %DFB17060000
+           DS:= 8 DEC;                                              %DFB17061000
+         DS:=LIT " ";         STAR(DI:=DI-1; DS:=LIT "*");              17061100
+           END;                                                     %DFB17062000
+         STREAM PROCEDURE BLANKET(A);                               %DFB17063000
+               BEGIN                                                %DFB17064000
+              DI:=A;                                                %DFB17065000
+              DS:= 8 LIT " ";                                       %DFB17066000
+         SI:=A;                                                     %DFB17067000
+         DS:= 14 WDS;                                               %DFB17068000
+         END;                                                       %DFB17069000
+         ARRAY PAY[0:17];                                           %DFB17069500
+         BOOLEAN PROCEDURE INPUT2(A);                               %DFB17070000
+         ARRAY A[0];                                                %DFB17071000
+           BEGIN                                                    %DFB17072000
+           LABEL L,EOF;                                             %DFB17073000
+            DEFINE I=XLUN#;                                         %DFB17073100
+           IF XREFPT:=XREFPT+1=30 THEN                              %DFB17074000
+             BEGIN                                                  %DFB17075000
+             READ(DSK2,30,XREFAY2[*])[EOF];                         %DFB17076000
+             XREFPT:=0;                                             %DFB17077000
+             END;                                                   %DFB17078000
+         IF ( I  :=XREFAY2[XREFPT]).[21:27] GTR 99999999 THEN GO TO EOF;17079000
+         A[0]:= I&XREFINFO(I.[ 9:4],I.[13:8])[ 9:36:12];            %DFB17080000
+         GO TO L;                                                   %DFB17081000
+         EOF: INPUT2:=TRUE;                                         %DFB17082000
+              BLANKET(PAY);                                         %DFB17083000
+         XREFAY1[9]:=-1;       XREFPT~0;                            %DFB17084000
+         L:                                                         %DFB17085000
+         END;                                                       %DFB17086000
+         PROCEDURE OUTPUT2(B,A);                                    %DFB17087000
+           VALUE B;                                                 %DFB17088000
+           BOOLEAN B;                                               %DFB17089000
+           ARRAY A[0];                                              %DFB17090000
+           BEGIN      DEFINE PRINTER=LINE#;                         %DFB17091000
+              LABEL LOOP,EOF2;                                          17091100
+         OWN BOOLEAN B2;                                                17091110
+          LABEL DUN;                                                    17091200
+         IF NOT B2 THEN                                                 17091210
+           IF B THEN                                                %DFB17092000
+              WRITE(PRINTER,15,PAY[*])                              %DFB17093000
+           ELSE                                                     %DFB17094000
+     IF LASTADDRESS ! LASTADDRESS~A[0] AND LASTADDRESS.[9 :121! 0 THEN  17094100
+              BEGIN                                                 %DFB17095000
+      LOOP:                                                         %DFB17095050
+              IF A[0].[ 9:12] GTR XREFAY1[9] THEN                   %DFB17095100
+              BEGIN                                                 %DFB17095200
+$                                                                       17096000
+          WRITE(PRTNTER,15,PAY[*]);                                     17097000
+$                                                                       17098000
+              BLANKET(PAY ); XREFPT:=0;                                 17099000
+              READ(DSK1,10,XREFAY1[*])[EOF2];                           17099100
+              PUP(XREFAY1,PAY);                                         17099200
+              WRITE(PRINTER[DBL]);                                      17099900
+              WRITE(PRINTER,10,PAY[*]);                             %DFB17100000
+         PUP1(XREFAY1,PAY);                                             17100100
+              WRITE(PRINTER[DBL],10,PAY[*]);                            17100200
+              BLANKET(PAY);                                         %DFB17101000
+          GO LOOP;                                                  %DFB17101100
+              END;                                                  %DFB17102000
+DUN:                                                                    17102100
+                               PUP2(LASTADDRESS < 0,LASTADORESS.[21:27],17103000
+                                     XREFPT,PAY[L]);                    17103010
+              IF XREFPT:=XREFPT+1 = 11 THEN                             17103100
+                BEGIN                                               %DFB17103200
+                  XREFPT:=0;                                        %DFB17103300
+                  WRITE(PRINTER,15,PAY[*]);                         %DFB17103400
+                  BLANKET(PAY);                                     %DFB17103500
+                END;                                                %DFB17103600
+              END;                                                  %DFB17110000
+         IF FALSE THEN EOF2: B2:=TRUE;                                  17110500
+         END;                                                       %DFB17111000
+       PROCEDURE HV2(A);                                            %DFB17112000
+          ARRAY A[0];                                               %DFB17113000
+          A[0]:=549755813887;                                       %DFB17114000
+       BOOLEAN PROCEDURE COMP2(A,B);                                %DFB17115000
+          ARRAY A,B[0];                                             %DFB17116000
+        COMP2~ ABS(A[0]) LEQ ABS(B[0]);                                 17117000
+       XREFPT:=29;       REWIND(DSK2);                              %DFB17118000
+       SORT(OUTPUT2,INPUT2,0,HV2,COMP2,1,TOTALNO     );             %DFB17119000
+    END;                                                            %DFB17120000
+    END;                                                            %DFB17121000
+                  END MAIN BLOCK;                                       17121500
+    END.                                                            %DFB17122000
+$: BY JTC - MSC DETROIT                                                 99990000
+$:**********************************************************************99990100
+$#PATCH NUMBER 110 FOR ESPOL CONTAINS 503 CARDS                         00000000
+$ VOIDT 01001771                                                        01001750
+%***********************************************************************01007005
+%              X R E F   S T U F F                                      01007010
+%***********************************************************************01007015
+%                                                                       01007020
+ARRAY                                                                   01007025
+  XREFAY2[0:29],       % ARRAY OF ONE WORD REFERENCE RECORDS.           01007030
+                       % THE LAYOUT OF EACH WORD IS                     01007035
+                       %                                                01007040
+                       %         .[1:5]  TYPE OF REFERENCE              01007045
+                       %                  = 0 FOR FORWARD DECL          01007050
+                       %                  = 1 FOR LABEL OCCURENCE       01007051
+                       %                  = 2 FOR NORMAL DECL           01007055
+                       %                  = 4 FOR NORMAL REFERENCE      01007060
+                       %                  = 5 FOR ASSIGNMENT            01007065
+                       %                                                01007070
+                       %                   NOTE: THE LOWER ORDER BIT    01007075
+                       %                          OF THIS FIELD IS ON   01007080
+                       %                          IF YOU WANT STARS     01007085
+                       %                          AROUND THIS REFERENCE 01007090
+                       %                          IN THE XREF           01007095
+                       %                                                01007100
+                       %         .[6:15] IDENTIFIER ID. NO.             01007105
+                       %                  THIS IS A UNIQUE NUMBER THAT  01007110
+                       %                  IS ASSIGNED WHEN THE          01007115
+                       %                  IDENTIFIER IS ENCOUNTERE      01007120
+                       %                  FOR THE FIRST TIME.           01007125
+                       %                                                01007130
+                       %         .[21:27] SEQUENCE NUMBER               01007135
+                       %                                                01007140
+XREFAY1[0:9],          % RECORD BUFFER AREA FOR WRITING OUT THE         01007145
+                       % NAME INFORMATION RECORDS, ONE RECORD           01007150
+                       % IS WRITTEN FOR EACH IDENTIFIER IN THE SYMBOL   01007155
+                       % TABLE WHEN THE IDENTIFIER IS PURGED FROM THE   01007160
+                       % SYMBOL TABLE, I.E., WHEN LEAVING THE BLOCK     01007165
+                       % IN WHICH THE IDENTIFIER IS DECLARED.           01007170
+                       %                                                01007175
+                       % THE LAYOUT OF EACH RECORD IS                   01007180
+                       %                                                01007185
+                       %      WORDS 0-7   THE IDENTIFIER WITH BLANK     01007190
+                       %                    FILL ON THE RIGHT           01007195
+                       %                                                01007200
+                       %      WORD 8                                    01007205
+                       %        .[21:12]  SEGMENT NUMBER IN WHICH       01007210
+                       %                    THIS IDENTIFIER WAS DECLARED01007215
+                       %                                                01007220
+                       %        .[33:15]  IDENTIFIER ID. NO.            01007225
+                       %                                                01007230
+                       %      WORD 9      ELBAT WORD                    01007235
+                       %                                                01007240
+XINFO[0:31,0:0127];    % THIS ARRAY CONTAINS ONE ENTRY FOR EACH ENTRY   01007245
+                       % IN THE INFO TABLE. IF YOU HAVE THE INDEX       01007250
+                       % OF THE ELBAT WORD FOR AN IDENTIFIER IN         01007255
+                       % THE INFO TABLE YOU CAN FIND THE XINFO WORD     01007260
+                       % FOR THE IDENTIFIER BY REFERRING TO:            01007265
+                       %                                                01007270
+                       %      XINFO[INDEX.LINKR,INDEX.LINKC DIV 2]      01007275
+                       %                                                01007280
+                       % EACH ENTRY CONTAINS:                           01007285
+                       %                                                01007290
+                       %            .[21:12]  SEGMENT NUMBER IN WHICH   01007295
+                       %                        THIS IDENTIFIER WAS DECL01007300
+                       %                                                01007305
+                       %            .[33:15]  IDENTIFIER ID. NO.        01007310
+                       %                        IF THIS ID. NO. IS ZERO 01007315
+                       %                        THEN XREF WAS NOT ON    01007320
+                       %                        AT THE TIME THE IDENT   01007325
+                       %                        WAS DECLARED AND ALL    01007330
+                       %                        FUTURE REFERENCES WILL  01007335
+                       %                        BE DISCARDED.           01007340
+                       %                                                01007345
+INTEGER                %                                                01007350
+  XREFPT,              % CONTAINS INDEX OR NEXT AVAILABLE SLOT IN       01007355
+                       % XREFAY2. WHEN THIS BECOMES GREATER             01007360
+                       % THAN 30 THE CURRENT ARRAY IS DUMPED TO DISK    01007365
+                       % AND XREFPT IS RESET TO ZERO.                   01007370
+                       %                                                01007375
+  XLUN;                % THIS VARIABLE CONTROLS THE ASSIGNING OF        01007380
+                       % ID. NO. TO IDENTIFIERS. IT IS INCREMENTED      01007385
+                       % EACH TIME A NEW IDENTIFIER IS ENCOUNTERED.     01007390
+                       %                                                01007395
+DEFINE                 %                                                01007400
+  SEGNOF = [21:12]#,   % FIELDS IN XINFO ENTRIES AND WORD 8 OF          01007405
+  IDNOF  = [33:15]#,   % IDENTIFIER RECORDS.                            01007410
+                       %                                                01007415
+  TYPEREF = [1:5]#,    % FIELDS OF REFERENCE WORDS                      01007420
+  REFIDNOF =[6:5]#,    %                                                01007425
+  SEQNOF = [21:27]#,   %                                                01007430
+                       %                                                01007435
+  XREFIT(INDEX,SEQNO,REFTYPE) = % DEFINE TO ADD INFO TO REF TABLE       01007440
+    BEGIN IF XREF THEN CROSSREFIT(INDEX,SEQNO,REFTYPE); END#,           01007445
+                       %                                                01007450
+  XMARK(REFTYPE) =     % DEFINE TO CHANGE LAST ENTRY IN REF TABLE TO A  01007455
+    BEGIN IF XREF THEN XREFAY2[XREFPT-1].TYPEREF := REFTYPE END#,       01007460
+                       %                                                01007465
+  XREFDUMP(INDEX) =    % DEFINE TO DUMP SYMBOL TABLE INFO FOR IDENTIFIER01007470
+    BEGIN IF DEFINING.[1:1] THEN CROSSREFDUMP(INDEX); END#,             01007475
+                       %                                                01007480
+  XREFINFO(INDEX) =    % DEFINE TO TRANSLATE INFO ROW AND COLUMN TO     01007481
+    XINFO[(INDEX).LINKR,(INDEX).LINKC DIV 2]#, % XINFO ROW AND COL      01007482
+                       %                                                01007483
+  FORWARDREF = 0#,     % DEFINES FOR DIFFERENT REFERENCE TYPES          01007485
+  LBLREF     = 1#,     %                                                01007486
+  DECLREF    = 2#,     %                                                01007490
+  NORMALREF  = 4#,     %                                                01007495
+  ASSIGNREF  = 5#;     %                                                01007500
+$VOIDT                                                                  01723000
+%***********************************************************************02001605
+%                                                                       02001610
+%       MISCELLANEOUS CROSS REFERENCE PROCEDURES                        02001615
+%                                                                       02001620
+$ VOIDT 02001831                                                        02001625
+%***********************************************************************02001630
+%                                                                       02001635
+PROCEDURE CROSSREFIT(INDEX,SEQNO,REFTYPE);                              02001640
+  VALUE INDEX,SEQNO,REFTYPE;                                            02001645
+  REAL INDEX,SEQNO,REFTYPE;                                             02001650
+BEGIN                                                                   02001655
+ IF XREFINFO(INDEX).IDNOF ! 0 THEN % SAVE                               02001660
+ BEGIN                                                                  02001665
+  IF XREFPT > 29 THEN % NO SLOTS LEFT IN ARRAY. WRITE IT OUT.           02001670
+    BEGIN                                                               02001675
+      WRITE(DSK2,30,XREFAY2[*]);                                        02001680
+      XREFPT := 0;                                                      02001685
+    END;                                                                02001690
+  XREFAY2[XREFPT] := SEQNO & REFTYPE TYPEREF & XREFINFO(INDEX)          02001695
+                                       REFIDNOF;                        02001700
+  XREFPT := XREFPT + 1; % EVEN THOUGH THE ARRAY MAY BE FULL NOW WE      02001705
+                        % CANT WRITE IT OUT BECAUSE SOME ROUTINES       02001710
+                        % WILL LOOK BACK AT THE ENTRY WE JUST PUT       02001715
+                        % IN AND FIX IT UP.                             02001720
+ END;                                                                   02001725
+END OF CROSSREFIT;                                                      02001730
+%                                                                       02001735
+PROCEDURE CROSSREFDUMP(INDEX);                                          02001740
+  VALUE INDEX;                                                          02001745
+  REAL INDEX;                                                           02001750
+BEGIN                                                                   02001755
+  STREAM PROCEDURE MOVEXREFINFO(S,D,N);                                 02001760
+    VALUE N;                                                            02001765
+  BEGIN                                                                 02001770
+    SI := D; DI := D; DS := 8 LIT " "; DS := 7 WDS; % BLANK RECORD      02001775
+    SI := S; SI:= SI + 3; DI := D; DS := N CHR; % MOVE IDENTIFIER       02001780
+  END OF MOVEXREFINFO;                                                  02001785
+  %                                                                     02001790
+IF XREFINFO(INDEX).IDNOF ! 0 THEN % DUMP IT                             02001795
+BEGIN                                                                   02001800
+  MOVEXREFINFO(INFO[INDEX.LINKR,INDEX.LINKC+1],XREFAY1[*],              02001805
+                      TAKE(INDEX+1).[12:6]);                            02001810
+  XREFAY1[8] := XREFINFO(INDEX);                                        02001815
+  XREFAY1[9] := TAKE(INDEX); % ELBAT WORD                               02001820
+  WRITE(DSK1,10,XREFAY1[*]);                                            02001821
+  XREFINFO(INDEX) := 0;                                                 02001822
+ END;                                                                   02001825
+END OF CROSSREFDUMP;                                                    02001830
+$VOIDT 02882921                                                         02882099
+         IF GT1 !1 AND NOT MACROID THEN % NOT RESERVED WORD             02882100
+           XREFIT(T.LINK,CARDNUMBER,NORMALREF); % BUILD XREF ENTRY      02882200
+              XMARK(LBLREF); % THIS WILL SORT AHEAD OF DECLARATION      07598100
+                             % WHEN WE GET AROUND TO THE XREF.          07598200
+    XMARK(ASSIGNREF); % FILL STATEMENT                                  07660600
+                   XMARK(ASSIGNREF); % FOR STATEMENT                    08178100
+        XREFDUMP(POINTER); % DUMP XREF INFO                             13283500
+$ VOIDT 13301731                                                        13301099
+         IF XREF THEN % MAKE DECLARATION REFERENCE                      13310050
+%         IF (ACCUM[0].CLASS ! DEFINEDID OR NOT                         13310075
+%             BOOLEAN(ACCUM[0].FORMAL)) THEN % NOT DEFINE PARAMETER     13310080
+$ VOIDT 13310601                                                        13310099
+           BEGIN                                                        13310100
+             XREFINFO(NEXTINFO) :=                                      13310200
+               IF SPECTOG THEN                                          13310300
+                 XREFINFO(ELBAT[I])                                     13310350
+               ELSE                                                     13310400
+                 ((XLUN := XLUN + 1) & SGNO SEGNOF);                    13310450
+             IF SPECTOG THEN % JUST GO BACK AND FIX UP XREF ENTRY       13310500
+               XMARK(DECLREF)                                           13310525
+             ELSE                                                       13310550
+               XREFIT(NEXTINFO,CARDNUMBER,IF PTOG AND NOT STREAMTOG     13310575
+                        THEN NORMALREF ELSE DECLREF);                   13310580
+           END                                                          13310600
+%         ELSE % DEFINE PARAMETERS - DONT CROSS REF.                    13310700
+%           XREFINFO(NEXTINFO) := 0                                     13310750
+         ELSE                                                           13310800
+           IF DEFINING.[1:1] THEN % WE ARE DOING XREFING                13310900
+             XREFINFO(NEXTINFO) := 0;                                   13310950
+            IF XREF AND NOT SPECTOG THEN % ERASE PREVIOUS XRFF ENTRY.   13341200
+      XMARK(DECLREF); % PROCEDURE DECLARED FORWARD: MARK LAST           14312100
+                      % XREF ENTRY AS A DECLARATION.                    14312101
+        XREFDUMP(J); % DUMP XREF INFO                                   14445100
+          XREFIT(PROINFO,0,FORWARDREF); % WE NEED THIS SO WE CAN FIND   14469100
+                                    % THE FORWARD DECL. DURING XREF     14469101
+      REAL REMEMBERSEQNO; % REMEMBERS SEQUENCE NUMRER OR VARIABLE       15075550
+                          % ON LEFT HAND SIDE OF ASSIGNMENT SO WE       15075551
+                          % CAN XREF IT CORRECTLY.                      15075552
+             REMEMBERSEQNO := CARDNUMBER;                               15085100
+      XMARK(ASSIGNREF); % ASSIGNMENT TO SIMPLE VARIABLE.                15091100
+$VOIDT                                                                  15092010
+                         BEGIN                                          15113100
+                           BEGIN                                        15115000
+                             ERR(201); % PARTIAL WORD NOT LEFT-MOST     15115100
+                             GO TO EXIT;                                15115200
+                           END;                                         15115300
+                           XREFIT(TALL,REMEMBERSEQNO,ASSIGNREF);        15116000
+                           GO TO L1;                                    15116100
+                         END;                                           15116200
+     JAZZ:         XREFIT(TALL,REMEMBERSEQNO,ASSIGNREF); STEPIT; AEXP;  15233012
+                   XREFIT(TALL,REMEMBERSEQNO,ASSIGNREF); % ASSIGNMENT TO15301100
+                                    % SUBSCRIPTED VARIABLE.             15301200
+                   IF STEPI = ASSIGNOP THEN                             15342000
+                     IF P1 = FS THEN % PARTIAL WORD IS LEFT-MOST        15342100
+                       BEGIN                                            15342200
+                         XREFIT(TALL,REMEMBERSEQNO,ASSIGNREF); % PARTIAL15342300
+                                   % WORD ASSIGNMENT TO SUBSCR. VAR.    15342400
+                         GO TO LAST;                                    15342500
+                       END                                              15342600
+         XMARK(LBLREF); % MARK LABEL OCCURENCE FOR XREF                 16159100
+              XMARK(ASSIGNREF);                                         16318500
+IF (XREF OR DEFINING.[1:1]) AND XLUN > 0 THEN                           16495300
+     DEFINE XREFINFO(INDEX) = INFO[((INDEX).CF DIV 2).[33:7],           17002005
+                                   ((INDEX).CF DIV 2).LINKC]#,          17002006
+            CF = [33:15]#,                                              17002007
+            FF = [18:15]#,                                              17002008
+            NEWID[INDEX] = (IF BOOLEAN(INDEX) THEN XREFINFO(INDEX).FF   17002009
+                             ELSE XREFINFO(INDEX).CF)#;                 17002010
+     ARRAY TIMINGS[0:2,0:3];                                            17002012
+     PROCEDURE SAVETIMES(I);                                            17002015
+       VALUE I; INTEGER I;                                              17002020
+     BEGIN                                                              17002025
+       INTEGER J;                                                       17002030
+       FOR J := 1 STEP 1 UNTIL 3 DO                                     17002035
+         TIMINGS[I,J] := TIME(J);                                       17002040
+     END;                                                               17002045
+     PROCEDURE UPDATETIMES(I);                                          17002050
+       VALUE I; INTEGER I;                                              17002055
+     BEGIN                                                              17002060
+       INTEGER J;                                                       17002065
+         FOR J := 1 STEP 1 UNTIL 3 DO                                   17002070
+           TIMINGS[I,J] := TIME(J) - TIMINGS[I,J];                      17002075
+     END;                                                               17002080
+     SAVETIMES(0); % SAVE TIMES FOR START OF IDENTIFIER SORT.           17002525
+     TOTALNO := XLUN; % REMEMBER NUMBER OF IDENTIFIERS.                 17004500
+     FOR I := 0 STEP 1 UNTIL 8191 DO                                    17004700
+       PUT(0,I);                                                        17004710
+                BEGIN                                                   17022000
+                  REWIND(DSK1);                                         17022100
+                  UPDATETIMES(0); % UPDATE TIMES FOR IDENTIFIER SORT.   17022200
+                  TIMINGS[0,0] := XLUN; % NUMBER OF IDENTIFIERS SORTED. 17022300
+                END                                                     17022400
+                IF BOOLEAN(A[8]) THEN                                   17025000
+                  XREFINFO(A[8]).FF := XLUN := XLUN + 1                 17025100
+                ELSE                                                    17025200
+                  XREFINFO(A[8]).CF := XLUN := XLUN + 1;                17025300
+                A[8].IDNOF := XLUN;                                     17025400
+           IF 63 SC < DC THEN                                           17033000
+             TALLY := 1                                                 17033100
+           ELSE                                                         17033200
+             BEGIN                                                      17033300
+               SI := A;                                                 17033400
+               DI := B;                                                 17033500
+               IF 63 SC = DC THEN                                       17033600
+                 TALLY := 2;                                            17033700
+             END;                                                       17033800
+           DS := 8 LIT 3"777777777"; % ID.NO, AND SEQ.NO. FIELDS        17041100
+                 IF REAL(COMP1:=COMPS1(A,B)) = 2 THEN % IDS EQUAL       17042300
+                   COMP1 := A[8].IDNOF < B[8].IDNOF;                    17042350
+         SORT(OUTPUT1,INPUT1,0,HV1,COMP1,10,IF TOTALNO < 1000 THEN      17045000
+                  7000 ELSE 10000);                                     17045100
+$ VOIDT 17069001                                                        17047001
+   ARRAY IDTYPE[0:(IDMAX+3)|4-1];                                       17047100
+   STREAM PROCEDURE SETUPHEADING(S,D,SEG,SEQNO,FWDTOG,LBLTOG,           17047200
+                                 FWDSEQNO,TYPE,OWNTOG,PARAMTOG,         17047300
+                                 VALTOG);                               17047350
+     VALUE SEG,SEQNO,FWDTOG,LBLTOG,FWDSEQNO,OWNTOG,PARAMTOG,            17047400
+       VALTOG;                                                          17047450
+   BEGIN                                                                17047500
+     SI := S;                                                           17047700
+     DI := D;                                                           17047800
+     63 (IF SC = " " THEN JUMP OUT ELSE DS := CHR);                     17047900
+     DS := 6 LIT "  --  ";                                              17048000
+     OWNTOG (DS := 4 LIT "OWN ");                                       17048100
+     SI := TYPE;                                                        17049300
+     32 (IF SC = "." THEN JUMP OUT ELSE DS := CHR);                     17049400
+     PARAMTOG (DS := 6 LIT "  --  ";                                    17049410
+               DS := 4 LIT "NAME";                                      17049420
+               VALTOG (DI := DI - 4; DS := 5 LIT "VALUE");              17049430
+               DS := 10 LIT " PARAMETER");                              17049440
+     DS := 18 LIT "  --  DECLARED AT ";                                 17049500
+     SI := LOC SEQNO;                                                   17050400
+     DS := 8 DEC;                                                       17050500
+     FWDTOG (DS := 17 LIT "  --  FORWARD AT ";                          17050600
+             SI := LOC FWDSEQNO;                                        17050700
+             DS := 8 DEC);                                              17050800
+     LBLTOG (DS := 16 LIT "  --  OCCURS AT ";                           17050900
+             SI := LOC FWDSEQNO;                                        17051000
+             DS := 8 DEC);                                              17051100
+     END OF SETUPHEADING;                                               17051200
+                                                                        17051300
+     STREAM PROCEDURE ADDASEQNO(SEQNO,N,STARS,D);                       17051400
+       VALUE SEQNO,N,STARS;                                             17051500
+     BEGIN                                                              17051600
+       DI := D;                                                         17051700
+       DI := DI + 8;                                                    17051800
+       N (DI := DI + 10);                                               17051900
+       STARS(DI := DI - 1; DS := LIT "*");                              17052000
+       SI := LOC SEQNO;                                                 17052100
+       DS := 8 DEC;                                                     17052200
+       DS := LIT " ";                                                   17052300
+       STARS (DI := DI - 1; DS := LIT "*");                             17052400
+     END;                                                               17052500
+     STREAM PROCEDURE BLANKET(D);                                       17052600
+     BEGIN                                                              17052700
+       DI := D;                                                         17052800
+       DS := 8 LIT " ";                                                 17052900
+       SI := D;                                                         17053000
+       DS := 16 WDS;                                                    17053100
+     END OF BLANKET;                                                    17053200
+     PROCEDURE PRINTXREFSTATISTICS;                                     17053300
+     BEGIN                                                              17053400
+       SWITCH FORMAT STATS :=                                           17053500
+         (///, "CROSS REFERENCE STATISTICS", /,                         17053600
+               "----- --------- ----------", /),                        17053700
+         ("PHASE ONE - SORT",I6," IDENTIFIERS"),                        17053800
+         ("PHASE TWO - SORT",I7," REFERENCES"),                         17053900
+         ("PHASE THREE - PRINT CROSS REFERENCE (",I7," LINES)"),        17054000
+         (X5,I4,":",2I1," ELAPSED TIME (MIN:SEC)"),                     17054100
+         (X5,I4,":",2I1," PROCESSOR TIME"),                             17054200
+         (X5,I4,":",2I1," I/O TIME",/);                                 17054300
+       INTEGER I,J,K;                                                   17054400
+       WRITE(LINE,STATS[0]);                                            17054500
+       FOR I := 1 STEP 1 UNTIL 2 DO                                     17054600
+         BEGIN                                                          17054700
+           WRITE(LINE,STATS[I+1],TIMINGS[I,0]);                         17054800
+           FOR J := 1 STEP 1 UNTIL 3 DO                                 17054900
+             BEGIN                                                      17055000
+               K := (TIMINGS[I,J] + 30) DIV 60; % ROUND TO NEAREST SECON17055010
+               WRITE(LINE,STATS[J+3],K DIV 60,(K:=K MOD 60) DIV 10,     17055020
+                                                K MOD 10);              17055025
+             END;                                                       17055030
+         END;                                                           17055100
+     END PRINTXREFSTATISTICS;                                           17055200
+         DEFINE REFCOUNT = TIMINGS[1,0]#; % NUMBER OF REFERENCES SORTED.17069300
+         BOOLEAN FIRSTTIME; % TRUE ON FIRST CALL OF OUTPUT PROCEDURE.   17069400
+         REAL LASTADDRESS;                                              17069600
+           DEFINE I = LASTADDRESS#;                                     17073100
+         A[0] := I & NEWID[I.REFIDNOF] REFIDNOF;                        17080000
+         REFCOUNT := REFCOUNT + 1;                                      17080100
+         XREFAY1[8] := XREFPT := LASTADDRESS := 0;                      17084000
+         FILL IDTYPE[*] WITH                                            17084010
+           "UNKNOWN.                        ", % 0                      17084020
+           "STREAM LABEL.                   ", % 1                      17084030
+           "STREAM VARIABLE.                ", % 2                      17084040
+           "DEFINE.                         ", % 3                      17084050
+           "LIST.                           ", % 4                      17084060
+           "FORMAT.                         ", % 5                      17084070
+           "SWITCH FORMAT.                  ", % 6                      17084080
+           "REAL SUBROUTINE.                ", % 7                      17084090
+           "SUBROUTINE.                     ", % 8                      17084100
+           "SWITCH LABEL.                   ", % 9                      17084110
+           "PROCEDURE.                      ", % 10                     17084120
+           "INTRINSIC.                      ", % 11                     17084130
+           "STREAM PROCEDURE.               ", % 12                     17084140
+           "BOOLEAN STREAM PROCEDURE.       ", % 13                     17084150
+           "REAL STREAM PROCEDURE.          ", % 14                     17084160
+           "INTEGER STREAM PROCEDURE.       ", % 15                     17084170
+           "INTEGER STREAM PROCEDURE.       ", % 16                     17084180
+           "BOOLEAN PROCEDURE.              ", % 17                     17084182
+           "REAL PROCEDURE.                 ", % 18                     17084184
+           "INTEGER PROCEDURE.              ", % 19                     17084186
+           "INTEGER PROCEDURE.              ", % 20                     17084188
+           "BOOLEAN.                        ", % 21                     17084190
+           "REAL.                           ", % 22                     17084200
+           "INTEGER.                        ", % 23                     17084210
+           "INTEGER.                        ", % 24                     17084220
+           "BOOLEAN ARRAY.                  ", % 25                     17084230
+           "REAL ARRAY.                     ", % 26                     17084240
+           "INTEGER ARRAY.                  ", % 27                     17084250
+           "INTEGER ARRAY.                  ", % 28                     17084260
+           "                                ", % 29                     17084270
+           "NAME.                           ", % 30                     17084280
+           "INTEGER NAME.                   ", % 31                     17084290
+           "LABEL.                          "; % 32                     17084300
+         LABEL EOF2, SKIP;                                              17091100
+         OWN BOOLEAN B2, FWDTOG, LBLTOG, WAITINGFORFWDREF;              17091110
+         DEFINE MATCH(A,B) = REAL(BOOLEAN(A) EQV BOOLEAN(B)) =          17091115
+                              REAL(NOT FALSE)#;                         17091116
+         REAL I;                                                        17091120
+         DEFINE LINECOUNT = TIMINGS[2,0]#; % NUMBER OR LINES PRINTED.   17091140
+         OWN REAL FWDSEQNO;                                             17091150
+         IF FIRSTTIME THEN % PRINT HEADINGS AND SAVE TIMINGS.           17091155
+           BEGIN                                                        17091160
+             FIRSTTIME := FALSE;                                        17091162
+             TIME1 := TIME(1);                                          17091165
+             DATIME;                                                    17091170
+             UPDATETIMES(1);                                            17091175
+             SAVETIMES(2); % SAVE TIMES FOR START OF XREF PRINT.        17091180
+           END;                                                         17091200
+$VOIDT 17111001                                                         17091201
+        IF NOT B2 THEN                                                  17091210
+            IF B THEN % END OF SORT - LIST OUT REST OF SEQ. NO.         17091300
+              IF XREFPT ! 0 THEN % WE GOT SOME TO LIST OUT              17091400
+                BEGIN                                                   17091500
+                  WRITE(LINE[DBL],15,PAY[*]);                           17091510
+                  LINECOUNT := LINECOUNT + 1;                           17091520
+                END                                                     17091530
+              ELSE % NOTHING TO LIST OUT                                17091600
+            ELSE % NOT END OF SORT                                      17091700
+              IF NOT MATCH(LASTADDRESS,A[0]) AND A[0].REFIDNOF ! 0 AND  17091800
+                 A[0].REFIDNOF } XREFAY1[8].IDNOF THEN                  17091900
+                IF A[0].TYPEREF = FORWARDREF THEN %                     17092000
+                  WAITINGFORFWDREF := TRUE                              17092100
+                ELSE                                                    17092200
+                  IF A[0].TYPEREF = LBLREF THEN %                       17092300
+                    BEGIN                                               17092400
+                      LBLTOG := TRUE;                                   17092500
+                      FWDSEQNO := A[0].SEQNOF;                          17092600
+                    END                                                 17092700
+                  ELSE                                                  17092800
+                    IF A[0].TYPEREF = DECLREF THEN                      17092900
+                      IF WAITINGFORFWDREF THEN % THIS MUST BE IT        17093000
+                        BEGIN                                           17093100
+                          WAITINGFORFWDREF := FALSE;                    17093200
+                          FWDTOG := TRUE;                               17093300
+                          FWDSEQNO := A[0].SEQNOF;                      17093400
+                        END                                             17093500
+                      ELSE % ITS A NORMAL DECLARATION - NOT FORWARD     17093600
+                        BEGIN                                           17093700
+                          IF A[0].REFIDNOF > XREFAY1[8].IDNOF THEN      17093800
+                            DO                                          17093900
+                              READ(DSK1,10,XREFAY1[*]) [EOF2]           17093950
+                            UNTIL                                       17094000
+                              A[0].REFIDNOF { XREFAY1[8].IDNOF;         17094050
+                          IF A[0]. REFIDNOF < XREFAY1[8].IDNOF THEN     17094100
+                            GO TO SKIP;                                 17094150
+                          IF XREFPT > 0 THEN % THERE IS STUFF TO PRINT  17094200
+                           BEGIN                                        17094240
+                            IF SINGLTOG THEN                            17094250
+                              WRITE(LINE,15,PAY[*])                     17094300
+                            ELSE                                        17094350
+                              WRITE(LINE[DBL],15,PAY[*]);               17094400
+                            LINECOUNT := LINECOUNT + L;                 17094410
+                           END                                          17094420
+                          ELSE                                          17094450
+                            IF NOT SINGLTOG THEN                        17094500
+                              WRITE(LINE);                              17094550
+                          XREFPT := 0;                                  17094600
+                          BLANKET(PAY[*]);                              17094650
+                           SETUPHEADING(XREFAY1[*],PAY[*],XREFAY1[8].   17094700
+                             SEGNOF,A[0].SEQNOF,FWDTOG,LBLTOG,          17094800
+                            FWDSEQNO,IDTYPE[(IF (I :=                   17094900
+                            XREFAY1[9].CLASS) > IDMAX THEN              17095000
+                            0 ELSE I) | 4],                             17095100
+                            REAL(I } BOOID AND XREFAY1[9].[9:2] = 1),   17095300
+                            REAL((I } BOOID OR I = LOCLID) AND BOOLEAN  17095310
+                            (XREFAY1[9].[9:1])), XREFAY1[9].[10:1]);    17095320
+                          FWDTOG := LBLTOG := FALSE;                    17095400
+                          WRITE(LINE,15,PAY[*]);                        17095500
+                          LINECOUNT := LINECOUNT + 1;                   17095510
+                          BLANKET(PAY[*]);                              17095550
+                        END                                             17095600
+                     ELSE % IT MUST BE A NORMAL REFERENCE               17095700
+                       IF A[0].SEQNOF ! LASTADDRESS.SEQNOF THEN         17095750
+                         BEGIN                                          17095800
+                           ADDASEQNO(A[0].SEQNOF,XREFPT,A[0].[5:1],     17095900
+                                       PAY[*]);                         17096000
+                           IF (XREFPT := XREFPT + 1) = 11 THEN %FULL    17096100
+                             BEGIN                                      17096200
+                               WRITE(LINE,15,PAY[*]);                   17096300
+                               LINECOUNT := LINECOUNT + 1;              17096350
+                                XREFPT := 0;                            17096400
+                                BLANKET(PAY[*]);                        17096450
+                              END                                       17096500
+                         END                                            17096550
+                       ELSE % REFERENCE TO SAME SEQ. NO. SKIP IT        17096575
+             ELSE % THIS IS A REFERENCE TO THE SAME SEQ. NO. - SKIP     17096600
+         ELSE % HIT END OF IDENTIFIER FILE - JUST SKIP OVER REFERENCES  17096700
+           EOF2: B2 := TRUE; % SO SORT CAN GO TO NORMAL EOJ             17096800
+         IF NOT B THEN SKIP: LASTADDRESS := A[0];                       17096850
+        END OF OUTPUT2;                                                 17096900
+           A[0] := 3"777777777777777"; % BIGGEST FLOATING PT. NO.       17114000
+              COMP2 := IF A[0].REFIDNOF = B[0].REFIDNOF THEN % DIF IDS  17117000
+                         TRUE                                           17117100
+                       ELSE                                             17117200
+                         IF A[0].REFIDNOF = B[0].REFIDNOF THEN          17117300
+                           IF A[0].[1:4] LSS B[0].[1:4] THEN            17117400
+                             TRUE                                       17117500
+                           ELSE                                         17117600
+                             IF A[0].[1:4] = B[0].[1:4] THEN            17117700
+                               IF A[0].SEQNOF < B[0].SEQNOF THEN        17117702
+                                 TRUE                                   17117704
+                               ELSE                                     17117706
+                                 IF A[0].SEQNOF = B[0].SEQNOF THEN      17117708
+                                   BOOLEAN(A[0].[5:1])                  17117710
+                                 ELSE                                   17117712
+                                   FALSE                                17117714
+                             ELSE                                       17117720
+                               FALSE                                    17117730
+                         ELSE                                           17117800
+                           FALSE;                                       17117900
+        SAVETIMES(1); % SAVE TIMES FOR START OF REFERENCES SORT         17117910
+        FIRSTTIME := TRUE; % LET OUTPUT PROCEDURE KNOW ABOUT FIRST CAL  17117920
+        SORT(OUTPUT2,INPUT2,0,HV2,COMP2,1,6000);                        17119000
+        UPDATETIMES(2); % UPDATE TIMES FOR PRINTING CROSS REFERENCE     17119100
+        PRINTXREFSTATISTICS;                                            17119200
+$: DATE 2/1/76                                                          99990000
+$:                                                                      99990100
+$: BY JTC - MSA CENTRAL:                                                99990200
+$: THIS PATCH IS NEARLY A COMPLETE REWRITE OF THE ALGOL                 99990300
+$: CROSS REFERENCE ROUTINES IN AN ATTEMPT TO REDUCE                     99990400
+$: THE AMOUNT OF PAPER PRODUCED AND ALSO TO PROVIDE MORE                99990500
+$: INFORMATTON ABOUT THE IDENTIFIERS. IN PARTICULAR,                    99990600
+$: THE FOLLOWING CHANGES HAVE BEEN MADE:                                99990700
+$:                                                                      99990800
+$: 1). ONE LINE IS LISTED IN THE CROSS REFFRENCE FOR EACH               99990900
+$:     IDENTIFIER WHICH INCLUDES THE FOLLOWING INFORMATION:             99991000
+$:       A. THE NAME OF THE IDENTIFIER.                                 99991100
+$:       B. THE CLASS OF THE IDENTIFIER, E.G., REAL,                    99991200
+$:           INTEGER, BOOLEAN. PROCEDURE, ETC.                          99991300
+$:       C. IF THE IDENTIFIER IS A FORMAL PARAMETER IT IS               99991400
+$:           MARKED AS A "NAME PARAMETER" OR "VALUE PARAMETER".         99991550
+$:       D. THE SEGMENT AND SEQUENCE NUMBER AT WHICH THE                99991600
+$:           IDENTIFIER IS DECLARED.                                    99991700
+$:       E. IF THE IDENTIFIER IS A PROCEDURE IDENTIFIER, THEN           99991800
+$:           IF THE PROCEDURE IS DECLARED FORWARD THE SEQUENCE          99991900
+$:           NUMBER OF THE FORWARD DECLARATION IS LISTED.               99992000
+$:       F. IF THE IDENTFIER IS A LABEL IDENTIFIER. THE SEQUENCE        99992100
+$:           NUMBER AT WHICH THE LABEL OCCURS IS LISTED.                99992200
+$:                                                                      99992300
+$: 2). ASSIGNMENTS TO IDENTIFIERS ARE NOW STARRED IN THE                99992400
+$:      CROSS REFERENCE IN THE FOLLOWING ADDITIONAL CASES:              99992500
+$:      A. WHEN A SUBSCRIPTED VARIABLE IS USED IN ASSIGNMENT.           99992600
+$:      B. WHEN AN ARRAY ROW IS USED IN A FILL STATEMENT.               99992700
+$:      C. WHEN AN ARRAY ROW IS USED IN A SEARCH STATEMENT.             99992800
+$:      C. WHEN A SIMPLE VARIABLE IS USED IN A FOR STATEMENT.           99992900
+$:      D. WHEN A LOCAL VARIABLE OR STREAM PARAMETER IS CHANGED         99993000
+$:          BY BEING ASSIGNED THE VALUE OF SI,DI,CI OR TALLY.           99993100
+$:                                                                      99993200
+$: 3). DEFINE PARAMETERS ARE NO LONGER CROSS REFERENCED.                99993300
+$:                                                                      99993400
+$: 4). IDENTIFIERS REFERRED TO IN THE RIGHT HAND SIDE OF A              99993500
+$:      DEFINE DECLARATION ARE NO LONGER CROSS                          99993600
+$:      REFERENCED AGAINST THE DEFINE DECLARATION.                      99993700
+$:                                                                      99993800
+$: 5): IF NO IDENTIFIERS WERE CROSS REFERENCED, THE IDENTIFIER          99993900
+$:      SORT WOULD BLOW UP WITH AN I/O ERROR 86. NOW, XREF              99994000
+$:      CHECKS TO MAKE SURE THERE IS SOMETHING TO SORT BEFORE           99994100
+$:      BEGTNNING.                                                      99994200
+$:                                                                      99994300
+$: 6): IT SHOULD NOW BE POSSIBLE TO SET AND RESET XREF                  99994400
+$:      INDISCRIMINANTLY DURING A COMPILE WITHOUT CAUSING THE XREF      99994500
+$:      TO GET CONFUSED. PREVIOUSLY, REFERENCES WOULD GET               99994600
+$:      ASSOCIATED WITH THE WRONG IDENTIFIERS. THE RULE NOW IS THAT     99994700
+$:      XREF MUST BE ON AT THE POINT OF DECLARATION FOR AN              99994800
+$:      IDENTIFIER TO BE CROSS REFERENCED AT ALL.                       99994900
+$:                                                                      99995000
+$: 7). PREVIOUSLY, WHEN THE SAME IDENTIFIER OCCURRED IN                 99995100
+$:      DIFFERENT BLOCKS, THE IDENTIFIERS WOULD BE LISTED               99995200
+$:      IN NO PARTICULAR ORDER. NOW. THE IDENTIFIER THAT                99995300
+$:      APPEARS FIRST WILL BE LISTED FIRST IN THE XREF.                 99995400
+$:                                                                      99995500
+$#PATCH NUMBER 111 FOR ESPOL CONTAINS 3 CARDS:                          00000000
+    IF MERGETOG THEN % INDICATE NAME OF SOURCE FILE.                    01835600
+      WRITE(LINE,<X40,"SOURCE FILE: ",A1,A6,"/",A1,A6,//>,              01835700
+        (N1:=TAPE.MFID).[6:6],N1,(N2:=TAPE.FID).[6:6],N2);              01835800
+$: DATE 2/6/76                                                          99990000
+$: BY JTC - MSA CENTRAL.                                                99990100
+$:                                                                      99990200
+$: THIS PATCH PRINTS THE NAME OF THE SOURCE FILE BELOW                  99990300
+$: THE NAME OF THE OBJECT FILE ON THE PRINTED LISTING IF TAPE           99990400
+$: IS SET AT THE TIME THE HEADING IS PRINTED.                           99990500
+$# PATCH NUMBER 112 FOR ESPOL CONTAINS 116 CARDS.                       00000000
+ 094           PARSE: MISSING RIGHT BRACKET                             00069975
+ 618      BLOCK: AUXMEM APPEARS IMMEDIATELY BEFORE IDENTIFIER (NO TYPE) 00418000
+                      SBITF =[21:6]#, % STARTING BIT FOR FIELD ID.      01154200
+                      NBITF =[27:6]#, % NUMRER OF BITS FOR FIELD NO.    01154300
+          FIELDID        =125#,   COMMENT 175;                          01278700
+          DEFINEV        =19#,    COMMENT  23;                          01298000
+          AUXMEMV        =20#,    COMMENT 24;                           01298500
+          FIELDV         =21#;    COMMENT 25;                           01298600
+ DEFINE LASTSEQUENCE = 147#,                                            01569000
+                   IF STEPI = FIELDID THEN % GET INFO FROM INFO         05273100
+                     BEGIN                                              05273200
+                       FIRST := ELBAT[I].SBITF;                         05273300
+                       SECOND := ELBAT[I].NBITF;                        05273400
+                       GO TO EXIT;                                      05273500
+                     END                                                05273600
+                   ELSE                                                 05273700
+                     IF ELCLASS = LFTBRKET THEN                         05273800
+                       IF STEPI = FIELDID THEN                          05273900
+                         BEGIN                                          05274000
+                           FIRST := ELBAT[I].SBITF;                     05274100
+                           SECOND := ELBAT[I].NBITF;                    05274200
+                           IF STEPI = RTBRKET THEN                      05274300
+                             GO TO  EXIT;                               05274400
+                         END                                            05274500
+                       ELSE                                             05274600
+                         IF ELCLASS = LITNO THEN                        05275000
+           IF ELCLASS = FIELDID THEN                                    06315100
+             BEGIN                                                      06315200
+               FIRST := ELBAT[I].SBITF;                                 06315300
+               SECOND := 48 - (THIRD := ELBAT[I].NBITF);                06315400
+               GO TO NEXTCHK;                                           06315500
+             END                                                        06315600
+           ELSE                                                         06315700
+           IF STEPI = FIELDID THEN                                      06316100
+             BEGIN                                                      06316200
+               FIRST := ELBAT[I].SBITF;                                 06316300
+               SECOND := 48 - (THIRD := ELBAT[I].NBITF);                06316400
+               IF STEPI ! RTBRKET THEN                                  06316500
+                 BEGIN                                                  06316600
+                   ERR(94);                                             06316700
+                   GO TO EXIT;                                          06316800
+                 END;                                                   06316900
+               GO TO NEXTCHK;                                           06317000
+             END                                                        06317100
+           ELSE                                                         06317200
+             IF ELCLASS = LITNO THEN                                    06317300
+      OCT1310157730000002, "3SCS00",                       %652         09128600
+      OCT0500000250000000, "5FIELD",                       %654         09128700
+                   IF ELCLASS>IDMAX AND ELCLASS<MULOP                   13337000
+        GOTSCHK,FIELDDEC,AUXMEMERR,                                     14016000
+                 STREAMERR,DEFINEDEC,AUXMEMERR,FIELDDEC;                14021000
+  AUXMEMERR:FLAG(618);J:=J+1;GO TO REALDEC;                             14136100
+  FIELDDEC:                                                             14269020
+    BEGIN                                                               14269040
+      REAL SAVEINFO, SB, NB;                                            14269060
+      BOOLEAN FOUNDLB; % TRUE IF LFFT-BRACKET WAS USED IN FIELD SPEC.   14269080
+      LABEL EXIT, SAVEIT;                                               14269100
+      STOPENTRY := STOPGSP := TRUE;                                     14269120
+      I := I - 1;                                                       14269140
+      DO                                                                14269160
+        BEGIN                                                           14269180
+          STOPDEFINE := TRUE;                                           14269200
+          STEPIT;                                                       14269220
+          ENTRY(FIELDID);                                               14269240
+          SAVEINFO := LASTINFO;                                         14269260
+            BEGIN                                                       14269280
+          IF ELCLASS = RELOP AND ACCUM[1] = "1=0000" THEN               14269300
+              IF STEPI = LFTBRKET THEN % REMEMBER THIS                  14269320
+                BEGIN                                                   14269340
+                  FOUNDLB := TRUE;                                      14269360
+                  STEPIT;                                               14269380
+                END                                                     14269400
+              ELSE                                                      14269420
+                FOUNDLB := FALSE;                                       14269440
+              IF ELCLASS = FIELDID THEN                                 14269442
+                BEGIN                                                   14269444
+                  SB := ELBAT[I].SBITF;                                 14269446
+                  NB := ELBAT[I].NBITF;                                 14269448
+                  GO TO SAVEIT;                                         14269450
+                END;                                                    14269452
+              IF ELCLASS = LITNO THEN                                   14269460
+                IF STEPI = COLON THEN                                   14269480
+                  IF STEPI = LITNO THEN                                 14269500
+                    IF (SB := ELBAT[I-2].ADDRESS) |                     14269520
+                        (NB := ELBAT[I].ADDRESS) ! 0 AND                14269540
+                        SB | NB { 48 THEN                               14269560
+                      BEGIN                                             14269580
+                SAVEIT:                                                 14269590
+                        PUT(TAKE(SAVEINFO) & SB SBITF & NB NBITF,       14269600
+                               SAVEINFO);                               14269620
+                        STEPIT;                                         14269640
+                        IF FOUNDLB THEN % BETTER HAVE RIGHT BRACKET.    14269660
+                          IF ELCLASS = RTBRKET THEN                     14269680
+                            BEGIN                                       14269700
+                              STEPIT;                                   14269705
+                              GO TO EXIT;                               14269710
+                            END                                         14269715
+                          ELSE % MISSING RIGHT BRACKET,                 14269720
+                        ELSE                                            14269740
+                          GO TO EXIT;                                   14269760
+                      END;                                              14269780
+          END;                                                          14269800
+        FLAG(114);                                                      14269820
+        DO STEPIT UNTIL ELCLASS = COMMA OR ELCLASS = SEMICOLON;         14269840
+    EXIT:                                                               14269860
+      END                                                               14269880
+    UNTIL                                                               14269900
+      ELCLASS ! COMMA;                                                  14269920
+    STOPENTRY := STOPGSP := FALSE;                                      14269940
+  END;                                                                  14269960
+  GO TO START;                                                          14269980
+     ARRAY IDTYPE[0:(IDMAX+4)|4-1];                                     17047100
+           "LABEL.                          ", % 32                     17084300
+           "FIELD,                          "; % 33 (CLASS = 125)       17084400
+                              XREFAY1[9].CLASS) > IDMAX THEN IF I =     17095000
+                              FIELDID THEN 33 ELSE 0 ELSE I) | 4],      17095100
+$: DATE 2/2/76                                                          99990000
+$: BY JTC - MSA CENTRAL                                                 99990100
+$:                                                                      99990200
+$: THIS PATCH IMPLEMENTS A NEW DECLARATION TYPE OF "FIELD" WHICH        99990300
+$: PROVIDES A CONVENIENT METHOD FOR DESIGNATING A PARTIAL WORD FIELD    99990400
+$: A LA THE 6700 ESPOL AND ALGOL MECHANISM. THIS METHOD IS CONSIDERABLY 99990500
+$: MORE EFFICIENT THAN A DEFINE BECAUSE THE PARTIAL WORD FIELD INFOR-   99990600
+$: MATION IS STORED OFF WITH THE IDENTIFIER IN THE SYMBOL TABLE THUS    99990700
+$: MAKING REFERENCES TO THE PARTIAL WORD FIELD VERY INEXPENSIVE.        99990800
+$:                                                                      99990900
+$: THE SYNTAX FOR A PARTIAL WORD DECLARATION IS AS FOLLOWS:             99991000
+$:                                                                      99991100
+$:  <FLELD DECLARATION> ::= FIELD <FIELD LIST>                          99991200
+$:                                                                      99991300
+$:  <FIELD LIST> ::= <FIELD> / <FIELD LIST> , <FIELD>                   99991400
+$:                                                                      99991500
+$:  <FIELD> ::= <FIELD IDENTIFIER> = <FIELD SPECIFICATION>              99991600
+$:                                                                      99991700
+$:  <FIELD IDENTIFIER> ::= <IDENTIFIER>                                 99991800
+$:                                                                      99991900
+$:  <FIELD SPECIFICATION> ::= <INTEGER> : <INTEGER> /                   99992000
+$:                            [ <INTEGER> : <INTEGER> ] /               99992100
+$:                            <FIELD IDENTIFIER> /                      99992200
+$:                            [ <FIELD IDENTIFIER> ]                    99992300
+$:                                                                      99992400
+$: SOME EXAMPLES:                                                       99992500
+$:                                                                      99992600
+$:       FIELD CF  = [33:15];                                           99992700
+$:                                                                      99992800
+$:       FIELD FF = 18:15,                                              99992900
+$:           SIZE = 08:10;                                              99993000
+$:                                                                      99993100
+$: FIELDS MAY BE USED ANYWHERE PARTIAL WORD DESIGNATORS MAY BE USED     99993200
+$: AND MAY BE ENCLOSED IN BRACKETS OR NOT AS DESIRED. ENCLOSING         99993300
+$: THE FIELD IDENTIFIER IN BRACKETS MAY HELP THE READABILITY OF         99993400
+$: THE CODE BUT OF COURSE REQUIRES EXTRA SCANNING BY THE                99993500
+$: COMPILER TO PROCESS THE BRACKETS.                                    99993600
+$:                                                                      99993700
+$: SOME EXAMPLES.                                                       99993800
+$:                                                                      99993900
+$:        I := I.FF;                                                    99994000
+$:                                                                      99994100
+$:        J := I.CF & 10 (SIZE] & K FF;                                 99994200
+$:                                                                      99994300
+$:        I.FF := J.[CF];                                               99994400
+$:                                                                      99994500
+$:**********************************************************************99999999
+$#PATCH NUMBER 113 FOR ESPOL CONTAINS 2 CARDS.                          00000000
+ $SET OMIT LISTA = LIST                                                 00000999
+ $POP OMIT LISTA                                                        00499999
+$: DATE 3/2/76                                                          99990000
+$: BY JTC = MSA CENTRAL                                                 99990100
+$:                                                                      99990200
+$: THIS PATCH SETS OMIT AROUND THE COMMENT AT THE BEGINNING OF THE      99990300
+$: ESPOL COMPILER TO SPEED UP SCANNTNG OF THE COMMENT.                  99990400
+$:**********************************************************************99999999
+$#PATCH NUMBER 114 FOR ESPOL CONTAINS 222 CARDS.                        00000000
+$ VOIDT 01476001                                                        01471000
+               LABEL EXIT, NEXT, LASS;                                  15076000
+               DEFINE                                                   15076100
+                 FORMALNAME = [9:2] = 2#,                               15076110
+                 LONGID = NAMEID#,                                      15076120
+                 PARTIALWORD = (T1 ! 0)#,                               15076130
+                 ERREXIT(NUM) = BEGIN ERR(NUM); GO TO EXIT; END#;       15076140
+               BOOLEAN                                                  15076200
+                 SPCLMON,                                               15076300
+                 DUPIT;  % TRUE IF WE ARE DOING UPDATE TYPE ASSIGN-     15076400
+                         % MENT. I.E., I := * + 1..                     15076500
+$ VOIDT 15127001                                                        15085150
+              IF TALL.CLASS { INTID THEN % SIMPLE VAR OR FORMAL NAME    15085200
+                BEGIN                                                   15085400
+                  IF STEPI ! ASSIGNOP THEN                              15085600
+                    IF P1 = FL THEN                                     15085800
+                      BEGIN                                             15086000
+                        IF ELCLASS < AMPERSAND THEN                     15086200
+                          EMITN(TALL.ADDRESS)                           15086400
+                        ELSE                                            15086600
+                          EMITV(TALL.ADDRESS);                          15086800
+                        GO TO EXIT;                                     15087000
+                      END                                               15087200
+                    ELSE                                                15087400
+                      IF ELCLASS = PERIOD THEN % PARTIAL WORD           15087600
+                        IF DOTSYNTAX(T1,T2) THEN % ERROR                15087800
+                          GO TO EXIT                                    15088000
+                        ELSE                                            15088200
+                          STEPIT;                                       15088400
+                  IF ELCLASS = ASSIGNOP THEN                            15088600
+                    BEGIN                                               15088800
+                      STACKCT := 1;                                     15089000
+                      IF PARTIALWORD THEN % MAKE SURE LEFT-MOST         15089200
+                        BEGIN                                           15089400
+                          IF P1 ! FS THEN % NOT LEFT-MOST               15089600
+                            ERREXIT(201);                               15089800
+                          XREFIT(TALL,REMEMBERSEQNO,ASSIGNREF);         15090600
+                       END                                              15090800
+                     ELSE                                               15091000
+                       XMARK(ASSIGNREF);                                15091200
+                     IF TABLE(I+1) = ASTRISK THEN % MIGHT BE UPDATE     15091400
+                       IF (DUPIT:=(TABLE(I+2) } EQVOP AND TABLE(I+2)    15091600
+                           { MULOP) OR TABLE(I+2) = AMPERSAND) THEN     15091800
+                         STEPIT; % STEP OVER ASTERISK                   15092000
+                     IF TALL.FORMALNAME THEN % FORMAL PARAMETER         15092200
+                       BEGIN                                            15092400
+                         EMITN(TALL.ADDRESS);                           15092600
+                         IF PARTIALWORD OR DUPIT THEN % NEED VALUE      15092800
+                           BEGIN                                        15093000
+                             EMITO(DUP);                                15093200
+                             EMITO(COC);                                15093400
+                           END;                                         15093600
+                       END                                              15094800
+                     ELSE % ITS A SIMPLE VARIABLE                       15095000
+                         IF PARTIALWORD OR DUPIT THEN                   15095400
+                           EMITV(TALL.ADDRESS);                         15095600
+                     IF PARTIALWORD AND DUPIT THEN                      15095700
+                       BEGIN                                            15095800
+                         EMITO(DUP);                                    15095900
+                         EMITI(0,T1,T2);                                15096000
+                       END;                                             15096100
+                     STACKCT := REAL(PARTIALWORD OR DUPIT);             15096400
+                     STEPIT;                                            15096600
+                     IF DUPIT THEN % ALREADY GOT FIRST PRIMARY          15096800
+                       SIMPARITH                                        15097000
+                     ELSE                                               15097200
+                       AEXP;                                            15097400
+                     EMITD(48-T2,T1,T2);                                15097600
+                     STACKCT := 0;                                      15097800
+                     GT1 := IF TALL.CLASS = INTID THEN                  15098000
+                              IF P1 = FS THEN                           15098200
+                                ISD                                     15098400
+                              ELSE                                      15098600
+                                ISN                                     15098800
+                            ELSE                                        15099000
+                              IF P1 = FS THEN                           15099200
+                                STD                                     15099400
+                              ELSE                                      15099600
+                                SND;                                    15099800
+                     IF TALL.FORMALNAME THEN                            15100000
+                       BEGIN                                            15100200
+                         EMITO(XCH); % TO GET DESCRIPTOR ON TOP         15100400
+                         IF TALL.ADDRESS > 1023 THEN % SET VARIANT      15100600
+                           EMITO(PRTE);                                 15100800
+                         EMITO(GT1);                                    15101000
+                      END                                               15101200
+                    ELSE                                                15101400
+                      EMITPAIR(TALL.ADDRESS,GT1);                       15101600
+                  END                                                   15101800
+                ELSE % NOT ASSIGNMENT TO SIMPLE VARIABLE                15102000
+                  BEGIN                                                 15102200
+                    IF P1 ! FP THEN % EXPECTED ASSIGNMENT               15102400
+                      ERREXIT(202);                                     15102600
+                    EMITI(TALL,T1,T2); % EMIT OP CALL AND PARTIAL       15103400
+                  END;                % WORD CODE                       15103600
+              END OF SIMPLE VARIABLES                                   15103800
+$ VOIDT 15233028                                                        15183050
+           IF STEPI ! LFTBRKET THEN % ARRAY ITEM NOT FOLLOWED BY        15183100
+             BEGIN                  % A SUBSCRIPT                       15183200
+               IF ELCLASS = PERIOD THEN                                 15183300
+                 IF DOTSYNTAX(T1,T2) THEN % ERROR IN PARTIAL WORD       15183400
+                   GO TO EXIT                                           15183500
+                 ELSE                                                   15183600
+                   STEPIT;                                              15183700
+               IF ELCLASS = ASSIGNOP THEN                               15183800
+                 BEGIN                                                  15183900
+                   IF PARTIALWORD THEN                                  15184000
+                      BEGIN                                             15184100
+                       IF P1 ! FS THEN % PARTIAL WORD NOT LEFT-MOST     15184200
+                         ERREXIT(209);                                  15184300
+                       XREFIT(TALL,REMEMBERSEQNO,ASSIGNREF);            15184400
+                     END                                                15184500
+                   ELSE % ASSIGNMENT TO ID WITH NO PARTIAL WORD         15184600
+                     XMARK(ASSIGNREF);                                  15184700
+                    IF TABLE(I+1) = ASTRISK THEN                        15184750
+                     IF (DUPIT := (TABLE(I+2) } EQVOP AND TABLE(I+2)    15184800
+                         { MULOP) OR TABLE(I+2) = AMPERSAND) THEN       15184850
+                       STEPIT;                                          15185000
+                   IF PARTIALWORD OR DUPIT THEN % NEED VALUE ON STACK   15185100
+                     IF TALL.CLASS { INTARRAYID THEN % NOT NAME ITEM    15185200
+                       EMITPAIR(TALL.ADDRESS,LOD)                       15185300
+                     ELSE                                               15185400
+                       EMITN(TALL.ADDRESS);                             15185500
+                     IF PARTIALWORD AND DUPIT THEN                      15185600
+                       BEGIN                                            15185700
+                         EMITO(DUP);                                    15185800
+                         EMITI(0,T1,T2);                                15185900
+                       END;                                             15186000
+                     STACKCT := STACKCT + REAL(PARTIALWORD OR DUPIT);   15186100
+                     STEPIT;                                            15186200
+                     IF DUPIT THEN % WE HANDLED FIRST PRIMARY           15186300
+                       SIMPARITH                                        15186400
+                     ELSE                                               15186500
+                       AEXP;                                            15186600
+                     EMITD(48-T2,T1,T2);                                15186700
+                     EMITPAIR(TALL.ADDRESS,IF P1 = FS THEN STD ELSE     15186800
+                                                            SND);       15186900
+                     STACKCT := 0; % A AND B ARE EMPTY                  15187000
+                   END                                                  15187100
+                 ELSE % NOT ASSIGNMENT                                  15187200
+                   EMITI(TALL,T1,T2);                                   15187300
+                 GO TO EXIT;                                            15187400
+               END OF ASSIGNMENT TO NON SIMPLE NON SUBSCRIPTED          15187500
+                    VARIABLE;                                           15187600
+$ VOIDT                                                                 15273000
+$ VOIDT 15370001                                                        15299050
+               IF STEPI = PERIOD THEN % PARTIAL WORD                    15300000
+                 IF DOTSYNTAX(T1,T2) THEN % ERROR                       15300100
+                   GO TO EXIT                                           15300200
+                 ELSE                                                   15300300
+                   STEPIT;                                              15300400
+               IF ELCLASS = ASSIGNOP THEN % ASSIGNMENT TO SUBSCRIPTED   15300500
+                 BEGIN                    % VARIABLE                    15300600
+                   IF PARTIALWORD THEN                                  15300700
+                     IF P1 ! FS THEN                                    15300800
+                       ERREXIT(209); % PARTIALWORD NOT LEFT-MOST        15300900
+                     XREFIT(TALL,REMEMBERSEQNO,ASSIGNREF);              15301000
+                     IF J = 1 THEN % SINGLE-DIMENSIONED                 15301100
+                       EMITN(TALL.ADDRESS)                              15301200
+                     ELSE                                               15301300
+                       EMITO(CDC);                                      15301400
+                     IF TALL.CLASS } LONGID THEN % EXPLICIT INDEX OP    15301500
+                       EMITO(INX);                 % REQUIRED           15301600
+                     IF P1 = FR THEN % CALLED FROM FOR STATEMENT        15301700
+                       GO TO EXIT;                                      15301800
+                     IF TABLE(I+1) = ASTRISK THEN                       15301900
+                       IF (DUPIT:=(TABLE(I+2) } EQVOP AND TABLE(I+2)    15302000
+                          { MULOP) OR TABLE(I+2) = AMPERSAND) THEN      15302100
+                         STEPIT;                                        15302200
+                     IF PARTIALWORD OR DUPIT THEN % NEED VALUE ON STACK 15302300
+                       BEGIN                                            15302400
+                         EMITO(DUP);                                    15302500
+                         EMITO(LOD);                                    15302600
+                       END;                                             15302700
+                     IF PARTIALWORD AND DUPIT THEN                      15302800
+                       BEGIN                                            15302900
+                         EMITO(DUP);                                    15303000
+                         EMITI(0,T1,T2);                                15303100
+                       END;                                             15303200
+                     STEPIT;                                            15303300
+                     IF DUPIT THEN                                      15303400
+                       SIMPARITH                                        15303500
+                     ELSE                                               15303600
+                       AEXP;                                            15303700
+                     EMITD(48-T2,T1,T2);                                15303800
+                     EMITO(XCH);                                        15303900
+                     IF TALL.ADDRESS > 1023 THEN                        15304000
+                       EMITO(PRTE);                                     15304100
+                     EMITO(IF TALL.CLASS MOD 2 = INTARRAYID MOD 2 THEN  15304200
+                             IF P1 = FS THEN ISD ELSE ISN               15304300
+                           ELSE IF P1 = FS THEN STD ELSE SND);          15304400
+                     STACKCT := 0; % A & B ARE EMPTY                    15304500
+                     P1 := 0;                                           15304600
+                  END OF ASSIGNMENT TO SUBSCRIPTED VARIABLE             15304700
+                ELSE                                                    15304800
+                  BEGIN % HANDLING OF NO ASSIGNMENT CASE                15304900
+                    SPCLMON := P1 = FP OR PARTIALWORD OR ELCLASS }      15305000
+                                   AMPERSAND;                           15305100
+                    IF J = 1 THEN % SINGLE DIMENSIONED                  15305200
+                      IF TALL.CLASS } LONGID THEN % NAME ITEM           15305300
+                        BEGIN                                           15305400
+                          EMITN(TALL.ADDRESS);                          15305500
+                          EMITO(INX);                                   15305600
+                          IF SPCLMON THEN                               15305700
+                            EMITO(LOD);                                 15305800
+                        END                                             15305900
+                      ELSE % REFERENCE TO SINGLE DIMENSIONED ARRAY      15306000
+                        IF SPCLMON THEN                                 15306100
+                          EMITV(TALL.ADDRESS)                           15306200
+                        ELSE                                            15306300
+                          EMITN(TALL.ADDRESS)                           15306400
+                    ELSE % MULTI=DIMENSIONED CASE                       15306500
+                      EMITO(IF SPCLMON THEN COC ELSE CDC);              15306600
+                    IF P1 = FS THEN % EXPECTED AN ASSIGNMENT            15306700
+                      ERREXIT(210);                                     15306800
+                    STACKCT := 1; % BECAUSE REGISTERS ARE NON-EMPTY     15306900
+                    IF PARTIALWORD THEN                                 15307000
+                      BEGIN                                             15307100
+                        EMITI(0,T1,T2);                                 15307200
+                        P1 := 0;                                        15307300
+                      END;                                              15307400
+                  END OF NO ASSIGNMENT CASE;                            15307500
+$#PATCH NUMBER 115 FOR ESPOL CONTAINS 150 CARDS                         00000000
+         CASEV          =49#,    COMMENT 061;                           01229000
+        DEFINE LASTSEQUENCE = 149#,                                     01569000
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%07646010
+%**********************************************************************%07646015
+%*                                                                    *%07646020
+%*                              C A S E                               *%07646025
+%*                              = = = =                               *%07646030
+%*                                                                    *%07646035
+%*                         S T A T E M E N T                          *%07646040
+%*                         = = = = = = = = =                          *%07646045
+%*                                                                    *%07646050
+%*                                                                    *%07646055
+%* THIS PROCEDURE HANDLES THE CASE STATEMENT. THE SYNTAX FOR THE CASE *%07646060
+%* STATMENT IS:                                                       *%07646065
+%*                                                                    *%07646070
+%*     CASE <AEXP> OF BEGIN <COMPOUND TAIL>                           *%07646075
+%*                                                                    *%07646080
+%* THE CODE GENERATED FOR THIS STATEMENT IS:                          *%07646085
+%*                                                                    *%07646090
+%*                         <AEXP>                                     *%07646095
+%*                         LITC  ?                                    *%07646100
+%*                         BFW        BRANCH TO BRANCH TABLE          *%07646105
+%*                         STMT 0                                     *%07646110
+%*                         LITC  ?                                    *%07646115
+%*                         BFW        BRANCH TO RESUME                *%07646120
+%*                         STMT 1                                     *%07646125
+%*                         LITC  ?                                    *%07646130
+%*                         BFW        BRANCH TO RESUME                *%07646135
+%*                         .                                          *%07646140
+%*                         .                                          *%07646145
+%*                         .                                          *%07646150
+%*     BRANCH TABLE:                                                  *%07646155
+%*                         DUP                                        *%07646160
+%*                         ADD                                        *%07646165
+%*                         BFW        BRANCH INTO TABLE               *%07646170
+%*                         LITC  ?                                    *%07646175
+%*                         BBW        BRANCH TO STATEMENT 0           *%07646180
+%*                         LITC  ?                                    *%07646185
+%*                         BBW        BRANCH TO STATEMENT 1           *%07646190
+%*                         .                                          *%07646195
+%*                         .                                          *%07646200
+%*                         .                                          *%07646205
+%*                         LITC ?                                     *%07646210
+%*                         BBW        BRANCH TO STATEMENT N           *%07646215
+%*     RESUME:                                                        *%07646220
+%*                                                                    *%07646225
+%*                                                                    *%07646230
+%* NOTICE THAT:                                                       *%07646235
+%*                         .                                          *%07646240
+%*  1) THE CASE INDEX IS NOT INTEGERIZED. IF YOU HAVE ANYTHING THAT   *%07646245
+%*     MIGHT CAUSE THE INDEX TO BE UNNORMALIZED YOU WILL HAVE TO      *%07646250
+%*     INTEGERIZE IT YOURSELF.                                        *%07646255
+%*                                                                    *%07646260
+%*  2) NO RANGE CHECKING  IS DONE ON THE  INDEX. IF  YOU USE A NUMBER *%07646265
+%*     OUT OF RANGE THEN YOU WILL FALL OFF THE END OF THE WORLD.      *%07646270
+%*                                                                    *%07646275
+%*  3) IF A STATEMENT IN THE CASE COMPOUND TAIL IS NULL, NO CODE IS   *%07646280
+%*     GENERATED  FOR  THE  STATEMENT. INSTEAD, THE BRANCH TABLE GOES *%07646285
+%*     DIRECTLY TO RESUME.                                            *%07646290
+%*                                                                    *%07646295
+%*  4) IF A STATEMENT  IN  THE  CASE COMPOUND TAIL IS A SIMPLE GO TO, *%07646300
+%*     THE STATEMENT DOES NOT HAVE A BRANCH TO RESUME AFTER IT.       *%07646305
+%*                                                                    *%07646310
+%**********************************************************************%07646315
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%07646320
+PROCEDURE CASESTATEMENT;                                                07646325
+BEGIN                                                                   07646330
+  ARRAY CASEADDRESS[0:99];    % THIS ARRAY HOLDS THE RELATIVE           07646335
+                              % ADDRESS OF THE BEGINNING OF EACH        07646340
+                              % CASE.                                   07646345
+  INTEGER                                                               07646350
+    LINK,                     % HOLDS RELATIVE ADDRESS OF FIRST OF      07646355
+                              % BRANCHES THAT MUST BE FIXED UP TO       07646360
+                              % BRANCH TO THE RESUME POINT.             07646365
+    ADR,                      % HOLDS RELATIVE ADDRESS OF THE BRANCH    07646370
+                              % AROUND THE CASE STATEMENTS TO THE       07646375
+                              % BRANCH TABLE. THIS BRANCH GETS FIXED    07646380
+                              % UP WHEN WE FIND WHERE THE BRANCH TABLE  07646385
+                              % GOES.                                   07646390
+    N,                        % COUNT OF NUMBER OF CASE STATEMENT       07646395
+                              % ENCOUNTERED.                            07646400
+    ENDOFIT,                  % ADDRESS OF RESUME POINT                 07646405
+    J,                        % TEMPORARY                               07646410
+    K;                        % TEMPORARY                               07646415
+                              %                                         07646420
+  BOOLEAN                                                               07646425
+    GOTOG;                    % TRUE IF WE ARE COMPILING A SIMPLE       07646430
+                              % GO TO.                                  07646435
+  LABEL XIT;                                                            07646436
+%                                                                       07646440
+%                                                                       07646445
+    STEPIT;   % STEP OVER "CASE"                                        07646450
+    AEXP;     % GENERATE CODE FOR CASE INDEX                            07646455
+    IF STEPI ! BEGINV THEN % NOTICE WE JUST JUMPED OVER "OF"            07646456
+      BEGIN                                                             07646457
+        ERR(70); GO TO XIT;                                             07646458
+      END;                                                              07646459
+    EMIT(0);  % GENERATE DUMMY BRANCH TO BRANCH TABLE. WILL FIX         07646460
+    EMITO(BFW);        % IT UP LATER.                                   07646465
+    ADR := L;                                                           07646470
+    WHILE STEPI ! ENDV DO                                               07646475
+      BEGIN % PROCESSING CASE STATEMENTS                                07646480
+        ERRORTOG := TRUE;                                               07646485
+        IF ELCLASS = SEMICOLON THEN % NULL STATEMENT. NO CODE NEEDED    07646490
+          N := N + 1  % THIS LEAVES A ZERO IN CASEADDRESS[N]            07646495
+        ELSE                                                            07646500
+          BEGIN                                                         07646505
+            CASEADDRESS[N] := L; % REMEMBER BEGINNING ADDRESS OF        07646510
+            N := N + 1;          % THIS CASE.                           07646515
+            IF (GOTOG := SIMPGO) THEN                                   07646520
+              ELBAT[I:=I-1] := ELCLASS := GOV; % REMEMBER IF SIMPLE     07646525
+            STMT; % PROCESS THE STATEMENT                               07646530
+            IF ELCLASS = SEMICOLON THEN                                 07646535
+              IF NOT GOTOG THEN % GENERATE DUMMY BRANCH TO RESUME       07646540
+                BEGIN                                                   07646545
+                  EMIT(LINK);                                           07646550
+                  EMITO(BFW);                                           07646555
+                  LINK := L;                                            07646560
+                END                                                     07646565
+              ELSE % SIMPLE GO TO, NO CODE TO GENERATE                  07646570
+            ELSE                                                        07646575
+              IF ELCLASS ! ENDV THEN                                    07646580
+                ERR(71);                                                07646585
+          END;                                                          07646590
+      END OF WHILE LOOP;                                                07646595
+    ENDTOG := TRUE; % SKIP OVER COMMENT AFTER END                       07646601
+    DO STOPDEFINE := TRUE UNTIL                                         07646602
+      STEPI { ENDV AND ELCLASS } UNTILV OR NOT ENDTOG;                  07646603
+    ENDTOG := FALSE;                                                    07646604
+    EMITB(BFW,ADR,L);    % FIX UP BRANCH TO BRANCH TABLE                07646605
+    EMITO(DUP);          % GENERATE CODE TO MULTIPLY INDEX              07646610
+    EMITO(ADD);          % BY TWO AND BRANCH INTO BRANCH TABLE          07646615
+    EMITO(BFW);                                                         07646620
+    ENDOFIT := L + 2|N; % CALCULATE WHERE RESUME IS                     07646625
+    WHILE (J:=J+1) { N DO  % GENERATE THE BRANCH TABLE                  07646630
+      EMITB(BBW,L:=L+2,IF (K:=CASEADDRESS[J-L]) = 0 THEN                07646635
+                        ENDOFIT ELSE K);                                07646640
+    J := LINK; % TO MAKE THE LOOP WORK                                  07646645
+    WHILE (LINK:=J) ! 0 DO                                              07646650
+      BEGIN  % FIXING UP BRANCHES TO RESUME                             07646655
+        J := GET(LINK-2); % LOCATION OF NEXT BRANCH TO FIX              07646660
+        EMITB(BFW,LINK,L);                                              07646665
+      END;                                                              07646670
+XIT:                                                                    07646674
+END OF CASE STATEMENT;                                                  07646675
+    L49:                                                                07759100
+              CASESTATEMENT; GO TO EXIT;                                07759200
+L41:                                                                    07770000
+   OCT0500000250000002, "5FIELD",                               %654    09128700
+   OCT0610000000000000, "4CASEO",                               %656    09128800
+$: BY JTC - MSC DETROIT                                                 99990000
+$: THIS PATCH ADDS A -CASE- STATEMENT TO ESPOL. SEE                     99990100
+$: DOCUMENTATION AT BEGTNNTNG OF PROCEDURE TO SEE HOW                   99990200
+$: IT IS USED.                                                          99990300
+$:**********************************************************************99990400
+$#PATCH NUMRER 116 FOR ESPOL CONTAINS 1 CARD                            00000000
+SAVE ARRAY DEFINEARRAY[0:34];                                           01491000
+$: DATE 6/29/76                                                         99990000
+$: BY JTC - MSA CENTRAL                                                 99990100
+$:                                                                      99990200
+$: THIS PATCH FIXES A PRORLEM WITH ESPOL THAT COULD CAUSE THE           99990300
+$: COMPILER TO ABORT WITH AN INVALID INDEX AT END OF FILE ON            99990400
+$: EITHER THE CARD OR TAPE FILE IF NO 99999999 CARD WAS PROVIDED.       99990500
+$#PATCH NUMBER 117 FOR ESPOL CONTAINS 3 CARDS.                          00000000
+%                       MARK XVI.0.116                                  00001030
+%                        MAY 9, 1977                                    00001040
+"XVI.0.116"                                                             01831000
+$: BY DJZ - MSC DETROTT                                                 99990000
+$: DATE 05/09/77                                                        99990100
+$: THIS PATCH UPDATES THE MARK LEVELS OF THE SYMBOL FILE                99990200
+$:**********************************************************************99990300
+$# PATCH NUMBER 901 FOR ESPOL CONTAINS 1 CARD C
+$: THIS PATCH CHANGES INPUT TAPE BLOCKING TO ALLOW INCREASED
+$: EFFICIENCY IN STORING SOURCE FILES ON TAPE
+$: BY TJP, 2/16/77. USE UTILITY COMPTP/UTILITY TO CREATE SOURCE TAPES.
+BEGIN RR8~50|10+50+1; RR9~10 END;                                       00538000
+$#PATCH NUMBER 902 FOR ESPOL CONTAINS 1 CARD. PAGE SKIP BETWEEN PROCEDURES
+$: THIS PATCH CHANGES THE EFFECT OF THE FORMAT OPTION TO CAUSE A
+$: PAGE SKIP BETWEEN PROCEDURES INSTEAD OF A FOUR-LINE SKIP
+$:  BY J.H., USC, 4 MAY 77
+       SPACEITDOWN = WRITE(LINE[PAGE])#;                                14023100
+$# PATCH NUMBER 950 FOR ESPOL CONTAINS 6 CARD 
+$: RESTORE DECLARATION REMOVED FROM INITIAL XVI SYMBOL TRANSCRIPTION
+$: CHANGE OCTAL CONSTANTS TO REFLECT ALGOL XIII SYNTAX
+$:  PC 17 JUL 13
+       NESTOG         = OPTIONWORD.[NESTBIT:1] #,                       01001310               
+           DS := 63 SET;             % ID.NO, AND SEQ.NO. FIELDS        17041100       
+           DS := 63 SET;  % TOTAL OF 216 BITS                           17041101
+           DS := 63 SET;  %                                             17041102		   
+           DS := 27 SET;  % WAS 8 BY 9 OCTETS: 8 LIT 3"777777777"       17041103
+           A[0] := REAL(NOT FALSE)&0[1:1:3]; % BIGGEST FLOATING PT. NO. 17114000     
+$# PATCH NUMBER 951 FOR ESPOL CONTAINS 34 CARDS 
+$: FIX PATCH 110 AND 112 FILL DECLARATION FOR ALGOL MARK III COMPATABILITY
+$:  PC 19 JUL 13
+           "UNKNOWN.","        ","        ","        ", % 0             17084020
+           "STREAM L","ABEL.   ","        ","        ", % 1             17084030
+           "STREAM V","ARIABLE.","        ","        ", % 2             17084040
+           "DEFINE. ","        ","        ","        ", % 3             17084050
+           "LIST.   ","        ","        ","        ", % 4             17084060
+           "FORMAT. ","        ","        ","        ", % 5             17084070
+           "SWITCH F","ORMAT.  ","        ","        ", % 6             17084080
+           "REAL SUB","ROUTINE.","        ","        ", % 7             17084090
+           "SUBROUTI","NE.     ","        ","        ", % 8             17084100
+           "SWITCH L","ABEL.   ","        ","        ", % 9             17084110
+           "PROCEDUR","E.      ","        ","        ", % 10            17084120
+           "INTRINSI","C.      ","        ","        ", % 11            17084130
+           "STREAM P","ROCEDURE",".       ","        ", % 12            17084140
+           "BOOLEAN ","STREAM P","ROCEDURE",".       ", % 13            17084150
+           "REAL STR","EAM PROC","EDURE.  ","        ", % 14            17084160
+           "INTEGER ","STREAM P","ROCEDURE",".       ", % 15            17084170
+           "INTEGER ","STREAM P","ROCEDURE",".       ", % 16            17084180
+           "BOOLEAN ","PROCEDUR","E.      ","        ", % 17            17084182
+           "REAL PRO","CEDURE. ","        ","        ", % 18            17084184
+           "INTEGER ","PROCEDUR","E.      ","        ", % 19            17084186
+           "INTEGER ","PROCEDUR","E.      ","        ", % 20            17084188
+           "BOOLEAN.","        ","        ","        ", % 21            17084190
+           "REAL.   ","        ","        ","        ", % 22            17084200
+           "INTEGER.","        ","        ","        ", % 23            17084210
+           "INTEGER.","        ","        ","        ", % 24            17084220
+           "BOOLEAN ","ARRAY.  ","        ","        ", % 25            17084230
+           "REAL ARR","AY.     ","        ","        ", % 26            17084240
+           "INTEGER ","ARRAY.  ","        ","        ", % 27            17084250
+           "INTEGER ","ARRAY.  ","        ","        ", % 28            17084260
+           "        ","        ","        ","        ", % 29            17084270
+           "NAME.   ","        ","        ","        ", % 30            17084280
+           "INTEGER ","NAME.   ","        ","        ", % 31            17084290
+           "LABEL.  ","        ","        ","        ", % 32            17084300
+           "FIELD,  ","        ","        ","        "; % 33(CLASS=125) 17084400
+?END
