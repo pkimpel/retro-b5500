@@ -1,46 +1,37 @@
-#summary Instructions on setting up the retro-B5500 emulator in a web browser.
+#summary Instructions for setting up the retro-B5500 emulator in a web browser.
 #labels Phase-Deploy
 
 = WebUI Getting Started =
 <wiki:toc max_depth="2"/>
 
 
-------------------------------------------------------------------------
 = Introduction =
 
 This page describes how to set up the retro-B5500 emulator to run in a web browser.
 
-The emulator consists of a common Javascript core for the mainframe components of the system -- Processor, Central Control, Memory Modules, and Input/Output Units (channels), plus one or more user interfaces. The user interfaces are designed to be pluggable, so it is possible that the common emulator core could be used in multiple environments, each with their own characteristics and facilities for hosting the B5500 emulation.
+The emulator consists of a common Javascript core for the mainframe components of the system -- Processor, Central Control, Memory Modules, and Input/Output Units (channels), plus one or more user interfaces. The user interfaces are designed to be pluggable, so it is possible that the common emulator core could be used in multiple environments, each with their own characteristics and facilities for hosting a B5500 emulation.
 
-A user interface (UI) presents a visible surface for the system and provides the means for you to interact with it. Because the implementation of I/O devices depends heavily on the environment in which the UI operates, a UI also includes all of the I/O devices (disk, card readers, line printers, SPO, etc.) The first UI designed for the emulator is the "WebUI," which designed to run in a web browser. That is the one this page describes.
+A user interface (UI) presents the external representation the system and provides the means for you to interact with it. Because the implementation of I/O devices depends heavily on the environment in which the UI operates, a UI also includes all of the I/O devices (disk, card readers, line printers, SPO, etc.) The first UI designed for the emulator is the "WebUI," which designed to run in a web browser. This page describes the setup procedures for that UI.
 
 == Quick-start Overview ==
 
 To set up and use the web-based emulator, you will need to do the following things, which are discussed in more detail below:
 
-  * Use a suitable web browser, currently Mozilla Firefox or Google Chrome. See [WebUIGettingStarted#The_Web_Browser The Web Browser] below for details.
-
-  * Set up the emulator files on a web server, or use our hosting service at http://www.phkimpel.us/B5500/. See [WebUIGettingStarted#The_Web_Server The Web Server] and [WebUIGettingStarted#The_Emulator_Files The Emulator Files] below for details.
-
-  * Download a copy of the Burroughs B5500 system software tape images from http://www.phkimpel.us/B5500/webSite/SoftwareRequest.html. See [WebUIGettingStarted#The_Burroughs_B5500_Software The Burroughs B5500 Software] below for details.
-
-  * Run the Cold Loader utility script to initialize the emulated disk subsystem and load the system software to it. See [WebUIGettingStarted#Initialize_the_Disk_Subsystem Initialize the Disk Subsystem] below for details.
-
-  * In your web browser, access the *`webUI/B5500Console.html`* page from the web server to run the emulator.
+    * Use a suitable web browser, currently Mozilla Firefox or Google Chrome. See [WebUIGettingStarted#The_Web_Browser The Web Browser] below for details.
+    * Download and set up the emulator files on a web server. Alternatively, you can use our hosting service at http://www.phkimpel.us/B5500/. See [WebUIGettingStarted#The_Web_Server The Web Server] and [WebUIGettingStarted#The_Emulator_Files The Emulator Files] below for details.
+    * Download a copy of the Burroughs B5500 system software tape images from http://www.phkimpel.us/B5500/webSite/SoftwareRequest.html. See [WebUIGettingStarted#The_Burroughs_B5500_Software The Burroughs B5500 Software] below for details.
+    * Run the Cold Loader utility script to initialize the emulated disk subsystem and load the system software to it. See [WebUIGettingStarted#Initialize_the_Disk_Subsystem Initialize the Disk Subsystem] below for details.
+    * In your web browser, access the *`webUI/B5500Console.html`* page from the web server to run the emulator.
 
 
-------------------------------------------------------------------------
 = What You Will Need =
 
 To use the web-based emulator, you will need four things:
 
-  # A suitable web browser.
-
-  # A web server configured to deliver files from the emulator directories.
-
-  # A copy of the files in the `emulator/` and `webUI/` directories from the emulator release.
-
-  # A copy of the Burroughs B5500 system software.
+    # A suitable web browser.
+    # A web server configured to deliver files from the emulator directories (our hosting site is set up to do this).
+    # A copy of the files in the `emulator/` and `webUI/` directories from the emulator release (our hosting site already has the current version of these, ready to use).
+    # A copy of the Burroughs B5500 system software.
 
 Each of these is described in more detail in the following sections.
 
@@ -48,21 +39,17 @@ Each of these is described in more detail in the following sections.
 
 The retro-B5500 emulator pushes the limits in several areas of current web-browser technology. We are taking advantage of many features in HTLM5, its related DOM APIs, and CSS 3. As a result, not every web browser is capable of hosting the emulator. We rely, at a minimum, on the following advanced features:
 
-  * `IndexedDB` API (used to support the Head-per-Track disk subsystem)
+    * `IndexedDB` API (used to support the Head-per-Track disk subsystem)
+    * `ArrayBuffer`, `DataView`, and `Blob` APIs
+    * `File`, `FileList`, and `FileReader` APIs
+    * Window `postMessage` API
+    * HTML `<progress>` element
 
-  * `ArrayBuffer`, `DataView`, and `Blob` APIs
-
-  * `File`, `FileList`, and `FileReader` APIs
-
-  * Window `postMessage` API
-
-  * `<progress>` HTML element
-
-As of this writing, the emulator has been tested with and works with Mozilla Firefox 21 and Google Chrome 27. Somewhat earlier versions of these browsers may also work. Our next priority is to get it to work in Apple Safari. Microsoft Internet Explorer (at least through IE9) will _not_ support the emulator.
+As of this writing, the emulator has been tested with and works with Mozilla Firefox 21 and Google Chrome 27. Somewhat earlier versions of these browsers may also work. Our next priority is to get it to work in Apple Safari. Microsoft Internet Explorer (at least through IE9) will _not_ support the emulator. We have not yet tried IE10.
 
 == The Web Server ==
 
-The emulator must be hosted on a web server. You will not be able to run the emulator simply by opening files in your browser from your local file system. The web server can run on your local system and serve files from your local file system, but the emulator files must be served to the browser over HTTP and not simply opened as files within the browser.
+The emulator must be hosted on a web server. You will not be able to run the emulator simply by opening files in your browser from your local file system. The web server can run on your local system and serve files from there, but the emulator files must be served to the browser over HTTP and not simply opened as files within the browser.
 See [WebUIGettingStarted#Establish_the_Web_Server Establish the Web Server]
 below for more details.
 
@@ -76,9 +63,8 @@ If you choose to use this web site, or any other site that is already set up to 
 
 The web-based emulator is hosted in two directories (folders) of files:
 
-  * *`emulator/`* contains the core mainframe modules. These are Javascript objects for the Processor, Central Control, and I/O Unit, plus a simple object that defines the configuration of the system to be emulated.
-
-  * *`webUI/`* contains everything else you need to run the system. In particular, it contains the Console UI, the peripheral device drivers, a Cold Loader utility used to initialize the disk subsystem, and a Syllable Debugger utility that can be used to examine the state of the processor while running programs, including the MCP.
+    * *`emulator/`* contains the core mainframe modules. These are Javascript objects for the Processor, Central Control, and I/O Unit, plus a simple object that defines the configuration of the system to be emulated.
+    * *`webUI/`* contains everything else you need to run the system. In particular, it contains the Console UI, the peripheral device drivers, a Cold Loader utility used to initialize the disk subsystem, and a Syllable Debugger utility that can be used to examine the state of Processor 1 and memory while running programs, including the MCP.
 
 An optional third directory, *`tools/`* contains some standalone utilities that can be used to examine and maintain the emulator environment.
 
@@ -91,20 +77,19 @@ If you use a web server where the emulator files are already set up, you do not 
 
 The emulator files implement only the hardware portion of a B5500 system. To make the emulator useful, you also need the system software developed by Burroughs.
 
-Burroughs became part of Unisys Corporation in 1986. Unisys still owns and maintains copyrights the B5500 system software. We have acquired an educational/hobbyist license to use the Mark XIII release of that software and make it available to others. It is _not_ open source software, however, and not part of this project, so we cannot include it on the project site with the emulator files.
+Burroughs became part of Unisys Corporation in 1986. Unisys still owns and maintains copyrights the B5500 system software. We have acquired an educational/hobbyist license to use the Mark XIII release of that software and make it available to others. It is _not_ open source software, however, and not officially part of this project, so we cannot include it on this open-source project site with the rest of emulator files.
 
-The Burroughs Mark XIII software consists of a set of three binary tape image files from a release in 1971. We are making these files available through a
-[http://www.phkimpel.us/B5500/webSite/SoftwareRequest.html page on our hosting service]. Go to that page, review and accept the licensing terms (they are not onerous), and download one or more of the tape images.
+The Burroughs Mark XIII software consists of three binary tape image files from a release in 1971. We are making these files available through a
+[http://www.phkimpel.us/B5500/webSite/SoftwareRequest.html page on our hosting service]. Go to that page, review and accept the licensing terms (they are not onerous), and download one or more of the tape images. See
+[WebUIGettingStarted#Download_the_B5500_System_Software Download the B5500 System Software] below for more instructions.
 
-You will need to download at least the `SYSTEM` tape image, which contains the MCP operating system, compilers, and utilities. The other two images, `SYMBOL1` and `SYMBOL2`, contain source code for the Mark XIII release and are not necessary to run the emulator. See
-[WebUIGettingStarted#Download_the_B5500_System_Software Download the B5500 System Software] below for instructions.
+You will need to download at least the `SYSTEM` tape image, which contains the MCP operating system, compilers, and utilities. The other two images, `SYMBOL1` and `SYMBOL2`, contain source code for the Mark XIII release and are not necessary to run the emulator.
 
-Note that the system software will be stored locally on your workstation in a browser database, not on the web server. The Cold Loader utility,
+Note that while the emulator files are stored on the web server, the system software (and any other B5500 files you create within the emulator) will be stored locally on your workstation in a browser database, not on the web server. The Cold Loader utility,
 [WebUIGettingStarted#Initialize_the_Disk_Subsystem discussed below],
 is used to read these images and load them to the emulated disk subsystem within your web browser. We have also developed some utilities that will read and decode the data on these tape images. Those can be found in the *`tools/`* directory.
 
 
-------------------------------------------------------------------------
 = Setting Up the Emulator =
 
 This section describes how to set up the emulator and prepare it for use. If you do not already have one of the suitable browsers discussed above, acquire and install one of them before proceeding further.
@@ -115,11 +100,9 @@ When first starting out, the easiest thing to do is use our hosting service at h
 
 If you want to use your own web server, however, the general steps to set up the emulator files are:
 
-  # Create a new virtual directory, say, `/B5500/` to hold the emulator files.
-
-  # Download one of the emulator releases (the one with the highest release-number suffix is usually best) from [https://drive.google.com/folderview?id=0BxqKm7v4xBswM29qUkxPTkVfYzg&usp=sharing  our download site].
-
-  # Unzip the release into the directory on your server's file system where the virtual directory is mapped. You will need at least the `emulator/` and `webUI/` directories, and they must be at the root of the virtual directory.
+    # Create a new virtual directory, say, `/B5500/`, to hold the emulator files.
+    # Download one of the emulator releases (the one with the highest release-number suffix is usually best) from [https://drive.google.com/folderview?id=0BxqKm7v4xBswM29qUkxPTkVfYzg&usp=sharing  our download site].
+    # Unzip the release into the directory on your server's file system where the virtual directory is mapped. You will need at least the `emulator/` and `webUI/` directories, and they must be at the root of the virtual directory.
 
 == Download the B5500 System Software ==
 
@@ -127,23 +110,23 @@ With a web browser, go to our hosting site at
 http://www.phkimpel.us/B5500/webSite/SoftwareRequest.html,
 review and accept the Unisys licensing terms, and download the `SYSTEM` tape image to your local workstation. You may also download the `SYMBOL1` and `SYMBOL2` tape images, but these are not required to run the emulator.
 
-Unzip the downloaded files and store the resulting `.bcd` files somewhere on your local workstation. You will need these files to initialize the disk subsystem, but they are not needed to run the emulator once the disk subsystem has been loaded.
+Unzip the downloaded files and store the resulting `.bcd` image files somewhere on your local workstation. You will need these files to initialize the disk subsystem, but they are not needed to run the emulator once the disk subsystem has been loaded.
 
 == Initialize the Disk Subsystem ==
 
-The web-based emulator uses the HTML5 IndexedDB API to implement disk storage. This is essentially a small database server embedded within the web browser. The database data is stored on your local workstation, but is usually hidden deep within the profile directory your browser maintains for your user account on the workstation. It typically is not easy to access the physical files for this database, nor is there any need to do so.
+The web-based emulator uses the HTML5 IndexedDB API to implement disk storage. This is essentially a small database server embedded within the web browser. The database data is stored on your local workstation, but is usually hidden deep within the profile directory your browser maintains on the workstation for your user account. It typically is not easy to access the physical files for this database, nor is there any need to do so.
 
 === Default Disk Configuration ===
 
 By default, the emulator is configured to use two B5500 disk Electronic Units (EUs) with 200,000 segments of disk storage each. This is equivalent to a full complement of five Model I Storage Units (SUs) on each EU. That translates to a maximum of 12 million B5500 words (96 million 6-bit characters) of disk storage, or about 100MB of disk space on your workstation.
 
-The emulator will use only the disk space needed to support the disk subsystem, but that space will grow as you add more B5500 files in the disk subsystem. Once disk space on your workstation is allocated to the emulator, it will persist until the next time the disk subsystem is cold-started. Deleting files in the B5500 environment will not reduce the amount of disk space used by the emulator on your workstation, but it will free up space that other B5500 files can occupy.
+The emulator will use only the disk space needed to support the disk subsystem, but that space will grow as you add more B5500 files in the disk subsystem. Once disk space on your workstation is allocated to the emulator, it will persist until the next time the disk subsystem is cold-started. Deleting files in the B5500 environment will not reduce the amount of disk space used by the emulator on your workstation, but it will free up space within the disk subsystem that other B5500 files can occupy.
 
-The default configuration also has two Disk File Controls, DKA and DKB, and assumes the presence of a Disk File Exchange between those two controls. If you don't know what this means, don't worry about it -- it just means that the system is capable of supporting two simultaneous I/Os to disk if each I/O addresses an area on a different EU.
+The default configuration also has two Disk File Controls, DKA and DKB, and assumes the presence of a Disk File Exchange between those two controls. If you don't know what this means, don't worry about it -- it just means that the system is capable of supporting two simultaneous I/Os to disk if the I/Os address different EUs.
 
 === Running the Cold Loader ===
 
-Initializing the disk subsystem on a real B5500 involved loading a couple of bootstrap programs from cards and loading the system software from tape. The emulator does not yet boot programs from cards nor support tape drives, so in the interim, we have developed a standalone web page, the Cold Loader, to initialize the IndexedDB database structures, create an initial disk directory, and load files from the tape images. Before proceeding with this section, you must have downloaded at least the `SYSTEM` tape image, as described in the previous section.
+Initializing the disk subsystem on a real B5500 involved loading a couple of bootstrap programs from cards and loading the system software from tape. The emulator does not yet boot programs from cards nor support tape drives, so in the interim, we have developed a standalone web page, the Cold Loader, to initialize the IndexedDB database structures, create an initial disk directory, and load files from the tape images. Before proceeding with this section, you must have the emulator files set up on a web server and have downloaded at least the `SYSTEM` tape image, as described in the previous sections.
 
 The Cold Loader script is `B5500ColdLoader.html` in the `webUI/` directory. If you are running the emulator from our hosting site, simply open
 
@@ -157,23 +140,27 @@ The Cold Loader will attempt to open the IndexedDB database used by the emulated
 After you dismiss the dialog box, the page will dump the contents of the first 2100 disk segments in the database to your screen. If the database has just been initialized, the display will simply indicate that 2100 segments are available.
 </wiki:comment>
 
-        Note: _You *must* run the Cold Loader from the same web site as the one from which you will run the emulator._
+    _NOTE: You *must* run the Cold Loader from the same web site as you will run the emulator._ You must also use the same web browser.
 
-        The IndexedDB API is subject to the "same origin" policy used by many web browser features. That means that the database used for the disk subsystem is restricted for use only by web pages and scripts from the same Internet host name as the one that created the database. Even though the database is physically stored on your workstation, if you run the Cold Loader from one web site and the emulator from another, they will access two separate databases on that workstation.
+The IndexedDB API is subject to the "same origin" policy used by many other web browser features. That means that the database used for the disk subsystem is restricted for use only by web pages and scripts from the same Internet host name as the one that created the database. Even though the database is physically stored on your workstation, if you run the Cold Loader from one web site and the emulator from another, they will access two separate databases on that workstation.
 
-        This separation due to the same-origin policy also applies to a web server with multiple host names. For example, it is possible to run the Cold Loader using two different URLs for our hosting site, http://www.phkimpel.us/B5500/webUI/B5500ColdLoader.html and http://phkimpel.us.B5500/webUI/B5500ColdLoader.htlm. Both URLs address the same physical script, but accessing the Cold Loader through the two URLs will create two separate databases. We recommend you use the `www.phkimpel.us` hostname when accessing our hosting service.
+This separation due to the same-origin policy also applies to a web server with multiple host names. For example, it is possible to run the Cold Loader using two different URLs for our hosting site, http://www.phkimpel.us/B5500/webUI/B5500ColdLoader.html and http://phkimpel.us.B5500/webUI/B5500ColdLoader.htlm. Both URLs address the same physical script, but accessing the Cold Loader through the two URLs will create two separate databases. We recommend you use the `www.phkimpel.us` hostname when accessing our hosting service.
+
+Finally, different web browsers store their IndexedDB databases differently. A database created by one browser will be inaccessible to another, so you must use the same browser to run the emulator as the one you used to run the Cold Loader.
 
 === Cold-starting the System ===
 
-In B5500 parlance, a "cold start" is an initialization of the system that assumes there is nothing of value in the disk subsystem. A cold start creates an empty disk directory and initializes some MCP configuration data on the disk. It it similar to formatting a disk in Microsoft Windows or creating a file system in Linux. Any prior contents of the disk subsystem are lost.
+In B5500 parlance, a "cold start" is an initialization of the system that assumes there is nothing of value in the disk subsystem. A cold start creates an empty disk directory and initializes some MCP configuration data on the disk. It it similar to formatting a disk in Microsoft Windows or creating a file system in Linux. Any prior contents of the disk subsystem are, of course, lost when you do this.
 
-To cold start the emulator disk subsystem, click the *Cold Start* button at the top of the browser page:
+To cold-start the emulator disk subsystem, click the *Cold Start* button at the top of the browser page:
 
     https://googledrive.com/host/0BxqKm7v4xBswRjNYQnpqM0ItbkU/ColdLoader-Heading.png
 
-The page will request a confirmation that you want to cold start. If you click *OK*, any previous database for the disk subsystem will be discarded, a new empty one created, and an empty disk directory created. The page will also write the initial MCP configuration data and the KERNEL bootstrap program to the disk.
+The page will request a confirmation that you want to cold-start. If you click *OK*, any previous database for the disk subsystem will be discarded, a new empty one created, and an empty disk directory created. The page will write the initial MCP configuration data and the KERNEL bootstrap program to the disk. It will also establish an initial set of MCP run-time options. These settings can be inspected with the `TO` SPO command and modified with the `RO` and `SO` SPO commands once the MCP is loaded and running.
 
 Note that this process affects only the IndexedDB database used by the emulator. It does not modify, remove, or otherwise affect anything else in your workstation's file system.
+
+If you wish to remove the emulator's disk subsystem from your workstation, you can run the Cold Loader and click the *Delete Disk Subsystem* button on the page. This will remove the IndexedDB database. This operation should be done immediately after initiating the Cold Loader.
 
 === Loading the System Files ===
 
@@ -185,54 +172,37 @@ The page will read the directory of files on the tape image and display a list o
 
 In the *Load* column of this list are checkboxes. Check the corresponding boxes for the files you wish to load. You can load as many files at one time as you wish. There should be plenty of disk space -- the entire `SYSTEM` tape is only 12.4 million characters. We recommend that you select at least the following files initially:
 
-  * `MCP/DISK` -- the Master Control Program operating system. *Important!* also tick the radio button in the *As MCP* column. This will cause the Cold Loader to set the MCP bootstrap address in segment zero to point to this file.
+    * `MCP/DISK` -- the Master Control Program operating system. *Important!* also tick the radio button in the *As MCP* column. This will cause the Cold Loader to set the MCP bootstrap address in segment zero to point to this file.
+    * `INT/DISK` -- the System Intrinsics, a library of dynamically-bound subroutines used by all programs. *Important!* also tick the radio button in the *As INT* column. This will cause the Cold Loader to set the Intrinsics address in segment zero to point to this file.
+    * `PRNPBT/DISK` -- the spooler for printer output.
+    * `LDNCTRL/DISK` -- the spooler for card reader input (known as "pseudo" readers).
+    * `ALGOL/DISK` -- the Extended Algol compiler.
 
-  * `INT/DISK` -- the System Intrinsics, a library of dynamically-bound subroutines used by all programs. *Important!* also tick the radio button in the *As INT* column. This will cause the Cold Loader to set the Intrinsics address in segment zero to point to this file.
+You may wish to select some of the following additional files, depending on how you plan to use the system:
 
-  * `PRNPBT/DISK` -- the spooler for printer output.
+    * `BASIC/DISK` -- the BASIC language compiler.
+    * `COBOL/DISK` -- the original COBOL compiler.
+    * `COBOL68/DISK` -- the ANSI COBOL-68 compiler.
+    * `ESPOL/DISK` -- the ESPOL compiler, used to compile the MCP and standalone utility programs.
+    * `FORTRAN/DISK` -- the FORTRAN-66 compiler.
+    * `XALGOL/DISK` -- the Compatible Algol compiler. This was a version of Algol designed to ease transition from the B5500 to B6500/6700/7700 systems.
+    * `AFILTER/DISK` -- the Algol Filter program.
+    * `CFILTER/DISK` -- the COBOL Filter program.
+    * `DUMP/ANALYZE` -- the system dump analyzer.
+    * `FORTRAN/TRANS` -- the FORTRAN-to-Algol translator program.
+    * `MAKCAST/DISK` -- a program to maintain CAST source library files.
+    * `PATCH/MERGE` -- a program to merge multiple source patch files into one and resolve conflicts among patches.
+    * `XREF/JONES` -- a program for documentation and cross-referencing identifiers in program source files.
 
-  * `LDNCTRL/DISK` -- the spooler for card reader input (pseudoreaders).
-
-  * `ALGOL/DISK` -- the Extended Algol compiler.
-
-You may wish to select any number of the following additional files, depending on how you plan to use the system:
-
-  * `BASIC/DISK` -- the BASIC language compiler.
-
-  * `COBOL/DISK` -- the original COBOL compiler.
-
-  * `COBOL68/DISK` -- the ANSI COBOL-68 compiler.
-
-  * `ESPOL/DISK` -- the ESPOL compiler, used to compile the MCP and standalone utility programs.
-
-  * `FORTRAN/DISK` -- the FORTRAN-66 compiler.
-
-  * `XALGOL/DISK` -- the Compatible Algol compiler. This was a version of Algol designed to ease transition from the B5500 to B6500/6700/7700 systems.
-
-  * `AFILTER/DISK` -- the Algol Filter program.
-
-  * `CFILTER/DISK` -- the COBOL Filter program.
-
-  * `DUMP/ANALYZE` -- the system dump analyzer.
-
-  * `FORTRAN/TRANS` -- the FORTRAN-to-Algol translator program.
-
-  * `MAKCAST/DISK` -- a program to maintain CAST source library files.
-
-  * `PATCH/MERGE` -- a program to merge multiple source patch files into one and resolve conflicts among patches.
-
-  * `XREF/JONES` -- a program for documentation and cross-referencing identifiers in program source files.
-
-Feel free to select any additional files from the `SYSTEM` tape, but note that `NDL/DISK`, `TSPOL/DISK`, the TSS/MCP (time-sharing MCP), and related `CANDE` files will not be very interesting until the data communications interface is supported in the MCP.
+Feel free to select any additional files from the `SYSTEM` tape, but note that `NDL/DISK`, `TSPOL/DISK`, the TSS/MCP (time-sharing MCP), and related `CANDE` files will not be very useful until the data communications interface is supported in the emulator.
 
 After selecting files from the list for the `SYSTEM` tape image, click the *Load* button at the bottom of the list. The page will read the tape image, extract the selected files, and store them in the disk subsystem, updating the disk directory as necessary.
 
 Once files from the `SYSTEM` tape image have been loaded, you can click the *Browse* or *Choose File* button again and repeat the steps above to select and load files from the `SYMBOL1` and `SYMBOL2` tape images. Those two tape images contain only source code files.
 
-It is possible to run the Cold Loader again at a later time to load additional files to an existing disk subsystem without cold-starting it first, but we do not recommend doing this. The disk directory update facilities in the Cold Loader are not very robust at this point, and subsequent load runs may corrupt the directory, especially if a file is loaded that replaces one of the same name that is already in the directory.
+    _NOTE:_ It is possible to run the Cold Loader again at a later time to load additional files to an existing disk subsystem without cold-starting it first, but we do not recommend doing this. The disk directory update facilities in the Cold Loader are not very robust at this point, and subsequent load runs may corrupt the disk directory, especially if a file is loaded that replaces one that is already in the directory with the same name.
 
 
-------------------------------------------------------------------------
 = Next Steps =
 
 Once the disk subsystem has been established and cold-started, and at least the minimal set of system files loaded to it, you are ready to run the emulator and "halt/load" (boot) the MCP.
@@ -241,4 +211,4 @@ The emulator is initiated from the `B5500Console.html` page in the `webUI/` dire
 
     http://www.phkimpel.us/B5500/webUI/B5500Console.html
 
-See the [WebUIRunningTheEmulator WebUI Running the Emulator] page for detailed instructions on how to do start the emulator and run the emulated B5500 system.
+See [WebUIRunningTheEmulator WebUI Running the Emulator] for detailed instructions on how to start the emulator and run the emulated B5500 system.
