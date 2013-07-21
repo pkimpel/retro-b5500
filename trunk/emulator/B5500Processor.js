@@ -113,6 +113,7 @@ B5500Processor.prototype.clear = function clear() {
 
     this.US14X = 0;                     // STOP OPERATOR switch
 
+    this.isP1 = this === this.cc.P1;    // True if this is the control processor
     this.busy = 0;                      // Processor is running, not idle or halted
     this.controlCycles = 0;             // Current control-state cycle count (for UI display)
     this.cycleCount = 0;                // Cycle count for current syllable
@@ -135,7 +136,7 @@ B5500Processor.prototype.accessError = function accessError() {
     } else if (this.accessor.MPED) {
         this.I |= 0x01;                 // set I01F: memory parity error
         this.cc.signalInterrupt();
-        if (this === this.cc.P1 && !this.NCSF) {
+        if (this.isP1 && !this.NCSF) {
             this.busy = 0;              // P1 memory parity in control state stops the proc
             this.cycleLimit = 0;        // exit this.run()
         }
@@ -1289,7 +1290,7 @@ B5500Processor.prototype.storeForInterrupt = function storeForInterrupt(forTest)
     this.BROF = 0;
     this.AROF = 0;
     if (forced) {
-        if (this === this.cc.P1) {
+        if (this.isP1) {
             this.T = 0x89;              // inject 0211=ITI into T register
         } else {
             this.stop();                // idle the processor
@@ -1299,7 +1300,7 @@ B5500Processor.prototype.storeForInterrupt = function storeForInterrupt(forTest)
         this.CWMF = 0;
     } else if (forTest) {
         this.CWMF = 0;
-        if (this === this.cc.P1) {
+        if (this.isP1) {
             this.loadBviaM();           // B = [M]: load DD for test
             this.C = this.B % 0x8000;
             this.L = 0;
@@ -4537,7 +4538,7 @@ B5500Processor.prototype.run = function run() {
         *   SECL: Syllable Execution Complete Level                    *
         ***************************************************************/
 
-        if ((this === this.cc.P1 ? this.cc.IAR : this.I) && this.NCSF) {
+        if ((this.isP1 ? this.cc.IAR : this.I) && this.NCSF) {
             // there's an interrupt and we're in normal state
             this.T = 0x0609;            // inject 3011=SFI into T
             this.Q &= 0xFFFEFF;         // reset Q09F: adder mode for R-relative addressing

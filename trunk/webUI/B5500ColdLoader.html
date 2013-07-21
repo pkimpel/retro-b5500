@@ -1961,6 +1961,7 @@ window.addEventListener("load", function() {
             alert("Disk database opened: " + name + " #" + disk.version);
             $$("ColdstartBtn").disabled = false;
             $$("FileSelector").disabled = false;
+            $$("DeleteDBBtn").disabled = false;
 
             //  dumpDisk();             // <<<<<<<<<<<<<< DEBUG <<<<<<<<<<<<<<<<<
 
@@ -1969,6 +1970,36 @@ window.addEventListener("load", function() {
             };
         };
 
+    }
+
+    /**************************************/
+    function deleteDiskDatabase(name, version) {
+        /* Attempts to permanently delete the disk subsystem database for the
+        specified "name". Clears the browser window if successful */
+        var req;
+
+        if (confirm("This will PERMANENTLY DELETE the emulator's entire disk subsystem.\n" +
+                    "Are you sure you want to do this?")) {
+            if (confirm("Deletion of the disk subsystem CANNOT BE UNDONE.\n\nAre you really sure?")) {
+                disk = null;            // invalidate the IDB handle
+                req = window.indexedDB.deleteDatabase(dbName);
+
+                req.onerror = function(ev) {
+                    alert("Cannot delete the disk database: " + ev.target.error);
+                };
+
+                req.onblocked = function(ev) {
+                    alert("Database.deleteDatabase is blocked -- cannot continue");
+                };
+
+                req.onsuccess = function(ev) {
+                    alert("retro-B5500 disk subsystem database deleted successfully");
+                    document.open();
+                    document.write("B5500ColdLoader terminated.");
+                    document.close();
+                };
+            }
+        }
     }
 
     /**************************************/
@@ -2002,6 +2033,7 @@ window.addEventListener("load", function() {
                 initializeDisk();
             }
         }, false);
+        $$("DeleteDBBtn").addEventListener("click", deleteDiskDatabase)
         $$("LoadBtn").addEventListener("click", loadFromTape);
         openDatabase(dbName, dbVersion);
     }
@@ -2029,15 +2061,17 @@ TBODY#TapeDirBody {
 
 <body>
 
-<div style="position:relative; width:100%; height:3em">
+<div style="position:relative; width:100%; height:4em">
     <div style="position:absolute; left:0; top:0; width:auto">
         <img src="../webUI/retro-B5500-Logo.png" alt="retro-B5500 Logo" style="float:left">
         &nbsp;Disk SubSystem Coldstart Loader
     </div>
-    <div style="text-align:center">
+    <div style="position:absolute; left:30em; top:0; width:auto">
         <input id=ColdstartBtn type=button value="Cold Start" DISABLED>
+        &nbsp;&nbsp;
+        <input id=DeleteDBBtn type=button value="Delete Disk Subsystem" DISABLED>
     </div>
-    <div style="position:absolute; top:0; right:0; width:auto">
+    <div style="position:absolute; top:2em; left:30em; width:auto">
         <input id=FileSelector type=file size=60 DISABLED>
     </div>
 

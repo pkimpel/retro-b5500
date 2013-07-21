@@ -702,10 +702,10 @@ B5500IOUnit.prototype.initiatePrinterIO = function initiatePrinterIO(u) {
         } else {
             memWords = (this.D23F ? this.DwordCount : 0);
             if (memWords > 0) {
-                chars = memWords*8;
+                chars = (memWords %= 0x20)*8;
             } else {
-                memWords = 17;          // assume a 132-character printer
-                chars = 132;
+                memWords = 15;          // assume a 120-character printer
+                chars = 120;            // (i.e., a descriptor for a Mod I or II IOU)
             }
             this.fetchBuffer(1, memWords);
             this.Daddress = (addr-1) & 0x7FFF;      // printer accesses memory backwards, so final address is initial-1

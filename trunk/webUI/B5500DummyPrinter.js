@@ -163,7 +163,7 @@ B5500DummyPrinter.prototype.write = function write(finish, buffer, length, mode,
 
     this.timer = setTimeout(this.signal,
         60000/this.linesPerMinute + this.initiateStamp - new Date().getTime());
-    finish(0, 0);
+    finish(this.errorMask, 0);
     this.endOfPaper.scrollIntoView();
 };
 

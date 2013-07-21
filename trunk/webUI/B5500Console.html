@@ -47,6 +47,7 @@ window.addEventListener("load", function() {
     var perLightsMap = new Array(48);
     var procDelay;
     var procSlack;
+    var showAnnunciators = false;
     var timer;
     var timerInterval = 50;             // milliseconds
 
@@ -58,6 +59,14 @@ window.addEventListener("load", function() {
         return function() {f.apply(context, arguments)};
     }
 
+    function BurroughsLogo_Click(ev) {
+        showAnnunciators = !showAnnunciators;
+        $$("CentralControl").style.visibility = (showAnnunciators ? "visible" : "hidden");
+        $$("RetroVersion").style.visibility = (showAnnunciators ? "visible" : "hidden");
+        $$("RetroLogoImage").style.display = (showAnnunciators ? "inline" : "none");
+        $$("B5500LogoImage").style.display = (showAnnunciators ? "none" : "inline");
+    }
+
     function PowerOnBtn_Click(ev) {
         $$("PowerOnBtn").className = "whiteButton whiteLit";
         $$("AControlBtn").className = "yellowButton yellowLit";
@@ -67,6 +76,7 @@ window.addEventListener("load", function() {
         $$("LoadBtn").disabled = false;
         $$("HaltBtn").disabled = true;
         boundBlinkenlicht();
+        BurroughsLogo_Click();          // turn on the annunciators
         window.focus();
         return true;
     }
@@ -184,8 +194,11 @@ window.addEventListener("load", function() {
         var et;
         var pa = cc.PA;
         var pb = cc.PB;
+        var p1 = cc.P1;
         var stamp = new Date().getTime();
         var stateRate;
+
+        timer = setTimeout(boundBlinkenlicht, timerInterval);
 
         if (pa) {
             if (!pa.busy) {
@@ -252,13 +265,6 @@ window.addEventListener("load", function() {
                 }
 
                 pa.controlCycles = pa.normalCycles = 0;
-
-                et = pa.procTime;
-                while (et < 0) {
-                  et += stamp;
-                }
-                procDelay.innerHTML = pa.delayDeltaAvg.toFixed(3);
-                procSlack.innerHTML = (pa.procSlack/et*100).toFixed(1) + "%";
             }
         }
 
@@ -330,8 +336,16 @@ window.addEventListener("load", function() {
             }
         }
 
-        displayCentralControl();
-        timer = setTimeout(boundBlinkenlicht, timerInterval);
+        et = p1.procTime;
+        while (et < 0) {
+          et += stamp;
+        }
+        procDelay.innerHTML = p1.delayDeltaAvg.toFixed(3);
+        procSlack.innerHTML = (p1.procSlack/et*100).toFixed(1) + "%";
+
+        if (showAnnunciators) {
+            displayCentralControl();
+        }
     }
 
     function buildLightMaps() {
@@ -381,11 +395,12 @@ window.addEventListener("load", function() {
 
     $$("RetroVersion").innerHTML = B5500CentralControl.version;
     if (!checkBrowser()) {
-        $$("PowerOnBtn").addEventListener("click", PowerOnBtn_Click);
-        $$("PowerOffBtn").addEventListener("click", PowerOffBtn_Click);
-        $$("HaltBtn").addEventListener("click", HaltBtn_Click);
-        $$("LoadBtn").addEventListener("click", LoadBtn_Click);
-        $$("LoadSelectBtn").addEventListener("click", LoadSelectBtn_Click);
+        $$("BurroughsLogo").addEventListener("click", BurroughsLogo_Click, false);
+        $$("PowerOnBtn").addEventListener("click", PowerOnBtn_Click, false);
+        $$("PowerOffBtn").addEventListener("click", PowerOffBtn_Click, false);
+        $$("HaltBtn").addEventListener("click", HaltBtn_Click, false);
+        $$("LoadBtn").addEventListener("click", LoadBtn_Click, false);
+        $$("LoadSelectBtn").addEventListener("click", LoadSelectBtn_Click, false);
 
         aControl = $$("AControlBtn");
         aNormal  = $$("ANormalBtn");
@@ -419,16 +434,18 @@ window.addEventListener("load", function() {
     <button id=PowerOffBtn class="blackButton blackLit" DISABLED>POWER OFF</button>
 
     <div id=BurroughsLogo>
-        <img id=BurroughsLogoImage src="Burroughs-Logo-Neg.jpg" alt="Burroughs logo">
+        <img id=BurroughsLogoImage src="Burroughs-Logo-Neg.jpg" alt="Burroughs logo"
+             title="Click to toggle the white annunciator lights">
     </div>
-    <div id=RetroVersion>
+    <div id=RetroVersion title="retro-B5500 emulator version">
         ?.??
     </div>
     <div id=B5500Logo>
-        <img src="retro-B5500-Logo.png" alt="retro-B5500 logo"><!-- B 5500 -->
+        <img id=RetroLogoImage src="retro-B5500-Logo.png" alt="retro-B5500 logo">
+        <span id=B5500LogoImage style="display:none">&nbsp;B&nbsp;5500&nbsp;</span>
     </div>
 
-    <table id=CentralControl>
+    <table id=CentralControl style="visibility:hidden">
     <colgroup>
         <col span=32 class=AnnunciatorCol>
         <col>
@@ -439,7 +456,7 @@ window.addEventListener("load", function() {
         <td id=AD2F>IOU2                <!-- I/O unit 2 busy                            -->
         <td id=AD3F>IOU3                <!-- I/O unit 3 busy                            -->
         <td id=AD4F>IOU4                <!-- I/O unit 4 busy                            -->
-        <td id=CCI03F>TIMR              <!-- Time interval interrupt                    -->
+        <td id=CCI03F>TIMR              <!-- Interval timer interrupt                   -->
         <td id=CCI04F>IOBZ              <!-- I/O busy interrupt                         -->
         <td id=CCI05F>KBD               <!-- Keyboard request interrupt                 -->
         <td id=CCI06F>PR1F              <!-- Printer 1 finished interrupt               -->
@@ -455,23 +472,23 @@ window.addEventListener("load", function() {
         <td id=CCI16F>DK2F              <!-- Disk file #2 read check finished           -->
         <td colspan=13>
         <td id=procSlack>
-        <td class=busy>PA Slack
+        <td class=busy title="Percentage of time Processor A is throttling its performance">P1 Slack
     <tr id=CCPeripheralRow>
-        <td id=DCA>DCA                  <!-- 17 -->
-        <td id=PPB>PPB                  <!-- 18 -->
-        <td id=PRB>PRB                  <!-- 19 -->
-        <td id=PRA>PRA                  <!-- 20 -->
-        <td id=PPA>PPA                  <!-- 21 -->
-        <td id=SPO>SPO                  <!-- 22 -->
-        <td id=CRB>CRB                  <!-- 23 -->
-        <td id=CRA>CRA                  <!-- 24 -->
-        <td id=CPA>CPA                  <!-- 25 -->
-        <td id=LPB>LPB                  <!-- 26 -->
-        <td id=LPA>LPA                  <!-- 27 -->
-        <td id=DKB>DKB                  <!-- 28 -->
-        <td id=DKA>DKA                  <!-- 29 -->
-        <td id=DRB>DRB                  <!-- 30 -->
         <td id=DRA>DRA                  <!-- 31 -->
+        <td id=DRB>DRB                  <!-- 30 -->
+        <td id=DKA>DKA                  <!-- 29 -->
+        <td id=DKB>DKB                  <!-- 28 -->
+        <td id=SPO>SPO                  <!-- 22 -->
+        <td id=CPA>CPA                  <!-- 25 -->
+        <td id=CRA>CRA                  <!-- 24 -->
+        <td id=CRB>CRB                  <!-- 23 -->
+        <td id=LPA>LPA                  <!-- 27 -->
+        <td id=LPB>LPB                  <!-- 26 -->
+        <td id=DCA>DCA                  <!-- 17 -->
+        <td id=PRA>PRA                  <!-- 20 -->
+        <td id=PRB>PRB                  <!-- 19 -->
+        <td id=PPA>PPA                  <!-- 21 -->
+        <td id=PPB>PPB                  <!-- 18 -->
         <td id=MTA>MTA                  <!-- 47 -->
         <td id=MTB>MTB                  <!-- 46 -->
         <td id=MTC>MTC                  <!-- 45 -->
@@ -489,7 +506,7 @@ window.addEventListener("load", function() {
         <td id=MTS>MTS                  <!-- 33 -->
         <td id=MTT>MTT                  <!-- 32 -->
         <td id=procDelay>
-        <td class=busy>PA Delay
+        <td class=busy title="Average excess throttling delay for Processor A (ms)">P1 Delay
     </table>
 </div>
 
