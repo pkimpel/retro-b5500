@@ -55,7 +55,6 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal) {
 }
 
 // this.spoState enumerations
-B5500SPOUnit.prototype.spoNotReady = 0;
 B5500SPOUnit.prototype.spoLocal = 1;
 B5500SPOUnit.prototype.spoRemote = 2;
 B5500SPOUnit.prototype.spoInput = 3;
@@ -92,7 +91,7 @@ B5500SPOUnit.prototype.clear = function clear() {
     this.printCol = 0;
     this.nextCharTime = 0;
 
-    this.spoState = this.spoNotReady;   // Current state of SPO interface
+    this.spoState = this.spoLocal;      // Current state of SPO interface
     this.spoLocalRequested = false;     // LOCAL button pressed while active
 };
 
@@ -127,27 +126,6 @@ B5500SPOUnit.prototype.removeClass = function removeClass(e, name) {
 };
 
 /**************************************/
-B5500SPOUnit.prototype.setNotReady = function setNotReady() {
-    /* Sets the status of the SPO to Not Ready */
-
-    if (this.spoState == this.spoLocal) {
-        this.spoState = this.spoNotReady;
-        this.removeClass(this.$$("SPOReadyBtn"), "yellowLit");
-        this.statusChange(0);
-    }
-};
-
-/**************************************/
-B5500SPOUnit.prototype.setReady = function setReady() {
-    /* Sets the status of the SPO to Ready */
-
-    if (this.spoState == this.spoNotReady) {
-        this.addClass(this.$$("SPOReadyBtn"), "yellowLit");
-        this.spoState = this.spoLocal;
-    }
-};
-
-/**************************************/
 B5500SPOUnit.prototype.setLocal = function setLocal() {
     /* Sets the status of the SPO to Local */
 
@@ -155,6 +133,7 @@ B5500SPOUnit.prototype.setLocal = function setLocal() {
         this.spoState = this.spoLocal;
         this.addClass(this.$$("SPOLocalBtn"), "yellowLit");
         this.removeClass(this.$$("SPORemoteBtn"), "yellowLit");
+        this.removeClass(this.$$("SPOInputRequestBtn"), "yellowLit");
         this.statusChange(0);
 
         // Set up to echo characters from the keyboard
@@ -276,7 +255,7 @@ B5500SPOUnit.prototype.terminateInput = function terminateInput() {
     set the state to Remote, and call finish() for us. Slick, eh? */
 
     if (this.spoState == this.spoInput) {
-        this.removeClass(this.$$("SPOInputRequestBtn"), "yellowLit");
+        this.removeClass(this.$$("SPOReadyBtn"), "yellowLit");
         this.bufLength = this.bufIndex;
         this.nextCharTime = new Date().getTime();
         this.outputChar();
@@ -289,7 +268,7 @@ B5500SPOUnit.prototype.cancelInput = function cancelInput() {
     but it also sets a parity error so the input message will be rejected */
 
     if (this.spoState = this.spoInput) {
-        this.removeClass(this.$$("SPOInputRequestBtn"), "yellowLit");
+        this.removeClass(this.$$("SPOReadyBtn"), "yellowLit");
         this.errorMask |= 0x10;         // set parity/error-button bit
         this.bufLength = this.bufIndex;
         this.nextCharTime = new Date().getTime();
@@ -361,6 +340,7 @@ B5500SPOUnit.prototype.keyDown = function keyDown(ev) {
         switch (this.spoState) {
         case this.spoRemote:
         case this.spoOutput:
+            this.addClass(this.$$("SPOInputRequestBtn"), "yellowLit");
             this.signal();
             result = false;
             break;
@@ -472,18 +452,13 @@ B5500SPOUnit.prototype.spoOnload = function spoOnload() {
         that.setRemote();
     }, false);
 
-    this.$$("SPOPowerBtn").addEventListener("click", function() {
-        that.window.alert("Don't DO THAT");
-    }, false);
-
     this.$$("SPOLocalBtn").addEventListener("click", function() {
         that.setLocal();
     }, false);
 
     this.$$("SPOInputRequestBtn").addEventListener("click", function() {
-        if (that.spoState == that.spoRemote) {
-            that.signal();
-        } else if (that.spoState == that.spoOutput) {
+        if (that.spoState == that.spoRemote || that.spoState == that.spoOutput) {
+            that.addClass(that.$$("SPOInputRequestBtn"), "yellowLit");
             that.signal();
         }
     }, false);
@@ -499,9 +474,8 @@ B5500SPOUnit.prototype.spoOnload = function spoOnload() {
     for (x=0; x<32; x++) {
         this.appendEmptyLine();
     }
-    this.setReady();
-    this.window.focus();
     this.printText("retro-B5500 Emulator Version " + B5500CentralControl.version, function() {
+        this.window.focus();
         that.setRemote();
         that.appendEmptyLine();
     });
@@ -515,7 +489,8 @@ B5500SPOUnit.prototype.read = function read(finish, buffer, length, mode, contro
     switch (this.spoState) {
     case this.spoRemote:
         this.spoState = this.spoInput;
-        this.addClass(this.$$("SPOInputRequestBtn"), "yellowLit");
+        this.addClass(this.$$("SPOReadyBtn"), "yellowLit");
+        this.removeClass(this.$$("SPOInputRequestBtn"), "yellowLit");
         this.buffer = buffer;
         this.bufLength = length;
         this.bufIndex = 0;

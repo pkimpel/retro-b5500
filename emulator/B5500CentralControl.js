@@ -61,7 +61,7 @@ function B5500CentralControl() {
 /**************************************/
     /* Global constants */
 
-B5500CentralControl.version = "0.10";
+B5500CentralControl.version = "0.11";
 
 B5500CentralControl.memReadCycles = 2;  // assume 2 탎 memory read cycle time (the other option was 3 탎)
 B5500CentralControl.memWriteCycles = 4; // assume 4 탎 memory write cycle time (the other option was 6 탎)
@@ -227,7 +227,7 @@ B5500CentralControl.prototype.clear = function clear() {
 };
 
 /**************************************/
-B5500CentralControl.prototype.bit = function bit(word, bit) {
+B5500CentralControl.prototype.bitTest = function bitTest(word, bit) {
     /* Extracts and returns the specified bit from the word */
     var e = 47-bit;                     // word lower power exponent
     var p;                              // bottom portion of word power of 2
@@ -677,7 +677,7 @@ B5500CentralControl.prototype.testUnitReady = function testUnitReady(index) {
     /* Determines whether the unit index "index" is currently in ready status.
     Returns 1 if ready, 0 if not ready */
 
-    return (index ? this.bit(this.unitStatusMask, index) : 0);
+    return (index ? this.bitTest(this.unitStatusMask, index) : 0);
 };
 
 /**************************************/
@@ -685,7 +685,7 @@ B5500CentralControl.prototype.testUnitBusy = function testUnitBusy(index) {
     /* Determines whether the unit index "index" is currently in use by any other
     I/O Unit. Returns 1 if busy, 0 if not busy */
 
-    return (index ? this.bit(this.unitBusyMask, index) : 0);
+    return (index ? this.bitTest(this.unitBusyMask, index) : 0);
 };
 
 /**************************************/
