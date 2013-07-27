@@ -497,7 +497,7 @@ DEFINE                                                                  00317000
          ,ISD =532#, ISN =548#, LEQL= 533#, LND = 67#, LNG =  19#       00322000 
          ,LOD =260#, LOR = 35#, LQV = 131#, LESS=549#, MDS = 515#       00323000 
          ,MKS = 72#, MUL = 64#, NEQL=  69#, NOP = 11#, PRL =  18#       00324000 
-         ,XRT = 12#, RDV =896#, RTN = 39#,RTS =167#, SND = 132#         00325000 
+         ,XRT = 12#, RDV =896#, RTN = 39#, RTS =167#, SND = 132#         00325000 
          , SSN = 70#, SSP = 582#, STD = 68#, SUB = 48#, XCH = 133#      00326000 
          ,XIT = 71#, ZP1 =322#, DIU =128#, STN =132#                    00327000 
          ,DIA = 45#, DIB = 49#, TRB = 53#, ISO = 37#                    00328000 
@@ -1576,7 +1576,7 @@ IF DEBUGTOG THEN FLAGROUTINE("  SEGM","ENT   ",TRUE );                  00948010
          IF LISTOG THEN WRITALIST(SEGEND,2,CURSEG,T,0,0,0,0,0,0) ;      01005000
          PDPRT[PDIR,PDIC] ~           % PDPRT ENTRY FOR SEGMENT         01006000
             SZ&DALOC[DKAC]                                              01007000
-              & GET(SPLINK)[12:41:1]                                    01007100
+              & GET(SPLINK)[12:14:1]                                    01007100
               &CURSEG[SGNOC];                                           01008000
          IF ERRORCT = 0 THEN                                            01009000
          DO BEGIN                                                       01010000
@@ -1722,7 +1722,7 @@ BEGIN                                                                   01070000
           INFC    = NX1       #;                                        01072200
    LABEL XIT, CHECK;                                                    01073000
 IF DEBUGTOG THEN FLAGROUTINE("   EQU","IV    ",TRUE) ;                  01073010
-   IF GETC(R) <0 THEN GO TO XIT;                                        01074000
+   IF GETC(R)<0 THEN GO TO XIT ;                                        01074000
    PUTC(R,-GETC(R)) ;                                                   01075000
    PRTX ~ GROUPPRT;                                                     01076000
    C~REAL(GETC(R).CE=1) ;                                               01077000
@@ -2417,7 +2417,7 @@ IF DEBUGTOG THEN FLAGROUTINE("  ARRA","YDEC  ",TRUE );                  01706110
          ELSE                                                           01716000
     BEGIN                                                               01717000
          J ~ (LNK + 255) DIV 256;                                       01718000
-         LNK ~ 256;   %INCLUDE ENTIRE ARRAY SIZE IN ESTIMATE      %512- 01719000
+         LNK := 256;   %INCLUDE ENTIRE ARRAY SIZE IN ESTIMATE      %512-01719000
          IF OWNID THEN EMITL(0);       % FIRST LOWER BOUND              01719100
          EMITL(J);      % NUMBER OF ROWS                                01720000
          IF OWNID THEN EMITL(0);       % SECOND LOWER BOUND             01720100
@@ -2783,7 +2783,7 @@ BEGIN LABEL XIT; LOCAL T1;                                              02064000
          BEGIN DI ~ LAB;   DI ~ DI + 2;                                 02067000
                DS ~ 6 CHR;  GO TO XIT;                                  02068000
          END;                                                           02069000
-   DI ~LOC T1; DS ~ 6 LIT " "; DI ~ DI -6;                              02070000
+   DI ~LOC T1; DS ~ 6 LIT " "; DI ~ DI - 6;                             02070000
    5(IF SC } "0" THEN DS ~ CHR ELSE SI ~ SI+1);                         02071000
    DI ~LAB; DI ~DI + 2; SI ~ LOC T1;                                    02072000
     5(IF SC ! "0" THEN JUMP OUT; SI ~ SI + 1);                          02073000
@@ -2916,16 +2916,16 @@ BEGIN                                                                   02204000
    FETCH;                                                               02205000
    IF NEXT = EQUAL THEN FETCH ELSE FLOG(37);                            02206000
       INFC.LINK ~ KEEP ~ (IF TOG ~ XTA = "PRINT "                       02207000
-                                   OR XTA = "PRINTE" THEN 18 ELSE       02208000
-                      IF CA ~ TOG ~ XTA = "READ  "                      02209000
-                                   OR XTA = "READER" THEN 2 ELSE        02210000
-                      IF CA ~ TOG ~ XTA = "PUNCH " THEN 0 ELSE          02211000
-                            IF TOG ~ XTA = "DISK  " THEN 12 ELSE        02212000
-                            IF TOG ~ XTA = "TAPE  "                     02213000
-                                   OR XTA = "TAPE7 " THEN 2 ELSE        02214000
-                                  IF TOG ~ XTA = "PAPER " THEN 8 ELSE   02214100
-                      IF CA ~TOG~XTA= "REMOTE" THEN 19 ELSE             02214500
-                            IF TOG ~ XTA = "TAPE9 " THEN 2 ELSE 2);     02215000
+                                OR XTA = "PRINTE" THEN 18 ELSE          02208000
+                     IF CA ~ TOG ~ XTA = "READ  "                       02209000
+                                OR XTA = "READER" THEN 2 ELSE           02210000
+                     IF CA ~ TOG ~ XTA = "PUNCH " THEN 0 ELSE           02211000
+                          IF TOG ~ XTA = "DISK  " THEN 12 ELSE          02212000
+                          IF TOG ~ XTA = "TAPE  "                       02213000
+                                OR XTA = "TAPE7 " THEN 2 ELSE           02214000
+                               IF TOG ~ XTA = "PAPER " THEN 8 ELSE      02214100
+                     IF CA ~TOG~XTA= "REMOTE" THEN 19 ELSE              02214500
+                          IF TOG ~ XTA = "TAPE9 " THEN 2 ELSE 2);       02215000
    IF TOG THEN FETCH ELSE FLOG(37)                                      02216000
 END ELSE INFC.LINK~KEEP~IF DCINPUT THEN 12 ELSE 2 ;                     02217000
 TS~KEEP=12 ;                                                            02217050
@@ -3382,7 +3382,7 @@ LIBADD:                                                                 02364100
      IF LIBTAPE AND(INSERTDEPTH = 0 ) THEN WRITE(NEWTAPE,10,CRD[*]);    02364860
      END;                                                      %511-    02364885
      IF LISTOG OR DOLIST THEN PRINTCARD;                       %511-    02364890
-     NEXTCARD~7;                                                        02364900
+     NEXTCARD:=7;                                                       02364900
      GO TO STRT;                                                        02364910
     E1:  IF NEXTCARD=1 THEN IF TAPETOG THEN                             02365000
             BEGIN                                                       02366000
@@ -3782,7 +3782,7 @@ CALL, REAL, ENTRY, GO TO, READ, WRITE, FORMAT, IF, DATA, CHAIN, PRINT OR02567000
   PUNCH;                                                                02567100
    IF I ~ SEARCH(T) > 0 THEN                                            02568000
          IF GET(I).CLASS = ARRAYID THEN GO TO XIT;                      02569000
-   ID ~ T; ID.[36:12] ~ " ";                                            02570000
+   ID ~ T; ID.[36:12] ~ "  ";                                           02570000
     FOR I~0 THRU RSP DO IF RESERVEDWORDSLP[I]=ID THEN IF (IF STOR       02571000
     ~RESLENGTHLP[I]-4<1 THEN TRUE ELSE COMPLETECHECK(ACCUM[2],          02571100
     RESERVEDWORDSLP[I+RSP1],STOR)) THEN GO FOUND1 ;                     02572000
@@ -3795,7 +3795,7 @@ CALL, REAL, ENTRY, GO TO, READ, WRITE, FORMAT, IF, DATA, CHAIN, PRINT OR02567000
    RESWD:                                                               02579000
    COMMENT  AT THIS POINT WE KNOW THE <ID> MUST BE A SPECIAL WORD       02580000
    TO IDENTIFY THE STATEMENT TYPE;                                      02581000
-   ID ~ T; ID.[36:12] ~ " ";                                            02582000
+   ID ~ T; ID.[36:12] ~ "  ";                                           02582000
    IF T = "ASSIGN" THEN                                                 02583000
    BEGIN                                                                02584000
       NEXTSCN ~ SCN; SCN ~ 14;                                          02585000
