@@ -40,7 +40,7 @@ var B5500SystemConfiguration = {
     units: {
         SPO:    true,                   // SPO keyboard/printer
         DKA:    true,                   // Disk File Control A
-        DKB:    false,                  // Disk File Control B
+        DKB:    true,                   // Disk File Control B
         CRA:    true,                   // Card Reader A
         CRB:    false,                  // Card Reader B
         CPA:    true,                   // Card Punch A

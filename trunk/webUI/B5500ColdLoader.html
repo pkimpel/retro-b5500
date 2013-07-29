@@ -1319,16 +1319,16 @@ window.addEventListener("load", function() {
         /* Performs a B5500 Cold Start by initializing the directory structure on
         the disk, building segment 0, and loading the bootstrap, overwriting (and
         destroying) whatever else was there before */
-        var buffer = new Uint8Array(240);
-        var eu;
+        var buffer = new Uint8Array(240);       // one-segment buffer area
+        var eu;                                 // IDB object store for EU0
         var euName = euPrefix + "0";
-        var fileLabels = new Uint8Array(240);
+        var fileLabels = new Uint8Array(240);   // one-segment buffer for file names
         var fileNr = 0;
-        var info = [];
-        var segNr = directoryEnd + 4;
-        var shar = [];
-        var txn;
-        var zeroes = new Uint8Array(240);
+        var info = [];                          // configuration options segment
+        var segNr = null;                       // next address to allocate (set by initializeDirectory)
+        var shar = [];                          // segment 0 buffer
+        var txn;                                // IDB transaction object
+        var zeroes = new Uint8Array(240);       // buffer of binary zeroes
         var x;
 
         function loadBootstrap() {
@@ -1664,12 +1664,13 @@ window.addEventListener("load", function() {
                 stringToANSI("0000001?", fileLabels, labelx-16);        // @114, last-entry marker
                 stringToANSI("00000000", fileLabels, labelx-8);
             }
-            header[0] = 0x41;               // BIC "11" = @0101 = 1 rec/block, 1 seg/block
-            header[3] = 0x1001200;          // Date: BIC "00010180" = 1980-01-01
-            header[7] = areas*areasize-1;
-            header[8] = areasize;
-            header[9] = areas;
-            header[10] = segNr;
+            header[0] = ((30*0x8000 + 30)*0x1000 + 1)*0x40 + 1;
+                                            // 30 words/rec, 30 words/block, 1 rec/block, 1 seg/block
+            header[3] = (999*0x40000 + 80001) * 0x40000 + 80001; // save=999, create+update=1980-01-01
+            header[7] = areas*areasize-1;   // record count
+            header[8] = areasize;           // row size
+            header[9] = areas;              // number of areas
+            header[10] = segNr;             // row[0] address
             wordsToANSI(header, 0, 30, buffer, 0);
             eu.put(buffer, directoryTop + 18 - fileNr);
 
@@ -1689,15 +1690,17 @@ window.addEventListener("load", function() {
                 stringToANSI("0000001?", fileLabels, labelx-16);        // @114, last-entry marker
                 stringToANSI("00000000", fileLabels, labelx-8);
             }
-            header[0] = ((5*0x8000 + 30)*0x8000 + 6)*0x1000 + 1;
+            header[0] = ((5*0x8000 + 30)*0x1000 + 6)*0x40 + 1;
                                             // 5 words/rec, 30 words/block, 6 rec/block, 1 seg/block
-            header[3] = (365*0x40000 + 80001) * 0x40000 + 80001; // save=365, create+update=1980-01-01
-            header[7] = -1;                 // currently has no records
-            header[8] = areasize;
+            header[3] = (999*0x40000 + 80001) * 0x40000 + 80001; // save=999, create+update=1980-01-01
+            header[7] = areasize*6-1;       // record count
+            header[8] = areasize;           // row size
             header[9] = 1;                  // number of areas
-            header[10] = 0;                 // row address unallocated
+            header[10] = segNr;             // row[0] address
             wordsToANSI(header, 0, 30, buffer, 0);
             eu.put(buffer, directoryTop + 18 - fileNr);
+
+            segNr += areasize;
             fileNr++;
         }
 
@@ -1745,9 +1748,9 @@ window.addEventListener("load", function() {
                        pow2[47-43] +                // 43: type file open
                        pow2[47-42] +                // 42: call TERMINATE procedure
                                                     // 41: initialize date @ H/L
-                                                    // 40: initialize time @ H/L
+                       pow2[47-40] +                // 40: initialize time @ H/L
                                                     // 39: use only one breakout tape
-                       pow2[47-36] +                // 38: automatically print pbt
+                       pow2[47-38] +                // 38: automatically print pbt
                        pow2[47-37] +                // 37: clear write ready status @ terminal
                        pow2[47-36] +                // 36: write disc. code on terminal
                        pow2[47-35] +                // 35: type when compiler files open & close
@@ -1818,8 +1821,13 @@ window.addEventListener("load", function() {
             wordsToANSI(info, 0, 30, buffer, 0);
             eu.put(buffer, directoryTop);
 
+            // Create a pseudo file for the disk directory itself
+            segNr = directoryTop + 4;       // address of the directory
+            enterFile("DIRCTRY", "DISK", 1, directoryEnd-directoryTop-4);
+            segNr = directoryEnd + 4;       // next address to allocate
+
             // Create a file entry for the system log
-            createSystemLog(20000);
+            createSystemLog(10000);
             /** enterFile("SYSTEM", "LOG", 1, 20000); **/
 
             // Store the directory labels segment

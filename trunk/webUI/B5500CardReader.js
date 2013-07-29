@@ -39,7 +39,7 @@ function B5500CardReader(mnemonic, unitIndex, designate, statusChange, signal) {
     this.doc = null;
     this.window = window.open("/B5500/webUI/B5500CardReader.html", mnemonic,
         "scrollbars=no,resizable,width=700,height=150");
-    this.window.addEventListener("load", function() {
+    this.window.addEventListener("load", function windowLoad() {
         that.readerOnload();
     }, false);
 
@@ -147,6 +147,7 @@ B5500CardReader.prototype.CRStartBtn_onclick = function CRStartBtn_onclick(ev) {
     var that = this;
 
     if (!this.ready) {
+        this.$$("CRFileSelector").value = null; // reset the control so the same file can be reloaded
         if (this.bufIndex < this.bufLength) {
             this.setReaderReady(true);
         }
@@ -157,6 +158,7 @@ B5500CardReader.prototype.CRStartBtn_onclick = function CRStartBtn_onclick(ev) {
 B5500CardReader.prototype.CRStopBtn_onclick = function CRStopBtn_onclick(ev) {
     /* Handle the click event for the STOP button */
 
+    this.$$("CRFileSelector").value = null;     // reset the control so the same file can be reloaded
     if (this.ready) {
         this.setReaderReady(false);
     } else if (this.eofArmed) {
@@ -340,23 +342,23 @@ B5500CardReader.prototype.readerOnload = function readerOnload() {
     this.armEOF(false);
     this.setReaderReady(false);
 
-    this.$$("CRFileSelector").addEventListener("change", function(ev) {
+    this.$$("CRFileSelector").addEventListener("change", function fileSelectorChange(ev) {
         that.fileSelector_onChange(ev);
     }, false);
 
-    this.$$("CRStartBtn").addEventListener("click", function(ev) {
+    this.$$("CRStartBtn").addEventListener("click", function startClick(ev) {
         that.CRStartBtn_onclick(ev);
     }, false);
 
-    this.$$("CRStopBtn").addEventListener("click", function(ev) {
+    this.$$("CRStopBtn").addEventListener("click", function stopClick(ev) {
         that.CRStopBtn_onclick(ev);
     }, false);
 
-    this.$$("CREOFBtn").addEventListener("click", function(ev) {
+    this.$$("CREOFBtn").addEventListener("click", function eofClick(ev) {
         that.CREOFBtn_onclick(ev);
     }, false);
 
-    this.$$("CRProgressBar").addEventListener("click", function(ev) {
+    this.$$("CRProgressBar").addEventListener("click", function progressClick(ev) {
         that.CRProgressBar_onclick(ev);
     }, false);
 };
@@ -396,7 +398,7 @@ B5500CardReader.prototype.read = function read(finish, buffer, length, mode, con
             this.setReaderReady(false);
         }
 
-        this.timer = setTimeout(function() {
+        this.timer = setTimeout(function readDelay() {
             that.busy = false;
             finish(that.errorMask, length);
         }, 60000/this.cardsPerMinute + this.initiateStamp - new Date().getTime());

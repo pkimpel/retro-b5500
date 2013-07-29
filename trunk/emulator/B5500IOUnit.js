@@ -556,7 +556,7 @@ B5500IOUnit.prototype.makeFinish = function makeFinish(f) {
     /* Utility function to create a closure for I/O finish handlers */
     var that = this;
 
-    return function(mask, length) {return f.call(that, mask, length)};
+    return function makeFinishAnon(mask, length) {return f.call(that, mask, length)};
 };
 
 /**************************************/

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <head>
-<title>B5500 Disk Directory List Utility</title>
+<title>B5500 Disk SYSTEM/LOG Fixer Utility</title>
 <meta name="Author" content="Paul Kimpel">
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <meta http-equiv="Content-Script-Type" content="text/javascript">
@@ -8,20 +8,22 @@
 
 <script>
 /***********************************************************************
-* retro-b5500/tools B5500DiskDirList.html
+* retro-b5500/tools B5500DiskSystemLogFixer.html
 ************************************************************************
 * Copyright (c) 2013, Paul Kimpel.
 * Licensed under the MIT License,
 *       see http://www.opensource.org/licenses/mit-license.php
 ************************************************************************
-* B5500 Disk Directory List Utility.
+* B5500 Disk SYSTEM/LOG Fixer Utility.
 *
 * This script opens an IndexedDB database in the browser and attempts to
-* treat it as a B5500 disk image, listing all of the files and their attributes
-* in the disk directory.
+* treat it as a B5500 disk image, finding a specified file in the disk
+* directory structure, manipulating the header, and writing the header
+* back to the directory. This is intended to be a customized one-timer
+* sort of program, modified as necessary for the fix-up task at hand.
 ************************************************************************
-* 2013-04-16  P.Kimpel
-*   Original version, from B5500ColdLoader.html.
+* 2013-07-27  P.Kimpel
+*   Original version, from B5500DiskDirList.html.
 ***********************************************************************/
 "use strict";
 
@@ -345,6 +347,24 @@ window.addEventListener("load", function() {
     }
 
     /**************************************/
+    function normalizeName(name) {
+        /* Normalizes the name string to match the way file names are stored
+        in the B5500 directory, i.e., with a leading zero and trailing spaces
+        to a length of 8 */
+        var s = "0" + name;
+
+        if (s.length > 8) {
+            s = s.substring(0, 8);
+        } else {
+            while (s.length < 8) {
+                s += " ";
+            }
+        }
+
+        return s;
+    }
+
+    /**************************************/
     function readDiskHeader(block) {
         /* Decodes "block" as a B5500 disk header, returning the header object */
         var header = {
@@ -384,61 +404,47 @@ window.addEventListener("load", function() {
     }
 
     /**************************************/
-    function formatDirectoryEntry(body, mfid, fid, header) {
-        /* Formats the disk header for a file */
-        var row = document.createElement("tr");
-        var rx;
-        var text = "";
+    function fixIt(mfid, fid, headerAddr, headerBlock) {
+        /* Callback (successor) function to fix up a disk header */
+        /* This version corrects the record count in SYSTEM/LOG */
+        var buffer = new Uint8Array(240);
+        var eu;
+        var euName = euPrefix + "0";
+        var h = readDiskHeader(headerBlock);
+        var txn;
 
-        function appendCell(row, v, className) {
-            var cell = document.createElement("td");
+        headerBlock[7] = h.segmentsPerRow*h.recordsPerBlock/h.segmentsPerBlock - 1;
 
-            if (className && className.search(/\S/) >= 0) {
-                cell.className = className;
-            }
-            cell.appendChild(document.createTextNode(v.toString()));
-            row.appendChild(cell);
-        }
+        txn = disk.transaction([euName], "readwrite");
+        txn.oncomplete = function(ev) {
+            alert(mfid + "/" + fid + " fix-up completed successfully");
+        };
 
-        appendCell(row, mfid.substring(1));
-        appendCell(row, fid.substring(1));
-        appendCell(row, header.recordLength, "rj");
-        appendCell(row, header.blockLength, "rj");
-        appendCell(row, header.recordsPerBlock, "rj");
-        appendCell(row, header.segmentsPerBlock, "rj");
-        appendCell(row, header.logCreationDate);
-        appendCell(row, header.logCreationTime);
-        appendCell(row, header.lastAccessDate);
-        appendCell(row, header.creationDate);
-        appendCell(row, header.fileClass, "rj");
-        appendCell(row, header.fileType, "rj");
-        appendCell(row, header.recordCount, "rj");
-        appendCell(row, header.segmentsPerRow, "rj");
-        appendCell(row, header.maxRows, "rj");
-
-        for (rx=0; rx<header.maxRows; rx++) {
-            text += header.rowAddress[rx].toFixed(0) + " ";
-        }
-
-        appendCell(row, text);
-        body.appendChild(row);
+        eu = txn.objectStore(euName);
+        wordsToANSI(headerBlock, 0, 30, buffer, 0);
+        eu.put(buffer, headerAddr);
     }
 
     /**************************************/
-    function directoryList(successor) {
-        /* Reads the existing directory structure to generate a list of the files
-        in the directory. When finished, calls the "successor" function */
-        var block = new Array(480);
-        var body = $$("DirListBody");
+    function directorySearch(mfid, fid, successor) {
+        /* Reads the existing directory structure to search for the specified
+        file named mfid/fid. If found, calls the successor function, passing the
+        names, disk header address, and disk header block */
+        var block = new Array(480);     // directory block (16 segments)
+        var f1;                         // normalized mfid
+        var f2;                         // normalized fid
 
-        function reportDirBlock(addr, block) {
-            /* Lists the entries in the resulting block; if not the last block,
-            advances to the next block */
-            var atEnd = false;
-            var bx;
-            var fid;
-            var mfid;
-            var namex;
+        function searchDirBlock(addr, block) {
+            /* Lists the entries in the current block; if not the last block,
+            advances to the next block until the file names are found */
+            var atEnd = false;          // searched to end of directory
+            var bx;                     // header block index
+            var found = false;          // true if requested file found
+            var headerBlock;            // disk header as Array(30)
+            var headerAddr;             // segment address of header
+            var n1;                     // current mfid
+            var n2;                     // current fid
+            var namex;                  // current index in name segment (0-14)
 
             // Step through the file name entries backwards
             for (namex=14; namex>=0; namex--) {
@@ -447,31 +453,36 @@ window.addEventListener("load", function() {
                     atEnd = true;
                     break;
                 } else if (block[bx] != 0x0C) { // 0x0C=@14, available directory slot
-                    // Got a live one -- format its header
-                    mfid = wordsToString(block, bx, 1, true);
-                    fid =  wordsToString(block, bx+1, 1, true);
-                    bx = namex*30;
-                    formatDirectoryEntry(body, mfid, fid, readDiskHeader(block.slice(bx, bx+30)));
+                    // Got a live one -- check its names
+                    n1 = wordsToString(block, bx, 1, true);
+                    n2 = wordsToString(block, bx+1, 1, true);
+                    if (f1==n1 && f2==n2) {
+                        found = true;
+                        headerAddr = addr + namex;
+                        bx = namex*30;
+                        headerBlock = block.slice(bx, bx+30);
+                        break;
+                    }
                 }
             }
-            if (atEnd) {
-                successor();
+            if (found) {
+                successor(mfid, fid, headerAddr, headerBlock);
+            } else if (atEnd) {
+                spout("File " + mfid + "/" + fid + " not found.");
             } else {
-                readDiskBlock(addr+16, 16, block, reportDirBlock);
+                readDiskBlock(addr+16, 16, block, searchDirBlock);
             }
 
         }
 
-        /***** outer block of directoryList *****/
+        /***** outer block of directorySearch *****/
 
-        while (body.firstChild) {
-            body.removeChild(body.firstChild);
-        }
-
+        f1 = normalizeName(mfid);
+        f2 = normalizeName(fid);
         if (!config.EU0) {
             alert("No EU0 in disk configuration -- cannot load");
         } else {
-            readDiskBlock(directoryTop+4, 16, block, reportDirBlock);
+            readDiskBlock(directoryTop+4, 16, block, searchDirBlock);
         }
     }
 
@@ -545,7 +556,7 @@ window.addEventListener("load", function() {
 
     if (!checkBrowser()) {
         openDatabase(dbName, dbVersion, function() {
-            directoryList(function() {});
+            directorySearch("SYSTEM", "LOG", fixIt);
         });
     }
 }, false);
@@ -573,31 +584,9 @@ TH {
 <div style="position:relative; width:100%; height:3em">
     <div style="position:absolute; left:0; top:0; width:auto">
         <img src="../webUI/retro-B5500-Logo.png" alt="retro-B5500 Logo" style="float:left">
-        &nbsp;Disk Directory List Utility
+        &nbsp;Disk SYSTEM/LOG Fixer Utility
     </div>
 </div>
-
-<table id=DirListTable border=1 cellspacing=0 cellpadding=1>
-<thead>
-<tr>
-    <th>MFID
-    <th>FID
-    <th>REC
-    <th>BLK
-    <th>RPB
-    <th>SPB
-    <th>LCD
-    <th>LCT
-    <th>LAD
-    <th>CRD
-    <th>FCL
-    <th>FTY
-    <th>CNT
-    <th>SPR
-    <th>MXR
-    <th>Row Addresses
-<tbody id=DirListBody>
-</table>
 
 <pre id=TextPanel>
 </pre>

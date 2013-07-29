@@ -42,7 +42,7 @@ function B5500DummyPrinter(mnemonic, unitIndex, designate, statusChange, signal)
     this.endOfPaper = null;
     this.window = window.open("/B5500/webUI/B5500DummyPrinter.html", mnemonic,
             "scrollbars,resizable,width=600,height=500");
-    this.window.addEventListener("load", function() {
+    this.window.addEventListener("load", function windowOnLoad() {
         that.printerOnload();
     }, false);
 }
@@ -116,7 +116,7 @@ B5500DummyPrinter.prototype.printerOnload = function printerOnload() {
     this.window.moveTo(40, 40);
     this.window.resizeTo(1000, screen.availHeight*0.80);
 
-    this.window.addEventListener("click", function(ev) {
+    this.window.addEventListener("click", function windowOnClick(ev) {
         if (ev.detail == 2) { // check for left-button double-click
             that.ripPaper(ev);
         }
@@ -154,11 +154,13 @@ B5500DummyPrinter.prototype.write = function write(finish, buffer, length, mode,
     this.errorMask = 0;
     text = String.fromCharCode.apply(null, buffer.subarray(0, length));
     //console.log("WRITE:  L=" + length + ", M=" + mode + ", C=" + control + " : " + text);
-    this.appendLine(text + "\n");
-    if (control > 1) {
-        this.appendLine("\n");
-    } else if (control < 0) {
-        this.paper.appendChild(this.doc.createElement("hr"));
+    if (length || control) {
+        this.appendLine(text + "\n");
+        if (control > 1) {
+            this.appendLine("\n");
+        } else if (control < 0) {
+            this.paper.appendChild(this.doc.createElement("hr"));
+        }
     }
 
     this.timer = setTimeout(this.signal,

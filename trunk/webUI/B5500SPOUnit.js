@@ -30,8 +30,9 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal) {
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (e.g,. SPO input request)
 
-    this.timer = null;                  // setTimeout() token
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
+    this.inTimer = null;                // input setTimeout() token
+    this.outTimer = null;               // output setTimeout() token
 
     this.clear();
 
@@ -49,7 +50,7 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal) {
     this.endOfPaper = null;
     this.window = window.open("/B5500/webUI/B5500SPOUnit.html", mnemonic,
             "scrollbars,resizable,width=600,height=500");
-    this.window.addEventListener("load", function() {
+    this.window.addEventListener("load", function windowOnLoad() {
         that.spoOnload();
     }, false);
 }
@@ -224,19 +225,19 @@ B5500SPOUnit.prototype.outputChar = function outputChar() {
             that.printChar(that.buffer[that.bufIndex]);
             that.bufIndex++;
             that.printCol++;
-            this.timer = setTimeout(that.outputChar, delay);
+            this.outTimer = setTimeout(that.outputChar, delay);
         } else {                        // set up for the final CR/LF
             that.printCol = 72;
-            this.timer = setTimeout(that.outputChar, delay);
+            this.outTimer = setTimeout(that.outputChar, delay);
         }
     } else if (that.printCol == 72) {   // delay to fake the output of a carriage-return
         that.printCol++;
-        this.timer = setTimeout(that.outputChar, delay+that.charPeriod);
+        this.outTimer = setTimeout(that.outputChar, delay+that.charPeriod);
     } else {                            // actually output the CR/LF
         that.appendEmptyLine();
         if (that.bufIndex < that.bufLength) {
             that.printCol = 0;          // more characters to print after the CR/LF
-            this.timer = setTimeout(that.outputChar, delay);
+            this.outTimer = setTimeout(that.outputChar, delay);
         } else {                        // message text is exhausted
             that.finish(that.errorMask, that.bufLength);  // report finish with any errors
             if (that.spoLocalRequested) {
@@ -299,21 +300,27 @@ B5500SPOUnit.prototype.keyPress = function keyPress(ev) {
             if (this.printCol < 72) {
                 this.printCol++;
             }
-            this.timer = setTimeout(function() {that.printChar(c)}, nextTime-stamp);
+            this.inTimer = setTimeout(function keyPressChar() {
+                that.printChar(c);
+            }, nextTime-stamp);
         }
         if (c == 126) {                 // "~" (B5500 group-mark)
             c = this.keyFilter[c];
             if (this.printCol < 72) {
                 this.printCol++;
             }
-            this.timer = setTimeout(function() {that.printChar(c)}, nextTime-stamp);
+            this.inTimer = setTimeout(function keyPressGM() {
+                that.printChar(c);
+            }, nextTime-stamp);
             this.nextCharTime = nextTime + this.charPeriod;
             this.terminateInput();
         }
     } else if (this.spoState == this.spoLocal) {
         if (c >= 32 && c <= 126) {
             c = this.keyFilter[c];
-            this.timer = setTimeout(function() {that.printChar(c)}, nextTime-stamp);
+            this.inTimer = setTimeout(function keyPressLocalChar() {
+                that.printChar(c);
+            }, nextTime-stamp);
         }
     }
 
@@ -354,7 +361,7 @@ B5500SPOUnit.prototype.keyDown = function keyDown(ev) {
         switch (this.spoState) {
         case this.spoInput:
         case this.spoLocal:
-            this.timer = setTimeout(this.backspaceChar, nextTime-stamp);
+            this.inTimer = setTimeout(this.backspaceChar, nextTime-stamp);
             this.nextCharTime = nextTime;
             result = false;
             break;
@@ -368,7 +375,7 @@ B5500SPOUnit.prototype.keyDown = function keyDown(ev) {
             result = false;
             break
         case this.spoLocal:
-            this.timer = setTimeout(function() {
+            this.inTimer = setTimeout(function keyDownLocal() {
                 that.appendEmptyLine();
             }, nextTime-stamp+this.charPeriod);
             this.nextCharTime = nextTime;
@@ -440,41 +447,41 @@ B5500SPOUnit.prototype.spoOnload = function spoOnload() {
 
     this.window.addEventListener("beforeunload", this.beforeUnload, false);
 
-    this.window.addEventListener("keypress", function(ev) {
+    this.window.addEventListener("keypress", function windowKeyPress(ev) {
         that.keyPress(ev);
     }, false);
 
-    this.window.addEventListener("keydown", function(ev) {
+    this.window.addEventListener("keydown", function windowKeyDown(ev) {
         that.keyDown(ev);
     }, false);
 
-    this.$$("SPORemoteBtn").addEventListener("click", function() {
+    this.$$("SPORemoteBtn").addEventListener("click", function remoteClick() {
         that.setRemote();
     }, false);
 
-    this.$$("SPOLocalBtn").addEventListener("click", function() {
+    this.$$("SPOLocalBtn").addEventListener("click", function localClick() {
         that.setLocal();
     }, false);
 
-    this.$$("SPOInputRequestBtn").addEventListener("click", function() {
+    this.$$("SPOInputRequestBtn").addEventListener("click", function inputRequestClick() {
         if (that.spoState == that.spoRemote || that.spoState == that.spoOutput) {
             that.addClass(that.$$("SPOInputRequestBtn"), "yellowLit");
             that.signal();
         }
     }, false);
 
-    this.$$("SPOErrorBtn").addEventListener("click", function() {
+    this.$$("SPOErrorBtn").addEventListener("click", function errorClick() {
         that.cancelInput();
     }, false);
 
-    this.$$("SPOEndOfMessageBtn").addEventListener("click", function() {
+    this.$$("SPOEndOfMessageBtn").addEventListener("click", function endOfMessageClick() {
         that.terminateInput();
     }, false);
 
     for (x=0; x<32; x++) {
         this.appendEmptyLine();
     }
-    this.printText("retro-B5500 Emulator Version " + B5500CentralControl.version, function() {
+    this.printText("retro-B5500 Emulator Version " + B5500CentralControl.version, function initComplete() {
         this.window.focus();
         that.setRemote();
         that.appendEmptyLine();
@@ -582,8 +589,11 @@ B5500SPOUnit.prototype.writeInterrogate = function writeInterrogate(finish, cont
 B5500SPOUnit.prototype.shutDown = function shutDown() {
     /* Shuts down the device */
 
-    if (this.timer) {
-        clearTimeout(this.timer);
+    if (this.inTimer) {
+        clearTimeout(this.inTimer);
+    }
+    if (this.outTimer) {
+        clearTimeout(this.outTimer);
     }
     this.window.removeEventListener("beforeunload", this.beforeUnload, false);
     this.window.close();
