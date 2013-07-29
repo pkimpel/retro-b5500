@@ -43,7 +43,7 @@ function B5500CardPunch(mnemonic, unitIndex, designate, statusChange, signal) {
     this.endOfStacker2 = null;
     this.window = window.open("/B5500/webUI/B5500CardPunch.html", mnemonic,
             "scrollbars=no,resizable,width=700,height=500");
-    this.window.addEventListener("load", function() {
+    this.window.addEventListener("load", function windowLoad() {
         that.punchOnload();
     }, false);
 }
@@ -226,15 +226,15 @@ B5500CardPunch.prototype.punchOnload = function punchOnload() {
     this.armRunout(false);
     this.setPunchReady(true);
 
-    this.$$("CPStartBtn").addEventListener("click", function(ev) {
+    this.$$("CPStartBtn").addEventListener("click", function startClick(ev) {
         that.CPStartBtn_onclick(ev);
     }, false);
 
-    this.$$("CPStopBtn").addEventListener("click", function(ev) {
+    this.$$("CPStopBtn").addEventListener("click", function stopClick(ev) {
         that.CPStopBtn_onclick(ev);
     }, false);
 
-    this.$$("CPRunoutBtn").addEventListener("click", function(ev) {
+    this.$$("CPRunoutBtn").addEventListener("click", function runoutClick(ev) {
         that.CPRunoutBtn_onclick(ev);
     }, false);
 
@@ -295,7 +295,7 @@ B5500CardPunch.prototype.write = function write(finish, buffer, length, mode, co
         }
     }
 
-    this.timer = setTimeout(function() {
+    this.timer = setTimeout(function writeDelay() {
         that.busy = false;
         finish(that.errorMask, length);
     }, 60000/this.cardsPerMinute + this.initiateStamp - new Date().getTime());

@@ -61,7 +61,7 @@ function B5500CentralControl() {
 /**************************************/
     /* Global constants */
 
-B5500CentralControl.version = "0.11";
+B5500CentralControl.version = "0.12";
 
 B5500CentralControl.memReadCycles = 2;  // assume 2 탎 memory read cycle time (the other option was 3 탎)
 B5500CentralControl.memWriteCycles = 4; // assume 4 탎 memory write cycle time (the other option was 6 탎)
@@ -157,7 +157,7 @@ B5500CentralControl.bindMethod = function bindMethod(f, context) {
     Note that this is a constructor property function, NOT an instance method of
     the CC object */
 
-    return function() {f.apply(context, arguments)};
+    return function bindMethodAnon() {f.apply(context, arguments)};
 };
 
 /**************************************/
@@ -534,7 +534,7 @@ B5500CentralControl.prototype.clearInterrupt = function clearInterrupt() {
             p1.I &= 0xFD;
             break;
         case 0x32:                      // @62: P1 stack overflow
-            p1.I &= 0x0B;
+            p1.I &= 0xFB;
             break;
         case 0x34:                      // @64-75: P1 syllable-dependent
         case 0x35:
@@ -790,7 +790,7 @@ B5500CentralControl.prototype.load = function load(dontStart) {
     only the MCP bootstrap is loaded into memory -- P1 is not started */
     var result;
     var boundLoadComplete = (function boundLoadComplete(that, dontStart) {
-        return function() {return that.loadComplete(dontStart)}
+        return function boundLoadCompleteAnon() {return that.loadComplete(dontStart)}
     })(this, dontStart);
 
     if (!this.P1 || this.P1.busy) {     // P1 is busy or not available
@@ -1050,7 +1050,7 @@ B5500CentralControl.prototype.powerOff = function powerOff() {
     if (this.poweredUp) {
         this.halt();
         // Wait a little while for I/Os, etc., to finish
-        setTimeout(function() {
+        setTimeout(function powerOffAnon() {
             shutDown.call(that);
         }, 1000)
     }
