@@ -4,11 +4,11 @@
 = WebUI Using the B5500 Console =
 <wiki:toc max_depth="2"/>
 
-Compared to virtually ever other computer system of the 1960s, the Burroughs B5500 had an extraordinarily minimalist operator console -- just five buttons and six lights, plus a few more on the Teletype SPO (supervisory keyboard/printer). The best image we have of the console is from a 1964 Burroughs brochure for the system:
+Compared to virtually ever other computer system of the 1960s, the Burroughs B5500 had an extraordinarily minimalist operator console -- just five buttons and six lights, plus a few more on the Teletype SPO (supervisory keyboard/printer). The best image we have of the console is from the 1968 Burroughs Corporation annual report:
 
-    https://googledrive.com/host/0BxqKm7v4xBswRjNYQnpqM0ItbkU/B5500-Console-Image.jpg
+    https://googledrive.com/host/0BxqKm7v4xBswRjNYQnpqM0ItbkU/B5500-Console-Image.png
 
-That image shows the original device used for the SPO, a Smith-Corona electric typewriter, which was replaced later by a Teletype Model 33 KSR device.
+That image shows the B5500 at the City of Montreal, Canada. It shows the L-shaped console desk, with the Teletype Model 33 SPO.
 
 We have tried to be faithful to the design of the console in our representation of it for the web-based user interface:
 
@@ -27,17 +27,17 @@ The console was used to power the system on and off, initiate a load (boot) of t
 
 From left to right, the controls on the console are:
 
-    * *HALT* button -- pressing this black pushbutton halted the system. This initiated a complete termination of all processing. The only way to continue after halting was to press *LOAD* and reboot the system.
-    * *NOT READY* light -- this yellow indicator was lit when one of the components of the system that did not have its own ready/not ready indicator was in a not-ready or off-line state. It applied to processors, I/O units, memory modules, and the first drum (if present).
-    * *LOAD SELECT* -- this black button/light controlled whether a load operation read from the first disk^1^ or the first card reader. In its normal position, load was from disk. When pressed, the button latched inward and lit, causing load from cards. For the web-based console, the depressed position is indicated by a yellow border around the button.
-    * *LOAD* -- pressing this black pushbutton cleared all registers in the system and initiated a load operation. When loading from disk, 63 sectors (1890 words) were read into memory starting at location 20 octal. When loading from cards, one binary card was read starting at location 20 octal. If the read was successful, Processor 1 then started executing at that address.
-    * *MEMORY CHECK* -- this yellow light illuminated when a memory parity error was detected by either processor.
-    * *A NORMAL* -- this yellow light illuminated when Processor A was operating in Normal State (i.e., running user code).
-    * *A CONTROL* -- this yellow light illuminated when Processor A was operating in Control State (i.e., running MCP code).^2^
-    * *B NORMAL* -- this yellow light illuminated when Processor B was operating in Normal State.
-    * *B CONTROL* -- this yellow light illuminated when Processor B was operating in Control State.
-    * *POWER ON* -- pressing this white light/button initiated a power-up sequence for the system. The button was illuminated when power was applied to the system. In the web-based emulator, pressing this button initializes the internal emulator components and opens a series of sub-windows for the peripheral devices configured for the system -- SPO, card reader, line printer, etc..
-    * *POWER OFF* -- pressing this black pushbutton initiated a power shutdown sequence for the system. In the web-based emulator, pressing this button halts the processor(s) and closes the peripheral sub-windows.
+    * *HALT* button -- pressing this red pushbutton halts the system. This initiates a complete termination of all processing. The only way to continue after halting is to press *LOAD* and reboot the system. The button illuminates when power is on and the system is halted.
+    * *NOT READY* light -- this white indicator illuminates when one of the components of the system that did not have its own ready/not ready indicator is in a not-ready or off-line state. It applies to processors, I/O units, memory modules, and the first drum (if present).
+    * *MEMORY CHECK* -- this red light illuminates when a memory parity error is detected by either processor.
+    * *LOAD* -- pressing this black pushbutton clears all registers in the system and initiates a load operation. When loading from disk, 63 sectors (1890 words) are read into memory starting at location 20 octal. When loading from cards, one binary card is read starting at location 20 octal. If the read is successful, Processor 1 then starts executing at that address.
+    * *CARD LOAD SELECT* -- this yellow button/light controls whether a load operation reads from the first disk^1^ or the first card reader. In its normal position, load is from disk. When pressed, the physical button latched inward and lit, enabling load from cards. In the web-based emulator, the state of the button toggles each time you click it, but the button only lights.
+    * *A NORMAL* -- this yellow light illuminates when Processor A is operating in Normal State (i.e., running user code).
+    * *A CONTROL* -- this yellow light illuminates when Processor A is operating in Control State (i.e., running MCP code).^2^
+    * *B NORMAL* -- this yellow light illuminates when Processor B is operating in Normal State.
+    * *B CONTROL* -- this yellow light illuminates when Processor B is operating in Control State.
+    * *POWER ON* -- pressing this green light/button initiates a power-up sequence for the system. The button is illuminated when "power" is applied to the system. In the web-based emulator, pressing this button initializes the internal emulator components and opens a series of sub-windows for the peripheral devices configured for the system -- SPO, card reader, line printer, etc.
+    * *POWER OFF* -- pressing this black pushbutton initiates a power shutdown sequence for the system. In the web-based emulator, pressing this button halts the processor(s) and closes the peripheral sub-windows.
 
 When the emulator is first loaded into a browser, only the *POWER ON* button is activated. Once power is applied and the emulator is initialized, the *POWER OFF* and *LOAD* buttons become active and *POWER ON* is disabled. Once *LOAD* is pressed, *HALT* becomes active and *LOAD* is deactivated. When power is applied, *POWER OFF* can be pressed at any time, even when the system is running programs.
 
@@ -107,9 +107,11 @@ At the far right of the lower portion of the console are two statistics that ind
     * *P1 Slack:* the average percentage of time the emulated processor is delaying its execution in order to throttle its performance to that of a real B5500. Numbers closer to 100% indicate the processor emulation is using relatively small amounts of your workstation's physical processor. Numbers closer to zero indicate the emulator is barely able (or perhaps unable) to run at the speed of a real B5500.
     * *P1 Delay:* the average amount of time (in milliseconds) the processor emulation is delayed during throttling _in excess of_ the amount of time it requested to be delayed. This is a running average over the last 1000 delays, and is an indication of how precise the Javascript `setTimeout()` implementation is for your browser.
 
-The delay number is typically about half the browser's actual precision, plus one or two milliseconds. HTLM5 standards specify that browsers must have a precision of at least four milliseconds, so you should see values in the 3-4ms range for a compliant browser. Lower values are better, as all of the emulation takes place on one Javascript thread, and shorter delays allow the emulation to switch among processor and I/O tasks more efficiently.
+In our experience with Mozilla Firefox and Google Chrome, the delay number is typically about half the browser's actual precision, plus one or two milliseconds. HTLM5 standards specify that browsers must have a precision of at least four milliseconds, so you should see values in the 3-4ms range for a compliant browser. Lower values are better, as all of the emulation takes place on one Javascript thread, and shorter delays allow the emulation to switch among processor and I/O tasks more efficiently.
 
 Note that on most Windows systems, at least through Windows 7, the default timer precision is about 15ms, and you typically should see average delays in the 7-8ms range. Google Chrome is known to mess with the Windows timer mechanism beneficially, however, and meets the HTML5 requirement. Curiously, Chrome's effect on the Windows timer is system-wide -- if you run the emulator in Firefox at the same as Chrome is active in your workstation, the average delay in Firefox will be about the same as it is for Chrome.
+
+Starting with version 23, Firefox under Windows appears to handle timers more precisely as well.
 
 
 
