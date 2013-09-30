@@ -42,7 +42,7 @@ function B5500CardPunch(mnemonic, unitIndex, designate, statusChange, signal) {
     this.stacker2 = null;
     this.endOfStacker2 = null;
     this.window = window.open("/B5500/webUI/B5500CardPunch.html", mnemonic,
-            "scrollbars=no,resizable,width=700,height=500");
+            "scrollbars=no,resizable,width=560,height=204,left=0,top=220");
     this.window.addEventListener("load", function windowLoad() {
         that.punchOnload();
     }, false);
@@ -199,8 +199,8 @@ B5500CardPunch.prototype.punchOnload = function punchOnload() {
 
     this.stacker1Frame = this.$$("CPStacker1Frame");
     this.stacker1Frame.contentDocument.head.innerHTML += "<style>" +
-            "BODY {background-color: #FFE; margin: 2px} " +
-            "PRE {margin: 0; font-size: 9pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
+            "BODY {background-color: white; margin: 2px} " +
+            "PRE {margin: 0; font-size: 8pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
             "</style>";
     this.stacker1 = this.doc.createElement("pre");
     this.stacker1Frame.contentDocument.body.appendChild(this.stacker1);
@@ -209,17 +209,13 @@ B5500CardPunch.prototype.punchOnload = function punchOnload() {
 
     this.stacker2Frame = this.$$("CPStacker2Frame");
     this.stacker2Frame.contentDocument.head.innerHTML += "<style>" +
-            "BODY {background-color: #FFE; margin: 2px} " +
-            "PRE {margin: 0; font-size: 9pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
+            "BODY {background-color: white; margin: 2px} " +
+            "PRE {margin: 0; font-size: 8pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
             "</style>";
     this.stacker2 = this.doc.createElement("pre");
     this.stacker2Frame.contentDocument.body.appendChild(this.stacker2);
     this.endOfStacker2 = this.doc.createElement("div");
     this.stacker2Frame.contentDocument.body.appendChild(this.endOfStacker2);
-
-    this.window.moveTo(0, 180);
-    this.window.resizeTo(this.window.outerWidth+this.$$("CPDiv").scrollWidth-this.window.innerWidth+12,
-                         this.window.outerHeight+this.$$("CPDiv").scrollHeight-this.window.innerHeight+12);
 
     this.window.addEventListener("beforeunload", this.beforeUnload, false);
 

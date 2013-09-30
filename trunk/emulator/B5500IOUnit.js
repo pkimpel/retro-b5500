@@ -45,7 +45,7 @@ function B5500IOUnit(ioUnitID, cc) {
     this.ioUnitID = ioUnitID;           // I/O Unit ID ("1", "2", "3", or "4")
     this.cc = cc;                       // Reference back to Central Control module
 
-    this.forkHandle = null;             // Reference to current setImmediate id
+    this.forkHandle = null;             // Reference to current setCallback id
     this.accessor = {                   // Memory access control block
         requestorID: ioUnitID,             // Memory requestor ID
         addr: 0,                           // Memory address
@@ -181,7 +181,7 @@ B5500IOUnit.prototype.clear = function clear() {
     this.ioUnitSlack = 0;               // Total I/O Unit throttling delay, milliseconds
 
     if (this.forkHandle) {
-        clearImmediate(this.forkHandle);
+        clearCallback(this.forkHandle);
     }
 };
 
@@ -733,7 +733,7 @@ B5500IOUnit.prototype.forkIO = function forkIO() {
     var u;                              // peripheral unit object
     var x;                              // temp number variable
 
-    this.forkHandle = null;             // clear the setImmediate() handle
+    this.forkHandle = null;             // clear the setCallback() handle
 
     x = this.D;                         // explode the D-register into its fields
     this.Dunit = (x%0x200000000000 - x%0x10000000000)/0x10000000000;    // [3:5]
@@ -863,7 +863,7 @@ B5500IOUnit.prototype.initiate = function initiate() {
         } else {
             this.D31F = 0;              // reset the IOD-fetch error condition
             this.D = this.W;
-            this.forkHandle = setImmediate(this.boundForkIO);
+            this.forkHandle = setCallback(this.boundForkIO, this, 0);
         }
     }
 };

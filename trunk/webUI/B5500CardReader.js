@@ -19,6 +19,7 @@
 function B5500CardReader(mnemonic, unitIndex, designate, statusChange, signal) {
     /* Constructor for the CardReader object */
     var that = this;
+    var x = (mnemonic == "CRA" ? 0 : 30);
 
     this.mnemonic = mnemonic;           // Unit mnemonic
     this.unitIndex = unitIndex;         // Ready-mask bit number
@@ -38,7 +39,7 @@ function B5500CardReader(mnemonic, unitIndex, designate, statusChange, signal) {
     }
     this.doc = null;
     this.window = window.open("/B5500/webUI/B5500CardReader.html", mnemonic,
-        "scrollbars=no,resizable,width=700,height=150");
+        "scrollbars=no,resizable,width=560,height=160,left="+x+",top="+x);
     this.window.addEventListener("load", function windowLoad() {
         that.readerOnload();
     }, false);
@@ -320,19 +321,14 @@ B5500CardReader.prototype.beforeUnload = function beforeUnload(ev) {
 B5500CardReader.prototype.readerOnload = function readerOnload() {
     /* Initializes the reader window and user interface */
     var that = this;
-    var x = (this.mnemonic == "CRA" ? 0 : this.window.outerWidth + 16);
 
     this.doc = this.window.document;
     this.doc.title = "retro-B5500 " + this.mnemonic;
 
-    this.window.moveTo(x, 0);
-    this.window.resizeTo(this.window.outerWidth+this.$$("CRDiv").scrollWidth-this.window.innerWidth+12,
-                         this.window.outerHeight+this.$$("CRDiv").scrollHeight-this.window.innerHeight+12);
-
     this.outHopperFrame = this.$$("CROutHopperFrame");
     this.outHopperFrame.contentDocument.head.innerHTML += "<style>" +
-            "BODY {background-color: #FFE; margin: 2px} " +
-            "PRE {margin: 0; font-size: 9pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
+            "BODY {background-color: white; margin: 2px} " +
+            "PRE {margin: 0; font-size: 8pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
             "</style>";
     this.outHopper = this.doc.createElement("pre");
     this.outHopperFrame.contentDocument.body.appendChild(this.outHopper);

@@ -34,8 +34,7 @@ function B5500Processor(procID, cc) {
 
     this.processorID = procID;          // Processor ID ("A" or "B")
     this.cc = cc;                       // Reference back to Central Control module
-    this.schedImmediate = null;         // Reference to current setImmediate token
-    this.schedTimeout = null;           // Reference to current setTimeout token
+    this.scheduler = null;              // Reference to current setCallback token
     this.accessor = {                   // Memory access control block
         requestorID: procID,               // Memory requestor ID
         addr: 0,                           // Memory address
@@ -45,18 +44,16 @@ function B5500Processor(procID, cc) {
         MAED: 0                            // Truthy if memory address/inhibit error
     };
 
-    // Establish context for asynchronously-called methods
-    this.boundSchedule = B5500CentralControl.bindMethod(this.schedule, this);
-
     this.clear();                       // Create and initialize the processor state
 
-    this.delayDeltaAvg = 0;             // Average difference between requested and actual setTimeout() delays, ms
-    this.delayLastStamp = 0;            // Timestamp of last setTimeout() delay, ms
-    this.delayRequested = 0;            // Last requested setTimeout() delay, ms
+    this.delayDeltaAvg = 0;             // Average difference between requested and actual setCallback() delays, ms
+    this.delayLastStamp = 0;            // Timestamp of last setCallback() delay, ms
+    this.delayRequested = 0;            // Last requested setCallback() delay, ms
 }
 
 /**************************************/
 
+B5500Processor.cyclesPerMilli = 1000;   // clock cycles per millisecond (1000 = 1.0 MHz)
 B5500Processor.timeSlice = 4000;        // this.run() timeslice, clocks
 B5500Processor.delaySamples = 1000;     // this.delayDeltaAvg sampling average basis
 
@@ -1294,7 +1291,6 @@ B5500Processor.prototype.storeForInterrupt = function storeForInterrupt(forTest)
             this.T = 0x89;              // inject 0211=ITI into T register
         } else {
             this.stop();                // idle the processor
-            this.cc.HP2F = 1;
             this.cc.P2BF = 0;           // tell P1 we've stopped
         }
         this.CWMF = 0;
@@ -1311,7 +1307,6 @@ B5500Processor.prototype.storeForInterrupt = function storeForInterrupt(forTest)
             this.V = 0;
         } else {
             this.stop();                // idle the processor
-            this.cc.HP2F = 1;
             this.cc.P2BF = 0;           // tell P1 we've stopped
         }
     }
@@ -1341,7 +1336,7 @@ B5500Processor.prototype.start = function start() {
     this.procTime -= stamp;
     this.delayLastStamp = stamp;
     this.delayRequested = 0;
-    this.schedImmediate = setImmediate(this.boundSchedule, 1);
+    this.scheduler = setCallback(this.schedule, this, 0);
 };
 
 /**************************************/
@@ -1354,13 +1349,9 @@ B5500Processor.prototype.stop = function stop() {
     this.PROF = 0;
     this.busy = 0;
     this.cycleLimit = 0;        // exit this.run()
-    if (this.schedImmediate) {
-        clearImmediate(this.schedImmediate);
-        this.schedImmediate = null;
-    }
-    if (this.schedTimeout) {
-        clearTimeout(this.schedTimeout);
-        this.schedTimeout = null;
+    if (this.scheduler) {
+        clearCallback(this.scheduler);
+        this.scheduler = null;
     }
     while (this.procTime < 0) {
         this.procTime += stamp;
@@ -1463,7 +1454,9 @@ B5500Processor.prototype.initiate = function initiate(forTest) {
 
     this.T = this.cc.fieldIsolate(this.P, this.L*12, 12);
     this.TROF = 1;
-    if (forTest) {
+    if (!forTest) {
+        this.NCSF = 1;
+    } else {
         this.NCSF = (this.TM >>> 4) & 0x01;
         this.CCCF = (this.TM >>> 5) & 0x01;
         this.MWOF = (this.TM >>> 6) & 0x01;
@@ -1472,9 +1465,6 @@ B5500Processor.prototype.initiate = function initiate(forTest) {
         if (!this.CCCF) {
             this.TM |= 0x80;
         }
-    } else {
-        this.NCSF = 1;
-        this.busy = 1;
     }
 };
 
@@ -1483,12 +1473,12 @@ B5500Processor.prototype.initiateAsP2 = function initiateAsP2() {
     /* Called from Central Control to initiate the processor as P2. Fetches the
     INCW from @10 and calls initiate() */
 
+    this.NCSF = 0;                      // make sure P2 is in control state to execute the IP1 & access low mem
     this.M = 0x08;                      // address of the INCW
     this.loadBviaM();                   // B = [M]
     this.AROF = 0;                      // make sure A is invalid
     this.T = 0x849;                     // inject 4111=IP1 into P2's T register
     this.TROF = 1;
-    this.NCSF = 0;                      // make sure P2 is in control state to execute the IP1
 
     // Now start scheduling P2 on the Javascript thread
     this.start();
@@ -3024,7 +3014,7 @@ B5500Processor.prototype.run = function run() {
                     switch (variant) {
                     case 0x14:          // 2411: ZPI=Conditional Halt
                         if (this.US14X) {               // STOP OPERATOR switch on
-                            this.busy = 0;
+                            this.stop();
                             this.cycleLimit = 0;        // exit this.run()
                         }
                         break;
@@ -3745,12 +3735,13 @@ B5500Processor.prototype.run = function run() {
                     case 0x12:          // 2211: HP2=Halt Processor 2
                         if (!this.NCSF) {               // control-state only
                             this.cc.haltP2();
+                            this.cycleLimit = 0;        // give P2 a chance to clean up
                         }
                         break;
 
                     case 0x14:          // 2411: ZPI=Conditional Halt
                         if (this.US14X) {               // STOP OPERATOR switch on
-                            this.busy = 0;
+                            this.stop();
                             this.cycleLimit = 0;        // exit this.run()
                         }
                         break;
@@ -4582,7 +4573,7 @@ B5500Processor.prototype.run = function run() {
 };
 
 /**************************************/
-B5500Processor.prototype.schedule = function schedule(which) {
+B5500Processor.prototype.schedule = function schedule() {
     /* Schedules the processor running time and attempts to throttle performance
     to approximate that of a real B5500 -- well, at least we hope this will run
     fast enough that the performance will need to be throttled. It establishes
@@ -4597,17 +4588,11 @@ B5500Processor.prototype.schedule = function schedule(which) {
     var delayTime;                      // delay from/until next run() for this processor, ms
     var runTime;                        // real-world processor running time, ms
 
-    if (which) {
-        this.schedImmediate = null;
-    } else {
-        this.schedTimeout = null;
-    }
+    this.scheduler = null;
     delayTime = clockOff - this.delayLastStamp;
     this.procSlack += delayTime;
-    if (this.delayRequested) {
-        this.delayDeltaAvg = (this.delayDeltaAvg*(B5500Processor.delaySamples-1) +
-                delayTime - this.delayRequested)/B5500Processor.delaySamples;
-    }
+    this.delayDeltaAvg = (this.delayDeltaAvg*(B5500Processor.delaySamples-1) +
+            delayTime - this.delayRequested)/B5500Processor.delaySamples;
 
     if (this.busy) {
         this.cycleLimit = B5500Processor.timeSlice;
@@ -4625,20 +4610,15 @@ B5500Processor.prototype.schedule = function schedule(which) {
                 runTime += clockOff;
             }
 
-            delayTime = this.totalCycles/1000 - runTime;
+            delayTime = this.totalCycles/B5500Processor.cyclesPerMilli - runTime;
             // delayTime is the number of milliseconds the processor is running ahead of
-            // real-world time. Web browsers have a certain minimum delay. If the delay
-            // is less than our estimate of that minimum, we yield to the event loop but
-            // otherwise continue (real time should eventually catch up -- we hope). If the
+            // real-world time. Web browsers have a certain minimum setTimeout() delay. If the
+            // delay is less than our estimate of that minimum, we yield to the event loop
+            // but otherwise continue (real time should eventually catch up -- we hope). If the
             // delay is greater than the minimum, we reschedule ourselves after that delay.
 
-            if (delayTime < B5500CentralControl.minDelay) {
-                this.delayRequested = 0;
-                this.schedImmediate = setImmediate(this.boundSchedule, 1);  // just yield to the event loop
-            } else {
-                this.delayRequested = delayTime;
-                this.schedTimeout = setTimeout(this.boundSchedule, delayTime, 0);
-            }
+            this.delayRequested = delayTime;
+            this.scheduler = setCallback(this.schedule, this, delayTime);
         }
     }
 };

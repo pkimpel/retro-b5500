@@ -20,6 +20,9 @@
 function B5500DummyPrinter(mnemonic, unitIndex, designate, statusChange, signal) {
     /* Constructor for the DummyPrinter object */
     var that = this;
+    var h = screen.availHeight*0.60;
+    var w = 900;
+    var s;
 
     this.mnemonic = mnemonic;           // Unit mnemonic
     this.unitIndex = unitIndex;         // Ready-mask bit number
@@ -41,7 +44,8 @@ function B5500DummyPrinter(mnemonic, unitIndex, designate, statusChange, signal)
     this.paper = null;
     this.endOfPaper = null;
     this.window = window.open("/B5500/webUI/B5500DummyPrinter.html", mnemonic,
-            "scrollbars,resizable,width=600,height=500");
+            s = "scrollbars,resizable,width=" + w + ",height=" + h +
+            ",left=0,top=" + (screen.availHeight - h));
     this.window.addEventListener("load", function windowOnLoad() {
         that.printerOnload();
     }, false);
@@ -112,9 +116,6 @@ B5500DummyPrinter.prototype.printerOnload = function printerOnload() {
     this.doc.body.appendChild(this.paper);
     this.endOfPaper = this.doc.createElement("div");
     this.doc.body.appendChild(this.endOfPaper);
-
-    this.window.moveTo(40, 40);
-    this.window.resizeTo(1000, screen.availHeight*0.80);
 
     this.window.addEventListener("click", function windowOnClick(ev) {
         if (ev.detail == 2) { // check for left-button double-click
