@@ -7,7 +7,7 @@
 <meta http-equiv="Content-Style-Type" content="text/css">
 <link id=defaultStyleSheet rel=stylesheet type="text/css" href="B5500Console.css">
 
-<script src="./setImmediate.js"></script>
+<script src="./B5500SetCallback.js"></script>
 
 <script src="./B5500DummyUnit.js"></script>
 <script src="./B5500SPOUnit.js"></script>
@@ -68,11 +68,12 @@ window.addEventListener("load", function() {
     }
 
     function PowerOnBtn_Click(ev) {
-        $$("PowerOnBtn").className = "whiteButton whiteLit";
-        $$("AControlBtn").className = "yellowButton yellowLit";
+        $$("PowerOnBtn").className = "greenButton greenLit";
+        $$("HaltBtn").className = "redButton redLit";
         cc.powerOn();
         $$("PowerOnBtn").disabled = true;
         $$("PowerOffBtn").disabled = false;
+        $$("LoadSelectBtn").disabled = false;
         $$("LoadBtn").disabled = false;
         $$("HaltBtn").disabled = true;
         boundBlinkenlicht();
@@ -82,15 +83,21 @@ window.addEventListener("load", function() {
     }
 
     function PowerOffBtn_Click(ev) {
-        $$("PowerOnBtn").className = "whiteButton";
+        $$("PowerOnBtn").className = "greenButton";
         $$("ANormalBtn").className = "yellowButton";
         $$("AControlBtn").className = "yellowButton";
         $$("BNormalBtn").className = "yellowButton";
+        $$("BControlBtn").className = "yellowButton";
+        $$("LoadSelectBtn").className = "yellowButton";
+        $$("MemoryCheckBtn").className = "redButton";
+        $$("NotReadyBtn").className = "whiteButton";
+        $$("HaltBtn").className = "redButton";
         cc.powerOff();
         $$("PowerOnBtn").disabled = false;
         $$("PowerOffBtn").disabled = true;
-        $$("HaltBtn").disabled = true;
+        $$("LoadSelectBtn").disabled = true;
         $$("LoadBtn").disabled = true;
+        $$("HaltBtn").disabled = true;
         if (timer) {
             clearTimeout(timer);
             timer = null;
@@ -99,6 +106,7 @@ window.addEventListener("load", function() {
     }
 
     function HaltBtn_Click(ev) {
+        $$("HaltBtn").className = "redButton redLit";
         cc.halt();
         $$("HaltBtn").disabled = true;
         $$("LoadBtn").disabled = false;
@@ -110,6 +118,7 @@ window.addEventListener("load", function() {
         result = cc.load(false);
         switch (result) {
         case 0:                         // load initiated successfully
+            $$("HaltBtn").className = "redButton";
             $$("HaltBtn").disabled = false;
             $$("LoadBtn").disabled = true;
             break;
@@ -131,10 +140,10 @@ window.addEventListener("load", function() {
     function LoadSelectBtn_Click(ev) {
         if (cc.cardLoadSelect) {
             cc.cardLoadSelect = 0;
-            $$("LoadSelectBtn").className = "blackButton blackLit silverBorder";
+            $$("LoadSelectBtn").className = "yellowButton";
         } else {
             cc.cardLoadSelect = 1;
-            $$("LoadSelectBtn").className = "blackButton blackLit yellowBorder";
+            $$("LoadSelectBtn").className = "yellowButton yellowLit";
         }
     }
 
@@ -340,7 +349,7 @@ window.addEventListener("load", function() {
         while (et < 0) {
           et += stamp;
         }
-        procDelay.innerHTML = p1.delayDeltaAvg.toFixed(3);
+        procDelay.innerHTML = p1.delayDeltaAvg.toFixed(1);
         procSlack.innerHTML = (p1.procSlack/et*100).toFixed(1) + "%";
 
         if (showAnnunciators) {
@@ -418,19 +427,19 @@ window.addEventListener("load", function() {
 <body>
 
 <div id=consoleDiv>
-    <button id=HaltBtn class="blackButton blackLit" DISABLED>HALT</button>
+    <button id=HaltBtn class="redButton" DISABLED>HALT</button>
 
-    <button id=NotReadyBtn class=yellowButton>NOT READY</button>
-    <button id=LoadSelectBtn class="blackButton blackLit silverBorder">LOAD SELECT</button>
+    <button id=NotReadyBtn class=whiteButton>NOT READY</button>
+    <button id=MemoryCheckBtn class=redButton>MEMORY CHECK</button>
     <button id=LoadBtn class="blackButton blackLit" DISABLED>LOAD</button>
 
-    <button id=MemoryCheckBtn class=yellowButton>MEMORY CHECK</button>
+    <button id=LoadSelectBtn class="yellowButton" DISABLED>CARD LOAD SELECT</button>
     <button id=ANormalBtn class=yellowButton>A NORMAL</button>
     <button id=AControlBtn class=yellowButton>A CONTROL</button>
     <button id=BNormalBtn class=yellowButton>B NORMAL</button>
     <button id=BControlBtn class=yellowButton>B CONTROL</button>
 
-    <button id=PowerOnBtn class=whiteButton>POWER<br>ON</button>
+    <button id=PowerOnBtn class=greenButton>POWER<br>ON</button>
     <button id=PowerOffBtn class="blackButton blackLit" DISABLED>POWER OFF</button>
 
     <div id=BurroughsLogo>
@@ -447,8 +456,8 @@ window.addEventListener("load", function() {
 
     <table id=CentralControl style="visibility:hidden">
     <colgroup>
-        <col span=32 class=AnnunciatorCol>
-        <col>
+        <col span=31 class=AnnunciatorCol>
+        <col span=2>
     </colgroup>
     <tbody>
     <tr id=CCInterruptRow>
@@ -472,7 +481,7 @@ window.addEventListener("load", function() {
         <td id=CCI16F>DK2F              <!-- Disk file #2 read check finished           -->
         <td colspan=13>
         <td id=procSlack>
-        <td class=busy title="Percentage of time Processor A is throttling its performance">P1 Slack
+        <td class=statLabel title="Percentage of time Processor A is throttling its performance">P1 Slack
     <tr id=CCPeripheralRow>
         <td id=DRA>DRA                  <!-- 31 -->
         <td id=DRB>DRB                  <!-- 30 -->
@@ -506,7 +515,7 @@ window.addEventListener("load", function() {
         <td id=MTS>MTS                  <!-- 33 -->
         <td id=MTT>MTT                  <!-- 32 -->
         <td id=procDelay>
-        <td class=busy title="Average excess throttling delay for Processor A (ms)">P1 Delay
+        <td class=statLabel title="Average excess throttling delay for Processor A (ms)">P1 Delay
     </table>
 </div>
 

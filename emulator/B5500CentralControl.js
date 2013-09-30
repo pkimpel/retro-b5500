@@ -50,7 +50,7 @@ function B5500CentralControl() {
     this.cardLoadSelect = 0;            // 0=> load from disk/drum; 1=> load from cards
 
     this.nextTimeStamp = 0;             // Next actual Date.getTime() for timer tick
-    this.timer = null;                  // Reference to the RTC setTimeout id.
+    this.timer = null;                  // Reference to the RTC setCallback id.
 
     // Establish contexts for asynchronously-called methods
     this.boundTock = B5500CentralControl.bindMethod(this.tock, this);
@@ -61,11 +61,10 @@ function B5500CentralControl() {
 /**************************************/
     /* Global constants */
 
-B5500CentralControl.version = "0.12";
+B5500CentralControl.version = "0.13";
 
 B5500CentralControl.memReadCycles = 2;  // assume 2 탎 memory read cycle time (the other option was 3 탎)
 B5500CentralControl.memWriteCycles = 4; // assume 4 탎 memory write cycle time (the other option was 6 탎)
-B5500CentralControl.minDelay = 4;       // minimum setTimeout() delay, ms
 B5500CentralControl.rtcTick = 1000/60;  // Real-time clock period, milliseconds
 
 B5500CentralControl.pow2 = [ // powers of 2 from 0 to 52
@@ -105,7 +104,7 @@ B5500CentralControl.mask2 = [ // (2**n)-1 For n From 0 to 52
 // which is why they are in the range 17..47. The [0] dimension determines the index
 // when writing; the [1] dimension determines the index when reading. This approach
 // is necessary since some unit designates map to two different devices depending
-// on IOD.[24:1], e.g. designate 14=CPA/CRA (status bits 23/24).
+// on the read bit in IOD.[24:1], e.g. designate 14=CPA/CRA (status bits 23/24).
 
 B5500CentralControl.unitIndex = [
      // 0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
@@ -166,7 +165,7 @@ B5500CentralControl.prototype.clear = function clear() {
     real-time clock */
 
     if (this.timer) {
-        clearTimeout(this.timer);
+        clearCallback(this.timer);
         this.timer = null;
     }
 
@@ -572,12 +571,7 @@ B5500CentralControl.prototype.tock = function tock() {
         }
     }
     interval = (this.nextTimeStamp += B5500CentralControl.rtcTick) - thisTime;
-    if (interval >= B5500CentralControl.minDelay) {
-        this.timer = setTimeout(this.boundTock, interval);
-    } else {
-        this.timer = null;
-        setImmediate(this.boundTock);
-    }
+    this.timer = setCallback(this.boundTock, this, interval);
 };
 
 /**************************************/
@@ -734,7 +728,7 @@ B5500CentralControl.prototype.halt = function halt() {
     /* Halts the processors. Any in-process I/Os are allowed to complete */
 
     if (this.timer) {
-        clearTimeout(this.timer);
+        clearCallback(this.timer);
         this.timer = null;
     }
 
@@ -1014,13 +1008,12 @@ B5500CentralControl.prototype.powerOn = function powerOn() {
 B5500CentralControl.prototype.powerOff = function powerOff() {
     /* Powers down the system and deallocates the hardware modules.
     Redundant power-offs are ignored. */
-    var that = this;
 
     function shutDown() {
         var x;
 
         if (this.timer) {
-            clearTimeout(this.timer);
+            clearCallback(this.timer);
             this.timer = null;
         }
 
@@ -1050,8 +1043,6 @@ B5500CentralControl.prototype.powerOff = function powerOff() {
     if (this.poweredUp) {
         this.halt();
         // Wait a little while for I/Os, etc., to finish
-        setTimeout(function powerOffAnon() {
-            shutDown.call(that);
-        }, 1000)
+        setCallback(shutDown, this, 1000);
     }
 };
