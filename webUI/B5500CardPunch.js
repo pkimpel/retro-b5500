@@ -62,7 +62,6 @@ B5500CardPunch.prototype.clear = function clear() {
 
     this.ready = false;                 // ready status
     this.busy = false;                  // busy status
-    this.activeIOUnit = 0;              // I/O unit currently using this device
 
     this.errorMask = 0;                 // error mask for finish()
     this.finish = null;                 // external function to call for I/O completion

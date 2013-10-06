@@ -20,7 +20,7 @@
 function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal) {
     /* Constructor for the SPOUnit object */
 
-    this.maxScrollLines = 500;          // Maximum amount of printer scrollback
+    this.maxScrollLines = 1500;         // Maximum amount of printer scrollback
     this.charPeriod = 100;              // Printer speed, milliseconds per character
 
     this.mnemonic = mnemonic;           // Unit mnemonic
@@ -76,7 +76,6 @@ B5500SPOUnit.prototype.clear = function clear() {
 
     this.ready = false;                 // ready status
     this.busy = false;                  // busy status
-    this.activeIOUnit = 0;              // I/O unit currently using this device
 
     this.errorMask = 0;                 // error mask for finish()
     this.finish = null;                 // external function to call for I/O completion

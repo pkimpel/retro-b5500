@@ -73,7 +73,6 @@ B5500CardReader.prototype.clear = function clear() {
 
     this.ready = false;                 // ready status
     this.busy = false;                  // busy status
-    this.activeIOUnit = 0;              // I/O unit currently using this device
 
     this.errorMask = 0;                 // error mask for finish()
     this.finish = null;                 // external function to call for I/O completion
@@ -148,7 +147,6 @@ B5500CardReader.prototype.CRStartBtn_onclick = function CRStartBtn_onclick(ev) {
     var that = this;
 
     if (!this.ready) {
-        this.$$("CRFileSelector").value = null; // reset the control so the same file can be reloaded
         if (this.bufIndex < this.bufLength) {
             this.setReaderReady(true);
         }
@@ -185,6 +183,9 @@ B5500CardReader.prototype.CRProgressBar_onclick = function CRProgressBar_onclick
             this.bufLength = 0;
             this.bufIndex = 0;
             this.$$("CRProgressBar").value = 0;
+            while (this.outHopper.childNodes.length > 0) {
+                this.outHopper.removeChild(this.outHopper.firstChild);
+            }
         }
     }
 };
@@ -392,6 +393,7 @@ B5500CardReader.prototype.read = function read(finish, buffer, length, mode, con
             this.bufLength = 0;
             this.bufIndex = 0;
             this.setReaderReady(false);
+            this.$$("CRFileSelector").value = null; // reset the control so the same file can be reloaded
         }
 
         this.timer = setTimeout(function readDelay() {

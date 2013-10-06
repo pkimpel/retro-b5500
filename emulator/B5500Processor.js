@@ -1611,10 +1611,9 @@ B5500Processor.prototype.singlePrecisionAdd = function singlePrecisionAdd(adding
                 d = mb % 8;
                 mb = (mb - d)/8;        // shift right into extension
                 xb = (xb - xb%8)/8 + d*0x1000000000;
-                if (mb) {
-                    eb++;
-                } else {
-                    eb = ea;            // if B=0, result will have exponent of A
+                eb++;
+                if (mb == 0 && ea != eb) {
+                    eb = ea;            // if B=0, kill the scaling loop: result will have exponent of A
                     xb = 0;             // prevent rounding of result
                 }
             }
@@ -1631,9 +1630,8 @@ B5500Processor.prototype.singlePrecisionAdd = function singlePrecisionAdd(adding
                 d =  ma % 8;
                 ma = (ma - d)/8;        // shift right into extension
                 xa = (xa - xa%8)/8 + d*0x1000000000;
-                if (ma) {
-                    ea++;
-                } else {
+                ea++;
+                if (ma == 0 && eb != ea) {
                     ea = eb;            // if A=0, kill the scaling loop
                     xa = 0;             // prevent rounding of result
                 }
@@ -1646,68 +1644,72 @@ B5500Processor.prototype.singlePrecisionAdd = function singlePrecisionAdd(adding
         xb = (sb ? -xb : xb) + (sa ? -xa : xa);         // compute the extension
         if (xb < 0) {
             xb += 0x8000000000;                                 // adjust for underflow in the extension
-            mb += (sb ? 1 : -1);                                // adjust B for borrow into extension
+            d = -1;                                             // adjust B for borrow into extension
         } else if (xb > 0x8000000000) {
             xb -= 0x8000000000;                                 // adjust for overflow in the extension
-            mb += (sb? -1 : 1);                                 // adjust B for carry from extension
+            d = 1;                                              // adjust B for carry from extension
+        } else {
+            d = 0;                                              // no adjustment
         }
 
-        mb = (sb ? -mb : mb) + (sa ? -ma : ma);         // compute the mantissa
+        mb = (sb ? -mb : mb) + (sa ? -ma : ma) + d;     // compute the mantissa
+        if (mb >= 0) {                                  // if non-negative...
+            sb = 0;                                             // reset the B sign bit
+        } else {                                        // if negative...
+            sb = 1;                                             // set the B sign bit
+            mb = -mb;                                           // negate the B mantissa
+            if (xb) {                                           // if non-zero octades have been shifted into X (and ONLY if... learned THAT the hard way...)
+                xb = 0x8000000000 - xb;                         // negate the extension in X
+                mb--;                                           // and adjust for borrow into X
+            }
+        }
+
+        // Normalize and round as necessary
+        if (mb < 0x1000000000) {                                // Normalization can be required for subtract
+            if (xb < 0x800000000) {                             // if first two octades in X < @04 then
+                d = 0;                                          // no rounding will take place
+            } else {
+                this.cycleCount++;
+                d = (xb - xb%0x1000000000)/0x1000000000;        // get the high-order digit from X
+                xb = (xb%0x1000000000)*8;                       // shift B and X left together
+                mb = mb*8 + d;
+                eb--;
+                d = (xb - xb%0x1000000000)/0x1000000000;        // get the rounding digit from X
+            }
+        } else if (mb >= 0x8000000000) {                        // Scaling can be required for add
+            this.cycleCount++;
+            d = mb % 8;                                         // get the rounding digit from B
+            mb = (mb - d)/8;                                    // shift right due to overflow
+            eb++;
+        } else {
+            d = (xb - xb%0x1000000000)/0x1000000000;            // another hard-earned lesson...
+        }
+
+        // Note: the Training Manual does not say that rounding is suppressed
+        // for add/subtract when the mantissa is all ones, but it does say so
+        // for multiply/divide, so we assume it's also the case here.
+        if (d & 0x04) {                 // if the guard digit >= 4
+            if (mb < 0x7FFFFFFFFF) {    // and rounding would not cause overflow
+                this.cycleCount++;
+                mb++;                   // round up the result
+            }
+        }
+
+        // Check for exponent overflow
+        if (eb > 63) {
+            eb %= 64;
+            if (this.NCSF) {
+                this.I = (this.I & 0x0F) | 0xB0;        // set I05/6/8: exponent-overflow
+                this.cc.signalInterrupt();
+            }
+        } else if (eb < 0) {
+            eb = (-eb) | 0x40;                          // set the exponent sign bit
+        }
+
+        this.X = xb;                                    // for display purposes only
         if (mb == 0) {                                  // if the mantissa is zero...
             this.B = 0;                                         // the whole result is zero, and we're done
         } else {                                        // otherwise, determine the resulting sign
-            if (mb > 0) {                               // if positive...
-                sb = 0;                                         // reset the B sign bit
-            } else {                                    // if negative...
-                sb = 1;                                         // set the B sign bit
-                mb = -mb;                                       // negate the B mantissa
-                if (xb) {                                       // if non-zero octades have been shifted into X (and ONLY if... learned THAT the hard way...)
-                    xb = 0x8000000000 - xb;                     // negate the extension in X
-                    mb--;                                       // and adjust for borrow into X
-                }
-            }
-
-            // Normalize and round as necessary
-            if (mb < 0x1000000000) {                            // Normalization can be required for subtract
-                if (xb < 0x800000000) {                         // if first two octades in X < @04 then
-                    d = 0;                                      // no rounding will take place
-                } else {
-                    this.cycleCount++;
-                    d = (xb - xb%0x1000000000)/0x1000000000;    // get the rounding digit from X
-                    xb = (xb%0x1000000000)*8;                   // shift B and X left together
-                    mb = mb*8 + d;
-                    eb--;
-                    d = (xb - xb%0x1000000000)/0x1000000000;    // get the next rounding digit from X
-                }
-            } else if (mb >= 0x8000000000) {                    // Scaling can be required for add
-                this.cycleCount++;
-                d = mb % 8;                                     // get the rounding digit from B
-                mb = (mb - d)/8;                                // shift right due to overflow
-                eb++;
-            }
-
-            // Note: the Training Manual does not say that rounding is suppressed
-            // for add/subtract when the mantissa is all ones, but it does say so
-            // for multiply/divide, so we assume it's also the case here.
-            if (d & 0x04) {             // if the guard digit >= 4
-                if (mb < 0x7FFFFFFFFF) {// and rounding would not cause overflow
-                    this.cycleCount++;
-                    mb++;               // round up the result
-                }
-            }
-
-            // Check for exponent overflow
-            if (eb > 63) {
-                eb %= 64;
-                if (this.NCSF) {
-                    this.I = (this.I & 0x0F) | 0xB0;    // set I05/6/8: exponent-overflow
-                    this.cc.signalInterrupt();
-                }
-            } else if (eb < 0) {
-                eb = (-eb) | 0x40;                      // set the exponent sign bit
-            }
-
-            this.X = xb;                                // for display purposes only
             this.B = (sb*128 + eb)*0x8000000000 + mb;   // Final Answer
         }
     }
@@ -1792,6 +1794,7 @@ B5500Processor.prototype.singlePrecisionMultiply = function singlePrecisionMulti
         // Normalize the result
         if (this.Q & 0x10 && mb == 0) { // if it's integer multiply (Q05F) with integer result
             mb = mx;                    // just use the low-order 39 bits
+            mx = 0;
             eb = 0;                     // and don't normalize
         } else {
             eb += ea+13;                // compute resulting exponent from multiply

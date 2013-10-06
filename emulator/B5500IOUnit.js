@@ -846,7 +846,7 @@ B5500IOUnit.prototype.initiate = function initiate() {
     to run asynchronously. Then we exit back through CC and into P1, thus allowing the
     actual I/O operation to run asynchronously from the processor. Of course, in a browser
     environment, all of the Javascript action occurs on one thread, so this allows us to
-    multiplex what are supposed to be asynchronous operations on that thread */
+    multiplex what normally would be asynchronous operations on that thread */
 
     this.initiateStamp = new Date().getTime();
     this.clearD();
