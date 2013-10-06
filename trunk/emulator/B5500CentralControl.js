@@ -61,7 +61,7 @@ function B5500CentralControl() {
 /**************************************/
     /* Global constants */
 
-B5500CentralControl.version = "0.13";
+B5500CentralControl.version = "0.14";
 
 B5500CentralControl.memReadCycles = 2;  // assume 2 탎 memory read cycle time (the other option was 3 탎)
 B5500CentralControl.memWriteCycles = 4; // assume 4 탎 memory write cycle time (the other option was 6 탎)
@@ -770,6 +770,7 @@ B5500CentralControl.prototype.loadComplete = function loadComplete(dontStart) {
     }
 
     if (completed) {
+        this.signalInterrupt();         // reset the pending I/O complete interrupt
         this.LOFF = 0;
         this.P1.preset(0x10);           // start execution at C=@20
         if (!dontStart) {
@@ -785,7 +786,7 @@ B5500CentralControl.prototype.load = function load(dontStart) {
     var result;
     var boundLoadComplete = (function boundLoadComplete(that, dontStart) {
         return function boundLoadCompleteAnon() {return that.loadComplete(dontStart)}
-    })(this, dontStart);
+    }(this, dontStart));
 
     if (!this.P1 || this.P1.busy) {     // P1 is busy or not available
         result = 1;

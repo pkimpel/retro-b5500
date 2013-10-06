@@ -7,7 +7,7 @@
 <meta http-equiv="Content-Style-Type" content="text/css">
 <link id=defaultStyleSheet rel=stylesheet type="text/css" href="B5500SyllableDebugger.css">
 
-<script src="./setImmediate.js"></script>
+<script src="./B5500SetCallback.js"></script>
 
 <script src="./B5500DummyUnit.js"></script>
 <script src="./B5500SPOUnit.js"></script>
@@ -714,8 +714,47 @@ function runIt(ev) {
     var stopAddr = $$("StopAddr");
 
     function syllabicate() {
+        var addr;
+        var prt;
+        var word;
+
         do {
             cc.P1.step();
+
+            if (false) {        // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< DEBUG <<<<<<<<<<
+            addr = cc.memMod[0][149] % 0x8000 + 1;              // MCP PRT @225: addr of PRT[1,*] DD
+            word = cc.memMod[addr >>> 12][addr & 0xFFF];        // PRT[2,*] DD
+            if (word > 0xA00000000000) {
+                prt = word % 0x8000
+
+                if (false) {    // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< DEBUG <<<<<<<<<<
+                addr = prt + 70;                                // addr of STACKHEAD DD
+                word = cc.memMod[addr >>> 12][addr & 0xFFF];    // STACKHEAD DD
+                if (word > 0xA00000000000) {
+                    addr = word % 0x8000 + 66;                  // addr of STACKHEAD[66]
+                    word = cc.memMod[addr >>> 12][addr & 0xFFF];
+                    if (word == 2) {
+                        alert("STACKHEAD[66]==2");
+                        stopAddress = 0;
+                    }
+                }
+                }               // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+                addr = prt + 204;                               // addr of NEXTINFO
+                word = cc.memMod[addr >>> 12][addr & 0xFFF];    // NEXTINFO
+                if (window.uglyLatch) {
+                    if (word <= 2) {
+                        alert("NEXTINFO==1");
+                        stopAddress = 0;
+                    }
+                } else {
+                    if (word > 255) {
+                        window.uglyLatch = true;
+                    }
+                }
+            }
+            }                   // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
             if (cc.P1.S > 0x7FFF) {
                 alert("P1.S out of range");
                 stopAddress = 0;
@@ -740,7 +779,7 @@ function runIt(ev) {
         } while (runSilently && stopAddress && cc.P1.C != stopAddress);
 
         if (stopAddress && cc.P1.C != stopAddress) {
-            setImmediate(syllabicate);
+            setCallback(syllabicate, this, 0);
             if (!runSilently) {
                 displaySystemState();
             }
@@ -884,11 +923,11 @@ function hardwareLoad_onClick(ev) {
     var result;
 
     cc.clear();
+    cc.P1.clear();
+    cc.cardLoadSelect = $$("CardLoadSelect").checked;
     result = cc.load(true);
     switch (result) {
     case 0:                         // load initiated successfully
-        cc.P1.clear();
-        cc.cardLoadSelect = $$("CardLoadSelect").checked;
         displaySystemState();
         break;
     case 1:
@@ -1103,6 +1142,7 @@ function initialize() {
     displaySystemState();
     displayOctal("StopAddr", stopAddress, 5);
     establishSilence(runSilently);
+    $$("StepBtn").disabled = false;
 }
 
 window.onload = function() {
