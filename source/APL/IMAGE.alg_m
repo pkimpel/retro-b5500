@@ -1,4 +1,576 @@
-                        M:=0;         END;                             08015888 P78
+BEGIN                                                                   00000490 
+% THIS APL/B5500 PROGRAM WAS DEVELOPED BY THE COMPUTER SCIENCE GROUP
+% AT THE UNIVERSITY OF WASHINGTON UNDER THE SPONSORSHIP OF PROFESSOR
+% HELLMUT GOLDE.  THE PROGRAM MAY BE NOT BE OFFERED FOR SALE OR LEASE
+% IN ITS ORIGINAL OR ANY MODIFIED FORM.  ANY PUBLICATION RELATING TO
+% THIS PROGRAM OR ANY MODIFICATION OF THE PROGRAM MUST EXPLICITLY CREDIT
+% THE COMPUTER SCIENCE GROUP OF THE UNIVERSITY OF WASHINGTON AND THE
+% PRINCIPAL IMPLEMENTORS, GARY KINDALL, LEROY SMITH, SALLY SWEDINE,
+% AND MARY ZOSEL.  COMPUTER RESOURCES FOR THE DEVELOPMENT OF THE
+% PROGRAM WERE MADE AVAILABLE BY THE UNIVERSITY OF WASHINGTON COMPUTER
+% CENTER.
+DEFINE VERSIONDATE="1-11-71"# ;
+%MODIFICATIONS FOR B-5500 TIME-SHARING MCP MADE BY:
+% JOSE HERNANDEZ, BURROUGHS CORPORATION.
+BOOLEAN BREAKFLAG;
+ARRAY GIA[0:1];
+LABEL FINIS; %GO THERE WHEN YOU ARE IN TROUBLE (SPOUT A MESSAGE)
+BOOLEAN PROCEDURE LIBRARIAN(A,B); VALUE A,B: REAL A,B; FORWARD;
+LABEL FAULTL; % FAULT LABEL
+MONITOR EXPOVR,INTOVR,INDEX:=INDEXF,FLAG,ZERO;
+REAL BIGGEST, NULLV;
+INTEGER STACKSIZE,LIBSIZE;
+    REAL STATUSWORD,CORELOC;
+    BOOLEAN RETURN;
+BOOLEAN MEMBUG,DEBUG;
+COMMENT   MEMBUG  SWITCHES ----------------------
+            BIT        FUNCTION        BIT     FUNCTION
+-----------------------------------------------------------------
+            1                           25
+            2                           26
+            3                           27
+            4                           28
+            5     DUMP TYPES @ INSERT   30
+            6    DUMP TYPES @ DELETE  30
+            7                           31
+            8                           32
+            9                           33
+           10                           34
+           11                           35
+           12                           36
+           13                           37
+           14                           38
+           15                           39
+           16                           40
+           17                           41
+           18                           42
+           19                           43
+           20     DUMP INDEX            44
+           21                           45
+           22     DUMP TYPES            46
+           23     CHECK TYPES           47
+           24     DUMP BUFFER #S
+           ;
+FILE PRINT 4 "SYSTEMS" " BOX   " (1,15);
+FILE TWXIN 19(2,30),TWXOUT 19(2,10);
+%
+DEFINE
+    PAGESIZE=120#,
+    AREASIZE=40#,
+    CF=[26:13]#,    COMMENT COUNT FIELD -- NUMBER OF ITEMS ON PAGE;
+    TF=[39:9] #,    COMMENT     T-FIELD (TYPE FIELD);
+    FF=[9:1]#,  COMMENT FULL FIELD FOR SEQUENTIAL STORAGE;
+    AF=[1:23] #,    COMMENT A-FIELD;
+    BF=[24:23]#,    COMMENT B-FIELD;
+    MF=[1:1]#,    COMMENT METHOD OF STORAGE FIELD;
+    SF=[13:13]#,    COMMENT SEQUENTIAL STORAGE SIZE FIELD (#CHRS);
+    BOOL=[47:1]#,
+    SKIP=1#,        COMMENT --AMOUNT OF SPACE RESERVED AT THE
+                    START OF EACH PAGE;
+    ALLOWANCE=10#,  COMMENT --DEVIATION FROM THE AVERAGE PAGE SIZE
+                    ALLOWED BEFORE CORRECTION;                          00001550
+    RECSIZE=2#,
+    MAXPAGES=20#,
+    PAGESPACE=20#,
+    NEXTP=[42:6]#,
+    LASTP=[36:6]#,
+    PAGEF=[19:11]#,
+    BUFF=[12:6]#,
+    CHANGEDBIT=[1:1]#,
+    MBUFF=8#,
+    SBUFF=4#,
+    FLAGB=[18:1]#,    COMMENT FLAG BIT FOR BUFFER MAINTENANCE;
+    EXTRAROOM=1#,
+    LIBJOB="/APLIBE"#,%MFID FOR APL SYSTEM FILE
+    ENDOFDEFINES=#;
+REAL PROCEDURE CDR(X); VALUE X; REAL X; CDR:=X.NEXTP;
+PROCEDURE RPLACD(X,Y); VALUE Y;REAL X,Y; X.NEXTP:=Y;
+BOOLEAN PROCEDURE NULL(X); VALUE X; REAL X;  NULL:=X.NEXTP=0;
+BOOLEAN STREAM PROCEDURE EOFMARK(SK,RS,A); VALUE SK,RS;
+    BEGIN LABEL NO; SI:=A; SK(SI:=SI+8);
+    RS(8(  2(IF SB THEN JUMP OUT 3 TO NO; SKIP SB);
+    3(IF SB THEN SKIP SB ELSE JUMP OUT 3 TO NO); IF SB THEN
+    JUMP OUT 2 TO NO; SKIP SB));TALLY:=1;EOFMARK:=TALLY;
+    NO:
+    END;
+STREAM PROCEDURE MARKEOF(SK,RS,A); VALUE SK,RS;
+    BEGIN DI:=A;
+    SK(DI:=DI+8);
+    RS(8(DS:=2RESET; DS:=3SET; DS:=RESET));
+    END;
+SAVE FILE ESTABLISH DISK [MAXPAGES:AREASIZE]
+    (1,PAGESIZE,SAVE 100);
+FILE NEWDISK DISK (1,PAGESIZE);
+FILE DISK1 DISK (1,PAGESIZE),
+     DISK2 DISK (1,PAGESIZE),
+     DISK3 DISK (1,PAGESIZE),
+     DISK4 DISK (1,PAGESIZE),
+     DISK5 DISK (1,PAGESIZE),
+     DISK6 DISK (1,PAGESIZE),
+     DISK7 DISK (1,PAGESIZE),
+     DISK8 DISK (1,PAGESIZE);
+SWITCH FILE POINTERS:=DISK1,DISK1,DISK2,DISK3,DISK4,DISK5,DISK6,DISK7,
+    DISK8;
+PROCEDURE SETPOINTERNAMES;
+    BEGIN
+        IF NOT LIBRARIAN(LIBJOB,TIME(-1)) THEN
+        BEGIN
+        WRITE(ESTABLISH);
+        MARKEOF(SKIP,RECSIZE,ESTABLISH(0));
+        WRITE(ESTABLISH[1]);
+        WRITE(ESTABLISH[MAXPAGES|AREASIZE-1]);
+        LOCK(ESTABLISH);
+        CLOSE(ESTABLISH)
+        ;LIBSIZE§-1;
+        END
+    END;
+DEFINE
+    LIBMAINTENANCE=0#,
+    MESSDUM=#;
+    PROCEDURE MEMORY(MODE,TYPE,A,N,M);VALUE MODE,TYPE;
+        INTEGER MODE,TYPE,N,M; ARRAY A[0]; FORWARD;
+STREAM PROCEDURE MOVE(A,N,B); VALUE N;
+    BEGIN SI:=A; DI:=B; DS:=N WDS;
+    END;
+PROCEDURE MESSAGE(I); VALUE I; INTEGER I;
+    BEGIN
+    FORMAT F("MEMORY ERROR",I5);
+COMMENT CHANGE LINE 3050 TO WRITE(PRINT,SF[I]) FOR MEMORY ERROR PROBS.
+    THIS FORMAT IS NOW EXCLUDED SINCE MEMORY IS SEEMINGLY WELL DEBUGED
+    SWITCH FORMAT SF:=
+    ("LIBRARY MAINTENANCE IN PROGRESS."),
+    ("SYSTEM ERROR--MEMORY ACCESS WITH EXPRESSION FOR N OR M."),
+    ("SYSTEM ERROR--IMPROPER ARGUMENTS TO FREEPAGE."),
+    ("SYSTEM ERROR--TOO LARGE A SUBSCRIPT FOR TYPE SPECIFIED."),
+    ("SYSTEM ERROR--TYPE CANNOT BE ZERO WHEN INSERTING OR DELETING."),
+    ("SYSTEM ERROR--CHARACTER STTRING TOO LONG TO STORE."),
+    ("SYSTEM ERROR--ATTEMPT TO INSERT NON-SEQUENTIAL ELEMENT",
+     "IN TYPE A STORAGE."),
+    ("SYSTEM ERROR--NO BLANKS IN PAGES."),
+    ("SYSTEM ERROR--ATTEMPTED BINARY SEARCH OF UNORDERED DATA."),
+    ("SYSTEM ERROR--BINARY SEARCH OF UNALLOCATED DATA ATTEMPTED."),
+    ("SYSTEM ERROR--BINARY SEARCH FOUND A BLANK PAGE."),
+    ("SYSTEM ERROR--DELETION OF TYPE B STORAGE NOT IMPLEMENTED."),
+    ("SYSTEM ERROR--ATTEMPT TO DELETE FROM NON-EXISTENT STORAGE."),     00002970
+    ("SYSTEM ERROR--ATTEMPT TO DELETE RECORD FROM OUTSIDE",
+     " ALLOCATED STORAGE."),
+    ("SYSTEM ERROR--ATTEMPTED MEMORY SEARCH WITH -N- TOO LARGE."),
+    ("SYSTEM ERROR--ATTEMPT TO CHANGE PREVIOUSLY DEIGNATED STORAGE",
+     " KIND"),
+    ("SYSTEM ERROR--POINTERS TO DATA TYPES OVERLAP."),
+    (" ");
+    WRITE(PRINT,F,I);
+    IF I GTR 0 THEN
+        BEGIN
+        INTEGER GT1,GT2,GT3;
+        MEMORY(10,GT1,GIA,GT2,GT3);
+        GO TO FINIS;
+        END;
+    END;
+PROCEDURE MEMORY(MODE,TYPE,A,N,M); VALUE MODE,TYPE;
+    INTEGER MODE,TYPE,N,M; ARRAY A[0];
+    BEGIN
+DEFINE T64= DI:=LOC T; DI:=DI+1; DS:=7 CHR#;
+STREAM PROCEDURE WRITERECS(PAGE,A,SKP,NB,NR,NS,RL);
+    VALUE SKP,NB,NR,NS,RL;
+    BEGIN
+    COMMENT -- NS IS THE NUMBER OF WORDS TO SAVE (ON THE
+    TAIL OF THE PAGE);
+    LOCAL T,T1,T2,TT;
+    COMMENT -- MOVE TO POSITION FOR WRITE;
+    SI:=LOC NB; T64; SI:=PAGE; SKP(SI:=SI+8);
+    T(2(32(RL(SI:=SI+8)))); NB(RL(SI:=SI+8));
+    T1:=SI; COMMENT -- RECORDS WILL BE WRITTER HERE;
+    DI:=LOC TT; SI:=LOC NS; DI:=DI+1; DS:=7CHR;
+    SI:=T1; COMMENT MOVE TO THE END OF THE FIELD TO BE SAVED;
+    TT(2(32(RL(SI:=SI+8)))); NS(RL(SI:=SI+8));
+    T2:=SI; COMMENT -- END OF FIELD TO BE SAVED;
+    SI:=LOC NR; T64; DI:=T2;
+    T(2(32(RL(DI:=DI+8)))); NR(RL(DI:=DI+8));
+    SI:=T2; SI:=SI-8; DI:=DI-8;
+    TT(2(32(RL(DS:=WDS; SI:=SI-16); DI:=DI-16))));
+    NS(RL(DS:=WDS; SI:=SI-16; DI:=DI-16));
+    COMMENT -- HAVE ACCOMPLISHED THE "SAVE", NOW DO THE WRITE;
+    SI:=A; DI:=T1;
+    T(2(32(DS:=RL WDS))); NR(DS:=RL WDS)
+    END;
+STREAM PROCEDURE READRECS(PAGE,A,SKP,NB,NR,NM,RL);
+    VALUE SKP,NB,NR,NM,RL;
+    BEGIN
+    COMMENT
+        SKP = "SKIP"   - - THE NUMBER OF WORDS TO JUMP OVER
+        NB  = "NUMBER BEFORE" -- "    " RECORDS TO SKIP BEFORE
+              READING THE RECORD,
+        NR  = "NUMBER OF RECORDS"  " "  "     "  READ FROM THE
+              BUFFER,
+        NM  ="NUMBER TO MOVE"   - - "   "  "    "  MOVE OVER TO
+              THE PREVIOUSLY READ AREA,
+        RL  ="RECORD LENGTH"  -  - THE LENGTH OF EACH ITEM
+        ;
+    LOCAL T,T1,T2;
+    SI:=LOC NB; T64; SI:=PAGE; SKP(SI:=SI+8);
+    T(2(32(RL(SI:=SI+8)))); NB(RL(SI:=SI+8));
+    T1:=SI;
+    COMMENT - - T1 NOW HAS THE STARTING POSITION FOR THE READ;
+    SI:=LOC NR; T64; SI:=T1; DI:=A;
+    T(2(32(DS:=RL WDS))); NR(DS:=RL WDS);
+    T2:=SI; COMMENT T2 CONTAINS THE END OF THE READ;
+    SI:=LOC NM; T64; SI:=T2; DI:=T1;
+    T(2(32(DS:=RL WDS))); NM(DS:=RL WDS)
+    END READRECS;
+DEFINE MOVEALOG=
+    DI:=LOC C; DI:=DI+6; DS:=2CHR; DI:=LOC Z;
+    TSI:=SI; TALLY:=TALLY+1;
+    IF TOGGLE THEN
+        BEGIN SI:=LOC C; SI:=SI+6;
+        IF 2 SC NEQ DC THEN
+            BEGIN TAL:=TALLY; SI:=LOC TAL; SI:=SI+7;
+            IF SC="0" THEN
+                BEGIN TALLY:=TMP; TALLY:=TALLY+1; TMP:=TALLY;
+                TALLY:=0;
+                END ELSE
+                BEGIN SI:=LOC Z; IF SC LEQ"9" THEN ;
+                END
+            END ELSE
+            BEGIN  DI:=TDI; SI:=LOC SIZE; SI:=SI+6; DS:=2CHR;
+            TDI:=DI; SI:=SI-2; DI:=LOC C64; DI:=DI+7 ; DS:=CHR;         00003750
+            SI:=NEW; DI:=TDI; C64(2(DS:=32CHR)); DS:=SIZE CHR;
+            TDI:=DI; SI:=TSI; DI:=LOC C; DI:=DI+6;
+            DS:=2CHR; TSI:=SI;
+            TALLY:=TAL;CHRSTORE:=TALLY; SI:=LOC TMP; SI:=SI+7;
+            DI:=LOC CHRSTORE; DI:=DI+6; DS:=CHR END
+        END;
+    SI:=LOC C; DI:=LOC C64; DI:=DI+1; DS:=7CHR; DI:=TDI; SI:=SI-1;
+    DS:=2CHR; SI:=TSI;
+    C64(2(DS:=32CHR)); DS:=C CHR; TDI:=DI; TSI:=SI#;
+INTEGER STREAM PROCEDURE CHRSTORE(A,SKP,B,NEW,NB,SIZE,NA,MODE,
+    PAGESIZE); VALUE SKP,NB,SIZE,NA,MODE,PAGESIZE;
+    BEGIN LOCAL T,C,TSI,TDI,
+    Z,C64,TMP,TAL;
+    LABEL DONE;
+    SI:=LOC NB; T64;
+    SI:=LOC MODE; SI:=SI+7;
+    IF SC="0" THEN ; COMMENT SET TOGGLE;
+    SI:=A; DI:=B; SKP(DS:=8CHR);
+    TSI:=SI; TDI:=DI;
+    T(2(32(MOVEALONG)));  NB(MOVEALONG);
+    COMMENT NOW HAVE MOVED UP TO NB;
+    IF TOGGLE THEN
+        BEGIN TALLY:=TAL; CHRSTORE:=TALLY; SI:=LOC TMP; SI:=SI+7;
+        DI:=LOC CHRSTORE; DI:=DI+6; DS:=CHR;
+        SI:=LOC SIZE; SI:=SI+6; DI:=TDI; DS:=2CHR; TDI:=DI;
+        SI:=LOC SIZE; DI:=LOC C64; DI:=DI+1; DS:=7CHR; SI:=NEW;
+        DI:=TDI; C64(2(DS:=32CHR)); DS:=SIZE CHR;
+        END ELSE
+        BEGIN TSI:=SI; TDI:=DI;
+        SI:=LOC MODE; SI:=SI+7;
+        IF SC="1" THEN
+        COMMENT REMOVE AN ENTRY HERE;
+            BEGIN DI:=LOC C; DI:=DI+6; SI:=TSI; DS:=2CHR;
+            TSI:=SI; DI:=LOC C64; DI:=DI+1; SI:=LOC C;
+            DS:=7CHR; SI:=TSI;  C64(2(SI:=SI+32)); SI:=SI+C;
+            TSI:=SI; DI:=LOC CHRSTORE; SI:=LOC C; DS:=WDS;
+            DI:=TDI; DS:=2LIT"0"; TDI:=DI;
+            END ELSE
+        IF SC="2" THEN
+        COMMENT READ OUT AND ENTRY
+            BEGIN DI:=LOC C; DI:=DI+6; SI:=TSI; DS:=2CHR;
+            TSI:=SI; DI:=LOC C64; DI:=DI+1; SI:=LOC C;
+            DS:=7CHR; SI:=TSI; DI:=NEW;
+            C64(2(DS:=32CHR)); DS:=C CHR;
+            SI:=LOC C; DI:=LOC CHRSTORE; DS:=WDS; GO DONE END;
+        SI:=LOC NA; T64; SI:=TSI; DI:=TDI;
+        T(2(32(TDI:=DI; DI:=LOC C; DI:=DI+6; DS:=2CHR;
+        TSI:=SI; SI:=LOC C; DI:=LOC C64; DI:=DI+1; DS:=7CHR;
+    SI:=SI-1;DT:=TDI;DS:=2CHR;SI:=TSI;C64(2(DS:=32CHR));DS:=C CHR)));
+        NA( TDI:=DI; DI:=LOC C; DI:=DI+6; DS:=2CHR; TSI:=SI;
+        SI:=LOC C;DI:=LOC C64;DI:=DI+1;DS:=7CHR;SI:=SI-1;
+        DI:=TDI;DS:=2CHR;SI:=TSI;C64(2(DS:=32CHR));DS:=C CHR);
+        END;
+    SI:=LOC PAGESIZE; T64; SI:=B; DI:=A;
+%CARD LIST UNSAFE
+COMMENT $CARD LIST UNSAFE;
+    T(2(DS:=32WDS)); DS:=PAGESIZE WDS;
+%CARD LIST SAFE
+COMMENT $CARD LIST SAFE;
+    DONE:
+    END;
+STREAM PROCEDURE SETNTH(P,K,N); VALUE K,N;
+    BEGIN DI:=P; SI:=LOC K; N(DI:=DI+8); DS:=WDS END;
+BOOLEAN STREAM PROCEDURE LESS(A,AN,B,BN,K); VALUE K,AN,BN;
+    BEGIN
+    SI:=A; DI:=B; SI:=SI+AN; DI:=DI+BN;
+    IF K SC LSS DC THEN TALLY:=1;
+    LESS:=TALLY;
+    END;
+REAL STREAM PROCEDURE ADDD(A,B); VALUE A,B;
+    BEGIN SI:=LOC A; DI:=LOC B; DS:=8ADD; SI:=LOC B;
+    DI:=LOC ADDD; DS:=WDS
+    END;
+INTEGER PROCEDURE FREEPAGE(INDEX,TYPEZERO,START,FINISH);
+    VALUE TYPEZERO,START,FINISH; INTEGER TYPEZERO,START,FINISH;
+    ARRAY INDEX[0,0];
+    IF START GTR FINISH THEN MESSAGE(2) ELSE
+    BEGIN ARRAY T[0:RECSIZE+EXTRAROOM+SKIP-1],P[0:FINISH-START];
+    INTEGER T,J,K,R;
+    R:=RECSIZE+EXTRAROOM+SKIP;
+    J:=START-(FINISH+1);
+    FOR I:=FINISH STEP -1 UNTIL TYPEZERO DO
+           IF K:=(I+J) LESS TYPEZERO THEN                               00004690
+               BEGIN T[R-1]:=P[TYPEZERO-K-1];
+               MOVE(T,R,INDEX[I,0])
+               END ELSE
+               BEGIN IF I GEQ START THEN P[FINISH-I]:=INDEX[I,R-1];
+               MOVE(INDEX[K,0],R,INDEX[I,0]);
+               END;
+       FREEPAGE:=TYPEZERO-J;
+       END;
+   INTEGER PROCEDURE SEARCH(A,B,N,MIN,MAX,NP); VALUE N,MIN,MAX;
+       INTEGER N,MIN,MAX,NP;
+       ARRAY A[0,0]; REAL B;
+       BEGIN
+       INTEGER I,T;
+       FOR I:=MIN STEP 1 WHILE T:=T+A[I,0].CF LEQ B AND I LESS MAX-1 DO;
+       IF T LSS B THEN
+           BEGIN MESSAGE(3); SEARCHL:=NP:=0;
+           END ELSE
+           BEGIN SEARCHL:=I; NP:=B-T+A[I,0].CF
+           END
+       END;
+   PROCEDURE SORT(A,P,N,C); VALUE P,N,C; INTEGER P,N,C;
+       ARRAY A[0,0];
+       BEGIN INTEGER R;
+           BEGIN
+           ARRAY T[0:R:=RECSIZE+EXTRAROOM+SKIP-1];
+           LABEL ENDJ;
+           INTEGER I,J,L,K,M,SK; R:=R+1;
+           SK:=SKIP TIMES 8;
+           K:=N-P+1; I:=1; DO UNTIL (I:=I TIMES 2) GTR K;
+           M:=I-1;
+           WHILE (M:=M DIV 2) NEQ 0 DO
+               BEGIN K:=N-M; J:=P;
+               DO  BEGIN
+                   L:=(I:=J)+M;
+                   DO BEGIN
+                   IF A[L,0].TF GTR A[I,0].TF THEN GO ENDJ;
+                   IF A[L,0].TF EQL A[I,0].TF THEN
+                       IF NOT(LESS(A[L,0],SK,A[I,0],SK,C)) THEN
+                       GO ENDJ;
+                       MOVE(A[L,0],R,T); MOVE(A[I,0],R,A[L,0]);
+                       MOVE(T,R,A[I,0])
+                       END UNTIL (I:=(L:=I)-M) LSS P;
+                   ENDJ:
+                   END UNTIL (J:=J+1) GTR K;
+               END
+           END
+       END SORT;
+       COMMENT - - - - - - - - - - - - - - - - - - - - - - - - - -
+               MODE                            MEANING
+               ----                            -------
+                1 =                            INTERROGATE TYPE
+                2 =                     INSERT RECORD REL ADDRS N
+                                        (RELATIVE TO START OF LAST PAGE)
+                3 =                     RETURN THE NUMBER OF RECORDS (M)
+                4 =                       "    ITEM AT RECORD # N
+                5 =                     INSERT  "    "    "   " "
+                6 =                     DELETE  "    "    "   " "
+                7 =                     SEARCH FOR THE RECORD -A-
+                8 =                     FILE OVERFLOW, INCREASE BY N
+                9 =                     FILE MAINTENANCE
+               10 =                     EMERGENCY FILE MAINTENANCE
+                11                      SET STORAGE KIND
+              12=                      ALTER STORAGE ALLOCATION RESOURCES
+              13=                      RELEASE "TYPE" STORAGE TO SYSTEM
+              14=                      CLOSE ALL PAGES FOR AREA TRANSITION
+       NOTE THAT WHEN SEQUENTIAL STORAGE MAINTENANCE IS DONE, N
+       WILL ALWAYS INDICATE THE ADDRESS OF THE STRING RELATIVE TO
+       THE TYPE SPECIFIED, AND M WILL ALWAYS BE THE LENGTH OF THE
+       ;
+       PROCEDURE UPDATE(T,L,U,D); VALUE L,U,D; INTEGER L,U,D;
+           ARRAY T[0];
+           BEGIN INTEGER I,J,K;
+           FOR I:=L STEP 1 UNTIL U DO
+               BEGIN J:=T[I].AF+D; T[I].AF:=J;
+               J:=T[I].BF+D; T[I].BF:=J
+               END
+           END;
+       OWN INTEGER CURPAGE,NPAGES,NTYPES,P,PS,U,L;
+       OWN INTEGER FIRST,AVAIL,MAXBUFF,CURBUFF;
+   REAL GT1;
+   LABEL MOREPAGES;
+  IF MEMBUG.[21:1] THEN DUMPMEMORY(MODE,TYPE,N,M);                      00005620
+  IF MODE=8 THEN NPAGES:=NPAGES+N;
+  MOREPAGES:
+      BEGIN
+      OWN BOOLEAN POINTERSET, TYPESET;
+      INTEGER I, T, NR;
+      OWN ARRAY BUF[0:MBUFF], TYPS[0:511];
+          OWN ARRAY INDX[0:NPAGES,0:RECSIZE+EXTRAROOM+SKIP-1];
+      PROCEDURE SETTYPES;
+      BEGIN INTEGER I, T;
+           FOR I := 0 STEP 1 UNTIL NPAGES DO
+           IF INDX[I,0].TF NEQ T THEN
+           BEGIN
+                TYPS[T].BF := I; TYPS[T:=INDX[I,0].TF].AF := I;
+                TYPS[T].BOOL := INDX[I,0].MF;
+           END;
+           TYPS[T].BF := I;
+      END SETTYPES;
+      REAL PROCEDURE BUFFNUMBER(I); VALUE I; INTEGER I;
+          BEGIN INTEGER K,L,M;
+          LABEL D;
+          DEFINE B=BUF#;
+          IF( IF K:=INDX[I,P].BUFF=0 THEN TRUE ELSE BUF[K].PAGEF
+              NEQ INDX[I,P].PAGEF+1) THEN
+              BEGIN IF NULL(K:=CDR(AVAIL)) THEN
+                  BEGIN K:=CDR(FIRST);
+                  WHILE M:=CDR(B[K]) NEQ 0 DO
+                      BEGIN L:=K; K:=M; END;
+                  RPLACD(B[L],0);
+                  IF BOOLEAN(B[K].CHANGEDBIT) THEN
+                      WRITE(POINTERS[K][B[K].PAGEF-1]);
+                  B[K].CHANGEDBIT:=0;
+                  END ELSE  RPLACD(AVAIL,CDR(B[K]));
+              B[K].PAGEF:=INDX[I,P].PAGEF+1;
+              INDX[I,P].BUFF:=K;
+              READ(POINTERS[K][INDX[I,P].PAGEF]);
+              END ELSE
+              IF CDR(FIRST)=K THEN GO TO D ELSE
+                  BEGIN L:=CDR(FIRST);
+                  WHILE M:=CDR(B[L]) NEQ K DO L:=M;
+                  RPLACD(B[L],CDR(B[M]));
+                  END;
+          RPLACD(B[K],CDR(FIRST)); RPLACD(FIRST,K);
+          B: BUFFNUMBER:=K
+          END;
+      PROCEDURE MARK(I); VALUE I; INTEGER I;
+              BUF[INDX[I,P].BUFF].CHANGEDBIT:=1;
+  BOOLEAN PROCEDURE WRITEBUFFER;
+      BEGIN INTEGER I;
+      I:=CDR(FIRST);
+      WHILE NOT NULL(I) DO
+          IF BOOLEAN(BUF[I].CHANGEDBIT) THEN
+          BEGIN WRITEBUFFER:=TRUE;
+          BUF[I].CHANGEDBIT:=0;
+          WRITE(POINTERS[I][BUF[I].PAGEF-1]);
+          RPLACD(I,0);
+          END ELSE I:=CDR(BUF[I]);
+      END;
+      IF NOT POINTERSET THEN
+          BEGIN LABEL EOF;
+          READ(POINTERS[1][NPAGES])[EOF];
+          IF EOFMARK(SKIP,RECSIZE,POINTERS[1](0))THEN GO TO EOF;
+          MOVE(POINTERS[1](0),1,T);
+              COMMENT -- USE T TO DETERMIN THE VARIABLE REC SIZE LATER;
+          MOVE(POINTERS[1](0),RECSIZE+SKIP,INDX[NPAGES,0]);
+              INDX[NPAGES,RECSIZE+1].PAGEF:=NPAGES;
+              NPAGES:=NPAGES+1;
+          GO TO MOREPAGES;
+          COMMENT - - INITIALIZE VARIABLES;
+      EOF: POINTERSET:=TRUE;
+      U:=PAGESIZE-SKIP-PAGESPACE;
+      L:=(U-ALLOWANCE)/RECSIZE;
+      U:=(U+ALLOWANCE+RECSIZE/2)/RECSIZE;
+      PS:=(U+L)/2;
+      CURPAGE:=NPAGES:=NPAGES-1;
+      CURBUFF:=1;
+      P:=RECSIZE+SKIP;
+      FOR T:=1 STEP 1 UNTIL SBUFF DO RPLACD(BUF[T],T+1);
+      RPLACD(BUF[SBUFF],0); RPLACD(AVAIL,1);
+      MAXBUFF:=SBUFF;
+              T:=0;
+      SORT(INDX,0,NPAGES,RECSIZE TIMES 8);
+      FOR I:=0 STEP 1 UNTIL NPAGES DO                                   00006370
+          IF INDX[I,0].TF GTR T THEN T:=INDX[I,0].TF;
+      NTYPES:=T;
+      END;
+      IF TYPE GTR NTYPES THEN NTYPES:=TYPE;
+          IF NOT TYPESET THEN
+          BEGIN TYPESET:=TRUE; SETTYPES;
+          COMMENT
+          IF MEMBUG THEN DUMPINDEX(TYPS,NTYPES,INDX,RECSIZE,
+          P);
+          END;
+  COMMENT --- DECIDE WHETHER TO SAVE CURRENT PAGE BEFORE GOING ON;
+  IF MODE=2 THEN
+      BEGIN  MODE:=5; NR:=N
+      END ELSE
+  IF MODE GEQ 4 THEN                      %MAY BE FILE MAINTENANCE
+      IF MODE GEQ 8 THEN                  %IS FILE MAINTENANCE
+      ELSE                                %WE MAY BE GOING TO
+      IF MODE NEQ 7 THEN                  %ANOTHER PAGE
+          BEGIN
+          IF TYPE=0 THEN BEGIN MESSAGE(4); MODE:=0 END ELSE
+          IF TYPS[TYPE].AF=TYPS[TYPE].BF THEN
+              IF TYPS[0].BF GTR 0 THEN
+              BEGIN INTEGER J,K; REAL PG;
+              K:=TYPS[0].BF-1; TYPS[0].BF:=K; PG:=INDX[K,P];
+              FOR I:=1 STEP 1 UNTIL TYPE-1 DO
+              IF (T:=TYPS[I]).AF NEQ T.BF THEN
+                  BEGIN FOR K:=T.AF STEP 1 UNTIL T.BF -1 DO
+                  MOVE(INDX[K,0]),P+EXTRAROOM,INDX[K-1,0]);
+                  TYPS[I].AF:=T.AF-1; TYPS[I].BF:=K:=T.BF-1
+                  END;
+              IF CURPAGE GTR TYPS[0].BF THEN
+                  IF CURPAGE LEQ K THEN CURPAGE:=CURPAGE-1;
+              TYPS[TYPE].BF:=K+1; TYPS[TYPE].AF:=K;
+              INDX[K,P]:=PG; INDX[K,0]:=0; INDX[K,0].TF:=TYPE;
+              IF TYPS[TYPE].BOOL=1 THEN
+                  BEGIN SETNTH(INDX[K,0],0,1); INDX[K,0].MF:=1
+                  END;
+              COMMENT
+              IF MEMBUG.[22:1] THEN DUMPTYPES(MODE,TYPS,NTYPES);
+              MEMORY(MODE,TYPE,A,N,M);  MODE:=0
+              END ELSE
+              BEGIN T:=1; MEMORY(8,TYPE,A,T,M); MEMORY(MODE,TYPE,A,N,M);
+              MODE:=0
+              END ELSE
+      IF NOT( BOOLEAN(TYPS[TYPE].BOOL) AND MODE=5) THEN
+          CURBUFF:=BUFFNUMBER(CURPAGE:=
+              SEARCHL(INDX,N,NPAGES,TYPS[TYPE].AF,TYPS[TYPE].BF,
+                  NR)  );
+      COMMENT
+        IF MEMBUG.[23:1] THEN CHECKTYPES(TYPS,NTYPES);
+          END;
+      COMMENT
+      IF MEMBUG.[20:1] THEN DUMPINDEX(TYPS,NTYPES,INDX,RECSIZE,P);
+      COMMENT
+      IF MEMBUG.[24:1] THEN DUMPBUFF(BUF,FIRST,AVAIL);
+  CASE MODE OF
+      BEGIN
+      %------- MODE=0 ------- RESERVED ---------------
+      ;
+      %------- MODE=1 --------------------------------------------------
+      IF M=0 THEN N:=TYPS[TYPE].BOOL ELSE
+      IF M=1 THEN
+          BEGIN FOR I:=1 STEP 1 UNTIL NTYPES DO
+          IF (T:=TYPS[I].AF=T.BF THEN
+              BEGIN N:=I; I:=NTYPES+1
+              END;
+          IF I=NTYPES+1 THEN N:=NTYPES+1
+          END;
+      %------- MODE=2 ------- RESERVED ---------------
+      ;
+      %------- MODE=3 ------- RETURN THE NUMBER OF RECORDS----
+      BEGIN COMMENT IF TYPE LSS 0 THEN THE TOTAL NUMBER
+      OF PAGES IS GIVEN, OTHERWISE THE NUMBER OF "TYPE" PAGES IS
+      GIVEN;
+      FOR I:=0 STEP 1 UNTIL NPAGES DO
+          IF INDX[I,0].TF=TYPE OR TYPE LSS 0 THEN
+          NR:=NR+INDX[I,0].CF;
+      M:=NR
+      END;
+      %------- MODE=4 ------- RETURN ITEM AT SUBSCRIPT N -----
+      IF NR GEQ INDX[CURPAGE,0].CF THEN MESSAGE(3) ELSE
+      IF BOOLEAN (TYPS[TYPE].BOOL) THEN COMMENT SEQUENTIAL STORAGE;
+         BEGIN ARRAY B[0:PAGESIZE];                                    00007270
+         M:=CHRSTORE(POINTERS[CURBUFF](0),2,B,A,NR,0,0,2,0);
+         END ELSE
+     BEGIN
+     M:=RECSIZE|8;
+     READRECS(POINTERS[CURBUFF](0),A,SKIP,NR,1,0,RECSIZE);
+     END;
+                             M:=0;         END;                             08015888 P78
                     END;
                 END;
                 MOVETWO(T,DIR,K,WR,L,DISK);
