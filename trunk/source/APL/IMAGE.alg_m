@@ -1,0 +1,893 @@
+                        M:=0;         END;                             08015888 P78
+                    END;
+                END;
+                MOVETWO(T,DIR,K,WR,L,DISK);
+            END;
+        EOB:=1;
+    IF M GTR 0 THEN N:=WR(DISK,N,B);
+    IF K GTR 0 THEN L:=WR(DISK,L,DIR);
+    LOCK(DISK);
+    END;
+BOOLEAN PROCEDURE LIBNAMES(A,B); REAL A,B;
+BEGIN REAL T;
+    A:=B:=GT1:=0;
+%
+%
+    IF SCAN AND IDENT THEN
+    BEGIN T?ACCUM[0]; T.[6:6]?"/";
+    IF SCAN AND LOCKIT THEN GT1?1 ELSE IF IDENT THEN LIBNAMES?TRUE;
+          A?T; B? JOBNUM;
+    END
+    ELSE LIBNAMES? TRUE;
+    END;
+PROCEDURE MASSAGEHANDLER;
+    BEGIN
+    LABEL ERR1;
+%
+    IF SCAN THEN IF IDENT THEN
+    BEGIN INTEGER I; REAL R,S;
+        PROCEDURE NOFILEPRESENT;
+            BEGIN
+            FILL BUFFER[*] WITH "FILE NOT", " ON DISK";
+            FORMROW(3,0,BUFFER,0,16);
+            END OF NOFILEPRESENT;
+        PROCEDURE PRINTF(VARS); VALUE VARS; BOOLEAN VARS;
+            BEGIN INTEGER I,J,K,L,M; ARRAY T[0:1]; BOOLEAN TOG;
+            INTEGER NUM;
+            J:=VARSIZE-1; M:=VARIABLES;
+            FOR I=0 STEP 1 UNTIL N DO
+                BEGIN L:=CONTENTS(M,I,T); TOG:=GETFIELD(T,7,1)
+                 =FUNCTION;
+                IF NUM:=3?REAL(TOG AND VARS)+8+NUM GTR LINESIZE
+                  THEN BEGIN TERPRINT; NUM:=8?READL(TOG AND VARS)+8 END;
+                IF VARS THEN
+                    BEGIN FORMROW(0,1,T,0,7); L:=L+1;
+                    IF TOG THEN FORMWRD(0,"3(F)   "));
+                    END ELSE
+                IF TOG THEN BEGIN L:=L+1; FORMROW(0,1,T,0,7) END;
+                END;
+            IF L=0 THEN FORMWD(3,"6 NULL.") ELSE TERPRINT
+            END;
+    R:=ACCUM[0];
+    FOR I:=0 STEP 1 UNTIL MAXMESS DO
+        IF R=MESSTAB[I] THEN
+            BEGIN R:=I; I:=MAXMESS+1
+            END;
+    IF I=MAXMESS+2 THEN
+        CASE R OF
+        BEGIN
+        %  ------- SAVE -------
+        IF NOT LIBNAMES(R,S) THEN
+            IF NOT LIBRARIAN(R,S) THEN BEGIN
+                SAVEWORKSPACE(R,S,GT1); %GT1 SET IN LIBNAMES
+         GTA[0]?GTA[1].>~.0;TRANSFER(R,1,GTA,1,7);
+                IF(GT1?SEARCHORD(LIBRARY,GTA, I, 7)) NEQ 0 THEN
+                BEGIN GTA[0]?GTA[1]?0;TRANSFER(R,1,GTA,1,7);
+                      STOREORD(LIBRARY,GTA,I+(IF GT1=1 THEN -1 ELSE 1));
+                END; LIBSIZE?LIBSIZE+1;
+        END
+            ELSE
+                BEGIN
+                FILL BUFFER[*] WITH "FILE ALR","EADY ON ",
+                    "DISK    ";
+                FORMROW(3,0,BUFFER,0,20);
+                END
+        ELSE GO ERR1;      
+        %  ------- LOAD -------
+        IF NOT LIBNAMES(R,S) AND R NEQ 0 THEN
+            IF LIBRARIAN(R,S) THEN
+                BEGIN ARRAYA[0:1];
+                LOADWORKSPACE(R,S,A);
+                END
+            ELSE NOFILEPRESENT           
+        ELSE GO ERR1;                                                  0801626? P79
+        %  ------- DROP -------
+        IF CURRENTMODE=CALCMODE THEN
+        IF NOT LIBNAME(R,S) THEN
+            IF LIBRARIAN(R,S) THEN
+            BEGIN FILE ELIF DISK (1,1);
+            FILL ELIF WITH R,S; WRITE(ELIF[0]);
+            CLOSE(ELIF,PURGE)
+           ;GTA[0]?GTA[1]?0;TRANSFER(R,1,GTA,1,7);
+            IF SEARCHORD(LIBRARY,GTA,I,7)=0 THEN DELETE1(LIBRARY,I);
+            LIBSIZE?LIBSIZE-1;
+            END
+            ELSE NOFILEPRESENT
+        ELSE
+        IF NOT BOOLEAN(SUSPENSION)THEN PURGEWORKSPACE(WORKSPACE)
+        ELSE GO ERR1 ELSE GO ERR1;
+        % ------- COPY -------
+        IF LIBNAMES(R,S) THEN
+            IF LIBRARIAN(R,S) THEN
+            LOADWORKSPCE(R,S,ACCUM)
+        ELSE NOFILEPRESENT
+        ELSE GO ERR1;
+
+        %  --------  VARS -------
+        PRINTID(TRUE);
+        %------- FNS -------
+        PRINTID(FALSE);
+        %-------- LOGGED ----------------
+;
+        %-------- MSG --------
+        ERRORMESS(SYNTAXERROR,LADDRESS,0);
+        %-----WIDTH (INTEGER) ---------------------------
+        IF NOT SCAN THEN BEGIN NUMBERCON(LINSIZE, ACCUM);
+                          FORMROW(3,0,ACCUM,2,ACOUNT); END
+            ELSE IF NUMERIC AND I:=ACCUM[0] GTR 9 AND I LEQ 72
+                THEN BEGIN TERPRINT; LINESIZE:=I; STOREPSR;
+            END
+        %IF A NUMBER CONVERSION ERROR, RESULT WILL BE ZERO
+            %AND WE"LL GET AN ERROR ANYWAY
+            ELSE GO TO ERR1;
+        %-------- OPR --------
+        ;
+        %------DIGITS (INTEGER) ------------------------
+        IF NOT SCAN THEN BEGIN NUMBERCON(DIGITS,ACCUM);
+                               FORMROW(3,0,ACCUM,2,ACOUNT); END
+            ELSE IF NUMERIC AND I:=ACCUM[0] GEQ 0 AND I LEQ 12
+              AND ERR=0 THEN BEGIN DIGITS:=I; STOREPSR END
+        ELSE GO TO ERR1;
+        %-------- OFF --------
+        BEGIN
+        IF SCAN THEN IF ACCUM[0]="7DISCAR" THEN
+            ELTMWORKSPACE(WORKSPACE) ELSE
+            GO TO ERR1;
+       FILL ACCUM[*] WITH "END OF R","UN      ";
+        FORMROW(3,MARGINSIZE,ACCUM,0,10);
+        CURRENTMODE=CALCMODE;
+       GT1:=CSTATION;
+       CSTATION:=GT1&0[CAPLOGGED]
+      ;GO TO FINIS;
+        END;
+        %--------ORIGIN----------------------------------
+        IF NO SCAN THEN BEGIN NUMBERCON(ORIGIN,ACCUM);
+                              FORMROW(3,0,ACCUM,2,ACOUNT) END
+        ELSE IF NUMERIC AND ERR=0 THEN BEGIN ORIGIN:=
+        I:=ACCUM[0]; STOREPSR END ELSE GO TO ERR1;
+        %--------SEED---------------------------------
+        IF NOT SCAN THEN BEGIN NUMBERCON(SEED,ACCUM);
+                               FORMROW(3,0,ACCUM,2,ACOUNT) END
+        ELSE IF NUMERIC AND ERR=0 THEN BEGIN
+            SEED:=ABS(I:=ACCUM[0]);
+            STOREPSR END ELSE GO TO ERR1;
+        %--------FUZZ------------------------------------
+        IF NOT SCAN THEN BEGIN
+            NUMBERCRON(FUZZ,ACCUM);
+            FORMROW(3,0,ACCUM,2,ACOUNT) END
+        ELSE IF NUMERIC AND ERR=0 THEN BEGIN FUZZ:=ABS(ACCUM[0]);
+            SIDREPSR END ELSE GO TO ERR1;
+        %------- SYN, NOSYN-------------------------------------
+       NOSYNTAX:=0; NOSYNTAX:=1;
+        %-----------------STORE-------------------------
+        IF SYMBASE NEQ 0 THEN PROCESS(WRITEBACK);
+                                                                       08017970 P80
+        %-----------------ABORT-------------------------
+        BEGIN IF BOOLEAN(SUSPENSION) THEN
+            SP[0,0]:=0; NROWS:=-1;
+%%%
+        SUSPENSION:=0;
+        STOREPSR;
+        END;
+        %-----------------SI------------------------------
+        IF BOOLEAN(SUSPENSION) THEN
+            BEGIN GT1:=0;
+            PROCESS(LOOKATSTACK);
+        END ELSE FORMWD(3,"6 NULL.");
+        %------------------SIV------------------------------
+        IF BOOLEAN(SUSPENSION) THEN
+            BEGIN GIT1:=1;
+            PROCESS(LOOKATSTACK);
+        END ELSE FORMWD(3,"6 NULL.");
+        %------------------ERASE------------------------------
+        IF CURRENTMODE=FUNCMODE OR BOOLEAN(SUSPENSION) THEN GO TO ERR1;
+        ELSE WHILE SCAN AND IDENT DO
+            BEGIN % LOOK FOR THE INDENTIFIER NAME IN ACCUM
+            TRANSFER(ACCUM,2,GTA,0,7);
+            IF (IF VARIABLES=0 THEN FALSE ELSE
+                SEARCHWORD(VARIABLES,GTA,GT1,7)=0) THEN
+                BEGIN % FOUND SYMBOL TABLE ENTRY MATCHING NAME
+                DELETE1(VARIABLES,GT1); % REMOVE FROM SYMBOL TABLE
+                IF VARSIZE:=VARSIZE-1=0 THEN VARIABLES:=0;
+                COMMENT IF NOTHING IS IN THE UNIT IT IS DELETED;
+
+                % CHECK IF THERE ARE MORE TO DELETE
+                IF GT1:=GETFILED(GTA,7,1)=FUNCTION THEN
+                    BEGIN
+                    RELEASEUNIT(GETFIELD(GTA,FPTF,FFL));
+                    RELEASEUNIT(GETFILED(GTA,FSQF,FFL));
+                    END
+                ELSE IF GT1 GTR 0 THEN % MUST BE AN ARRAY
+                RELEASEARRAY(GTA[1]);
+                END ELSE % THERE IS NO SUCH VARIABLE
+                ERRORMESS(LABELERROR,LADDRESS,0);
+            END;  % OF TAKING CARE OF ERASE
+        %------------ ASSIGN --------------------------------
+;
+        %------------ DELETE ---------------------------------
+;
+        %------------- LIST ------------------------------------
+;
+        % -------------DEGUG --------------------------------
+        IF SCAN AND IDENT THEN
+            IF ACCUM[0]="6POLISH" THEN POLBUG:=ABS(POLBUG-1);
+
+        %----------------------------- FILES ----------------------
+        IF LIBSIZE>1 THEN
+        BEGIN FOR I?1 STEP 1 UNTIL LINSIZE-1 DO
+              BEGIN R?CONTENTS(LIBRARY,I   ,ACCUM);
+                    FORMROW(0,1,ACCUM,2,6);
+              END; TERPRINT;
+        END ELSE FORMWD(3,"6 NULL.");
+        %------------------------ END OF CASES -----------------------
+            END ELSE GO TO ERR1;
+        IF CURRENTMODE=FUNCMODE THEN INDENT(-CURLINE);
+        END ELSE
+        IF QUOTE THEN EDITLINE ELSE
+        ERR1:  ERRORMESS(SYNTAXERROR,0,0);
+        INDENT(0);
+        TERPRINT;
+    END;
+REAL PROCEDURE LINENUMBER(R); VALUE R; REAL R;
+    BEGIN
+    REAL STREAM PROCEDURE CON(R); VALUE R;
+        BEGIN SI:=LOC R; DI:=LOC CON; DS:=DEC
+        END;
+    LINENUMBER:=CON(ENTIER(R+.00005)?10000))
+    END;
+DEFINE DELIM="""#, ENDCHR="$"#;
+BOOLEAN PROCEDURE WITHINALINE(COMMAND,OLD,NEW,CHAR,WORD);
+  VALUE COMAMND,CHAR,WORD; INTEGER COMMAND,CHAR,WORD;
+  ARRAY OLD, NEWEDIT; BEGIN
+BOOLEAN STREAM PROCEDURE WITHINLINE(COMMAND,OLD,NEW,CHAR,WORD);
+    VALUE COMMAND,CHAR.WORD;
+    BEGIN
+    LOCAL OLDLINE,NEWLINE,F,BCHR;
+    LOCAL N,M,T;
+    LOCAL X,Y,Z;                                                       080301? P81
+    LABEL LOOKING,FOUND,BETWEEN,TAIL,FINISH,
+    OVER;
+    DI:=NEW; WORD(DS:=BLIT" ");
+    SI:=LOC CHAR; DI:=LOC T; DI:=DI+1; DS:=7CHR;
+    SI:=COMMAND;
+    TALLY:=T; X:=TALLY; TALLY:=2; Y:=TALLY; TALLY:=32; Z:=TALLY;
+    TALLY:=0;
+        IF SC?"?" THEN
+        BEGIN RCHR:=SI; SI:=OLD; OLDLINE:=SI;
+        DI:=NEW; NEWLINE:=DI; SI:=RCHR;
+        63(IF SC=DELIM THEN JUMP OUT ELSE SI:=SI+1; TALLY
+        :=TALLY+1); N:=TALLY;
+        IF TOGGLE THEN
+            BEGIN
+            SI:=SI+1; TALLY:=0;
+            63(IF SC=DELIM THEN TALLY:=0 ELSE
+                IF SC="?" THEN JUMP OUT ELSE TALLY:=TALLY+1; SI:=SI+1);
+            IF TOGGLE THEN M:=TALLY;;
+            DI:=OLDLINE; SI:=RCHR;
+            2( X( Y( Z( CI:=CI+F;
+            GO LOOKING; GO FOUND; GO BETWEEN; GO TAIL; GO FINISH;
+LOOKING: %************ LOOKING FOR THE FIRST UNIQUE STRING*************
+        IF SC=DELIM THEN BEGIN SI:=SI+1; TALLY:=2; F:= TALLY ;
+            DI:=NEWLINE; GO BETWEEN END ELSE
+        IF N SC=DC THEN BEGIN SI:=OLDLINE; SI:=SI+N; OLDLINE:=SI;
+            DI:=NELINE; SI:=BCHR; TALLY:=1; F:=TALLY;
+            GO FOUND END ELSE
+                BEGIN SI:=OLDLINE; DI:=NEWLINE; DS:=CHR; NEWJLINE:=DI;
+                OLDLINE:=SI; SI:=BCHR;   DI:=OLDLINE;
+                END; GO OVER;
+FOUND:   %**************FOUND THE FIRST UNIQUE STRING *****************
+        IF SC=DELIM THEN BEGIN SI:=SI+1; TALLY:=2;
+            F:=TALLY; GO BETWEEN END ELSE
+        DS:=CHR;  GO OVER;
+BETWEEN:  % ********** BETWEEN THEN // ********************************
+        IF SC=DELIM THEN BEGIN SI:=SI+1; NEWLINE:=DI; DI:=OLDLINE;
+            TALLY:=3; F:=TALLY; GO TAIL END ELSE
+        IF SC="?" THEN BEGIN TALLY:=4; F:=TALLY;
+                SI:=OLDLINE; GO FINWISH END ELSE
+        DS:=CHR; GO OVER;
+TAIL:  % ******* THE TAIL END OF THE COMMAND **************************
+        IF M SC=DC THEN BEGIN DI:=NEWLINE; SI:=OLDLINE; TALLY:=4;
+                F:=TALLY; GO FINISH END ELSE
+            BEGIN SI:=SI-M; DI:=DI-M; DI:=DI+1; OLDLINE:=DI; END;
+        GO OVER;
+FINISH:   % ********FINISH UP THE CHAR MOVE FROM OLD TO NEW************
+            DS:=CHR; OVER:)));
+            TALLY:=CHAR; X:=TALLY; TALLY:=1; Y:=TALLY;
+            Z:=TALLY);
+            SI:=NEW; DI:=OLD; DS:=WORD WDS; TALLY:=1;
+            WITHINLINE:=TALLY;
+            END
+        END
+    END OF WITHINALINE;
+  WITHINALINE := WITHINALINE(COMMAND,OLD,NEW,CHAR,WORD);
+  END OF PHONY WITHINALINE;
+PROCEDURE EDITLINE;
+    BEGIN ARRAY T[0:MAXBUFFSIZE];
+    INITBUFF(T,BUFFSIZE);
+    TRANSFER(OLDBUFFER,0,T,0,LENGTH(OLDBUFFER,TRUE));
+    IF WITHINALINE(ADDRESS,T,OLDBUFFER,BUFFSIZE?8,BUFFSIZE) THEN
+        BEGIN MOVEWDS(OLDBUFFER,BUFFSIZE,BUFFER);
+
+        IF SCAN AND RGTPAREN THEN
+            ERRORMESS(SYNTAXERROR,LADDRESS,0) ELSE EDITOG:=1;
+        END;
+
+        FORMROW(3,0,BUFFER,0,LENGTH(BUFFER,FALSE));
+    END;
+PROCEDURE CHECKSEQ(SEQ,L,INC); REAL SEQ,L,INC;
+    BEGIN
+    INTEGER I,J;
+    I:=L?10000 MOD 10000;
+    FOR J:=-4 STEP 1 WHILE J LSS 0 AND I MOD 10=0 DO
+        I:=I/10;
+    INC:=10*J;
+    SEQ:=L;
+    END;
+PROCEDURE FUNCTIONHANDLER;
+    BEGIN
+    LABEL ENDHANDLER;
+    OWN BOOLEAN EDITMODE;                                              09003000 P82
+    DEFINE FPT=FUNCPOINTER@,
+        FSQ=FUNCSEQ#,
+        SEQ=CURLINE#,
+        INC=INCREMENT#,
+    MODE=SPECMODE#,
+        ENDDEFINES=#;
+    INTEGER STREAM PROCEDURE DELPRESENT(ADDR); VALUE ADDR;
+        BEGIN LABEL L,FINIS;
+        LOCAL Q;
+        DI:=LOC Q; DS:=RESET; DS:=5SET; DS:=2RESET; DS:=2SET;
+        % LEFT-ARROW / QUESTION MARK
+        SI:=ADDR;
+        L: DI:=LOCQ;
+        IF SC=DELCHR THEN
+            BEGIN ADDR:=SI; SI:=LOC; DS:=ADDR; DS:=LIT" ";
+            TALLY:=1; DELPRESENT:=TALLY; GO TO FINIS;
+            END;
+        IF SC=DC THEN GO TO FINIS; SI:=SI-1;
+        IF SC=DC THEN GO TO FINIS;
+        GO TO SL;
+        FINIS:
+        END;
+INTEGER PROCEDURE OLDLABCONFLICT(PT,S); VALUE PT,S;
+    INTEGER PT, REAL S;
+    IF PT NEQ 0 THEN
+        BEGIN INTEGER K; ARRAY L[0:1];
+        ADDRESS:=ABSOLUTEADDRESS;
+        WHILE LABELSCAN(L,0) AND ERR EQL 0 DO
+        IF SEARCHORD(PT,L,K,8)=0 THEN
+            IF L[1] NEQ S THEN ERR:=24;
+    OLLABELCONFLICT:=ERR
+    END;
+INTEGER PROCEDURE ELIMOLDLINE(PT,SQ,L); VALUE PT,SQ,L; INTEGER PT,
+        SQ,L; FORWARD;
+INTEGER PROCEDURE STOREAWAY(PT,SQ,B,SEQ); VALUE SEQ;
+    INTEGER PT,SQ; REAL SEQ; ARRAY B[0]; FORWARD;
+    PROCEDURE BUFFERCLEAN(BUFFER,BUFFSIZE,ADDR); VALUE BUFFSIZE,
+        ADDR; REAL ADDR; INTEGER BUFFSIZE; ARRAY BUFFER[0];
+        FORWARD; COMMENT THIS IS A PHONEY DEAL, BUT I CAN"T
+       DECLARE CLEANBUFFER FORWARD (MOVE IT UP HERE LATER);
+PROCEDURE EDITDRIVER(PT,SQ,I,K); VALUE PT,SQ,I,K;
+    INTEGER PT,SQ,I,K;
+    BEGIN ARRAY C,LAB[0:1],OLD,NEW[0:MAXBUFFSIZE];
+    STREAM PROCEDURE BL(A);
+        BEGIN DI:=A; MAXBUFFSIZE(DS:=8LIT" ") END;
+    DEFINE MOVE=MOVEWDS#;
+    REAL T,SEQ; INTEGER A,B,L,H;
+    T:=ADDRESS;
+    FOR A:=I STEP 1 WHILE A LEQ K AND EDITMODE DO
+        BEGIN B:=CONTENTS(PT,A,C); BL(OLD);
+        SEQ:=C[0];
+        B:=CONTENTS(SQ,C[1],OLD);
+        IF EDITMODE:=WITHINALINE(T,OLD,NEW,BUFFSIZE?8,BUFFSIZE)
+        THEN BEGIN MOVE(BUFFER,MAXBUFFSIZE+1,NEW);
+            MOVE(OLD,MAXBUFFSIZE,BUFFER);
+            IF EDITMODE:=ERR:=OLDLABELCONFICT(PT,C[0])=0 THEN
+                BEGIN B:=ELIMOLDLINE(PT,SQ,C[1]);
+                DELTOG:=DELPRESENT(ADDRESS);
+                DELETE1(SQ,C[1]); DELET1(PT,A+B); C[1]:=
+                STORESEQ(SQ,BUFFER,LENGTH(BUFFER,FALSE));
+                STOREORD(PT,C,A+B);
+                RESCANLINE; L:=0; M:=1; LAB[1]L=C[0];
+                WHILE LABELSCAN(C,0) DO
+                    BEGIN MOVEWDS(C,1,LAB);
+                    IF (IF FUNCSSIZE=0 THEN TRUE ELSE L:=
+                    SEARCHWROD(PT,C,M,B)NEQ 0) THEN
+                        BEGIN B:=B+1; FUNCSIZE:=FUNCSIZE+1;
+                        STOREORD(PT,ALAR,L+M-1);
+               END END;
+           A:=A+B; K:=K+B;
+            COMMENT THE NEXT LINE CAUSE A SYSTEM CRASH AFTER THE EDIT
+            IF NOSYTNATX=0 THE PROCESS(XEQUTE);
+           END END;
+       MOVE(NEW,MAXBUFFSIZE+1,BUFFER)
+   END END;
+    PROCEDURE LISTLINE(PT,SQ,I); VALUE PT,SQ,I; INTEGER PT,SQ,I;
+        BEGIN
+        GT1:=CONTENTS(PT,I,GTA);
+        INDENT(GTA[0]);
+        GT1:=CONTENTS(SQ,GTA[1],BUFFER);
+        CHRCOUNT:=CHRCOUNT-1;
+        FORMROW(1,0,BUFFER,0,GT1);
+        END;                                                           090528?? P83
+INTEGER PROCEDURE DISPLAY(A,B,PT,SQ); VALUE A,B,PT,SQ;
+    INTEGER PT,SQ; REAL A,B;
+    IF A LEQ B AND FUNCSIZE NEQ 0 THEN
+        BEGIN
+        ARRAY C[0:1];
+        INTEGER I,J,K;
+        DEFINE CLEANBUFFER=BUFFERCLEAN#;
+        A:=LINENUMBER(A); B:=LINENUMBER(B);
+        C[0]:=A;
+        I:=SEARCHORD(PT,C,K,8);
+        I:=( IF I=2 THEN IF K LSS FUNCSIZE-1 THEN K:=K+1 ELSE
+              K ELSE K);
+        IF A NEQ B THEN
+            BEGIN
+            C[0]:=B; B:=SEARCHORD(PT,C,K,8);
+            END;
+        IF EDITMODE THEN % MAY HAVE ONLY ONE LINE TO EDIT
+            IF I=K THEN
+                IF A NEQ 0 THEN %NOT EDITING THE HEADER
+                    EDITDRIVER(PT,SQ,I,K);
+                ELSE %EDITING THE FUNCTION HEADER, FIX LATER.
+                    ERR:=3;
+                ELSE %EDITING MORE THAN ONE LINE
+            BEGIN MODE:=EDITING;
+                IF A=0 THEN I:=I+1;
+            CLEANBUFFER(BUFFER,BUFFSIZE,ADDRESS);
+            MOVE(BUFFER,BUFFSIZE,OLDBUFFER);
+            LOWER:=I; UPPER:=K
+            END
+        ELSE %NOT EDITING, MUST BE A LIST
+        BEGIN
+        FORMWD(3,"1      ");
+        IF K=I THEN % LISTING A SINGLE LINE
+            BEGIN LISTLINE(PT,SQ,I);
+            FORMWD(3,"1      ");
+            END ELSE % LISTING A SET OF LINES
+            BEGIN MODE:=DISPLAYING;
+            LOWER:=I; UPPER:=K;
+            END;
+        END;
+        EOB:=1;
+        END ELSE DISPLAY:=20;
+INTEGER PROCEDURE DELETE(A,B,PT,SQ); VALUE A,B;
+    INTEGER PT,SQ; REAL A,B;
+    IF A LEQ B AND FUNCSIZE NEQ 0 AND A NEQ Q THEN
+        BEGIN
+        INTEGER I,J,K,L;
+        ARRAY C[0:1];
+        A:=LINENUMBER(B);
+        B:=LINENUMBER(B);
+        C[0]:=A;
+        IF SEARCHOR(PT,C,I,8)=1 THEN I:=I-1;
+        IF K GTR I OR I GEQ FUNCSIZE THEN DELETE:=21 ELSE
+            BEGIN
+            FOR J:=K STEP 1 UNTIL I DO
+                BEGIN A:=CONTENTS(PT,J,C);
+                L:=ELIMOLDLINE(PT,SQ,C[1]);
+                FUNCSIZE:=FUNCSIZE+L; I:=I+L; K:=K+L; J:=J+L;
+                DELETE1(SQ,C[1])
+                END;
+            FUNCSIZE:=FUNCSIZE-(I-K+1)
+            ; EOF:=1;
+            DELETEN(PT,K,I);
+        IF FUNCSIZE=0 THEN
+             BEGIN
+            PT:=0; RESEASEUNIT(SQ); SQ:=0;
+            STOREPSR;
+            END;
+        END;
+        END ELSE DELETE:=22;
+    INTEGER PROCEDURE ELIMOLDLINE(PT,SQ,L); VALUE PT,SQ,L;
+    INTEGER PT,SQ,L;
+        BEGIN INTEGER K,J;
+        REAL AD;
+        ARRAY T[0:MAXBUFFERSIZE],LAB[0:1];
+         AD:=ADDRESS;
+        MOVEWDS(BUFFER,MAXBUFFSIZE+1,T);
+        INITBUFF(BUFFER,BUFFSIZE);
+        K:=CONTENTS(SQ,L,BUFFER);
+        RESCANLINE;
+        WHILE LABELSCAN(LAB,0) DO                                      091240?? P84
+            IF SEARCHORD(PT,LAB,K,8)=0 THEN
+            BEGIN DELETE1(PT,K); J:=J-1 END;
+        ADDRESS:=AD;
+        MOVEWDS(T,MAXBUFFSIZE+1,BUFFER);
+        ELIMOLDLINE:=J
+        END;
+INTEGER PROCEDURE STOREAWAY(PT,SQ,B,SEQ); VALUE SEQ;
+        INTEGER PT,SQ; REAL SEQ; ARRAY B[0]
+        BEGIN DEFINE BUFFER=B#;
+        ARRAY C,LAB[0:1];
+        INTEGER I,J,K,L;
+        BOOLEAN TOG;
+        SEQ:=LINENUMBER(SEQ);
+        C[0]:=SEQ;
+        IF TOG:=(PT=0 OR FUNCSIZE=0) THEN
+            BEGIN SEQUENTIAL(SQ:=NEXTUNIT); I:=0
+            END ELSE
+        IF J:=SEARCHORD(PT,C,I,8)=0 THEN
+            BEGIN
+            K:=ELIMOLDLINE(PT,SQ,C[1]);
+            I:=J+K; FUNCSIZE:=FUNCSIZE+K;
+            DELETE1(PT,T);
+            FUNCSIZE:=FUNCSIZE-1;
+            DELETE1(SQ,C[1]);
+            END ELSE
+        I:=I+J-1;
+        RESCANLINE;
+        DELTOG:=DELPRESENT(ADDRESS);
+        K:=STORESEQ(SQ,BUFFER,LENGTH(BUFFER,TRUE));
+        LAB[1]:=SEQ; L:=0; J:=1;
+        IF TOG THEN PT:=NEXTUNIT;
+        WHILE LABELSCAN(C,0) DO
+            BEGIN
+            MOVEWDS(C,1,LAB);
+            IF (IF FUNCSIZE=0 THEN TRUE ELSE L:=
+                SEARCHORD(PT,C,J,8)NEQ 0 ) THEN
+                BEGIN I:=I+1; FUNCSIZE:=FUNCSIZE+1;
+                STOREORD(PT,LAB,L+J-1);
+                END;
+            END;
+        C[1]:=K;
+        C[0]:=SEQ;
+        FUNCSIZE:=FUNCSIZE+1;
+        STQOREORD(PT,C,I);
+        IF TOG THEN STOREPSR;
+        EOD:=1;
+        END;
+    BOOLEAN PROCEDURE BOUND(PT); VALUE PT; INTEGER PT;
+    IF NOT(BOUND:=NUMERIC) THEN
+        IF INDENT AND FUNCSIZE GTR 0 THEN
+        BEGIN ARRAY L[0:1]; INTEGER K;
+        REAL T,U;
+        REAL STREAM PROCEDURE CON(A);
+        VALUE A;
+            BEGIN SI:=LOC A; DI:=LOC CON; DS:=8OCT
+            END;
+        TRANSFER(ACCUM,2,L,1,7);
+        IF BOUND:=SEARCHORD(PT,L,K,8)=0 THEN
+            BEGIN T:=ADDRESS;
+            U:=CON(MAX(L[1],0))/10000; %ARGS AND RESULT ARE NEG
+            IF SCAN AND PLUS OR MINUS THEN
+                BEGIN K:=(IF PLUS THEN 1 ELSE -1);
+                IF SCAN AND NUMERIC THEN
+                ACCUM[0]:=MAX(U+K?ACCUM[0],0) ELSE
+                    BEGIN ACCUM[0]:=U;
+                    ADDRESS:=T;
+                    END;
+                END ELSE BEGIN ACCUM[0]:=U; ADDRESS:=T;
+                         END;
+            EOB:=0;
+            END;
+        END;
+
+
+    PROCEDURE FINISHUP;
+    BEGIN COMMENT GET HIM BACK TO CALCULATOR MODE;
+    IF FUNCPOINTER=0 THEN % HE DELETED EVERYTHING
+        BEGIN TRANSFER(PSR,FSTART?8,GTA,0,8);
+        IF SEARCHORD(VARIABSLES,GTA,GT1,7)=0 THEN
+            BEGIN DELETE1(VARIABLES,GT1);
+            IF VARSIZE:=VARSIZE-1=0 THEN VARIABLES:=0;
+            END ELSE SPOUT(9198260);
+        END;                                                       09198270 P85
+    DELTOG:=CURRENTMODE:=CURLINE:=INCREMENT:=0;
+    STOREPSR;
+    END;
+
+    LABEL SHORTCUT;
+    REAL L,U,TADD;
+    STREAM PROCEDURE CLEANBUFFER(BUFFER,BUFFSIZE,ADDR);
+    VALUE BUFFSIZE,ADDR;
+    BEGIN LABEL L; LOCAL T,U,TSI,TDI;
+    SI:=ADDR; SI:=SI-1; L:
+    IF SC NEQ "]" THEN
+        BEGIN SI:=SI-1; GO TO L END;
+    SI:=SI+1; DI:=LOC T; SKIP 2 DB; DS:=2SET;
+    DI:=BUFFER; TDI:=DI; DI:=LOC T; TSI:=SI;
+    BUFFSIZE(8(IF TOGGKLE THEN DS:=LIT" " ELSE
+        IF SC=DC THEN
+            BEGIN SI:=LOC U; DI:=TDI; DS:=LIT" "
+            END ELSE
+        BEGIN TSI:=SI; SI:=SI-1; DI:=LOC U; DS:=CHR;
+        DI:=TDI; SI:=LOC U; DS:=CHR; TDI:=DI; DI:=LOC T;
+        SI:=TSI;
+        END))
+    END;
+    PROCEDURE BUFFERCLEAN(BUFFER,BUFFSIZE,ADDR); VALUE BUFFSIZE,
+        ADDR; REAL ADDR; INTEGER BUFFSIZE; ARRAY BUFFER[0];
+        CLEANBUFFER(BUFFER,BUFFSIZE,ADDR);
+COMMENT DETERMINE WHETHER OR NOT WE CAME FROM CALCULATOR MODE;
+    ERR:=0;
+    IF BOOLEAN(SUSPENSION) THEN GO TO ENDHANDLER;
+    BEGIN DEFINE STARTSEGMENT=#; %///////////////////////////////
+    IF GT1:=CURRENTMODE=CALCMODE THEN % TAKE CARE OF HEADER.
+        BEGIN ARRAY A[0:MAXHEADERSARGS];
+    LABEL HEADERSTORE,FORGETITFELLA;
+        IF FUNCTIONHEADER(A,TADD) THEN %HEADER OK
+            IF VARIABLES NEQ 0 THEN % MAY BE A RE-DEFINITION
+                BEGIN COMMENT GET THE FUNCTION NAME;
+                TRANSFER(A,1,GTA,0,7);
+                IF GT2:=SEARCHORD(VARIABLES,GTA,GT3,7)=0 THEN
+                    COMMENT RE-DEFINING A FUNCTION.  MAKE SURE NULL ;
+                    IF GETFIELD(GTA,7,1)==FUNCTIUON AND
+                    (A[1]+A[2]+A[3])=0  THEN %NULL HEADER--OK
+%--------------------SET UP FOR CONTINUATION OF DEFINITION------
+    BEGIN
+    FUNCPOINTER:=GETFIELD(GTA,FPTF,FFL);
+    FUNCSEQ:=GETFIELD(GTA,FSQF,FFL);
+    GT3:=CURLINE:=TOPLINE(FPT);
+    CHECKSEQ(CURLINE,GT3,INC); %SET THE INCREMENT
+    COMMENT THE CURRENT LINE IS SET TO THE LAST LINE OF THE
+    FUNCTION;
+    FUNCSIZE:=SIZE(FPT);
+    CURLINE:=CURLINE+INC;
+    DELTOG:=DELPRESENT(ADDRESS);
+    END ELSE
+%------------------REDEFINING THE HEADER OF A DEFINED FUNCTION----
+                    GO TO FORGETITFELLA
+                    ELSE
+%--------------------NAME NOT FOUND IN DIRECTWORY, SET UP
+HEADERSTORE:
+    BEGIN COMMENT GET THE HEADER TO INSERT AT LINE 0;
+    ARRAY OLDBUFFER[0:MAXBUFFSIZE];
+    INTEGER L,U,F,K,J;
+    INTEGER A1,A2;
+        COMMENT FUNCTIONHEADER RETURN AN ARRAY WITH THE
+        FOLLOWING VALUES:
+        A[0]   = FUNCTION NAME , I.E., 0AAAAAAA
+        A[1]   = 0 IF NO RESULT, 1 IF A RESULT IS RETURNED BY THE
+                 FUNCTION.
+        A[2]   = NUMBER OF ARGUMENTS TO THE FUNCTION.
+        A[3]   = NUMBER OF LOCALS + RESULT +ARGUMENTS.
+        A[4]....A[N]   ARE ALL OF THE LOCALS, RESULT, AND ARGUMENTS.
+        THE RESULT IS FIRST, THEN THE SECOND ARGUMENT, THEN
+        THE FIRST ARGUMENT, FOLL7OWED BY THE LOCALS.  ALL
+        ARE OF THE FORM 0XXXXXXX;
+        U:=(A1:=A[1])+(A2:=A[2])+3;
+        FOR L:=4 STEP 1 UNTIL 0 DO %LOOK FOR DUPLICATES AMONG
+            FOR K:=L+1 STEP 1 UNTIL 0 DO %THE RESULT/ARGUMENT SET
+                IF A[L]=A[K] THEN GO TO FORGETITFELLA;
+    SEQUENTIAL(FUNCSEQ:=NEXTUNIT);
+    SETFIELD(GTA,8,8,STORESEQ(FUNCSEQ,OLDBUFFER,
+            HEADER(TADD.[1:23],TADD.[24:24],OLDBUFFER)));
+    SETFILED(GTA,0,8,0);
+    STOREORD(F:=FUNCPOINTER:=NEXTUNIT,GTA,0);
+    SETFIELD(GTA,0,8,0); SETFIELD(GTA,8,8,0);                          09229004 P86
+    FOR L:=4 STEP 1 UNTIL U DO
+        BEGIN GTA[0]:=A[L]; IF A1 GTR 0 THEN
+            BEGIN A1:=0; GTA[1]:=-1; %"RESULT" SET TO -1
+            STOREORD(F,GTA,0);
+            END ELSE %LOOKING AT THE ARGUMENTS
+            BEGIN K:=SEARCHORD(F,GTA,J,8);
+            GTA[1]:=A2-4; A2:=A2-1; GTA[0]:=A[L];
+            STOREORD(F,GTA,J+K-1);
+        END END;
+    FUNCSIZE:=U:=U-2; U:=A[3]-U+L;
+    FOR L:=L STEP 1 UNTIL U DO %GET LOCALS INTO THE LABEL TABLE
+        BEGIN GTA[0]:=A[L];
+        IF K:=SEARCHORD(F,GTA,J,8) NEQ 0 THEN %NOT YET IN TABLE.
+            BEGIN GTA[0]:=A[L]; GTA[1]:=0;
+            STOREORD(F,GTA,J+K-1);
+            FUNCSIZE:=FUNCSIZE+1
+            END;
+        END;
+        GTA[1]:=0&ENTIER(A[1])[CRETURN]&ENTIER(A[2])[CNUMBERARGS];
+    CURLINE:=INCREMENT:=1;
+    DELTOG:=0;
+    COMMENT GET THE "TYPE" OF THE FUNCTION LATER WHEN THERE
+    IS A PLACE FOR IT.  THE TYPE IS EITHER 1 (FUNCTION CALL), OR
+    0 (SUBROUTINE CALL);
+    END;
+%--------------------------------------------------------
+                END ELSE % VARIABLES=0, MAKE UP A DIRECTORY
+                BEGIN GT3:=0; GT2:=1; GO TO HEADERSTORE
+                END
+            ELSE % HEADER SYNTAX IS BAD
+            GO TO ENDHANDLER;
+    COMMENT WE MAKE IT TO HERE IF ALL IS WELL ABOVE;
+        IF GT2 NEQ 0 THEN %NME NOT FOUND IN DIRECTORY;
+            BEGIN
+            TRANSFER(A,1,GTA,0,7); %GET FUNCTION NAME
+            SETFIELD(GTA,7,1,FUNCTION);
+            SETFIELD(GTA,FPTF,FFL,FUNCPOINTER);
+            SETFIELD(GTA,FSQF,FFL,FUNCSEQ);
+            IF VARIABLES=0 THEN
+                VARIABLE:=NEXTUNIT;
+            STOREORD(VARIABLES,GTA,GT3+GT2-1);
+            VARSIZE:=VARSIZE+1;
+            END;
+            CURRENTMODE:=FUNCMODE;
+            TRANSFER(GTA,0,PSR,FSTART?8,8);
+            STOREPSR;
+        IF SCAN THEN GO TO SHORTCUT;
+        IF FALSE THEN
+        FORGETITFELLA: ERRORMESS(ERR:=LABELERROR,TADD.[1:23],0);
+        END ELSE % WE ARE IN FUNCTION DEFINITION MODE
+    IF GT1:=MODE NEQ 0 THEN % A SPECIAL FUNCTION SUCH AS DISPLAY OR EDIT
+        BEGIN L:=LOWER;
+        IF GT1=DISPLAYING THEN
+            LISTLINE(FPT,FSQ,L) ELSE
+        IF GT1=EDITING THEN
+            BEGIN INITBUFF(BUFFER,BUFFSIZE);
+            MOVE(OLDBUFFER,BUFFSIZE,BUFFER);
+            EDITMODE:=TRUE; ADDRESS:=ABSOLUTEADDRESS;
+            EDITDRIVER(FP1,FSQ,L,L)
+            ;IF NOT EDITMODE THEN
+                BEGIN MODE:=0; ERR:=30
+                END;
+        END ELSE
+        IF GT1=RESEQUENCING THEN
+            IF GT1:=L LEQ UPPER THEN
+                BEGIN GT2:=CONTENTS(FPT,L,GTA);
+                GT3:=GTA[0]:=LINENUMBER(CURLINE);
+                DELETE1(FPT,L);
+                STOREORD(FPT,GTA,L);
+                CURLINE:=CURLINE+INCREMENT;
+                GT2:=CONTENTS(FSQ,GTA[1],BUFFER); RESCANLINE;
+                WHILE (IF ERR NEQ 0 THEN FALSE ELSE
+                    LABELSCAN(GTA,0)) FO
+                    IF GT1:=SEARCHORD(FPT,GTA,GT2,8)=0 THEN
+                    BEGIN GTA[1]:=GT3; DELETE1(FPT,GT2);
+                    STOREORD(FPT,GTA,GT2)
+                    END ELSE ERR:=16
+                END
+            ELSE MODE:=0;
+        LOWER:=L+1;
+        IF LOWER GTR UPPER THEN
+            BEGIN IF MODE=DISPLAYING THEN
+            FORMWD(3,"1       ");                                      092314?? P87
+            MODE:=0;
+            END;
+        O TO ENDHANDLER
+        END;
+    END ; % OF BLOCK STARTED EON LINE 9225115 //////////////////
+
+
+    IF ERR=0 AND EOB=0 THEN
+
+SHORTCUT:  BEGIN LABEL RGTBRACK,DELOPTION; %//////////////////////////
+    IF DEDLV THEN FINISHUP ELSE
+        IF LFTBRACKET THEN
+          BEGIN
+          IF SCAN THEN
+              IF DOUND(FPT) THEN
+               BEGIN L:=ACCUM[0];
+               IF SCAN THEN
+                   IF QUDV OR EDITMWODE:=(QUOTEQUAD) THEN
+                    IF SCAN THEN
+                        IF BOUND(FPT) THEN
+                         BEGIN U:=ACCUM[0];
+RGTBRACK:
+                         IF SCAN AND RGTBRACKET THEN
+                         IF(IF EDITMODE THEN FALSE ELSE SCAN) THEN
+                             IF DELV THEN
+                               BEGIN ERR:=DISPLAY(L,U,FPT,FSQ);
+                               DELTOG:=1;
+                               END
+                             ELSEERR:=1;
+                           ELSE ERR:=DISPLAY(L,U,FPT,FSQ)
+                         ELSE ERR:=2
+                         END
+                       ELSE
+                       IF RGTBRACKT THEN
+                       IF(IF EDITMODE THEN FALSE ELSE SCAN) THEN
+                           IF DELV THEN
+                             BEGIN ERR:=DISPLAY(L,L,FPT,FSQ);
+                             DELTOG:=1;
+                             END
+                           ELSE ERR:=3
+                         ELSE ERR:=DISPLAY(L,L,FPT,FSQ)
+                       ELSE ERR:=4
+                     ELSE ERR:=5
+                   ELSE
+                   IF RGTBRACKET THEN
+                     BEGIN TADD:=ADDRESS;
+                     IF SCAN THEN
+                       IF IDENT AND ACCUM[0]="ADELETE" THEN
+                         IF SCAN THEN
+                           IF LFTBRACKET THEN
+DELOPTION:
+                             IF SCAN AND BOUND(FPT) THEN
+                               BEGIN U:=ACCUM[0];
+                               IF SCAN AND RGTBRACKET THEN
+                                 IF SCAN THEN
+                                   IF DELV THEN
+                                     BEGIN ERR:=DELETE(L,U,FPT,FSQ);
+                                     FINISHUP
+                                     END
+                                   ELSE ERR:=6
+                                 ELSE ERR:=DELETE(L,U.FPT,FSQ)
+                               ELSE ERR:=7
+                               END
+                             ELSE ERR:=8
+                           ELSE
+                           IF DELV THEN
+                             BEGIN ERR:=DELETE(L,L,FPT,FSQ);
+                             FINSIHUP
+                             END
+                           ELSE ERR:=9
+                         ELSE ERR:=DELETE(L,L,FPT,FSQ)
+                       ELSE
+                       IF LFTBRACKET TEHN GO TO DESLOPTION ELSE
+                         BEGIN CHECKSEQ(SEQ,L,INC);
+                         CLEANBUFFER(BUFFER,BUFFSIZE,TADD);
+                         ADDRESS:=ABSADDR(BUFFER); ITEMCOUNT:=0;
+                         IF SCAN THEN GO TO SHORTCUT
+                         END
+                     ELSE ERR:=DELETE(L,L,FPT,FSQ)
+                    END
+                   ELSE ERR:=10
+            ELSE ERR:=11                                               09310000 P88
+              END ELSE
+            IF QUADV OR EDITMODE:=(QUOTEQUAD) THEN
+                BEGIN L:=0; U:=9999.9999; GO TO RGTBRACK
+            END ELSE
+        IF IOTA THEN
+            IF SCAN AND RGTBRACKET AND FPT NEQ 0 THEN
+            BEGIN IF SCAN THEN
+                IF DELV THEN DELTOG:=1; ELSE ERR:=15;
+            IF ERR == 0 THEN
+                BEGIN MODE:=RFSEQUENCING; CURLINE:=INCREMENT:=1;
+                SETFIELD(GTA,0,8,0);
+                GT1:=SEARCHORD(FPT,GTA,GT2,8);
+                LOWER:=GTT2+1; UPPER:=FUNCSIZE-1;
+                END
+            END
+    ELSE ERR:=14;
+          ELSE ERR:=12
+        ELSE ERR:=13
+        END
+      ELSE
+        IF CURLINE=0 THEN %CHANGING HEADER
+        ERR:=26 ELSE
+      IF ERR:=OLDLABCONFLICT(FPT,LINENUMBER(SEQ))=0 THEN
+        BEGIN
+       IF NOSYNTAX=0 THEN PROCESS(XEQUTE);
+        IF ERR:=STOREAWAY(FPT,FSQ,BUFFER,SEQ)=0 THEN SEQ:=SEQ+INC;
+        END;
+        IF ERR NEQ 0 TEHN
+    BEGIN FORMWD(2,"5ERROR ");
+    EOD:=1;
+    FORMROW(1,1,ACCUM,2,ACCUM[0].[1:11]);
+    END;
+  END; %OF BLOCK STARTED ON LINE 9238000 //////////////////////
+    ENDHANDLER:
+        IF BOOLEAN(SUSPENSION) THEN BEGIN
+            FILL ACCUM[*] WITH "ABORT SU", "SP. FNS.";
+            FORMROW(3,0,ACCUM,0,16);  INDENT(0); TERPRINT;
+            END ELSE
+        IF MODE=0 THEN
+        BEGIN
+        IF BOOLEAN(DELTOG) THEN FINISHUP;
+        INDENT(-CURLINE); TERPRINT;
+        END;
+
+    END;
+    EXPOVR:=FAULTL; INTOVR:=FAULTL; INDEXF:=FAULTL;
+    FLAG:=FAULTL; ZERO:=FAULTL;
+INITIALIZETABLE;
+TRYAGAIN:
+    IF FALSE THEN %ENTERS WITH A FAULT.
+    FAULTL:
+        BEGIN SPOUT(09334300); %SEND MESSAGE TO SPO
+
+            BEGIN CSTATION.APLOGGED:=0; CSTATION.APLHEADING:=0
+            END
+        END;
+    APLMONITOR;
+ENDOFJOB:
+
+    FINIS:
+    WRAPUP;
+
+END.
+    END;END.          LAST CARD ON OCRDING TAPE
+
+
+
+                TOTAL LOGIICAL RECORDS=  7273
+                END OF JOB.
