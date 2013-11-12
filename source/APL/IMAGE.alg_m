@@ -1,3 +1,7 @@
+?COMPILE APL/NEW ALGOL LIBRARY
+?ALGOL STACK=1000
+?DATA CARD
+$ CARD LIST SINGLE
 BEGIN                                                                   00000100
 % THIS APL/B5500 PROGRAM WAS DEVELOPED BY THE COMPUTER SCIENCE GROUP    00000200
 % AT THE UNIVERSITY OF WASHINGTON UNDER THE SPONSORSHIP OF PROFESSOR    00000300
@@ -9,13 +13,13 @@ BEGIN                                                                   00000100
 % AND MARY ZOSEL.  COMPUTER RESOURCES FOR THE DEVELOPMENT OF THE        00000900
 % PROGRAM WERE MADE AVAILABLE BY THE UNIVERSITY OF WASHINGTON COMPUTER  00001000
 % CENTER.                                                               00001100
-DEFINE VERSIONDATE="1-11-71"# ;                                         00001200
+DEFINE VERSIONDATE="1-11-71"#;                                          00001200
 %MODIFICATIONS FOR B-5500 TIME-SHARING MCP MADE BY:                     00001300
 % JOSE HERNANDEZ, BURROUGHS CORPORATION.                                00001400
 BOOLEAN BREAKFLAG;                                                      00001500
-ARRAY GIA[0:1];                                                         00001600
+ARRAY GTA[0:1];                                                         00001600
 LABEL FINIS; %GO THERE WHEN YOU ARE IN TROUBLE (SPOUT A MESSAGE)        00001700
-BOOLEAN PROCEDURE LIBRARIAN(A,B); VALUE A,B: REAL A,B; FORWARD;         00001800
+BOOLEAN PROCEDURE LIBRARIAN(A,B); VALUE A,B; REAL A,B; FORWARD;         00001800
 LABEL FAULTL; % FAULT LABEL                                             00001900
 MONITOR EXPOVR,INTOVR,INDEX:=INDEXF,FLAG,ZERO;                          00002000
 REAL BIGGEST, NULLV;                                                    00002100
@@ -163,7 +167,7 @@ COMMENT CHANGE LINE 3050 TO WRITE(PRINT,SF[I]) FOR MEMORY ERROR PROBS.  00013800
     IF I GTR 0 THEN                                                     00016300
         BEGIN                                                           00016400
         INTEGER GT1,GT2,GT3;                                            00016500
-        MEMORY(10,GT1,GIA,GT2,GT3);                                     00016600
+        MEMORY(10,GT1,GTA,GT2,GT3);                                     00016600
         GO TO FINIS;                                                    00016700
         END;                                                            00016800
     END;                                                                00016900
@@ -189,7 +193,7 @@ STREAM PROCEDURE WRITERECS(PAGE,A,SKP,NB,NR,NS,RL);                     00017400
     SI:=LOC NR; T64; DI:=T2;                                            00018900
     T(2(32(RL(DI:=DI+8)))); NR(RL(DI:=DI+8));                           00019000
     SI:=T2; SI:=SI-8; DI:=DI-8;                                         00019100
-    TT(2(32(RL(DS:=WDS; SI:=SI-16); DI:=DI-16))));                      00019200
+    TT(2(32(RL(DS:=WDS; SI:=SI-16; DI:=DI-16))));                       00019200
     NS(RL(DS:=WDS; SI:=SI-16; DI:=DI-16));                              00019300
     COMMENT -- HAVE ACCOMPLISHED THE "SAVE", NOW DO THE WRITE;          00019400
     SI:=A; DI:=T1;                                                      00019500
@@ -219,7 +223,7 @@ STREAM PROCEDURE READRECS(PAGE,A,SKP,NB,NR,NM,RL);                      00019800
     SI:=LOC NM; T64; SI:=T2; DI:=T1;                                    00021900
     T(2(32(DS:=RL WDS))); NM(DS:=RL WDS)                                00022000
     END READRECS;                                                       00022100
-DEFINE MOVEALOG=                                                        00022200
+DEFINE MOVEALONG=                                                       00022200
     DI:=LOC C; DI:=DI+6; DS:=2CHR; DI:=LOC Z;                           00022300
     TSI:=SI; TALLY:=TALLY+1;                                            00022400
     IF TOGGLE THEN                                                      00022500
@@ -274,7 +278,7 @@ INTEGER STREAM PROCEDURE CHRSTORE(A,SKP,B,NEW,NB,SIZE,NA,MODE,          00024700
             DI:=TDI; DS:=2LIT"0"; TDI:=DI;                              00027400
             END ELSE                                                    00027500
         IF SC="2" THEN                                                  00027600
-        COMMENT READ OUT AND ENTRY                                      00027700
+        COMMENT READ OUT AND ENTRY;                                     00027700
             BEGIN DI:=LOC C; DI:=DI+6; SI:=TSI; DS:=2CHR;               00027800
             TSI:=SI; DI:=LOC C64; DI:=DI+1; SI:=LOC C;                  00027900
             DS:=7CHR; SI:=TSI; DI:=NEW;                                 00028000
@@ -283,7 +287,7 @@ INTEGER STREAM PROCEDURE CHRSTORE(A,SKP,B,NEW,NB,SIZE,NA,MODE,          00024700
         SI:=LOC NA; T64; SI:=TSI; DI:=TDI;                              00028300
         T(2(32(TDI:=DI; DI:=LOC C; DI:=DI+6; DS:=2CHR;                  00028400
         TSI:=SI; SI:=LOC C; DI:=LOC C64; DI:=DI+1; DS:=7CHR;            00028500
-    SI:=SI-1;DT:=TDI;DS:=2CHR;SI:=TSI;C64(2(DS:=32CHR));DS:=C CHR)));   00028600
+    SI:=SI-1;DI:=TDI;DS:=2CHR;SI:=TSI;C64(2(DS:=32CHR));DS:=C CHR)));   00028600
         NA( TDI:=DI; DI:=LOC C; DI:=DI+6; DS:=2CHR; TSI:=SI;            00028700
         SI:=LOC C;DI:=LOC C64;DI:=DI+1;DS:=7CHR;SI:=SI-1;               00028800
         DI:=TDI;DS:=2CHR;SI:=TSI;C64(2(DS:=32CHR));DS:=C CHR);          00028900
@@ -313,11 +317,11 @@ INTEGER PROCEDURE FREEPAGE(INDEX,TYPEZERO,START,FINISH);                00031100
     ARRAY INDEX[0,0];                                                   00031300
     IF START GTR FINISH THEN MESSAGE(2) ELSE                            00031400
     BEGIN ARRAY T[0:RECSIZE+EXTRAROOM+SKIP-1],P[0:FINISH-START];        00031500
-    INTEGER T,J,K,R;                                                    00031600
+    INTEGER I,J,K,R;                                                    00031600
     R:=RECSIZE+EXTRAROOM+SKIP;                                          00031700
     J:=START-(FINISH+1);                                                00031800
     FOR I:=FINISH STEP -1 UNTIL TYPEZERO DO                             00031900
-        IF K:=(I+J) LESS TYPEZERO THEN                                  00032000
+        IF K:=(I+J) LSS TYPEZERO THEN                                   00032000
             BEGIN T[R-1]:=P[TYPEZERO-K-1];                              00032100
             MOVE(T,R,INDEX[I,0])                                        00032200
             END ELSE                                                    00032300
@@ -326,12 +330,12 @@ INTEGER PROCEDURE FREEPAGE(INDEX,TYPEZERO,START,FINISH);                00031100
             END;                                                        00032600
     FREEPAGE:=TYPEZERO-J;                                               00032700
     END;                                                                00032800
-INTEGER PROCEDURE SEARCH(A,B,N,MIN,MAX,NP); VALUE N,MIN,MAX;            00032900
+INTEGER PROCEDURE SEARCHL(A,B,N,MIN,MAX,NP); VALUE N,MIN,MAX;           00032900
     INTEGER N,MIN,MAX,NP;                                               00033000
     ARRAY A[0,0]; REAL B;                                               00033100
     BEGIN                                                               00033200
     INTEGER I,T;                                                        00033300
-    FOR I:=MIN STEP 1 WHILE T:=T+A[I,0].CF LEQ B AND I LESS MAX-1 DO;   00033400
+    FOR I:=MIN STEP 1 WHILE T:=T+A[I,0].CF LEQ B AND I LSS MAX-1 DO;    00033400
     IF T LSS B THEN                                                     00033500
         BEGIN MESSAGE(3); SEARCHL:=NP:=0;                               00033600
         END ELSE                                                        00033700
@@ -444,7 +448,7 @@ MOREPAGES:                                                              00040600
                 RPLACD(B[L],CDR(B[M]));                                 00044400
                 END;                                                    00044500
         RPLACD(B[K],CDR(FIRST)); RPLACD(FIRST,K);                       00044600
-        B: BUFFNUMBER:=K                                                00044700
+        D: BUFFNUMBER:=K                                                00044700
         END;                                                            00044800
     PROCEDURE MARK(I); VALUE I; INTEGER I;                              00044900
             BUF[INDX[I,P].BUFF].CHANGEDBIT:=1;                          00045000
@@ -511,7 +515,7 @@ BOOLEAN PROCEDURE WRITEBUFFER;                                          00045100
               FOR I:=1 STEP 1 UNTIL TYPE-1 DO                           00051100
               IF (T:=TYPS[I]).AF NEQ T.BF THEN                          00051200
                   BEGIN FOR K:=T.AF STEP 1 UNTIL T.BF -1 DO             00051300
-                  MOVE(INDX[K,0]),P+EXTRAROOM,INDX[K-1,0]);             00051400
+                  MOVE(INDX[K,0],P+EXTRAROOM,INDX[K-1,0]);              00051400
                   TYPS[I].AF:=T.AF-1; TYPS[I].BF:=K:=T.BF-1             00051500
                   END;                                                  00051600
               IF CURPAGE GTR TYPS[0].BF THEN                            00051700
@@ -547,7 +551,7 @@ BOOLEAN PROCEDURE WRITEBUFFER;                                          00045100
       IF M=0 THEN N:=TYPS[TYPE].BOOL ELSE                               00054700
       IF M=1 THEN                                                       00054800
           BEGIN FOR I:=1 STEP 1 UNTIL NTYPES DO                         00054900
-          IF (T:=TYPS[I].AF=T.BF THEN                                   00055000
+          IF (T:=TYPS[I]).AF=T.BF THEN                                  00055000
               BEGIN N:=I; I:=NTYPES+1                                   00055100
               END;                                                      00055200
           IF I=NTYPES+1 THEN N:=NTYPES+1                                00055300
@@ -607,7 +611,7 @@ BOOLEAN PROCEDURE WRITEBUFFER;                                          00045100
              IF (PAGESIZE-SKIP-1)|8-INDX[(I:=I-1)-1,0].SF GTR 2 THEN    00060700
                  BEGIN                                                  00060800
                  CURBUFF:=BUFFNUMBER(CURPAGE:=I-1);                     00060900
-                 ADDZERO((GT1:INDX[CURPAGE,0].SF)+8|(SKIP+1),POINTERS   00061000
+                 ADDZERO((GT1:=INDX[CURPAGE,0].SF)+8|(SKIP+1),POINTERS  00061000
                      [CURBUFF](0));                                     00061100
                  INDX[CURPAGE,0].SF:=GT1+2;                             00061200
                  INDX[CURPAGE,0].CF:=INDX[CURPAGE,0].CF+1;              00061300
@@ -645,7 +649,7 @@ BOOLEAN PROCEDURE WRITEBUFFER;                                          00045100
              N= ADDRESS OF A WITHIN IN THIS TYPE (ON OUTPUT             00064500
              ------------------------------;                            00064600
          K:=INDX[I,0];                                                  00064700
-         T:=CHRSTORE(POINTERS[CURBUFF](0),SKIP+1,C,A,K,CF,M,0,0,        00064800
+         T:=CHRSTORE(POINTERS[CURBUFF](0),SKIP+1,C,A,K.CF,M,0,0,        00064800
              PAGESIZE);                                                 00064900
          COMMENT K.CF IS THE NUMBER OF ITEMS ALREADY IN THIS            00065000
          PAGE.  IF THERE IS A SEGMENT WHICH IS NULL, IT WILL            00065100
@@ -725,7 +729,7 @@ BOOLEAN PROCEDURE WRITEBUFFER;                                          00045100
          END;                                                           00072500
      END;                                                               00072600
      %------- MODE=6 ------- DELETE A RECORD FROM THE FILE ----         00072700
-     IF (T:=TYPS[TYPE].AF=T.BF THEN MESSAGE(12) COMMENT                 00072800
+     IF (T:=TYPS[TYPE]).AF=T.BF THEN MESSAGE(12) COMMENT                00072800
      ATTEMPT TO DELETE NON-EXISTENT STORAGE;                            00072900
      ELSE                                                               00073000
      IF NR GEQ(T:=INDX[CURPAGE,0].CF) THEN MESSAGE(13) COMMENT          00073100
@@ -771,7 +775,7 @@ BOOLEAN PROCEDURE WRITEBUFFER;                                          00045100
      IF N GTR 3 THEN MESSAGE(14) ELSE                                   00077100
  COMMENT RETURN RECORD CLOSEST (BUT LESS THAN OR EQUAL TO) TO           00077200
      THE CONTENT OF -A-.  A WILL BE REPLACED BY THE RECORD FOUND;       00077300
-     IF BOOLEAN((I:=TYPS[TYPE].BOOL) THEN                               00077400
+     IF BOOLEAN((I:=TYPS[TYPE]).BOOL) THEN                              00077400
      MESSAGE(8) COMMENT BINARY SEARCH OF NON-SEQUENTIAL DATA;           00077500
      ELSE                                                               00077600
      IF I.AF=I.BF THEN MESSAGE(9) COMMENT --NO STORAGE OF               00077700
@@ -836,7 +840,7 @@ BOOLEAN PROCEDURE WRITEBUFFER;                                          00045100
          BEGIN WRITE(NEWDISK[I],PAGESIZE,A[*]);INDX[I,P].PAGEF:=I END;  00083600
          MARKEOF(SKIP,RECSIZE,NEWDISK(0));                              00083700
          WRITE(NEWDISK[I]);                                             00083800
-         TYPS[0].BF:=FREEPAGE(INDX,TYPS[0]).BF,T,NPAGES);               00083900
+         TYPS[0].BF:=FREEPAGE(INDX,TYPS[0].BF,T,NPAGES);                00083900
          UPDATE(TYPS,1,NTYPES,NPAGES-T+1);                              00084000
          IF TOG THEN CLOSE(NEWDISK);                                    00084100
          END;                                                           00084200
@@ -949,7 +953,7 @@ BOOLEAN PROCEDURE WRITEBUFFER;                                          00045100
                 IF J GTR T THEN                                         00094900
                     BEGIN                                               00095000
                     IF BOOLEAN(BUF[I].CHANGEDBIT) THEN                  00095100
-                        WRITE(POINTERS[I][BUF[I].PAGEF-1);              00095200
+                        WRITE(POINTERS[I][BUF[I].PAGEF-1]);             00095200
                     K:=CDR(BUF[I]);                                     00095300
                     CLOSE(POINTERS[I]);                                 00095400
                     BUF[I]:=0; I:=K                                     00095500
@@ -966,7 +970,7 @@ BOOLEAN PROCEDURE WRITEBUFFER;                                          00045100
             BEGIN CURBUFF:=BUFFNUMBER(I);                               00096600
             SETNTH(POINTERS[CURBUFF](0),0,0); MARK(CURPAGE:=I);         00096700
             END;                                                        00096800
-        TYPS[0].BF:=FREEPAGE(INDX,TYPS[0].BF,T,AF,J);                   00096900
+        TYPS[0].BF:=FREEPAGE(INDX,TYPS[0].BF,T.AF,J);                   00096900
         UPDATE(TYPS,1,TYPE-1,J-T.AF+1);                                 00097000
         TYPS[TYPE].BF:=T.AF;  TYPS[TYPE].BOOL:=0;                       00097100
         END;                                                            00097200
@@ -1015,7 +1019,7 @@ PROCEDURE STOREORDR(UNIT,REC,N); VALUE UNIT,N; INTEGER UNIT,N;          00101400
     ARRAY REC[0];                                                       00101500
     MEMORY(2,UNIT,REC,N,QM);                                            00101600
 BOOLEAN PROCEDURE MAINTENANCE;                                          00101700
-    BEGIN MEMORY(9,0,QA,QN,QM); MAINTENANCE:=QN:=1                      00101800
+    BEGIN MEMORY(9,0,QA,QN,QM); MAINTENANCE:=QN=1                       00101800
     END;                                                                00101900
 PROCEDURE WRAPUP; MEMORY(10,0,QA,QN,QM);                                00102000
 INTEGER PROCEDURE STORESEQ(UNIT,REC,N); VALUE UNIT,N; INTEGER UNIT, N;  00102100
@@ -1323,10 +1327,10 @@ DEFINE                                                                  00104400
                                                                         00132300
                                                                         00132400
         SPECMODE = BOUNDARY.[1:3]#,                                     00132500
-        DISPLAYIMG=1#,                                                  00132600
+        DISPLAYING=1#,                                                  00132600
         EDITING=2#,                                                     00132700
         DELETING=3#,                                                    00132800
-        RESEQUECING=4#,                                                 00132900
+        RESEQUENCING=4#,                                                00132900
         LOWER = BOUNDARY.[4:22]#,                                       00133000
         UPPER = BOUNDARY.[26:22]#,                                      00133100
         OLDBUFFER = OLDINPBUFFER[*]#,                                   00133200
@@ -1442,7 +1446,7 @@ NUMBERFOUND:                                                            00141900
     DI:=TDI; RESWD:=DI;                                                 00144200
     FINIS:                                                              00144300
     END;                                                                00144400
-REAL STREAM PROCEDURE ACCUMULATE(ACC,EDB,ADDR); VALUE ADDR;             00144500
+REAL STREAM PROCEDURE ACCUMULATE(ACC,EOB,ADDR); VALUE ADDR;             00144500
    BEGIN LOCAL T; LABEL EOBL,E,ON,L;                                    00144600
    DI:=ACC; 9(DS:=8LIT" ");                                             00144700
    DI:=EOB; DS:=8LIT"0"; SI:=ADDR; DI:=LOC T; SKIP 2 DB;                00144800
@@ -1452,7 +1456,7 @@ REAL STREAM PROCEDURE ACCUMULATE(ACC,EDB,ADDR); VALUE ADDR;             00144500
    L:  IF SC=ALPHA THEN BEGIN SI:=SI+1; GO L END ELSE GO ON;            00145200
    IF SC=" " THEN GO ON;                                                00145300
    E:  IF SC = DC THEN ;                                                00145400
-      SI:=SI-1; IF TOOGLE THEN GO TO EOBL ELSE GO ON;                   00145500
+      SI:=SI-1; IF TOGGLE THEN GO TO EOBL ELSE GO ON;                   00145500
    EOBL:  DI:=EOB; DI:=DI+7; DS:=LIT"1";                                00145600
    ON:  ACCUMULATE:=SI; DI:=ACC; T:=TALLY; SI:=LOC T; SI:=SI+6;         00145700
    DS:=2CHR; SI:=ADDR; DS:=T CHR;                                       00145800
@@ -1476,7 +1480,7 @@ BOOLEAN STREAM PROCEDURE ARROW(ADDR,I); VALUE ADDR,I;                   00146000
         END ELSE EOB:=1;                                                00147600
      END;                                                               00147700
    END OF THE SCAN PROCEDURE;                                           00147800
-PROCEDURE FORMROW(CC,BL,A,S,N); VALUE CC,RL,S,N;                        00147900
+PROCEDURE FORMROW(CC,BL,A,S,N); VALUE CC,BL,S,N;                        00147900
     INTEGER CC,BL,S,N; ARRAY A[0]; FORWARD                              00148000
     ;                                                                   00148100
 PROCEDURE INDENT(R); VALUE R; REAL R; FORWARD;                          00148200
@@ -1644,7 +1648,7 @@ REAL PROCEDURE NUMBER;                                                  00161000
   EXPOVR:=KITE;                                                         00164400
   MANTSIGN:=1;                                                          00164500
   MANT:=MANTLEN:=POWER:=POWERLEN:=FRAC:=FRACLEN:=0;                     00164600
-  MANLEN:=SUBSCAN(ADDRESS,NCHR);                                        00164700
+  MANTLEN:=SUBSCAN(ADDRESS,NCHR);                                       00164700
   IF MANTLEN=0 AND NCHR="#" THEN BEGIN                                  00164800
      MANTSIGN:=-1;                                                      00164900
      ADDRESS:=BUMP(ADDRESS,1);                                          00165000
@@ -1709,7 +1713,7 @@ STREAM PROCEDURE FINISHBUFF(BUF,N,TER);VALUE N,TER;                     00170700
     SI:=LOC TER;SI:=SI+7;IF SC="1" THEN;                                00170900
     SI:=LOC N; DI:=LOC T; DI:=DI+1; DS:=7 CHR;                          00171000
     DI:=BUF; T(2(DI:=DI+32));DI:=DI+N;                                  00171100
-    IF TOOGLE THEN DS:=2 LIT"{!"; %CARRIAGE RETURN/LINE FEED            00171200
+    IF TOGGLE THEN DS:=2 LIT"{!"; %CARRIAGE RETURN/LINE FEED            00171200
     DS:=RESET;DS:=5 SET; %END OF MESSAGE LEFT ARROW                     00171300
     END OF FINISHBUFF;                                                  00171400
  IF CHRCOUNT NEQ 0 THEN BEGIN                                           00171500
@@ -1721,7 +1725,7 @@ STREAM PROCEDURE FINISHBUFF(BUF,N,TER);VALUE N,TER;                     00170700
     INITBUFF(OUTBUFF, 10);                                              00172100
     END;                                                                00172200
     IF FALSE THEN                                                       00172300
-OK: IF CURRENTMODE=XEQMODE THEN BREAKFLAG:=TRUE;                        00172400
+BK: IF CURRENTMODE=XEQMODE THEN BREAKFLAG:=TRUE;                        00172400
  END OF TERPRINT;                                                       00172500
 PROCEDURE FORMWD(CC,WD); VALUE CC,WD; REAL WD; INTEGER CC;              00172600
     BEGIN                                                               00172700
@@ -1735,7 +1739,7 @@ PROCEDURE FORMWD(CC,WD); VALUE CC,WD; REAL WD; INTEGER CC;              00172600
         BEGIN SI:=LOC I; DI:=LOC OCTAL; DS:=8OCT                        00173500
         END;                                                            00173600
     IF L:=LINESIZE LEQ 9 OR L GTR 72 THEN L:=72; K:=2;                  00173700
-    IF CC GTR 1 AND CHRCOUNT GTR OTHEN TERPRINT;                        00173800
+    IF CC GTR 1 AND CHRCOUNT GTR 0THEN TERPRINT;                        00173800
     IF CHRCOUNT+(I:=OCTAL(WD.[1:11])) GTR L THEN                        00173900
                                                                         00174000
         BEGIN APPENDTOBUFF(LINEBUFFER,CHRCOUNT,                         00174100
@@ -1811,7 +1815,7 @@ INTEGER PROCEDURE HEADER(ADDR1,ADDR2,BUF); VALUE ADDR1,ADDR2;           00180100
     DI:=LOC AR; DS:=RESET; DS:=5SET;                                    00181100
     DI:=BUF;                                                            00181200
     SI:=ADDR1;                                                          00181300
-    L: T:=SI; TDI:=DI                                                   00181400
+    L: T:=SI; TDI:=DI;                                                  00181400
     DI:=LOC QM; IF SC=DC THEN GO TO ENDSCAN;                            00181500
     DI:=LOC AR; SI:=SI-1; IF SC=DC THEN GO TO ENDSCAN;                  00181600
     SI:=LOC T; DI:=LOC ADDR2;                                           00181700
@@ -2031,7 +2035,7 @@ PROCEDURE RELEASEARRAY(D);VALUE D; REAL D;                              00202600
     IF D.RF NEQ 0 THEN                                                  00203100
         BEGIN DELETE1(WS,D.DIMPTR);                                     00203200
         K:=CONTENTS(WS,D.INPTR,BLOCK)-1;                                00203300
-        DELETE1(WS,D,INPTR);                                            00203400
+        DELETE1(WS,D.INPTR);                                            00203400
         FOR J:=0 STEP 2 UNTIL K DO                                      00203500
         BEGIN TRANSFER(BLOCK,J,TEMP,6,2);                               00203600
             PT:=TEMP[0]; DELETE1(WS,PT); END;                           00203700
@@ -2188,7 +2192,7 @@ PROCEDURE UNSTACK(DEST,L,ORIG,OTOP,N,CHR1,CHR2);                        00216800
                  BEGIN L:=L+1;                                          00218800
                  DEST[LOC]:=ORIG[OTOP]                                  00218900
                  END;                                                   00219000
-            OTOP:OTOP-1                                                 00219100
+            OTOP:=OTOP-1                                                00219100
             END;                                                        00219200
        IF N GTR 1 THEN ERR:=SYNTAXERROR;                                00219300
         END;                                                            00219400
@@ -2282,7 +2286,7 @@ PROCEDURE UNSTACK(DEST,L,ORIG,OTOP,N,CHR1,CHR2);                        00216800
                            BEGIN L:=K+1; %NEXT AVAILABLE.               00228200
 FILLER:                    SETFIELD(GTA,0,1,0);                         00228300
                            TRANSFER(ACCUM,2,GTA,1,7);                   00228400
-                           SP[LOC]:=GTA[0];&STORE VARIABLE NAME         00228500
+                           SP[LOC]:=GTA[0];%STORE VARIABLE NAME         00228500
                            OPERANDTOSYMTAB(L);%SET TYPEFIELD AND DESC.  00228600
                            IF GT1=FUNCTION THEN%FUNCTION-FIX INFIX      00228700
                                BEGIN                                    00228800
@@ -2324,7 +2328,7 @@ FILLER:                    SETFIELD(GTA,0,1,0);                         00228300
             LABEL OPERAN, ATOR;                                         00232400
             COMMENT PROCEDURE TRUE IF VAR IS OF TYPE SPECIFIED;         00232500
             IF T:=VAR.TYPEFIELD=OPERATOR THEN                           00232600
-                IF T:=VAR.LOCFIELD NEQ RGTPRENV AND T NEQ               00232700
+                IF T:=VAR.LOCFIELD NEQ RGTPARENV AND T NEQ              00232700
                     QQUAD AND T NEQ QUAD AND T NEQ                      00232800
                     RGTBRACKETV THEN GO ATOR                            00232900
                 ELSE GO OPERAN                                          00233000
@@ -2348,7 +2352,7 @@ FILLER:                    SETFIELD(GTA,0,1,0);                         00228300
         LABEL STACKOPERAND, STACKFUNCTION;                              00234800
         DEFINE PTOP=L#;                                                 00234900
         LABEL AROUND, NOK, OK, LFTARROWL, LFTPARENL, RGTPARENL,         00235000
-            SLASHL,EXPL,ROTL,MONADICL,DYADICL,ERRL,SORTL,               00235100
+            SLASHL,EXPL,RDTL,MONADICL,DYADICL,ERRL,SORTL,               00235100
             SEMICOLONL, QUADL, DOTL, RELATIONL,                         00235200
             LFTBRACKETL, RGTBRACKETL, QUOTEQUADL;                       00235300
         SWITCH OPERATORSWITCH:= %  IN GROUPS OF 5, STARTING AT 1        00235400
@@ -2360,10 +2364,10 @@ FILLER:                    SETFIELD(GTA,0,1,0);                         00228300
                 RELATIONL, RELATIONL, RELATIONL, RELATIONL,             00236000
                 RELATIONL,                 % 25-29                      00236100
             OK, OK, OK, OK, OK, %30-34                                  00236200
-            OK, OK, ROTL, EXPL, OK, % 35-39                             00236300
-            OK,OK,OK,OK,DYADICL, %40-44                                 00236400
-            OK, OK, ERRL, OK, OK, %45-49                                00236500
-            OK, NOK, NOK, NOK, +OK, % 50-54                             00236600
+            OK, OK, RDTL, EXPL, OK, % 35-39                             00236300
+            OK,OK,OK,OK,DYADICL, % 40-44                                00236400
+            OK, OK, ERRL, OK, OK, % 45-49                               00236500
+            OK, NOK, NOK, NOK, OK, % 50-54                              00236600
             SORTL,SORTL,OK,OK,OK, % 55-59                               00236700
             DYADICL, DYADICL, MONADICL;     % 60-62                     00236800
         %-----------------------------------------------                00236900
@@ -2379,7 +2383,7 @@ FILLER:                    SETFIELD(GTA,0,1,0);                         00228300
     IF T:=INFIX[I:=I-1].TYPEFIELD=OPERATOR THEN                         00237900
     BEGIN                                                               00238000
     GO OPERATORSWITCH[INFIX[I].LOCFIELD];                               00238100
-ROTL:                                                                   00238200
+RDTL:                                                                   00238200
     IF I=1 OR NOT ANDORATOR(INFIX[I-1],OPERAND) THEN GO OK;             00238300
     T:=INFIX[I];                                                        00238400
     T.LOCFIELD:=ROTATE;                                                 00238500
@@ -2435,7 +2439,7 @@ MONADICL:                                                               00242700
 LFTBRACKETL:                                                            00243500
     IF BCT:=BCT-1 LSS 0 THEN ERR:=SYNTAXERROR;                          00243600
    UNSTACK(SP,PTOP,OPERATORS,OTOP,1,RGTBRACKETV,RGTPARENV);             00243700
-    IF DTOP=1 THEN BEGIN                                                00243800
+    IF OTOP=1 THEN BEGIN                                                00243800
         ERR:=SYNTAXERROR; GO AROUND; END                                00243900
     ELSE IF J NEQ 0 THEN                                                00244000
         BEGIN                                                           00244100
@@ -2521,9 +2525,9 @@ QUADL:                                                                  00251900
     GO TO STACKOPERAND;                                                 00252100
 DOTL:  BEGIN DEFINE STARTSEGMENT=#; %////////////////////////////       00252200
     IF I GTR 2 THEN                                                     00252300
-        IF (T:=INFIX[I-1].TYPEFIELD=OPERATOR AND                        00252400
+        IF (T:=INFIX[I-1]).TYPEFIELD=OPERATOR AND                       00252400
             ANDORATOR(T,OPERATOR) THEN                                  00252500
-            IF (T:=INFIX[I+1].TYPEFIELD=OPERATOR AND                    00252600
+            IF (T:=INFIX[I+1]).TYPEFIELD=OPERATOR AND                   00252600
                 ANDORATOR(T,OPERATOR) THEN                              00252700
                     IF ANDORATOR(INFIX[I-2],OPERAND) THEN               00252800
             COMMENT THEN SYNTAX OK;                                     00252900
@@ -2614,31 +2618,31 @@ STACKOPERAND:                                                           00260200
         ELSE                                                            00261400
         IF ANDORATOR(INFIX[I-1],OPERAND) OR RGTOPERAND(INFIX[I+1])      00261500
             THEN                                                        00261600
-                IF INFIX[I-1].LOCFIELD=RGTBRACKTV THEN                  00261700
+                IF INFIX[I-1].LOCFIELD=RGTBRACKETV THEN                 00261700
                 ELSE GO ERRL;                                           00261800
         IF J NEQ 0 THEN                                                 00261900
             BEGIN L:=L+1;                                               00262000
             SP[LOC]:=INFIX[I];                                          00262100
            END; K:=I;                                                   00262200
-        UNSTACK(SP,PTOP,OPERATORS,OTOP,1,RGTPARVN,RGTBRACKETV);         00262300
+        UNSTACK(SP,PTOP,OPERATORS,OTOP,1,RGTPARENV,RGTBRACKETV);        00262300
         END; % OF GOING THROUGH INFIX                                   00262400
         IF ERR NEQ 0 THEN ERRORMESS(ERR,INFIX[I].ADDRFIELD,0) ELSE      00262500
         WHILE OTOP GTR 0 AND ERR=0 DO                                   00262600
         BEGIN IF T:=OPERATORS[OTOP].LOCFIELD=RGTPARENV OR               00262700
         T=RGTBRACKETV THEN                                              00262800
             IF OPERATORS[OTOP].TYPEFIELD=OPERATOR THEN                  00262900
-           ERRMESS(ERR:=SYNTAXERROR,OPERATORS[TOTP].ADDRFIELD           00263000
+           ERRORMESS(ERR:=SYNTAXERROR,OPERATORS[OTOP].ADDRFIELD         00263000
            ,0);                                                         00263100
         IF J NEQ 0 THEN                                                 00263200
             BEGIN L:=L+1;                                               00263300
-            SP[LOC]:=OPERAORS[OTOP]                                     00263400
-            END; OPTOP:=OTOP-1;                                         00263500
+            SP[LOC]:=OPERATORS[OTOP]                                    00263400
+            END; OTOP:=OTOP-1;                                          00263500
         END;                                                            00263600
         IF J NEQ 0 AND DISPLAYOP THEN                                   00263700
             IF SP[LOC].TYPEFIELD NEQ OPERATOR OR                        00263800
                 T:=SP[LOC].LOCFIELD NEQ LFTARROWV                       00263900
-                AND T NEQ QUADLFTARRW AND T NEQ GOTOV THEN              00264000
-                BEGIN COMMENT ADD DIISPLAY OPERATOR TO POLISH           00264100
+                AND T NEQ QUADLFTARROW AND T NEQ GOTOV THEN             00264000
+                BEGIN COMMENT ADD DIISPLAY OPERATOR TO POLISH;          00264100
                 L:=L+1;                                                 00264200
                 T.TYPEFIELD:=OPERATOR;                                  00264300
                 T.OPTYPE:=MONADIC;                                      00264400
@@ -2668,7 +2672,7 @@ STACKOPERAND:                                                           00260200
         SP[LOC]:=T;       %STORE THE LENGTH OF THE POLISH               00266800
         T:=0; T.SPF:=J; T.RF:=1; %SET UP PROG DESC IN T                 00266900
         T.BACKP:=LASTCONSTANT;                                          00267000
-        T.DID:=PCD; ANALYZE:=T;                                         00267100
+        T.DID:=PDC; ANALYZE:=T;                                         00267100
         COMMENT DEBUG THE POLISH IF NECESSARY;                          00267200
        IF POLBUG=1 THEN DUMPOLISH(SP,T);                                00267300
             END;                                                        00267400
@@ -2680,9 +2684,9 @@ STACKOPERAND:                                                           00260200
         INTEGER N;                                                      00268000
         TRANSFER(ACCUM,2,GTA,0,7);                                      00268100
         IF(IF VARIABLES=0 THEN FALSE ELSE                               00268200
-            SEARCHWORD(VARIABLES,GTA,GT1,7)=0) THEN                     00268300
+            SEARCHORD(VARIABLES,GTA,GT1,7)=0) THEN                      00268300
             BEGIN                                                       00268400
-            SP[LOC].TYPEFILED:=GT1:=GETFIELD(GTA,7,1);                  00268500
+            SP[LOC].TYPEFIELD:=GT1:=GETFIELD(GTA,7,1);                  00268500
             IF GT1=FUNCTION THEN                                        00268600
                 BEGIN                                                   00268700
                 L:=L+1;SP[LOC]:=GTA[1]                                  00268800
@@ -2724,8 +2728,8 @@ STACKOPERAND:                                                           00260200
                 BEGIN                                                   00272400
                     IF NROWS:=(OLDROW:=NROWS)+K:=ENTIER(LENGTH/         00272500
                         SPRSIZE+1)                                      00272600
-                    GTR MAXPROGS THEN %OFF THE END OF SP                00272700
-                    BEGIN COMMENT TAKE EASY WAY IOUT FOR NOW;           00272800
+                    GTR MAXSPROWS THEN %OFF THE END OF SP               00272700
+                    BEGIN COMMENT TAKE EASY WAY OUT FOR NOW;            00272800
                     GETSPACE:=-1@10; %CAUSE INVALID INDEX               00272900
                 NROWS:=OLDROW; ERR:=SPERROR;                            00273000
                     GO TO ENDGETSPACE;                                  00273100
@@ -2733,19 +2737,19 @@ STACKOPERAND:                                                           00260200
                 K:=K|SPRSIZE;                                           00273300
                                                                         00273400
                 L:=LASTAREA;                                            00273500
-                IF OLDROW = -1 THEN COMMENT FORST RQOW OF SP;           00273600
+                IF OLDROW = -1 THEN COMMENT FIRST ROW OF SP;            00273600
                      BEGIN SP[0,0].NEXT:=L:=1; K:=K-1                   00273700
                      END ELSE                                           00273800
-                BEGIN SP[LOC].NEXT:=(IOLDROW+1)|SPRSIZE;                00273900
+                BEGIN SP[LOC].NEXT:=(OLDROW+1)|SPRSIZE;                 00273900
                     L:=(OLDROW+1)|SPRSIZE;                              00274000
                      END;                                               00274100
-                SP[LOC].LEN:=K; SP[JLOC].NEXT:=0;                       00274200
+                SP[LOC].LEN:=K; SP[LOC].NEXT:=0;                        00274200
                 NEXTAREA:=L                                             00274300
                 END ELSE L:=NEXTAREA;                                   00274400
             LINK:=SP[LOC];                                              00274500
             K:=LINK.LEN-LENGTH;                                         00274600
             IF K LSS 0 THEN COMMENT NOT ENOUGH ROOM;                    00274700
-                BEGIN L"=LASTAREA:=NEXTAREA;                            00274800
+                BEGIN L:=LASTAREA:=NEXTAREA;                            00274800
                 NEXTAREA:=LINK.NEXT                                     00274900
                 END;                                                    00275000
             END UNTIL K GEQ 0;                                          00275100
@@ -2766,7 +2770,7 @@ STACKOPERAND:                                                           00260200
         INTEGER LOCATE,LENGTH;                                          00276600
         BEGIN INTEGER L;                                                00276700
             IF LENGTH GTR 0 THEN BEGIN                                  00276800
-        L:=LWOCATE;                                                     00276900
+        L:=LOCATE;                                                      00276900
         SP[LOC]:=SP[0,0];                                               00277000
         SP[LOC].LEN:=LENGTH;                                            00277100
         SP[0,0]:=L;                                                     00277200
@@ -2801,7 +2805,7 @@ INTEGER LASTCONSTANT;                                                   00278900
             BEGIN L:=K:=GS(1);                                          00280100
             SP[LOC]:=A[1];                                              00280200
             BUILDCONSTANT:=L:=GETSPACE(1);                              00280300
-            SP[LOC]:=K&DPNSW[CDID]&LASTCUONSTANT[CLOCF];                00280400
+            SP[LOC]:=K&DDPNSW[CDID]&LASTCONSTANT[CLOCF];                00280400
             LASTCONSTANT:=L;                                            00280500
             END ELSE COMMENT VECTOR;                                    00280600
             BEGIN L:=K:=GS(ATOP+1);                                     00280700
@@ -2809,11 +2813,11 @@ INTEGER LASTCONSTANT;                                                   00278900
             SP[LOC]:=ATOP;                                              00280900
             BUILDCONSTANT:=L:=GS(1); %VECTOR DESCRIPTOR                 00281000
             SP[LOC]:=K&1[CRF]&DDPNVW[CDID]&LASTCONSTANT[CLOCF];         00281100
-            LASTCONTANT:=L;                                             00281200
+            LASTCONSTANT:=L;                                            00281200
             END                                                         00281300
                                                                         00281400
     END;                                                                00281500
-    OWN INTEGER OLDATA,REALLYERROR;                                     00281600
+    OWN INTEGER OLDDATA,REALLYERROR;                                    00281600
     INTEGER L,N,M;                                                      00281700
      OWN REAL ST,T,U;                                                   00281800
     LABEL EXECUTION,PROCESSEXIT;                                        00281900
@@ -2831,7 +2835,7 @@ INTEGER LASTCONSTANT;                                                   00278900
     BACKF=[6:12]#,                                                      00283100
     CIF=[18:12]#,                                                       00283200
     ENDEF=#;                                                            00283300
-    PROCEDURE PACK(L,OFFSET,N);VALUUEL,OFFSET,N;INTEGER L,OFFSET,N;     00283400
+    PROCEDURE PACK(L,OFFSET,N);VALUE L,OFFSET,N;INTEGER L,OFFSET,N;     00283400
         FORWARD;                                                        00283500
     INTEGER PROCEDURE UNPACK(S,OFFSET,N);VALUE S,OFFSET,N;              00283600
         INTEGER S,OFFSET,N; FORWARD;                                    00283700
@@ -2850,7 +2854,7 @@ INTEGER LASTCONSTANT;                                                   00278900
             ST:=ST-1;                                                   00285000
             END                                                         00285100
         ELSE ERR:=SYSTEMERROR;                                          00285200
-        END                                                             00285300
+        END;                                                            00285300
     REAL PROCEDURE GETARRAY(DESCRIPTOR); VALUE DESCRIPTOR;              00285400
         REAL DESCRIPTOR;                                                00285500
         BEGIN                                                           00285600
@@ -2866,7 +2870,7 @@ INTEGER LASTCONSTANT;                                                   00278900
             TOTAL:=1;                                                   00286600
             FOR I:=0 STEP 1 UNTIL R-1 DO                                00286700
                 TOTAL:=TOTAL|DIMVECTOR[I];                              00286800
-            IF DESCRIPTOT.ARRAYTYPE=CHARARRAY THEN                      00286900
+            IF DESCRIPTOR.ARRAYTYPE=CHARARRAY THEN                      00286900
                 TOTAL:=ENTIER((TOTAL+7) DIV 8);                         00287000
             TOTAL:=TOTAL+R;                                             00287100
             LL:=GETSPACE(TOTAL);                                        00287200
@@ -2874,7 +2878,7 @@ INTEGER LASTCONSTANT;                                                   00278900
             L:=LL+R;                                                    00287400
             J:=CONTENTS(WS,DESCRIPTOR.INPTR,DIMVECTOR)-1;               00287500
            GTA[0]:=0;                                                   00287600
-            FOR I:=0 STEP 2 UNTIL J DUO                                 00287700
+            FOR I:=0 STEP 2 UNTIL J DO                                  00287700
                  BEGIN                                                  00287800
                 TRANSFER(DIMVECTOR,I,GTA,6,2);                          00287900
                 PT:=GTA[0];                                             00288000
@@ -2889,7 +2893,7 @@ INTEGER LASTCONSTANT;                                                   00278900
        T.PRESENCE:=1;                                                   00288900
        GETARRAY:=T;                                                     00289000
         END;                                                            00289100
-    INTEGER PROCEDURE FINDSIZE(D);VALUE D; REAL;                        00289200
+    INTEGER PROCEDURE FINDSIZE(D);VALUE D; REAL D;                      00289200
         BEGIN                                                           00289300
         INTEGER I,J,M,R;                                                00289400
      J:=1; I:=D.SPF; R:=D.RF+I-1;                                       00289500
@@ -2901,7 +2905,7 @@ INTEGER LASTCONSTANT;                                                   00278900
     INTEGER PROCEDURE NUMELEMENTS(D); VALUE D; REAL D;                  00290100
         BEGIN                                                           00290200
         INTEGER I;                                                      00290300
-        GT1:=I:=FINDIZE(D);                                             00290400
+        GT1:=I:=FINDSIZE(D);                                            00290400
         IF D.ARRAYTYPE=CHARARRAY THEN                                   00290500
             I:=ENTIER((I+7) DIV 8);                                     00290600
         NUMELEMENTS:=I;                                                 00290700
@@ -2914,9 +2918,9 @@ INTEGER LASTCONSTANT;                                                   00278900
                 BEGIN T:=NUMELEMENTS(D)+R;                              00291400
                                                                         00291500
                 END;                                                    00291600
-        IF T NEQ 0 THEN FORGETSPZE(D,SPF,T);                            00291700
+        IF T NEQ 0 THEN FORGETSPACE(D.SPF,T);                           00291700
         END;                                                            00291800
-    COMMENT RELEASEARRAY HAS BEEN MOVED WOUT OF PROCESS SO THAT IT      00291900
+    COMMENT RELEASEARRAY HAS BEEN MOVED OUT OF PROCESS SO THAT IT       00291900
         CAN BE CALLED ELSEWHERE;                                        00292000
     REAL PROCEDURE MOVEARRAY(SPDESC); VALUE SPDESC;                     00292100
         REAL SPDESC;                                                    00292200
@@ -2927,7 +2931,7 @@ INTEGER LASTCONSTANT;                                                   00278900
         REAL T;                                                         00292700
     ARRAY BLOCK[0:BLOCKSIZE],BUFFER[0:32]; %SEE MAXWORDSTORE, LINE 1726000292800
         T:=SPDESC;                                                      00292900
-        TRANSFERSP(OUTOF,SP,SPDESC,SPF,BUFFER,0,R:=SPDESC.RF);          00293000
+        TRANSFERSP(OUTOF,SP,SPDESC.SPF,BUFFER,0,R:=SPDESC.RF);          00293000
         T.DIMPTR:=STORESEQ(WS,BUFFER,8|R);                              00293100
         TOTAL:=NUMELEMENTS(SPDESC);                                     00293200
         M:=SPDESC.SPF+R;                                                00293300
@@ -2935,7 +2939,7 @@ INTEGER LASTCONSTANT;                                                   00278900
         FOR J:=0 STEP 1 UNTIL K DO BEGIN                                00293500
             TRANSFERSP(OUTOF,SP,M,BLOCK,0,BLOCKSIZE);                   00293600
             R:=STORESEQ(WS,BLOCK,BLOCKSIZE|8);                          00293700
-            TRANSFER(R,6,BUFFER,J|S,2);                                 00293800
+            TRANSFER(R,6,BUFFER,J|2,2);                                 00293800
             M:=M+BLOCKSIZE;                                             00293900
             END;                                                        00294000
         IF J:=TOTAL-(K:=K+1)|BLOCKSIZE GTR 0 THEN                       00294100
@@ -2963,7 +2967,7 @@ INTEGER LASTCONSTANT;                                                   00278900
               IF BOOLEAN(T.CHANGE) THEN BEGIN                           00296300
                IF VARIABLES=0 THEN                                      00296400
                                                                         00296500
-                    BEGINVARIABLES:=NEXTUNIT;                           00296600
+                    BEGIN VARIABLES:=NEXTUNIT;                          00296600
                     T:=CURRENTMODE;                                     00296700
                     VARSIZE:=1; STOREPSR;                               00296800
                     CURRENTMODE:=T; VARSIZE:=0;                         00296900
@@ -2975,13 +2979,13 @@ INTEGER LASTCONSTANT;                                                   00278900
                                                                         00297500
                 SETFIELD(NEWDESC,7,1, IF BOOLEAN(T.SCALAR)              00297600
                 THEN SCALARDATA ELSE ARRAYDATA);                        00297700
-                MOVE(NEWDESC,1,OLDDES); K:=1;                           00297800
+                MOVE(NEWDESC,1,OLDDESC); K:=1;                          00297800
                 IF (IF VARSIZE=0 THEN FALSE ELSE                        00297900
                     K:=SEARCHORD(VARIABLES,NEWDESC,J,7)=0)              00298000
                     THEN BEGIN                                          00298100
-                    K:=CONTENTS(VARAIBLES,J,OLDDESC);                   00298200
-                    DELETE1(VARAIBLES,J);                               00298300
-                    IF GETFILED(OLDDESC,7,1)=ARRAYDATA THEN             00298400
+                    K:=CONTENTS(VARIABLES,J,OLDDESC);                   00298200
+                    DELETE1(VARIABLES,J);                               00298300
+                    IF GETFIELD(OLDDESC,7,1)=ARRAYDATA THEN             00298400
                         RELEASEARRAY(OLDDESC[1]);                       00298500
                 END ELSE                                                00298600
                 BEGIN VARSIZE:=VARSIZE+1; J:=J+K-1;                     00298700
@@ -2997,7 +3001,7 @@ INTEGER LASTCONSTANT;                                                   00278900
                     NEWDESC[1]:=(IF T.RF NEQ 0 THEN                     00299700
                     MOVEARRAY(T) ELSE T)                                00299800
                     END;                                                00299900
-                STOREORD(VARIABLES,NEWDESC.J);                          00300000
+                STOREORD(VARIABLES,NEWDESC,J);                          00300000
                                                                         00300100
                 END;                                                    00300200
             END;                                                        00300300
@@ -3015,12 +3019,12 @@ INTEGER LASTCONSTANT;                                                   00278900
         INTEGER M;                                                      00301500
         CHAIN:=M:=GETSPACE(1);                                          00301600
         D.LOCFIELD:=CHAINLOC;                                           00301700
-        SP[MROC]:=D;                                                    00301800
+        SP[MOC]:=D;                                                     00301800
         END;                                                            00301900
     PROCEDURE SCRATCHAIN(L); VALUE L; INTEGER L;                        00302000
         BEGIN                                                           00302100
         REAL R;                                                         00302200
-        WHILE L NEW 0 DO BEGIN                                          00302300
+        WHILE L NEQ 0 DO BEGIN                                          00302300
             SCRATCHDATA(R:=SP[LOC]);                                    00302400
             FORGETSPACE(L,1);                                           00302500
             IF L=R.LOCFIELD THEN L:=0 ELSE                              00302600
@@ -3032,7 +3036,7 @@ PROCEDURE RESTORELOCALS(FPTR);VALUE FPTR;REAL FPTR;                     00303000
     INTEGER L,M,N,I,K,FLOC;                                             00303200
     REAL T;                                                             00303300
     M:=FPTR.LOCFIELD;                                                   00303400
-    DL:=FPTR.SPF+2;K:=SP[LOC]-2;%LAST ALPHA POINTER                     00303500
+    L:=FPTR.SPF+2;K:=SP[LOC]-2;%LAST ALPHA POINTER                      00303500
     T:=L+4;                                                             00303600
     FOR I:=T STEP 2 UNTIL K DO % ONCE FOR EACH LOCAL                    00303700
         BEGIN                                                           00303800
@@ -3046,13 +3050,13 @@ PROCEDURE RESTORELOCALS(FPTR);VALUE FPTR;REAL FPTR;                     00303000
         ELSE BEGIN SP[NOC]:=SP[LOC];FORGETSPACE(L,1);END;               00304600
         END;                                                            00304700
     END; % OF PROCEDURE RESTORELOCALS                                   00304800
-    OWNINTEGER FUNCLOC,POLLOC,LASTMKS,POLTOP,CINDEX;                    00304900
+    OWN INTEGER FUNCLOC,POLLOC,LASTMKS,POLTOP,CINDEX;                   00304900
     PROCEDURE STEPLINE(LABELED); VALUE LABELED;                         00305000
         BOOLEAN LABELED;                                                00305100
                                                                         00305200
         BEGIN                                                           00305300
         LABEL ENDFUNC,TERMINATE,DONE;                                   00305400
-        LABEL BUMBLINE;                                                 00305500
+        LABEL BUMPLINE;                                                 00305500
         LABEL TRYNEXT;                                                  00305600
         REAL STREAM PROCEDURE CON(A); VALUE A;                          00305700
             BEGIN SI:=LOC A; DI:=LOC CON; DS:=8DEC;                     00305800
@@ -3066,13 +3070,13 @@ PROCEDURE RESTORELOCALS(FPTR);VALUE FPTR;REAL FPTR;                     00303000
         IF BOOLEAN(SP[MOC].SUSPENDED) THEN                              00306600
             BEGIN %RESUME A SUSPENDED FUNCTI+ON                         00306700
             SP[MOC].SUSPENDED:=0;%REMOVE SUSPENDED BIT                  00306800
-            ROSTORELOCALS(SP[MOC]);                                     00306900
+            RESTORELOCALS(SP[MOC]);                                     00306900
             SP[LOC].RF:=N:=SP[LOC].RF-1;                                00307000
             IF N LEQ 0 THEN SUSPENSION:=0;% NO MORE SUSPENDED FNS       00307100
             END;                                                        00307200
         IF LABELED THEN %MAKE INITIAL CHECKS AND CHANGES;               00307300
             BEGIN                                                       00307400
-            IF NOT BOOLEN((T:=AREG).PRESENCE) OR L:=T.SPF=0             00307500
+            IF NOT BOOLEAN((T:=AREG).PRESENCE) OR L:=T.SPF=0            00307500
                 THEN                                                    00307600
                 BEGIN LABELED:=FALSE; GO TO BUMPLINE;                   00307700
                 END;                                                    00307800
@@ -3099,22 +3103,22 @@ TRYNEXT:                                                                00309400
             IF N-M LSS 2 THEN GO TO ENDFUNC;                            00309900
             WHILE N-M GTR 2 AND C LSS 1@8 DO                            00310000
                                                                         00310100
-                BEGIN L:=M+ENTIER((N-M)DIV 4(|2; C:=C+1;                00310200
+                BEGIN L:=M+ENTIER((N-M)DIV 4)|2; C:=C+1;                00310200
                 IF T LSS SP[LOC] THEN N:=L ELSE M:=L                    00310300
-                END                                                     00310400
+                END;                                                    00310400
         IF C=1@8 THEN GO TO TERMINATE;                                  00310500
             IF SP[MOC] NEQ T THEN GO ENDFUNC; T:=M;                     00310600
             %T HAS THE SP LOCATION OF THE CORRECT LABEL                 00310700
             END ELSE %BUMP THE POINTER                                  00310800
         IF T:=CURLINE+2+BASE GEQ N OR T LSS M THEN GO ENDFUNC;          00310900
-        M:=T+1; CURLINE:=I-BASE; %M IS SET TO PROG DESC                 00311000
+        M:=T+1; CURLINE:=T-BASE; %M IS SET TO PROG DESC                 00311000
         IF NOT BOOLEAN((T:=SP[MOC]).PRESENCE) THEN %MAKE POLISH         00311100
             BEGIN N:=BASE+1;N:=SP[NOC].SPF;%SEQ STORAGE UNIT            00311200
             INITBUFF(BUFFER,BUFFSIZE);                                  00311300
             N:=CONTENTS(N,T,BUFFER); %GET TEXT                          00311400
-            RESCANLINE; WHILE LABELSCAN(GTA,0) DIO; %CLEAR LABELS       00311500
+            RESCANLINE; WHILE LABELSCAN(GTA,0) DO; %CLEAR LABELS        00311500
             IF BOOLEAN(EOB) THEN % AN EMPTY LINE--BUMP POINTER          00311600
-                BEGIN M:=BASE;LABELED:=FALSE;GT TO TRYNEXT;END ELSE     00311700
+                BEGIN M:=BASE;LABELED:=FALSE;GO TO TRYNEXT;END ELSE     00311700
             IF T:=ANALYZE(TRUE)=0 THEN % NO GOOD                        00311800
                 GO TO DONE;                                             00311900
             SP[MOC]:=T; %SAVE THE POLISH DESCRIPTOR AT M                00312000
@@ -3128,7 +3132,7 @@ TRYNEXT:                                                                00309400
 ENDFUNC:                                                                00312800
         %ARRIVE HERE WHEN FUNCTION IS COMPLETED.                        00312900
         %GET RESULT OF FUNCTION                                         00313000
-        M:=FUNCLOC;M:=SP[MOC].SPF+M;NN:=TLAST:=SP[MOC].LOCFIELD;        00313100
+        M:=FUNCLOC;M:=SP[MOC].SPF+M;N:=TLAST:=SP[MOC].LOCFIELD;         00313100
         M:=SP[NOC].SPF;M:=SP[MOC];                                      00313200
         COMMENT I CANNOT CONJURE UP A CASE WHERE A USER RETURNS TO A    00313300
         FUNCTION WHOSE DESCRIPTOR HAS BEEN PUSHED DOWN BY A SUSPENDED   00313400
@@ -3139,28 +3143,28 @@ ENDFUNC:                                                                00312800
             BEGIN                                                       00313900
             N:=M.SPF+5;%RELATIVE LOCATION OF RESULT                     00314000
             N:=SP[NOC]+TLAST; %LOCATION IN STACK OF RESKLULT            00314100
-            T:=SP[NOC]; SP[NOC.NAMED:=1; N:=T;                          00314200
+            T:=SP[NOC]; SP[NOC].NAMED:=1; N:=T;                         00314200
             END;                                                        00314300
         WHILE ST GEQ TLAST AND ERR=0 DO POP; %GET RID OF TEMPS          00314400
         OLDDATA:=(T:=AREG).SPF; POP;% GET RID OF INTERRUPT MKS          00314500
-        IF ERR NEQ 0 THEN GQO TO DONE;                                  00314600
+        IF ERR NEQ 0 THEN GO TO DONE;                                   00314600
         IF BOOLEAN(M.RETURNVALUE) THEN %REPLACE RESULT                  00314700
             BEGIN PUSH; IF ERR NEQ 0 THEN GO TO DONE;                   00314800
             AREG:=N; %RESULT OF CALL                                    00314900
             END;                                                        00315000
         L:=STACKBASE+1;L:=SP[LOC].SPF;M:=SP[LOC].SPF+L;                 00315100
                                                                         00315200
-        SP[MOC:=0;SP[LOC].SPF:=(M:=M-1)-L;                              00315300
+        SP[MOC]:=0;SP[LOC].SPF:=(M:=M-1)-L;                             00315300
         COMMENT NOW INITIATE ANY OLD FUNCTIONS, AND GET POLISH          00315400
         GOING;                                                          00315500
-        LASTMKS:=N:=T.BACKF+SYTACKBASE; %LOCATION OF PROGRAM DESC.      00315600
+        LASTMKS:=N:=T.BACKF+STACKBASE; %LOCATION OF PROGRAM DESC.       00315600
         T:=SP[NOC]; % PICK UP PROGRAM DESCRIPTOR                        00315700
         N:=T.SPF; %LOCATION OF POLISH DESCRIPTOR                        00315800
         POLLOC:=(N:=SP[NOC].SPF);                                       00315900
         POLTOP:=SP[NOC];                                                00316000
         CINDEX:=T.CIF;                                                  00316100
         IF M NEQ L THEN % GET LAST FUNCTION STARTED                     00316200
-            BEGIN N:=SP[MOC].\LOCFIELD;                                 00316300
+            BEGIN N:=SP[MOC].LOCFIELD;                                  00316300
             T:=SP[NOC];                                                 00316400
             CURLINE:=T.CIF                                              00316500
             END ELSE CURLINE:=0;                                        00316600
@@ -3173,7 +3177,7 @@ DONE:                                                                   00317000
 PROCEDURE FIXTAKEORDROP(LDESC,RDESC,OPT,MAP,SIZEMAP,SIZE);              00317300
   VALUE LDESC,RDESC,OPT; REAL LDESC,RDESC;                              00317400
   INTEGER OPT, SIZE; ARRAY MAP, SIZEMAP[1];                             00317500
-  BEGIN INTEGER LRANK,LSIZE,L,M,RRANK,N,I,T+OP,PUT;                     00317600
+  BEGIN INTEGER LRANK,LSIZE,L,M,RRANK,N,I,TOP,PUT;                      00317600
     DEFINE TAKE = OPT = 2#;                                             00317700
     INTEGER LNUM, RNUM; LABEL QUIT;                                     00317800
   IF LSIZE := FINDSIZE(LDESC) NEQ RRANK := RDESC.RF AND LSIZE NEQ 1     00317900
@@ -3220,11 +3224,11 @@ PROCEDURE FIXTAKEORDROP(LDESC,RDESC,OPT,MAP,SIZEMAP,SIZE);              00317300
         INTEGER SIZE,I,L,M,N,VALUW;                                     00322000
         INTEGER ADDRESS,NOTSCAL,DIM,LEVEL,TEMP,K,J;                     00322100
         REAL SUBDESC,T;                                                 00322200
-        BOOLEN DCHARS;                                                  00322300
+        BOOLEAN DCHARS;                                                 00322300
         STREAM PROCEDURE TCHAR(A,B,C,D);VALUE B,D;                      00322400
         BEGIN SI:=A;SI:=SI+B;DI:=C;DI:=DI+D;DS:=CHR;END;                00322500
     ARRAY MAP[1:RANK],SIZEMAP[1:RANK];                                  00322600
-    ARRAY BLOCKSIZE[1:RANK],POINTER[0:RANK],PRIOGRESS[1,RANK];          00322700
+    ARRAY BLOCKSIZE[1:RANK],POINTER[0:RANK],PROGRESS[1:RANK];           00322700
     INTEGER PROCEDURE SUBINDEX(M,S,P);VALUE M,S,P;REAL M,S,P;           00322800
         IF M LSS 0 THEN BEGIN M:=-M;                                    00322900
             M:=P+M.SPF+M.RF-1;SUBINDEX:=SP[MOC]-ORIGIN;END              00323000
@@ -3261,7 +3265,7 @@ PROCEDURE FIXTAKEORDROP(LDESC,RDESC,OPT,MAP,SIZEMAP,SIZE);              00317300
             IF SUBDESC.SPF=0 THEN % THIS IS A NULL                      00326100
                 BEGIN                                                   00326200
                 NOTSCAL:=1;                                             00326300
-                SIZE:=SIZEL|(M:=SP[NOC]);                               00326400
+                SIZE:=SIZE|(M:=SP[NOC]);                                00326400
                 MAP[I].RF:=1;SIZEMAP[I]:=M;                             00326500
                 END ELSE % IT MUST BE A VECTOR                          00326600
     BEGIN DEFINE STARTSEGMENT=#; %//////////////////////////            00326700
@@ -3292,20 +3296,20 @@ DEFINE STARTSEGMENT=#; %////////////////////////////////                00328400
             IF DCHARS THEN BEGIN                                        00329200
                 N:=(ADDRESS+7)DIV 8+N;J:=(ADDRESS-1)MOD 8;              00329300
                 T:=M:=GETSPACE(2);SP[MOC]:=1;M:=M+1;                    00329400
-                SP[MOC]:=0; TCHAR(SP[NQOC],J,SP[MOC],0);                00329500
+                SP[MOC]:=0; TCHAR(SP[NOC],J,SP[MOC],0);                 00329500
                 SUBSCRIPTS:=T&1[CRF]&DDPUVC[CDID];                      00329600
                 END ELSE                                                00329700
             BEGIN N:= ADDRESS+N;                                        00329800
             M:=GETSPACE(1);SP[MOC]:=SP[NOC];                            00329900
             T:=M; T.DID:=DDPUSW;                                        00330000
             SUBSCRIPTS:=T;                                              00330100
-            SEND ELSE % DIRECTION IS INTO                               00330200
+            END ELSE % DIRECTION IS INTO                                00330200
             BEGIN                                                       00330300
             L:=L-1;SUBSCRIPTS:=SUBDESC:=SP[LOC];                        00330400
             IF DCHARS AND FINDSIZE(SUBDESC)=1 OR                        00330500
                 BOOLEAN(SUBDESC.SCALAR) THEN                            00330600
                 BEGIN                                                   00330700
-                L:=GETSPACE(N:=(NUMELEMENTS(D)+D,RF));                  00330800
+                L:=GETSPACE(N:=(NUMELEMENTS(D)+D.RF));                  00330800
                 SPCOPY(D.SPF,L,N); % MAKE A NEW COPY                    00330900
                 IF DCHARS THEN BEGIN                                    00331000
                 N:=(ADDRESS+7)DIV 8+L;J:=(ADDRESS-1)MOD 8;              00331100
@@ -3318,13 +3322,13 @@ DEFINE STARTSEGMENT=#; %////////////////////////////////                00328400
                 N:=SUBDESC.SPF;                                         00331800
                 SP[MOC]:=SP[NOC]; %PERFORM THE REPLACEMENT              00331900
                 END;                                                    00332000
-                N:=D.LOCFIELD;I:=SP[NOC].BACLP;                         00332100
+                N:=D.LOCFIELD;I:=SP[NOC].BACKP;                         00332100
                 SP[NOC]:=D&L[CSPF]&I[CLOCF];%STORE NEW DESC             00332200
                 OLDDATA:=CHAIN(D,OLDDATA);                              00332300
                 IF BOOLEAN(D.NAMED) THEN BEGIN                          00332400
                     N:=N-1;IF I=0 AND SP[NOC].SUSPENDVAR=0              00332500
                     THEN SP[NOC].CHANGE:=1%MUST BE A REAL GLOBAL        00332600
-                    END ESLSE %MUST BE A LOCAL VARIABLE                 00332700
+                    END ELSE %MUST BE A LOCAL VARIABLE                  00332700
                     AREG.NAMED:=1; %DONT LET IT BE FORGOTTEN            00332800
                 END ELSE ERR:=RANKERROR;                                00332900
             END;                                                        00333000
@@ -3355,7 +3359,7 @@ IF SIZE+DIM GTR MAXWORDSTORE THEN BEGIN ERR:=KITEERROR; GO TO           00335100
             ELSE FOR I:=1 STEP 1 UNTIL RANK DO                          00335500
                 IF SIZEMAP[I] GTR 1 THEN                                00335600
                 IF (M:=MAP[I].SPF)=0 THEN BEGIN SP[LOC]:=               00335700
-                    SIZEMAP[I];L:=;L+1;END ELSE                         00335800
+                    SIZEMAP[I];L:=L+1;END ELSE                          00335800
                     BEGIN N:=M+MAP[I].RF-1;                             00335900
                                                                         00336000
                     FOR M:=M STEP 1 UNTIL N DO BEGIN                    00336100
@@ -3369,8 +3373,8 @@ IF SIZE+DIM GTR MAXWORDSTORE THEN BEGIN ERR:=KITEERROR; GO TO           00335100
             IF FINDSIZE(SUBDESC) NEQ SIZE THEN                          00336900
                 BEGIN ERR:=RANKERROR; GO TO GOHOME;END;                 00337000
             N:=SUBDESC.RF;                                              00337100
-            IF BOQOLEAN(SUBDESC,CHRMODE) THEN SUBDESC,SPF:=             00337200
-                UNPACK(SUBDESC,SPF,N,FINDSIZE(SUBDESC));                00337300
+            IF BOOLEAN(SUBDESC.CHRMODE) THEN SUBDESC.SPF:=              00337200
+                UNPACK(SUBDESC.SPF,N,FINDSIZE(SUBDESC));                00337300
             IF DCHARS THEN L:= D.SPF ELSE BEGIN                         00337400
             L:=GETSPACE(N:=(NUMELEMENTS(D)+D.RF));                      00337500
             SPCOPY(D.SPF,L,N); % MAKE FRESH COPY TO PATCH INTO          00337600
@@ -3378,7 +3382,7 @@ IF SIZE+DIM GTR MAXWORDSTORE THEN BEGIN ERR:=KITEERROR; GO TO           00335100
             ADDRESS:=L+D.RF; % SP LOCATION TO STORE INTO                00337800
             N:=D.LOCFIELD;I:=SP[NOC].BACKP;                             00337900
             SP[NOC]:=D&L[CSPF]&I[CLOCF];%STORE NEW DESC.                00338000
-            OLDDATA:=CHAIN(IF DCHARS TEHN TEMP ELSE D,OLDDATA);         00338100
+            OLDDATA:=CHAIN(IF DCHARS THEN TEMP ELSE D,OLDDATA);         00338100
             IF BOOLEAN(D.NAMED ) THEN BEGIN                             00338200
                 N:=N-1;IF I=0 AND SP[NOC].SUSPENDVAR=0                  00338300
                 THEN SP[NOC].CHANGE:=1%MUST BE A REAL GLOCAL            00338400
@@ -3410,14 +3414,14 @@ IF SIZE+DIM GTR MAXWORDSTORE THEN BEGIN ERR:=KITEERROR; GO TO           00335100
                 END; % OF RECURSIVE EVALUATION LOOP                     00341000
     DONE:   IF DIRECTION GTR 0 THEN % OUTOF TAKE OR DROP                00341100
                 IF DCHARS THEN BEGIN PACK(TEMP,DIM,SIZE);               00341200
-                    FORGETSPACE(S.SPF,RANK+FINDSIZE(D));                00341300
+                    FORGETSPACE(D.SPF,RANK+FINDSIZE(D));                00341300
                     SUBSCRIPTS:=TEMP&DIM[CRF]&DDPUVC[CDID];             00341400
                     END ELSE % THIS IS A NUMERIC VECTOR                 00341500
                 IF DIM=0 THEN SUBSCRIPTS:=TEMP&DDPUSW[CDID] ELSE        00341600
                 SUBSCRIPTS:=TEMP&DIM[CRF]&DDPUVW[CDID]                  00341700
                 ELSE % THE DIRECTION IS INTO                            00341800
                 BEGIN IF BOOLEAN(SUBDESC.CHRMODE) THEN                  00341900
-                    FORGETSPACE(SUBDESC.SPF,FINDSIZE(SUBDESC)+1;        00342000
+                    FORGETSPACE(SUBDESC.SPF,FINDSIZE(SUBDESC)+1);       00342000
                 IF DCHARS THEN PACK(D.SPF,RANK,FINDSIZE(D));            00342100
                 END;                                                    00342200
                                                                         00342300
@@ -3438,13 +3442,13 @@ GOHOME:  IF DIRECTION GTR 1 THEN                                        00342500
             [BACKPT]&N[QUADINV]&IMKS[CDID];                             00343800
         IF N NEQ 4 THEN BEGIN L:=LASTMKS;SP[LOC].CIF:=CINDEX;END;       00343900
         L:=STACKBASE+1;L:=SP[LOC].SPF +1;                               00344000
-        IF (M:=SP[LOC].SPF NEQ 0 THEN % SAVE CURLINE                    00344100
+        IF (M:=SP[LOC].SPF) NEQ 0 THEN % SAVE CURLINE                   00344100
             BEGIN L:=L+M; L:=SP[LOC].LOCFIELD;                          00344200
             SP[LOC].CIF:=CURLINE;                                       00344300
             END;                                                        00344400
-        LASKMKS:=ST;                                                    00344500
+        LASTMKS:=ST;                                                    00344500
         END;                                                            00344600
-PROCEDURE DISPLAYCHARV(D) VALUE D; REAL D;                              00344700
+PROCEDURE DISPLAYCHARV(D); VALUE D; REAL D;                             00344700
     BEGIN INTEGER I,J,K,L,M,NWORDS,NJ,T,NMAT,II,JJ,WDLINE,F,CC;         00344800
     COMMENT WDLINE=#WORDS NEEDED TO FILL A TELETYPE LINE                00344900
             NWORDS=#WORDS NEEDED TO GET F CHARACTERS FOR LAST           00345000
@@ -3461,7 +3465,7 @@ PROCEDURE DISPLAYCHARV(D) VALUE D; REAL D;                              00344700
     L := T + NJ;                                                        00346100
         NMAT := FINDSIZE(D) DIV (J|K);                                  00346200
         WDLINE := (LINESIZE+6) DIV 8 + 1;                               00346300
-        IF II:=J-INESIZE GTR 0 THEN BEGIN                               00346400
+        IF II:=J-LINESIZE GTR 0 THEN BEGIN                              00346400
             T:= II DIV (I:=LINESIZE-2)+(IF II MOD I=0 THEN 0  ELSE 1);  00346500
             NWORDS:=((F:=II-(T-1)|T)+6) DIV 8 + 1;                      00346600
         END ELSE BEGIN NWORDS:=((F:=J)+6)DIV 8 + 1; T:=0; END;          00346700
@@ -3483,7 +3487,7 @@ PROCEDURE DISPLAYCHARV(D) VALUE D; REAL D;                              00344700
         END;                                                            00348300
     END OF CHARACTER DISPLAY PROCEDURE;                                 00348400
    REAL PROCEDURE SEMICOL;                                              00348500
-        BEGIN COMMENT FORM CHAR STRING FROM TWO DESCRIPTORS             00348600
+        BEGIN COMMENT FORM CHAR STRING FROM TWO DESCRIPTORS;            00348600
         INTEGER J,K,L;                                                  00348700
         REAL LD, RD;                                                    00348800
         STREAM PROCEDURE BLANKS(B,J,K);VALUE J,K;                       00348900
@@ -3498,7 +3502,7 @@ PROCEDURE DISPLAYCHARV(D) VALUE D; REAL D;                              00344700
             IF(J+K+8) GTR MAXBUFFSIZE|8 THEN ERR:=LENGTHERROR ELSE      00349800
                 BEGIN TRANSFERSP(OUTOF,SP,L,BUFFER,ENTIER((J+7)DIV 8),  00349900
                     ENTIER((K+7) DIV 8));                               00350000
-                IF I:=(J MOD 8) NEQ 0 THEN TRANSFERR(BUFFER,J+8-I,      00350100
+                IF I:=(J MOD 8) NEQ 0 THEN TRANSFER(BUFFER,J+8-I,       00350100
                 BUFFER,J,K); END;                                       00350200
             END;                                                        00350300
         INTEGER PROCEDURE MOVEN(J,L,K);VALUE J,L,K;INTEGER J,L,K;       00350400
@@ -3529,7 +3533,7 @@ PROCEDURE DISPLAYCHARV(D) VALUE D; REAL D;                              00344700
                                                                         00352900
         END;                                                            00353000
     BOOLEAN PROCEDURE SETUPLINE;                                        00353100
-        BEGIN REAL T;INTEGER N;                                         00353200
+        BEGIN REAL T;INTEGER M;                                         00353200
         IF T:=ANALYZE(FALSE) NEQ 0 THEN % WE HAVE A PROGRAM DESC        00353300
             BEGIN IMS(3);                                               00353400
             M:=GETSPACE(1); SP[MOC]:=T;                                 00353500
@@ -3537,18 +3541,18 @@ PROCEDURE DISPLAYCHARV(D) VALUE D; REAL D;                              00344700
             PUSH; IF ERR=0 THEN                                         00353700
                 BEGIN AREG:=PROGMKS&LASTMKS[BACKPT]&1[CI]&M[SPTSP];     00353800
                 POLLOC:=M:=T.SPF; POLTOP:=SP[MOC];                      00353900
-                LASTMKS:=LASTMKS+1+SACKBASE); CINDEX:=1;                00354000
+                LASTMKS:=LASTMKS+1+STACKBASE; CINDEX:=1;                00354000
                 END;                                                    00354100
             SETUPLINE:=TRUE;                                            00354200
             END ELSE SETUPLINE:=FALSE;                                  00354300
         END;                                                            00354400
-BOOLEAN PROCEDURE POPPROGRAM(OLDATA,LASTMKS);                           00354500
+BOOLEAN PROCEDURE POPPROGRAM(OLDDATA,LASTMKS);                          00354500
     REAL OLDDATA,LASTMKS;                                               00354600
     BEGIN LABEL EXIT;REAL L,M,N;                                        00354700
     WHILE TRUE DO                                                       00354800
         BEGIN                                                           00354900
-        WHILE(L:=AREG).DATADEAC NEQ 0 AND ERR=0 DO POP;                 00355000
-        IF L.DTD=PROGMKS THEN                                           00355100
+        WHILE(L:=AREG).DATADESC NEQ 0 AND ERR=0 DO POP;                 00355000
+        IF L.DID=PROGMKS THEN                                           00355100
             IF L=0 THEN %SOMETHING IS FUNNY...CONTINUE POPPING          00355200
             POP                                                         00355300
             ELSE BEGIN                                                  00355400
@@ -3560,10 +3564,10 @@ BOOLEAN PROCEDURE POPPROGRAM(OLDATA,LASTMKS);                           00354500
             END ELSE %NOT A PROGRAM MKS                                 00356000
             IF L.DID=FMKS THEN                                          00356100
                 BEGIN % MUST CUT BACK STATE VECTOR                      00356200
-                M:=STACKBASE+1;M:=SP[MOX].SPF+1;N:=SP[MOC].SPF+M;       00356300
-                IF BOOLEAN(SP[NOC].SUSPENDED) THEN BEGIN SP[MOX].RF:=L:=00356400
+                M:=STACKBASE+1;M:=SP[MOC].SPF+1;N:=SP[MOC].SPF+M;       00356300
+                IF BOOLEAN(SP[NOC].SUSPENDED) THEN BEGIN SP[MOC].RF:=L:=00356400
                     SP[MOC].RF-1;IF L=0 THEN SUSPENSION:=0;END;         00356500
-                SP[NOC]:=0;SP[MOC].SPF:=N_M-1;POP;                      00356600
+                SP[NOC]:=0;SP[MOC].SPF:=N-M-1;POP;                      00356600
                 END ELSE % NOT A FMKS EITHER                            00356700
                 IF L.DID=IMKS THEN                                      00356800
                     BEGIN SCRATCHAIN(OLDDATA);OLDDATA:=L.SPF;POP;END;   00356900
@@ -3595,7 +3599,7 @@ INTEGER LASTCONSTANT;                                                   00357400
             END ELSE % LOOK FOR THE QUESTION MARK                       00359500
             BEGIN TDI:=DI; DI:=LOC QM;                                  00359600
             IF SC=DC THEN % END OF BUFFER ENCOUNTERED                   00359700
-                GO TO ERR                                               00359800
+                GO TO ERR;                                              00359800
             SI:=SI-1; DI:=LOC ARROW;                                    00359900
             IF SC=DC THEN %FOUND LEFT ARROW                             00360000
                 GO TO ERR;                                              00360100
@@ -3633,7 +3637,7 @@ INTEGER LASTCONSTANT;                                                   00357400
                  %DON"T WANT CHARACTER NULL TO LOOK LIKE CHARS          00363300
             ELSE R.RF:=1;                                               00363400
         SP[NOC]:=R;                                                     00363500
-        COMMENT WE HAVE BUILT THE VECTOR AND DESCRIPTOR                 00363600
+        COMMENT WE HAVE BUILT THE VECTOR AND DESCRIPTOR;                00363600
         BUILDALPHA:=N;                                                  00363700
         END                                                             00363800
             ELSE BEGIN BUILDALPHA:=1;ADDRESS:=R END;                    00363900
@@ -3644,18 +3648,18 @@ PROCEDURE PACK(L,OFFSET,N); VALUE L,OFFSET,N;                           00364200
     BEGIN                                                               00364400
     LABEL QUIT;                                                         00364500
     INTEGER M,T,MB,S;                                                   00364600
-    STREAM PROCEDURE PACKEM(A,R,N); VALUE N;                            00364700
+    STREAM PROCEDURE PACKEM(A,B,N); VALUE N;                            00364700
         BEGIN LOCAL T;                                                  00364800
-        SI:=LOC N; D:=LOC T; DI:=DI+1; DS:=7CHR;                        00364900
+        SI:=LOC N; DI:=LOC T; DI:=DI+1; DS:=7CHR;                       00364900
         SI:=A; DI:=B;                                                   00365000
         T(2(32(SI:=SI+7; DS:=CHR))); N(SI:=SI+7; DS:=CHR);              00365100
         END;                                                            00365200
      IF N = 0 THEN GO TO QUIT;                                          00365300
     T:=(M:=L:=L+OFFSET)+N;                                              00365400
-    MB:=MAXBUUFFSIZE DIV 8 | 8;                                         00365500
+    MB:=MAXBUFFSIZE DIV 8 | 8;                                          00365500
     WHILE M LSS T DO                                                    00365600
         BEGIN                                                           00365700
-        TRANSFERSP(OUTOF.SP,M,BUFFER,0,MB:=MIN(MB,T-M));                00365800
+        TRANSFERSP(OUTOF,SP,M,BUFFER,0,MB:=MIN(MB,T-M));                00365800
         PACKEM(BUFFER,ACCUM,MB);                                        00365900
         TRANSFERSP(INTO,SP,L,ACCUM,0,S:=(MB+7)DIV 8);                   00366000
         L:=L+S; M:=M+MB;                                                00366100
@@ -3665,7 +3669,7 @@ PROCEDURE PACK(L,OFFSET,N); VALUE L,OFFSET,N;                           00364200
 INTEGER PROCEDURE UNPACK(S,OFFSET,N); VALUE N,S,OFFSET;                 00366500
     INTEGER N,S,OFFSET;                                                 00366600
     BEGIN                                                               00366700
-    INTEGER L,M,K,MB,T);                                                00366800
+    INTEGER L,M,K,MB,T;                                                 00366800
     LABEL QUIT;                                                         00366900
     STREAM PROCEDURE UNPACKEM(A,B,N); VALUE N;                          00367000
         BEGIN                                                           00367100
@@ -3715,7 +3719,7 @@ PROCEDURE TRANSPOSE;                                                    00369400
     TOP := SIZE DIV (MAT:=ROW|COL);                                     00371500
     NEWDESC := DESC;                                                    00371600
     NEWDESC.SPF := M := GETSPACE(SIZE+RANK);                            00371700
-    SPCOPY (L.M.RANK-2);                                                00371800
+    SPCOPY (L,M,RANK-2);                                                00371800
     N:=M+RANK-1; SP[NOC]:=ROW;                                          00371900
     N:=N-1; SP[NOC] := COL;                                             00372000
     J:=0; M:=M+RANK;                                                    00372100
@@ -3745,7 +3749,7 @@ INTEGER PROCEDURE RANDINT(A,B,U); VALUE A,B;                            00374400
    REAL A,B,U;                                                          00374500
   BEGIN DEFINE QQMODUL = 67108864#, QQMULT = 8189#,                     00374600
      QQRANDOM=(U:=U|QQMULT MOD QQMODUL)/QQMODUL#;                       00374700
-    RANDINT := (R-A+1)|QQRANDOM+A-.5;                                   00374800
+    RANDINT := (B-A+1)|QQRANDOM+A-.5;                                   00374800
   END PROCEDURE RANDINT;                                                00374900
 BOOLEAN PROCEDURE BOOLTYPE(A,B); REAL A,B;                              00375000
   BEGIN IF ABS(A-1) LEQ FUZZ THEN A:=1;                                 00375100
@@ -3844,7 +3848,7 @@ BEGIN LABEL PUT,DOMAIN,KITE; DEFINE GIVEUP=GO TO PUT#;                  00383700
     IF OP = 45 THEN IF LPTR=0 THEN OP:=22                               00384400
      ELSE IF ABS(LEFT) GTR 7 THEN GO TO DOMAIN                          00384500
        ELSE OP := LEFT + 30;                                            00384600
-    IF OP GTR 16 ND OP LSS 21 THEN IF NOT BOOLTYPE(REFT,RIGHT)          00384700
+    IF OP GTR 16 AND OP LSS 21 THEN IF NOT BOOLTYPE(LEFT,RIGHT)         00384700
          THEN GO TO DOMAIN;                                             00384800
     ZERO:=DOMAIN; INTOVR:=KITE; EXPOVR:=KITE;                           00384900
       CASE OP OF BEGIN                                                  00385000
@@ -3866,7 +3870,7 @@ BEGIN LABEL PUT,DOMAIN,KITE; DEFINE GIVEUP=GO TO PUT#;                  00383700
     IF LPTR=0 THEN ANS := ABS(RIGHT) ELSE                               00386600
       BEGIN IF LEFT=0 THEN IF RIGHT GEQ 0 THEN                          00386700
      ANS := RIGHT ELSE GO TO DOMAIN                                     00386800
-       ELS IF (ANS:=RIGHT MOD LEFT) LSS 0                               00386900
+       ELSE IF (ANS:=RIGHT MOD LEFT) LSS 0                              00386900
        THEN ANS:=ANS + ABS(LEFT); END;                                  00387000
     ANS := (IF LPTR=0 THEN ENTIER(RIGHT+FUZZ)                           00387100
        ELSE IF LEFT LEQ RIGHT THEN LEFT ELSE RIGHT);                    00387200
@@ -3881,8 +3885,8 @@ BEGIN LABEL PUT,DOMAIN,KITE; DEFINE GIVEUP=GO TO PUT#;                  00383700
     ANS := (IF RIGHT-LEFT GTR FUZZ|ABS(RIGHT) THEN 1 ELSE 0);           00388100
     ANS:=(IF ABS(LEFT-RIGHT) LEQ FUZZ|ABS(RIGHT) THEN 1 ELSE 0);        00388200
     ANS:=(IF RIGHT-LEFT LEQ FUZZ|ABS(RIGHT) THEN 1 ELSE 0);             00388300
-    ANS:=(IF LEFT-RIGHT GTR FUZZ|ABS(RIGHT) THEN 1 ELSE 0;)             00388400
-   ANS:=(IF ABS(LEFT-RIGHT) GTR FUZZ|ABS(RIGHT) THEN 1 ELSE 0)          00388500
+    ANS:=(IF LEFT-RIGHT GTR FUZZ|ABS(RIGHT) THEN 1 ELSE 0);             00388400
+   ANS:=(IF ABS(LEFT-RIGHT) GTR FUZZ|ABS(RIGHT) THEN 1 ELSE 0);          00388500
     ANS:=(IF LEFT-RIGHT LEQ FUZZ|ABS(RIGHT) THEN 1 ELSE 0);             00388600
     ANS := RIGHT | LEFT;  %AND                                          00388700
     ANS := IF RIGHT + LEFT = 0 THEN 0  ELSE 1;  %OR                     00388800
@@ -3920,7 +3924,7 @@ BEGIN LABEL PUT,DOMAIN,KITE; DEFINE GIVEUP=GO TO PUT#;                  00383700
    END;                                                                 00392000
  GO TO PUT;                                                             00392100
  KITE:  ERR:=KITEERROR; GO TO PUT;                                      00392200
-  DOMAIN:  ERR:=DOMAINERR;                                              00392300
+  DOMAIN:  ERR:=DOMAINERROR;                                            00392300
   PUT:  IF ERR NEQ 0 THEN OPERATION := FALSE;                           00392400
     END PROCEDURE OPERATION;                                            00392500
 PROCEDURE ARITH(OP); VALUE OP;                                          00392600
@@ -3970,7 +3974,7 @@ BEGIN INTEGER L,M,I,N,SIZE,RANK1,RANK2,TOP,                             00393700
    VECTSCAL:  M:=M+RANK2; RIGHT:=SP[MOC];                               00397000
    I := GETSPACE( SIZE:=SIZE1+RANK1);                                   00397100
    DESC.SPF:=I; DESC.DID:=DDPUVW; SPCOPY(L,I,RANK1);                    00397200
-   L:=L+RANK; I:=I+RANK1;                                               00397300
+   L:=L+RANK1; I:=I+RANK1;                                              00397300
    DESC.RF:=RANK1;  TOP:=SIZE1+I-1;                                     00397400
    FOR N:=I STEP 1 UNTIL TOP DO BEGIN                                   00397500
      IF OPERATION(SP[LOC],RIGHT,L,OP,ANS) THEN                          00397600
@@ -4022,7 +4026,7 @@ BEGIN INTEGER L,M,I,N,SIZE,RANK1,RANK2,TOP,                             00393700
  DONE:  RESULTD := DESC;                                                00402200
    IF CHAR1 THEN FORGETSPACE(FORGETL,SIZE1+RANK1);                      00402300
    IF CHAR2 THEN FORGETSPACE(FORGETM,SIZE2+RANK2);                      00402400
- IF ERR NEQ 0 THEN FORGETSPACE(DESC,SPF, SIZE);                         00402500
+ IF ERR NEQ 0 THEN FORGETSPACE(DESC.SPF, SIZE);                         00402500
   END PROCEDURE ARITH;                                                  00402600
 PROCEDURE DYADICRNDM;                                                   00402700
   BEGIN INTEGER NUM, KIND; REAL DESC;                                   00402800
@@ -4030,7 +4034,7 @@ PROCEDURE DYADICRNDM;                                                   00402700
   INTEGER L,M,N,T,I,TEMP,OUTTOP,TOP,PICK; LABEL QUIT;                   00403000
   INTEGER START; LABEL INSERT;                                          00403100
     DESC1 := AREG; DESC2 := BREG;                                       00403200
-    IF FINDSIZE(DESC1) NEQ 1 OR FINDSIZE(DESC2) NEQ 1;                  00403300
+    IF FINDSIZE(DESC1) NEQ 1 OR FINDSIZE(DESC2) NEQ 1                   00403300
       THEN BEGIN ERR:=RANKERROR; GO TO QUIT; END;                       00403400
     IF DESC1.SPF=0 OR DESC2.SPF=0 THEN BEGIN                            00403500
              ERR:=DOMAINERROR; GO TO QUIT; END;                         00403600
@@ -4043,7 +4047,7 @@ PROCEDURE DYADICRNDM;                                                   00402700
       GO TO QUIT; END;                                                  00404300
     DESC.DID := DDPUVW; DESC.RF := 1;                                   00404400
   IF NUM LEQ 0 THEN BEGIN DESC := NULLV; GO TO QUIT; END;               00404500
-  IF NUM GTR MAXWORDSIZE THEN BEGIN ERR:=KITEERROR; GO TO QUIT; END;    00404600
+  IF NUM GTR MAXWORDSTORE THEN BEGIN ERR:=KITEERROR; GO TO QUIT; END;   00404600
     DESC.SPF := L := GETSPACE(NUM+1);                                   00404700
     SP[LOC] := NUM; L := L+1;                                           00404800
     OUTTOP := L+NUM-1;                                                  00404900
@@ -4087,7 +4091,7 @@ PROCEDURE RHOP;                                                         00407700
       NEWDESC.SPF:=M:=GETSPACE(1);                                      00408700
       NEWDESC.DID:=DDPUSW;                                              00408800
       L:=DESC.SPF+DESC.RF;                                              00408900
-      SP[MOC]:=SM[LOC]; GO TO QUIT; END;                                00409000
+      SP[MOC]:=SP[LOC]; GO TO QUIT; END;                                00409000
     IF DESC1.ARRAYTYPE NEQ 0 THEN BEGIN                                 00409100
          ERR:=DOMAINERROR; GO TO QUIT; END;                             00409200
     RANK1:=DESC1.RF;                                                    00409300
@@ -4102,7 +4106,7 @@ PROCEDURE RHOP;                                                         00407700
     IF NEWRANK LEQ 0 THEN BEGIN ERR:=SYSTEMERROR; GO TO QUIT; END;      00410200
     FOR N:=L+RANK1 STEP 1 UNTIL TOP DO                                  00410300
         IF SIZE1:=SIZE1|ENTIER(SP[NOC]+.5) LSS 0 THEN BEGIN             00410400
-            ERR:=DOMAINERRPOR; GO TO QUIT; END;                         00410500
+            ERR:=DOMAINERROR; GO TO QUIT; END;                          00410500
 WORK:  IF SIZE1=0 THEN BEGIN NEWDESC := NULLV; GO TO QUIT END;          00410600
   IF SIZE1 GTR MAXWORDSTORE THEN TOOBIG;                                00410700
   NEWDESC.DID:=DDPUVW; NEWDESC.RF:=NEWRANK;                             00410800
@@ -4136,7 +4140,7 @@ PROCEDURE IOTAP;                                                        00413300
   INTEGER RSIZE,LSIZE,RRANK,LRANK,N,LL,MM,TIP,NIX;                      00413600
                                                                         00413700
   LABEL QUIT, DONE;                                                     00413800
-  LEFTOP:=AREG; RIGHTOP:=BREG                                           00413900
+  LEFTOP:=AREG; RIGHTOP:=BREG;                                          00413900
   IF L:=RIGHTOP.SPF=0 THEN BEGIN ERR:=DOMAINERROR; GO TO QUIT END;      00414000
   RSIZE:=FINDSIZE(RIGHTOP); RRANK:=RIGHTOP.RF;                          00414100
   DESC.DID := DDPUVW; DESC.RF := 1;                                     00414200
@@ -4158,13 +4162,13 @@ PROCEDURE IOTAP;                                                        00413300
    FOR N:=N+RRANK STEP 1 UNTIL TOP DO BEGIN                             00415800
      SP[NOC] := NIX;                                                    00415900
      M := MM;                                                           00416000
-     FOR I:=ORIGIN STEP 1 UNTIL TIP DO BEGIN                            00416100
+     FOR I:=ORIGIN STEP 1 UNTIL TIP DO                                  00416100
       IF OPERATION(SP[MOC],SP[LOC],1,12,LEFTOP) AND LEFTOP=1            00416200
         THEN BEGIN SP[NOC]:=I; GO TO DONE;                              00416300
          END ELSE M:=M+1;                                               00416400
      DONE:  L:=L+1;  END;                                               00416500
   IF LEFTOP.ARRAYTYPE=1 THEN FORGETSPACE(MM-LRANK,LRANK+LSIZE);         00416600
-  IF RIGHTOP.ARRAYTYPE=1 THEN FORGETSPZE(LL-RRANK,RRANK+RSIZE);         00416700
+  IF RIGHTOP.ARRAYTYPE=1 THEN FORGETSPACE(LL-RRANK,RRANK+RSIZE);        00416700
   END ELSE BEGIN %-------------MONADIC IOTA------------------           00416800
   IF RIGHTOP.ARRAYTYPE=1 THEN                                           00416900
        BEGIN ERR:=DOMAINERROR; GO TO QUIT                               00417000
@@ -4243,7 +4247,7 @@ INTEGER STREAM PROCEDURE GETOP(A,N); VALUE N;                           00424100
     DI := LOC GETOP;                                                    00424300
     DS := 7 LIT "0"; DS := CHR;                                         00424400
   END PROCEDURE GETOP;                                                  00424500
-  REAL PROCEDURE IDENTITY(OP); VALUE OP; INTEGER DP;                    00424600
+  REAL PROCEDURE IDENTITY(OP); VALUE OP; INTEGER OP;                    00424600
   BEGIN                                                                 00424700
   CASE OP OF BEGIN                                                      00424800
       IDENTITY := 0;       %FOR +                                       00424900
@@ -4292,10 +4296,10 @@ PROCEDURE COMPRESS(LDESC, RDESC, DIM); VALUE LDESC,RDESC,DIM;           00428900
           FACTOR,SUM,DIMMOD,SIZE,LEFT,RIGHT,S;                          00429200
     REAL DESC; BOOLEAN CHARACTER;                                       00429300
     LABEL QUIT,RANKE,DOMAIN,IDENT;                                      00429400
-  DESC.ID := DDPUVW;                                                    00429500
+  DESC.DID := DDPUVW;                                                   00429500
   IF L := LDESC.SPF = 0 THEN GO TO DOMAIN;                              00429600
   IF M:=RDESC.SPF = 0 THEN BEGIN DESC:=NULLV; GO TO QUIT; END;          00429700
-  LSIZE := FINDSIZE(LDESC) RSIZE := FINDSIZE(RDESC);                    00429800
+  LSIZE := FINDSIZE(LDESC); RSIZE := FINDSIZE(RDESC);                   00429800
   IF RANK:=LDESC.RF NEQ 1 THEN IF LSIZE NEQ 1                           00429900
      THEN GO TO DOMAIN;                                                 00430000
   LEFT := L := L+RANK;                                                  00430100
@@ -4310,7 +4314,7 @@ PROCEDURE COMPRESS(LDESC, RDESC, DIM); VALUE LDESC,RDESC,DIM;           00428900
   IF RANK = 0 THEN                                                      00431000
     IF LSIZE NEQ 1 THEN GO TO DOMAIN ELSE BEGIN                         00431100
       IF TOP:=SP[LOC]=0 THEN BEGIN DESC:=NULLV; GO TO QUIT; END;        00431200
-      IF TOP = 1 THEN BEGIN DESC.SPF := N := GESTAPCES(2);              00431300
+      IF TOP = 1 THEN BEGIN DESC.SPF := N := GETSPACE(2);               00431300
           DESC.RF := SP[NOC] := 1;                                      00431400
           N:=N+1; SP[NOC]:=SP[MOC]; GO TO QUIT;                         00431500
        END ELSE GO TO DOMAIN; END;                                      00431600
@@ -4320,7 +4324,7 @@ PROCEDURE COMPRESS(LDESC, RDESC, DIM); VALUE LDESC,RDESC,DIM;           00428900
     SUM:=SP[LOC];                                                       00432000
     IF SUM NEQ 0 AND SUM NEQ 1 THEN GO TO DOMAIN                        00432100
                                                                         00432200
-       ELSE GO TO INDENT; END;                                          00432300
+       ELSE GO TO IDENT; END;                                           00432300
   N := M+ALONG - 1;                                                     00432400
   IF LSIZE NEQ (T:=SP[NOC]) THEN BEGIN                                  00432500
     ERR:=LENGTHERROR; GO TO QUIT; END;                                  00432600
@@ -4337,7 +4341,7 @@ PROCEDURE COMPRESS(LDESC, RDESC, DIM); VALUE LDESC,RDESC,DIM;           00428900
   IF RDESC.ARRAYTYPE = 1 THEN BEGIN M:=UNPACK(M,RANK,RSIZE);            00433700
              CHARACTER := TRUE; END;                                    00433800
   RIGHT := M;                                                           00433900
-  DESC.SPF := S := GESPACE(SIZE+RANK);                                  00434000
+  DESC.SPF := S := GETSPACE(SIZE+RANK);                                 00434000
   N := S;                                                               00434100
   FOR I:=1 STEP 1 UNTIL RANK DO BEGIN                                   00434200
     IF I=ALONG THEN SP[NOC]:=SUM ELSE SP[NOC]:=SP[MOC];                 00434300
@@ -4356,7 +4360,7 @@ PROCEDURE COMPRESS(LDESC, RDESC, DIM); VALUE LDESC,RDESC,DIM;           00428900
         L := I MOD DIM; END;                                            00435600
     L := L+LEFT;                                                        00435700
     IF SP[LOC] = 1 THEN FOR K:=1 STEP 1 UNTIL FACTOR DO BEGIN           00435800
-      SP[MOC]:=SP[NOC]; I:=I+1; M:=M=1; N:=N+1;                         00435900
+      SP[MOC]:=SP[NOC]; I:=I+1; M:=M+1; N:=N+1;                         00435900
         END ELSE BEGIN I:=I+FACTOR; N:=N+FACTOR; END;                   00436000
       END;                                                              00436100
     GO TO QUIT;                                                         00436200
@@ -4472,7 +4476,7 @@ REAL PROCEDURE BASEVALUE;                                               00446900
     LABEL OUTE,BAD;                                                     00447200
      REAL E,L,M,LEFT,RIGHT,T,LARG,RARG;                                 00447300
      LARG := AREG; RARG := BREG;                                        00447400
-    IF M:=RARG.SPF=0 LARG.CHRMODE=1 OR RARG.CHRMODE=1                   00447500
+    IF M:=RARG.SPF=0 OR LARG.CHRMODE=1 OR RARG.CHRMODE=1                00447500
         OR L:=LARG.SPF=0 AND LARG.DID NEQ 0                             00447600
             THEN GO TO BAD;                                             00447700
     RIGHT:=SP[MOC];                                                     00447800
@@ -4495,7 +4499,7 @@ REAL PROCEDURE BASEVALUE;                                               00446900
         LARG.SCALAR:=1;                                                 00449500
         END;                                                            00449600
     IF BOOLEAN(LARG.SCALAR )THEN %SCALAR                                00449700
-        IF BOOLEN(RARG.SCALAR) THEN                                     00449800
+        IF BOOLEAN(RARG.SCALAR) THEN                                    00449800
             BEGIN                                                       00449900
             T:=RIGHT; %SCALAR-SCALAR                                    00450000
             GO OUTE;                                                    00450100
@@ -4543,7 +4547,7 @@ REAL PROCEDURE REPRESENT;                                               00454200
     BEGIN                                                               00454300
     COMMENT RETURNS DESCRIPTOR OF VECTOR IF LARG VECTOR AND RARG SCALAR;00454400
      REAL L,M,LEFT,RIGHT,T,E,LARG,RARG;                                 00454500
-    LABEL AROUND                                                        00454600
+    LABEL AROUND;                                                       00454600
      LARG := AREG; RARG := BREG;                                        00454700
     IF (RARG.SCALAR=1 OR FINDSIZE(RARG)=1 AND RARG.CHRMODE=0)           00454800
         AND NOT(LARG.SCALAR=1 OR LARG.CHRMODE=1 OR LARG.RF NEQ 1) THEN  00454900
@@ -4577,7 +4581,7 @@ REAL PROCEDURE REPRESENT;                                               00454200
         T.RF:=1;                                                        00457700
         T.SPF:=E;                                                       00457800
         REPRESENT:=T;                                                   00457900
-        END;                                                            00458000
+        END                                                             00458000
     ELSE AROUND: ERR:=DOMAINERROR;                                      00458100
     END OF REPRESENT;                                                   00458200
 PROCEDURE PERIOD(LDESC,RDESC,LOP,ROP);                                  00458300
@@ -4601,7 +4605,7 @@ BEGIN INTEGER L,M,N,J,LRANK,RRANK,RANK,LSIZE,RSIZE,SIZE,LL,MM,I,        00458500
                                                                         00460100
       IF ROP LSS 11 OR ROP GTR 16 THEN GO TO DOMAIN;                    00460200
       CHARACTER:=TRUE;                                                  00460300
-      M:=UNPACK(M.RRANK,RSIZE);                                         00460400
+      M:=UNPACK(M,RRANK,RSIZE);                                         00460400
       L:=UNPACK(L,LRANK,LSIZE); END;                                    00460500
   MSAVE := M; LSAVE:=L;  IF ROP NEQ 45 THEN                             00460600
   IF LOP=45 THEN GO TO OUTERPROD ELSE                                   00460700
@@ -4619,7 +4623,7 @@ BEGIN INTEGER L,M,N,J,LRANK,RRANK,RANK,LSIZE,RSIZE,SIZE,LL,MM,I,        00458500
   IF LSIZE = 1 AND RSIZE = 1 THEN LROW:=LCOL:=RROW:=RCOL:=1             00461900
      ELSE IF LSIZE=1 THEN BEGIN LCOL:=RROW; LROW:=1;                    00462000
                           L:=L+LRANK-1; LRANK:=1;                       00462100
-                          LSCALAR:=TRUE; END;                           00462200
+                          LSCALAR:=TRUE; END                            00462200
      ELSE BEGIN RROW := LCOL; RCOL := 1;                                00462300
                             M:=M+RRANK-1; RRANK:=1;                     00462400
                             RSCALAR:=TRUE; END;                         00462500
@@ -4669,7 +4673,7 @@ OUTERPROD:  IF SIZE:=LSIZE|RSIZE GTR MAXWORDSTORE                       00465600
       IF NOT OPERATION(SP[LOC],SP[MOC],1,ROP,SP[NOC]) THEN              00466900
         GO TO FORGET ELSE N:=N+1;                                       00467000
   GO TO QUIT;                                                           00467100
-  FORGET:  FORGETSPACE(DESC,SPF,RANK+SIZE);                             00467200
+  FORGET:  FORGETSPACE(DESC.SPF,RANK+SIZE);                             00467200
   DOMAIN:  ERR:=DOMAINERROR;                                            00467300
   QUIT:  IF CHARACTER THEN BEGIN                                        00467400
          FORGETSPACE(MSAVE , RRANK+RSIZE);                              00467500
@@ -4702,7 +4706,7 @@ INTEGER PROCEDURE GETNUM(TIM,L,SIZE,DIM); VALUE TIM,L,                  00469400
 BOOLEAN PROCEDURE MATCHROT(LDESC,RDESC,ALONG); VALUE LDESC,             00470200
      RDESC,ALONG; INTEGER LDESC,RDESC,ALONG;                            00470300
   BEGIN INTEGER I,L,M,R; LABEL QUIT;                                    00470400
-    MATCHROT:=TRUE; L:=DESC.SPF; M:=RDESC.SPF;                          00470500
+    MATCHROT:=TRUE; L:=LDESC.SPF; M:=RDESC.SPF;                         00470500
     IF R:=LDESC.RF NEQ RDESC.RF-1 THEN BEGIN                            00470600
          MATCHROT:=FALSE; GO TO QUIT; END;                              00470700
     FOR I:=1 STEP 1 UNTIL R DO BEGIN IF I=ALONG THEN M:=M+1;            00470800
@@ -4734,7 +4738,7 @@ PROCEDURE REDUCESORTSCAN(LOP,RDESC,DIM,KIND); VALUE LOP,RDESC,          00471200
        FOR L:=L+1 STEP 1 UNTIL TOP DO                                   00473400
        IF UP THEN BEGIN IF SP[LOC] LSS COMPARE THEN BEGIN               00473500
               N:=L; COMPARE:=SP[LOC]; END;                              00473600
-        END ELSE IF SP[LOC] GTR COMPARE THEN                            00473700
+        END ELSE IF SP[LOC] GTR COMPARE THEN BEGIN                      00473700
               N:=L; COMPARE:=SP[LOC]; END;                              00473800
        SP[NOC] := OUTOFIT;                                              00473900
        SP[MOC] := (N-LSAVE) + ORIGIN;                                   00474000
@@ -4800,7 +4804,7 @@ PROCEDURE REDUCESORTSCAN(LOP,RDESC,DIM,KIND); VALUE LOP,RDESC,          00471200
   J := M + RANK;                                                        00480000
   REMDIM := 1;                                                          00480100
   HOP := (DIM-1) | JUMP;                                                00480200
-  DESC.DIF := DDPUVW;                                                   00480300
+  DESC.DID := DDPUVW;                                                   00480300
   IF ALONG GTR 1 AND ALONG LSS RANK-1 THEN BEGIN TOP:=M+ALONG-2;        00480400
     FOR L:=M STEP 1 UNTIL TOP DO REMDIM:=REMDIM|SP[LOC]; END;           00480500
   IF REDUCE THEN BEGIN DESC.SPF:=N:=GETSPACE(SSIZE:=SSIZE DIV DIM       00480600
@@ -4821,7 +4825,7 @@ PROCEDURE REDUCESORTSCAN(LOP,RDESC,DIM,KIND); VALUE LOP,RDESC,          00471200
       L := I + J;                                                       00482100
       L:=I DIV LASTDIM|FACTOR + I MOD LASTDIM + J;                      00482200
       L:=I|LASTDIM + J; END;                                            00482300
-    IF REDUC THEN BEGIN M:=I+N;  L:=HOP + (K:=L);                       00482400
+    IF REDUCE THEN BEGIN M:=I+N;  L:=HOP + (K:=L);                      00482400
       SP[MOC] := SP[LOC];                                               00482500
       FOR L:=L+JUMP STEP JUMP UNTIL K DO                                00482600
          IF NOT OPERATION(SP[LOC],SP[MOC],-1,LOP,SP[MOC])               00482700
@@ -4852,7 +4856,7 @@ PROCEDURE REDUCESORTSCAN(LOP,RDESC,DIM,KIND); VALUE LOP,RDESC,          00471200
 QUIT:  IF CHARACTER THEN BEGIN                                          00485200
      FORGETSPACE(MSAVE,SIZE+RANK);                                      00485300
      IF (REVERSAL OR ROTATION) AND ERR=0 THEN BEGIN                     00485400
-       DEX.ARRAYTYPE:=1; PACK(DESC.SPF,RANK,SIZE); END; END;            00485500
+       DESC.ARRAYTYPE:=1; PACK(DESC.SPF,RANK,SIZE); END; END;           00485500
     IF SORT THEN FORGETSPACE(TEMP,DIM);                                 00485600
   RESULTD := DESC;                                                      00485700
    IF ROTATION THEN POP;                                                00485800
@@ -4890,7 +4894,7 @@ INTEGER ARRAY RVEC,DEL,SUB,OLDEL[0:3];                                  00486600
       OLDEL[I]:=OLDEL[I+1]|SP[NOC]; N:=N-1 END;                         00489000
   MBASE:=M; SIZE:=1;                                                    00489100
 %FIX UP THE NEW RVAC AND DEL                                            00489200
-  FOR I:=NEWRANK-1 STEP -1 UNTIL 0 FO BEGIN                             00489300
+  FOR I:=NEWRANK-1 STEP -1 UNTIL 0 DO BEGIN                             00489300
 % FIND SMALLEST EL. OF RHO RDESC [J] S.T. A[J]=I                        00489400
 %         AND SUM OF OLDEL[J] S.T. A[J]=1                               00489500
   MIN:=31; TEMP:=0;                                                     00489600
@@ -5061,7 +5065,7 @@ PROCEDURE PUSHINTOSYMTAB(FPTR);VALUE FPTR;REAL FPTR;                    00504000
         SYMBOL TABLE;                                                   00506100
         IF K LSS MAXSYMBOL|2 THEN % THERE IS ROOM IN SYMBOL TABLE       00506200
             BEGIN L:=SYMBASE;SP[LOC]:=SP[LOC]+2; L:=K+1;                00506300
-            SP[LOC]:=GT1&OPERAND[CTYPE]&1[CSUSVAR];L:=L+1;K:=0;         00506400
+            SP[LOC]:=GT1&OPERAND[CTYPEF]&1[CSUSVAR];L:=L+1;K:=0;        00506400
 COPY:       COMMENT L IS LOC IN SYMBOL TABLE FOR DESC. K WILL BE        00506500
             CONTENTS OF BACKF. NOW SET UP THE NEW DESCRIPTOR AND        00506600
             SAVE ITS LOCATION IN THE STACK. M IS THE STACK LOCATION     00506700
@@ -5136,7 +5140,7 @@ BEGIN ;%--------------------------------------------------------        00509100
     ;                                                                   00513600
 %----------------- CASE 3.... MODE=WRITEBACK-------------------         00513700
     COMMENT HAVE TO WRITE BACK ALL THE CHANGED VARIABLES;               00513800
-    IF SYMBASE NEW 0 THEN                                               00513900
+    IF SYMBASE NEQ 0 THEN                                               00513900
         WRITEBACK;                                                      00514000
                                                                         00514100
 %----------------- CASE 4.... MODE=DEALLOC---------------------         00514200
@@ -5183,7 +5187,7 @@ IF FALSE THEN EXECUTION:                                                00517200
     COMMENT THERE IS A PROGRAM DESCRIPTOR AT THE TOP OF THE STACK;      00518300
     ERR:=0;                                                             00518400
     L:=STACKBASE; ST:=L+SP[LOC];                                        00518500
-    L:=L+1;FUNCLOC:=SP[LOC]SPF+1;                                       00518600
+    L:=L+1;FUNCLOC:=SP[LOC].SPF+1;                                      00518600
     T:=AREG;                                                            00518700
     IF CURRENTMODE=XEQMODE THEN %AREG IS INTERRUPT MARK STACK           00518800
         BEGIN LASTMKS:=STACKBASE+T.BACKF;                               00518900
@@ -5191,7 +5195,7 @@ IF FALSE THEN EXECUTION:                                                00517200
         COMMENT MAY BE CURRENTLY EXECUTING A FUNCTION;                  00519100
         L:=STACKBASE+1; L:=SP[LOC].SPF+1;                               00519200
         IF (M:=SP[LOC].SPF) NEQ 0 THEN                                  00519300
-            BEGIN M=M+L; L:=SP[MOC].LOCFIELD;                           00519400
+            BEGIN M:=M+L; L:=SP[MOC].LOCFIELD;                          00519400
             CURLINE:=SP[LOC].CIF;                                       00519500
                                                                         00519600
             END;                                                        00519700
@@ -5257,8 +5261,8 @@ COMMENT                                                                 00523800
             BEGIN                                                       00525700
             IF BOOLEAN(T.NAMED) THEN %MAKE A COPY                       00525800
             COMMENT YOU COULD MAKE A CALL BY NAME HERE;                 00525900
-                BEGIN U:=GETSPACE(V:=(NUMELEMENTS(T)+1.RF));            00526000
-                SPCOPY(T,SPF,U,V); T.NAMED:=0; T.SPF:=U;                00526100
+                BEGIN U:=GETSPACE(V:=(NUMELEMENTS(T)+T.RF));            00526000
+                SPCOPY(T.SPF,U,V); T.NAMED:=0; T.SPF:=U;                00526100
                 T.BACKP:=0;                                             00526200
                 END ELSE %NO NEED TO MAKE A COPY                        00526300
             AREG.PRESENCE:=0;                                           00526400
@@ -5280,7 +5284,7 @@ COMMENT                                                                 00523800
     U:=(U-6)/2; % U IS THE NUMBER OF LOCALS, LABELS, AND ARGS           00528000
     M:=M+5; % M IS ON THE FIRST DESC OF THE FIRST LAB, LOC,...          00528100
     FOR I:=1 STEP 1 UNTIL U DO % GET DESCRIPTORS INTO THE STACK         00528200
-        BEGIN IF SP[MOC] NNEQ 0 THEN %MAKE UP THE DESC                  00528300
+        BEGIN IF SP[MOC] NEQ 0 THEN %MAKE UP THE DESC                   00528300
             BEGIN L:=GETSPACE(1); SP[LOC]:=SP[MOC];                     00528400
             T:=L&DDPUSW[CDID]&0[CCIF]                                   00528500
             END ELSE                                                    00528600
@@ -5298,7 +5302,7 @@ COMMENT                                                                 00523800
         END;                                                            00529800
     %PUT IN A PHONEY PROG DESC TO START THINGS OFF                      00529900
     PUSH;  IF ERR NEQ 0 THEN GO TO TERMINATE;                           00530000
-    ARFG:=0&4094[CCIF]&(LASKMKS-STACKBASE)[BACKPT];                     00530100
+    AREG:=0&4094[CCIF]&(LASTMKS-STACKBASE)[BACKPT];                     00530100
     LASTMKS:=ST; POLTOP:=POLLOC:=0;                                     00530200
     TERMINATE:                                                          00530300
     END;                                                                00530400
@@ -5329,16 +5333,16 @@ BEGIN %--------------- OPERATE ON STACK ---------------------           00531700
     IF NOT BOOLEAN(L:=AREG.NAMED) THEN % SHOULD BE LOCAL VARIABLE       00532900
         AREG.NAMED:=1; % DONT LET IT BE FORGOTTEN.                      00533000
                                                                         00533100
-    IF BOOLAN(T:=AREG).PRESENCE) AND T.SPF NEQ 0 THEN                   00533200
-        OLDDATA:=CHAIN(T,OLDATA);                                       00533300
+    IF BOOLEAN((T:=AREG).PRESENCE) AND T.SPF NEQ 0 THEN                 00533200
+        OLDDATA:=CHAIN(T,OLDDATA);                                      00533300
     M:=T.LOCFIELD;                                                      00533400
                                                                         00533500
-    IF(RESUT:=BREG).SPF = 0 THEN U:=T:=0 ELSE                           00533600
+    IF(RESULT:=BREG).SPF = 0 THEN U:=T:=0 ELSE                          00533600
         U:=GETSPACE(T:=NUMELEMENTS(RESULT)+RESULT.RF);                  00533700
-    SPCOPY(RESULT,SPF,U,T);                                             00533800
+    SPCOPY(RESULT.SPF,U,T);                                             00533800
     RESULT.SPF:=U; RESULT.NAMED:=L; %L IS 0 FOR LOCALS                  00533900
-    GT1:=IF BOOLEAN(U:=SP[MOC]).PRESENCE) THEN U.BACKP ELSE 0;          00534000
-    SP[MOC]:=RESULT>1[CLOCF];                                         00534100
+    GT1:=IF BOOLEAN((U:=SP[MOC]).PRESENCE) THEN U.BACKP ELSE 0;         00534000
+    SP[MOC]:=RESULT&GT1[CLOCF];                                         00534100
     IF BOOLEAN(L) AND GT1=0 THEN %CHECK FOR GLOBAL                      00534200
         BEGIN M:=M-1;IF(SP[MOC].SUSPENDVAR=0)THEN SP[MOC].CHANGE:=1;    00534300
                                                                         00534400
@@ -5348,7 +5352,7 @@ BEGIN %--------------- OPERATE ON STACK ---------------------           00531700
     %-------TRANSFER OPERATOR-----------------------------              00534800
     BEGIN DEFINE STARTSEGMENT=#; %////////////////////////////////      00534900
     SCRATCHAIN(OLDDATA);OLDDATA:=0;                                     00535000
-    IF BOOLEAN(D.OPTYPE) THEN ST:=ST-1; %GET RID OF PHONEY TOP          00535100
+    IF BOOLEAN(T.OPTYPE) THEN ST:=ST-1; %GET RID OF PHONEY TOP          00535100
     L:=FUNCLOC;                                                         00535200
     IF SP[LOC] NEQ 0 THEN STEPLINE(TRUE) ELSE                           00535300
         ERR:=SYNTAXERROR;                                               00535400
@@ -5370,7 +5374,7 @@ BEGIN %--------------- OPERATE ON STACK ---------------------           00531700
     FORMWD(3,"3[]:   "); INDENT(0);                                     00537000
                                                                         00537100
     IMS(2); % SETUP MARKSTACK FOR QUAD EXIT                             00537200
-    IF ERR NEQ 0 THEN GOTO SKIPPOP;                                     00537300
+    IF ERR NEQ 0 THEN GO TO SKIPPOP;                                    00537300
     GO TO EXECEXIT; % EXIT TO MONITOR TILL INPUT IS COMPLETE            00537400
 EVALQUAD: %LOOK AT BUFFER TO SEE WHAT CAME IN                           00537500
     BEGIN                                                               00537600
@@ -5477,10 +5481,10 @@ EVALQQUAD:  % BUFFER CONTAINS THE INPUT STRING                          00542200
     ARITH(1);   %MULTIPLY                                               00547700
     %-------------------DISPLAY---------------------------------------  00547800
                                                                         00547900
-    BEFIN DEFINE STARTSEGMENT=#; %/////////////////////////////////     00548000
+    BEGIN DEFINE STARTSEGMENT=#; %/////////////////////////////////     00548000
     IF BREG.SPF=0 THEN FORMROW(3,0,ACCUM,2,0) ELSE %FOR A NULL          00548100
     IF BOOLEAN((RESULT:=BREG).DATADESC)THEN %THIS IS A DATA DESC        00548200
-        IF BOOLEAN(RESULT,PRESENCE) AND M:=RESULT.SPF NEQ 0 THEN        00548300
+        IF BOOLEAN(RESULT.PRESENCE) AND M:=RESULT.SPF NEQ 0 THEN        00548300
             IF BOOLEAN(RESULT.SCALAR) THEN                              00548400
                  BEGIN NUMBERCON(SP[MOC],ACCUM);                        00548500
                  FORMROW(3,0,ACCUM,2,ACOUNT)                            00548600
@@ -5490,7 +5494,7 @@ EVALQQUAD:  % BUFFER CONTAINS THE INPUT STRING                          00542200
                 IF BOOLEAN(RESULT.CHRMODE) THEN DISPLAYCHARV(RESULT)    00549000
                 ELSE                                                    00549100
                 BEGIN RESULT:=M:=GETSPACE(L+1);                         00549200
-                SP[MOC]:=L; RESULT.DF:=1; RESULT.DID:=DDPUVW;           00549300
+                SP[MOC]:=L; RESULT.RF:=1; RESULT.DID:=DDPUVW;           00549300
                 AREG:=RESULT;                                           00549400
                 FOR T:=1 STEP 1 UNTIL L DO                              00549500
                     BEGIN M:=M+1; SP[MOC]:=1                            00549600
@@ -5526,7 +5530,7 @@ EVALQQUAD:  % BUFFER CONTAINS THE INPUT STRING                          00542200
         ELSE REDUCESORTSCAN(T.LOCFIELD,BREG,AREG,3);                    00552600
      END;                                                               00552700
     ARITH(19);  %NAND                                                   00552800
-    ARITH(20)    %NOR                                                   00552900
+    ARITH(20);   %NOR                                                   00552900
     IF (T:=BREG).RF NEQ 0 THEN RESULT:=SUBSCRIPTS(3,T,T.RF)             00553000
         ELSE ERR:=RANKERROR; % OPERATION IS TAKE                        00553100
     IF (T:=BREG).RF NEQ 0 THEN RESULT:=SUBSCRIPTS(3,T,T.RF)             00553200
@@ -5534,13 +5538,13 @@ EVALQQUAD:  % BUFFER CONTAINS THE INPUT STRING                          00542200
     %------------------------XEQ---------------------------------       00553400
 XEQEPS:  BEGIN DEFINE STARTSEGMENT=#; %////////////////                 00553500
     IF AREG NEQ 0 THEN ERR:=SYNTAXERROR %MUST BE MONADIC ONLY           00553600
-    EFLSE IF (T:=BREG).RF NEQ 1 OR   %MUST BE A VECTOR                  00553700
+    ELSE IF (T:=BREG).RF NEQ 1 OR   %MUST BE A VECTOR                   00553700
     NOT BOOLEAN(T.CHRMODE) THEN ERR:=DOMAINERROR %MUST BE CHAR STRING   00553800
     ELSE IF U:=NUMELEMENTS(T) GTR MAXBUFFSIZE THEN ERR:=LENGTHERROR     00553900
     ELSE BEGIN                                                          00554000
         M:=GT1; % # OF CHARACTERS SET BY NUMELEMENTS                    00554100
         INITBUFF(BUFFER,MAXBUFFSIZE);RESCANLINE;                        00554200
-        TRANSFERSP(OUTOF,SP,T,SPF+1,BUFFER,0,U);                        00554300
+        TRANSFERSP(OUTOF,SP,T.SPF+1,BUFFER,0,U);                        00554300
         IF(U:=U|8-M) GTR 0 THEN SETFIELD(BUFFER,M,U,"       ");         00554400
         IF T.SPF=0 OR NOT SCAN THEN RESULT:=0&1[CRF]&DDPUVW[CDID]% NULL 00554500
         ELSE BEGIN POP;IF SETUPLINE THEN; GO TO SKIPPOP;END             00554600
@@ -5569,10 +5573,10 @@ SKIPPOP:                END OF TYPEFIELD EQUALS OPERATOR;               00555000
                 END;  % OF CASE STATEMENT TESTING TYPEFIELD             00556900
             END % OF TEST FOR CINDEX LEQ POLTOP                         00557000
             ELSE % WE ARE AT THE END OF THE POLISH                      00557100
-            BEGIN COMMENT LASKMKS CONTAINS THE LOCATION                 00557200
+            BEGIN COMMENT LASTMKS CONTAINS THE LOCATION                 00557200
             OF THE LAST MARK STACK.  GET MARK STACK AND CONTINUE;       00557300
                                                                         00557400
-            SCRATCHCHAIN(OLDDATA); OLDDATA:=0;                          00557500
+            SCRATCHAIN(OLDDATA); OLDDATA:=0;                            00557500
             L:=LASTMKS;M:=(U:=SP[LOC]).BACKF+STACKBASE;T:=SP[MOC];      00557600
             IF T.DID=IMKS AND T.QUADIN=3 THEN %SINGLE LINE DONE         00557700
                 IF (RESULT:=AREG)=T THEN ERR:=SYNTAXERROR%NO RESULT     00557800
@@ -5596,14 +5600,14 @@ SKIPPOP:                END OF TYPEFIELD EQUALS OPERATOR;               00555000
                 CINDEX:=SP[LOC].CIF; M:= SP[LOC].SPF;                   00559600
                 POLLOC:=M:=SP[MOC].SPF; POLTOP:=SP[MOC];                00559700
                 END ELSE                                                00559800
-                BEGIN L:=FUNCLOC;M:=SP[LOC.SPF+L;                       00559900
+                BEGIN L:=FUNCLOC;M:=SP[LOC].SPF+L;                      00559900
                 IF M NEQ L AND NOT BOOLEAN(SP[MOC].SUSPENDED)THEN       00560000
                 BEGIN                                                   00560100
-                IF O=(LOOP:=LOOP+1) MOD 5) THEN                         00560200
+                IF 0=(LOOP:=(LOOP+1) MOD 5) THEN                        00560200
                 WRITE(TWXOUT,1,JIGGLE[*])[BREAKKEY:BREAKKEY];           00560300
                 %THAT WAS TO CHECK FOR A BREAK TO INTERRUPT A PROG      00560400
                     STEPLINE(FALSE);                                    00560500
-                END;                                                    00560600
+                END                                                     00560600
                 ELSE BEGIN XIT:=TRUE;CURRENTMODE:=CALCMODE;             00560700
                     WHILE POPPROGRAM(OLDDATA,LASTMKS) DO;               00560800
                     END;                                                00560900
@@ -5617,13 +5621,13 @@ SKIPPOP:                END OF TYPEFIELD EQUALS OPERATOR;               00555000
             XIT:=TRUE;CURRENTMODE:=ERRORMODE;                           00561700
                                                                         00561800
             L:=POLLOC+1;                                                00561900
-            TRANSFERSP(OUTOF,SP,(L:=SP[LOC],SPF)+1,BUFFER,              00562000
+            TRANSFERSP(OUTOF,SP,(L:=SP[LOC].SPF)+1,BUFFER,              00562000
             0,MIN(MAXBUFFSIZE,ENTIER((SP[LOC]+7)DIV 8)));               00562100
             L:=FUNCLOC;M:=SP[LOC].SPF+L;                                00562200
             GT1:=1;N:=SP[MOC].LOCFIELD;%LOCATION OF FMKS                00562300
             WHILE LASTMKS GTR N AND BOOLEAN (GT1) DO GT1:=IF            00562400
-                POPPROGRAM(OLDDATA.LASTMKS)THEN 1 ELSE 0;               00562500
-            IF M NEQ L AND NOT BOOLEAN(SP[MOC]).SUSPENDED)THEN%GET LINE#00562600
+                POPPROGRAM(OLDDATA,LASTMKS)THEN 1 ELSE 0;               00562500
+            IF M NEQ L AND NOT BOOLEAN(SP[MOC].SUSPENDED)THEN%GET LINE# 00562600
                 BEGIN SP[LOC].RF:=SP[LOC].RF+1;%UP SUSPENDED COUNT      00562700
                 L:=SP[NOC].SPF-1;%LOCATION OF FUNCTION NAME             00562800
                 SETFIELD(GTA,0,1,0);                                    00562900
@@ -5637,7 +5641,7 @@ SKIPPOP:                END OF TYPEFIELD EQUALS OPERATOR;               00555000
                 IMS(4);SP[MOC].SUSPENDED:=1;SUSPENSION:=1;              00563700
                 PUSHINTOSYMTAB(SP[MOC]);                                00563800
                 END ELSE T:=0;                                          00563900
-           ERRORMESS(ERR,POLWORD,SPF,T);                                00564000
+           ERRORMESS(ERR,POLWORD.SPF,T);                                00564000
             END;                                                        00564100
         END UNTIL XIT;                                                  00564200
 BREAKKEY:   BEGIN BREAKFLAG:=FALSE;                                     00564300
@@ -5662,7 +5666,7 @@ PROCESSEXIT:                                                            00566100
         IF BOOLEAN(POLBUG) THEN % DUMP SP                               00566200
         IF MODE=XEQUTE OR MODE=3 OR MODE=6 THEN GO TO DEBUGSP;          00566300
     IF FALSE THEN                                                       00566400
-        BEGIN CASE O OF BEGIN                                           00566500
+        BEGIN CASE 0 OF BEGIN                                           00566500
         EXPOVRL: SPOUT(3951200);                                        00566600
         INTOVRL: SPOUT(3591300);                                        00566700
         INDEXL:  SPOUT(3951400);                                        00566800
@@ -5675,7 +5679,7 @@ PROCESSEXIT:                                                            00566100
             BEGIN                                                       00567500
             STREAM PROCEDURE FORM(A,B,N); VALUE N;                      00567600
             BEGIN                                                       00567700
-            DI:=B; 15(DS:=BLIT(" ");                                    00567800
+            DI:=B; 15(DS:=8LIT" ");                                     00567800
             SI:=LOC N; DI:=B; DS:=8DEC; DI:=DI+3;                       00567900
             SI:=A; 10(DS:=8CHR; DI:=DI+1);                              00568000
             END;                                                        00568100
@@ -5705,7 +5709,7 @@ PROCEDURE ERRORMESS(N,ADDR,R); VALUE N,ADDR,R; REAL R;                  00569800
         L: IF SC=" " THEN                                               00570500
             BEGIN SI:=SI+1; GO TO L;                                    00570600
             END;                                                        00570700
-        DI:=LOC I; DS:=2RESET; DS:=2SET;                                00570800
+        DI:=LOC T; DS:=2RESET; DS:=2SET;                                00570800
         DI:=B; MESSIZE(U:=DI; DI:=LOC T; IF SC=DC THEN JUMP OUT TO M;   00570900
         SI:=SI-1; DI:=U; DS:=CHR; TALLY:=TALLY+1); M:                   00571000
         FORM:=TALLY;                                                    00571100
@@ -5734,7 +5738,7 @@ PROCEDURE ERRORMESS(N,ADDR,R); VALUE N,ADDR,R; REAL R;                  00569800
        FORMWD(0,"6 ERROR");                                             00573400
         IF ADDR.[33:15] GEQ 512 THEN                                    00573500
         BEGIN                                                           00573600
-        FORMWD(D,"4 AT   ");                                            00573700
+        FORMWD(0,"4 AT   ");                                            00573700
         FORMROW(1,1,B,0,FORM(ADDR,B))                                   00573800
         END;                                                            00573900
         FORMWD(3,"1      ");                                            00574000
@@ -5751,7 +5755,7 @@ PROCEDURE LOGINAPLUSER;                                                 00574400
         BEGIN FOR I:=0 STEP 1 UNTIL PSRSIZE-1 DO                        00575100
             PSRM[I] := 0;                                               00575200
         SEED:=STREAMBASE; ORIGIN:=1;                                    00575300
-        FUZZ:-1@-11;                                                    00575400
+        FUZZ:=1@-11;                                                    00575400
         LINESIZE:=72; DIGITS:=9;                                        00575500
         END;                                                            00575600
     LADDRESS := ADDRESS := ABSOLUTEADDRESS;                             00575700
@@ -5762,7 +5766,7 @@ PROCEDURE LOGINAPLUSER;                                                 00574400
                 WORKSPACE:=NEXTUNIT;                                    00576200
                 SEQUENTIAL(WORKSPACE);                                  00576300
                 INITIALIZEPSR;                                          00576400
-                I=STORESEQ(WORKSPACE,PSR,PSRSIZE|8);                    00576500
+                I:=STORESEQ(WORKSPACE,PSR,PSRSIZE|8);                   00576500
                 INITBUFF(OLDBUFFER,BUFFSIZE);                           00576600
                                                                         00576700
         END ELSE % WORKSPACE ASSIGNED                                   00576800
@@ -5793,7 +5797,7 @@ EXEC:                                                                   00578000
                 FUNCSIZE:=SIZE(GT1);                                    00579300
                 END;                                                    00579400
                 %------------INPUTMODE--------------ERRORMODE----       00579500
-                 GOTOEXEC; GO TO EXEC;                                  00579600
+                 GO TO EXEC; GO TO EXEC;                                00579600
                 END;                                                    00579700
     GUESS:  %SHOULD BE BETTER PLACE BUT HERE IS WHERE OTHERS COME OUT   00579800
     STOREPSR;                                                           00579900
@@ -5807,7 +5811,7 @@ PROCEDURE APLMONITOR;                                                   00580400
     INTEGER I;                                                          00580700
     BOOLEAN WORK;                                                       00580800
     LABEL AROUND, NEWUSER;                                              00580900
-    LABEL CALULATE,EXECUTEIT,FUNCTIONSTART,BACKAGAIN;                   00581000
+    LABEL CALCULATE,EXECUTEIT,FUNCTIONSTART,BACKAGAIN;                  00581000
     LABEL CALCULATEDIT;                                                 00581100
     I := CUSER := 1;                                                    00581200
     T := STATION;                                                       00581300
@@ -5855,7 +5859,7 @@ CALCULATEDIT:                                                           00585200
             IF RGTPAREN THEN MESSAGEHANDLER ELSE                        00585500
         IF DELV THEN FUNCTIONHANDLER ELSE                               00585600
             BEGIN COMMENT PROCESS CALCULATOR MODE REQUEST;              00585700
-            MOVE(BUFFER,BUFFERSIZE,EOLDBUFFER);                         00585800
+            MOVE(BUFFER,BUFFERSIZE,OLDBUFFER);                          00585800
             IF NOT BOOLEAN(SUSPENSION) THEN BEGIN %INITIALIZE USER      00585900
 %%%                                                                     00586000
 %%%                                                                     00586100
@@ -5880,7 +5884,7 @@ BACKAGAIN:      BEGIN INDENT(0); TERPRINT;                              00586600
         I:=0;                                                           00588000
         GO AROUND;                                                      00588100
     EXECUTEIT:                                                          00588200
-        POECESS(XEQUTE); %GO BACK TO PROCESS FOR AWHILE                 00588300
+        PROCESS(XEQUTE); %GO BACK TO PROCESS FOR AWHILE                 00588300
         IF CURRENTMODE=CALCMODE THEN GO TO BACKAGAIN;                   00588400
         I:=0;                                                           00588500
         GO AROUND;                                                      00588600
@@ -5899,7 +5903,7 @@ INTEGER PROCEDURE LENGTH(A,M);VALUE M; BOOLEAN M; ARRAY A[0];           00589800
     BEGIN                                                               00589900
 INTEGER STREAM PROCEDURE LENGT(A,M,L); VALUE M,L;                       00590000
     BEGIN LOCAL T;                                                      00590100
-    LOCAL C,CC,TST;      LABEL LAB;                                     00590200
+    LOCAL C,CC,TSI;      LABEL LAB;                                     00590200
     LOCAL AR; LABEL LAB2;                                               00590300
     SI:=LOC M; SI:=SI+7;                                                00590400
     IF SC="1" THEN                                                      00590500
@@ -5910,7 +5914,7 @@ INTEGER STREAM PROCEDURE LENGT(A,M,L); VALUE M,L;                       00590000
         T(2(32(DI:=LOC AR; IF SC=DC THEN JUMP OUT 3 TO LAB;             00591000
         TALLY:=TALLY+1;                                                 00591100
         C:=TALLY; TSI:=SI; SI:=LOC C;                                   00591200
-        SI:=SI+7; IF SI="0" THEN                                        00591300
+        SI:=SI+7; IF SC="0" THEN                                        00591300
             BEGIN TALLY:=CC; TALLY:=TALLY+1; CC:=TALLY;                 00591400
             TALLY:=0;                                                   00591500
             END; SI:=TSI)));                                            00591600
@@ -5941,10 +5945,10 @@ INTEGER STREAM PROCEDURE LENGT(A,M,L); VALUE M,L;                       00590000
 INTEGER I;                                                              00594100
 I:=LENGT(A,M,BUFFSIZE|8);                                               00594200
 LENGTH:=IF M THEN I ELSE BUFFSIZE|8-I                                   00594300
-   END                                                                  00594400
+   END;                                                                 00594400
 BOOLEAN PROCEDURE LABELSCAN(L,K); VALUE K; INTEGER K; ARRAY L[0];       00594500
     BEGIN REAL T;                                                       00594600
-    T:=ADDRSS;                                                          00594700
+    T:=ADDRESS;                                                         00594700
     IF SCAN AND IDENT THEN                                              00594800
         BEGIN SETFIELD(ACCUM,1,1,0); TRANSFER(ACCUM,1,L,K|8,8);         00594900
         IF NOT(LABELSCAN:=(SCAN AND COLON)) THEN                        00595000
@@ -5953,14 +5957,14 @@ BOOLEAN PROCEDURE LABELSCAN(L,K); VALUE K; INTEGER K; ARRAY L[0];       00594500
         END                                                             00595300
     END;                                                                00595400
 STREAM PROCEDURE MOVEWDS(A,N,B); VALUE N;                               00595500
-    BEGIN SI:=A; DI:=8; DS:=N WDS END;                                  00595600
+    BEGIN SI:=A; DI:=B; DS:=N WDS END;                                  00595600
 INTEGER PROCEDURE DAYTIME(B); ARRAY B[0];                               00595700
     BEGIN                                                               00595800
                                                                         00595900
     INTEGER D,H,M,MIN,Q,P,Y,TIME1;                                      00596000
     LABEL OWT;                                                          00596100
     STREAM PROCEDURE FORM(A,DAY,MO,DA,YR,HR,MIN,AP);                    00596200
-        VALUE DAY,MD,DA,YR,HR,MIN,AP;                                   00596300
+        VALUE DAY,MO,DA,YR,HR,MIN,AP;                                   00596300
         BEGIN DI:=A;                                                    00596400
         SI:=LOC DAY; SI:=SI+7;                                          00596500
         IF SC="0" THEN DS:=3LIT"SUN" ELSE                               00596600
@@ -5999,7 +6003,7 @@ INTEGER PROCEDURE DAYTIME(B); ARRAY B[0];                               00595700
         IF H GEQ 12 THEN "P" ELSE 17);                                  00599900
     DAYTIME:=(IF TIME1=6 THEN 5 ELSE                                    00600000
         IF TIME1=5 THEN 3 ELSE                                          00600100
-            IF TIME2=2 THEN 4 ELSE 3)+22;                               00600200
+            IF TIME1=2 THEN 4 ELSE 3)+22;                               00600200
                                                                         00600300
                                                                         00600400
     END;                                                                00600500
@@ -6017,7 +6021,7 @@ PROCEDURE LOADWORKSPACE(NAME1,NAME2,IDENT); VALUE NAME1,NAME2;          00600600
         ARRAY ITEM[0];                                                  00601700
         BEGIN                                                           00601800
         DEFINE T=ITEM#;                                                 00601900
-    PROCEDURE GETALINE(C,S,L,R,RD,D,LEN);                               00602000
+    PROCEDURE GETALINE(C,S,L,B,RD,D,LEN);                               00602000
         VALUE LEN; INTEGER C,S,L,LEN;                                   00602100
         ARRAY B[0]; INTEGER PROCEDURE RD; FILE D;                       00602200
         BEGIN % GET 2 CHRS GIVING ENSUING CHAR COUNT                    00602300
@@ -6025,7 +6029,7 @@ PROCEDURE LOADWORKSPACE(NAME1,NAME2,IDENT); VALUE NAME1,NAME2;          00600600
         IF C GTR LEN-2 THEN                                             00602500
             IF C GTR LEN-1 THEN % READ A NEW RECORD AND TAKE 2 CHRS     00602600
                 BEGIN                                                   00602700
-                S:=RD(D,S,R);                                           00602800
+                S:=RD(D,S,B);                                           00602800
                 C:=2;                                                   00602900
                TRANSFER(B,0,L,6,2);                                     00603000
                END                                                      00603100
@@ -6068,7 +6072,7 @@ PROCEDURE LOADWORKSPACE(NAME1,NAME2,IDENT); VALUE NAME1,NAME2;          00600600
         BOOLEAN TOG;                                                    00606800
         TRANSFER(T,0,U,0,7);                                            00606900
         G:=GETFIELD(T,7,1);                                             00607000
-        IF VARSRSIZE GTR 0 THEN                                         00607100
+        IF VARSIZE GTR 0 THEN                                           00607100
             IF K:=SEARCHORD(VARIABLES,U,HOLD,7)=0 THEN                  00607200
                 IF K:=GETFIELD(U,7,1)=FUNCTION THEN TOG:=TRUE           00607300
                 ELSE % NOT A FUNCTION IN THE SYMBOL TABLE               00607400
@@ -6076,13 +6080,13 @@ PROCEDURE LOADWORKSPACE(NAME1,NAME2,IDENT); VALUE NAME1,NAME2;          00600600
                     BEGIN                                               00607600
                     DELETE1(VARIABLES,HOLD);                            00607700
                     IF K=ARRAYDATA THEN RELEASEARRAY(U[1]);             00607800
-                    END;                                                00607900
+                    END                                                 00607900
                 ELSE TOG:=TRUE % DON-T CHANGE                           00608000
             ELSE % NOT IN VARIABLES                                     00608100
                 BEGIN                                                   00608200
                 VARSIZE:=VARSIZE+1;                                     00608300
                 HOLD:=HOLD+K-1;                                         00608400
-                END;                                                    00608500
+                END                                                     00608500
         ELSE VARSIZE:=1;                                                00608600
         LEN:=(WDSPERREC-1)|8;                                           00608700
         IF NOT TOG THEN % OK TO PUT INTO VARIABLES                      00608800
@@ -6093,7 +6097,7 @@ PROCEDURE LOADWORKSPACE(NAME1,NAME2,IDENT); VALUE NAME1,NAME2;          00600600
                 S:=T[1].LIBF1; % RECORD NUMBER                          00609300
                 M:=T[1].LIBF2; % WORD WITHIN RECORD                     00609400
                 SIZE:=T[1].LIBF3; % SIZE OF POINTERS TABLE              00609500
-                PR:=NEXTUNIT;                                           00609600
+                PT:=NEXTUNIT;                                           00609600
                 S:=RD(D,S,B);                                           00609700
                 FOR I:=0 STEP 1 UNTIL SIZE-1 DO                         00609800
                     BEGIN                                               00609900
@@ -6134,8 +6138,8 @@ PROCEDURE LOADWORKSPACE(NAME1,NAME2,IDENT); VALUE NAME1,NAME2;          00600600
                 END                                                     00613400
             ELSE                                                        00613500
             IF G=ARRAYDATA THEN                                         00613600
-                    IF T[1].INTPTR=0 THEN % NULL VECTOR                 00613700
-                        GOTO SCALARL                                    00613800
+                    IF T[1].INPTR=0 THEN % NULL VECTOR                  00613700
+                        GO TO SCALARL                                   00613800
                     ELSE                                                00613900
                 BEGIN                                                   00614000
                 ARRAY DIMVECT[0:MAXBUFFSIZE];                           00614100
@@ -6204,14 +6208,14 @@ PROCEDURE LOADWORKSPACE(NAME1,NAME2,IDENT); VALUE NAME1,NAME2;          00600600
             END;                                                        00620400
     STOREPSR; % UPDATE SINCE HAVE ADDED TO VARIABLES                    00620500
     END;                                                                00620600
-    IF FALSE THEN SKIP; FORMWD(1,"6BADFIL");                            00620700
+    IF FALSE THEN SKIP: FORMWD(1,"6BADFIL");                            00620700
     EOB:=1;                                                             00620800
     END OF LIBRARY LOAD;                                                00620900
 PROCEDURE PURGEWORKSPACE(WS); VALUE WS; INTEGER WS;                     00621000
     IF WORKSPACE NEQ 0 THEN                                             00621100
     BEGIN                                                               00621200
     INTEGER I,J,K,V,L,G;                                                00621300
-    ARRAY T[0,1];                                                       00621400
+    ARRAY T[0:1];                                                       00621400
     J:=SIZE(V:=VARIABLES)-1;                                            00621500
     FOR I:=0 STEP 1 UNTIL J DO                                          00621600
         BEGIN K:=CONTENTS(V,I,T);                                       00621700
@@ -6223,7 +6227,7 @@ PROCEDURE PURGEWORKSPACE(WS); VALUE WS; INTEGER WS;                     00621000
     VARIABLES:=0; VARSIZE:=0;                                           00622300
     CURRENTMODE:=0; J:=SIZE(WS)-1;                                      00622400
     FOR I:=1 STEP 1 UNTIL J DO DELETE1(WS,I);                           00622500
-    STORESPR;                                                           00622600
+    STOREPSR;                                                           00622600
     END;                                                                00622700
 PROCEDURE ELIMWORKSPACE(WS); VALUE WS; INTEGER WS;                      00622800
     BEGIN LABEL QQQ; QQQ:                                               00622900
@@ -6362,9 +6366,9 @@ PROCEDURE SAVEWORKSPACE(NAME1,NAME2,LOCKFILE);                          00623600
                     BEGIN                                               00636200
                     T[1].INPTR:=N; T[1].DIMPTR:=M;                      00636300
                     C:=M|8;                                             00636400
-                    J:=CONTENTS(WS,LSD,DIMPTR,BUFFER); % DIM VECT       00636500
+                    J:=CONTENTS(WS,LSD.DIMPTR,BUFFER); % DIM VECT       00636500
                     PUTAWAY(C,J,WR,DISK,N,M,B,LEN); % STD DIM VECT      00636600
-                    J:=CONTENTS(WS,LSD,INPTR,DIMVECT);                  00636700
+                    J:=CONTENTS(WS,LSD.INPTR,DIMVECT);                  00636700
                     TRANSFER(DIMVECT,0,BUFFER,0,J);                     00636800
                     PUTAWAY(C,J,WR,DISK,N,M,B,LEN);                     00636900
                     J:=J-1;                                             00637000
@@ -6418,7 +6422,7 @@ PROCEDURE MESSAGEHANDLER;                                               00640200
                 BEGIN L:=CONTENTS(M,I,T); TOG:=GETFIELD(T,7,1)          00641800
                  =FUNCTION;                                             00641900
                 IF NUM:=3|REAL(TOG AND VARS)+8+NUM GTR LINESIZE         00642000
-                  THEN BEGIN TERPRINT; NUM:=3|READL(TOG AND VARS)+8 END;00642100
+                  THEN BEGIN TERPRINT; NUM:=3|REAL(TOG AND VARS)+8 END; 00642100
                 IF VARS THEN                                            00642200
                     BEGIN FORMROW(0,1,T,0,7); L:=L+1;                   00642300
                     IF TOG THEN FORMWD(0,"3(F)   ");                    00642400
@@ -6462,7 +6466,7 @@ PROCEDURE MESSAGEHANDLER;                                               00640200
         ELSE GO ERR1;                                                   00646200
         %  ------- DROP -------                                         00646300
         IF CURRENTMODE=CALCMODE THEN                                    00646400
-        IF NOT LIBNAME(R,S) THEN                                        00646500
+        IF NOT LIBNAMES(R,S) THEN                                       00646500
             IF LIBRARIAN(R,S) THEN                                      00646600
             BEGIN FILE ELIF DISK (1,1);                                 00646700
             FILL ELIF WITH R,S; WRITE(ELIF[0]);                         00646800
@@ -6478,7 +6482,7 @@ PROCEDURE MESSAGEHANDLER;                                               00640200
         % ------- COPY -------                                          00647800
         IF LIBNAMES(R,S) THEN                                           00647900
             IF LIBRARIAN(R,S) THEN                                      00648000
-            LOADWORKSPCE(R,S,ACCUM)                                     00648100
+            LOADWORKSPACE(R,S,ACCUM)                                    00648100
         ELSE NOFILEPRESENT                                              00648200
         ELSE GO ERR1;                                                   00648300
                                                                         00648400
@@ -6492,7 +6496,7 @@ PROCEDURE MESSAGEHANDLER;                                               00640200
         %-------- MSG --------                                          00649200
         ERRORMESS(SYNTAXERROR,LADDRESS,0);                              00649300
         %-----WIDTH (INTEGER) ---------------------------               00649400
-        IF NOT SCAN THEN BEGIN NUMBERCON(LINSIZE, ACCUM);               00649500
+        IF NOT SCAN THEN BEGIN NUMBERCON(LINESIZE, ACCUM);              00649500
                           FORMROW(3,0,ACCUM,2,ACOUNT); END              00649600
             ELSE IF NUMERIC AND I:=ACCUM[0] GTR 9 AND I LEQ 72          00649700
                THEN BEGIN TERPRINT; LINESIZE:=I; STOREPSR;              00649800
@@ -6511,11 +6515,11 @@ PROCEDURE MESSAGEHANDLER;                                               00640200
         %-------- OFF --------                                          00651100
         BEGIN                                                           00651200
         IF SCAN THEN IF ACCUM[0]="7DISCAR" THEN                         00651300
-            ELTMWORKSPACE(WORKSPACE) ELSE                               00651400
+            ELIMWORKSPACE(WORKSPACE) ELSE                               00651400
             GO TO ERR1;                                                 00651500
        FILL ACCUM[*] WITH "END OF R","UN      ";                        00651600
         FORMROW(3,MARGINSIZE,ACCUM,0,10);                               00651700
-        CURRENTMODE=CALCMODE;                                           00651800
+        CURRENTMODE:=CALCMODE;                                          00651800
        GT1:=CSTATION;                                                   00651900
        CSTATION:=GT1&0[CAPLOGGED]                                       00652000
       ;GO TO FINIS;                                                     00652100
@@ -6533,7 +6537,7 @@ PROCEDURE MESSAGEHANDLER;                                               00640200
             STOREPSR END ELSE GO TO ERR1;                               00653300
         %--------FUZZ------------------------------------               00653400
         IF NOT SCAN THEN BEGIN                                          00653500
-            NUMBERCRON(FUZZ,ACCUM);                                     00653600
+            NUMBERCON(FUZZ,ACCUM);                                      00653600
             FORMROW(3,0,ACCUM,2,ACOUNT) END                             00653700
         ELSE IF NUMERIC AND ERR=0 THEN BEGIN FUZZ:=ABS(ACCUM[0]);       00653800
             STOREPSR END ELSE GO TO ERR1;                               00653900
@@ -6557,7 +6561,7 @@ PROCEDURE MESSAGEHANDLER;                                               00640200
         END ELSE FORMWD(3,"6 NULL.");                                   00655700
         %------------------SIV------------------------------            00655800
         IF BOOLEAN(SUSPENSION) THEN                                     00655900
-            BEGIN GIT1:=1;                                              00656000
+            BEGIN GT1:=1;                                               00656000
             PROCESS(LOOKATSTACK);                                       00656100
         END ELSE FORMWD(3,"6 NULL.");                                   00656200
         %------------------ERASE------------------------------          00656300
@@ -6566,7 +6570,7 @@ PROCEDURE MESSAGEHANDLER;                                               00640200
             BEGIN % LOOK FOR THE INDENTIFIER NAME IN ACCUM              00656600
             TRANSFER(ACCUM,2,GTA,0,7);                                  00656700
             IF (IF VARIABLES=0 THEN FALSE ELSE                          00656800
-                SEARCHWORD(VARIABLES,GTA,GT1,7)=0) THEN                 00656900
+                SEARCHORD(VARIABLES,GTA,GT1,7)=0) THEN                  00656900
                 BEGIN  % FOUND A SYMBOL TABLE ENTRY MATCHING NAME       00657000
                 DELETE1(VARIABLES,GT1); % REMOVE FROM SYMBOLTABLE       00657100
                 IF VARSIZE:=VARSIZE-1=0 THEN VARIABLES:=0;              00657200
@@ -6634,8 +6638,8 @@ BOOLEAN STREAM PROCEDURE WITHINLINE(COMMAND,OLD,NEW,CHAR,WORD);         00662300
     TALLY:=T; X:=TALLY; TALLY:=2; Y:=TALLY; TALLY:=32; Z:=TALLY;        00663400
     TALLY:=0;                                                           00663500
         IF SC!"~" THEN                                                  00663600
-        BEGIN RCHR:=SI; SI:=OLD; OLDLINE:=SI;                           00663700
-        DI:=NEW; NEWLINE:=DI; SI:=RCHR;                                 00663800
+        BEGIN BCHR:=SI; SI:=OLD; OLDLINE:=SI;                           00663700
+        DI:=NEW; NEWLINE:=DI; SI:=BCHR;                                 00663800
         63(IF SC=DELIM THEN JUMP OUT ELSE SI:=SI+1; TALLY               00663900
         :=TALLY+1); N:=TALLY;                                           00664000
         IF TOGGLE THEN                                                  00664100
@@ -6732,7 +6736,7 @@ PROCEDURE FUNCTIONHANDLER;                                              00670800
         FINIS:                                                          00673200
         END;                                                            00673300
 INTEGER PROCEDURE OLDLABCONFLICT(PT,S); VALUE PT,S;                     00673400
-    INTEGER PT, REAL S;                                                 00673500
+    INTEGER PT; REAL S;                                                 00673500
     IF PT NEQ 0 THEN                                                    00673600
         BEGIN INTEGER K; ARRAY L[0:1];                                  00673700
         ADDRESS:=ABSOLUTEADDRESS;                                       00673800
@@ -6764,7 +6768,7 @@ PROCEDURE EDITDRIVER(PT,SQ,I,K); VALUE PT,SQ,I,K;                       00675200
         IF EDITMODE:=WITHINALINE(T,OLD,NEW,BUFFSIZE|8,BUFFSIZE)         00676400
         THEN BEGIN MOVE(BUFFER,MAXBUFFSIZE+1,NEW);                      00676500
             MOVE(OLD,MAXBUFFSIZE,BUFFER);                               00676600
-            IF EDITMODE:=ERR:=OLDLABELCONFICT(PT,C[0])=0 THEN           00676700
+            IF EDITMODE:=ERR:=OLDLABCONFLICT(PT,C[0])=0 THEN            00676700
                 BEGIN B:=ELIMOLDLINE(PT,SQ,C[1]);                       00676800
                 DELTOG:=DELPRESENT(ADDRESS);                            00676900
                 DELETE1(SQ,C[1]); DELETE1(PT,A+B); C[1]:=               00677000
@@ -6811,7 +6815,7 @@ INTEGER PROCEDURE DISPLAY(A,B,PT,SQ); VALUE A,B,PT,SQ;                  00679500
         IF EDITMODE THEN % MAY HAVE ONLY ONE LINE TO EDIT               00681100
             IF I=K THEN                                                 00681200
                 IF A NEQ 0 THEN %NOT EDITING THE HEADER                 00681300
-                    EDITDRIVER(PT,SQ,I,K);                              00681400
+                    EDITDRIVER(PT,SQ,I,K)                               00681400
                 ELSE %EDITING THE FUNCTION HEADER, FIX LATER.           00681500
                     ERR:=31                                             00681600
                 ELSE %EDITING MORE THAN ONE LINE                        00681700
@@ -6836,7 +6840,7 @@ INTEGER PROCEDURE DISPLAY(A,B,PT,SQ); VALUE A,B,PT,SQ;                  00679500
         END ELSE DISPLAY:=20;                                           00683600
 INTEGER PROCEDURE DELETE(A,B,PT,SQ); VALUE A,B;                         00683700
     INTEGER PT,SQ; REAL A,B;                                            00683800
-    IF A LEQ B AND FUNCSIZE NEQ 0 AND A NEQ Q THEN                      00683900
+    IF A LEQ B AND FUNCSIZE NEQ 0 AND A NEQ 0 THEN                      00683900
         BEGIN                                                           00684000
         INTEGER I,J,K,L;                                                00684100
         ARRAY C[0:1];                                                   00684200
@@ -6868,7 +6872,7 @@ INTEGER PROCEDURE DELETE(A,B,PT,SQ); VALUE A,B;                         00683700
     INTEGER PT,SQ,L;                                                    00686800
         BEGIN INTEGER K,J;                                              00686900
         REAL AD;                                                        00687000
-        ARRAY T[0:MAXBUFFERSIZE],LAB[0:1];                              00687100
+        ARRAY T[0:MAXBUFFSIZE],LAB[0:1];                                00687100
          AD:=ADDRESS;                                                   00687200
         MOVEWDS(BUFFER,MAXBUFFSIZE+1,T);                                00687300
         INITBUFF(BUFFER,BUFFSIZE);                                      00687400
@@ -6882,7 +6886,7 @@ INTEGER PROCEDURE DELETE(A,B,PT,SQ); VALUE A,B;                         00683700
         ELIMOLDLINE:=J                                                  00688200
         END;                                                            00688300
 INTEGER PROCEDURE STOREAWAY(PT,SQ,B,SEQ); VALUE SEQ;                    00688400
-        INTEGER PT,SQ; REAL SEQ; ARRAY B[0]                             00688500
+        INTEGER PT,SQ; REAL SEQ; ARRAY B[0];                            00688500
         BEGIN DEFINE BUFFER=B#;                                         00688600
         ARRAY C,LAB[0:1];                                               00688700
         INTEGER I,J,K,L;                                                00688800
@@ -6924,7 +6928,7 @@ INTEGER PROCEDURE STOREAWAY(PT,SQ,B,SEQ); VALUE SEQ;                    00688400
         END;                                                            00692400
     BOOLEAN PROCEDURE BOUND(PT); VALUE PT; INTEGER PT;                  00692500
     IF NOT(BOUND:=NUMERIC) THEN                                         00692600
-        IF INDENT AND FUNCSIZE GTR 0 THEN                               00692700
+        IF IDENT AND FUNCSIZE GTR 0 THEN                                00692700
         BEGIN ARRAY L[0:1]; INTEGER K;                                  00692800
         REAL T,U;                                                       00692900
         REAL STREAM PROCEDURE CON(A);                                   00693000
@@ -7123,7 +7127,7 @@ HEADERSTORE:                                                            00701800
         LOWER:=L+1;                                                     00712300
         IF LOWER GTR UPPER THEN                                         00712400
             BEGIN IF MODE=DISPLAYING THEN                               00712500
-            FORMWD(3,"1       ");                                       00712600
+            FORMWD(3,"1      ");                                        00712600
             MODE:=0;                                                    00712700
             END;                                                        00712800
         GO TO ENDHANDLER                                                00712900
@@ -7153,12 +7157,12 @@ RGTBRACK:                                                               00714900
                           BEGIN ERR:=DISPLAY(L,U,FPT,FSQ);              00715300
                           DELTOG:=1;                                    00715400
                           END                                           00715500
-                        ELSE ERR:=1;                                    00715600
+                        ELSE ERR:=1                                     00715600
                       ELSE ERR:=DISPLAY(L,U,FPT,FSQ)                    00715700
                     ELSE ERR:=2                                         00715800
                     END                                                 00715900
                   ELSE                                                  00716000
-                  IF RGTBRACKT THEN                                     00716100
+                  IF RGTBRACKET THEN                                    00716100
                   IF(IF EDITMODE THEN FALSE ELSE SCAN) THEN             00716200
                       IF DELV THEN                                      00716300
                         BEGIN ERR:=DISPLAY(L,L,FPT,FSQ);                00716400
@@ -7185,7 +7189,7 @@ DELOPTION:                                                              00717800
                                 FINISHUP                                00718500
                                 END                                     00718600
                               ELSE ERR:=6                               00718700
-                            ELSE ERR:=DELETE(L,U.FPT,FSQ)               00718800
+                            ELSE ERR:=DELETE(L,U,FPT,FSQ)               00718800
                           ELSE ERR:=7                                   00718900
                           END                                           00719000
                         ELSE ERR:=8                                     00719100
@@ -7214,15 +7218,15 @@ DELOPTION:                                                              00717800
         IF IOTA THEN                                                    00721400
             IF SCAN AND RGTBRACKET AND FPT NEQ 0 THEN                   00721500
             BEGIN IF SCAN THEN                                          00721600
-                IF DELV THEN DELTOG:=1; ELSE ERR:=15;                   00721700
+                IF DELV THEN DELTOG:=1 ELSE ERR:=15;                    00721700
             IF ERR = 0 THEN                                             00721800
-                BEGIN MODE:=RFSEQUENCING; CURLINE:=INCREMENT:=1;        00721900
+                BEGIN MODE:=RESEQUENCING; CURLINE:=INCREMENT:=1;        00721900
                 SETFIELD(GTA,0,8,0);                                    00722000
                 GT1:=SEARCHORD(FPT,GTA,GT2,8);                          00722100
-                LOWER:=GTT2+1; UPPER:=FUNCSIZE-1;                       00722200
+                LOWER:=GT2+1; UPPER:=FUNCSIZE-1;                        00722200
                 END                                                     00722300
             END                                                         00722400
-    ELSE ERR:=14;                                                       00722500
+    ELSE ERR:=14                                                        00722500
           ELSE ERR:=12                                                  00722600
         ELSE ERR:=13                                                    00722700
         END                                                             00722800
@@ -7271,3 +7275,4 @@ ENDOFJOB:                                                               00726800
     WRAPUP;                                                             00727100
                                                                         00727200
 END.                                                                    00727300
+? END
