@@ -33,6 +33,7 @@ function B5500Processor(procID, cc) {
     /* Constructor for the Processor module object */
 
     this.processorID = procID;          // Processor ID ("A" or "B")
+    this.mnemonic = "P" + procID;       // Unit mnemonic
     this.cc = cc;                       // Reference back to Central Control module
     this.scheduler = null;              // Reference to current setCallback token
     this.accessor = {                   // Memory access control block
@@ -1190,10 +1191,10 @@ B5500Processor.prototype.streamOutputConvert = function streamOutputConvert(coun
 };
 
 /**************************************/
-B5500Processor.prototype.storeForInterrupt = function storeForInterrupt(forTest) {
+B5500Processor.prototype.storeForInterrupt = function storeForInterrupt(forced, forTest) {
     /* Implements the 3011=SFI operator and the parts of 3411=SFT that are
-    common to it. "forTest" implies use from SFT */
-    var forced = this.Q & 0x40;         // Q07F: Hardware-induced SFI syllable
+    common to it. "forced" implies Q07F: a hardware-induced SFI syllable.
+    "forTest" implies use from SFT */
     var saveAROF = this.AROF;
     var saveBROF = this.BROF;
     var temp;
@@ -1271,12 +1272,6 @@ B5500Processor.prototype.storeForInterrupt = function storeForInterrupt(forTest)
           this.Y * 0x10000000 +
           (this.Q & 0x1FF) * 0x400000000 +
           0xC00000000000;
-    if (forTest) {
-        this.TM = 0;
-        this.MROF = 0;
-        this.MWOF = 0;
-    }
-
     this.M = this.R*64 + 8;             // store initiate word at R+@10
     this.storeBviaM();                  // [M] = B
 
@@ -1286,28 +1281,31 @@ B5500Processor.prototype.storeForInterrupt = function storeForInterrupt(forTest)
     this.SALF = 0;
     this.BROF = 0;
     this.AROF = 0;
-    if (forced) {
-        if (this.isP1) {
-            this.T = 0x89;              // inject 0211=ITI into T register
+    if (forTest) {
+        this.TM = 0;
+        this.MROF = 0;
+        this.MWOF = 0;
+    }
+
+    if (forced || forTest) {
+        this.CWMF = 0;
+    }
+
+    if (!this.isP1) {                   // if it's P2
+        this.stop();                        // idle the P2 processor
+        this.cc.P2BF = 0;                   // tell CC and P1 we've stopped
+    } else {                            // otherwise, if it's P1
+        if (!forTest) {
+            this.T = 0x89;                  // inject 0211=ITI into P1's T register
         } else {
-            this.stop();                // idle the processor
-            this.cc.P2BF = 0;           // tell P1 we've stopped
-        }
-        this.CWMF = 0;
-    } else if (forTest) {
-        this.CWMF = 0;
-        if (this.isP1) {
-            this.loadBviaM();           // B = [M]: load DD for test
+            this.loadBviaM();               // B = [M]: load DD for test
             this.C = this.B % 0x8000;
             this.L = 0;
-            this.PROF = 0;              // require fetch at SECL
+            this.PROF = 0;                  // require fetch at SECL
             this.G = 0;
             this.H = 0;
             this.K = 0;
             this.V = 0;
-        } else {
-            this.stop();                // idle the processor
-            this.cc.P2BF = 0;           // tell P1 we've stopped
         }
     }
 };
@@ -1369,6 +1367,8 @@ B5500Processor.prototype.initiate = function initiate(forTest) {
 
     if (this.AROF) {
         this.B = bw = this.A;
+    } else if (this.BROF) {
+        bw = this.B;
     } else {
         this.adjustBFull();
         bw = this.B;
@@ -1471,9 +1471,9 @@ B5500Processor.prototype.initiate = function initiate(forTest) {
 /**************************************/
 B5500Processor.prototype.initiateAsP2 = function initiateAsP2() {
     /* Called from Central Control to initiate the processor as P2. Fetches the
-    INCW from @10 and calls initiate() */
+    INCW from @10, injects an initiate P2 syllable into T, and calls start() */
 
-    this.NCSF = 0;                      // make sure P2 is in control state to execute the IP1 & access low mem
+    this.NCSF = 0;                      // make sure P2 is in Control State to execute the IP1 & access low mem
     this.M = 0x08;                      // address of the INCW
     this.loadBviaM();                   // B = [M]
     this.AROF = 0;                      // make sure A is invalid
@@ -2014,7 +2014,7 @@ B5500Processor.prototype.integerDivide = function integerDivide() {
             // Now we step through the development of the quotient one octade at a time,
             // similar to that for DIV, but in addition to stopping when the high-order
             // octade of xx is non-zero (i.e., normalized), we can stop if the exponents
-            // becomes equal. Since there is no rounding, we do not need to develop an
+            // become equal. Since there is no rounding, we do not need to develop an
             // extra quotient digit.
             do {
                 this.cycleCount += 3;   // just estimate the average number of clocks
@@ -2863,7 +2863,7 @@ B5500Processor.prototype.run = function run() {
     set up -- in particular there must be a syllable in T with TROF set, the
     current program word must be in P with PROF set, and the C & L registers
     must point to the next syllable to be executed.
-    This routine will run while cycleCount < cycleLimit  */
+    This routine will continue to run while this.runCycles < this.cycleLimit  */
     var noSECL = 0;                     // to support char mode dynamic count from CRF syllable
     var opcode;                         // copy of T register
     var t1;                             // scratch variable for internal instruction use
@@ -2872,6 +2872,7 @@ B5500Processor.prototype.run = function run() {
     var t4;                             // ditto
     var variant;                        // high-order six bits of T register
 
+    this.runCycles = 0;                 // initialze the cycle counter for this time slice
     do {
         this.Q = 0;
         this.Y = 0;
@@ -3018,16 +3019,15 @@ B5500Processor.prototype.run = function run() {
                     case 0x14:          // 2411: ZPI=Conditional Halt
                         if (this.US14X) {               // STOP OPERATOR switch on
                             this.stop();
-                            this.cycleLimit = 0;        // exit this.run()
                         }
                         break;
 
                     case 0x18:          // 3011: SFI=Store for Interrupt
-                        this.storeForInterrupt(0);
+                        this.storeForInterrupt(0, 0);
                         break;
 
                     case 0x1C:          // 3411: SFT=Store for Test
-                        this.storeForInterrupt(1);
+                        this.storeForInterrupt(0, 1);
                         break;
 
                     default:            // Anything else is a no-op
@@ -3736,25 +3736,23 @@ B5500Processor.prototype.run = function run() {
                         break;
 
                     case 0x12:          // 2211: HP2=Halt Processor 2
-                        if (!this.NCSF) {               // control-state only
+                        if (!(this.NCSF || this.cc.HP2F)) { // control-state only
                             this.cc.haltP2();
-                            this.cycleLimit = 0;        // give P2 a chance to clean up
                         }
                         break;
 
                     case 0x14:          // 2411: ZPI=Conditional Halt
                         if (this.US14X) {               // STOP OPERATOR switch on
                             this.stop();
-                            this.cycleLimit = 0;        // exit this.run()
                         }
                         break;
 
                     case 0x18:          // 3011: SFI=Store for Interrupt
-                        this.storeForInterrupt(0);
+                        this.storeForInterrupt(0, 0);
                         break;
 
                     case 0x1C:          // 3411: SFT=Store for Test
-                        this.storeForInterrupt(1);
+                        this.storeForInterrupt(0, 1);
                         break;
 
                     case 0x21:          // 4111: IP1=Initiate Processor 1
@@ -3766,7 +3764,10 @@ B5500Processor.prototype.run = function run() {
                     case 0x22:          // 4211: IP2=Initiate Processor 2
                         if (!this.NCSF) {                       // control-state only
                             this.M = 0x08;                      // INCW is stored in @10
-                            if (this.BROF && !this.AROF) {
+                            if (this.AROF) {
+                                this.storeAviaM();              // [M] = A
+                                this.AROF = 0;
+                            } else if (this.BROF) {
                                 this.storeBviaM();              // [M] = B
                                 this.BROF = 0;
                             } else {
@@ -3782,7 +3783,10 @@ B5500Processor.prototype.run = function run() {
                     case 0x24:          // 4411: IIO=Initiate I/O
                         if (!this.NCSF) {
                             this.M = 0x08;                      // address of IOD is stored in @10
-                            if (this.BROF && !this.AROF) {
+                            if (this.AROF) {
+                                this.storeAviaM();              // [M] = A
+                                this.AROF = 0;
+                            } else if (this.BROF) {
                                 this.storeBviaM();              // [M] = B
                                 this.BROF = 0;
                             } else {
@@ -4536,10 +4540,10 @@ B5500Processor.prototype.run = function run() {
 
         if ((this.isP1 ? this.cc.IAR : this.I) && this.NCSF) {
             // there's an interrupt and we're in normal state
+            // reset Q09F (R-relative adder mode) and set Q07F (hardware-induced SFI) (for display only)
+            this.Q = (this.Q & 0xFFFEFF) & 0x40;
             this.T = 0x0609;            // inject 3011=SFI into T
-            this.Q &= 0xFFFEFF;         // reset Q09F: adder mode for R-relative addressing
-            this.Q |= 0x40;             // set Q07F to indicate hardware-induced SFI
-            this.storeForInterrupt(0);  // call directly to avoid resetting registers at top of loop
+            this.storeForInterrupt(1, 0); // call directly to avoid resetting registers at top of loop
         } else {
             // otherwise, fetch the next instruction
             if (!this.PROF) {
@@ -4567,7 +4571,10 @@ B5500Processor.prototype.run = function run() {
             }
         }
 
-        if (this.NCSF) {
+        // Accumulate Normal and Control State cycles for use by the Console in
+        // making the pretty lights blink. If the processor is no longer busy,
+        // accumulate the cycles as Normal State, as we probably just did SFI.
+        if (this.NCSF || !this.busy) {
             this.normalCycles += this.cycleCount;
         } else {
             this.controlCycles += this.cycleCount;
@@ -4599,7 +4606,6 @@ B5500Processor.prototype.schedule = function schedule() {
 
     if (this.busy) {
         this.cycleLimit = B5500Processor.timeSlice;
-        this.runCycles = 0;
 
         this.run();                     // execute syllables for the timeslice
 
@@ -4619,6 +4625,9 @@ B5500Processor.prototype.schedule = function schedule() {
             // delay is less than our estimate of that minimum, we yield to the event loop
             // but otherwise continue (real time should eventually catch up -- we hope). If the
             // delay is greater than the minimum, we reschedule ourselves after that delay.
+            if (delayTime < this.delayDeltaAvg) {
+                delayTime = 0;
+            }
 
             this.delayRequested = delayTime;
             this.scheduler = setCallback(this.schedule, this, delayTime);
@@ -4633,7 +4642,6 @@ B5500Processor.prototype.step = function step() {
     or two injected instructions (e.g., SFI followed by ITI) could also be executed */
 
     this.cycleLimit = 1;
-    this.runCycles = 0;
 
     this.run();
 

@@ -167,6 +167,19 @@ window.addEventListener("load", function() {
         return m[1];
     }
 
+    /***************************************/
+    function padOctal(value, octades) {
+        /* Formats "value" as an octal number of "octades" length, left-padding with
+        zeroes as necessary */
+        var text = value.toString(8);
+        var len = text.length;
+
+        while (len++ < octades) {
+            text = "0" + text;
+        }
+        return text;
+    }
+
     /**************************************/
     function padToLength(text, len) {
         /* Converts the input string "text" to exactly "len" characters,
@@ -384,8 +397,9 @@ window.addEventListener("load", function() {
     }
 
     /**************************************/
-    function formatDirectoryEntry(body, mfid, fid, header) {
+    function formatDirectoryEntry(body, mfid, fid, headerBlock) {
         /* Formats the disk header for a file */
+        var header = readDiskHeader(headerBlock);
         var row = document.createElement("tr");
         var rx;
         var text = "";
@@ -419,7 +433,13 @@ window.addEventListener("load", function() {
         for (rx=0; rx<header.maxRows; rx++) {
             text += header.rowAddress[rx].toFixed(0) + " ";
         }
+        appendCell(row, text);
+        body.appendChild(row);
 
+        text = "";
+        for (rx=0; rx<10; rx++) {
+            text += padOctal(headerBlock[rx], 16) + " ";
+        }
         appendCell(row, text);
         body.appendChild(row);
     }
@@ -437,6 +457,7 @@ window.addEventListener("load", function() {
             var atEnd = false;
             var bx;
             var fid;
+            var headerBlock;
             var mfid;
             var namex;
 
@@ -451,7 +472,7 @@ window.addEventListener("load", function() {
                     mfid = wordsToString(block, bx, 1, true);
                     fid =  wordsToString(block, bx+1, 1, true);
                     bx = namex*30;
-                    formatDirectoryEntry(body, mfid, fid, readDiskHeader(block.slice(bx, bx+30)));
+                    formatDirectoryEntry(body, mfid, fid, block.slice(bx, bx+30));
                 }
             }
             if (atEnd) {
@@ -559,6 +580,8 @@ TABLE {
     border-collapse:    collapse}
 TH {
     vertical-align:     bottom}
+TD {
+    white-space:        nowrap}
 .center {
     text-align:         center}
 .rj {
@@ -596,6 +619,7 @@ TH {
     <th>SPR
     <th>MXR
     <th>Row Addresses
+    <th>Raw Header Words 0-9
 <tbody id=DirListBody>
 </table>
 

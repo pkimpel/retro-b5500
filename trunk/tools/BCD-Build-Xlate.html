@@ -1,0 +1,140 @@
+<html>
+<head>
+    <title>Build .bdc Tape Image Translate Tables</title>
+    <style>
+    TD {
+        font-family:    Lucida Sans Typewriter, Courier New, Courier, monospace;
+        font-size:      smaller;
+        text-align:     right}
+    </style>
+</head>
+<body>
+<script>
+
+BICtoANSI = [               // Index by 6-bit BIC to get 8-bit ANSI code
+        "0", "1", "2", "3", "4", "5", "6", "7",         // 00-07, @00-07
+        "8", "9", "#", "@", "?", ":", ">", "}",         // 08-0F, @10-17
+        "+", "A", "B", "C", "D", "E", "F", "G",         // 10-17, @20-27
+        "H", "I", ".", "[", "&", "(", "<", "~",         // 18-1F, @30-37
+        "|", "J", "K", "L", "M", "N", "O", "P",         // 20-27, @40-47
+        "Q", "R", "$", "*", "-", ")", ";", "{",         // 28-2F, @50-57
+        " ", "/", "S", "T", "U", "V", "W", "X",         // 30-37, @60-67
+        "Y", "Z", ",", "%", "!", "=", "]", "\""];       // 38-3F, @70-77
+
+BICtoBCLANSI = [            // Index by 6-bit BIC to get 8-bit BCL-as-ANSI code
+        "#", "1", "2", "3", "4", "5", "6", "7",         // 00-07, @00-07
+        "8", "9", "@", "?", "0", ":", ">", "}",         // 08-1F, @10-17
+        ",", "/", "S", "T", "U", "V", "W", "X",         // 10-17, @20-27
+        "Y", "Z", "%", "!", " ", "=", "]", "\"",        // 18-1F, @30-37
+        "$", "J", "K", "L", "M", "N", "O", "P",         // 20-27, @40-47
+        "Q", "R", "*", "-", "|", ")", ";", "{",         // 28-2F, @50-57
+        "+", "A", "B", "C", "D", "E", "F", "G",         // 30-37, @60-67
+        "H", "I", "[", "&", ".", "(", "<", "~"];        // 38-3F, @70-77
+
+BCLtoANSI = [               // Index by 6-bit BCL to get 8-bit ANSI code
+        "?", "1", "2", "3", "4", "5", "6", "7",         // 00-07, @00-07
+        "8", "9", "0", "#", "@", ":", ">", "}",         // 08-0F, @10-17
+        " ", "/", "S", "T", "U", "V", "W", "X",         // 10-17, @20-27
+        "Y", "Z", "!", ",", "%", "=", "]", "\"",        // 18-1F, @30-37
+        "-", "J", "K", "L", "M", "N", "O", "P",         // 20-27, @40-47
+        "Q", "R", "|", "$", "*", ")", ";", "{",         // 28-2F, @50-57
+        "&", "A", "B", "C", "D", "E", "F", "G",         // 30-37, @60-67
+        "H", "I", "+", ".", "[", "(", "<", "~"];        // 38-3F, @70-77
+
+function html(c) {
+    switch(c) {
+        case "<": return "&lt;";
+        case ">": return "&gt;";
+        case '"': return "&quot;";
+        case "&": return "&amp;";
+        case " ": return "&nbsp;"
+        default:  return c;
+    }
+}
+
+function parity(c) {
+    return ((c & 0x01) ^ ((c & 0x02) >>> 1) ^ ((c & 0x04) >>> 2) ^
+           ((c & 0x08) >>> 3) ^ ((c & 0x10) >>> 4) ^ ((c & 0x20) >>> 5));
+
+}
+
+function pic9n(v, n) {
+    var text = v.toString();
+
+    if (text.length > n) {
+        text = text.substring(-n);
+    } else {
+        while (text.length < n) {
+            text = "0" + text;
+        }
+    }
+    return text;
+}
+
+var bcdEven = new Array(128);
+var bcdOdd  = new Array(128);
+
+var c;
+var even;
+var odd;
+var x;
+var y;
+
+document.write("<h3>Build .bdc Tape Image Translate Tables</h3>");
+
+// Initialize the tables with invalid parity codes
+for (x=0; x<128; x++) {
+    bcdEven[x] = bcdOdd[x] = 0xFF;
+}
+
+// Build the even/odd parity codes
+document.write("<table border=1 cellspacing=0><thead><tr><th>Code<th>P<th>BIC<th>Odd<th>BCL<th>Even<tbody>");
+for (c=0; c<64; c++) {
+    // Odd parity translates
+    odd = 1-parity(c);
+    x = c | (odd << 6);
+    bcdOdd[x] = BICtoANSI[c].charCodeAt(0);
+
+    // Even parity translates
+    even = parity(c);
+    y = c | (even << 6);
+    bcdEven[y] = BICtoANSI[c].charCodeAt(0);
+
+    document.write("<tr><td>");
+    document.write(pic9n(c.toString(8), 2));
+    document.write("<td>");
+    document.write(odd.toString(2));
+    document.write("<td>");
+    document.write(html(BICtoANSI[c]));
+    document.write("<td>");
+    document.write(pic9n(x.toString(2), 7));
+    document.write("<td>");
+    document.write(html(BCLtoANSI[c]));
+    document.write("<td>");
+    document.write(pic9n(y.toString(2), 7));
+}
+document.write("</table>");
+
+document.write("<h3>Odd Parity Table</h3><code>");
+
+for (x=0; x<128; x++) {
+    document.write("0x" + bcdOdd[x].toString(16).toUpperCase() + ", ");
+    if (x % 16 == 15) {
+        document.write("<br>");
+    }
+}
+document.write("</code>");
+
+document.write("<h3>Even Parity Table</h3><code>");
+
+for (x=0; x<128; x++) {
+    document.write("0x" + bcdEven[x].toString(16).toUpperCase() + ", ");
+    if (x % 16 == 15) {
+        document.write("<br>");
+    }
+}
+document.write("</code>");
+
+</script>
+</body>
+</html>

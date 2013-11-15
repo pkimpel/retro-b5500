@@ -41,7 +41,7 @@ function B5500CardPunch(mnemonic, unitIndex, designate, statusChange, signal) {
     this.endOfStacker1 = null;
     this.stacker2 = null;
     this.endOfStacker2 = null;
-    this.window = window.open("/B5500/webUI/B5500CardPunch.html", mnemonic,
+    this.window = window.open("../webUI/B5500CardPunch.html", mnemonic,
             "scrollbars=no,resizable,width=560,height=204,left=0,top=220");
     this.window.addEventListener("load", function windowLoad() {
         that.punchOnload();
@@ -49,7 +49,7 @@ function B5500CardPunch(mnemonic, unitIndex, designate, statusChange, signal) {
 }
 
 B5500CardPunch.prototype.cardsPerMinute = 300;  // Punch speed
-B5500CardPunch.prototype.maxScrollLines = 800;  // Maximum punch stacker scrollback (stacker capacity)
+B5500CardPunch.prototype.maxScrollLines = 850;  // Maximum punch stacker scrollback (stacker capacity)
 
 /**************************************/
 B5500CardPunch.prototype.$$ = function $$(e) {
