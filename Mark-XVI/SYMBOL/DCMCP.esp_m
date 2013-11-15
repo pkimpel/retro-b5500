@@ -23561,3 +23561,252 @@ EOF:  END COOLOFF;%                                                     38376000
                                 HEADER[4].[11:1]~1; END;                38411800        
             END;   IF ACCESS = 4 THEN ACCESS := 2;                      38411900        
             END;%                                                       38412000        
+      END;%                                                             38412100        
+    HEADER[4].[43:1]:=FPB[FNUM+3].[15:1];                               38412200        
+    IF (NOT REW) OR LOCK OR REL OR TIME THEN                            38419000        
+    BEGIN                                                               38420000        
+      FORMS~HEADER[3];                                                  38421000        
+      STREAM(PF~[FIB[4]],D~FPB[FNUM+2].[18:30],H~[HEADER[3]],S~[T]);    38422000        
+      BEGIN SI~PF;SI~SI+5;DS~3 OCT;SI~LOC D;DI~H;DS~8 OCT END;          38423000        
+      HEADER[3]~(P(DUP,LOD,SSN))&(P(DUP))[12:30:18]&T[2:38:10];         38424000        
+    END;                                                                38425000        
+      IF LOCK OR HEADER[4].[43:1] THEN                                  38426000        
+      BEGIN IF NOT HEADER[4] THEN%FILE IS BEING CREATED                 38427000        
+            BEGIN                                                       38428000        
+              IF KRUNCH THEN KRUNCHER(HEADER);                          38429000        
+                   HEADER[4].[9:3]:=5;% MARK AS NEW FORMAT,ACCESSED     38430000        
+                  IF JAR[P1MIX,0] < 0 AND FIB[4].[29:1] THEN            38431000        
+% COMPILER CLOSING CODE FILE WITH LOCK *********************************38432000        
+                   BEGIN                                                38433000        
+                        SEG0:=[M[TYPEDSPACE(62,SEGZEROAREAV)]]&30[SIZE];38434000        
+                        SKEL ~ 31 INX SEG0; T3 ~ JAR[P1MIX,2].[FF];     38435000        
+                        % READ IN SEGMENT ZERO                          38436000        
+                        DISKWAIT(-SEG0.[CF],30,HEADER[10]];             38437000        
+                        % READ IN SKELETON SHEET                        38438000        
+                        DISKWAIT(-SKEL.[CF],30,T3);                     38439000        
+                        IF SKEL[20]<0 THEN SKEL[20] ~ SEG0[7].[FF];     38440000        
+                        IF JAR[P1MIX,2].[8:10]=1 THEN                   38441000        
+                           BEGIN % COMPILE AND GO **********************38442000        
+                             SKEL[6]:=JAR[P1MIX,6]&                     38442100        
+                                      (PRT[P1MIX,3].[8:10]+20)[CTF];    38442200        
+                             DISKWAIT(SKEL.[CF],30,T3);                 38443000        
+                             COMPGO ~ TRUE;                             38444000        
+                           END                                          38445000        
+                        ELSE                                            38446000        
+                           BEGIN % COMPILE TO LIBRARY ******************38447000        
+                             FOR T1 ~ 15 STEP 1 UNTIL 22 DO             38448000        
+                                  SEG0[T1] ~ SKEL[T1];                  38449000        
+                             IF (T2 ~ SKEL[13]) = 0 THEN GO TO L3;      38450000        
+                             SKEL[13] ~ 0; % IN CASE I CALL TERMINATE   38451000        
+                             DISKWAIT(SKEL.[CF],30,T3);                 38452000        
+             IF(T1:=DISKADDRESS(MID,FID,FPB[FNUM+3],HEADER[7]:=  % (SHM)38453000        
+                              (*P(DUP))+1,HEADER,0))=0 THEN             38454000        
+                                  FILEMESS(-"DISK   ","OVRFLOW",MID,FID,38455000        
+                                                           R,D,C);      38456000        
+                             SEG0[15] ~ T1 ~ HEADER[7];                 38457000        
+                   L1:       DISKWAIT(-SKEL.[CF],30,T2);                38458000        
+                             FORGETESPDISK(T2);                         38459000        
+                             IF (T2~SKEL[29]) = 0 THEN GO TO L2;        38460000        
+             IF(T3:=DISKADDRESS(MID,FID,FPB[FNUM+3],HEADER[7]:=  % (SHM)38461000        
+                               (*P(DUP))+1,HEADER,0))=0 THEN            38462000        
+                                  FILEMESS(-"DISK   ","OVRFLOW",MID,FID,38463000        
+                                                           R,D,C);      38464000        
+                             SKEL[29] ~ T3 ~ HEADER[7];                 38465000        
+                             DISKWAIT(SKEL.[CF],30,                     38466000        
+                                    I~HEADER[T1 DIV HEADER[8]+10] +     38467000        
+                                             T1 MOD HEADER[8]);         38468000        
+                             T1 ~ T3;                                   38469000        
+                             GO TO L1;                                  38470000        
+                   L2:       DISKWAIT(SKEL.[CF],30,                     38471000        
+                                    I~HEADER[T1 DIV HEADER[8]+10] +     38472000        
+                                             T1 MOD HEADER[8]);         38473000        
+                   L3:       SEG9[6] ~ P(DUP,LOD,SSN); % "NEW FORMAT"   38474000        
+                             HEADER[4].[10:1]~1;%MARK AS PROGRAM FILE   38475000        
+                             DISKWAIT(SEG0.[CF],30,HEADER[10]);         38476000        
+                           END COPY OF LABEL EQUATION CARDS;            38477000        
+                        FORGETSPACE(SEG0);                              38478000        
+                        IF HEADER[7]<HEADER[8]-1 THEN                   38479000        
+                          BEGIN FORGETUSERDISK(HEADER[10]+HEADER[7]+1,  38480000        
+                                               HEADER[7]-HEADER[8]+1);  38481000        
+                                HEADER[8] ~ HEADER[7]+1;                38482000        
+                          END;                                          38483000        
+                        FOR T1:=-1 STEP 1 UNTIL 4 DO                    38484000        
+DUMMY ::                IF P(.OBJTYPE,T1,+,LOD)=ABS(JAR[P1MIX,0]) THEN  38485000        
+                           HEADER[4].[36:6]:=T1+2;                      38486000        
+                   END;                                                 38488000        
+                   HEADER[1]~FORMS&HEADER[3][6:30:18];                  38489000        
+                    IF (HEADER[2]:=USERCODE[P1MIX]).[1:1] OR            38490000        
+                        MCP=NOT(-0) THEN HEADER[2]~0;                   38491000        
+                  HEADER[5] := HEADER[6] := 0;                          38492000        
+                  IF COMPGO THEN                                        38494000        
+                   BEGIN PRT[P1MIX,@26]~IOD~GETESPDISK;                 38495000        
+                        DISKWAIT(HEADER.[CF],30,IOD);                   38496000        
+                   END ELSE                                             38497000        
+                   BEGIN                                                38498000        
+                   ENTERUSERFILE(MID,FID,HEADER.[CF]-1);                38499000        
+                   END;                                                 38500000        
+            END;%                                                       38501000        
+      END;%                                                             38502000        
+      IF REW AND NOT(LOCK OR REL OR TIME) THEN                          38503000        
+    BEGIN                                                               38503200        
+      IF HEADER[4] THEN                                                 38503400        
+      IF WRITTENON THEN HEADER[4].[11;1]:=1;                            38503600        
+      STATE.[39:4]:=2;                                                  38503800        
+    END ELSE                                                            38504000        
+    BEGIN                                                               38504500        
+      HEADER[1]~FORMS&HEADER[3][6:30:18];                               38505000        
+       IF HEADER[4] THEN%FILE ALREADY EXISTS                            38506000        
+      BEGIN                                                             38507000        
+            J:=WRITTENON OR HEADER[4].[11:1];                           38507500        
+ $ SET OMIT = SHAREDISK                                                 38507799        
+           I~IF FIB[5].[1:1] OR NOT J THEN FIB[5].[13;3]~10 ELSE        38507800        
+                (HEADER INX 0)&FIB[5][30:13:3];                         38508000        
+ $ POP OMIT                                                             38508001        
+ $ SET OMIT = NOT SHAREDISK                                             38508599        
+           IF(I~DIRECTORYSEARCH(MID,FID&J[3:47:1],I))!0 THEN            38509000        
+                IF PURGE THEN                                           38510000        
+                IF M[I+4].[12:4]=0 THEN                                 38511000        
+                IF NOT SYSTEMFILE(MID,FID) THEN                         38512000        
+                IF SECURITYCHECK(MID,FID,USERCODE[P1MIX],I).[45:1] THEN 38513000        
+                   P(DIRECTORYSEARCH(-MID,FID,7),DEL);                  38515000        
+                IF I NEQ 0 THEN FORGETSPACE(I);                         38516000        
+      END ELSE%                                                         38517000        
+      IF NOT LOCK THEN%                                                 38518000        
+      IF HEADER[4].[43:1] THEN P(DIRECTORYSEARCH(-MID,FID,7),DEL) ELSE  38518500        
+    BEGIN                                                               38519000        
+ $ SET OMIT = NOT(DISKLOG)                                              38520000        
+      FOR I~10 STEP 1 UNTIL 29 DO%                                      38522000        
+      IF HEADER[I]!0 THEN FORGETUSERDISK(HEADER[I],-HEADER(8]);%        38523000        
+    END;                                                                38524000        
+      FORGETSPACE(HEADER);                                              38525000        
+      STATE.[39:4]~1;%                                                  38526000        
+    END;                                                                38527000        
+      IF NOT COBOL THEN FIB[4].[27:3]~3;                                38528000        
+      GO CLEANUP;%                                                      38529000        
+OBJTYPE::: "BASIC  ",  %1%                                              38530000        
+           "ALGOL  ",  %2%                                              38531000        
+           "COBOL  ",  %3%                                              38532000        
+           "FORTRAN",  %4%                                              38533000        
+           "TSPOL  ",  %5%                                              38534000        
+           "XALGOL ",  %6%                                              38535000        
+                   0;  %DUMMY%                                          38536000        
+CLEANUP:                                                                38537000        
+      P(P&RCW[CTC],0,RDS,0,XCH,P&P[CTF],STF);                           38538000        
+END DISK CLOSE;                                                         38539000        
+PROCEDURE BACKCLOSE(ALPHA); VALUE ALPHA; INTEGER ALPHA;%                38540000        
+BEGIN REAL RCW=+0,MSCW=-2;                                              38541000        
+      ARRAY FIB=+1[*],FPB=+2[*],HEADER=+3[*];%                          38542000        
+         DONT ADD ANY DECLARATIONS BETWEEN "HEADER" AND "KIND" %%% MCP  38543000        
+      INTEGER KIND=+4,NBUFS=+5,U=+6,BLEN=+7,CODE=+8,                    38544000        
+              UNLABELED=+9,COBOL=+10,I=+11,J=+12,                       38545000        
+              FNUM=+13;                                                 38546000        
+      REAL MID=+14,FID=+15,R=+16,D=+17,C=+18,FORMS=+19,STATE=+20;       38547000        
+      LABEL AGAIN,EOF,EOT,CLOSEOUT,PBD,PUD;                             38548000        
+      LABEL ZEROKDADDR;                                            %175-38548010        
+      REAL STA=+21;%                                                    38548100        
+      REAL T1=+22,T2=+23,T3=+24,IOD=+25;%                               38549000        
+      ARRAY SEG0=+26[*],SKEL=+27[*];                                    38550000        
+      SUBROUTINE COOLOFF;%                                              38552000        
+      BEGIN FOR I~0 STEP 1 UNTIL NBUFS-1 DO%                            38553000        
+            BEGIN IF NOT M[ALPHA+I].[19:1] THEN%                        38554000        
+                        SLEEP([M[ALPHA+I]],IOMASK);%                    38555000        
+                  IF KIND!4 THEN                                        38556000        
+                  IF M[ALPHA+I].[27:1] THEN GO TO EOF;%                 38557000        
+            END;%                                                       38558000        
+EOF:  END COOLOFF;%                                                     38559000        
+      REAL T=+28,ACCESS=+29;%                                           38561000        
+      BOOLEAN COMPGO=+30;                                               38562000        
+      REAL TYPE=+31;                                                    38562100        
+      DEFINE REW=CODE.[47:1]#,%                                         38563000        
+             REL=CODE.[46:1]#,%                                         38564000        
+             TIME=CODE.[45:1]#,%                                        38565000        
+             LOCK=NOT CODE.[44:1]#,%                                    38566000        
+             PURGE=NOT CODE.[43:1]#,%                                   38567000        
+ $ SET OMIT = PACKETS                                                   38567950        
+      DEFINE TOREELNO = 42:42:6#;                                       38568100        
+ $ POP OMIT OMIT                                                        38568150        
+%                                                                       38569000        
+      SUBROUTINE CKBKUP;                                                38570000        
+      BEGIN M[M[ALPHA]INX 17   ]~M[ALPHA]&(FIB[5]               )[FTC]; 38571000        
+            FIB[5]~P(DUP,LOD,0,1,CFX,+);                                38572000        
+            IF NOT PRTROW[P1MIX].[7:1] THEN                             38573000        
+            IF FIB[14].[CF]=FIB[14].[FF]                                38573100        
+         THEN BEGIN PBIO(ALPHA,FIB[14]);SLEEP([M[ALPHA]],IOMASK)END ELSE38574000        
+              BEGIN; STREAM(S~           M[ALPHA],Z~FIB[14].[FF]);      38575000        
+                   BEGIN SI~S; DS~18 WDS END;                           38576000        
+                   FIB[14].[FF]~P(DUP).[FF]-18;                         38577000        
+      END;    END;                                                      38578000        
+      P(RCW,MSCW,STF);                                                  38580000        
+      RCW:=RCW&P(XCH)[CTC];                                             38581000        
+         J~LOCK;                                                        38581100        
+         IF T1~(FIB[9].[1:1] AND KIND=7) THEN % MULTI-REEL PBT FILE     38581200        
+         BEGIN                                                          38581300        
+              FIB[9].[1:1]~0;                                           38581400        
+              COOLOFF;                                                  38581500        
+              GO TO EOT;                                                38581600        
+         END;                                                           38581700        
+      IF M[FIB[14].[3:15] INX NOT 0] = 0 THEN %                    %175-38581800        
+      BEGIN                                                        %175-38581900        
+           I:=TYPE>20;               % 1=PUD                       %175-38581910        
+           R:=M[FIB[14].[3:16]+6];   % PB REEL NO.                 %175-38581920        
+           GO TO ZERODKADDR;                                       %175-38581930        
+      END;                                                              38581940        
+         IF FIB[17]<0 THEN                                              38582000        
+         BEGIN M[ALPHA].[FF]~@60020; IF TYPE<20 THEN CKBKUP;            38583000        
+         M[ALPHA].[18:1]~0; CKBKUP END%                                 38584000        
+              ELSE IF FIB[17]<BLEN THEN%                                38585000        
+      BEGIN IF NOT COBOL THEN FIB[17]~FIB[17]-(STATE.[46:2]=3);%        38586000        
+            STREAM(N:=FIB[17],D:=M[ALPHA].[CF]);                        38587000        
+                   BEGIN N(DS:=8 LIT " "); END;                         38587500        
+M[ALPHA]~FLAG(FIB[16]&0[20:47:1]); CKBKUP;                              38588000        
+      END ELSE COOLOFF;                                                 38589000        
+      M[ALPHA]~(*P(DUP))&(@60000)[CTF];                            %150-38590000        
+      IF TYPE<20 THEN                                              %150-38590100        
+         M[ALPHA]~(*P(DUP))&(IF SEPARATE THEN 1 ELSE @20)[27:42:6];%150-38590200        
+      IF NOT UNLABELED THEN                                             38591000        
+      BEGIN IF TYPE<20 THEN CKBKUP;                                     38591100        
+            M[ALPHA]~(*P(DUP))&2[18:45:3]&M[ALPHA-2][8:8:10];           38592000        
+            IF NOT SEPARATE THEN M[ALPHA]~(*P(DUP))&1[27:42:6];    %150-38592100        
+            STREAM(L~M[ALPHA-2],B~M[ALPHA]); BEGIN SI~L; DS~17 WDS END; 38593000        
+      END;                                                         %150-38594000        
+      IF NOT SEPARATE THEN M[ALPHA]~P(DUP,LOD)&1[27:42:6];         %150-38594100        
+      M[ALPHA].[20:1]~1;                                           %150-38594200        
+      IF FIB[14].[FF]!FIB[14].[CF] THEN                            %150-38594300        
+      BEGIN CKBKUP; FIB[14].[FF]~P(DUP);END; CKBKUP;                    38595000        
+      IF KIND=12 THEN % PBD                                             38596000        
+      BEGIN T~FIB[14].[3:15];                                           38597000        
+            IF (R:=M[T+7]|3) NEQ 0 THEN                                 38598000        
+            BEGIN IF R < PBDROWSZ THEN                                  38598100        
+            BEGIN FORGETUSERDISK(M[T+10]+R,PBDROWSZ-R+1);               38599000        
+                  M[T+8]~R;                                             38600000        
+            END;                                                        38601000        
+            END;                                                   %601-38601100        
+            M[T+1]~M[T+3];                                              38602000        
+            STREAM(A~FPB[FNUM+2].[18:30],T~T+3);                        38603000        
+            BEGIN SI~LOC A;DS~8 OCT;DI~DI-8;DS~2 LIT"+2";               38604000        
+                 SI~T;SI~SI+5;DS~3 CHR;                                 38605000        
+            END;                                                        38606000        
+            M[T+1].[6:18]~M[T+3].[30:18];                               38607000        
+            IF I:=TYPE>20 THEN M[T+5].[3:1]:=0;                         38607100        
+            R:=M[T+6];                                                  38607200        
+ $ SET OMIT = DATACOM AND RJE                                           38607299        
+            P(0);                                                       38607300        
+ $ POP OMIT                                                             38607301        
+ $ SET OMIT = NOT(DATACOM AND RJE )                                     38607399        
+            M[T+6]:=P(XCH);                                             38607900        
+            M[T+5].[2:1]~0;                                             38607950        
+            DISKWAIT(T,30,M[T-1]);                                      38608000        
+            D:=R&1[TOREELNO];                                           38608100        
+AGAIN:      P(DIRECTORYSEARCH(-(IF I THEN P(PUD) ELSE P(PBD)),D,14),    38608200        
+              DEL);                                                     38608300        
+            IF D!R THEN                                                 38608400        
+            BEGIN STREAM(ONE:=1, D:=[D]);                               38608500        
+                  BEGIN SI:=LOC ONE; DS:=8 ADD END;                     38608600        
+                  GO AGAIN;                                             38608700        
+            END;                                                        38608800        
+ $ SET OMIT = NOT PACKETS                                               38608890        
+            IF (T1:=PSEUDOMIX[P1MIX])=0 THEN P(1) ELSE                  38608900        
+            IF PACKETPAGE[T1-32]=0 THEN P(1) ELSE P(0);                 38608910        
+            IF P OR 1 THEN                                         %105-38608920        
+            BEGIN PBCOUNT:=PBCOUNT+1;                                   38609000        
+ $ POP OMIT                                                             38609010        

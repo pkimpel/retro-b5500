@@ -15,6 +15,8 @@
 <script src="./B5500CardReader.js"></script>
 <script src="./B5500CardPunch.js"></script>
 <script src="./B5500DummyPrinter.js"></script>
+<script src="./B5500DatacomUnit.js"></script>
+<script src="./B5500MagTapeDrive.js"></script>
 
 <script src="../emulator/B5500SystemConfiguration.js"></script>
 <script src="../emulator/B5500CentralControl.js"></script>
@@ -34,7 +36,7 @@ window.addEventListener("load", function() {
     var bControl;
     var bNormal;
     var boundBlinkenlicht;
-    var cc = new B5500CentralControl();
+    var cc = new B5500CentralControl(this);
     var intLightsMap = new Array(48);
     var iouLightsMap = new Array(4);
     var lastInterruptMask = 0;
@@ -150,6 +152,42 @@ window.addEventListener("load", function() {
         }
     }
 
+    function displayCallbacks() {
+        /* Builds a table of outstanding callbacks */
+        var cb;
+        var cbs = clearCallback(0);
+        var cookie;
+        var e;
+        var body = document.createElement("tbody");
+        var oldBody = $$("CallbackBody");
+        var row;
+
+        for (cookie in cbs) {
+            cb = cbs[cookie];
+            row = document.createElement("tr");
+
+            e = document.createElement("td");
+            e.appendChild(document.createTextNode(cookie.toString()));
+            row.appendChild(e);
+
+            e = document.createElement("td");
+            e.appendChild(document.createTextNode(cb.delay.toFixed(2)));
+            row.appendChild(e);
+
+            e = document.createElement("td");
+            e.appendChild(document.createTextNode(cb.context.mnemonic || "??"));
+            row.appendChild(e);
+
+            e = document.createElement("td");
+            e.appendChild(document.createTextNode((cb.args ? cb.args.length : 0).toString()));
+            row.appendChild(e);
+            body.appendChild(row);
+        }
+
+        body.id = oldBody.id;
+        oldBody.parentNode.replaceChild(body, oldBody);
+    }
+
     function displayCentralControl() {
         /* Displays the I/O and interrupt status in Central Control */
         var cells;
@@ -170,6 +208,14 @@ window.addEventListener("load", function() {
         $$("AD2F").className = (cc.AD2F ? "busy" : "");
         $$("AD3F").className = (cc.AD3F ? "busy" : "");
         $$("AD4F").className = (cc.AD4F ? "busy" : "");
+
+        /********** for P2 debugging **********
+        $$("P2BF").className = (cc.P2BF ? "busy" : "");
+        $$("HP2F").className = (cc.HP2F ? "busy" : "");
+
+        $$("PABZ").className = (cc.PA && cc.PA.busy ? "busy" : "");
+        $$("PBBZ").className = (cc.PB && cc.PB.busy ? "busy" : "");
+        **********/
 
         x = 0;
         while (iouChange) {
@@ -203,6 +249,7 @@ window.addEventListener("load", function() {
     }
 
     function dasBlinkenlicht() {
+        var cycles;
         var et;
         var pa = cc.PA;
         var pb = cc.PB;
@@ -211,16 +258,17 @@ window.addEventListener("load", function() {
         var stateRate;
 
         timer = setTimeout(boundBlinkenlicht, timerInterval);
+        cycles = p1.normalCycles+p1.controlCycles;
 
         if (pa) {
-            if (!pa.busy) {
+            if (pa.normalCycles+pa.controlCycles <= 0) {
                 if (lastPAControlRate != -1) {
                     lastPAControlRate = -1;
                     aControl.className = "yellowButton";
                     aNormal.className = "yellowButton";
                 }
             } else {
-                stateRate = Math.round(pa.normalCycles/(pa.normalCycles+pa.controlCycles)*6);
+                stateRate = Math.round(pa.normalCycles/cycles*6 + 0.49);
                 if (stateRate != lastPANormalRate) {
                     lastPANormalRate = stateRate;
                     switch (stateRate) {
@@ -281,14 +329,14 @@ window.addEventListener("load", function() {
         }
 
         if (pb) {
-            if (!pb.busy) {
+            if (pb.normalCycles+pb.controlCycles <= 0) {
                 if (lastPBControlRate != -1) {
                     bControl.className = "yellowButton";
                     bNormal.className = "yellowButton";
                     lastPBControlRate = -1;
                 }
             } else {
-                stateRate = Math.round(pb.normalCycles/(pb.normalCycles+pb.controlCycles)*6);
+                stateRate = Math.round(pb.normalCycles/cycles*6 + 0.49);
                 if (stateRate != lastPBNormalRate) {
                     lastPBNormalRate = stateRate;
                     switch (stateRate) {
@@ -358,6 +406,7 @@ window.addEventListener("load", function() {
         if (showAnnunciators) {
             displayCentralControl();
         }
+        // displayCallbacks();
     }
 
     function buildLightMaps() {
@@ -482,7 +531,11 @@ window.addEventListener("load", function() {
         <td id=CCI14F>SPEC              <!-- Special interrupt #1 (not used)            -->
         <td id=CCI15F>DK1F              <!-- Disk file #1 read check finished           -->
         <td id=CCI16F>DK2F              <!-- Disk file #2 read check finished           -->
-        <td colspan=13>
+        <td id=P2BF>P2BF                <!-- Processor 2 busy FF                        -->
+        <td id=HP2F>HP2F                <!-- Halt Processor 2 FF                        -->
+        <td id=PABZ>PABZ                <!-- Processor A busy           *** debug ***   -->
+        <td id=PBBZ>PBBZ                <!-- Processor B busy           *** debug ***   -->
+        <td colspan=9>
         <td id=procSlack>
         <td class=statLabel title="Percentage of time Processor A is throttling its performance">P1 Slack
     <tr id=CCPeripheralRow>
@@ -521,6 +574,18 @@ window.addEventListener("load", function() {
         <td class=statLabel title="Average excess throttling delay for Processor A (ms)">P1 Delay
     </table>
 </div>
+
+<table cellspacing=0 cellpadding=1 border=1 style="position:absolute; top:2in; visibility:hidden">
+<thead>
+  <tr>
+    <th>ID
+    <th>Delay
+    <th>Context
+    <th>#Args
+</thead>
+<tbody id=CallbackBody>
+</tbody>
+</table>
 
 </body>
 </html>

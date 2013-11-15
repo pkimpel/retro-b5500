@@ -43,15 +43,15 @@ function B5500DummyPrinter(mnemonic, unitIndex, designate, statusChange, signal)
     this.doc = null;
     this.paper = null;
     this.endOfPaper = null;
-    this.window = window.open("/B5500/webUI/B5500DummyPrinter.html", mnemonic,
+    this.window = window.open("../webUI/B5500DummyPrinter.html", mnemonic,
             s = "scrollbars,resizable,width=" + w + ",height=" + h +
             ",left=0,top=" + (screen.availHeight - h));
     this.window.addEventListener("load", function windowOnLoad() {
         that.printerOnload();
     }, false);
 }
-B5500DummyPrinter.prototype.linesPerMinute = 1040; // B329 line printer
-B5500DummyPrinter.maxScrollLines = 150000;         // Maximum printer scrollback (about a box of paper)
+B5500DummyPrinter.prototype.linesPerMinute = 1040;      // B329 line printer
+B5500DummyPrinter.prototype.maxScrollLines = 150000;    // Maximum printer scrollback (about a box of paper)
 
 
 /**************************************/

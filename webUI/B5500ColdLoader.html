@@ -533,7 +533,7 @@ window.addEventListener("load", function() {
                      } else {
                          c = tapeMark;  // to kill the loop
                      }
-                 } while (c < 128);
+                 } while (c < 0x80);
                  ctl.eof = false;
                  ctl.blockLength = x - ctl.offset;
                  ctl.offset = x;
@@ -584,7 +584,7 @@ window.addEventListener("load", function() {
                      } else {
                          c = tapeMark;  // to kill the loop
                      }
-                 } while (c < 128);
+                 } while (c < 0x80);
 
                  // Right-justify the last word as necessary
                  while (wx++ < 8) {
@@ -1193,6 +1193,23 @@ window.addEventListener("load", function() {
         var text = "";
         var x = 0;
 
+        function resetSelAll(ev) {
+            $$("SelAll").checked = false;
+        }
+
+        function selectAll(ev) {
+            var checkboxes = body.getElementsByTagName("input");
+            var e;
+            var x;
+
+            for (x=0; x<checkboxes.length; x++) {
+                e = checkboxes[x];
+                if (e.type == "checkbox" && e.id != "SelAll") {
+                    e.checked = ev.target.checked;
+                }
+            }
+        }
+
         clearPanel();
         while (body.firstChild) {
             body.removeChild(body.firstChild);
@@ -1211,13 +1228,19 @@ window.addEventListener("load", function() {
         tapeDir = readTapeDirectory(tapeCtl);
 
         row = document.createElement("tr");
-        // File number and checkbox (empty)
+        // Checkbox, File number, and File name
         cell = document.createElement("td");
-        cell.colSpan=2;
-        row.appendChild(cell);
-        // File name
-        cell = document.createElement("td");
-        cell.appendChild(document.createTextNode("(none)"));
+        cell.colSpan=3;
+        e = document.createElement("input");
+        e.type = "checkbox";
+        e.id = "SelAll";
+        e.value = "SelAll";
+        e.addEventListener("click", selectAll);
+        cell.appendChild(e);
+        e = document.createElement("label");
+        e.appendChild(document.createTextNode("Select All"));
+        e.htmlFor = "SelAll";
+        cell.appendChild(e);
         row.appendChild(cell);
         // Load as MCP for no selection
         cell = document.createElement("td");
@@ -1245,19 +1268,19 @@ window.addEventListener("load", function() {
 
         for (x=1; x<tapeDir.length; x++) {
             row = document.createElement("tr");
-            // File number
-            cell = document.createElement("td");
-            cell.className = "rj";
-            cell.appendChild(document.createTextNode(x.toFixed(0)));
-            row.appendChild(cell);
             // Load selection checkbox
             cell = document.createElement("td");
-            cell.className = "center";
             e = document.createElement("input");
             e.type = "checkbox";
             e.id = "File_" + x;
             e.value = "File_" + x;
+            e.addEventListener("click", resetSelAll);
             cell.appendChild(e);
+            row.appendChild(cell);
+            // File number
+            cell = document.createElement("td");
+            cell.className = "rj";
+            cell.appendChild(document.createTextNode(x.toFixed(0)));
             row.appendChild(cell);
             // File ID
             cell = document.createElement("td");
@@ -1766,7 +1789,7 @@ window.addEventListener("load", function() {
                        pow2[47-28] +                // 28: prevent I/O below user disk area
                        pow2[47-27] +                // 27: prevent disk RELEASE statement
                        pow2[47-26] +                // 26: printer backup disk release
-                       pow2[47-25] +                // 25: check memory links
+                                                    // 25: check memory links
                        pow2[47-24] +                // 24: type disk error messages
                        pow2[47-23] +                // 23: disk logging
                        pow2[47-22] +                // 22: suppress library error messages
@@ -2093,8 +2116,8 @@ TBODY#TapeDirBody {
     <table id=TapeDirTable border=1 cellspacing=0 cellpadding=1>
     <thead>
     <tr>
-        <th>Nr
         <th>Load
+        <th>Nr
         <th>File ID
         <th>as MCP
         <th>as INT
