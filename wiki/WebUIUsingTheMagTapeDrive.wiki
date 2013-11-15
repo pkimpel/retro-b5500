@@ -1,0 +1,67 @@
+#summary Instructions for using the magnetic tape drive with the retro-B5500 emulator in a web browser.
+#labels Burroughs,B5500,emulator,retro-b5500,operator,magnetic tape,B425
+
+= WebUI Using the Magnetic Tape Drive =
+<wiki:toc max_depth="2"/>
+
+
+The B5500 supported several 7-track tape drive models, with recording densities of 200, 555, and 800 bits per inch. Not all drives supported all densities. Tape speed ranged from 83 to 120 inches per second, with data transfer ranges ranging in concert from 66,000 to 96,000 characters per second. Blocks of data on the tape were delimited by a 0.75-inch unrecorded gap. Rewind speed was 320 inches/second, taking about 90 seconds for a full 2400-foot reel of tape.
+
+All drives could record in even or odd parity. With even parity (also termed alpha mode), characters were translated to and from BCL (Burroughs Common Language), which was very similar to the character codes used with IBM 1401 tape drives. With odd parity (binary mode), bits were recorded without translation from their internal representation in the B5500 core memory.
+
+A B5500 system could support 16 tape drives, identified as `MTA` through `MTT` (with letters `G`, `I`, `O`, and `Q` not used).
+
+Here is a view of a B42x-series drive with its front door open, showing the tape head, pinch-roller mechanisms, and tape columns:
+
+    https://googledrive.com/host/0BxqKm7v4xBswRjNYQnpqM0ItbkU/MagTape-Drive-burr0136.jpg
+
+
+= Background =
+
+The tape drive interface we have developed for the web-based emulator is modeled after the 90 inch-per-second B425, operating at 800 bpi. This interface opens in a separate window when the <b>Power On</b> button is activated on the emulator console:
+
+    https://googledrive.com/host/0BxqKm7v4xBswRjNYQnpqM0ItbkU/B5500-MagTapeDrive.png
+
+The B425 had additional buttons and lights for power on/off, but these controls are not relevant to operation under the emulator.
+
+A 2400-foot reel of tape could hold approximately 2-20 million characters depending on the size of the blocks recorded. A typical capacity was 10-15 million characters.
+
+This initial tape drive implementation is read-only, and supports only "`.bcd`" tape image data. In this format, each 7-bit frame on the tape is stored in one 8-bit byte. The low-order six bits of the byte contain the data, low-order bit last. The seventh bit is parity. The high-order bit in the byte is a one if this frame starts a physical block on the tape. A tape mark (end-of-file indicator) is represented by a single-frame block with the hexadecimal value 8F (i.e., an even-parity greater-than-or-equal character). The same tape mark encoding was used with both even and odd parity recording.
+
+By default, the B5500 MCP brackets each file on the tape with 80-character label records. These label records serve to identify the tape reel and file names, and to provide record size and block size information, plus creation and expiration dates for the tape.
+
+Tape files have a two-part name, the MFID (multi-file identifier) which is the same for all files on one logical volume, and the FID (file identifier), which is intended to uniquely identify the file within the logical volume. Each of these names can be up to seven characters in length. A logical tape volume can extend across multiple physical reels of tape.
+
+This two-level naming convention was first established for tapes on the B5000, and later carried into the design of the B5500 MCP disk directory. It eventually made its way into the design of the disk directory for Gary Kildall's CPM operating system.
+
+When a tape is mounted on a drive and the drive made ready, the MCP will automatically read the label and automatically assign the drive to a program that has asked for a file by the names specified on the label. If only the MFID matches, the MCP will automatically search up-tape for a file with the matching FID. Unlabeled tapes are also supported by the MCP, but are less convenient, as they usually need to be assigned manually to a program using the SPO `UL` command.
+
+
+= Tape Drive Control Panel =
+
+The user interface for the emulated tape drive consists of the following controls and indicators:
+
+    * *UNLOAD* -- this black button is used to unload a tape image from the drive. This button is active only when an image is currently loaded and the drive is in local status.
+    * *LOAD* -- this black button is used to load a tape image into the drive as if it were a reel of tape. The button is active only when no image is currently loaded into the drive. Clicking this button will bring up a dialog for the file picker to select an image file, as described below.
+    * *LOCAL* -- this yellow button/indicator lights when the drive is in a not-ready status. The drive becomes ready when a tape image is loaded and the *REMOTE* button is pressed. It becomes not-ready when this button is pressed.
+    * *REMOTE* -- this yellow button/indicator lights when the drive is in a ready status. The drive becomes ready when a tape image is loaded and this button is pressed. It becomes not-ready when the *LOCAL* button is pressed.
+    * *WRITE RING* -- This red button/indicator is used to signal and control whether the tape image that is currently mounted is enabled for writing. When this button is activated (the indicator is lit), the image is writable. Writable status can only be set (i.e., the ring can be inserted) when a tape image is loaded and the drive is in local status. Writable status can be reset (i.e., the ring can be pulled) at any time while an image is loaded.
+    * *REWIND* -- pressing this black button will rewind the tape image to its load point at the beginning of the image. The button is active only when a tape image is loaded into the drive and the drive is in local status.
+
+When a tape image is loaded into the drive, an icon representing a reel of tape will appear next to the rewind button.  While not shown on the picture above, there are white annunciators along the right edge of the panel showing the status of the tape image:
+
+    * *UNLOADED* -- indicates that no tape image is currently loaded into the drive.
+    * *AT BOT* -- indicates that a tape image is loaded and is currently positioned at the beginning of the tape or "load point."
+    * *AT EOT* -- indicates that a tape image is loaded and is currently positioned at its end. No tape movement forward from this position is permitted.
+    * *REWINDING* -- indicates that the drive is currently rewinding to the load point of the image.
+
+Below the buttons is a file picker control. Clicking the *LOAD* button will open a dialog box from which you can select a tape image file to load into the drive. This control is enabled only when the drive is in a not-ready status and no tape image is presently loaded. You can select only one file at a time to load into the drive. The drive does not attempt to verify that any file you load is a valid tape image.
+
+Below the file picker control is a progress bar. This shows the relative amount of data from the tape image remaining on the "input reel." When you load a tape image into the drive, this bar is set to 100% at its far right edge. As the tape moves in the forward direction, the length of the bar will decrease towards the left; as the tape moves backward, the length of the bar will increase towards the right.
+
+
+= Operating the Magnetic Tape Drive =
+
+The basic technique used with the tape drive is simple -- use the *LOAD* button to select a tape image file for loading into the drive, then press the *REMOTE* button to make the drive ready. The MCP should recognize the ready status and attempt to read the tape label. If the file names in the label match names requested by a program, the drive will be assigned to the program automatically. Automatic name matching can be overridden using the SPO `IL` and `UL` commands.
+
+You can stop the drive at any time and make it not-ready by pressing the *LOCAL* button. Restart it by pressing the *REMOTE* button. Whenever the drive is in a not-ready status, you can rewind or unload the tape image.

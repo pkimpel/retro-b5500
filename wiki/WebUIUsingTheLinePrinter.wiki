@@ -1,0 +1,62 @@
+#summary Instructions for using the line printer with the retro-B5500 emulator in a web browser.
+#labels Burroughs,B5500,emulator,retro-b5500,operator,printer,B329
+
+= WebUI Using the Line Printer =
+<wiki:toc max_depth="2"/>
+
+
+The B5500 supported several line printer models, with speeds ranging from 475 to 1040 lines per minute. A B5500 system could support one or two line printers, identified as `LPA` and `LPB`.
+
+
+= Background =
+
+The preliminary line printer interface we have developed for the web-based emulator is modeled after the 1040 line-per-minute B329. This interface opens in a separate window when the <b>Power On</b> button is activated on the emulator console.
+
+Lines are printed in the window as they are received from one of the B5500's I/O Control Units. The window will scroll as lines are added to the end. The capacity of the window is 150,000 lines, which is roughly equivalent to about a case of the "green bar" pin-feed paper that was used with these printers. Once this limit is reached, earlier lines are deleted from the window to make room for new ones. See below for how you can clear existing lines from the window.
+
+Single- and double-spacing of output is supported. Any skip-to-channel command results in a horizontal line being placed at that point in the output. Zero-spaced printing (overprinting) is not supported; and such lines are printed with single spacing. The channel-12 "skip over perforation" feature of the printer is not supported.
+
+B5500 character codes are translated to ASCII lines of text before being displayed in the printer window. You can select and copy lines of text from the window and paste them into another application (such as a text editor) from which they can be saved to permanent storage. This copy/paste technique is the only reasonably convenient way to remove data from the browser-based emulator. Some browsers may also allow you to save the window contents to a file or print the window to your local printer.
+
+Lines of text are composed using the ASCII equivalent of the emulator's version of the B5500 64-character set:
+
+    {{{
+    0 1 2 3 4 5 6 7
+    8 9 # @ ? : > {
+    + A B C D E F G
+    H I . [ & ( < ~
+    | J K L M N O P
+    Q R $ * - 0 ; {
+      / S T U V W X
+    Y Z , % ! = } "
+    }}}
+
+The B5500 used five special Algol characters that do not have ASCII equivalents. The emulator uses the following ASCII substitutions for them:
+
+    * `~` for left-arrow
+    * `|` for "&times;" (the multiplication sign)
+    * `{` for less-than-or-equal
+    * `}` for greater-than-or-equal
+    * `!` for not-equal
+
+
+= Line Printer Control Panel =
+
+This preliminary printer does not have any user interface controls. If you wish to prevent the printer from printing, you can "save" it (make it unavailable to the MCP) using this SPO command:
+
+     {{{
+     SV LPA
+     }}}
+
+Use `LPB` instead of `LPA` for the second printer. Make the printer "ready" (available) again using this command:
+
+    {{{
+    RY LPA
+    }}}
+
+
+= Operating the Line Printer =
+
+As the printer has no controls, the only things you can do with it are watch the lines go by as they are printed, and copy or print all or part of the window contents.
+
+You can "rip the paper" (i.e., erase the contents of the window) by double-clicking anywhere in the window area. A dialog box will pop up asking you to confirm that the "paper" should be cleared.
