@@ -13,11 +13,8 @@
 "use strict";
 
 /**************************************/
-function B5500CentralControl(global) {
+function B5500CentralControl() {
     /* Constructor for the Central Control module object */
-
-    this.mnemonic = "CC";               // Unit mnemonic
-    this.global = global;               // Javascript global object (e.g., "window" for browsers)
 
     /* Global system modules */
     this.DD = null;                     // Distribution & Display unit
@@ -64,11 +61,11 @@ function B5500CentralControl(global) {
 /**************************************/
     /* Global constants */
 
-B5500CentralControl.version = "0.15";
+B5500CentralControl.version = "0.14";
 
-B5500CentralControl.memReadCycles = 1.8;        // assume 2 탎 memory read cycle time (the other option was 3 탎)
-B5500CentralControl.memWriteCycles = 2.5;       // assume 4 탎 memory write cycle time (the other option was 6 탎)
-B5500CentralControl.rtcTick = 1000/60;          // Real-time clock period, milliseconds
+B5500CentralControl.memReadCycles = 2;  // assume 2 탎 memory read cycle time (the other option was 3 탎)
+B5500CentralControl.memWriteCycles = 4; // assume 4 탎 memory write cycle time (the other option was 6 탎)
+B5500CentralControl.rtcTick = 1000/60;  // Real-time clock period, milliseconds
 
 B5500CentralControl.pow2 = [ // powers of 2 from 0 to 52
                      0x1,              0x2,              0x4,              0x8,
@@ -120,37 +117,37 @@ B5500CentralControl.unitIndex = [
 // to the attributes needed to configure the CC unit[] array.
 
 B5500CentralControl.unitSpecs = {
-    DCA: {unitIndex: 17, designate: 16, unitClass: "B5500DatacomUnit"},
-    PPB: {unitIndex: 18, designate: 20, unitClass: null},
-    PRB: {unitIndex: 19, designate: 20, unitClass: null},
+    SPO: {unitIndex: 22, designate: 30, unitClass: B5500SPOUnit},
+    DKA: {unitIndex: 29, designate:  6, unitClass: B5500DiskUnit},
+    DKB: {unitIndex: 28, designate: 12, unitClass: B5500DiskUnit},
+    CRA: {unitIndex: 24, designate: 10, unitClass: B5500CardReader},
+    CRB: {unitIndex: 23, designate: 14, unitClass: B5500CardReader},
+    CPA: {unitIndex: 25, designate: 10, unitClass: B5500CardPunch},
+    LPA: {unitIndex: 27, designate: 22, unitClass: B5500DummyPrinter},
+    LPB: {unitIndex: 26, designate: 26, unitClass: B5500DummyPrinter},
     PRA: {unitIndex: 20, designate: 18, unitClass: null},
+    PRB: {unitIndex: 19, designate: 20, unitClass: null},
     PPA: {unitIndex: 21, designate: 18, unitClass: null},
-    SPO: {unitIndex: 22, designate: 30, unitClass: "B5500SPOUnit"},
-    CRB: {unitIndex: 23, designate: 14, unitClass: "B5500CardReader"},
-    CRA: {unitIndex: 24, designate: 10, unitClass: "B5500CardReader"},
-    CPA: {unitIndex: 25, designate: 10, unitClass: "B5500CardPunch"},
-    LPB: {unitIndex: 26, designate: 26, unitClass: "B5500DummyPrinter"},
-    LPA: {unitIndex: 27, designate: 22, unitClass: "B5500DummyPrinter"},
-    DKB: {unitIndex: 28, designate: 12, unitClass: "B5500DiskUnit"},
-    DKA: {unitIndex: 29, designate:  6, unitClass: "B5500DiskUnit"},
-    DRB: {unitIndex: 30, designate:  8, unitClass: null},
+    PPB: {unitIndex: 18, designate: 20, unitClass: null},
+    DCA: {unitIndex: 17, designate: 16, unitClass: null},
     DRA: {unitIndex: 31, designate:  4, unitClass: null},
-    MTT: {unitIndex: 32, designate: 31, unitClass: null},
-    MTS: {unitIndex: 33, designate: 29, unitClass: null},
-    MTR: {unitIndex: 34, designate: 27, unitClass: null},
-    MTP: {unitIndex: 35, designate: 25, unitClass: null},
-    MTN: {unitIndex: 36, designate: 23, unitClass: null},
-    MTM: {unitIndex: 37, designate: 21, unitClass: null},
-    MTL: {unitIndex: 38, designate: 19, unitClass: null},
-    MTK: {unitIndex: 39, designate: 17, unitClass: null},
-    MTJ: {unitIndex: 40, designate: 15, unitClass: null},
-    MTH: {unitIndex: 41, designate: 13, unitClass: null},
-    MTF: {unitIndex: 42, designate: 11, unitClass: null},
-    MTE: {unitIndex: 43, designate:  9, unitClass: null},
-    MTD: {unitIndex: 44, designate:  7, unitClass: null},
-    MTC: {unitIndex: 45, designate:  5, unitClass: null},
+    DRB: {unitIndex: 30, designate:  8, unitClass: null},
+    MTA: {unitIndex: 47, designate:  1, unitClass: null},
     MTB: {unitIndex: 46, designate:  3, unitClass: null},
-    MTA: {unitIndex: 47, designate:  1, unitClass: "B5500MagTapeDrive"}};
+    MTC: {unitIndex: 45, designate:  5, unitClass: null},
+    MTD: {unitIndex: 44, designate:  7, unitClass: null},
+    MTE: {unitIndex: 43, designate:  9, unitClass: null},
+    MTF: {unitIndex: 42, designate: 11, unitClass: null},
+    MTH: {unitIndex: 41, designate: 13, unitClass: null},
+    MTJ: {unitIndex: 40, designate: 15, unitClass: null},
+    MTK: {unitIndex: 39, designate: 17, unitClass: null},
+    MTL: {unitIndex: 38, designate: 19, unitClass: null},
+    MTM: {unitIndex: 37, designate: 21, unitClass: null},
+    MTN: {unitIndex: 36, designate: 23, unitClass: null},
+    MTP: {unitIndex: 35, designate: 25, unitClass: null},
+    MTR: {unitIndex: 34, designate: 27, unitClass: null},
+    MTS: {unitIndex: 33, designate: 29, unitClass: null},
+    MTT: {unitIndex: 32, designate: 31, unitClass: null}};
 
 
 /**************************************/
@@ -591,8 +588,8 @@ B5500CentralControl.prototype.haltP2 = function haltP2() {
 
     this.HP2F = 1;
     // We know P2 is not currently running on this thread, so save its registers
-    if (this.P2 && this.P2.busy) {
-        this.P2.storeForInterrupt(1, 0);
+    if (this.P2 && this.P2BF) {
+        this.P2.storeForInterrupt(0);
     }
 };
 
@@ -603,7 +600,7 @@ B5500CentralControl.prototype.initiateP2 = function initiateP2() {
     interrupt. Otherwise, loads the INCW into P2's A register and initiates
     the processor. */
 
-    if (this.P2BF || !this.P2) {
+    if (!this.P2 || this.P2BF) {
         this.CCI12F = 1;                // set P2 busy interrupt
         this.signalInterrupt();
     } else {
@@ -936,12 +933,6 @@ B5500CentralControl.prototype.configureSystem = function configureSystem() {
                 cc.signalInterrupt();
             };
             break;
-        case "DCA":
-            return function signalDCA() {
-                cc.CCI13F = 1;
-                cc.signalInterrupt();
-            };
-            break;
         case "DKA":
             return function signalDKA() {
                 cc.setUnitBusy(29, 0);          // Is this needed here ??
@@ -990,7 +981,7 @@ B5500CentralControl.prototype.configureSystem = function configureSystem() {
         if (cfg.units[mnem]) {
             specs = B5500CentralControl.unitSpecs[mnem];
             if (specs) {
-                unitClass = this.global[specs.unitClass || "B5500DummyUnit"];
+                unitClass = specs.unitClass || B5500DummyUnit;
                 if (unitClass) {
                     u = new unitClass(mnem, specs.unitIndex, specs.designate,
                         makeChange(this, specs.unitIndex), makeSignal(this, mnem));
@@ -1053,6 +1044,6 @@ B5500CentralControl.prototype.powerOff = function powerOff() {
     if (this.poweredUp) {
         this.halt();
         // Wait a little while for I/Os, etc., to finish
-        setCallback(shutDown, this, 500);
+        setCallback(shutDown, this, 1000);
     }
 };
