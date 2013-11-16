@@ -1,0 +1,2024 @@
+ $ VERSION 31.000.001                                                   0000010081/10/14.1
+ $ SET LINEINFO                                                         0000020081/10/14.1
+ $ SET LEVEL 2                                                          0000030081/10/14.1
+PROCEDURE NEATUP(PARA);                                                 0000100076/07/14  
+ARRAY                                                                   0000200076/07/14  
+       PARA[*];                                                         0000300076/07/14  
+BEGIN                                                                   00004000          
+ $ SET OMIT                                                             0000495081/10/14.1
+                             SRCE/NEATUP                                0000500081/10/14.1
+                                                                        0000600081/10/14.1
+MODIFICATION LOG.                                                       0000601081/10/14.1
+-----------------                                                       0000602081/10/14.1
+81/10/14  PHK  31.000.001                                               0000603081/10/14.1
+    CLONE FROM EDITOR/NEATUP/SYM: CHANGE FILE FAMILY DEFAULTS,          0000604081/10/14.1
+    REMOVE EXTRA $PAGE COMMANDS, INCLUDE ELBAT IN SYMBOLIC.             0000605081/10/14.1
+                                                                        0000790081/10/14.1
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%0000791081/10/14.1
+%                                                                      %0000792081/10/14.1
+%                         DOCUMENTATION                                %0000793081/10/14.1
+%                            12/1/75                                   %0000794081/10/14.1
+%                          NEATUP/ALGOL                                %0000795081/10/14.1
+%                                                                      %00008000          
+% FILES:                                                               %00009000          
+%       AN INPUT FILE WITH THE NAME "INPUT" AND AN OUTPUT FILE WITH    %00010000          
+%       THE NAME "OUTPUT" ON DISK ARE ASSUMED. THESE SHOULD BE FILE    %00011000          
+%       EQUATED AS DESIRED.                                            %00012000          
+% $ OPTIONS:                                                           %00013000          
+%       AS WITH THE ALGOL COMPILERS DOLLAR CARDS ARE USED TO CONTROL   %00014000          
+%       OPTIONS AVAILABLE FOR NEATING A SOURCE FILE. NOTE THAT THE     %00015000          
+%       CARD IMAGE WILL BE COPIED TO THE OUTPUT FILE ONLY IF THE "$"   %00016000          
+%       CHARACTER IS IN OTHER THAN COL 1.                              %00017000          
+%                                                                      %00018000          
+%       OPTION           DEFAULT             EFFECT                    %00019000          
+%                                                                      %00020000          
+%       BEGINOFFSET         0      MAY BE POSITIVE, NEGATIVE OR 0.     %00021000          
+%                                  SPECIFIES THE POSITION OF A "BEGIN" %00022000          
+%                                  IN RELATION TO THE CURRENT MARGIN.  %00023000          
+%       DECINDENT           7      MUST BE >= 0. SPECIFIES THE         %00024000          
+%                                  INDENTATION OF DECLARATIONS.        %00025000          
+%       DEFINEINDENT        22     MUST BE >= 0. SPECIFIES THE         %0002600076/11/15  
+%                                  INDENTATION OF THE TEXT OF DEFINES. %0002700076/11/15  
+%       ELSEOFFSET          0      MAY BE POSITIVE, NEGATIVE OR 0.     %00028000          
+%                                  SPECIFIES THE POSITION OF AN "ELSE" %00029000          
+%                                  IN RELATION TO THE CURRENT MARGIN.  %00030000          
+%       INDENT              3      MUST BE >= 0. SPECIFIES THE AMOUNT  %00031000          
+%                                  STATEMENTS ARE INDENTED.            %00032000          
+%       INDENTELSEIF      RESET    MAY BE SET, RESET OR POP-ED. IF SET %00033000          
+%                                  AN "IF" FOLLOWING AN "ELSE" WILL BE %00034000          
+%                                  INDENTED.                           %00035000          
+%       INDENTTHENIF        SET    MAY BE SET, RESET OR POP-ED. IF SET %0003600080/08/04  
+%                                  AN "IF" FOLLOWING A "THEN" WILL BE  %00037000          
+%                                  INDENTED.                           %00038000          
+%       LINELENGTH          72     MUST BE BETWEEN 22 AND 72.          %00039000          
+%                                  SPECIFIES THE PORTION OF THE OUTPUT %00040000          
+%                                  CARD IMAGE THAT WILL BE USED.       %00041000          
+%       LOCKCOMMENTS       SET     MAY BE SET, RESET OR POP-ED.        %0004200076/09/01  
+%                                  CONTROLS PROCESSING OF "%" COMMENTS %00043000          
+%                                  WHEN RESET "%" COMMENTS ON A LINE   %00044000          
+%                                  WITH A STATEMENT WILL BE RIGHT      %00045000          
+%                                  JUSTIFIED, WHEN SET SUCH COMMENTS   %00046000          
+%                                  WILL NOT BE MOVED. IN EITHER CASE   %00047000          
+%                                  IF A "%" COMMENT WILL NOT FIT ON A  %00048000          
+%                                  LINE IT IS MOVED TO THE NEXT LINE   %00049000          
+%                                  BY ITSELF.                          %00050000          
+%       MARGIN              5      MUST BE >= 0. SPECIFIES THE         %00051000          
+%                                  INDENTATION OF THE OUTER BLOCK      %00052000          
+%                                  OF THE PROGRAM UNIT.                %00053000          
+%       NEATUP             SET     MAY BE SET, RESET OR POP-ED.        %00054000          
+%                                  CONTROLS REFORMATING - WHEN         %00055000          
+%                                  RESET LINES ARE COPIED TO THE       %00056000          
+%                                  OUTPUT FILE AS THEY ARE.            %00057000          
+%       NEATUPLIST        RESET    MAY BE SET, RESET OR POP-ED.        %00058000          
+%                                  SPECIFIES THAT A PRINTER LISTING    %00059000          
+%                                  OF THE GENERATED OUTPUT IS TO BE    %00060000          
+%                                  PRODUCED.                           %00061000          
+%       NEATUPSEQ      1000 + 1000 ALLOWS SPECIFICATION OF THE BASE    %0006200076/08/19  
+%                                  VALUE AND INCREMENT USED IN         %0006300076/08/19  
+%                                  SEQUENCING THE OUTPUT FILE.         %0006400076/08/19  
+%       ONEPERLINE         SET     MAY BE SET, RESET OR POP-ED.        %00065000          
+%                                  CONTROLS DECLARATIONS. WHEN SET     %00066000          
+%                                  EACH DECLARED IDENTIFIER IS PLACED  %00067000          
+%                                  ON A LINE OF ITS OWN. WHEN RESET    %00068000          
+%                                  AS MANY IDENTIFIERS AS POSSABLE ARE %00069000          
+%                                  PLACED ON EACH LINE.                %0007000079/01/03  
+%       PROCINDENT          5      MUST BE >= 0. SPECIFIES THE AMOUNT  %00071000          
+%                                  STATEMENTS WITHIN A PROCEDURE ARE   %00072000          
+%                                  TO BE INDENTED.                     %00073000          
+%                                                                      %00074000          
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%00075000          
+ $ POP OMIT                                                             0007599081/10/14.1
+ $ PAGE                                                                 0007600081/10/14.1
+FILE                                                                    0007700078/05/03  
+       INPUT(KIND = DISK,FILETYPE = 8),                                 0007800081/10/14.1
+       OUTPUT(KIND = DISK,MAXRECSIZE = 15,BLOCKSIZE = 450,AREAS = 20,   0007900081/10/14.1
+         AREASIZE = 900,FLEXIBLE),                                      0008000081/10/14.1
+       LINE(KIND = PRINTER);                                            00081000          
+ARRAY                                                                   00082000          
+       STMARKS[0:2047],                                                 00083000          
+       PARENSTACK,                                                      00084000          
+       BRACKETSTACK,                                                    00085000          
+       DOBLOCKCOUNTS[0:31];                                             0008600077/07/05  
+EBCDIC ARRAY                                                            0008700076/07/19  
+       SOURCE,                                                          0008800076/07/19  
+       DEST[0:89],                                                      0008900076/07/19  
+       PBUF[0:131],                                                     0009000076/07/19  
+       ACCUM[0:359],                                                    0009100076/07/19  
+       SUPERTOK[0:6665];                                                0009200076/07/19  
+POINTER                                                                 0009300076/07/20  
+       PIN,                                                             0009400076/07/20  
+       POUT,                                                            0009500076/07/20  
+       PA,                                                              0009600076/07/20  
+       STOKP;                                                           0009700076/07/20  
+REAL                                                                    00098000          
+       CA,                                                              00099000          
+       CIN,                                                             00100000          
+       COT,                                                             00101000          
+       TYPE,                                                            00102000          
+       LASTTYPE,                                                        0010300077/07/05  
+       IDFRDESC,                                                        0010400077/07/05  
+       INCREMENT,                                                       00105000          
+       GMARGIN,                                                         00106000          
+       OBMARGIN,                                                        0010700078/07/24  
+       BLOCKBASE,                                                       00108000          
+       SEQ,                                                             00109000          
+       SEQINC,                                                          00110000          
+       DECINDENT,                                                       00111000          
+       DEFINEINDENT,                                                    00112000          
+       PROCINDENT,                                                      00113000          
+       BEGINOFFSET,                                                     00114000          
+       ELSEOFFSET,                                                      0011500076/07/22  
+       LINELENGTH,                                                      0011600076/07/22  
+       MARKER,                                                          0011700076/07/22  
+       STL,                                                             0011800076/07/22  
+       ACTIVEPARENS,                                                    0011900076/07/22  
+       ACTIVEBRACKETS,                                                  00120000          
+       SUPERTOKENSTARTER,                                               00121000          
+       STM,                                                             00122000          
+       LASTCOMMA,                                                       00123000          
+       DOSDOING,                                                        0012400077/03/18  
+       IFSDOING,                                                        0012500077/07/05  
+       INPUTFKIND;                                                      0012600077/07/05  
+LABEL                                                                   0012700076/08/16  
+       EOF;                                                             0012800076/08/16  
+BOOLEAN                                                                 00129000          
+       DECLFLAG,                                                        00130000          
+       LOOKINGFORDO,                                                    00131000          
+       LISTTOG,                                                         00132000          
+       DEFINEINPROGRESS,                                                00133000          
+       PROCINPROGRESS,                                                  00134000          
+       PROCESSINGGLOBALDECS,                                            0013500078/07/25  
+       ONEPERLINE,                                                      00136000          
+       INDENTTHENIF,                                                    00137000          
+       INDENTELSEIF,                                                    00138000          
+       INHIBITSCAN,                                                     00139000          
+       NEATUPTOG,                                                       00140000          
+       OMITTOG,                                                         0014100081/10/14.1
+       MAKENEWFILE,                                                     00142000          
+       LOOKINGFOROF,                                                    00143000          
+       LEFTCOMMENTS,                                                    0014400077/07/05  
+       LOCKCOMMENTS,                                                    0014500077/07/05  
+       ACTIVESUPERTOKEN,                                                00146000          
+       SPACEFLAG,                                                       0014700077/03/22  
+       FIRSTBLOCK,                                                      0014800078/07/25  
+       ALREADYINDENTED;                                                 00149000          
+TRUTHSET                                                                0015000077/07/07  
+       NUMERICS("0123456789"),                                          0015100077/07/07  
+       IDFRSTARTERS(ALPHA AND ^ NUMERICS OR "'"),                       0015200077/07/07  
+       IDFRVALIDS(IDFRSTARTERS OR NUMERICS OR "_"),                     0015300081/05/07  
+       CLOSERS(")]"),                                                   0015400077/07/07  
+       OPENERS("(["),                                                   0015500076/07/22  
+       BLANKAROUNDS(":=<>^+-&*!"),                                      0015600079/06/25  
+       EDITLETTERS("ACDEFHIJKLORV");                                    0015700081/10/14.1
+DEFINE                                                                  0015800081/09/21  
+       NXTCOMMA     = [47:11] #,                                        0015900081/09/21  
+       FLNKINDX     = [36:11] #,                                        0016000081/09/21  
+       STDISPF      = [25:14] #,                                        0016100081/09/21  
+       STLENF       = [11:08] #,                                        0016200081/09/21  
+       STTYPEF      = [03:04] #,                                        0016300081/09/21  
+       STTYPE(I)    = STMARKS[I].STTYPEF #,  % TYPE OF THIS TOKEN       0016400076/11/16  
+       STLENGTH(I)  = STMARKS[I].STLENF #,   % LENGTH OF THIS TOKEN     0016500076/11/16  
+       STDISP(I)    = STMARKS[I].STDISPF #,  % START POS OF THIS TOKEN  0016600076/11/16  
+       STLINK(I)    = STMARKS[I].FLNKINDX #, %  LINK TO TERMINATOR      0016700076/11/16  
+       QUOTE        = """ #,                                            0016800077/07/07  
+       UNDEFINED    = 0 #,                                              0016900077/03/22  
+       IDFR         = 1 #,                                              0017000077/07/06  
+       KIDFR        = 2 #,                                              0017100077/07/06  
+       ANUMBER      = 3 #,                                              0017200077/07/06  
+       SPECIALCHAR  = 4 #,                                              0017300077/07/06  
+       ASTRING      = 5 #,                                              0017400081/05/07  
+       PCOMMENT     = 6 #,                                              0017500077/07/06  
+       CCOMMENT     = 7 #,                                              0017600077/07/06  
+       BRKTCLASS    = 0 #,                                              00177000          
+       PARENCLASS   = 1 #,                                              00178000          
+       REPLCLASS    = 2 #,                                              00179000          
+       COPY         = BEGIN                                             0018000076/07/19  
+                         REPLACE DEST BY SOURCE FOR 12 WORDS;           0018100076/07/19  
+                         EMITWITHNOCOMMENTCHK;                          0018200076/07/15  
+                      END #,                                            00183000          
+       EMIT         = EMITTER(FALSE) #,                                 0018400076/07/20  
+       EMITWITHNOCOMMENTCHK =                                           0018500076/07/20  
+                      EMITTER(TRUE) #,                                  0018600076/07/20  
+       EMITANDINDENT2 =                                                 00187000          
+                      BEGIN                                             0018800076/07/23  
+                         EMITWITHNOCOMMENTCHK;                          0018900076/07/23  
+                         COT :=                                         0019000077/03/22  
+                           IF DECLFLAG THEN                             0019100077/03/22  
+                              BLOCKBASE + DECINDENT + 2                 0019200077/03/22  
+                           ELSE                                         0019300077/03/22  
+                              GMARGIN + 2;                              0019400077/03/22  
+                         POUT := DEST[COT];                             0019500076/07/20  
+                         COT := LINELENGTH - COT;                       0019600076/07/20  
+                      END #,                                            00197000          
+       SCANTILNOTBLANK =                                                00198000          
+                      DO BEGIN                                          00199000          
+                            IF CIN <= 0 THEN                            00200000          
+                               NEXTCARD;                                00201000          
+                            SCAN PIN:PIN FOR CIN:CIN UNTIL ^= " ";      0020200076/07/20  
+                         END                                            0020300076/07/20  
+                      UNTIL CIN ^= 0 #,                                 0020400076/07/20  
+       TRANSFER(THISMUCH) =                                             00205000          
+                      DO BEGIN                                          00206000          
+                            IF CIN <= 0 THEN                            00207000          
+                               NEXTCARD;                                00208000          
+                            REPLACE PA:PA BY PIN:PIN FOR T:CIN THISMUCH;0020900076/07/20  
+                            CA := CA + CIN - (CIN := T);                0021000076/07/20  
+                         END                                            0021100076/07/20  
+                      UNTIL CIN ^= 0 #,                                 0021200076/07/20  
+       TRANSFERCT(THISMANY) =                                           00213000          
+                      THRU THISMANY DO                                  00214000          
+                      BEGIN                                             00215000          
+                         IF CIN <= 0 THEN                               00216000          
+                            NEXTCARD;                                   00217000          
+                         REPLACE PA:PA BY PIN:PIN FOR 1;                0021800076/07/19  
+                         CA := CA + 1;                                  00219000          
+                         CIN := CIN - 1;                                0022000076/07/20  
+                      END #,                                            00221000          
+       INITIALIZEDEST(K) =                                              0022200077/03/21  
+                      BEGIN                                             0022300076/07/19  
+                         POUT := DEST[GMARGIN := K];                    0022400076/07/19  
+                         COT := LINELENGTH - GMARGIN;                   0022500076/07/20  
+                      END #,                                            00226000          
+       STRIPTRAILINGBLANKS =                                            00227000          
+                      BEGIN                                             0022800076/07/19  
+                         DO                                             0022900076/07/19  
+                         UNTIL ACCUM[CA := CA - 1] ^= " ";              0023000076/07/19  
+                         CA := CA + 1;                                  00231000          
+                      END #,                                            00232000          
+       PUTBLANK     = IF ACTIVESUPERTOKEN THEN                          0023300076/07/20  
+                      BEGIN                                             0023400076/07/20  
+                         REPLACE STOKP:STOKP BY " ";                    0023500076/07/20  
+                         STL := * + 1;                                  0023600077/03/21  
+                         IF STM = 0 THEN                                0023700077/03/21  
+                         BEGIN                                          0023800077/03/21  
+                            STMARKS[0] := SPECIALCHAR & 1 STLENF;       0023900077/03/21  
+                            STM := 1;                                   0024000077/03/21  
+                         END                                            0024100076/07/19  
+                         ELSE                                           0024200076/07/19  
+                            STLENGTH[STM - 1] := STLENGTH[STM - 1] + 1; 0024300076/07/19  
+                      END                                               0024400076/07/19  
+                      ELSE                                              0024500076/07/19  
+                      IF COT = 0 THEN                                   0024600076/07/19  
+                         EMITANDINDENT2                                 0024700076/07/19  
+                      ELSE                                              0024800076/07/19  
+                      BEGIN                                             0024900076/07/19  
+                         REPLACE POUT:POUT BY " ";                      0025000076/07/19  
+                         COT := COT - 1;                                0025100076/07/20  
+                      END #,                                            00252000          
+       SPACENEEDED  = (LASTTYPE = IDFR OR LASTTYPE = ANUMBER OR LASTTYPE00253000          
+                         = ASTRING OR LASTTYPE = SPECIALCHAR AND        00254000          
+                        SPACEKEY) #,                                    00255000          
+       NEXTLINESIZE = (LINELENGTH - 2 - (IF DECLFLAG THEN BLOCKBASE +   0025600076/07/22  
+                        DECINDENT ELSE GMARGIN)) #,                     0025700076/07/22  
+       HANDLECOMMENT =                                                  00258000          
+                      BEGIN                                             00259000          
+                         INITIALIZEDEST(0);                             00260000          
+                         PUTTOKEN;  % "COMMENT"                         00261000          
+                         PUTBLANK;                                      00262000          
+                         DO BEGIN                                       0026300076/07/19  
+                               IF CIN <= 0 THEN                         0026400076/07/19  
+                               BEGIN                                    0026500076/07/19  
+                                  EMITWITHNOCOMMENTCHK;                 0026600076/07/19  
+                                  NEXTCARD;                             00267000          
+                                  INITIALIZEDEST(0);                    00268000          
+                               END;                                     00269000          
+                               REPLACE POUT:POUT BY                     0027000076/07/20  
+                                 PIN:PIN FOR CIN:CIN UNTIL = ";";       0027100076/07/20  
+                            END                                         0027200076/07/19  
+                         UNTIL PIN = ";";                               0027300076/07/19  
+                         REPLACE POUT:POUT BY PIN:PIN FOR 1;            0027400076/07/19  
+                         EMITWITHNOCOMMENTCHK;                          0027500076/07/19  
+                         CIN := CIN - 1;                                0027600076/07/20  
+                      END #,                                            00277000          
+       PROCESSCOMMA = IF DECLFLAG THEN                                  00278000          
+                         IF ONEPERLINE AND ACTIVEPARENS = 0 AND         00279000          
+                           ACTIVEBRACKETS = 0                           00280000          
+                         THEN                                           00281000          
+                         BEGIN                                          00282000          
+                            EMIT;                                       00283000          
+                            INITIALIZEDEST(BLOCKBASE + DECINDENT);      0028400076/07/28  
+                         END                                            00285000          
+                         ELSE                                           00286000          
+                         IF ACTIVEPARENS = 0 THEN                       00287000          
+                            PUTBLANK #,                                 00288000          
+       ITSAPROCEDURE =                                                  00289000          
+                      ITEMKEY[IDFRDESC] = PROCEDUREC #,                 0029000077/07/05  
+       ITSACOMMENT  = ITEMKEY[IDFRDESC] = COMMENTC #,                   0029100077/07/05  
+       ITSASWITCH   = ITEMKEY[IDFRDESC] = SWITCHC #,                    0029200077/07/05  
+       ITSADEFINE   = ITEMKEY[IDFRDESC] = DEFINEC #,                    0029300077/07/05  
+       ITSABEGIN    = ITEMKEY[IDFRDESC] = BEGINC #,                     0029400077/07/05  
+       ITSANELSE    = ITEMKEY[IDFRDESC] = ELSEC #,                      0029500077/07/05  
+       ITSACASE     = ITEMKEY[IDFRDESC] = CASEC #,                      0029600077/07/05  
+       ITSATHEN     = ITEMKEY[IDFRDESC] = THENC #,                      0029700077/07/05  
+       ITSANITER    = RESWORDTYPE[IDFRDESC,ITERATIONOP] #,              0029800077/07/05  
+       ITSANEND     = ITEMKEY[IDFRDESC] = ENDC #,                       0029900077/07/05  
+       ITSANIF      = ITEMKEY[IDFRDESC] = IFC #,                        0030000077/07/05  
+       ITSANOF      = ITEMKEY[IDFRDESC] = OFC #,                        0030100077/07/05  
+       ITSADO       = ITEMKEY[IDFRDESC] = DOC #,                        0030200077/07/05  
+       ITSABY       = ITEMKEY[IDFRDESC] = BYC #,                        0030300077/07/05  
+       ITSANUNTIL   = ITEMKEY[IDFRDESC] = UNTILC #,                     0030400077/07/05  
+       ITSARESWORD  = (TYPE = KIDFR AND ITEMTYPE[IDFRDESC] = RESWORD) #,0030500077/07/06  
+       ITSADECLARATION =                                                0030600077/07/05  
+                      (TYPE = KIDFR AND ITEMTYPE[IDFRDESC] = DECLARATOR 0030700077/07/05  
+                        AND PIN ^= "(") #,                              0030800077/07/05  
+       DOINGADO     = DOSDOING > 0 #,                                   00309000          
+       DOBLOCKCOUNT = DOBLOCKCOUNTS[DOSDOING] #,                        00310000          
+       ELSEMARGINF  = [23:8] #,                                         00311000          
+       ATERMINATOR  = (TYPE = SPECIALCHAR OR TYPE = ASTRING OR TYPE =   0031200077/07/05  
+                        PCOMMENT OR TYPE = KIDFR AND                    0031300077/07/05  
+                        RESWORDTYPE[IDFRDESC,TERMINATOR]) #,            0031400077/07/05  
+       THISENDSTHESUPERTOKEN =                                          00315000          
+                      IF SUPERTOKENSTARTER = BRKTCLASS THEN             0031600077/03/21  
+                         PA = "]" AND ACTIVEBRACKETS = 0                0031700077/03/21  
+                      ELSE                                              0031800077/03/21  
+                      IF SUPERTOKENSTARTER = PARENCLASS THEN            0031900077/03/21  
+                         PA = ")" AND ACTIVEPARENS = 0                  0032000077/03/21  
+                      ELSE                                              0032100077/03/21  
+                      IF SUPERTOKENSTARTER = REPLCLASS THEN             0032200077/03/21  
+                          (PA = "," OR PA = ";" OR ITSANELSE) AND       0032300077/03/21  
+                           ACTIVEPARENS = 0 AND ACTIVEBRACKETS = 0      0032400077/03/21  
+                      ELSE                                              0032500077/03/21  
+                         FALSE #,                                       0032600077/03/21  
+       LENGTHOFGROUP(I) =                                               0032700076/11/16  
+                      (STDISP[STLINK[I]] - THISSTARTPOS +               00328000          
+                        STLENGTH[STLINK[I]]) #,                         00329000          
+       CHECKFOREDITINGPHRASEN =                                         00330000          
+                      BEGIN                                             0033100076/07/19  
+                         IF PIN IN EDITLETTERS THEN                     0033200076/07/19  
+                            IF PIN + 1 IN NUMERICS THEN                 0033300076/07/19  
+                            BEGIN                                       0033400076/07/19  
+                               TRANSFERCT(1); % TRANSFER EDIT-LETTER    0033500076/07/19  
+                               GO TO NBR;                               00336000          
+                            END;                                        00337000          
+                      END #,                                            00338000          
+       CHECKFOREDITINGPHRASEA =                                         00339000          
+                      BEGIN                                             00340000          
+                         IF CA = 1 THEN                                 00341000          
+                            IF PA IN EDITLETTERS THEN                   00342000          
+                               IF PIN IN NUMERICS THEN                  00343000          
+                                  GO TO NBR;                            00344000          
+                      END #,                                            00345000          
+       LINEEMPTY    = DEST = " " FOR 72 #,                              0034600076/07/19  
+       BLANKOUT     = REPLACE DEST BY " " FOR 12 WORDS # ,              0034700076/07/19  
+       DIGITSIN(N)  = ((FIRSTONE(SCALERIGHTF(N,12)) - 1).[8:7] + 1) #;  0034800080/09/11  
+EBCDIC VALUE ARRAY LEXICONTEXT                                          0034900081/10/14.1
+    ("TRANSLATETABLELOCKCOMMENTSLEFTCOMMENTSINDENTTHENIFINDE",          0034901081/10/14.1
+     "NTELSEIFDEFINEINDENTBEGINOFFSETELSEOFFSETLINELENGTHONE",          0034902081/10/14.1
+     "PERLINEATUPLISTPROCINDENTNEATUPSEQDECINDENTREFERENCEPR",          0034903081/10/14.1
+     "OCEDUREINTERRUPTINTERLOCKTRUTHSETDATABASECOMPLEXBOOLEA",          0034904081/10/14.1
+     "NPOINTERPICTUREINTEGERMONITORMESSAGELIBRARYLAYOUTFORMA",          0034905081/10/14.1
+     "TEXPORTNUMBERSTRINGSWITCHEBCDICDOUBLEDIRECTMARGINEVENT",          0034906081/10/14.1
+     "ASCIIARRAYRESETALPHAVALUEQUEUEFIELDLABELWHILEUNTILCASE",          0034907081/10/14.1
+     "THRUSTEPLONGFILEREALWORDOMITPAGEPOPBCLANDOWNHEXNOTNEQM",          0034908081/10/14.1
+     "ODLSSEQLENDIVLEQIMPGTRGEQVBY");                                   0034909081/10/14.1
+VALUE ARRAY COARSEINDEX(                                                0034910081/10/14.1
+      4"000000000003",4"000004000008",4"00000900000B",4"00000C000013",  0034911081/10/14.1
+      4"00001400001B",4"00001C00001F",4"000020000021",4"000022000022",  0034912081/10/14.1
+      4"00002300002B",4"000001000000",4"000001000000",4"00002C000036",  0034913081/10/14.1
+      4"00003700003A",4"00003B000040",4"000041000046",4"00004700004C",  0034914081/10/14.1
+      4"00004D00004D",4"00004E000050",4"000051000054",4"000055000058",  0034915081/10/14.1
+      4"000059000059",4"00005A00005A",4"00005B00005C",4"000001000000",  0034916081/10/14.1
+      4"000001000000",4"000001000000",4"000001000000",4"000001000000",  0034917081/10/14.1
+      4"000001000000",4"000001000000",4"000001000000",4"000001000000",  0034918081/10/14.1
+      4"000001000000",4"000001000000",4"000001000000");                 0034919081/10/14.1
+VALUE ARRAY INFOARRAY(                                                  0034920081/10/14.1
+      4"0C30841A0012",4"145030144000",4"14502E149000",4"14502C153000",  0034921081/10/14.1
+      4"0820881CA002",4"0C303219D000",4"14508604A002",4"1C70340D2000",  0034922081/10/14.1
+      4"2CB00204A001",4"10408A176002",4"1C70380CB000",4"1C7036012000",  0034923081/10/14.1
+      4"08208E12D002",4"0C308C1BA002",4"18603C03E000",4"18604012D000",  0034924081/10/14.1
+      4"18603E133000",4"20803A0C3000",4"24900408E001",4"30C00603E001",  0034925081/10/14.1
+      4"0C30941B5022",4"0C30921B8182",4"0C30961C7012",4"104090038182",  0034926081/10/14.1
+      4"14504413F000",4"186042127000",4"18604610F000",4"28A008055001",  0034927081/10/14.1
+      4"0C3098109042",4"10404A186000",4"145048162008",4"18604C109000",  0034928081/10/14.1
+      4"0C309C1C3022",4"0C309A1C6022",4"0C304E1A6000",4"0820A0026022",  0034929081/10/14.1
+      4"08209E030002",4"0C30A21C0012",4"18600A026001",4"1C70500E7000",  0034930081/10/14.1
+      4"2490540A9000",4"2490520B2008",4"30C00C032001",4"30C00E026001",  0034931081/10/14.1
+      4"0C30A41BD022",4"0C30A61B2022",4"104060182000",4"10405E00E008",  0034932081/10/14.1
+      4"10405C077000",4"145056167000",4"186058103008",4"1C705A0FC000",  0034933081/10/14.1
+      4"28A01405F001",4"30C01200E001",4"30C01001A001",4"0C30A81AF002",  0034934081/10/14.1
+      4"186016139001",4"1C70640EE000",4"1C70620F5004",4"0C30AC1A9012",  0034935081/10/14.1
+      4"0C30AA1AC022",4"186066115000",4"186018071001",4"24901C085001",  0034936081/10/14.1
+      4"28A01A071001",4"082068069000",4"0820B00F3012",4"0820AE04F002",  0034937081/10/14.1
+      4"0C306A1A3000",4"10401E192001",4"28A020069001",4"0C302419A001",  0034938081/10/14.1
+      4"104022196001",4"1C706C0E0000",4"1C706E0D9000",4"2490700A0000",  0034939081/10/14.1
+      4"28A02607B001",4"14507215D00C",4"10407418A000",4"14502814E001",  0034940081/10/14.1
+      4"249076097000",4"0C302A052001",4"1040B417E002",4"18607811B000",  0034941081/10/14.1
+      4"18607A121000",4"1040B202C102",4"1040B617A042",4"20807E0BB000",  0034942081/10/14.1
+      4"38E07C000000",4"1450B8171082",4"145080158000",4"10408218E008",  0034943081/10/14.1
+      4"1450BA16C042");                                                 0034944081/10/14.1
+DEFINE                                                                  0034945081/10/14.1
+     ALPHAC                    =   22 #,                                0034946081/10/14.1
+     ANDC                      =   66 #,                                0034947081/10/14.1
+     ARRAYC                    =   23 #,                                0034948081/10/14.1
+     ASCIIC                    =   24 #,                                0034949081/10/14.1
+     BCLC                      =   25 #,                                0034950081/10/14.1
+     BEGINC                    =   67 #,                                0034951081/10/14.1
+     BEGINOFFSETC              =   1 #,                                 0034952081/10/14.1
+     BOOLEANC                  =   26 #,                                0034953081/10/14.1
+     BYC                       =   68 #,                                0034954081/10/14.1
+     CASEC                     =   69 #,                                0034955081/10/14.1
+     COMMENTC                  =   27 #,                                0034956081/10/14.1
+     COMPLEXC                  =   28 #,                                0034957081/10/14.1
+     DATABASEC                 =   29 #,                                0034958081/10/14.1
+     DECINDENTC                =   2 #,                                 0034959081/10/14.1
+     DEFINEC                   =   30 #,                                0034960081/10/14.1
+     DEFINEINDENTC             =   3 #,                                 0034961081/10/14.1
+     DIRECTC                   =   31 #,                                0034962081/10/14.1
+     DIVC                      =   70 #,                                0034963081/10/14.1
+     DOC                       =   71 #,                                0034964081/10/14.1
+     DOUBLEC                   =   32 #,                                0034965081/10/14.1
+     EBCDICC                   =   33 #,                                0034966081/10/14.1
+     ELSEC                     =   72 #,                                0034967081/10/14.1
+     ELSEOFFSETC               =   4 #,                                 0034968081/10/14.1
+     ENDC                      =   73 #,                                0034969081/10/14.1
+     EQLC                      =   74 #,                                0034970081/10/14.1
+     EQVC                      =   75 #,                                0034971081/10/14.1
+     EVENTC                    =   34 #,                                0034972081/10/14.1
+     EXPORTC                   =   35 #,                                0034973081/10/14.1
+     FIELDC                    =   36 #,                                0034974081/10/14.1
+     FILEC                     =   37 #,                                0034975081/10/14.1
+     FORC                      =   76 #,                                0034976081/10/14.1
+     FORMATC                   =   38 #,                                0034977081/10/14.1
+     GEQC                      =   77 #,                                0034978081/10/14.1
+     GTRC                      =   78 #,                                0034979081/10/14.1
+     HEXC                      =   39 #,                                0034980081/10/14.1
+     IFC                       =   79 #,                                0034981081/10/14.1
+     IMPC                      =   81 #,                                0034982081/10/14.1
+     INC                       =   80 #,                                0034983081/10/14.1
+     INDENTC                   =   5 #,                                 0034984081/10/14.1
+     INDENTELSEIFC             =   6 #,                                 0034985081/10/14.1
+     INDENTTHENIFC             =   7 #,                                 0034986081/10/14.1
+     INTEGERC                  =   40 #,                                0034987081/10/14.1
+     INTERLOCKC                =   41 #,                                0034988081/10/14.1
+     INTERRUPTC                =   42 #,                                0034989081/10/14.1
+     LABELC                    =   43 #,                                0034990081/10/14.1
+     LAYOUTC                   =   44 #,                                0034991081/10/14.1
+     LEFTCOMMENTSC             =   8 #,                                 0034992081/10/14.1
+     LEQC                      =   82 #,                                0034993081/10/14.1
+     LIBRARYC                  =   45 #,                                0034994081/10/14.1
+     LINELENGTHC               =   10 #,                                0034995081/10/14.1
+     LISTC                     =   46 #,                                0034996081/10/14.1
+     LOCKC                     =   47 #,                                0034997081/10/14.1
+     LOCKCOMMENTSC             =   9 #,                                 0034998081/10/14.1
+     LONGC                     =   48 #,                                0034999081/10/14.1
+     LSSC                      =   83 #,                                0035000081/10/14.1
+     MARGINC                   =   11 #,                                0035001081/10/14.1
+     MESSAGEC                  =   49 #,                                0035002081/10/14.1
+     MODC                      =   84 #,                                0035003081/10/14.1
+     MONITORC                  =   50 #,                                0035004081/10/14.1
+     NEATUPC                   =   12 #,                                0035005081/10/14.1
+     NEATUPLISTC               =   13 #,                                0035006081/10/14.1
+     NEATUPSEQC                =   14 #,                                0035007081/10/14.1
+     NEQC                      =   85 #,                                0035008081/10/14.1
+     NOTC                      =   86 #,                                0035009081/10/14.1
+     NUMBERC                   =   51 #,                                0035010081/10/14.1
+     OFC                       =   87 #,                                0035011081/10/14.1
+     OMITC                     =   15 #,                                0035012081/10/14.1
+     ONC                       =   52 #,                                0035013081/10/14.1
+     ONEPERLINEC               =   16 #,                                0035014081/10/14.1
+     ORC                       =   88 #,                                0035015081/10/14.1
+     OWNC                      =   53 #,                                0035016081/10/14.1
+     PAGEC                     =   17 #,                                0035017081/10/14.1
+     PICTUREC                  =   54 #,                                0035018081/10/14.1
+     POINTERC                  =   55 #,                                0035019081/10/14.1
+     POPC                      =   18 #,                                0035020081/10/14.1
+     PROCEDUREC                =   56 #,                                0035021081/10/14.1
+     PROCINDENTC               =   19 #,                                0035022081/10/14.1
+     QUEUEC                    =   57 #,                                0035023081/10/14.1
+     REALC                     =   58 #,                                0035024081/10/14.1
+     REFERENCEC                =   59 #,                                0035025081/10/14.1
+     RESETC                    =   20 #,                                0035026081/10/14.1
+     SETC                      =   21 #,                                0035027081/10/14.1
+     STEPC                     =   90 #,                                0035028081/10/14.1
+     STRINGC                   =   60 #,                                0035029081/10/14.1
+     SWITCHC                   =   61 #,                                0035030081/10/14.1
+     THENC                     =   89 #,                                0035031081/10/14.1
+     THRUC                     =   91 #,                                0035032081/10/14.1
+     TRANSLATETABLEC           =   62 #,                                0035033081/10/14.1
+     TRUTHSETC                 =   63 #,                                0035034081/10/14.1
+     UNTILC                    =   92 #,                                0035035081/10/14.1
+     VALUEC                    =   64 #,                                0035036081/10/14.1
+     WHILEC                    =   93 #,                                0035037081/10/14.1
+     WORDC                     =   65 #;                                0035038081/10/14.1
+DEFINE                                                                  0035039081/10/14.1
+     ALGOL                     =   0 #,                                 0035040081/10/14.1
+     BOOLEANOP                 =   0 #,                                 0035041081/10/14.1
+     DCALGOL                   =   1 #,                                 0035042081/10/14.1
+     DECLARATOR                =   0 #,                                 0035043081/10/14.1
+     ESPOL                     =   2 #,                                 0035044081/10/14.1
+     ESPOLORDCALGOL            =   3 #,                                 0035045081/10/14.1
+     ITERATIONOP               =   2 #,                                 0035046081/10/14.1
+     LINEENDER                 =   4 #,                                 0035047081/10/14.1
+     MYOPTION                  =   1 #,                                 0035048081/10/14.1
+     RELATIONOP                =   1 #,                                 0035049081/10/14.1
+     RESWORD                   =   2 #,                                 0035050081/10/14.1
+     TERMINATOR                =   3 #;                                 0035051081/10/14.1
+DEFINE                                                                  0035052081/10/14.1
+      COARSEFINISHF            = [23:24] #                              0035053081/10/14.1
+     ,COARSESTARTF             = [47:24] #                              0035054081/10/14.1
+     ,INFODEFINEVALUE(INX)     = INFOARRAY[INX].[35:11] #               0035055081/10/14.1
+     ,DEFINEVALUE(INX)         = INFOARRAY[INX].[35:11] #               0035056081/10/14.1
+     ,INFOMINSIZE(INX)         = INFOARRAY[INX].[47:6] #                0035057081/10/14.1
+     ,MINSIZE(INX)             = INFOARRAY[INX].[47:6] #                0035058081/10/14.1
+     ,INFOLEXPTR(INX)          = INFOARRAY[INX].[24:13] #               0035059081/10/14.1
+     ,INFOTEXTSIZE(INX)        = INFOARRAY[INX].[41:6] #                0035060081/10/14.1
+     ,ITEMTYPE(INX)            = INFOARRAY[INX].[1:2] #                 0035061081/10/14.1
+     ,DECLANGUAGE(INX)         = INFOARRAY[INX].[3:2] #                 0035062081/10/14.1
+     ,RESWORDTYPE(INX,BIT)     = BOOLEAN(INFOARRAY[INX].[4+BIT:1]) #    0035063081/10/14.1
+     ,ITEMKEY(INX)             = INFOARRAY[INX].[35:11] #               0035064081/10/14.1
+     ,INFOENTRYSIZE            = 1 #;                                   0035065081/10/14.1
+                                                                        0035099081/10/14.1
+BOOLEAN PROCEDURE ADOSUNTIL;                                            00351000          
+     FORWARD;                                                           00352000          
+PROCEDURE BLOCK(MARGIN,BACKOFF);                                        00353000          
+VALUE                                                                   00354000          
+       MARGIN,                                                          00355000          
+       BACKOFF;                                                         00356000          
+INTEGER                                                                 00357000          
+       MARGIN,                                                          00358000          
+       BACKOFF;                                                         00359000          
+     FORWARD;                                                           00360000          
+PROCEDURE BREAKITUP;                                                    00361000          
+     FORWARD;                                                           00362000          
+PROCEDURE BUILDSUPERTOKEN;                                              00363000          
+     FORWARD;                                                           00364000          
+PROCEDURE CASESTMT(M);                                                  0036500077/06/30  
+VALUE                                                                   00366000          
+       M;                                                               00367000          
+INTEGER                                                                 00368000          
+       M;                                                               00369000          
+     FORWARD;                                                           00370000          
+PROCEDURE DEFINEDECLARATION;                                            00371000          
+     FORWARD;                                                           00372000          
+PROCEDURE DOLLARCARD(TP,TS);                                            00373000          
+VALUE                                                                   00374000          
+       TP,                                                              00375000          
+       TS;                                                              00376000          
+INTEGER                                                                 00377000          
+       TS;                                                              00378000          
+POINTER                                                                 00379000          
+       TP;                                                              00380000          
+     FORWARD;                                                           00381000          
+PROCEDURE DOSTMT(M);                                                    00382000          
+VALUE                                                                   00383000          
+       M;                                                               00384000          
+INTEGER                                                                 00385000          
+       M;                                                               00386000          
+     FORWARD;                                                           00387000          
+PROCEDURE EMITTER(NOCOMMENTCHK);                                        00388000          
+VALUE                                                                   00389000          
+       NOCOMMENTCHK;                                                    00390000          
+BOOLEAN                                                                 00391000          
+       NOCOMMENTCHK;                                                    00392000          
+     FORWARD;                                                           00393000          
+BOOLEAN PROCEDURE FIND(P,N,DESC);                                       0039400077/07/05  
+VALUE                                                                   00395000          
+       P,                                                               00396000          
+       N;                                                               0039700077/07/05  
+POINTER                                                                 00398000          
+       P;                                                               00399000          
+INTEGER                                                                 0040000077/07/05  
+       N,                                                               0040100077/07/05  
+       DESC;                                                            0040200077/07/05  
+     FORWARD;                                                           00403000          
+BOOLEAN PROCEDURE FOUNDVERB(VERB,SZ,DESC);                              0040350081/10/14.1
+VALUE                                                                   0040351081/10/14.1
+       VERB,                                                            0040352081/10/14.1
+       SZ;                                                              0040353081/10/14.1
+INTEGER                                                                 0040354081/10/14.1
+       SZ,                                                              0040355081/10/14.1
+       DESC;                                                            0040356081/10/14.1
+POINTER                                                                 0040357081/10/14.1
+       VERB;                                                            0040358081/10/14.1
+     FORWARD;                                                           0040359081/10/14.1
+PROCEDURE IFCLAUSE(SS,M,F,E);    % ENTER WITH PA POINTING TO "IF"       00404000          
+VALUE                                                                   00405000          
+       SS,                                                              00406000          
+       M;                                                               00407000          
+BOOLEAN                                                                 00408000          
+       SS,   % SS = TRUE IF THIS "IF" IS A STMT STARTER                 00409000          
+       F,    % TRUE IF TRANSFERSTMT IS TO EXIT (OUTPUT PARAMETER)       00410000          
+       E;    % TRUE IF THIS "IF" HAS AN "ELSE"                          00411000          
+INTEGER                                                                 00412000          
+       M;    % M IS THE MARGIN OF THE IF CLAUSE                         00413000          
+     FORWARD;                                                           00414000          
+BOOLEAN PROCEDURE INITIALIZATION;                                       0041500078/07/27  
+     FORWARD;                                                           00416000          
+PROCEDURE ITERATIONCLAUSE(M);                                           00417000          
+VALUE                                                                   00418000          
+       M;                                                               00419000          
+INTEGER                                                                 00420000          
+       M;                                                               00421000          
+     FORWARD;                                                           00422000          
+BOOLEAN PROCEDURE ITSALABEL;                                            00423000          
+     FORWARD;                                                           00424000          
+PROCEDURE NEXTCARD;                                                     00425000          
+     FORWARD;                                                           00426000          
+PROCEDURE PRINTITNEAT;                                                  00427000          
+     FORWARD;                                                           00428000          
+PROCEDURE PUTCOMMENT;  % SCANNER HAS ENCOUNTERED A "%" COMMENT WHICH    00429000          
+     FORWARD;                                                           00430000          
+PROCEDURE PUTLABEL(LP,LL,MARGIN,BACKOFF);                               00431000          
+VALUE                                                                   00432000          
+       LP,                                                              00433000          
+       LL,                                                              00434000          
+       MARGIN,                                                          00435000          
+       BACKOFF;                                                         00436000          
+INTEGER                                                                 00437000          
+       LL,                                                              00438000          
+       MARGIN,                                                          00439000          
+       BACKOFF;                                                         00440000          
+POINTER                                                                 00441000          
+       LP;                                                              00442000          
+     FORWARD;                                                           00443000          
+PROCEDURE PUTTOKEN;     % MOVES THE CURRENT TOKEN FROM PA TO DEST       00444000          
+     FORWARD;                                                           00445000          
+PROCEDURE SKAN;     % RETURNS (1) TYPE AND (2) CA--ITS SIZE             00446000          
+     FORWARD;                                                           00447000          
+PROCEDURE TRANSFERSTMT(STMTSTARTER,MARGIN,BACKOFF);                     00448000          
+VALUE                                                                   00449000          
+       STMTSTARTER,                                                     00450000          
+       MARGIN,                                                          00451000          
+       BACKOFF;                                                         00452000          
+BOOLEAN                                                                 00453000          
+       STMTSTARTER;                                                     00454000          
+INTEGER                                                                 00455000          
+       MARGIN,                                                          00456000          
+       BACKOFF;                                                         00457000          
+     FORWARD;                                                           00458000          
+PROCEDURE TRANSFERSUPERTOKEN;                                           00459000          
+     FORWARD;                                                           00460000          
+PROCEDURE XFERSTRING;    % MOVES A STRING FROM ACCUM TO DEST            00461000          
+     FORWARD;                                                           0046200081/10/14.1
+BOOLEAN PROCEDURE ADOSUNTIL;                                            00463000          
+BEGIN                                                                   00464000          
+     INTEGER                                                            00465000          
+            C;                                                          00466000          
+     IF DOINGADO THEN                                                   00467000          
+        IF DOBLOCKCOUNT = 0 THEN                                        00468000          
+           IF ITSANUNTIL THEN                                           00469000          
+           BEGIN                                                        00470000          
+              SCANTILNOTBLANK;                                          00471000          
+              IF PIN IN IDFRSTARTERS THEN                               00472000          
+              BEGIN                                                     00473000          
+                 ADOSUNTIL := TRUE; % UNTIL PROVEN OTHERWISE            00474000          
+                 SCAN PIN FOR C:CIN WHILE IN IDFRVALIDS;                0047500077/07/05  
+                 IF FIND(PIN,CIN - C,C) THEN                            0047600077/07/05  
+                    ADOSUNTIL := ^ RESWORDTYPE(IDFRDESC,RELATIONOP);    0047700077/07/05  
+              END                                                       0047800076/07/19  
+              ELSE                                                      0047900076/07/19  
+                 ADOSUNTIL := PIN = "(" OR                              0048000076/07/19  
+                   (PIN = "^" AND PIN + 1 ^= "=");                      0048100076/07/19  
+           END;                                                         00482000          
+END ADOSUNTIL;                                                          0048300081/10/14.1
+PROCEDURE BLOCK(MARGIN,BACKOFF);                                        0048400076/07/28  
+VALUE                                                                   0048500076/07/28  
+       MARGIN,                                                          0048600076/07/28  
+       BACKOFF;                                                         0048700076/07/28  
+INTEGER                                                                 0048800076/07/28  
+       MARGIN,                                                          0048900076/07/28  
+       BACKOFF;                                                         0049000076/07/28  
+BEGIN                                                                   0049100078/07/26  
+     BOOLEAN                                                            0049200078/07/26  
+            ENDCTERMINATOR;                                             0049300078/07/26  
+     INTEGER                                                            0049400078/07/26  
+            BEGINMARGIN = ENDCTERMINATOR;                               0049500078/07/26  
+     BEGINMARGIN := MAX(0,MARGIN - BACKOFF + BEGINOFFSET);              0049600076/07/28  
+     INITIALIZEDEST(BEGINMARGIN);                                       0049700076/07/28  
+     PUTTOKEN;    % THE "BEGIN"                                         0049800076/09/01  
+     DO BEGIN                                                           00499000          
+           EMIT;                                                        00500000          
+           TRANSFERSTMT(TRUE,MARGIN,INCREMENT);                         0050100076/07/28  
+        END                                                             00502000          
+     UNTIL ITSANEND;                                                    00503000          
+     IF ACTIVESUPERTOKEN THEN                                           0050400081/09/17  
+        TRANSFERSUPERTOKEN;                                             0050500081/09/17  
+     IF ^ LINEEMPTY THEN                                                0050600081/09/17  
+        EMITWITHNOCOMMENTCHK; % HAVE STEPPED BEYOND THE "END" HERE      0050700081/09/17  
+     INITIALIZEDEST(BEGINMARGIN);                                       0050800076/07/28  
+     DO BEGIN                % PROCESS "END " COMMENTS                  0050900078/07/26  
+           PUTTOKEN;         % FIRST TIME "END" - THEN COMMENTS         0051000078/07/26  
+           SKAN;                                                        0051100078/07/26  
+           IF ^ ENDCTERMINATOR := ATERMINATOR THEN                      0051200078/07/26  
+              PUTBLANK;                                                 0051300078/07/26  
+        END                                                             0051400078/07/26  
+     UNTIL ENDCTERMINATOR;                                              0051500078/07/26  
+     LASTTYPE := TYPE;                                                  0051600078/07/26  
+END OF BLOCK;                                                           0051700081/10/14.1
+PROCEDURE BREAKITUP;                                                    00518000          
+BEGIN                                                                   00519000          
+     BOOLEAN                                                            00520000          
+            COMMAFG;                                                    00521000          
+     INTEGER                                                            00522000          
+            THISSTARTPOS,                                               00523000          
+            M,                                                          00524000          
+            J,                                                          00525000          
+            K,                                                          00526000          
+            SAVECA;                                                     00527000          
+     LABEL                                                              00528000          
+            AGN;                                                        00529000          
+     POINTER                                                            00530000          
+            SAVEPA FOR PA;                                              00531000          
+     SAVEPA := PA;                                                      00532000          
+     SAVECA := CA;                                                      00533000          
+     LASTTYPE := UNDEFINED;                                             0053400077/03/22  
+     FOR K := 0 STEP 1 UNTIL STM - 1 DO                                 00535000          
+     BEGIN                                                              00536000          
+        PA := SUPERTOK[THISSTARTPOS := STDISP[K]];                      00537000          
+        CA := STLENGTH[K];                                              00538000          
+        IF STTYPE[K] = IDFR THEN                                        0053900081/09/18  
+           IF SUPERTOK[THISSTARTPOS + CA] IN OPENERS THEN % ID( OR ID[  0054000081/09/18  
+           BEGIN                             % FIND MATCHING ")" OR "]" 0054100081/09/18  
+              M := LENGTHOFGROUP(K + 1);                                00542000          
+              IF M > COT AND M <= NEXTLINESIZE THEN                     0054300081/09/18  
+              BEGIN                          % IDEA IS TO KEEP A SUPER  0054400081/09/18  
+                 CA := M;                    % TOKEN TOGETHER. THIS CODE0054500081/09/18  
+                 PUTTOKEN;                   % AND THAT BELOW FOR STUFF 0054600081/09/18  
+                 K := STMARKS[K + 1].FLNKINDX;% BETWEEN ","'S, "("'S OR 0054700081/09/18  
+                 GO AGN;                     % "["'S WILL MOVE THE WHOLE0054800081/09/18  
+              END;                           % SUPER TOKEN TO NEXT LINE 0054900081/09/18  
+           END;                              % IF IT FITS THERE BUT WONT0055000081/09/18  
+        IF COMMAFG THEN                      % FIT ON THE CURRENT LINE. 0055100081/09/18  
+           IF J := STMARKS[K - 1].NXTCOMMA ^= 0 THEN                    00552000          
+           BEGIN              % J IS INDEX OF NEXT COMMA                00553000          
+              M := STDISP[J] - STDISP[K - 1];                           00554000          
+              IF M > COT AND M <= NEXTLINESIZE THEN                     00555000          
+              BEGIN                                                     00556000          
+                 CA := M;                                               00557000          
+                 PUTTOKEN;                                              00558000          
+                 K := STMARKS[K - 1].NXTCOMMA;                          00559000          
+                 GO AGN;                                                00560000          
+              END;                                                      00561000          
+           END;                                                         00562000          
+        IF PA IN OPENERS THEN % ( OR [                                  0056300081/09/18  
+           IF M := LENGTHOFGROUP(K) > COT AND M <= NEXTLINESIZE THEN    00564000          
+           BEGIN                                                        00565000          
+              CA := M;                                                  00566000          
+              PUTTOKEN;                                                 00567000          
+              K := STMARKS[K].FLNKINDX;                                 00568000          
+              GO AGN;                                                   00569000          
+           END;                                                         00570000          
+        IF STTYPE[K] = ASTRING THEN                                     00571000          
+           XFERSTRING                                                   00572000          
+        ELSE                                                            00573000          
+           PUTTOKEN;                                                    00574000          
+  AGN:  COMMAFG := PA = ",";                                            00575000          
+     END OF FOR K;                                                      00576000          
+     PA := SAVEPA;                                                      00577000          
+     CA := SAVECA;                                                      00578000          
+END OF BREAKITUP;                                                       0057900081/10/14.1
+PROCEDURE BUILDSUPERTOKEN;                                              00580000          
+BEGIN                                                                   0058100076/07/22  
+     DEFINE                                                             0058200076/07/22  
+            POP(STAKN,INX) =                                            0058300076/07/22  
+                           BEGIN                                        0058400076/07/22  
+                              STMARKS[STAKN[INX]] := * & STM FLNKINDX;  0058500076/07/22  
+                              INX := INX - 1;                           0058600076/07/22  
+                           END #;                                       0058700076/07/22  
+     STMARKS[STM] := TYPE & CA STLENF & STL STDISPF;                    0058800076/11/16  
+     IF PA = "(" THEN                                                   0058900076/07/22  
+        PARENSTACK[ACTIVEPARENS := * + 1] := STM                        0059000076/07/22  
+     ELSE                                                               0059100076/07/22  
+     IF PA = "[" THEN                                                   0059200076/07/22  
+        BRACKETSTACK[ACTIVEBRACKETS := * + 1] := STM                    0059300076/07/22  
+     ELSE                                                               0059400076/07/22  
+     IF PA = ")" THEN                                                   0059500076/07/22  
+        POP(PARENSTACK,ACTIVEPARENS)                                    0059600076/07/22  
+     ELSE                                                               0059700076/07/22  
+     IF PA = "]" THEN                                                   0059800076/07/22  
+        POP(BRACKETSTACK,ACTIVEBRACKETS)                                0059900076/07/22  
+     ELSE                                                               0060000076/07/22  
+     IF PA = "," AND ACTIVEPARENS = 1 AND ACTIVEBRACKETS = 0 THEN       0060100076/07/22  
+     BEGIN                                                              0060200076/07/22  
+        STMARKS[LASTCOMMA] := * & STM NXTCOMMA;                         0060300076/07/22  
+        LASTCOMMA := STM;                                               0060400076/07/22  
+     END;                                                               0060500076/07/22  
+     STM := STM + 1;                                                    0060600076/07/22  
+     REPLACE STOKP:STOKP BY PA FOR CA;                                  0060700076/07/20  
+     STL := STL + CA;                                                   00608000          
+     IF THISENDSTHESUPERTOKEN THEN                                      00609000          
+        TRANSFERSUPERTOKEN;                                             00610000          
+END OF BUILDSUPERTOKEN;                                                 0061100081/10/14.1
+PROCEDURE CASESTMT(M);                                                  0061200077/06/30  
+VALUE                                                                   00613000          
+       M;                                                               00614000          
+INTEGER                                                                 00615000          
+       M;                                                               00616000          
+BEGIN                                                                   0061700076/07/20  
+     LOOKINGFOROF := TRUE & LOOKINGFOROF[46:46]; % "SET"                0061800076/07/20  
+     PUTTOKEN;                                   % TRANSFER "CASE"      00619000          
+     SPACEFLAG := PIN IN OPENERS;                                       0062000077/07/06  
+     LASTTYPE := IDFR;                                                  0062100077/07/06  
+     TRANSFERSTMT(FALSE,M,INCREMENT);            % TRANSFER TIL "OF"    0062200076/07/20  
+     LOOKINGFOROF := LOOKINGFOROF.[46:46];       % "POP"                00623000          
+     PUTTOKEN;                                   % THE "OF"             0062400078/07/26  
+     IF ^ ACTIVESUPERTOKEN THEN                  % CASE - OF ON OWN LINE0062500077/06/30  
+        EMIT;                                                           00626000          
+END OF CASESTMT;                                                        0062700081/10/14.1
+PROCEDURE DEFINEDECLARATION;                                            00628000          
+BEGIN                                                                   0062900076/11/15  
+     DEFINE                                                             0063000076/11/15  
+            EQUALINDENT  = (DEFINEINDENT - 3) #;                        0063100076/11/15  
+     INTEGER                                                            0063200076/07/28  
+            DEFINEBASE;                                                 0063300076/07/28  
+     DEFINEINPROGRESS := TRUE;                                          00634000          
+     DEFINEBASE := BLOCKBASE;                                           0063500077/06/28  
+     INITIALIZEDEST(DEFINEBASE);                                        0063600077/06/28  
+     PUTTOKEN;             % "DEFINE"                                   00637000          
+     DO BEGIN                                                           0063800077/03/21  
+           EMIT;                                                        0063900077/03/21  
+           SKAN;                                                        0064000077/03/21  
+           INITIALIZEDEST(DEFINEBASE + DECINDENT);                      0064100076/07/28  
+           WHILE TYPE IS PCOMMENT DO % COMMENT AFTER "DEFINE" OR ","    0064200077/03/21  
+           BEGIN                                                        00643000          
+              PUTCOMMENT;                                               00644000          
+              SKAN;                                                     0064500077/03/21  
+              INITIALIZEDEST(DEFINEBASE + DECINDENT);                   0064600077/03/21  
+           END;                                                         00647000          
+           DO BEGIN                                                     00648000          
+                 PUTTOKEN;  % FIRST TIME FOR IDENTIFIER                 00649000          
+                 SKAN;      % ALL OTHERS (IF ANY) FOR PARAMETRIC DEFINE.00650000          
+              END                                                       0065100076/07/19  
+           UNTIL PA = " =";                                             0065200076/07/19  
+           IF COT < LINELENGTH - EQUALINDENT - DEFINEBASE THEN          0065300077/03/21  
+           BEGIN    % A LONG DEFINE IDENTIFIER                          0065400077/03/21  
+              PUTTOKEN;                                                 00655000          
+              EMIT;       % "="                                         0065600076/11/15  
+           END                                                          0065700076/11/15  
+           ELSE                                                         0065800076/11/15  
+           BEGIN                                                        0065900076/11/15  
+              INITIALIZEDEST(EQUALINDENT + DEFINEBASE);                 0066000076/11/15  
+              PUTTOKEN;   % "="                                         00661000          
+           END;                                                         00662000          
+           DO BEGIN                                                     0066300077/07/05  
+                 BLOCKBASE := DEFINEBASE + DEFINEINDENT;                0066400077/07/05  
+                 TRANSFERSTMT(TRUE,BLOCKBASE,INCREMENT);                0066500077/07/05  
+                 IF PA ^= "#" THEN                                      0066600077/07/05  
+                    EMIT;                                               0066700077/07/05  
+              END                                                       0066800077/07/05  
+           UNTIL PA = "#";                                              0066900077/07/05  
+           LOOKINGFORDO := FALSE;                                       00670000          
+           IF ACTIVESUPERTOKEN THEN                                     00671000          
+              TRANSFERSUPERTOKEN;                                       00672000          
+           SKAN;                                                        00673000          
+           WHILE TYPE IS PCOMMENT DO % COMMENT BEFORE "," OR ";"        0067400077/03/21  
+           BEGIN                                                        00675000          
+              PUTCOMMENT;                                               00676000          
+              SKAN;               % FOR THE "," OR ";"                  00677000          
+              INITIALIZEDEST(DEFINEBASE + DECINDENT);                   0067800076/07/28  
+           END;                                                         00679000          
+           PUTTOKEN;                                                    00680000          
+        END                                                             0068100077/03/21  
+     UNTIL PA ^= ",";                                                   0068200077/03/21  
+     EMIT;% THE ";" LINE                                                0068300077/03/21  
+     DEFINEINPROGRESS := FALSE;                                         00684000          
+     BLOCKBASE := DEFINEBASE;                                           0068500076/07/28  
+END OF DEFINEDECLARATION;                                               0068600081/10/14.1
+PROCEDURE DOLLARCARD(TP,TS);                                            0068700076/07/19  
+VALUE                                                                   0068800076/07/19  
+       TP,                                                              0068900076/07/19  
+       TS;                                                              0069000076/07/19  
+INTEGER                                                                 00691000          
+       TS;                                                              00692000          
+POINTER                                                                 00693000          
+       TP;                                                              00694000          
+BEGIN                                                                   00695000          
+     INTEGER                                                            00696000          
+            CT,                                                         00697000          
+            K,                                                          00698000          
+            DKEY;                                                       00699000          
+     POINTER                                                            0070000076/07/15  
+            PT;                                                         0070100076/07/15  
+     PROCEDURE SWITCHIT(XTOG);                                          00702000          
+     BOOLEAN                                                            00703000          
+            XTOG;                                                       00704000          
+     BEGIN                                                              0070500076/07/19  
+          CASE DKEY OF                                                  0070600076/07/19  
+          BEGIN                                                         0070700076/07/19  
+             XTOG := TRUE & XTOG[46:46];     % "SET"                    0070800076/07/19  
+             XTOG := FALSE & XTOG[46:46];    % "RESET"                  00709000          
+             XTOG := XTOG.[46:46];           % "POP"                    0071000076/07/19  
+          END CASES;                                                    00711000          
+     END OF SWITCHIT;                                                   0071200081/10/14.1
+     INTEGER PROCEDURE FINDVALUE;                                       00713000          
+     BEGIN                                                              00714000          
+          REAL                                                          00715000          
+                 MINUS;                                                 00716000          
+          INTEGER                                                       00717000          
+                 CT;                                                    00718000          
+          SCAN TP:TP FOR TS:TS WHILE = " ";                             00719000          
+          IF TP = "-" THEN                                              00720000          
+          BEGIN                                                         00721000          
+             MINUS := 1;                                                00722000          
+             TP := TP + 1;                                              00723000          
+             TS := TS - 1;                                              00724000          
+          END;                                                          00725000          
+          SCAN TP FOR CT:TS WHILE IN NUMERICS;                          0072600076/07/22  
+          FINDVALUE := INTEGER(TP,TS - CT) & MINUS[46:1];               00727000          
+          TP := TP + (TS - (TS := CT));                                 00728000          
+     END OF FINDVALUE;                                                  0072900081/10/14.1
+     WHILE TS > 0 DO                                                    0073000076/07/15  
+     BEGIN                                                              0073100076/07/15  
+        SCAN PT:TP FOR CT:TS UNTIL IN ALPHA;                            0073200076/07/15  
+        SCAN TP:PT FOR TS:CT WHILE IN ALPHA;                            0073300076/07/15  
+        IF CT := CT - TS > 0 THEN                                       0073400077/07/05  
+           IF FIND(PT,CT,K) THEN                                        0073500077/07/05  
+              IF ITEMTYPE[K] = MYOPTION THEN                            0073600077/07/05  
+                 CASE ITEMKEY[K] OF                                     0073700077/07/05  
+                 BEGIN                                                  0073800077/07/05  
+              BEGINOFFSETC:                                             0073900077/07/05  
+                    BEGINOFFSET := FINDVALUE;                           0074000077/07/05  
+              DECINDENTC:                                               0074100077/07/05  
+                    DECINDENT := FINDVALUE;                             0074200077/07/05  
+              DEFINEINDENTC:                                            0074300077/07/05  
+                    DEFINEINDENT := FINDVALUE;                          0074400077/07/05  
+              ELSEOFFSETC:                                              0074500077/07/05  
+                    ELSEOFFSET := FINDVALUE;                            0074600077/07/05  
+              INDENTC:                                                  0074700077/07/05  
+                    INCREMENT := FINDVALUE;                             0074800077/07/05  
+              INDENTELSEIFC:                                            0074900077/07/05  
+                    SWITCHIT(INDENTELSEIF);                             0075000077/07/05  
+              INDENTTHENIFC:                                            0075100077/07/05  
+                    SWITCHIT(INDENTTHENIF);                             0075200077/07/05  
+              LEFTCOMMENTSC:                                            0075300077/07/05  
+                    SWITCHIT(LEFTCOMMENTS);                             0075400077/07/05  
+              LOCKCOMMENTSC:                                            0075500077/07/05  
+                    SWITCHIT(LOCKCOMMENTS);                             0075600077/07/05  
+              LINELENGTHC:                                              0075700077/07/05  
+                    LINELENGTH := FINDVALUE;                            0075800077/07/05  
+              MARGINC:                                                  0075900078/07/24  
+                    OBMARGIN := FINDVALUE;                              0076000078/07/24  
+              NEATUPC:                                                  0076100077/07/05  
+                    SWITCHIT(NEATUPTOG);                                0076200077/07/05  
+              NEATUPLISTC:                                              0076300077/07/05  
+                    SWITCHIT(LISTTOG);                                  0076400077/07/05  
+              NEATUPSEQC:                                               0076500077/07/05  
+                    BEGIN                                               0076600077/07/05  
+                       SEQ := FINDVALUE;                                0076700077/07/05  
+                       SCAN TP:TP FOR TS:TS UNTIL ^= " ";               0076800077/07/05  
+                       IF TS >= 0 THEN                                  0076900077/07/05  
+                          IF TP = "+" THEN                              0077000077/07/05  
+                          BEGIN                                         0077100077/07/05  
+                             TP := TP + 1;                              0077200077/07/05  
+                             TS := TS - 1;                              0077300077/07/05  
+                             SEQINC := FINDVALUE;                       0077400077/07/05  
+                          END;                                          0077500077/07/05  
+                       SEQ := SEQ - SEQINC;                             0077600077/07/05  
+                    END OF NEATUPSEQC;                                  0077700077/07/05  
+              OMITC:                                                    0077800081/09/22  
+                    BEGIN                                               0077900081/09/22  
+                       SCAN TP:TP FOR TS:TS WHILE = " ";                0078000081/09/22  
+                       IF IF DKEY = 1 THEN % RESET                      0078100081/09/22  
+                             TRUE                                       0078200081/09/22  
+                          ELSE                                          0078300081/09/22  
+                          IF DKEY = 2 THEN % POP                        0078400081/09/22  
+                             OMITTOG      % ONLY IF OMITTING            0078500081/10/14.1
+                          ELSE             % SET                        0078600081/09/22  
+                          IF TS >= 0 THEN                               0078700081/09/22  
+                             TP ^= "="     % ONLY IF NOT SET OMIT =     0078800081/09/22  
+                          ELSE                                          0078900081/09/22  
+                             TRUE                                       0079000081/09/22  
+                       THEN                                             0079100081/09/22  
+                          SWITCHIT(OMITTOG);                            0079200081/10/14.1
+                    END OMIT;                                           0079300081/09/22  
+              ONEPERLINEC:                                              0079400077/07/05  
+                    SWITCHIT(ONEPERLINE);                               0079500077/07/05  
+              PAGEC:                                                    0079600077/07/05  
+                    IF LISTTOG THEN                                     0079700077/07/05  
+                       WRITE(LINE[SKIP 1]);                             0079800077/07/05  
+              POPC: DKEY := 2;                                          0079900077/07/05  
+              PROCINDENTC:                                              0080000077/07/05  
+                    PROCINDENT := FINDVALUE;                            0080100077/07/05  
+              RESETC:                                                   0080200077/07/05  
+                    DKEY := 1;                                          0080300077/07/05  
+              SETC: DKEY := 0;                                          0080400077/07/05  
+                 END CASES;                                             0080500077/07/05  
+     END WHILE;                                                         00806000          
+END OF DOLLARCARD;                                                      0080700081/10/14.1
+PROCEDURE DOSTMT(M);                                                    00808000          
+VALUE                                                                   00809000          
+       M;                                                               00810000          
+INTEGER                                                                 00811000          
+       M;                                                               00812000          
+BEGIN                                                                   00813000          
+     INTEGER                                                            00814000          
+            DODELTA;                                                    00815000          
+     DOSDOING := * + 1;                                                 00816000          
+     DOBLOCKCOUNT := 0;                                                 00817000          
+     PUTTOKEN;      % THE "DO"                                          00818000          
+     IF BEGINOFFSET >= 0 THEN                                           0081900077/03/22  
+     BEGIN                                                              0082000077/03/22  
+        SKAN;                                                           0082100077/03/22  
+        INHIBITSCAN := TRUE;                                            0082200077/03/22  
+        IF ITSABEGIN THEN                                               00823000          
+           DODELTA := 3;                                                00824000          
+     END;                                                               00825000          
+     IF DODELTA = 0 THEN                                                0082600076/07/20  
+     BEGIN                                                              0082700076/07/20  
+        EMIT;                                                           0082800076/07/20  
+        DODELTA := INCREMENT;                                           00829000          
+     END;                                                               00830000          
+     LASTTYPE := UNDEFINED;                                             0083100077/03/22  
+     ALREADYINDENTED := FALSE;                                          00832000          
+     TRANSFERSTMT(TRUE,M + DODELTA,INCREMENT);% XFER UNTIL "UNTIL"      00833000          
+     IF ^ LINEEMPTY THEN                                                0083400076/07/29  
+        EMIT; % SO THAT THE "END" WILL BE ON A LINE OF ITS ON           0083500076/07/29  
+     INITIALIZEDEST(M);                                                 0083600076/07/20  
+     LASTTYPE := UNDEFINED;                                             0083700077/03/22  
+     DOSDOING := * - 1;                                                 00838000          
+     TYPE := KIDFR; % LOOKING AT THE "UNTIL"                            0083900078/07/24  
+END DOSTMT;                                                             0084000081/10/14.1
+PROCEDURE EMITTER(NOCOMMENTCHK);                                        0084100076/07/20  
+VALUE                                                                   0084200076/07/20  
+       NOCOMMENTCHK;                                                    0084300076/07/20  
+BOOLEAN                                                                 0084400076/07/20  
+       NOCOMMENTCHK;                                                    0084500076/07/20  
+BEGIN                                                                   0084600076/07/20  
+     IF ^ NOCOMMENTCHK THEN                                             0084700076/07/20  
+     BEGIN                                                              0084800076/07/20  
+        SCAN PIN:PIN FOR CIN:CIN UNTIL ^= " ";                          0084900076/07/20  
+        IF PIN = "%" OR PIN = "$" THEN                                  0085000076/07/20  
+        BEGIN                  % DO % COMMENT THAT STAYS ON A CARD.     0085100076/07/20  
+           SKAN;                                                        0085200076/07/20  
+           PUTCOMMENT;                                                  0085300076/07/20  
+        END                                                             0085400076/07/20  
+        ELSE                                                            0085500076/07/20  
+           NOCOMMENTCHK := ^ LINEEMPTY;                                 0085600076/07/20  
+     END;                                                               0085700076/07/20  
+     IF NOCOMMENTCHK AND (ACTIVESUPERTOKEN IMP DECLFLAG) THEN           0085800076/07/20  
+     BEGIN                                                              0085900076/07/20  
+        REPLACE DEST[72] BY SEQ := SEQ + SEQINC FOR 8 DIGITS;           0086000076/07/20  
+        IF LISTTOG THEN                                                 0086100076/07/20  
+           PRINTITNEAT;                                                 0086200076/07/20  
+        IF MAKENEWFILE THEN                                             0086300076/07/20  
+           WRITE(OUTPUT,15,DEST);                                       0086400076/07/20  
+        BLANKOUT;                                                       0086500076/07/20  
+        LASTTYPE := UNDEFINED;                                          0086600077/03/22  
+     END;                                                               0086700076/07/20  
+END EMITTER;                                                            0086800081/10/14.1
+BOOLEAN PROCEDURE FIND(P,N,DESC);                                       0086900077/07/05  
+VALUE                                                                   00870000          
+       P,                                                               00871000          
+       N;                                                               0087200077/07/05  
+POINTER                                                                 00873000          
+       P;                                                               00874000          
+INTEGER                                                                 0087500077/07/05  
+       N,                                                               0087600077/07/05  
+       DESC;                                                            0087700077/07/05  
+BEGIN                                                                   0087800077/07/05  
+     DESC := 0;                                                         0087900077/07/05  
+     IF P = "'" THEN % CT STUFF                                         0088000077/07/05  
+     BEGIN                                                              0088100077/07/05  
+        P := * + 1;                                                     0088200077/07/05  
+        N := * - 1;                                                     0088300077/07/05  
+     END;                                                               0088400077/07/05  
+     IF FOUNDVERB(P,N,DESC) THEN                                        0088500077/07/05  
+        CASE DECLANGUAGE(DESC) OF                                       0088600077/07/05  
+        BEGIN                                                           0088700077/07/05  
+     ALGOL:                                                             0088800077/07/05  
+           FIND := TRUE;                                                0088900077/07/05  
+     DCALGOL:                                                           0089000077/07/05  
+           IF ^ FIND := INPUTFKIND = VALUE(DCALGOLSYMBOL) THEN          0089100077/07/05  
+              DESC := 0;                                                0089200077/07/05  
+     ESPOL:                                                             0089300077/07/05  
+           IF ^ FIND := INPUTFKIND = VALUE(ESPOLSYMBOL) THEN            0089400077/07/05  
+              DESC := 0;                                                0089500077/07/05  
+     ESPOLORDCALGOL:                                                    0089600077/07/05  
+           IF ^ FIND := INPUTFKIND = VALUE(DCALGOLSYMBOL) OR INPUTFKIND 0089700077/07/05  
+              = VALUE(ESPOLSYMBOL)                                      0089800077/07/05  
+           THEN                                                         0089900077/07/05  
+              DESC := 0;                                                0090000077/07/05  
+        END DECLANGUAGE CASE;                                           0090100077/07/05  
+END OF FIND;                                                            0090200081/10/14.1
+                                                                        0090210081/10/14.1
+ % INCLUDE FOUNDVERB="COPYLIB/PUBLISH/FOUNDVERB"                        0090211081/10/14.1
+BOOLEAN PROCEDURE FOUNDVERB(VERB,SZ,DESC);                              0090212081/10/14.1
+VALUE VERB,SZ;                                                          0090213081/10/14.1
+INTEGER SZ,DESC;                                                        0090214081/10/14.1
+POINTER VERB;                                                           0090215081/10/14.1
+BEGIN                                                                   0090216081/10/14.1
+DEFINE HASH(R,PTR) =                                                    0090217081/10/14.1
+                     (R:=(R:=REAL(PTR,1)).[3:4]-1-R.[5:1]+9*R.[5:2])#;  0090218081/10/14.1
+INTEGER FIRST                                                           0090219081/10/14.1
+       ,LAST                                                            0090220081/10/14.1
+       ,H = LAST;                                                       0090221081/10/14.1
+IF SZ > 0 THEN                                                          0090222081/10/14.1
+ IF HASH(H,VERB) < 35 AND H >= 0 THEN                                   0090223081/10/14.1
+  BEGIN                                                                 0090224081/10/14.1
+   FIRST:=COARSEINDEX[H].COARSESTARTF-INFOENTRYSIZE;                    0090225081/10/14.1
+   LAST := COARSEINDEX[H].COARSEFINISHF;                                0090226081/10/14.1
+   DO FIRST := *+INFOENTRYSIZE                                          0090227081/10/14.1
+   UNTIL  IF FIRST > LAST THEN TRUE                                     0090228081/10/14.1
+          ELSE                                                          0090229081/10/14.1
+            IF SZ < MINSIZE(FIRST) THEN TRUE                            0090230081/10/14.1
+          ELSE                                                          0090231081/10/14.1
+            IF SZ <= INFOTEXTSIZE(FIRST) THEN                           0090232081/10/14.1
+             FOUNDVERB:=VERB=LEXICONTEXT[INFOLEXPTR(FIRST)] FOR SZ      0090233081/10/14.1
+            ELSE                                                        0090234081/10/14.1
+             FALSE;                                                     0090235081/10/14.1
+   IF FOUNDVERB := * THEN                                               0090236081/10/14.1
+      DESC := FIRST;                                                    0090237081/10/14.1
+  END HASH LSS 35;                                                      0090238081/10/14.1
+END PROCEDURE FOUNDVERB;                                                0090239081/10/14.1
+PROCEDURE IFCLAUSE(SS,M,F,E);    % ENTER WITH PA POINTING TO "IF"       0090300076/07/19  
+VALUE                                                                   00904000          
+       SS,                                                              00905000          
+       M;                                                               00906000          
+BOOLEAN                                                                 00907000          
+       SS,   % SS = TRUE IF THIS "IF" IS A STMT STARTER                 00908000          
+       F,    % TRUE IF TRANSFERSTMT IS TO EXIT (OUTPUT PARAMETER)       00909000          
+       E;    % TRUE IF THIS "IF" HAS AN "ELSE"                          00910000          
+INTEGER                                                                 00911000          
+       M;    % M IS THE MARGIN OF THE IF CLAUSE                         00912000          
+BEGIN                                                                   0091300077/03/21  
+     BOOLEAN                                                            0091400077/03/21  
+            DOINGSUPERTOKEN;                                            0091500077/03/21  
+     INTEGER                                                            0091600076/07/19  
+            IE = E,                                                     0091700076/07/19  
+            INDENT,                                                     0091800077/03/18  
+            THISSEQ;                                                    0091900077/03/18  
+     IFSDOING := * + 1;                                                 0092000077/03/18  
+     F := TRUE;                                                         0092100077/03/21  
+     IF ^ (SS OR DOINGSUPERTOKEN := ACTIVESUPERTOKEN) THEN              0092200077/03/21  
+        IF LASTTYPE = IDFR THEN                                         0092300077/03/21  
+           M := * + INCREMENT                                           0092400077/03/21  
+        ELSE                                                            0092500077/03/21  
+        IF ^ LINEEMPTY THEN                                             0092600077/03/21  
+        BEGIN                                                           0092700077/03/21  
+           EMITANDINDENT2;                                              0092800077/03/21  
+           M := * + 2;                                                  0092900077/03/18  
+        END;                                                            0093000077/03/21  
+     PUTTOKEN;                        % XFER THE "IF" TO OUTPUT LINE    0093100076/07/19  
+     THISSEQ := SEQ;                                                    0093200077/03/18  
+     LASTTYPE := IDFR;                                                  0093300077/03/18  
+     TRANSFERSTMT(FALSE,M,INCREMENT); % XFER UNTIL THE "THEN"           0093400076/07/19  
+     IF PA ^= "#" THEN                                                  0093500077/03/21  
+        IF DOINGSUPERTOKEN THEN                                         0093600077/03/21  
+           BUILDSUPERTOKEN                                              0093700077/03/21  
+        ELSE                                                            0093800077/03/21  
+        BEGIN                                                           0093900077/03/21  
+           IF THISSEQ ^= SEQ OR CA > COT THEN                           0094000077/03/21  
+           BEGIN % IF CLAUSE NEEDS MORE THAN ONE LINE                   0094100077/03/21  
+              IF ^ LINEEMPTY THEN                                       0094200077/03/18  
+                 EMITWITHNOCOMMENTCHK;                                  0094300077/03/18  
+              INITIALIZEDEST(M);                                        0094400077/03/18  
+           END;                                                         0094500077/03/18  
+           PUTTOKEN; % THE "THEN"                                       0094600077/03/18  
+           EMIT;          % SPOUT THE IF CLAUSE                         00947000          
+           SKAN;          % PEEK                                        00948000          
+           INHIBITSCAN := ALREADYINDENTED := TRUE;                      00949000          
+           IF ITSANIF IMP INDENTTHENIF THEN                             0095000077/03/18  
+              INDENT := INCREMENT; % FOR STMT FOLLOWING "THEN"          0095100077/03/18  
+        END;                                                            0095200077/02/24  
+     IF PA ^= "#" THEN % XFER TILL "ELSE" OR ";"                        0095300077/03/21  
+        TRANSFERSTMT(^DOINGSUPERTOKEN,M + INDENT,INCREMENT);            0095400077/03/21  
+     IF E := ITSANELSE THEN                 % "ELSE" IS NOT YET IN DEST 0095500077/03/21  
+        IF DOINGSUPERTOKEN THEN                                         0095600077/03/21  
+        BEGIN                                                           0095700077/03/21  
+           BUILDSUPERTOKEN;                                             0095800077/03/21  
+           IF ^ ACTIVESUPERTOKEN THEN % THIS "ELSE" STOPPED IT          0095900077/03/24  
+              IF SUPERTOKENSTARTER = REPLCLASS THEN                     0096000077/03/24  
+              BEGIN % RESTART IT                                        0096100077/03/24  
+                 EMITANDINDENT2;                                        0096200077/03/24  
+                 ACTIVESUPERTOKEN := TRUE;                              0096300077/03/24  
+              END;                                                      0096400077/03/24  
+           E := F := FALSE;                                             0096500077/03/21  
+        END                                                             0096600077/03/21  
+        ELSE                                                            0096700077/03/21  
+        BEGIN                                                           0096800077/03/21  
+           IF ACTIVESUPERTOKEN THEN % THIS ELSE ENDS A REPLACE          0096900077/03/21  
+              TRANSFERSUPERTOKEN;                                       0097000077/03/21  
+           IF ^ LINEEMPTY THEN                                          00971000          
+              EMITWITHNOCOMMENTCHK;                                     00972000          
+           INITIALIZEDEST(M + ELSEOFFSET);                              0097300076/07/19  
+           PUTTOKEN;         % TRANSFER THE "ELSE" TO DESTINATION       00974000          
+           EMIT;                % SETS "LASTTYPE" TO UNDEFINED          0097500077/03/21  
+           SKAN;                                                        00976000          
+           INHIBITSCAN := TRUE;                                         0097700077/03/18  
+           IE.ELSEMARGINF :=                                            0097800077/03/21  
+             IF ITSANIF IMP INDENTELSEIF THEN                           0097900077/03/21  
+                M + INCREMENT                                           0098000077/03/21  
+             ELSE                                                       0098100077/03/21  
+                M;                                                      0098200077/03/21  
+        END                                                             0098300076/07/19  
+     ELSE                    % NOT AN "ELSE"; MUST BE ";" OR "END"      0098400076/07/19  
+        F := ^ ITSANEND;     % SET F IF ITS A ";"                       0098500077/03/18  
+     IFSDOING := * - 1;                                                 0098600077/03/18  
+END OF IFCLAUSE;                                                        0098700081/10/14.1
+BOOLEAN PROCEDURE INITIALIZATION;                                       0098800078/07/27  
+BEGIN                                                                   0098900078/07/27  
+     EBCDIC VALUE ARRAY                                                 0099000078/07/27  
+            FKMSGS("INPUT MUST BE ALGOL, DCALGOL OR ESPOL SYMBOLIC"     0099100078/07/27  
+              48"00""SEQDATA FILE ASSUMED TO BE ALGOL SYMBOLIC"48"00"); 0099200078/07/27  
+     BOOLEAN                                                            0099300078/07/27  
+            FKOK;                                                       0099400078/07/27  
+     INTEGER                                                            0099500078/07/27  
+            COL = FKOK;                                                 0099600078/07/27  
+     POINTER                                                            0099700076/07/14  
+            SP,                                                         0099800076/07/14  
+            PFNA;                                                       0099900076/07/14  
+     PROCEDURE PUTPERIODAFTERFILENAME(SP,COL);                          0100000076/07/14  
+     INTEGER                                                            0100100076/07/14  
+            COL;                                                        0100200076/07/14  
+     POINTER                                                            0100300076/07/14  
+            SP;                                                         0100400076/07/14  
+     BEGIN                                                              0100500076/07/14  
+          POINTER                                                       0100600076/07/14  
+                 TP;                                                    0100700076/07/14  
+          DO BEGIN                                                      0100800076/07/14  
+                IF SP = "/" THEN                                        0100900076/07/14  
+                BEGIN                                                   0101000076/07/14  
+                   SP := * + 1;                                         0101100076/07/14  
+                   COL := * - 1;                                        0101200076/07/14  
+                END;                                                    0101300076/07/14  
+                IF SP = QUOTE THEN                                      0101400077/07/07  
+                BEGIN                                                   0101500077/07/07  
+                   SCAN SP:SP + 1 FOR COL:COL - 1 UNTIL = QUOTE;        0101600077/07/07  
+                   SP := * + 1;                                         0101700076/07/14  
+                   COL := * - 1;                                        0101800076/07/14  
+                END                                                     0101900076/07/14  
+                ELSE                                                    0102000076/07/14  
+                   SCAN SP:SP FOR COL:COL WHILE IN ALPHA;               0102100076/07/14  
+             END                                                        0102200076/07/19  
+          UNTIL SP ^= "/";                                              0102300076/07/19  
+          TP := SP;                                                     0102400076/07/14  
+          SCAN SP:SP FOR COL:COL WHILE = " ";                           0102500076/07/14  
+          IF COL > 0 THEN                                               0102600076/07/14  
+             IF SP = "ON " THEN                                         0102700076/07/14  
+             BEGIN                                                      0102800076/07/14  
+                SCAN SP:SP + 3 FOR COL:COL - 3 UNTIL IN ALPHA;          0102900076/07/14  
+                SCAN SP:SP FOR COL:COL WHILE IN ALPHA;                  0103000076/07/14  
+                TP := SP;                                               0103100076/07/14  
+             END;                                                       0103200076/07/14  
+          REPLACE TP BY ".";                                            0103300076/07/14  
+     END PUT PERIOD AFTER FILE NAME;                                    0103400081/10/14.1
+     INDENTTHENIF := LEFTCOMMENTS := LOCKCOMMENTS := NEATUPTOG :=       0103500080/08/04  
+       ONEPERLINE := TRUE;                                              0103600080/08/04  
+     INCREMENT := 3;                                                    01037000          
+     DECINDENT := 7;                                                    01038000          
+     DEFINEINDENT := 22;                                                0103900076/11/15  
+     PROCINDENT := OBMARGIN := 5;                                       0104000078/07/24  
+     LINELENGTH := 72;                                                  01041000          
+     SEQINC := 1000;                                                    01042000          
+     STOKP := SUPERTOK;                                                 0104300076/07/20  
+     SCAN SP := PARA FOR COL:256 UNTIL = 48"00";                        0104400076/07/14  
+     COL := 256 - COL;                                                  0104500076/07/14  
+     SCAN SP:SP FOR COL:COL WHILE = " ";                                0104600076/07/14  
+     PFNA := SP;                                                        0104700076/07/14  
+     PUTPERIODAFTERFILENAME(SP,COL);                                    0104800076/07/14  
+     REPLACE INPUT.TITLE BY PFNA;                                       0104900076/07/19  
+     INPUT.OPEN := TRUE;                                                0105000076/07/19  
+     SCAN SP:SP FOR COL:COL UNTIL IN ALPHA;                             0105100076/07/14  
+     IF COL > 0 THEN                                                    0105200076/07/15  
+     BEGIN                                                              0105300076/07/15  
+        IF IF COL >= 4 THEN                                             0105400076/07/15  
+              SP = "MAKE"                                               0105500076/07/15  
+           ELSE                                                         0105600076/07/15  
+              FALSE                                                     0105700076/07/15  
+        THEN                                                            0105800076/07/15  
+        BEGIN                                                           0105900076/07/15  
+           SCAN SP:SP + 4 FOR COL:COL - 4 WHILE = " ";                  0106000076/07/15  
+           IF IF COL >= 4 THEN                                          0106100076/07/19  
+                 SP = "SELF" AND SP + 4 ^= "/"                          0106200076/07/19  
+              ELSE                                                      0106300076/07/19  
+                 FALSE                                                  0106400076/07/19  
+           THEN                                                         0106500076/07/19  
+           ELSE                                                         0106600076/07/19  
+           BEGIN                                                        0106700076/07/19  
+              PFNA := SP;                                               0106800076/07/19  
+              PUTPERIODAFTERFILENAME(SP,COL);                           0106900076/07/19  
+           END;                                                         0107000076/07/19  
+           REPLACE OUTPUT.TITLE BY PFNA;                                0107100076/07/19  
+           MAKENEWFILE := TRUE;                                         0107200076/07/14  
+           SCAN SP:SP FOR COL:COL UNTIL IN ALPHA;                       0107300076/07/14  
+        END;                                                            0107400076/07/14  
+        IF COL > 0 THEN   % NEATUP OPTIONS INCLUDED                     0107500076/07/14  
+           DOLLARCARD(SP,COL);                                          0107600076/07/19  
+     END;                                                               0107700076/07/14  
+     INPUTFKIND := INPUT.FILEKIND;                                      0107800078/07/27  
+     OUTPUT.FILEKIND := INPUTFKIND;                                     0107900078/07/27  
+     FKOK := TRUE;                                                      0108000078/07/27  
+     IF INPUTFKIND ^= VALUE(ALGOLSYMBOL) THEN                           0108100078/07/27  
+        IF INPUTFKIND ^= VALUE(DCALGOLSYMBOL) THEN                      0108200078/07/27  
+           IF INPUTFKIND ^= VALUE(DMALGOLSYMBOL) THEN                   0108300078/07/27  
+              IF INPUTFKIND ^= VALUE(ESPOLSYMBOL) THEN                  0108400078/07/27  
+                 IF INPUTFKIND = VALUE(SEQDATA) THEN                    0108500078/07/27  
+                 BEGIN                                                  0108600078/07/27  
+                    INPUTFKIND := VALUE(ALGOLSYMBOL);                   0108700078/07/27  
+                    DISPLAY(FKMSGS[47]);                                0108800078/07/27  
+                 END                                                    0108900078/07/27  
+                 ELSE                                                   0109000078/07/27  
+                 BEGIN                                                  0109100078/07/27  
+                    FKOK := FALSE;                                      0109200078/07/27  
+                    DISPLAY(FKMSGS[0]);                                 0109300078/07/27  
+                 END;                                                   0109400078/07/27  
+     IF INITIALIZATION := FKOK THEN                                     01095000          
+     BEGIN                                                              01096000          
+        BLANKOUT;                                                       01097000          
+        REPLACE SOURCE BY " " FOR 15 WORDS;                             01098000          
+        INITIALIZEDEST(0);                                              0109900078/07/25  
+        DO BEGIN % PROCESS INITIAL "$" AND "%" CARDS                    0110000078/07/24  
+              SKAN;                                                     0110100078/07/24  
+              IF TYPE = PCOMMENT THEN                                   0110200078/07/24  
+                 PUTCOMMENT;                                            0110300078/07/24  
+           END                                                          0110400078/07/24  
+        UNTIL TYPE ^= PCOMMENT;                                         0110500078/07/24  
+        IF PA = "[" THEN % PROCESS GLOBAL DECLARATIONS                  0110600078/07/24  
+        BEGIN                                                           0110700078/07/24  
+           INITIALIZEDEST(0);                                           0110800078/07/24  
+           ACTIVESUPERTOKEN := FALSE;                                   0110900078/07/24  
+           PUTTOKEN;                                                    0111000078/07/24  
+           PROCESSINGGLOBALDECS := TRUE;                                0111100078/07/25  
+           DO BEGIN                                                     0111200078/07/25  
+                 EMIT;                                                  0111300078/07/25  
+                 TRANSFERSTMT(TRUE,0,INCREMENT);                        0111400078/07/24  
+              END                                                       0111500078/07/25  
+           UNTIL PA = "]";                                              0111600078/07/25  
+           PROCESSINGGLOBALDECS := FALSE;                               0111700078/07/25  
+           EMIT;                                                        0111800078/07/25  
+           SKAN;                                                        0111900078/07/24  
+        END;                                                            0112000078/07/24  
+        INHIBITSCAN := ALREADYINDENTED := FIRSTBLOCK := TRUE;           0112100078/07/25  
+     END;                                                               0112200078/07/27  
+END INITIALIZATION;                                                     0112300081/10/14.1
+PROCEDURE ITERATIONCLAUSE(M);                                           01124000          
+VALUE                                                                   01125000          
+       M;                                                               01126000          
+INTEGER                                                                 01127000          
+       M;                                                               01128000          
+BEGIN                                                                   0112900077/07/08  
+     INTEGER                                                            0113000077/07/08  
+            THISSEQ;                                                    0113100077/07/08  
+     PUTTOKEN;               % TRANSFER START OF ITERATION CLAUSE       01132000          
+     SPACEFLAG := PIN IN OPENERS;                                       0113300078/07/24  
+     LOOKINGFORDO := TRUE;                                              01134000          
+     LASTTYPE := IDFR;                                                  01135000          
+     THISSEQ := SEQ;                                                    0113600077/07/08  
+     TRANSFERSTMT(FALSE,M,INCREMENT);  % XFER UNTIL "DO"                01137000          
+     LOOKINGFORDO := FALSE;                                             01138000          
+     IF PA ^= "#" THEN                                                  0113900077/07/08  
+     BEGIN                                                              0114000077/07/08  
+        IF THISSEQ ^= SEQ OR CA > COT THEN % DO ON ANOTHER LINE         0114100077/07/08  
+        BEGIN                                                           0114200077/07/08  
+           IF ^ LINEEMPTY THEN                                          0114300077/07/08  
+              EMITWITHNOCOMMENTCHK;                                     0114400077/07/08  
+           INITIALIZEDEST(M);                                           0114500077/07/08  
+        END;                                                            0114600077/07/08  
+        PUTTOKEN;                                                       0114700077/07/08  
+        EMIT;     % SPOUT THE ITERATION CLAUSE                          0114800077/07/08  
+     END;                                                               0114900077/07/08  
+END OF ITERATIONCLAUSE;                                                 0115000081/10/14.1
+BOOLEAN PROCEDURE ITSALABEL;                                            01151000          
+BEGIN                                                                   01152000          
+     SCANTILNOTBLANK;                                                   01153000          
+     IF ^ DECLFLAG THEN                                                 01154000          
+        IF PIN = ":" THEN                                               01155000          
+           ITSALABEL := PIN + 1 ^= "=";                                 01156000          
+END OF ITSALABEL;                                                       0115700081/10/14.1
+PROCEDURE NEXTCARD;                                                     01158000          
+BEGIN                                                                   01159000          
+     INTEGER                                                            01160000          
+            TS;                                                         01161000          
+     POINTER                                                            01162000          
+            TP;                                                         01163000          
+     DO BEGIN                                                           0116400078/07/27  
+           READ(INPUT,90,SOURCE)[EOF];                                  0116500078/07/27  
+           REPLACE DEST[80] BY SOURCE[80] FOR 10; % PRESERVE PATCH IDS  0116600076/07/19  
+           SCAN TP:PIN := SOURCE FOR TS:CIN := 72 WHILE = " ";          0116700076/07/20  
+           IF ^ NEATUPTOG OR OMITTOG THEN                               0116800081/10/14.1
+              IF TP = "$" THEN                                          0116900076/07/19  
+                 DOLLARCARD(TP,TS);                                     0117000076/07/19  
+           IF ^ NEATUPTOG OR OMITTOG THEN                               0117100081/10/14.1
+              COPY;                                                     0117200076/07/19  
+        END                                                             0117300081/09/22  
+     UNTIL NEATUPTOG AND ^ OMITTOG;                                     0117400081/10/14.1
+END NEXTCARD;                                                           0117500081/10/14.1
+PROCEDURE PRINTITNEAT;                                                  01176000          
+BEGIN                                                                   01177000          
+     REAL                                                               01178000          
+            T;                                                          01179000          
+     OWN BOOLEAN                                                        01180000          
+            HADAHEADING;                                                01181000          
+     IF HADAHEADING THEN % NOTHING                                      01182000          
+     ELSE                                                               01183000          
+     BEGIN                                                              01184000          
+        REPLACE PBUF BY " " FOR 22 WORDS;                               01185000          
+        IF MAKENEWFILE THEN                                             01186000          
+           REPLACE PBUF BY OUTPUT.TITLE                                 01187000          
+        ELSE                                                            01188000          
+           REPLACE PBUF BY INPUT.TITLE;                                 01189000          
+        REPLACE PBUF[80] BY                                             0119000081/10/14.1
+           (T:= TIME (15)).[15:48] FOR 2, "/",                          0119010081/10/14.1
+           T FOR 2, "/",                                                0119020081/10/14.1
+           T.[31:48] FOR 2, " " FOR 3,                                  0119030081/10/14.1
+           (T:= TIME (1) DIV 3600) DIV 60 FOR 2 DIGITS, ":",            0119040081/10/14.1
+           T MOD 60 FOR 2 DIGITS;                                       0119050081/10/14.1
+        WRITE(LINE[SPACE 3],22,PBUF);                                   01191000          
+        HADAHEADING := TRUE;                                            01192000          
+     END;                                                               01193000          
+     REPLACE PBUF BY " " FOR 22 WORDS;                                  01194000          
+     REPLACE PBUF BY " " FOR 8 - T := DIGITSIN(SEQ), SEQ FOR T DIGITS,  01195000          
+       " " FOR 5,DEST FOR 72, " " FOR 8, SEQ FOR 8 DIGITS, " " FOR 5,   01196000          
+       DEST[80] FOR 10 WHILE >= " ";                                    01197000          
+     WRITE(LINE,22,PBUF);                                               01198000          
+END PRINTITNEAT;                                                        0119900081/10/14.1
+PROCEDURE PUTCOMMENT;  % SCANNER HAS ENCOUNTERED A "%" COMMENT WHICH    0120000077/07/06  
+BEGIN                  % IS CURRENTLY IN ACCUM.  -- IF COMMENT WAS      01201000          
+     BOOLEAN                                                            0120200077/07/06  
+            DOLLAR,                                                     0120300077/07/06  
+            DOLLARDONE,                                                 0120400077/07/06  
+            REACTIVATESUPERTOKEN;                                       0120500077/03/01  
+     INTEGER                                                            0120600077/03/01  
+            OLDACTIVEPARENS,                                            0120700077/03/01  
+            OLDACTIVEBRACKETS;                                          0120800077/03/01  
+     POINTER                                                            01209000          
+            PC;                                                         01210000          
+     IF ACTIVESUPERTOKEN THEN                                           0121100077/03/01  
+     BEGIN                                                              0121200077/03/01  
+        REACTIVATESUPERTOKEN := TRUE;                                   0121300077/03/01  
+        OLDACTIVEPARENS := ACTIVEPARENS;                                0121400077/03/01  
+        OLDACTIVEBRACKETS := ACTIVEBRACKETS;                            0121500077/03/01  
+        TRANSFERSUPERTOKEN;                                             01216000          
+     END;                                                               0121700077/03/01  
+     IF DOLLAR := PA = "$" THEN                                         01218000          
+     BEGIN                                                              01219000          
+        SCAN PC:SOURCE FOR 72 WHILE = " ";                              01220000          
+        IF PC = "$" THEN % ON A LINE OF ITS ON - DO IT FIRST            01221000          
+        BEGIN                                                           01222000          
+           DOLLARDONE := TRUE;                                          01223000          
+           DOLLARCARD(PA,CA);                                           01224000          
+        END;                                                            01225000          
+     END;                                                               01226000          
+     IF CA = 72 THEN      % ON A CARD BY ITSELF IT IS SIMPLY TRANSFERRED01227000          
+     BEGIN                                                              01228000          
+        IF ^ LINEEMPTY THEN                                             01229000          
+           EMITWITHNOCOMMENTCHK;            % SPOUT CURRENT CONTENTS    01230000          
+        REPLACE DEST BY PA FOR 72;                                      01231000          
+     END                                                                01232000          
+     ELSE                                                               01233000          
+     BEGIN                                                              01234000          
+        STRIPTRAILINGBLANKS;                                            01235000          
+        PC :=                                                           0123600080/09/11  
+          IF DOLLAR OR (LOCKCOMMENTS                                    0123700077/07/06  
+          AND (LEFTCOMMENTS IMP MARKER + OFFSET(POUT) <= 72))           0123800077/07/06  
+          THEN                                                          0123900077/07/06  
+             DEST[72 - MARKER]                                          0124000077/07/06  
+          ELSE                                                          0124100077/07/06  
+          IF LEFTCOMMENTS AND CA + OFFSET(POUT) < 72 THEN               0124200077/07/06  
+             POUT + REAL(DEST[OFFSET(POUT) - 1] ^= " ")                 0124300077/07/06  
+          ELSE                                                          0124400077/07/06  
+          IF LOCKCOMMENTS THEN                                          0124500077/07/06  
+             DEST[72 - MARKER]                                          0124600077/07/06  
+          ELSE                                                          0124700077/07/06  
+             DEST[LINELENGTH - CA];                                     0124800077/07/06  
+        IF OFFSET(PC) < OFFSET(POUT) THEN                               01249000          
+           IF ^ LINEEMPTY THEN                                          01250000          
+              EMITWITHNOCOMMENTCHK;                     % WON'T FIT     01251000          
+        REPLACE PC BY PA FOR CA;                                        01252000          
+        COT :=                                                          0125300077/03/21  
+          IF DECLFLAG THEN                                              0125400077/03/21  
+             BLOCKBASE + DECINDENT + 2                                  0125500077/03/21  
+          ELSE                                                          0125600077/03/21  
+             GMARGIN + 2;                                               0125700077/03/21  
+        POUT := DEST[COT];                                              01258000          
+        COT := LINELENGTH - COT;                                        01259000          
+     END;                                                               01260000          
+     IF (CA = 72 AND DOLLAR) THEN % NEVER COPY $ CARDS IN COL 1         0126100077/07/06  
+        BLANKOUT                                                        01262000          
+     ELSE                                                               01263000          
+        EMITWITHNOCOMMENTCHK;                                           01264000          
+     IF DOLLAR AND ^ DOLLARDONE THEN                                    0126500077/03/01  
+        DOLLARCARD(PA,CA);                                              0126600077/03/01  
+     IF REACTIVATESUPERTOKEN THEN                                       0126700077/03/01  
+     BEGIN                                                              0126800077/03/01  
+        ACTIVESUPERTOKEN := TRUE;                                       0126900077/03/01  
+        ACTIVEPARENS := OLDACTIVEPARENS;                                0127000077/03/01  
+        ACTIVEBRACKETS := OLDACTIVEBRACKETS;                            0127100077/03/01  
+     END;                                                               0127200077/03/01  
+END OF PUTCOMMENT;                                                      0127300081/10/14.1
+PROCEDURE PUTLABEL(LP,LL,MARGIN,BACKOFF);                               01274000          
+VALUE                                                                   01275000          
+       LP,                                                              01276000          
+       LL,                                                              01277000          
+       MARGIN,                                                          01278000          
+       BACKOFF;                                                         01279000          
+INTEGER                                                                 01280000          
+       LL,                                                              01281000          
+       MARGIN,                                                          01282000          
+       BACKOFF;                                                         01283000          
+POINTER                                                                 01284000          
+       LP;                                                              01285000          
+BEGIN                                                                   01286000          
+     REAL                                                               01287000          
+            LLLIMIT = MARGIN;                                           01288000          
+     IF ^ LINEEMPTY THEN                                                01289000          
+        EMIT;                                                           01290000          
+     REPLACE DEST[MAX(0,MARGIN - 2 * BACKOFF)] BY LP FOR LL, ":";       01291000          
+     PIN := PIN + 1;  % MOVE SOURCE PTR PAST THE ":"                    01292000          
+     CIN := CIN - 1;                                                    01293000          
+     SKAN;                                                              0129400077/03/22  
+     INHIBITSCAN := TRUE;                                               0129500077/03/22  
+     LLLIMIT :=                                                         0129600077/03/21  
+       IF 2 * BACKOFF >= MARGIN THEN                                    0129700077/03/21  
+          MARGIN                                                        0129800077/03/21  
+       ELSE                                                             0129900077/03/21  
+       IF ITSABEGIN AND ALREADYINDENTED THEN                            0130000077/03/21  
+          BACKOFF                                                       0130100077/03/21  
+       ELSE                                                             0130200077/03/21  
+          2 * BACKOFF;                                                  0130300077/03/21  
+     IF LL + 1 >= LLLIMIT THEN                                          01304000          
+        EMITWITHNOCOMMENTCHK; % LABEL IS TOO LONG FOR WHAT FOLLOWS      01305000          
+END OF PUTLABEL;                                                        0130600081/10/14.1
+PROCEDURE PUTTOKEN;     % MOVES THE CURRENT TOKEN FROM PA TO DEST       01307000          
+BEGIN                                                                   01308000          
+     IF ACTIVESUPERTOKEN THEN                                           01309000          
+        BUILDSUPERTOKEN                                                 01310000          
+     ELSE                                                               01311000          
+     BEGIN                                                              01312000          
+        IF CA > COT THEN     % NOT ENOUGH ROOM IN OUTPUT LINE           01313000          
+           EMITANDINDENT2;                                              01314000          
+        REPLACE POUT:POUT BY PA FOR CA;                                 01315000          
+        COT := COT - CA;                                                01316000          
+     END;                                                               01317000          
+END OF PUTTOKEN;                                                        0131800081/10/14.1
+PROCEDURE SKAN;     % RETURNS (1) TYPE AND (2) CA--ITS SIZE             01319000          
+BEGIN                                                                   01320000          
+     LABEL                                                              01321000          
+            AGAIN,                                                      01322000          
+            NBR,                                                        01323000          
+            EXPO;                                                       01324000          
+     BOOLEAN                                                            0132500077/03/01  
+            AFTERBLANK,                                                 0132600077/03/01  
+            BABLANKS;                                                   0132700077/03/01  
+     INTEGER                                                            01328000          
+            T;                                                          01329000          
+     POINTER                                                            0133000077/03/01  
+            OLDPA;                                                      0133100077/03/01  
+     OLDPA := ACCUM[MAX(0,CA - 1)];    % LAST THING OUT                 0133200077/03/01  
+     PA := ACCUM[CA := IDFRDESC := 0];                                  0133300077/07/05  
+     SCANTILNOTBLANK;                                                   01334000          
+     IF PIN IN IDFRSTARTERS THEN                                        0133500077/07/05  
+     BEGIN                                                              0133600077/07/05  
+        TYPE := IDFR;                                                   0133700077/07/05  
+        TRANSFER(WHILE IN IDFRVALIDS);                                  0133800077/07/05  
+        CHECKFOREDITINGPHRASEA;                                         0133900077/07/05  
+        IF FIND(ACCUM,CA,IDFRDESC) THEN                                 0134000077/07/06  
+           TYPE :=                                                      0134100077/07/06  
+             IF ITEMKEY[IDFRDESC] = COMMENTC THEN                       0134200077/07/06  
+                CCOMMENT                                                0134300077/07/06  
+             ELSE                                                       0134400077/07/06  
+                KIDFR;                                                  0134500077/07/06  
+        SCANTILNOTBLANK;                                                0134600077/07/05  
+     END IDENTIFIER                                                     0134700077/07/05  
+     ELSE                                                               0134800077/07/05  
+     IF PIN IN NUMERICS THEN                                            0134900077/07/05  
+     BEGIN                                                              0135000077/07/05  
+  NBR:  TYPE := ANUMBER;                                                0135100077/07/05  
+        TRANSFER(WHILE IN NUMERICS);                                    0135200077/07/05  
+        CHECKFOREDITINGPHRASEN;                                         0135300077/07/05  
+        IF PIN = "." THEN          % PICK UP FRACTIONAL PART            0135400077/07/05  
+        BEGIN                                                           0135500077/07/05  
+           TRANSFERCT(1);                                               0135600077/07/05  
+           TRANSFER(WHILE IN NUMERICS);                                 0135700077/07/05  
+        END                                                             0135800077/07/07  
+        ELSE                                                            0135900077/07/07  
+        IF PIN = "@" THEN                                               0136000077/07/07  
+           GO TO EXPO                                                   0136100077/07/07  
+        ELSE                                                            0136200077/07/07  
+        IF PIN = QUOTE THEN % CALL STRING WITH CHAR SIZE A NUMBER       0136300077/07/07  
+        BEGIN                                                           0136400077/07/07  
+           TRANSFERCT(2);                                               0136500077/07/07  
+           TRANSFER(UNTIL = QUOTE);                                     0136600077/07/07  
+           TRANSFERCT(1);                                               0136700077/07/07  
+        END;                                                            0136800077/07/07  
+     END NUMBER                                                         01369000          
+     ELSE                                                               01370000          
+     IF PIN = QUOTE THEN                                                01371000          
+     BEGIN                                                              01372000          
+        TRANSFERCT(2);                                                  01373000          
+  AGAIN:                                                                0137400077/07/07  
+        TRANSFER(UNTIL = QUOTE);                                        0137500077/07/07  
+        TRANSFERCT(1);                                                  01376000          
+        SCANTILNOTBLANK;               % CHECK FOR A CONTINUED STRING ON0137700081/05/07  
+        IF LASTTYPE ^= ANUMBER THEN    % === NEEDS WORK FOR 48" STUFF ==0137800081/05/07  
+           IF PIN = QUOTE THEN         % THE SOURCE                     0137900081/05/07  
+              IF PIN + 1 ^= QUOTE THEN % IF NEXT STRING DOESN'T START   0138000081/05/07  
+              BEGIN                    % WITH A QUOTE THEN CONNECT THEM.0138100081/05/07  
+                 PIN := PIN + 1;                                        01382000          
+                 CIN := CIN - 1;                                        01383000          
+                 PA := PA - 1;     % WIPE OUT THE OLD QUOTE             01384000          
+                 CA := CA - 1;     % ADJUST THE COUNT                   01385000          
+                 GO AGAIN;                                              01386000          
+              END;                                                      01387000          
+        TYPE := ASTRING;                                                0138800081/05/07  
+     END STRING                                                         01389000          
+     ELSE                                                               01390000          
+     IF PIN = "%" OR PIN = "$" THEN                                     01391000          
+     BEGIN                                                              01392000          
+        MARKER := CIN;          % FOR "LOCKCOMMENTS" OPTION             01393000          
+        TYPE := PCOMMENT;                                               01394000          
+        REPLACE PA BY PIN:PIN FOR CA := CIN;                            01395000          
+        CIN := 0;                                                       01396000          
+     END                                                                0139700077/07/05  
+     ELSE                                                               0139800077/07/05  
+     BEGIN  %% OTHER SPECIAL CHARACTERS                                 0139900077/07/05  
+        IF PIN = 48"C0" THEN                                            01400000          
+           REPLACE PIN BY "+";                                          01401000          
+        IF PIN = "." THEN                                               01402000          
+           IF PIN + 1 IN NUMERICS THEN   % IT'S A DECIMAL POINT         01403000          
+              GO TO NBR;                                                01404000          
+        IF PIN = "@" THEN                                               01405000          
+        BEGIN                                                           01406000          
+     EXPO: TRANSFERCT(1);                                               01407000          
+           IF PIN = "-" OR PIN = "+" THEN                               01408000          
+              TRANSFERCT(1);                                            01409000          
+           GO TO NBR;                                                   01410000          
+        END;                                                            01411000          
+        TYPE := SPECIALCHAR;                                            01412000          
+        CA := 1;                                                        01413000          
+        IF PIN IN BLANKAROUNDS THEN  % ADD "AND PUTEXTRASPACES" FOR OPT 01414000          
+        BEGIN                                                           01415000          
+           IF PIN + 1 = "=" OR PIN = "**" OR PIN = "!!" THEN            01416000          
+           BEGIN                                                        01417000          
+              BABLANKS := TRUE;                                         01418000          
+              CA := 2;                                                  01419000          
+           END                                                          0142000077/07/07  
+           ELSE                                                         0142100077/07/07  
+           IF PIN ^= ":" THEN                                           0142200077/07/07  
+              IF LASTTYPE = SPECIALCHAR THEN                            0142300077/07/07  
+              BEGIN                                                     0142400077/07/07  
+                 BABLANKS := OLDPA IN BLANKAROUNDS OR OLDPA IN CLOSERS; 0142500077/07/07  
+                 IF ^ BABLANKS THEN                                     0142600077/03/01  
+                    AFTERBLANK := OLDPA = " ";                          0142700077/03/01  
+                                            % JUST ADD BLANK AFTER CHAR 0142800077/03/01  
+              END                                                       0142900081/05/07  
+              ELSE                                                      0143000081/05/07  
+                 BABLANKS := LASTTYPE ^= ASTRING;                       0143100081/05/07  
+        END                                                             01432000          
+        ELSE                                                            01433000          
+        IF PIN IN OPENERS THEN                                          01434000          
+           IF ^ ACTIVESUPERTOKEN THEN                                   01435000          
+           BEGIN                                                        01436000          
+              ACTIVESUPERTOKEN := TRUE;                                 01437000          
+              SUPERTOKENSTARTER := REAL(PIN = "(");                     01438000          
+           END;                                                         01439000          
+        CIN := CIN - CA;                                                01440000          
+        REPLACE PA BY " " FOR REAL(BABLANKS), PIN:PIN FOR CA, " ";      01441000          
+        IF BABLANKS THEN                                                0144200077/03/01  
+           CA := CA + 2                                                 0144300077/03/01  
+        ELSE                                                            0144400077/03/01  
+        IF AFTERBLANK THEN                                              0144500077/03/01  
+           CA := CA + 1;                                                0144600077/03/01  
+     END SPECIAL CHARACTERS;                                            0144700077/07/05  
+     PA := ACCUM[0];                                                    0144800077/07/05  
+END OF THE SCANNER;                                                     0144900081/10/14.1
+PROCEDURE TRANSFERSTMT(STMTSTARTER,MARGIN,BACKOFF);                     01450000          
+VALUE                                                                   01451000          
+       STMTSTARTER,                                                     01452000          
+       MARGIN,                                                          01453000          
+       BACKOFF;                                                         01454000          
+BOOLEAN                                                                 01455000          
+       STMTSTARTER;                                                     01456000          
+INTEGER                                                                 01457000          
+       MARGIN,                                                          01458000          
+       BACKOFF;                                                         01459000          
+BEGIN                                                                   01460000          
+     LABEL                                                              01461000          
+            LOOP,                                                       01462000          
+            XIT,                                                        01463000          
+            DOIT;                                                       01464000          
+     BOOLEAN                                                            01465000          
+            ELSEF,                                                      01466000          
+            FINIS,                                                      01467000          
+            SPACEKEY,                                                   01468000          
+            FLAG,                                                       0146900078/07/26  
+            DONTPUTIT = FLAG,                                           0147000078/07/26  
+            ENDOFLINE;                                                  01471000          
+     INTEGER                                                            01472000          
+            OLDBLOCKBASE;                                               01473000          
+LOOP:                                                                   01474000          
+     ENDOFLINE := FALSE;                                                01475000          
+     DO BEGIN                                                           0147600077/03/22  
+           IF SPACEFLAG THEN                                            0147700077/03/22  
+              PUTBLANK;                                                 0147800077/03/22  
+           SPACEFLAG := FALSE;                                          0147900077/03/22  
+           IF ^ INHIBITSCAN THEN                                        01480000          
+              SKAN;                                                     01481000          
+           INHIBITSCAN := FALSE;                                        01482000          
+           IF STMTSTARTER THEN                                          0148300077/07/05  
+           BEGIN                                                        0148400077/07/05  
+              IF DECLFLAG := ITSADECLARATION THEN                       0148500077/07/05  
+              BEGIN                                                     0148600077/07/05  
+                 INITIALIZEDEST(BLOCKBASE);                             0148700077/07/05  
+                 IF ITSADEFINE THEN                                     01488000          
+                 BEGIN                                                  01489000          
+                    DEFINEDECLARATION;                                  01490000          
+                    GO LOOP;                                            01491000          
+                 END;                                                   01492000          
+                 FLAG := FALSE;                                         01493000          
+                 DO BEGIN                                               01494000          
+                       IF ITSAPROCEDURE THEN                            01495000          
+                          PROCINPROGRESS := FLAG := TRUE;               01496000          
+                       PUTTOKEN;                                        01497000          
+                       PUTBLANK;                                        01498000          
+                       SKAN;                                            01499000          
+                    END                                                 01500000          
+                 UNTIL ^ ITSADECLARATION;                               01501000          
+                 IF ONEPERLINE THEN                                     01502000          
+                    IF ^ (FLAG OR DEFINEINPROGRESS) THEN                01503000          
+                    BEGIN                                               01504000          
+                       EMITWITHNOCOMMENTCHK;                            01505000          
+                       INITIALIZEDEST(BLOCKBASE + DECINDENT);           01506000          
+                    END;                                                01507000          
+              END                                                       01508000          
+              ELSE    % *** NOT A DECLARATION ***                       01509000          
+              BEGIN                                                     01510000          
+                 IF PROCINPROGRESS AND TYPE ^= PCOMMENT THEN            01511000          
+                 BEGIN                                                  01512000          
+                    PROCINPROGRESS := FALSE;                            01513000          
+                    ALREADYINDENTED := INHIBITSCAN := TRUE;             01514000          
+                    TRANSFERSTMT(TRUE,BLOCKBASE + PROCINDENT,PROCINDENT)01515000          
+                      ;                                                 01516000          
+                    GO XIT;                                             01517000          
+                 END;                                                   01518000          
+                 INITIALIZEDEST(MARGIN);                                01519000          
+                 IF ITSANITER THEN                                      01520000          
+                 BEGIN                                                  01521000          
+                    ITERATIONCLAUSE(MARGIN);                            01522000          
+                    IF PA = "#" THEN                                    01523000          
+                       GO XIT;                                          01524000          
+                    MARGIN := MARGIN + INCREMENT;                       01525000          
+                    ALREADYINDENTED := TRUE;                            01526000          
+                    GO LOOP;                                            01527000          
+                 END;                                                   01528000          
+                 IF ITSACASE THEN                                       0152900077/06/30  
+                 BEGIN                                                  0153000077/06/30  
+                    CASESTMT(MARGIN);                                   0153100077/06/30  
+                    GO LOOP;                                            0153200077/06/30  
+                 END;                                                   0153300077/06/30  
+              END OF STMTS;                                             01534000          
+           END OF STATEMENT STARTERS;                                   01535000          
+     DOIT: CASE TYPE OF                                                 0153600078/07/24  
+           BEGIN                                                        0153700078/07/24  
+        KIDFR:                                                          0153800078/07/24  
+        IDFR: BEGIN               % -- IDFR                             0153900078/07/24  
+                 IF SPACENEEDED THEN                                    01540000          
+                    PUTBLANK;                                           01541000          
+                 IF PIN IN OPENERS THEN % "(["                          0154200077/03/22  
+                    IF ^ SPACEFLAG := ITSARESWORD THEN % PUT IN A BLANK 0154300077/03/22  
+                       IF ^ ACTIVESUPERTOKEN THEN                       0154400081/05/07  
+                       BEGIN                                            0154500081/05/07  
+                          % DO NOW SO NONRESWORD IS PART OF SUPERTOKEN  0154600081/05/07  
+                          ACTIVESUPERTOKEN := TRUE;                     0154700077/03/22  
+                          SUPERTOKENSTARTER := REAL(PIN = "(");         0154800077/03/22  
+                       END;                                             0154900077/07/06  
+                 TYPE := IDFR;                                          0155000077/07/06  
+                 IF ITSABEGIN THEN                                      0155100078/07/25  
+                 BEGIN                                                  0155200078/07/25  
+                    IF ALREADYINDENTED THEN                             0155300078/07/25  
+                       ALREADYINDENTED := FALSE                         0155400078/07/25  
+                    ELSE                                                0155500078/07/25  
+                       MARGIN := MARGIN + INCREMENT;                    0155600078/07/25  
+                    IF DOINGADO THEN                                    01557000          
+                       DOBLOCKCOUNT := * + 1;                           01558000          
+                    OLDBLOCKBASE := BLOCKBASE;                          01559000          
+                    IF FIRSTBLOCK THEN                                  0156000078/07/25  
+                       FIRSTBLOCK := FALSE                              0156100078/07/25  
+                    ELSE                                                0156200078/07/25  
+                       BLOCKBASE := MARGIN;                             0156300078/07/25  
+                    BLOCK(MARGIN,BACKOFF);                              0156400078/07/25  
+                    BLOCKBASE := OLDBLOCKBASE;                          01565000          
+                    IF DOINGADO THEN                                    01566000          
+                       DOBLOCKCOUNT := * - 1;                           01567000          
+                    GO DOIT;                                            01568000          
+                 END                                                    01569000          
+                 ELSE                                                   01570000          
+                 IF ITSANIF THEN                                        01571000          
+                 BEGIN                                                  01572000          
+                    IFCLAUSE(STMTSTARTER,MARGIN,FINIS,ELSEF);           01573000          
+                    IF ELSEF THEN                                       0157400077/03/18  
+                    BEGIN                                               0157500077/03/18  
+                       MARGIN := REAL(ELSEF.ELSEMARGINF);               0157600077/03/18  
+                       INITIALIZEDEST(MARGIN);                          0157700077/03/18  
+                       ALREADYINDENTED := TRUE;                         01578000          
+                       GO LOOP;                                         01579000          
+                    END;                                                01580000          
+                    IF FINIS THEN                                       01581000          
+                       GO XIT;                                          01582000          
+                    IF ACTIVESUPERTOKEN THEN                            0158300077/03/21  
+                       GO LOOP;                                         0158400077/03/21  
+                 END                                                    01585000          
+                 ELSE                                                   01586000          
+                 IF ITSADO AND ^ (LOOKINGFORDO OR ACTIVESUPERTOKEN) THEN01587000          
+                 BEGIN                                                  01588000          
+                    DOSTMT(MARGIN);                                     01589000          
+                    GO DOIT;                                            01590000          
+                 END                                                    0159100077/07/05  
+                 ELSE                                                   0159200077/07/05  
+                 IF DECLFLAG AND PA = "'" THEN % CT OK IN DEC           0159300077/07/05  
+                    IF ITSANITER THEN                                   0159400077/07/05  
+                    BEGIN                                               0159500077/07/05  
+                       ITERATIONCLAUSE(BLOCKBASE + DECINDENT);          0159600077/07/05  
+                       IF PA = "#" THEN                                 0159700077/07/05  
+                          GO XIT;                                       0159800077/07/05  
+                       GO LOOP;                                         0159900077/07/05  
+                    END;                                                0160000077/07/05  
+                 IF STMTSTARTER THEN                                    01601000          
+                    IF ITSALABEL THEN                                   01602000          
+                    BEGIN                                               01603000          
+                       PUTLABEL(PA,CA,MARGIN,BACKOFF);                  01604000          
+                       GO LOOP;                                         01605000          
+                    END;                                                01606000          
+                 DONTPUTIT := FALSE;                                    0160700078/07/26  
+                 CASE ITEMKEY[IDFRDESC] OF                              0160800078/07/26  
+                 BEGIN                                                  0160900078/07/26  
+              DOC:  ENDOFLINE := DONTPUTIT := LOOKINGFORDO;             0161000078/07/26  
+              ELSE: ;                                                   0161100078/07/26  
+              ENDC: ENDOFLINE := DONTPUTIT := TRUE;                     0161200078/07/26  
+              OFC:  ENDOFLINE := DONTPUTIT := LOOKINGFOROF;             0161300078/07/26  
+              THENC:                                                    0161400078/07/26  
+              ELSEC:                                                    0161500078/07/26  
+                    ENDOFLINE := TRUE;                                  0161600078/07/26  
+                    DONTPUTIT := IFSDOING > 0;                          0161700078/07/26  
+              UNTILC:                                                   0161800078/07/26  
+                    ENDOFLINE := DONTPUTIT := ADOSUNTIL;                0161900078/07/26  
+                 END CASE ON ITEMKEY;                                   0162000078/07/26  
+                 IF ^ DONTPUTIT THEN                                    01621000          
+                 BEGIN                                                  01622000          
+                    PUTTOKEN;                                           01623000          
+                    IF ITSABY THEN                                      01624000          
+                    BEGIN                                               01625000          
+                       ACTIVESUPERTOKEN := TRUE;                        01626000          
+                       SUPERTOKENSTARTER := REPLCLASS;                  01627000          
+                    END;                                                01628000          
+                 END;                                                   01629000          
+              END OF IDFR;                                              01630000          
+        ANUMBER:                                                        0163100078/07/24  
+              BEGIN       % -- NUMBER                                   0163200078/07/24  
+                 IF STMTSTARTER AND ^ DEFINEINPROGRESS THEN             01633000          
+                    IF ITSALABEL THEN                                   01634000          
+                    BEGIN % EMIT CASE NUMBER OF FORM 1:                 01635000          
+                       PUTLABEL(PA,CA,MARGIN,BACKOFF);                  01636000          
+                       GO LOOP;                                         01637000          
+                    END;                                                01638000          
+                 IF LASTTYPE = IDFR THEN                                01639000          
+                    PUTBLANK;                                           01640000          
+                 PUTTOKEN;                                              01641000          
+              END OF NUMBER;                                            01642000          
+        SPECIALCHAR:                                                    0164300078/07/24  
+              BEGIN        % -- SPECIAL CHARACTER                       0164400078/07/24  
+                 IF PA = "#" THEN                                       01645000          
+                    PUTBLANK                                            01646000          
+                 ELSE                                                   01647000          
+                 IF ACTIVESUPERTOKEN AND SUPERTOKENSTARTER = PARENCLASS 01648000          
+                   AND ACTIVEBRACKETS = 0 AND ACTIVEPARENS = 1          01649000          
+                 THEN                                                   01650000          
+                    IF PA = ")" THEN                                    01651000          
+                       IF ITSALABEL THEN                                01652000          
+                       BEGIN % EMIT CASE NUMBER OF FORM (--):           01653000          
+                          ACTIVEPARENS := 2; % SO WON'T XFER SUPERTOKEN 0165400077/03/22  
+                          BUILDSUPERTOKEN;                              0165500077/03/22  
+                          ACTIVESUPERTOKEN := FALSE;                    0165600077/03/22  
+                          PUTLABEL(STOKP := SUPERTOK,STL,MARGIN,BACKOFF)0165700077/03/22  
+                            ;                                           0165800077/03/22  
+                          ACTIVEPARENS := ACTIVEBRACKETS := STM := STL  01659000          
+                             := LASTCOMMA := LASTTYPE := 0;             01660000          
+                          STMTSTARTER := TRUE;                          01661000          
+                          GO LOOP;                                      01662000          
+                       END;                                             01663000          
+                 SPACEKEY := PA IN CLOSERS;    % ) OR ]                 0166400077/07/07  
+                 IF ^ ENDOFLINE := PA = ";" OR PA = "#" THEN            0166500078/07/25  
+                    IF PROCESSINGGLOBALDECS THEN                        0166600078/07/25  
+                       IF ^ DEFINEINPROGRESS THEN                       0166700078/07/25  
+                          ENDOFLINE := PA = "]" AND ^ ACTIVESUPERTOKEN; 0166800078/07/25  
+                 PUTTOKEN;                                              01669000          
+                 IF PA = "," AND ^ DEFINEINPROGRESS THEN                01670000          
+                    PROCESSCOMMA;                                       01671000          
+              END OF SPECIAL CHARACTER;                                 01672000          
+        ASTRING:                                                        01673000          
+              BEGIN                                                     01674000          
+                 IF STMTSTARTER THEN                                    01675000          
+                    IF ITSALABEL THEN                                   01676000          
+                    BEGIN                                               01677000          
+                       PUTLABEL(PA,CA,MARGIN,BACKOFF);                  01678000          
+                       GO LOOP;                                         01679000          
+                    END;                                                01680000          
+                 XFERSTRING;                                            01681000          
+              END;                                                      01682000          
+        PCOMMENT:                                                       0168300078/07/24  
+              BEGIN                                                     0168400078/07/24  
+                 PUTCOMMENT;    % -- "%" COMMENT AND "$" CARDS          0168500078/07/24  
+                 IF DECLFLAG THEN                                       01686000          
+                    STMTSTARTER := FALSE;                               01687000          
+                 GO LOOP;                                               01688000          
+              END OF PERCENT COMMENT;                                   01689000          
+        CCOMMENT:                                                       0169000077/07/06  
+              BEGIN                                                     0169100077/07/06  
+                 HANDLECOMMENT;                                         0169200077/07/06  
+                 GO LOOP;                                               0169300077/07/06  
+              END OF NORMAL COMMENT;                                    0169400077/07/06  
+        ELSE: ;                                                         01695000          
+           END OF CASES;                                                01696000          
+           LASTTYPE := TYPE;                                            01697000          
+           STMTSTARTER := FALSE;                                        01698000          
+        END                                                             01699000          
+     UNTIL ENDOFLINE;                                                   01700000          
+XIT: ALREADYINDENTED := FALSE;                                          01701000          
+END OF TRANSFERSTMT;                                                    0170200081/10/14.1
+PROCEDURE TRANSFERSUPERTOKEN;                                           01703000          
+BEGIN                                                                   01704000          
+     ACTIVESUPERTOKEN := FALSE;                                         01705000          
+     IF STL > 0 THEN         % HAVE SOMETHING TO TRANSFER               0170600077/03/01  
+        IF COT >= STL THEN   % IT FITS ON CURRENT LINE                  01707000          
+        BEGIN                                                           01708000          
+           REPLACE POUT:POUT BY SUPERTOK FOR STL;                       01709000          
+           COT := COT - STL;                                            01710000          
+           IF SUPERTOKENSTARTER = REPLCLASS THEN                        01711000          
+              PUTBLANK;                                                 01712000          
+        END                                                             01713000          
+        ELSE                                                            01714000          
+        IF STL <= NEXTLINESIZE THEN % PUT IT ON THE NEXT LINE           01715000          
+        BEGIN                                                           0171600077/03/24  
+           EMITANDINDENT2;                                              0171700077/03/24  
+           SCAN STOKP:SUPERTOK FOR STL:STL WHILE = " "; % NOT NEEDED    0171800077/03/21  
+           REPLACE POUT:POUT BY STOKP FOR STL;                          0171900077/03/21  
+           COT := COT - STL;                                            01720000          
+        END                                                             01721000          
+        ELSE                                                            01722000          
+           BREAKITUP;                                                   01723000          
+     ACTIVESUPERTOKEN := SUPERTOKENSTARTER = REPLCLASS AND PA = ",";    01724000          
+     ACTIVEPARENS := ACTIVEBRACKETS := STM := STL := LASTCOMMA := 0;    01725000          
+     STOKP := SUPERTOK;                                                 01726000          
+END OF TRANSFERSUPERTOKEN;                                              0172700081/10/14.1
+PROCEDURE XFERSTRING;    % MOVES A STRING FROM ACCUM TO DEST            01728000          
+BEGIN                                                                   01729000          
+     LABEL                                                              01730000          
+            LOOP;                                                       01731000          
+     BOOLEAN                                                            01732000          
+            F;                                                          01733000          
+     INTEGER                                                            01734000          
+            NT,                                                         01735000          
+            C1,                                                         01736000          
+            C2;                                                         01737000          
+     POINTER                                                            01738000          
+            TP1,                                                        01739000          
+            TP2;                                                        01740000          
+     IF LASTTYPE IS IDFR THEN                                           01741000          
+        PUTBLANK;                                                       01742000          
+     IF ACTIVESUPERTOKEN THEN                                           0174300077/06/14  
+        BUILDSUPERTOKEN                                                 0174400077/06/14  
+     ELSE                                                               0174500077/06/14  
+     BEGIN                                                              0174600077/06/14  
+        IF F := PA + (CA - 1) = " " THEN % A BLANK HAS BENN TACKED ON   0174700077/06/14  
+           CA := CA - 1;                                                01748000          
+        IF CA > COT THEN            % IT WON'T FIT ON THIS LINE         01749000          
+           IF CA < NEXTLINESIZE THEN% PUT IT ALL ON THE NEXT LINE       0175000081/09/21  
+              EMITANDINDENT2;                                           01751000          
+  LOOP: TP2 := PA;                                                      01752000          
+        C2 := NT := MIN(CA,COT);                                        01753000          
+        DO                                                              01754000          
+           SCAN TP2:TP1 := TP2 + 1 FOR C2:C1 := C2 - 1 UNTIL = " "      01755000          
+        UNTIL C2 < 2;                                                   01756000          
+        IF C2 = 1 THEN        % BLANK WON'T FIT                         01757000          
+        BEGIN                                                           01758000          
+           TP1 := TP2;                                                  01759000          
+           C1 := C2;                                                    01760000          
+        END;                                                            01761000          
+        NT :=                                                           01762000          
+          IF CA <= COT THEN                                             01763000          
+             CA                                                         01764000          
+          ELSE                                                          01765000          
+             NT - C1;                                                   01766000          
+        IF NT = 1 THEN                                                  01767000          
+           NT := COT - 1;                                               01768000          
+        REPLACE POUT:POUT BY PA:PA FOR NT;                              01769000          
+        CA := CA - NT;                                                  01770000          
+        COT := COT - NT;                                                01771000          
+        IF CA ^= 0 THEN                                                 01772000          
+        BEGIN                                                           01773000          
+           REPLACE POUT:POUT BY QUOTE;                                  01774000          
+           EMITANDINDENT2;                                              01775000          
+           REPLACE POUT:POUT BY QUOTE;                                  01776000          
+           COT := COT - 1;                                              01777000          
+           GO LOOP;                                                     01778000          
+        END;                                                            01779000          
+     END;                                                               01780000          
+     IF F THEN                                                          01781000          
+        PUTBLANK;                                                       01782000          
+END OF XFERSTRING;                                                      0178300081/10/14.1
+% ***************************                                           01784000          
+% *****  MAIN PROGRAM  ******                                           01785000          
+% ***************************                                           01786000          
+     IF INITIALIZATION THEN                                             0178700078/07/25  
+     BEGIN                                                              0178800078/07/25  
+        WHILE TRUE DO                                                   0178900078/07/25  
+        BEGIN                                                           0179000078/07/25  
+           TRANSFERSTMT(TRUE,OBMARGIN,OBMARGIN + BEGINOFFSET);          0179100078/07/25  
+           EMIT;                                                        0179200078/07/24  
+        END;                                                            0179300078/07/24  
+  EOF:  IF ^ LINEEMPTY THEN                                             0179400078/07/25  
+           EMITWITHNOCOMMENTCHK;                                        0179500078/07/25  
+        CLOSE(INPUT,CRUNCH);                                            0179600078/07/27  
+        LOCK(OUTPUT,CRUNCH);                                            0179700078/07/27  
+     END;                                                               0179800078/07/27  
+END.                                                                    0179900078/07/24  
