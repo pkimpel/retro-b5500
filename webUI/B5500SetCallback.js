@@ -113,12 +113,11 @@
             args: null,
             fcn: fcn,
             context: context || this,
-            delay: delay,
         };
 
         pendingCallbacks[cookieName] = thisCallback;
         if (arguments.length > 3) {
-          thisCallback.args = Array.prototype.slice.call(arguments, 3);
+          thisCallback.args = Array.slice(arguments, 3);
         }
 
         if (delay < minTimeout) {

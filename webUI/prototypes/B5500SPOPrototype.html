@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<html>
 <head>
 <title>B5500 Emulator SPO Unit Prototype</title>
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -11,7 +10,8 @@
 <script>
 "use strict";
 
-window.addEventListener("load", function() {
+window.onload = function() {
+    const spoNotReady = 0;
     const spoLocal = 1;
     const spoRemote = 2;
     const spoInput = 3;
@@ -19,7 +19,7 @@ window.addEventListener("load", function() {
 
     var $$ = function(e) {return document.getElementById(e)};
     var msgTank = [];
-    var spoState = spoLocal;
+    var spoState = spoNotReady;
     var spoLocalRequested = false;
     var spoInputActive = false;
     var spoInputRequested = false;
@@ -74,7 +74,7 @@ window.addEventListener("load", function() {
 
         frame.contentDocument.head.innerHTML += "<style>" +
                 "BODY {background-color: #FFE} " +
-                "PRE {margin: 0; font-size: x-small; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
+                "PRE {margin: 0; font-size: 10pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
                 "</style>";
     };
 
@@ -94,10 +94,10 @@ window.addEventListener("load", function() {
     };
 
     var accept = function() {
+        var inputBtn = $$("SPOInputRequestBtn");
 
         spoState = spoInput;
-        removeClass($$("SPOInputRequestBtn"), "yellowLit");
-        addClass($$("SPOReadyBtn"), "yellowLit")
+        addClass(inputBtn, "yellowLit");
         window.focus();
 
         msgCtl.buffer = new Uint8Array(80);
@@ -218,6 +218,20 @@ window.addEventListener("load", function() {
         }
     };
 
+    var setReady = function(ready) {
+        /* Sets the ready status of the SPO based on the truth of "ready" */
+        var readyBtn = $$("SPOReadyBtn");
+
+        if (ready && spoState == spoNotReady) {
+            addClass(readyBtn, "yellowLit");
+            spoState = spoLocal;
+            setRemote(true);
+        } else if (!ready && spoState != spoNotReady) {
+            spoState = spoNotReady;
+            removeClass(readyBtn, "yellowLit");
+        }
+    };
+
     var setRemote = function(remote) {
         /* Sets the remote status of the SPO based on the truth of "remote" */
         var localBtn = $$("SPOLocalBtn");
@@ -238,7 +252,6 @@ window.addEventListener("load", function() {
     var initiateInput = function(ev) {
         /* Handles a successful Input Request event and enables the keyboard */
 
-        addClass($$("SPOInputRequestBtn"), "yellowLit");
         if (spoState == spoRemote) {
             accept();
         } else if (spoState == spoOutput) {
@@ -256,7 +269,7 @@ window.addEventListener("load", function() {
             } else {
                 spoState = spoRemote;
             }
-            removeClass($$("SPOReadyBtn"), "yellowLit");
+            removeClass($$("SPOInputRequestBtn"), "yellowLit");
             text = String.fromCharCode.apply(null, msgCtl.buffer.subarray(0, msgCtl.length));
             printChar();
             printText("YOU ENTERED: " + text);
@@ -273,7 +286,7 @@ window.addEventListener("load", function() {
             } else {
                 spoState = spoRemote;
             }
-            removeClass($$("SPOReadyBtn"), "yellowLit");
+            removeClass($$("SPOInputRequestBtn"), "yellowLit");
             printChar();
             printText("**ERROR");
         }
@@ -412,18 +425,19 @@ window.addEventListener("load", function() {
     };
 
     addFrameStyles($$("SPOUT"));
-    appendEmptyLine(100);
+    appendEmptyLine(32);
+    setReady(true);
     setRemote(true);
 
     doTests();
-}, false);
+};
 </script>
 </head>
 
 <body>
 
 <div id=SPODiv>
-    <iframe id=SPOUT data-type-src="./B5500SPOPaperPrototype.html" scrolling=auto></iframe>
+    <iframe id=SPOUT scrolling=auto></iframe>
     <div id=SPOControlsDiv>
         <img id=TeletypeLogo src="TeletypeLogo.gif">
         <button id=SPOReadyBtn          class="yellowButton blackBorder">READY</button>

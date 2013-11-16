@@ -50,10 +50,10 @@ var B5500SystemConfiguration = {
         PRB:    false,                  // Paper Tape Reader B
         PPA:    false,                  // Paper Tape Punch A
         PPB:    false,                  // Paper Tape Punch A
-        DCA:    true,                   // Data Communications Control A
+        DCA:    false,                  // Data Communications Control A
         DRA:    false,                  // Drum/Auxmem A
         DRB:    false,                  // Drum/Auxmem B
-        MTA:    true,                   // Magnetic Tape Unit A
+        MTA:    false,                  // Magnetic Tape Unit A
         MTB:    false,                  // Magnetic Tape Unit B
         MTC:    false,                  // Magnetic Tape Unit C
         MTD:    false,                  // Magnetic Tape Unit D

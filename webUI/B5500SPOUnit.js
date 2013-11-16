@@ -20,7 +20,7 @@
 function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal) {
     /* Constructor for the SPOUnit object */
 
-    this.maxScrollLines = 1500;         // Maximum amount of printer scrollback
+    this.maxScrollLines = 500;          // Maximum amount of printer scrollback
     this.charPeriod = 100;              // Printer speed, milliseconds per character
 
     this.mnemonic = mnemonic;           // Unit mnemonic
@@ -37,14 +37,14 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal) {
 
     this.window = window.open("", mnemonic);
     if (this.window) {
-        this.shutDown();                // destroy any previously-existing window
+        this.shutDown();                // destroy the previously-existing window
         this.window = null;
     }
     this.doc = null;
     this.paper = null;
     this.endOfPaper = null;
-    this.window = window.open("../webUI/B5500SPOUnit.html", mnemonic,
-            "scrollbars,resizable,width=688,height=508");
+    this.window = window.open("/B5500/webUI/B5500SPOUnit.html", mnemonic,
+            "scrollbars,resizable,width=758,height=508");
     this.window.moveTo(screen.availWidth-this.window.outerWidth, screen.availHeight-this.window.outerHeight);
     this.window.addEventListener("load", B5500CentralControl.bindMethod(B5500SPOUnit.prototype.spoOnload, this), false);
 }
@@ -76,6 +76,7 @@ B5500SPOUnit.prototype.clear = function clear() {
 
     this.ready = false;                 // ready status
     this.busy = false;                  // busy status
+    this.activeIOUnit = 0;              // I/O unit currently using this device
 
     this.errorMask = 0;                 // error mask for finish()
     this.finish = null;                 // external function to call for I/O completion
@@ -134,6 +135,7 @@ B5500SPOUnit.prototype.setLocal = function setLocal() {
     this.buffer = null;
     this.bufLength = 0;
     this.bufIndex = 0;
+    this.printCol = 0;
     this.nextCharTime = new Date().getTime();
     this.finish = null;
 };
@@ -144,7 +146,6 @@ B5500SPOUnit.prototype.setRemote = function setRemote() {
 
     if (this.spoState == this.spoLocal) {
         this.spoState = this.spoRemote;
-        this.spoLocalRequested = false;
         this.addClass(this.$$("SPORemoteBtn"), "yellowLit");
         this.removeClass(this.$$("SPOLocalBtn"), "yellowLit");
         this.statusChange(1);
@@ -164,7 +165,6 @@ B5500SPOUnit.prototype.appendEmptyLine = function appendEmptyLine() {
     }
     this.endOfPaper.scrollIntoView();
     this.paper.appendChild(line);
-    this.printCol = 0;
 };
 
 /**************************************/
@@ -186,19 +186,16 @@ B5500SPOUnit.prototype.backspaceChar = function backspaceChar() {
 /**************************************/
 B5500SPOUnit.prototype.printChar = function printChar(c) {
     /* Echoes the character code "c" to the SPO printer */
-    var line = this.paper.lastChild.nodeValue;
-    var len = line.length;
+    var line = this.paper.lastChild;
+    var len = line.nodeValue.length;
 
     if (len < 1) {
-        line = String.fromCharCode(c);
-        this.printCol++;
+        line.nodeValue = String.fromCharCode(c);
     } else if (len < 72) {
-        line += String.fromCharCode(c);
-        this.printCol++;
+        line.nodeValue += String.fromCharCode(c);
     } else {
-         line = line.substring(0, 71) + String.fromCharCode(c);
+         line.nodeValue = line.nodeValue.substring(0, 71) + String.fromCharCode(c);
     }
-    this.paper.lastChild.nodeValue = line;
 };
 
 /**************************************/
@@ -215,6 +212,7 @@ B5500SPOUnit.prototype.outputChar = function outputChar() {
         if (this.bufIndex < this.bufLength) {
             this.printChar(this.buffer[this.bufIndex]);
             this.bufIndex++;
+            this.printCol++;
             this.outTimer = setCallback(this.outputChar, this, delay);
         } else {                        // set up for the final CR/LF
             this.printCol = 72;
@@ -226,6 +224,7 @@ B5500SPOUnit.prototype.outputChar = function outputChar() {
     } else {                            // actually output the CR/LF
         this.appendEmptyLine();
         if (this.bufIndex < this.bufLength) {
+            this.printCol = 0;          // more characters to print after the CR/LF
             this.outTimer = setCallback(this.outputChar, this, delay);
         } else {                        // message text is exhausted
             this.finish(this.errorMask, this.bufLength);  // report finish with any errors
@@ -269,88 +268,100 @@ B5500SPOUnit.prototype.keyPress = function keyPress(ev) {
     either buffers the character for transmission to the I/O Unit, simply echos
     it to the printer, or ignores it altogether */
     var c = ev.charCode;
-    var delay;
     var index = this.bufLength;
     var nextTime;
     var stamp = new Date().getTime();
 
-    nextTime = (this.nextCharTime > stamp ? this.nextCharTime : stamp) + this.charPeriod;
-    delay = nextTime - stamp;
-
+    if (this.nextCharTime > stamp) {
+        nextTime = this.nextCharTime + this.charPeriod;
+    } else {
+        nextTime = stamp + this.charPeriod;
+    }
+    this.nextCharTime = nextTime;
     if (this.spoState == this.spoInput) {
         if (c >= 32 && c < 126) {
             this.buffer[this.bufIndex++] = c = this.keyFilter[c];
-            this.inTimer = setCallback(this.printChar, this, delay, c);
-            this.nextCharTime = nextTime;
-            ev.preventDefault();
+            if (this.printCol < 72) {
+                this.printCol++;
+            }
+            this.inTimer = setCallback(this.printChar, this, nextTime-stamp, c);
         }
         if (c == 126) {                 // "~" (B5500 group-mark)
             c = this.keyFilter[c];
-            this.inTimer = setCallback(this.printChar, this, delay, c);
+            if (this.printCol < 72) {
+                this.printCol++;
+            }
+            this.inTimer = setCallback(this.printChar, this, nextTime-stamp, c);
             this.nextCharTime = nextTime + this.charPeriod;
             this.terminateInput();
-            ev.preventDefault();
         }
     } else if (this.spoState == this.spoLocal) {
         if (c >= 32 && c <= 126) {
             c = this.keyFilter[c];
-            this.inTimer = setCallback(this.printChar, this, delay, c);
-            this.nextCharTime = nextTime;
-            ev.preventDefault();
+            this.inTimer = setCallback(this.printChar, this, nextTime-stamp, c);
         }
     }
+
+    ev.preventDefault();
 };
 
 /**************************************/
 B5500SPOUnit.prototype.keyDown = function keyDown(ev) {
     /* Handles key-down events to capture ESC, BS, and Enter keystrokes */
     var c = ev.keyCode;
-    var delay;
     var nextTime;
+    var result = true;
     var stamp = new Date().getTime();
 
-    nextTime = (this.nextCharTime > stamp ? this.nextCharTime : stamp) + this.charPeriod;
-    delay = nextTime - stamp;
+    if (this.nextCharTime > stamp) {
+        nextTime = this.nextCharTime + this.charPeriod;
+    } else {
+        nextTime = stamp + this.charPeriod;
+    }
 
     switch (c) {
-    case 0x1B:                  // ESC
+    case 27:                    // ESC
         switch (this.spoState) {
         case this.spoRemote:
         case this.spoOutput:
             this.addClass(this.$$("SPOInputRequestBtn"), "yellowLit");
             this.signal();
-            ev.preventDefault();
+            result = false;
             break;
         case this.spoInput:
             this.cancelInput();
-            ev.preventDefault();
+            result = false;
             break;
         }
         break;
-    case 0x08:                  // Backspace
+    case 8:                     // Backspace
         switch (this.spoState) {
         case this.spoInput:
         case this.spoLocal:
-            this.inTimer = setCallback(this.backspaceChar, this, delay);
+            this.inTimer = setCallback(this.backspaceChar, this, nextTime-stamp);
             this.nextCharTime = nextTime;
-            ev.preventDefault();
+            result = false;
             break;
         }
         break;
-    case 0x0D:                  // Enter
+    case 13:                    // Enter
         switch (this.spoState) {
         case this.spoInput:
             this.terminateInput();
             this.nextCharTime = nextTime;
-            ev.preventDefault();
-            break;
+            result = false;
+            break
         case this.spoLocal:
-            this.inTimer = setCallback(this.appendEmptyLine, this, delay+this.charPeriod);
+            this.inTimer = setCallback(this.appendEmptyLine, this, nextTime-stamp+this.charPeriod);
             this.nextCharTime = nextTime;
-            ev.preventDefault();
+            result = false;
             break;
         }
         break;
+    }
+
+    if (!result) {
+        ev.preventDefault();
     }
 };
 
@@ -408,10 +419,8 @@ B5500SPOUnit.prototype.spoOnload = function spoOnload() {
     this.window.addEventListener("beforeunload", this.beforeUnload, false);
 
     this.window.addEventListener("keypress", B5500CentralControl.bindMethod(B5500SPOUnit.prototype.keyPress, this), false);
-    this.$$("SPOUT").contentDocument.body.addEventListener("keypress", B5500CentralControl.bindMethod(B5500SPOUnit.prototype.keyPress, this), false);
 
     this.window.addEventListener("keydown", B5500CentralControl.bindMethod(B5500SPOUnit.prototype.keyDown, this), false);
-    this.$$("SPOUT").contentDocument.body.addEventListener("keydown", B5500CentralControl.bindMethod(B5500SPOUnit.prototype.keyDown, this), false);
 
     this.$$("SPORemoteBtn").addEventListener("click", B5500CentralControl.bindMethod(B5500SPOUnit.prototype.setRemote, this), false);
 
@@ -457,9 +466,10 @@ B5500SPOUnit.prototype.read = function read(finish, buffer, length, mode, contro
         this.buffer = buffer;
         this.bufLength = length;
         this.bufIndex = 0;
+        this.printCol = 0;
         this.nextCharTime = new Date().getTime();
         this.finish = finish;
-        //this.window.focus();          // interferes with datacom terminal window
+        this.window.focus();
         break;
     case this.spoOutput:
     case this.spoInput:
@@ -489,9 +499,10 @@ B5500SPOUnit.prototype.write = function write(finish, buffer, length, mode, cont
         this.buffer = buffer;
         this.bufLength = length;
         this.bufIndex = 0;
-        this.nextCharTime = this.initiateStamp;
+        this.printCol = 0;
+        this.nextCharTime = new Date().getTime();
         this.finish = finish;
-        //this.window.focus();          // interferes with datacom terminal window
+        this.window.focus();
         this.outputChar();              // start the printing process
         break;
     case this.spoOutput:

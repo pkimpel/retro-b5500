@@ -7,7 +7,7 @@
 <meta http-equiv="Content-Style-Type" content="text/css">
 <link id=defaultStyleSheet rel=stylesheet type="text/css" href="B5500SyllableDebugger.css">
 
-<script src="./B5500SetCallback.js"></script>
+<script src="./setImmediate.js"></script>
 
 <script src="./B5500DummyUnit.js"></script>
 <script src="./B5500SPOUnit.js"></script>
@@ -15,8 +15,6 @@
 <script src="./B5500CardReader.js"></script>
 <script src="./B5500CardPunch.js"></script>
 <script src="./B5500DummyPrinter.js"></script>
-<script src="./B5500DatacomUnit.js"></script>
-<script src="./B5500MagTapeDrive.js"></script>
 
 <script src="../emulator/B5500SystemConfiguration.js"></script>
 <script src="../emulator/B5500CentralControl.js"></script>
@@ -35,7 +33,6 @@ var runningCycles = 1000;               // Number of instructions per run-mode i
 var cc;
 var injected = false;                   // true if syllable manually injected into T
 var memAddr = 0x40;                     // @100
-var px;                                 // reference to currently-displayed processor
 var running = false;                    // true if in run mode
 var runSilently = false;                // true if system state is not to be refreshed after each step
 var stopAddress = 0;                    // run-until-address stop point
@@ -537,18 +534,18 @@ function displayStack() {
     var valueID;
     var x;
 
-    displayOctal("AReg", px.A, 16);
-    displayBIC("ARegBIC", px.A);
-    displayNumber("ARegValue", px.A);
-    $$("AROF").checked = (px.AROF != 0);
+    displayOctal("AReg", cc.P1.A, 16);
+    displayBIC("ARegBIC", cc.P1.A);
+    displayNumber("ARegValue", cc.P1.A);
+    $$("AROF").checked = (cc.P1.AROF != 0);
 
-    displayOctal("BReg", px.B, 16);
-    displayBIC("BRegBIC", px.B);
-    displayNumber("BRegValue", px.B);
-    $$("BROF").checked = (px.BROF != 0);
+    displayOctal("BReg", cc.P1.B, 16);
+    displayBIC("BRegBIC", cc.P1.B);
+    displayNumber("BRegValue", cc.P1.B);
+    $$("BROF").checked = (cc.P1.BROF != 0);
 
     for (x=0; x<=7; x++) {
-        addr = px.S - x;
+        addr = cc.P1.S - x;
         setText("SAddr" + x, padOctal(addr, 5));
         e = $$("SWord" + x);
         bicID = e.getAttribute("data-b55sd-bicID");
@@ -585,45 +582,45 @@ function displaySyllable() {
     /* Decodes the syllable in the T register and formats it for display in the
     "TMnemonic" table cell */
 
-    setText("TMnemonic", decodeSyllable(px.T, px.CWMF, px.SALF, px.MSFF));
+    setText("TMnemonic", decodeSyllable(cc.P1.T, cc.P1.CWMF, cc.P1.SALF, cc.P1.MSFF));
 }
 
 function displayRegisters() {
     /* Displays the non-stack processor registers */
 
-    displayOctal("XReg", px.X, 13);
-    displayOctal("CReg", px.C, 5);
-    displayOctal("LReg", px.L, 1);
-    setText("SylAddr", (px.C*4 + px.L).toString(8));
-    displayOctal("PReg", px.P, 16);
-    $$("PROF").checked = (px.PROF != 0);
-    displayOctal("TReg", px.T, 4);
-    $$("TROF").checked = (px.TROF != 0);
+    displayOctal("XReg", cc.P1.X, 13);
+    displayOctal("CReg", cc.P1.C, 5);
+    displayOctal("LReg", cc.P1.L, 1);
+    setText("SylAddr", (cc.P1.C*4 + cc.P1.L).toString(8));
+    displayOctal("PReg", cc.P1.P, 16);
+    $$("PROF").checked = (cc.P1.PROF != 0);
+    displayOctal("TReg", cc.P1.T, 4);
+    $$("TROF").checked = (cc.P1.TROF != 0);
     displaySyllable();
-    displayOctal("EReg", px.E, 2);
-    displayOctal("IReg", px.I, 3);
-    if (px.I) {
+    displayOctal("EReg", cc.P1.E, 2);
+    displayOctal("IReg", cc.P1.I, 3);
+    if (cc.P1.I) {
         addClass("IReg", "warn");
     } else {
         removeClass("IReg", "warn");
     }
-    displayOctal("QReg", px.Q, 4);
-    displayOctal("MReg", px.M, 5);
-    displayOctal("GReg", px.G, 1);
-    displayOctal("HReg", px.H, 1);
-    displayOctal("SReg", px.S, 5);
-    displayOctal("KReg", px.K, 1);
-    displayOctal("VReg", px.V, 1);
-    displayOctal("FReg", px.F, 5);
-    displayOctal("RReg", px.R, 3);
-    displayOctal("YReg", px.Y, 2);
-    displayOctal("ZReg", px.Z, 2);
-    displayOctal("NReg", px.N, 2);
-    $$("NCSF").checked = (px.NCSF != 0);
-    $$("CWMF").checked = (px.CWMF != 0);
-    $$("MSFF").checked = (px.MSFF != 0);
-    $$("SALF").checked = (px.SALF != 0);
-    $$("VARF").checked = (px.VARF != 0);
+    displayOctal("QReg", cc.P1.Q, 4);
+    displayOctal("MReg", cc.P1.M, 5);
+    displayOctal("GReg", cc.P1.G, 1);
+    displayOctal("HReg", cc.P1.H, 1);
+    displayOctal("SReg", cc.P1.S, 5);
+    displayOctal("KReg", cc.P1.K, 1);
+    displayOctal("VReg", cc.P1.V, 1);
+    displayOctal("FReg", cc.P1.F, 5);
+    displayOctal("RReg", cc.P1.R, 3);
+    displayOctal("YReg", cc.P1.Y, 2);
+    displayOctal("ZReg", cc.P1.Z, 2);
+    displayOctal("NReg", cc.P1.N, 2);
+    $$("NCSF").checked = (cc.P1.NCSF != 0);
+    $$("CWMF").checked = (cc.P1.CWMF != 0);
+    $$("MSFF").checked = (cc.P1.MSFF != 0);
+    $$("SALF").checked = (cc.P1.SALF != 0);
+    $$("VARF").checked = (cc.P1.VARF != 0);
 }
 
 function displayCentralControl() {
@@ -674,14 +671,14 @@ function goIt(ev) {
     P and T to set up for the execution of the instruction at that syllable
     address, and then advances C/L to the next syllable address */
 
-    px.loadPviaC();
-    px.T = px.cc.fieldIsolate(px.P, px.L*12, 12);
-    px.TROF = 1;
-    if (px.L < 3) {
-        px.L++;
+    cc.P1.loadPviaC();
+    cc.P1.T = cc.P1.cc.fieldIsolate(cc.P1.P, cc.P1.L*12, 12);
+    cc.P1.TROF = 1;
+    if (cc.P1.L < 3) {
+        cc.P1.L++;
     } else {
-        px.L = 0;
-        px.C++;
+        cc.P1.L = 0;
+        cc.P1.C++;
     }
     displaySystemState();
 }
@@ -693,16 +690,16 @@ function stepIt(ev) {
     var next;
 
     ev.target.disabled = true;
-    setText("ARegOrig", padOctal(px.A, 16));
-    setText("BRegOrig", padOctal(px.B, 16));
+    setText("ARegOrig", padOctal(cc.P1.A, 16));
+    setText("BRegOrig", padOctal(cc.P1.B, 16));
 
     if (injected) {
         injected = false;
-        next = px.C*4 + px.L - 1;       // back up the auto-L increment
-        px.L = next%4;
-        px.C = (next - px.L)/4;
+        next = cc.P1.C*4 + cc.P1.L - 1;         // back up the auto-L increment
+        cc.P1.L = next%4;
+        cc.P1.C = (next - cc.P1.L)/4;
     }
-    px.step();
+    cc.P1.step();
     displaySystemState();
     ev.target.disabled = false;
 }
@@ -717,55 +714,16 @@ function runIt(ev) {
     var stopAddr = $$("StopAddr");
 
     function syllabicate() {
-        var addr;
-        var prt;
-        var word;
-
         do {
-            px.step();
-
-            if (false) {        // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< DEBUG <<<<<<<<<<
-            addr = cc.memMod[0][149] % 0x8000 + 1;              // MCP PRT @225: addr of PRT[1,*] DD
-            word = cc.memMod[addr >>> 12][addr & 0xFFF];        // PRT[2,*] DD
-            if (word > 0xA00000000000) {
-                prt = word % 0x8000
-
-                if (false) {    // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< DEBUG <<<<<<<<<<
-                addr = prt + 70;                                // addr of STACKHEAD DD
-                word = cc.memMod[addr >>> 12][addr & 0xFFF];    // STACKHEAD DD
-                if (word > 0xA00000000000) {
-                    addr = word % 0x8000 + 66;                  // addr of STACKHEAD[66]
-                    word = cc.memMod[addr >>> 12][addr & 0xFFF];
-                    if (word == 2) {
-                        alert("STACKHEAD[66]==2");
-                        stopAddress = 0;
-                    }
-                }
-                }               // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-                addr = prt + 204;                               // addr of NEXTINFO
-                word = cc.memMod[addr >>> 12][addr & 0xFFF];    // NEXTINFO
-                if (window.uglyLatch) {
-                    if (word <= 2) {
-                        alert("NEXTINFO==1");
-                        stopAddress = 0;
-                    }
-                } else {
-                    if (word > 255) {
-                        window.uglyLatch = true;
-                    }
-                }
-            }
-            }                   // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-            if (px.S > 0x7FFF) {
+            cc.P1.step();
+            if (cc.P1.S > 0x7FFF) {
                 alert("P1.S out of range");
                 stopAddress = 0;
             }
             /***************************
-            if (px.C < 0x40) {
+            if (cc.P1.C < 0x40) {
                 // There is an interrupt
-                switch (px.C) {
+                switch (cc.P1.C) {
                 case 0x31:              // P1 invalid address
                 case 0x32:              // P1 stack overflow
                 case 0x3C:              // P1 integer overflow
@@ -779,17 +737,16 @@ function runIt(ev) {
                 count = runningCycles;
                 break;                  // exit loop to pick up events
             }
-        } while (runSilently && stopAddress && px.C != stopAddress);
+        } while (runSilently && stopAddress && cc.P1.C != stopAddress);
 
-        if (stopAddress && px.C != stopAddress) {
-            setCallback(syllabicate, this, 0);
+        if (stopAddress && cc.P1.C != stopAddress) {
+            setImmediate(syllabicate);
             if (!runSilently) {
                 displaySystemState();
             }
         } else if (isNaN(stopAddress)) {
             stopAddress = 0;            // bad address
             stopAddr.style.backgroundColor = "red";
-            $$("SelectProcessor").disabled = false;
             runBtn.value = "Run";
             running = false;
             cc.inhCCI03F = true;
@@ -797,7 +754,6 @@ function runIt(ev) {
             stopAddress = saveStopAddress;
             stopAddr.style.backgroundColor = "";
             stopAddr.value = padOctal(stopAddress, stopAddr.maxLength);
-            $$("SelectProcessor").disabled = false;
             runBtn.value = "Run";
             running = false;
             cc.inhCCI03F = true;
@@ -812,7 +768,6 @@ function runIt(ev) {
         setText("BRegOrig", "");
         injected = false;
         stopAddr.style.backgroundColor = "green";
-        $$("SelectProcessor").disabled = true;
         runBtn.value = "Stop";
         running = true;
         cc.inhCCI03F = !runSilently;
@@ -900,7 +855,7 @@ function fileLoader_onLoad(ev) {
     var words = 0;
 
     cc.clear();
-    px.clear();
+    cc.P1.clear();
     try {
         words = cc.loadTest(buf, addr);
         alert("File loaded: " + buf.byteLength + " bytes, " +
@@ -910,7 +865,7 @@ function fileLoader_onLoad(ev) {
         alert("File load failed: " + e.toString());
     }
     if (words > 0) {
-        px.preset(0x10);                // execute from address @20
+        cc.P1.preset(0x10);             // execute from address @20
         displaySystemState();
     }
 }
@@ -929,13 +884,11 @@ function hardwareLoad_onClick(ev) {
     var result;
 
     cc.clear();
-    $$("SelectProcessor").selectedIndex = 0;
-    px = cc.P1;
-    px.clear();
-    cc.cardLoadSelect = $$("CardLoadSelect").checked;
     result = cc.load(true);
     switch (result) {
     case 0:                         // load initiated successfully
+        cc.P1.clear();
+        cc.cardLoadSelect = $$("CardLoadSelect").checked;
         displaySystemState();
         break;
     case 1:
@@ -950,24 +903,6 @@ function hardwareLoad_onClick(ev) {
     default:
         alert("cc.load() result = " + result);
         break;
-    }
-}
-
-function selectProcessor_onChange(ev) {
-    /* Handle onChange for the SelectProcessor list to change the actively-displayed
-    processor state */
-    var value = ev.target.value;
-
-    if (value == "1") {
-        px = cc.P1;
-        displaySystemState();
-    } else if (value == "2") {
-        if (cc.P2) {
-            px = cc.P2;
-            displaySystemState();
-        } else {
-            ev.target.selectedIndex = 0;        // revert back to P1
-        }
     }
 }
 
@@ -1001,20 +936,20 @@ function initialize() {
     };
 
     $$("AReg").onchange = function(ev) {
-        px.A = tos_onChange(ev, "ARegBIC", "ARegValue", "ARegOrig");
-        px.AROF = 1;
+        cc.P1.A = tos_onChange(ev, "ARegBIC", "ARegValue", "ARegOrig");
+        cc.P1.AROF = 1;
         $$("AROF").checked = true;
     };
     $$("AROF").onclick = function(ev) {
-        px.AROF = ff_onChange(ev);
+        cc.P1.AROF = ff_onChange(ev);
     };
     $$("BReg").onchange = function(ev) {
-        px.B = tos_onChange(ev, "BRegBIC", "BRegValue", "BRegOrig");
-        px.BROF = 1;
+        cc.P1.B = tos_onChange(ev, "BRegBIC", "BRegValue", "BRegOrig");
+        cc.P1.BROF = 1;
         $$("BROF").checked = true;
     };
     $$("BROF").onclick = function(ev) {
-        px.BROF = ff_onChange(ev);
+        cc.P1.BROF = ff_onChange(ev);
     };
 
     $$("MAddr").onchange = function(ev) {
@@ -1027,98 +962,98 @@ function initialize() {
     };
 
     $$("XReg").onchange = function(ev) {
-        px.X = reg_onChange(ev);
+        cc.P1.X = reg_onChange(ev);
     };
     $$("CReg").onchange = function(ev) {
-        px.C = reg_onChange(ev);
-        setText("SylAddr", (px.C*4 + px.L).toString(8));
+        cc.P1.C = reg_onChange(ev);
+        setText("SylAddr", (cc.P1.C*4 + cc.P1.L).toString(8));
     };
     $$("LReg").onchange = function(ev) {
-        px.L = reg_onChange(ev);
-        setText("SylAddr", (px.C*4 + px.L).toString(8));
+        cc.P1.L = reg_onChange(ev);
+        setText("SylAddr", (cc.P1.C*4 + cc.P1.L).toString(8));
     };
     $$("PReg").onchange = function(ev) {
-        px.P = reg_onChange(ev);
+        cc.P1.P = reg_onChange(ev);
     };
     $$("PROF").onclick = function(ev) {
-        px.PROF = ff_onChange(ev);
+        cc.P1.PROF = ff_onChange(ev);
     };
     $$("TReg").onchange = function(ev) {
 
-        px.T = reg_onChange(ev);
+        cc.P1.T = reg_onChange(ev);
         injected = true;
         displaySyllable();
     };
     $$("TROF").onclick = function(ev) {
-        px.TROF = ff_onChange(ev);
+        cc.P1.TROF = ff_onChange(ev);
     };
     $$("EReg").onchange = function(ev) {
-        px.E = reg_onChange(ev);
+        cc.P1.E = reg_onChange(ev);
     };
     $$("IReg").onchange = function(ev) {
-        px.I = reg_onChange(ev);
-        if (px.I) {
+        cc.P1.I = reg_onChange(ev);
+        if (cc.P1.I) {
             addClass("IReg", "warn");
         } else {
             removeClass("IReg", "warn");
         }
     };
     $$("QReg").onchange = function(ev) {
-        px.Q = reg_onChange(ev);
+        cc.P1.Q = reg_onChange(ev);
     };
     $$("MReg").onchange = function(ev) {
-        px.M = reg_onChange(ev);
+        cc.P1.M = reg_onChange(ev);
     };
     $$("GReg").onchange = function(ev) {
-        px.G = reg_onChange(ev);
+        cc.P1.G = reg_onChange(ev);
     };
     $$("HReg").onchange = function(ev) {
-        px.H = reg_onChange(ev);
+        cc.P1.H = reg_onChange(ev);
     };
     $$("SReg").onchange = function(ev) {
         var addr = reg_onChange(ev);
 
         if (!isNaN(addr)) {
-            px.S = addr & 0x7FFF;
+            cc.P1.S = addr & 0x7FFF;
             displayStack();
         }
     };
     $$("KReg").onchange = function(ev) {
-        px.K = reg_onChange(ev);
+        cc.P1.K = reg_onChange(ev);
     };
     $$("VReg").onchange = function(ev) {
-        px.V = reg_onChange(ev);
+        cc.P1.V = reg_onChange(ev);
     };
     $$("FReg").onchange = function(ev) {
-        px.F = reg_onChange(ev);
+        cc.P1.F = reg_onChange(ev);
     };
     $$("RReg").onchange = function(ev) {
-        px.R = reg_onChange(ev);
+        cc.P1.R = reg_onChange(ev);
     };
     $$("YReg").onchange = function(ev) {
-        px.Y = reg_onChange(ev);
+        cc.P1.Y = reg_onChange(ev);
     };
     $$("ZReg").onchange = function(ev) {
-        px.Z = reg_onChange(ev);
+        cc.P1.Z = reg_onChange(ev);
     };
     $$("NReg").onchange = function(ev) {
-        px.N = reg_onChange(ev);
+        cc.P1.N = reg_onChange(ev);
     };
 
     $$("NCSF").onclick = function(ev) {
-        px.NCSF = ff_onChange(ev);
+        cc.P1.NCSF = ff_onChange(ev);
     };
     $$("CWMF").onclick = function(ev) {
-        px.CWMF = ff_onChange(ev);
+        cc.P1.CWMF = ff_onChange(ev);
     };
     $$("MSFF").onclick = function(ev) {
-        px.MSFF = ff_onChange(ev);
+        cc.P1.MSFF = ff_onChange(ev);
     };
     $$("SALF").onclick = function(ev) {
-        px.SALF = ff_onChange(ev);
+        cc.P1.SALF = ff_onChange(ev);
     };
     $$("VARF").onclick = function(ev) {
-        px.VARF = ff_onChange(ev);
+        cc.P1.VARF = ff_onChange(ev);
     };
 
     $$("SWord0").onchange = word_onChange;
@@ -1146,31 +1081,28 @@ function initialize() {
 
     $$("FileSelector").addEventListener("change", fileSelector_onChange, false);
     $$("HardwareLoad").addEventListener("click", hardwareLoad_onClick, false);
-    $$("SelectProcessor").addEventListener("change", selectProcessor_onChange, false);
     $$("GoBtn").addEventListener("click", goIt, false);
     $$("StepBtn").addEventListener("click", stepIt, false);
     $$("RunBtn").addEventListener("click", runIt, false);
     $$("RunSilently").addEventListener("click", runSilently_onClick, false);
 
-    cc = new B5500CentralControl(window);
+    cc = new B5500CentralControl();
     cc.powerOn();
-    px = cc.P1;                         // set current processor reference
 
-    px.S = 0x40;                        // stack at @100
-    px.R = 0x005;                       // PRT at @500 (R has addr div 64)
+    cc.P1.S = 0x40;                     // stack at @100
+    cc.P1.R = 0x005;                    // PRT at @500 (R has addr div 64)
 
-    px.C = 0x10;                        // execute from address @20
-    px.loadPviaC();
-    px.T = cc.fieldIsolate(px.P, 0, 12);
-    px.TROF = 1;
-    px.L = 1;                           // point to the next syllable
+    cc.P1.C = 0x10;                     // execute from address @20
+    cc.P1.loadPviaC();
+    cc.P1.T = cc.fieldIsolate(cc.P1.P, 0, 12);
+    cc.P1.TROF = 1;
+    cc.P1.L = 1;                        // point to the next syllable
 
-    px.NCSF = 0;                        // initiate test in control state
+    cc.P1.NCSF = 0;                     // initiate test in control state
 
     displaySystemState();
     displayOctal("StopAddr", stopAddress, 5);
     establishSilence(runSilently);
-    $$("StepBtn").disabled = false;
 }
 
 window.onload = function() {
@@ -1198,11 +1130,6 @@ window.onload = function() {
     <input id=HardwareLoad type=button value="Hardware Load">
     <input id=CardLoadSelect type=checkbox value="CardLoadSelect">
     <label for=CardLoadSelect>Card Load Select</label>
-    &nbsp;&nbsp;
-    <select id=SelectProcessor>
-        <option value=1 selected>Show P1
-        <option value=2>Show P2
-    </select>
 </p>
 
 <table id=RegisterBank1 class="normal border">

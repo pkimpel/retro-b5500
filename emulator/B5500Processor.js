@@ -33,7 +33,6 @@ function B5500Processor(procID, cc) {
     /* Constructor for the Processor module object */
 
     this.processorID = procID;          // Processor ID ("A" or "B")
-    this.mnemonic = "P" + procID;       // Unit mnemonic
     this.cc = cc;                       // Reference back to Central Control module
     this.scheduler = null;              // Reference to current setCallback token
     this.accessor = {                   // Memory access control block
@@ -1191,10 +1190,10 @@ B5500Processor.prototype.streamOutputConvert = function streamOutputConvert(coun
 };
 
 /**************************************/
-B5500Processor.prototype.storeForInterrupt = function storeForInterrupt(forced, forTest) {
+B5500Processor.prototype.storeForInterrupt = function storeForInterrupt(forTest) {
     /* Implements the 3011=SFI operator and the parts of 3411=SFT that are
-    common to it. "forced" implies Q07F: a hardware-induced SFI syllable.
-    "forTest" implies use from SFT */
+    common to it. "forTest" implies use from SFT */
+    var forced = this.Q & 0x40;         // Q07F: Hardware-induced SFI syllable
     var saveAROF = this.AROF;
     var saveBROF = this.BROF;
     var temp;
@@ -1272,6 +1271,12 @@ B5500Processor.prototype.storeForInterrupt = function storeForInterrupt(forced, 
           this.Y * 0x10000000 +
           (this.Q & 0x1FF) * 0x400000000 +
           0xC00000000000;
+    if (forTest) {
+        this.TM = 0;
+        this.MROF = 0;
+        this.MWOF = 0;
+    }
+
     this.M = this.R*64 + 8;             // store initiate word at R+@10
     this.storeBviaM();                  // [M] = B
 
@@ -1281,31 +1286,28 @@ B5500Processor.prototype.storeForInterrupt = function storeForInterrupt(forced, 
     this.SALF = 0;
     this.BROF = 0;
     this.AROF = 0;
-    if (forTest) {
-        this.TM = 0;
-        this.MROF = 0;
-        this.MWOF = 0;
-    }
-
-    if (forced || forTest) {
-        this.CWMF = 0;
-    }
-
-    if (!this.isP1) {                   // if it's P2
-        this.stop();                        // idle the P2 processor
-        this.cc.P2BF = 0;                   // tell CC and P1 we've stopped
-    } else {                            // otherwise, if it's P1
-        if (!forTest) {
-            this.T = 0x89;                  // inject 0211=ITI into P1's T register
+    if (forced) {
+        if (this.isP1) {
+            this.T = 0x89;              // inject 0211=ITI into T register
         } else {
-            this.loadBviaM();               // B = [M]: load DD for test
+            this.stop();                // idle the processor
+            this.cc.P2BF = 0;           // tell P1 we've stopped
+        }
+        this.CWMF = 0;
+    } else if (forTest) {
+        this.CWMF = 0;
+        if (this.isP1) {
+            this.loadBviaM();           // B = [M]: load DD for test
             this.C = this.B % 0x8000;
             this.L = 0;
-            this.PROF = 0;                  // require fetch at SECL
+            this.PROF = 0;              // require fetch at SECL
             this.G = 0;
             this.H = 0;
             this.K = 0;
             this.V = 0;
+        } else {
+            this.stop();                // idle the processor
+            this.cc.P2BF = 0;           // tell P1 we've stopped
         }
     }
 };
@@ -1367,8 +1369,6 @@ B5500Processor.prototype.initiate = function initiate(forTest) {
 
     if (this.AROF) {
         this.B = bw = this.A;
-    } else if (this.BROF) {
-        bw = this.B;
     } else {
         this.adjustBFull();
         bw = this.B;
@@ -1471,9 +1471,9 @@ B5500Processor.prototype.initiate = function initiate(forTest) {
 /**************************************/
 B5500Processor.prototype.initiateAsP2 = function initiateAsP2() {
     /* Called from Central Control to initiate the processor as P2. Fetches the
-    INCW from @10, injects an initiate P2 syllable into T, and calls start() */
+    INCW from @10 and calls initiate() */
 
-    this.NCSF = 0;                      // make sure P2 is in Control State to execute the IP1 & access low mem
+    this.NCSF = 0;                      // make sure P2 is in control state to execute the IP1 & access low mem
     this.M = 0x08;                      // address of the INCW
     this.loadBviaM();                   // B = [M]
     this.AROF = 0;                      // make sure A is invalid
@@ -1611,9 +1611,10 @@ B5500Processor.prototype.singlePrecisionAdd = function singlePrecisionAdd(adding
                 d = mb % 8;
                 mb = (mb - d)/8;        // shift right into extension
                 xb = (xb - xb%8)/8 + d*0x1000000000;
-                eb++;
-                if (mb == 0 && ea != eb) {
-                    eb = ea;            // if B=0, kill the scaling loop: result will have exponent of A
+                if (mb) {
+                    eb++;
+                } else {
+                    eb = ea;            // if B=0, result will have exponent of A
                     xb = 0;             // prevent rounding of result
                 }
             }
@@ -1630,8 +1631,9 @@ B5500Processor.prototype.singlePrecisionAdd = function singlePrecisionAdd(adding
                 d =  ma % 8;
                 ma = (ma - d)/8;        // shift right into extension
                 xa = (xa - xa%8)/8 + d*0x1000000000;
-                ea++;
-                if (ma == 0 && eb != ea) {
+                if (ma) {
+                    ea++;
+                } else {
                     ea = eb;            // if A=0, kill the scaling loop
                     xa = 0;             // prevent rounding of result
                 }
@@ -1644,72 +1646,68 @@ B5500Processor.prototype.singlePrecisionAdd = function singlePrecisionAdd(adding
         xb = (sb ? -xb : xb) + (sa ? -xa : xa);         // compute the extension
         if (xb < 0) {
             xb += 0x8000000000;                                 // adjust for underflow in the extension
-            d = -1;                                             // adjust B for borrow into extension
+            mb += (sb ? 1 : -1);                                // adjust B for borrow into extension
         } else if (xb > 0x8000000000) {
             xb -= 0x8000000000;                                 // adjust for overflow in the extension
-            d = 1;                                              // adjust B for carry from extension
-        } else {
-            d = 0;                                              // no adjustment
+            mb += (sb? -1 : 1);                                 // adjust B for carry from extension
         }
 
-        mb = (sb ? -mb : mb) + (sa ? -ma : ma) + d;     // compute the mantissa
-        if (mb >= 0) {                                  // if non-negative...
-            sb = 0;                                             // reset the B sign bit
-        } else {                                        // if negative...
-            sb = 1;                                             // set the B sign bit
-            mb = -mb;                                           // negate the B mantissa
-            if (xb) {                                           // if non-zero octades have been shifted into X (and ONLY if... learned THAT the hard way...)
-                xb = 0x8000000000 - xb;                         // negate the extension in X
-                mb--;                                           // and adjust for borrow into X
-            }
-        }
-
-        // Normalize and round as necessary
-        if (mb < 0x1000000000) {                                // Normalization can be required for subtract
-            if (xb < 0x800000000) {                             // if first two octades in X < @04 then
-                d = 0;                                          // no rounding will take place
-            } else {
-                this.cycleCount++;
-                d = (xb - xb%0x1000000000)/0x1000000000;        // get the high-order digit from X
-                xb = (xb%0x1000000000)*8;                       // shift B and X left together
-                mb = mb*8 + d;
-                eb--;
-                d = (xb - xb%0x1000000000)/0x1000000000;        // get the rounding digit from X
-            }
-        } else if (mb >= 0x8000000000) {                        // Scaling can be required for add
-            this.cycleCount++;
-            d = mb % 8;                                         // get the rounding digit from B
-            mb = (mb - d)/8;                                    // shift right due to overflow
-            eb++;
-        } else {
-            d = (xb - xb%0x1000000000)/0x1000000000;            // another hard-earned lesson...
-        }
-
-        // Note: the Training Manual does not say that rounding is suppressed
-        // for add/subtract when the mantissa is all ones, but it does say so
-        // for multiply/divide, so we assume it's also the case here.
-        if (d & 0x04) {                 // if the guard digit >= 4
-            if (mb < 0x7FFFFFFFFF) {    // and rounding would not cause overflow
-                this.cycleCount++;
-                mb++;                   // round up the result
-            }
-        }
-
-        // Check for exponent overflow
-        if (eb > 63) {
-            eb %= 64;
-            if (this.NCSF) {
-                this.I = (this.I & 0x0F) | 0xB0;        // set I05/6/8: exponent-overflow
-                this.cc.signalInterrupt();
-            }
-        } else if (eb < 0) {
-            eb = (-eb) | 0x40;                          // set the exponent sign bit
-        }
-
-        this.X = xb;                                    // for display purposes only
+        mb = (sb ? -mb : mb) + (sa ? -ma : ma);         // compute the mantissa
         if (mb == 0) {                                  // if the mantissa is zero...
             this.B = 0;                                         // the whole result is zero, and we're done
         } else {                                        // otherwise, determine the resulting sign
+            if (mb > 0) {                               // if positive...
+                sb = 0;                                         // reset the B sign bit
+            } else {                                    // if negative...
+                sb = 1;                                         // set the B sign bit
+                mb = -mb;                                       // negate the B mantissa
+                if (xb) {                                       // if non-zero octades have been shifted into X (and ONLY if... learned THAT the hard way...)
+                    xb = 0x8000000000 - xb;                     // negate the extension in X
+                    mb--;                                       // and adjust for borrow into X
+                }
+            }
+
+            // Normalize and round as necessary
+            if (mb < 0x1000000000) {                            // Normalization can be required for subtract
+                if (xb < 0x800000000) {                         // if first two octades in X < @04 then
+                    d = 0;                                      // no rounding will take place
+                } else {
+                    this.cycleCount++;
+                    d = (xb - xb%0x1000000000)/0x1000000000;    // get the rounding digit from X
+                    xb = (xb%0x1000000000)*8;                   // shift B and X left together
+                    mb = mb*8 + d;
+                    eb--;
+                    d = (xb - xb%0x1000000000)/0x1000000000;    // get the next rounding digit from X
+                }
+            } else if (mb >= 0x8000000000) {                    // Scaling can be required for add
+                this.cycleCount++;
+                d = mb % 8;                                     // get the rounding digit from B
+                mb = (mb - d)/8;                                // shift right due to overflow
+                eb++;
+            }
+
+            // Note: the Training Manual does not say that rounding is suppressed
+            // for add/subtract when the mantissa is all ones, but it does say so
+            // for multiply/divide, so we assume it's also the case here.
+            if (d & 0x04) {             // if the guard digit >= 4
+                if (mb < 0x7FFFFFFFFF) {// and rounding would not cause overflow
+                    this.cycleCount++;
+                    mb++;               // round up the result
+                }
+            }
+
+            // Check for exponent overflow
+            if (eb > 63) {
+                eb %= 64;
+                if (this.NCSF) {
+                    this.I = (this.I & 0x0F) | 0xB0;    // set I05/6/8: exponent-overflow
+                    this.cc.signalInterrupt();
+                }
+            } else if (eb < 0) {
+                eb = (-eb) | 0x40;                      // set the exponent sign bit
+            }
+
+            this.X = xb;                                // for display purposes only
             this.B = (sb*128 + eb)*0x8000000000 + mb;   // Final Answer
         }
     }
@@ -1794,7 +1792,6 @@ B5500Processor.prototype.singlePrecisionMultiply = function singlePrecisionMulti
         // Normalize the result
         if (this.Q & 0x10 && mb == 0) { // if it's integer multiply (Q05F) with integer result
             mb = mx;                    // just use the low-order 39 bits
-            mx = 0;
             eb = 0;                     // and don't normalize
         } else {
             eb += ea+13;                // compute resulting exponent from multiply
@@ -2014,7 +2011,7 @@ B5500Processor.prototype.integerDivide = function integerDivide() {
             // Now we step through the development of the quotient one octade at a time,
             // similar to that for DIV, but in addition to stopping when the high-order
             // octade of xx is non-zero (i.e., normalized), we can stop if the exponents
-            // become equal. Since there is no rounding, we do not need to develop an
+            // becomes equal. Since there is no rounding, we do not need to develop an
             // extra quotient digit.
             do {
                 this.cycleCount += 3;   // just estimate the average number of clocks
@@ -2863,7 +2860,7 @@ B5500Processor.prototype.run = function run() {
     set up -- in particular there must be a syllable in T with TROF set, the
     current program word must be in P with PROF set, and the C & L registers
     must point to the next syllable to be executed.
-    This routine will continue to run while this.runCycles < this.cycleLimit  */
+    This routine will run while cycleCount < cycleLimit  */
     var noSECL = 0;                     // to support char mode dynamic count from CRF syllable
     var opcode;                         // copy of T register
     var t1;                             // scratch variable for internal instruction use
@@ -2872,7 +2869,6 @@ B5500Processor.prototype.run = function run() {
     var t4;                             // ditto
     var variant;                        // high-order six bits of T register
 
-    this.runCycles = 0;                 // initialze the cycle counter for this time slice
     do {
         this.Q = 0;
         this.Y = 0;
@@ -3019,15 +3015,16 @@ B5500Processor.prototype.run = function run() {
                     case 0x14:          // 2411: ZPI=Conditional Halt
                         if (this.US14X) {               // STOP OPERATOR switch on
                             this.stop();
+                            this.cycleLimit = 0;        // exit this.run()
                         }
                         break;
 
                     case 0x18:          // 3011: SFI=Store for Interrupt
-                        this.storeForInterrupt(0, 0);
+                        this.storeForInterrupt(0);
                         break;
 
                     case 0x1C:          // 3411: SFT=Store for Test
-                        this.storeForInterrupt(0, 1);
+                        this.storeForInterrupt(1);
                         break;
 
                     default:            // Anything else is a no-op
@@ -3736,23 +3733,25 @@ B5500Processor.prototype.run = function run() {
                         break;
 
                     case 0x12:          // 2211: HP2=Halt Processor 2
-                        if (!(this.NCSF || this.cc.HP2F)) { // control-state only
+                        if (!this.NCSF) {               // control-state only
                             this.cc.haltP2();
+                            this.cycleLimit = 0;        // give P2 a chance to clean up
                         }
                         break;
 
                     case 0x14:          // 2411: ZPI=Conditional Halt
                         if (this.US14X) {               // STOP OPERATOR switch on
                             this.stop();
+                            this.cycleLimit = 0;        // exit this.run()
                         }
                         break;
 
                     case 0x18:          // 3011: SFI=Store for Interrupt
-                        this.storeForInterrupt(0, 0);
+                        this.storeForInterrupt(0);
                         break;
 
                     case 0x1C:          // 3411: SFT=Store for Test
-                        this.storeForInterrupt(0, 1);
+                        this.storeForInterrupt(1);
                         break;
 
                     case 0x21:          // 4111: IP1=Initiate Processor 1
@@ -3764,10 +3763,7 @@ B5500Processor.prototype.run = function run() {
                     case 0x22:          // 4211: IP2=Initiate Processor 2
                         if (!this.NCSF) {                       // control-state only
                             this.M = 0x08;                      // INCW is stored in @10
-                            if (this.AROF) {
-                                this.storeAviaM();              // [M] = A
-                                this.AROF = 0;
-                            } else if (this.BROF) {
+                            if (this.BROF && !this.AROF) {
                                 this.storeBviaM();              // [M] = B
                                 this.BROF = 0;
                             } else {
@@ -3783,10 +3779,7 @@ B5500Processor.prototype.run = function run() {
                     case 0x24:          // 4411: IIO=Initiate I/O
                         if (!this.NCSF) {
                             this.M = 0x08;                      // address of IOD is stored in @10
-                            if (this.AROF) {
-                                this.storeAviaM();              // [M] = A
-                                this.AROF = 0;
-                            } else if (this.BROF) {
+                            if (this.BROF && !this.AROF) {
                                 this.storeBviaM();              // [M] = B
                                 this.BROF = 0;
                             } else {
@@ -4540,10 +4533,10 @@ B5500Processor.prototype.run = function run() {
 
         if ((this.isP1 ? this.cc.IAR : this.I) && this.NCSF) {
             // there's an interrupt and we're in normal state
-            // reset Q09F (R-relative adder mode) and set Q07F (hardware-induced SFI) (for display only)
-            this.Q = (this.Q & 0xFFFEFF) & 0x40;
             this.T = 0x0609;            // inject 3011=SFI into T
-            this.storeForInterrupt(1, 0); // call directly to avoid resetting registers at top of loop
+            this.Q &= 0xFFFEFF;         // reset Q09F: adder mode for R-relative addressing
+            this.Q |= 0x40;             // set Q07F to indicate hardware-induced SFI
+            this.storeForInterrupt(0);  // call directly to avoid resetting registers at top of loop
         } else {
             // otherwise, fetch the next instruction
             if (!this.PROF) {
@@ -4571,10 +4564,7 @@ B5500Processor.prototype.run = function run() {
             }
         }
 
-        // Accumulate Normal and Control State cycles for use by the Console in
-        // making the pretty lights blink. If the processor is no longer busy,
-        // accumulate the cycles as Normal State, as we probably just did SFI.
-        if (this.NCSF || !this.busy) {
+        if (this.NCSF) {
             this.normalCycles += this.cycleCount;
         } else {
             this.controlCycles += this.cycleCount;
@@ -4606,6 +4596,7 @@ B5500Processor.prototype.schedule = function schedule() {
 
     if (this.busy) {
         this.cycleLimit = B5500Processor.timeSlice;
+        this.runCycles = 0;
 
         this.run();                     // execute syllables for the timeslice
 
@@ -4625,9 +4616,6 @@ B5500Processor.prototype.schedule = function schedule() {
             // delay is less than our estimate of that minimum, we yield to the event loop
             // but otherwise continue (real time should eventually catch up -- we hope). If the
             // delay is greater than the minimum, we reschedule ourselves after that delay.
-            if (delayTime < this.delayDeltaAvg) {
-                delayTime = 0;
-            }
 
             this.delayRequested = delayTime;
             this.scheduler = setCallback(this.schedule, this, delayTime);
@@ -4642,6 +4630,7 @@ B5500Processor.prototype.step = function step() {
     or two injected instructions (e.g., SFI followed by ITI) could also be executed */
 
     this.cycleLimit = 1;
+    this.runCycles = 0;
 
     this.run();
 
