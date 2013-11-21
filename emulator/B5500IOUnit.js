@@ -780,14 +780,13 @@ B5500IOUnit.prototype.finishDatacomRead = function finishDatacomRead(errorMask, 
     var bufExhausted = (errorMask & 0x080) >>> 7;
     var tuBuf = (errorMask%0x10000000000 - errorMask%0x40000000)/0x40000000;    // get TU/buf #
 
-    if (length > 0) {
-        if (bufExhausted || (tuBuf & 0x10)) {
-            this.storeBuffer(length, 0, 1, 56);
-        } else {
-            this.storeBufferWithGM(length, 0, 1, 56);
-        }
-        this.Daddress += (length+7) >>> 3;
+    if (bufExhausted || (tuBuf & 0x10)) {
+        this.storeBuffer(length, 0, 1, 56);
+    } else {
+        this.storeBufferWithGM(length, 0, 1, 56);
     }
+    this.Daddress += (length+7) >>> 3;
+
     // Decode the additional datacom status/error bits
     this.D25F = bufExhausted;
     this.D24F = (errorMask & 0x100) >>> 8;
@@ -802,9 +801,10 @@ B5500IOUnit.prototype.finishDatacomWrite = function finishDatacomWrite(errorMask
     var bufExhausted = (errorMask & 0x080) >>> 7;
     var tuBuf = (errorMask%0x10000000000 - errorMask%0x40000000)/0x40000000;    // get TU/buf #
 
-    if (length > 0) {
-        this.Daddress += (length+7) >>> 3;
+    if (!(bufExhausted || (this.DwordCount & 0x10))) {
+        length++;                       // account for the terminating Group Mark
     }
+    this.Daddress += (length+7) >>> 3;
 
     // Decode the additional datacom status/error bits
     this.D25F = bufExhausted;

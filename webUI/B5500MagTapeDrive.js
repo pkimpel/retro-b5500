@@ -218,7 +218,7 @@ B5500MagTapeDrive.prototype.setAtEOT = function setAtEOT(atEOT) {
 B5500MagTapeDrive.prototype.setTapeUnloaded = function setTapeUnloaded() {
     /* Controls the loaded/unloaded-state of the tape drive */
 
-    if (this.tapeState != this.tapeRemote) {
+    if (this.tapeState == this.tapeLocal && this.atBOT) {
         this.tapeState = this.tapeUnloaded;
         this.image = null;                  // release the tape image to GC
         this.imgIndex = this.imgLength = 0;
@@ -298,7 +298,8 @@ B5500MagTapeDrive.prototype.setWriteRing = function setWriteRing(writeRing) {
 B5500MagTapeDrive.prototype.tapeRewind = function tapeRewind(makeReady) {
     /* Rewinds the tape. Makes the drive not-ready and delays for an appropriate amount
     of time depending on how far up-tape we are. If makeReady is true, then readies
-    the unit again when the rewind is complete (valid only from this.rewind()) */
+    the unit again when the rewind is complete [valid only when called from
+    this.rewind()] */
     var inches;
     var inchFactor = this.imgIndex/this.tapeInches;
     var lastStamp = new Date().getTime();
@@ -307,8 +308,11 @@ B5500MagTapeDrive.prototype.tapeRewind = function tapeRewind(makeReady) {
         var stamp = new Date().getTime();
         var interval = stamp - lastStamp;
 
+        if (interval <= 0) {
+            interval = 1;
+        }
         if (this.tapeInches > 0) {
-            inches = interval/1000*this.rewindSpeed + 1;
+            inches = interval/1000*this.rewindSpeed;
             this.tapeInches -= inches;
             this.spinReel(-inches);
             this.progressBar.value = this.imgLength - this.tapeInches*inchFactor;
@@ -333,7 +337,7 @@ B5500MagTapeDrive.prototype.tapeRewind = function tapeRewind(makeReady) {
         this.setAtEOT(false);
         this.addClass(this.$$("MTRewindingLight"), "whiteLit");
         this.timer = setCallback(rewindDelay, this,
-                this.startStopTime*1000 + this.initiateStamp - new Date().getTime());
+                this.startStopTime*1000 + this.initiateStamp - lastStamp);
     }
 };
 
@@ -772,16 +776,12 @@ B5500MagTapeDrive.prototype.read = function read(finish, buffer, length, mode, c
             count = this.bcdReadBackward(mode);
             residue = 7 - count % 8;
             imgCount -= this.imgIndex;
-            if (imgCount > 0) {
-                inches = -imgCount/this.density - this.gapLength;
-            }
+            inches = -imgCount/this.density - this.gapLength;
         } else {
             count = this.bcdReadForward(mode);
             residue = count % 8;
             imgCount = this.imgIndex - imgCount;
-            if (imgCount > 0) {
-                inches = imgCount/this.density + this.gapLength;
-            }
+            inches = imgCount/this.density + this.gapLength;
         }
 
         this.tapeInches += inches;
@@ -800,7 +800,7 @@ B5500MagTapeDrive.prototype.read = function read(finish, buffer, length, mode, c
         }
         this.buffer = null;
     }
-    //console.log(this.mnemonic + " read: c=" + control + ", length=" + length + ", mode=" + mode +
+    //console.log(this.mnemonic + " read:             c=" + control + ", length=" + length + ", mode=" + mode +
     //    ", count=" + count + ", inches=" + this.tapeInches +
     //    ", index=" + this.imgIndex + ", mask=" + this.errorMask.toString(8));
     //console.log(String.fromCharCode.apply(null, buffer.subarray(0, 80)).substring(0, count));
@@ -827,15 +827,11 @@ B5500MagTapeDrive.prototype.space = function space(finish, length, control) {
         if (control) {
             this.bcdSpaceBackward(true);
             imgCount -= this.imgIndex;
-            if (imgCount > 0) {
-                inches = -imgCount/this.density - this.gapLength;
-            }
+            inches = -imgCount/this.density - this.gapLength;
         } else {
             this.bcdSpaceForward(true);
             imgCount = this.imgIndex - imgCount;
-            if (imgCount > 0) {
-                inches = imgCount/this.density + this.gapLength;
-            }
+            inches = imgCount/this.density + this.gapLength;
         }
 
         this.tapeInches += inches;
@@ -853,7 +849,7 @@ B5500MagTapeDrive.prototype.space = function space(finish, length, control) {
             this.progressBar.value = 0;
         }
     }
-    //console.log(this.mnemonic + " space: c=" + control + ", length=" + length +
+    //console.log(this.mnemonic + " space:           c=" + control + ", length=" + length +
     //    ", count=" + imgCount + ", inches=" + this.tapeInches +
     //    ", index=" + this.imgIndex + ", mask=" + this.errorMask.toString(8));
 };
@@ -889,7 +885,7 @@ B5500MagTapeDrive.prototype.rewind = function rewind(finish) {
         this.buildErrorMask(0);
         finish(this.errorMask, 0);
     }
-    //console.log(this.mnemonic + " rewind: mask=" + this.errorMask.toString(8));
+    //console.log(this.mnemonic + " rewind:           mask=" + this.errorMask.toString(8));
 };
 
 /**************************************/

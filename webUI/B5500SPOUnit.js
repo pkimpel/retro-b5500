@@ -153,17 +153,16 @@ B5500SPOUnit.prototype.setRemote = function setRemote() {
 
 /**************************************/
 B5500SPOUnit.prototype.appendEmptyLine = function appendEmptyLine() {
-    /* Removes excess lines already printed, then appends a new <pre> element
-    to the <iframe>, creating an empty text node inside the new element */
+    /* Removes excess lines already printed, then appends a new text node
+    to the <pre> element within the <iframe> */
     var count = this.paper.childNodes.length;
-    var line = this.doc.createTextNode("");
 
     this.printChar(0x0A);               // newline
     while (count-- > this.maxScrollLines) {
         this.paper.removeChild(this.paper.firstChild);
     }
     this.endOfPaper.scrollIntoView();
-    this.paper.appendChild(line);
+    this.paper.appendChild(this.doc.createTextNode(""));
     this.printCol = 0;
 };
 
@@ -459,7 +458,7 @@ B5500SPOUnit.prototype.read = function read(finish, buffer, length, mode, contro
         this.bufIndex = 0;
         this.nextCharTime = new Date().getTime();
         this.finish = finish;
-        //this.window.focus();          // interferes with datacom terminal window
+        this.window.focus();
         break;
     case this.spoOutput:
     case this.spoInput:
