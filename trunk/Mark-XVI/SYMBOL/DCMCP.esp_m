@@ -23810,3 +23810,120 @@ AGAIN:      P(DIRECTORYSEARCH(-(IF I THEN P(PUD) ELSE P(PBD)),D,14),    38608200
             IF P OR 1 THEN                                         %105-38608920        
             BEGIN PBCOUNT:=PBCOUNT+1;                                   38609000        
  $ POP OMIT                                                             38609010        
+                  IF AUTOPRINT                                          38609100        
+ $ SET OMIT = NOT RJE                                                   38609190        
+                    THEN P(PRINTORPUNCHWAIT(R&1[32:32:16],I             38609300        
+ $ SET OMIT = NOT RJE                                                   38609390        
+                             0, DEL);                                   38609500        
+ $ SET OMIT = NOT PACKETS                                               38609590        
+            END;                                                        38609600        
+ $ POP OMIT                                                             38609610        
+ZERODKADDR:                                                        %175-38609700        
+ $ SET OMIT = PACKETS                                                   38609999        
+            FILEMESSAGE((IF I THEN P(PUD) ELSE P(PBD))&R[24:6:24],      38610100        
+                        ("REL    ")&R[30:30:18],MID,FID,                38610200        
+                        FIB[7],0,0,(PBDREL OR CLOSEMESS));              38610250        
+            FORGETSPACE(FIB[14].[3:15]); FIB[14].[3:15]:=0;             38610600        
+      END       ELSE                                                    38622000        
+EOT:  BEGIN T~@1737000000000000;                                        38623000        
+            J~WAITIO([T],@40,U)!0 OR J;                                 38624000        
+            I := SPACE(8);                                              38625000        
+            STREAM(PN:=TYPE GEQ 20,D:=0,I);                             38626000        
+            BEGIN                                                       38626100        
+                 DS:=24LIT" LABEL  0PBTMCP 0BACK-UP";                   38626200        
+                 PN(D:=DI; DI:=DI-14; DS:=2LIT"UT"; DI:=D);             38626300        
+                 20(DS:=2LIT" ");                                       38626400        
+            END;                                                        38626500        
+      IF NOT UNLABELED THEN M[I+4]~M[M[ALPHA-2] INX 4].[42:6];          38628000        
+      ,[I+3]~T1; % MARK ENDING TAPE LABEL FOR MULTI-REEL COND.          38628100        
+      J~WAITIO(I&8[8:38:10]&5[21:45:3],@40,U)!0 OR J;%                  38629000        
+      FORGETSPACE(I);%                                                  38630000        
+      FOR I~0 STEP 1 UNTIL 1 DO%                                        38631000        
+            P(WAITIO(@1000000340000005,@40,U),DEL);%                    38632000        
+      IF (TWO(U) AND SAVEWORD)!0 THEN%                                  38633000        
+            SETNOTINUSE(U,0) ELSE                                       38634000        
+BEGIN%                                                                  38635000        
+     RDCTABLE[U]~(*P(DUP))&0[8:8:6]&R[14:38:10];                        38637000        
+     PRNTABLE[U].[15:15]~0;                                             38638000        
+     RRRMECH:=NOT TWO(U) AND RRRMECH;                                   38638500        
+     IF J THEN SETNOTINUSE(U,0) ELSE LABELTABLE[U].[1:5]~1;        %717-38640000        
+      END; END;                                                         38641000        
+STATE.[FF]~0;                                                           38642000        
+      GO CLOSEOUT;%                                                     38643000        
+PBD:::   "PBD    ";                                                     38644000        
+PUD:::   "PUD    ";                                                     38644500        
+CLOSEOUT:                                                               38645000        
+      P(P&RCW[CTC],0,RDS,0,XCH,P&P[CTC],STF);                           38646000        
+END BACK CLOSE;                                                         38647000        
+PROCEDURE OTHERCLOSE(ALPHA) VALUE ALPHA; INTEGER ALPHA;%                38648000        
+BEGIN REAL RCW=+0,MSCW=-2;                                              38649000        
+      ARRAY FIB=+1[*],FPB=+2[*],HEADER=+3[*];%                          38650000        
+%%%      DONT ADD ANY DECLARATIONS BETWEEN "HEADER" AND "KIND" %%% WCP  38651000        
+      INTEGER KIND=+4,NBUFS=+5,U=+6,BLEN=+7,CODE=+8,                    38652000        
+              UNLABELED=+9,COBOL=+10,I=+11,J=+12,                       38653000        
+              ENUM=+13;                                                 38654000        
+      REAL MID=+14,FID=+15,R=+16,D=+17,C=+18,FORMS=+19,STATE=+20;       38655000        
+       REAL STA=+21;%                                                   38655100        
+       REAL T1=+22,T2=+23,T3=+24,IOD=+25;%                              38656000        
+      ARRAY SEG0=+26[*],SKEL=+27[*];                                    38657000        
+      REAL T=+28,ACCESS=+29;%                                           38658000        
+      BOOLEAN COMPGO=+30;                                               38659000        
+      LABEL PX;                                                    %905-38660000        
+      LABEL CR,LP,MT,CLOSED,DK,SP,CP,BKUP,PP,PR,DC,CD,CC;               38661000        
+      SWITCH SW~CR,LP,MT,CLOSED,DK,SP,CP,BKUP,PP,PR,DC,CD,BKUP;         38662000        
+      LABEL EOF,ON,ONE,CLEANUP;%                                        38663000        
+      LABEL EOD;                                                        38664000        
+      SUBROUTINE COOLOFF;%                                              38665000        
+      BEGIN FOR I~0 STEP 1 UNTIL NBUFS-1 DO%                            38666000        
+            BEGIN IF NOT M[ALPHA+I].[19:1] THEN%                        38667000        
+                        SLEEP([M[ALPHA+I]],IOMASK);%                    38668000        
+                  IF KIND!4 THEN                                        38669000        
+                  IF M[ALPHA+I].[27:1] THEN GO TO EOF;%                 38670000        
+            END;%                                                       38671000        
+EOF:  END COOLOFF;%                                                     38672000        
+      DEFINE REW=CODE.[47:1]#,%                                         38674000        
+             REL=CODE.[46:1'#,%                                         38675000        
+             TIME=CODE.[45:1]#,%                                        38676000        
+             LOCK=NOT CODE.[44:1]#,%                                    38677000        
+             PURGE=NOT CODE.[43:1]#;%                                   38678000        
+      SUBROUTINE EMPTY;%                                                38680000        
+      IF FIB[17]<BLEN AND (STATE.[46:2]!0 OR KIND=1) THEN               38681000        
+      BEGIN IF NOT COBOL THEN FIB[17]~FIB[17]-(STATE.[46:1]=3);%        38682000        
+            STREAM(KIND,N:=FIB[17],D:=M[ALPHA].[CF]);                   38683000        
+            BEGIN SI~LOC KIND; SI~SI+7;%                                38684000        
+                  IF SC="2" THEN DS~LIT "~" ELSE%                       38685000        
+                  IF SC="5" THEN DS~LIT "~" ELSE N(DS~8 LIT " ");%      38686000        
+            END;%                                                       38687000        
+            P(WAITIO(FIB[16]&(BLEN-FIB[17]|(KIND=2))[8:38:10]%          38688000        
+                                       ,@40,U),DEL);%                   38689000        
+            FIB[6]~FIB[6]+1;                                            38690000        
+      END ELSE COOLOFF;%                                                38691000        
+      LABEL CLOSEOUT;%                                                  38692000        
+      LABEL EOFIT;%                                                     38693000        
+      P(RCW,MSCW,STF);                                                  38695000        
+      RCW:=RCW&P(XCH)[CTC];                                             38696000        
+      GO TO SW[KIND];                                                   38697000        
+CR:   COOLOFF; BLASTQ(U);%                                              38699000        
+      IF I}NBUFS THEN DO UNTIL WAITIO(M[ALPHA-2],@40,U)!0 ELSE%         38700000        
+      BEGIN I~M[ALPHA+I].[33:15];%                                      38701000        
+            T~FIB[16].[33:15]-2;%                                       38702000        
+            FOR J~1 STEP 1 UNTIL NBUFS DO%                              38703000        
+            BEGIN IF (I>T) AND (I{(T_BLEN+1)) THEN GO ON;%              38704000        
+                  T~M[T].[18:15]-2;%                                    38705000        
+            END;%                                                       38706000        
+      ON:   MOVE(10,T+2,M[ALPHA-2]);%                                   38707000        
+      END;%                                                             38708000        
+      IF JAR[P1MIX,0]<0 THEN%                                           38709000        
+      IF PRT[P1MIX,@25]!0 THEN%                                         38710000        
+ONE:  BEGIN STREAM(I: F~"ENDPACK", D~M[ALPHA-2]);%                      38711000        
+            BEGIN SI~D;%                                                38712000        
+            L:    SI~SI+1; IF SC=" " THEN GO TO L;%                     38713000        
+                  DI~LOC E; DI~DI+1;                                    38714000        
+                  IF 3 SC=DC THEN TALLY~1;                              38715000        
+ $ SET OMIT = NOT(PACKETS)                                              38715099        
+                  IF TOGGLE THEN ELSE                                   38715100        
+                  BEGIN SI~SI-3; IF 4 SC=DC THEN TALLY~1; END;          38715200        
+ $ POP OMIT                                                             38715201        
+                  I~TALLY;%                                             38716000        
+            END;%                                                       38717000        
+            IF NOT P THEN%                                              38718000        
