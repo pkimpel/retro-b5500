@@ -64,10 +64,10 @@ function B5500CentralControl(global) {
 /**************************************/
     /* Global constants */
 
-B5500CentralControl.version = "0.15";
+B5500CentralControl.version = "0.16";
 
-B5500CentralControl.memReadCycles = 1.8;        // assume 2 탎 memory read cycle time (the other option was 3 탎)
-B5500CentralControl.memWriteCycles = 2.5;       // assume 4 탎 memory write cycle time (the other option was 6 탎)
+B5500CentralControl.memReadCycles = 2;          // assume 2 탎 memory read cycle time (the other option was 3 탎)
+B5500CentralControl.memWriteCycles = 3;         // assume 4 탎 memory write cycle time (the other option was 6 탎)
 B5500CentralControl.rtcTick = 1000/60;          // Real-time clock period, milliseconds
 
 B5500CentralControl.pow2 = [ // powers of 2 from 0 to 52

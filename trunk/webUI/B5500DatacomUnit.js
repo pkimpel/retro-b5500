@@ -29,7 +29,7 @@ function B5500DatacomUnit(mnemonic, unitIndex, designate, statusChange, signal) 
 
     this.maxScrollLines = 1500;         // Maximum amount of printer scrollback
     this.charPeriod = 100;              // Printer speed, milliseconds per character
-    this.bufferSize = 112;              // 4 B487 buffer segments
+    this.bufferSize = 112;              // 4 28-character B487 buffer segments
 
     this.mnemonic = mnemonic;           // Unit mnemonic
     this.unitIndex = unitIndex;         // Ready-mask bit number
@@ -247,14 +247,13 @@ B5500DatacomUnit.prototype.appendEmptyLine = function appendEmptyLine() {
     /* Removes excess lines already printed, then appends a new <pre> element
     to the <iframe>, creating an empty text node inside the new element */
     var count = this.paper.childNodes.length;
-    var line = this.doc.createTextNode("");
 
     while (count-- > this.maxScrollLines) {
         this.paper.removeChild(this.paper.firstChild);
     }
     this.paper.lastChild.nodeValue += String.fromCharCode(0x0A);        // newline
     this.endOfPaper.scrollIntoView();
-    this.paper.appendChild(line);
+    this.paper.appendChild(this.doc.createTextNode(""));
 };
 
 /**************************************/
@@ -350,7 +349,7 @@ B5500DatacomUnit.prototype.terminateInput = function terminateInput() {
 
 /**************************************/
 B5500DatacomUnit.prototype.keyPress = function keyPress(ev) {
-    /* Handles keyboard character events. Depending on the state of the unit,
+    /* Handles keyboard character events. Depending on the state of the buffer,
     either buffers the character for transmission to the I/O Unit, echos
     it to the printer, or ignores it altogether */
     var c = ev.charCode;
@@ -407,14 +406,17 @@ B5500DatacomUnit.prototype.keyPress = function keyPress(ev) {
         if (this.bufState == this.bufReadReady && this.fullBuffer) {
             this.interrupt = true;
             this.setState(this.bufInputBusy);
-            this.signal();              // buffer overflow
+            setCallback(this.signal, this, delay);      // buffer overflow
+            ev.stopPropagation();
+            ev.preventDefault();
         } else if (this.bufState == this.bufInputBusy || this.bufState == this.bufIdle) {
             switch (c) {
             case 0x7E:                  // ~ left-arrow (Group Mark), end of message
                 this.inTimer = setCallback(this.printChar, this, delay, c);
-                this.nextCharTime = nextTime;
-                this.terminateInput();
+                this.nextCharTime = this.charPeriod + nextTime;
+                setCallback(this.terminateInput, this, this.charPeriod+delay);
                 ev.stopPropagation();
+                ev.preventDefault();
                 break;
             case 0x3C:                  // <, backspace
                 if (this.bufIndex > 0) {
@@ -423,40 +425,41 @@ B5500DatacomUnit.prototype.keyPress = function keyPress(ev) {
                 this.inTimer = setCallback(this.printChar, this, delay, c);
                 this.nextCharTime = nextTime;
                 ev.stopPropagation();
+                ev.preventDefault();
                 break;
             case 0x21:                  // ! EOT, disconnect
-                //this.buffer[this.bufIndex++] = 0x7D;    // } greater-or-equal code
+                this.buffer[this.bufIndex++] = 0x7D;    // } greater-or-equal code
                 this.interrupt = true;
                 this.abnomal = true;
                 this.setState(this.bufReadReady);
-                this.signal();
+                setCallback(this.signal, this, delay);
                 this.inTimer = setCallback(this.printChar, this, delay, c);
                 this.nextCharTime = nextTime;
                 ev.stopPropagation();
+                ev.preventDefault();
                 break;
-            case 0x02:                  // Ctrl-B, STX, break on output
-                if (this.bufState == this.bufOutputBusy) {
-                    this.interrupt = true;
-                    this.abnormal = true;
-                    this.setState(this.bufReadReady);
-                    this.signal();
-                } else if (this.bufState == this.bufInputBusy) {
-                    this.bufIndex = this.bufLength = 0;
-                    this.setState(this.bufIdle);
-                }
+            case 0x02:                  // Ctrl-B, STX, break on input
+                this.bufIndex = this.bufLength = 0;
+                this.setState(this.bufIdle);
+                ev.stopPropagation();
+                ev.preventDefault();
                 break;
             case 0x05:                  // Ctrl-E, ENQ, who-are-you (WRU)
                 if (this.bufState == this.bufIdle || this.bufState == this.bufInputBusy) {
                     this.interrupt = true;
                     this.abnormal = true;
                     this.setState(this.bufWriteReady);
-                    this.signal();
+                    setCallback(this.signal, this, delay);
                 }
+                ev.stopPropagation();
+                ev.preventDefault();
                 break;
             case 0x0C:                  // Ctrl-L, FF, clear input buffer
                 if (this.bufState == this.bufInputBusy) {
                     this.bufIndex = this.bufLength = 0;
                 }
+                ev.stopPropagation();
+                ev.preventDefault();
                 break;
             case 0x3F:                  // ? question-mark, set abnormal for control message
                 this.abnormal = true;
@@ -468,96 +471,28 @@ B5500DatacomUnit.prototype.keyPress = function keyPress(ev) {
                     this.buffer[this.bufIndex++] = c;
                     this.inTimer = setCallback(this.printChar, this, delay, c);
                     this.nextCharTime = nextTime;
-                    ev.stopPropagation();
                     if (this.bufIndex < this.bufferSize) {
                         this.setState(this.bufInputBusy);
                     } else {
                         this.interrupt = true;
                         this.fullBuffer = true;
                         this.setState(this.bufReadReady);
-                        this.signal();  // full buffer, no GM detected
+                        setCallback(this.signal, this, this.charPeriod+delay);  // full buffer, no GM detected
                     }
+                    ev.stopPropagation();
+                    ev.preventDefault();
                 }
                 break;
-            }
-        }
-
-        ev.preventDefault();
-    }
-};
-
-/**************************************/
-B5500DatacomUnit.prototype.keyDown = function keyDown(ev) {
-    /* Handles key-down events to capture Ctrl-E (ENQ), Ctrl-L (FF), Ctrl-Q (DC1),
-    and Enter keystrokes */
-    var c = ev.keyCode;
-    var delay;
-    var nextTime;
-    var result = true;
-    var stamp;
-
-    //this.$$("KeyCode").innerHTML = "KC " + c.toString() + ":0x" + c.toString(16) +
-    //    (ev.shiftKey ? "S" : " ") + (ev.ctrlKey ? "C" : " ") + (ev.altKey ? "A" : " ");
-
-    if (this.connected) {
-        stamp = new Date().getTime();
-        nextTime = (this.nextCharTime < stamp ? stamp : this.nextCharTime) + this.charPeriod;
-        delay = nextTime - stamp;
-
-        switch (c) {
-        case 0x08:                      // Backspace
-            if (this.bufState == this.bufInputBusy) {
-                if (this.bufIndex > 0) {
-                    this.bufIndex--;
-                }
-                this.inTimer = setCallback(this.printChar, this, delay, 0x3C);
-                this.nextCharTime = nextTime;
-            }
-            break;
-        case 0x0D:                      // Enter
-        //case 0x11:                      // Ctrl-Q, DC1 (X-ON)
-            if (this.bufState == this.bufInputBusy || this.bufState == this.bufIdle) {
-                this.inTimer = setCallback(this.printChar, this, delay, 0x7E);
-                this.nextCharTime = nextTime;
-                this.terminateInput();
-                ev.preventDefault();
-                ev.stopPropagation();
-                break;
-            }
-            break;
-        case 0x02:                      // Ctrl-B, STX, break on output
-            if (this.bufState == this.bufOutputBusy) {
+            } // switch c
+        } else if (this.bufState == this.bufOutputBusy) {
+            if (c == 0x02) {            // Ctrl-B, STX, break on output
                 this.interrupt = true;
                 this.abnormal = true;
                 this.setState(this.bufReadReady);
-                this.signal();
-            } else if (this.bufState == this.bufInputBusy) {
-                this.bufIndex = this.bufLength = 0;
-                this.setState(this.bufIdle);
+                setCallback(this.signal, this, delay);
+                ev.stopPropagation();
+                ev.preventDefault();
             }
-            break;
-        case 0x05:                      // Ctrl-E, ENQ, who-are-you (WRU)
-            if (this.bufState == this.bufIdle || this.bufState == this.bufInputBusy) {
-                this.interrupt = true;
-                this.abnormal = true;
-                this.setState(this.bufWriteReady);
-                this.signal();
-            }
-            break;
-        case 0x0C:                      // Ctrl-L, FF, clear input buffer
-            if (this.bufState == this.bufInputBusy) {
-                this.bufIndex = this.bufLength = 0;
-            }
-            break;
-        default:
-            result = false;
-            break;
-        }
-
-        this.showBufferIndex();
-        if (result) {
-            ev.preventDefault();
-            ev.stopPropagation();
         }
     }
 };
@@ -590,7 +525,7 @@ B5500DatacomUnit.prototype.datacomOnload = function datacomOnload() {
     var x;
 
     this.doc = this.window.document;
-    this.doc.title = "retro-B5500 " + this.mnemonic + " TU1/BUF0";
+    this.doc.title = "retro-B5500 " + this.mnemonic + ": TU/BUF=01/00";
     this.paper = this.doc.createElement("pre");
     this.paper.appendChild(this.doc.createTextNode(""));
     this.$$("TermOut").contentDocument.body.appendChild(this.paper);
@@ -641,13 +576,13 @@ B5500DatacomUnit.prototype.read = function read(finish, buffer, length, mode, co
         this.errorMask |= 0x34;         // not connected -- set buffer not ready
         break;
     case this.bufState == this.bufReadReady:
-        // Copy the adaptor buffer to the IOUnit buffer
+        // Copy the adapter buffer to the IOUnit buffer
         actualLength = (transparent ? this.bufferSize : this.bufIndex);
         for (x=0; x<actualLength; x++) {
             buffer[x] = this.buffer[x];
         }
 
-        // Set the state bits in the result and reset the adaptor to idle
+        // Set the state bits in the result and reset the adapter to idle
         if (this.abnormal) {
             this.errorMask |= 0x200;    // set abnormal bit
         }
@@ -803,9 +738,14 @@ B5500DatacomUnit.prototype.writeInterrogate = function writeInterrogate(finish, 
         this.errorMask |= 0x34;         // not a valid TU/BUF -- report not ready
     } else if (tuNr == 1 && bufNr > 0) {
         this.errorMask |= 0x34          // not a valid BUF for TU#1 -- report not ready
-    } else if (this.interrupt) {
-        tuNr = 1;                       // it must be for TU=1, BUF=0
-        bufNr = 0;
+    } else if (tuNr == 0) {
+        if (this.interrupt) {
+            tuNr = 1;
+            bufNr = 0;
+        }
+    }
+
+    if (tuNr == 1 && bufNr == 0) {
         switch (this.bufState) {
         case this.bufReadReady:
             this.errorMask |= 0x100;

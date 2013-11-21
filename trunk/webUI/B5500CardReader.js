@@ -184,6 +184,7 @@ B5500CardReader.prototype.CRProgressBar_onclick = function CRProgressBar_onclick
             this.bufLength = 0;
             this.bufIndex = 0;
             this.progressBar.value = 0;
+            this.$$("CRFileSelector").value = null;     // reset the control
             while (this.outHopper.childNodes.length > 0) {
                 this.outHopper.removeChild(this.outHopper.firstChild);
             }
