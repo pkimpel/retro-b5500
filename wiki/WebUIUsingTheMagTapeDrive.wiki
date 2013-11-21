@@ -41,7 +41,7 @@ When a tape is mounted on a drive and the drive made ready, the MCP will automat
 
 The user interface for the emulated tape drive consists of the following controls and indicators:
 
-    * *UNLOAD* -- this black button is used to unload a tape image from the drive. This button is active only when an image is currently loaded and the drive is in local status.
+    * *UNLOAD* -- this black button is used to unload a tape image from the drive. This button is active only when an image is currently loaded, the drive is in local status, and the tape is positioned at BOT.
     * *LOAD* -- this black button is used to load a tape image into the drive as if it were a reel of tape. The button is active only when no image is currently loaded into the drive. Clicking this button will bring up a dialog for the file picker to select an image file, as described below.
     * *LOCAL* -- this yellow button/indicator lights when the drive is in a not-ready status. The drive becomes ready when a tape image is loaded and the *REMOTE* button is pressed. It becomes not-ready when this button is pressed.
     * *REMOTE* -- this yellow button/indicator lights when the drive is in a ready status. The drive becomes ready when a tape image is loaded and this button is pressed. It becomes not-ready when the *LOCAL* button is pressed.
@@ -65,3 +65,21 @@ Below the file picker control is a progress bar. This shows the relative amount 
 The basic technique used with the tape drive is simple -- use the *LOAD* button to select a tape image file for loading into the drive, then press the *REMOTE* button to make the drive ready. The MCP should recognize the ready status and attempt to read the tape label. If the file names in the label match names requested by a program, the drive will be assigned to the program automatically. Automatic name matching can be overridden using the SPO `IL` and `UL` commands.
 
 You can stop the drive at any time and make it not-ready by pressing the *LOCAL* button. Restart it by pressing the *REMOTE* button. Whenever the drive is in a not-ready status, you can rewind or unload the tape image.
+
+We now recommend that you load only a minimum set of system files to disk using the Cold Loader, and load any additional files using Library/Maintenance once the MCP is up and running. The MCP does a much better job of disk space allocation and directory maintenance than the Cold Loader. In particular, the MCP will replace existing files safely. It will also try to evenly distribute files across the available disk EUs, which will tend to more evenly distribute I/Os across the EUs and increase the probability of multiple simultaneous I/Os taking place.
+
+Library/Maintenance is the portion of the MCP that manages disk files and maintains the disk directory. Among its features is the capability to dump disk files to and load disk files from magnetic tape. This was typically used for file backup, archiving, and transferring files among systems.
+
+Files can be loaded from Library/Maintenance volumes such as the `SYSTEM`, `SYMBOL1`, and `SYMBOL2` tape images using the `LOAD` and `ADD` control card commands, e.g.,
+
+    {{{
+    ?LOAD FROM SYSTEM ESPOL/DISK, COBOL/DISK, DUMP/ANALYZE
+    }}}
+
+A control card command can be continued across multiple card images by terminating a card with a hyphen (`-`) wherever a word or other punctuation character might appear. The continuation card(s) that follow must not have an invalid character in column 1.
+
+All files having the same first or last identifier in their file name may be loaded by specifying `MFID/=` or `=/FID`. All files from a tape can be loaded by specifying `=/=`. Library/Maintenance will not overwrite certain critical system files, such as the currently running MCP and Intrinsics.
+
+The `ADD` command works the same as `LOAD`, except that it loads only files that are not already in the disk directory.
+
+See See Section 4, and in particular page 4-15 ff, in http://bitsavers.org/pdf/burroughs/B5000_5500_5700/1024916_B5500_B5700_OperMan_Sep68.pdf for more information on control card syntax and the Library/Maintenance commands.
