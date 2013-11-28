@@ -1,0 +1,1577 @@
+<!DOCTYPE html>
+<head>
+<title>B5500 Processor Syllable Debugger</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta name="Author" content="Nigel Williams & Paul Kimpel">
+<meta http-equiv="Content-Script-Type" content="text/javascript">
+<meta http-equiv="Content-Style-Type" content="text/css">
+<link id=defaultStyleSheet rel=stylesheet type="text/css" href="B5500SyllableDebugger.css">
+
+<script src="./B5500SetCallback.js"></script>
+
+<script src="./B5500DummyUnit.js"></script>
+<script src="./B5500SPOUnit.js"></script>
+<script src="./B5500DiskUnit.js"></script>
+<script src="./B5500CardReader.js"></script>
+<script src="./B5500CardPunch.js"></script>
+<script src="./B5500DummyPrinter.js"></script>
+<script src="./B5500DatacomUnit.js"></script>
+<script src="./B5500MagTapeDrive.js"></script>
+
+<script src="../emulator/B5500SystemConfiguration.js"></script>
+<script src="../emulator/B5500CentralControl.js"></script>
+<script src="../emulator/B5500Processor.js"></script>
+<script src="../emulator/B5500IOUnit.js"></script>
+
+<script>
+"use strict";
+
+if (!window.indexedDB) {                // for Safari, mostly
+    window.indexedDB = window.webkitIndexedDB || window.mozIndexedDB;
+}
+
+var runningCycles = 1000;               // Number of instructions per run-mode interval
+
+var cc;
+var injected = false;                   // true if syllable manually injected into T
+var memAddr = 0x40;                     // @100
+var px;                                 // reference to currently-displayed processor
+var running = false;                    // true if in run mode
+var runSilently = false;                // true if system state is not to be refreshed after each step
+var stopAddress = 0;                    // run-until-address stop point
+
+var accessor = {                        // Memory access control block
+    requestorID: "A",                   // Memory requestor ID
+    addr: 0,                            // Memory address
+    word: 0,                            // 48-bit data word
+    MAIL: 0,                            // Truthy if attempt to access @000-@777 in normal state
+    MPED: 0,                            // Truthy if memory parity error
+    MAED: 0                             // Truthy if memory address/inhibit error
+};
+
+var BICtoANSI = [
+        "0", "1", "2", "3", "4", "5", "6", "7",
+        "8", "9", "#", "@", "?", ":", ">", "}",
+        "+", "A", "B", "C", "D", "E", "F", "G",
+        "H", "I", ".", "[", "&", "(", "<", "~",
+        "|", "J", "K", "L", "M", "N", "O", "P",
+        "Q", "R", "$", "*", "-", ")", ";", "{",
+        " ", "/", "S", "T", "U", "V", "W", "X",
+        "Y", "Z", ",", "%", "!", "=", "]", "\""];
+
+var wordOps = {
+     "0000": "LITC"     // Literal Call (XXX0 or XXX4)
+    ,"0002": "OPDC"     // Operand Call (XXX2 or XXX6)
+    ,"0003": "DESC"     // Descriptor Call (XXX3 or XXX7)
+    ,"0101": "ADD "     // Single Precision Add
+    ,"0301": "SUB "     // Single Precision Subtract
+    ,"0401": "MUL "     // Single Precision Multiply
+    ,"1001": "DIV "     // Single Precision Divide
+    ,"3001": "IDV "     // Integer Divide
+    ,"7001": "RDV "     // Remainder Divide
+    ,"0105": "DLA "     // Double Precision Add
+    ,"0305": "DLS "     // Double Precision Subtract
+    ,"0405": "DLM "     // Double Precision Multiply
+    ,"1005": "DLD "     // Double Precision Divide
+    ,"0111": "PRL "     // Program Release
+    ,"0211": "ITI "     // Interrogate Interrupt
+    ,"0411": "RTR "     // Read Timer
+    ,"1011": "COM "     // Communicate
+    ,"2111": "IOR "     // I/O Release
+    ,"2211": "HP2 "     // Halt P2
+    ,"2411": "ZPI "     // Conditional Halt
+    ,"3011": "SFI "     // Store for Interrupt
+    ,"3411": "SFT "     // Store for Test
+    ,"4111": "IP1 "     // Initiate P1
+    ,"4211": "IP2 "     // Initiate P2
+    ,"4411": "IIO "     // Initiate I/O
+    ,"5111": "IFT "     // Initiate For Test
+    ,"0115": "LNG "     // Logical Negate
+    ,"0215": "LOR "     // Logical OR
+    ,"0415": "LND "     // Logical AND
+    ,"1015": "LQV "     // Logical EQV (Equivalence)
+    ,"2015": "MOP "     // Reset Flag Bit (Make Operand)
+    ,"4015": "MDS "     // Set Flag Bit (Make Descriptor)
+    ,"0121": "CID "     // Conditional Integer Store Destructive
+    ,"0221": "CIN "     // Conditional Integer Store Non-Destructive
+    ,"0421": "STD "     // B Store Destructive
+    ,"1021": "SND "     // B Store Non-Destructive
+    ,"2021": "LOD "     // Load
+    ,"4121": "ISD "     // Integer Store Destructive
+    ,"4221": "ISN "     // Integer Store Non-Destructive
+    ,"0125": "GEQ "     // B Greater Than or Equal To A
+    ,"0225": "GTR "     // B Greater Than A
+    ,"0425": "NEQ "     // B Not Equal To A
+    ,"1025": "XCH "     // Exchange
+    ,"1425": "FTC "     // F Field To Core Field
+    ,"2025": "DUP "     // Duplicate
+    ,"3425": "FTF "     // F Field To F Field
+    ,"4125": "LEQ "     // B Less Than or Equal To A
+    ,"4225": "LSS "     // B Less Than A
+    ,"4425": "EQL "     // B Equal To A
+    ,"5425": "CTC "     // Core Field to C Field
+    ,"7425": "CTF "     // Core Field To F Field
+    ,"0131": "BBC "     // Branch Backward Conditional
+    ,"0231": "BFC "     // Branch Forward Conditional
+    ,"0431": "SSN "     // Set Sign Bit
+    ,"1031": "CHS "     // Change Sign Bit
+    ,"2031": "TOP "     // Test Flag Bit (Test Operand)
+    ,"2131": "LBC "     // Branch Backward Word Conditional
+    ,"2231": "LFC "     // Branch Forward Word Conditional
+    ,"2431": "TUS "     // Interroage Peripheral Status
+    ,"4131": "BBW "     // Branch Backward Unconditional
+    ,"4231": "BFW "     // Branch Forward Unconditional
+    ,"4431": "SSP "     // Reset Sign Bit
+    ,"6131": "LBU "     // Branch Backward Word Unconditional
+    ,"6231": "LFU "     // Branch Forward Word Unconditional
+    ,"6431": "TIO "     // Interrogate I/O Channel
+    ,"7031": "FBS "     // Stack Search For Flag
+    ,"0135": "BRT "     // Branch Return
+    ,"0235": "RTN "     // Return Normal
+    ,"0435": "XIT "     // Exit
+    ,"1235": "RTS "     // Return Special
+    ,"0141": "INX "     // Index
+    ,"0241": "COC "     // Construct Operand Call
+    ,"0441": "MKS "     // Mark Stack
+    ,"1241": "CDC "     // Construct Descriptor Call
+    ,"2141": "SSF "     // F & S Register Set/Store
+    ,"2541": "LLL "     // Link List Lookup
+    ,"4441": "CMN "     // Enter Character Mode In-line
+    ,"XX45": "ISO "     // Variable Field Isolate (XX45)
+    ,"0051": "DEL "     // Delete
+    ,"X051": "CFN "     // Branch Forward Non-Destructive (X051 or X451)
+    ,"X151": "CBN "     // Branch Backward Non-Destructive (X151 or X551)
+    ,"X251": "CFD "     // Branch Forward Destructive (X251 ot X651)
+    ,"X351": "CBD "     // Branch Backward Destructive (X351 or X751)
+    ,"0055": "NOP "     // No Operation (DIA 0)
+    ,"XX55": "DIA "     // Dial A (XX55)
+    ,"0061": "VARI"     // Set Full R-Relative Address Mode (DIB 0)
+    ,"XX61": "DIB "     // Dial B (XX61)
+    ,"XX65": "TRB "     // Transfer Bits (XX65)
+    ,"XX71": "FCL "     // Compare Field Low (XX71)
+    ,"XX75": "FCE "     // Compare Field Equal (XX75)
+};
+
+var charOps = {
+     "0000": "EXC "     // Exit character mode
+    ,"0100": "CMX "     // In-line character mode exit
+    ,"0002": "BSD "     // Skip Bit Destination
+    ,"0003": "BSS "     // Skip Bit Source
+    ,"0004": "RDA "     // Recall Destination Address
+    ,"0005": "TRW "     // Transfer Words
+    ,"0006": "SED "     // Set Destination Address
+    ,"0007": "TDA "     // Transfer Destination Address
+    ,"2411": "ZPI "     // Conditional Halt
+    ,"3011": "SFI "     // Store for Interrupt
+    ,"3411": "SFT "     // Store for Test
+    ,"0012": "TBN "     // Transfer Blank for Non-Numerics
+    ,"0014": "SDA "     // Store Destination Address
+    ,"0015": "SSA "     // Store Source Address
+    ,"0016": "SFD "     // Skip Forward Destination
+    ,"0017": "SRD "     // Skip Reverse Destination
+    ,"0022": "SES "     // Set Source Address
+    ,"0024": "TEQ "     // Test For Equal
+    ,"0025": "TNE "     // Test For Not Equal
+    ,"0026": "TEG "     // Test For Greater or Equal
+    ,"0027": "TGR "     // Test For Greater
+    ,"0030": "SRS "     // Skip Reverse Source
+    ,"0031": "SFS "     // Skip Forward Source
+    ,"0032": "FSUX"     // Field Subtract (AUX)
+    ,"0033": "FADX"     // Field Add (AUX)
+    ,"0034": "TEL "     // Test For Equal or Less
+    ,"0035": "TLS "     // Test For Less
+    ,"0036": "TAN "     // Test For Alphanumeric
+    ,"0037": "BIT "     // Test Bit
+    ,"0040": "INC "     // Increase Tally
+    ,"0041": "STC "     // Store Tally
+    ,"0042": "SEC "     // Set Tally
+    ,"0043": "CRF "     // Call Repeat Field
+    ,"0044": "JNC "     // Jump Out of Loop Conditional
+    ,"0045": "JFC "     // Jump Forward Conditional
+    ,"0046": "JNS "     // Jump Out of Loop
+    ,"0047": "JFW "     // Jump Forward Unconditional
+    ,"0050": "RCA "     // Recall Control Address
+    ,"0051": "ENS "     // End Loop
+    ,"0052": "BNS "     // Begin Loop
+    ,"0053": "RSA "     // Recall Source Address
+    ,"0054": "SCA "     // Store Control Address
+    ,"0055": "JRC "     // Jump Reverse Conditional
+    ,"0056": "TSA "     // Transfer Source Address
+    ,"0057": "JRV "     // Jump Reverse Unconditional
+    ,"0060": "CEQ "     // Compare Equal
+    ,"0061": "CNE "     // Compare Not Equal
+    ,"0062": "CEG "     // Compare Greater or Equal
+    ,"0063": "CGR "     // Compare Greater
+    ,"0064": "BIS "     // Set Bit
+    ,"0065": "BIR "     // Reset Bit
+    ,"0066": "OCV "     // Output Convert
+    ,"0067": "ICV "     // Input Convert
+    ,"0070": "CEL "     // Compare Equal or Less
+    ,"0071": "CLS "     // Compare Less
+    ,"0072": "FSU "     // Field Subtract
+    ,"0073": "FAD "     // Field Add
+    ,"0074": "TRP "     // Transfer Program Characters
+    ,"0075": "TRN "     // Transfer Numerics
+    ,"0076": "TRZ "     // Transfer Zones
+    ,"0077": "TRS "     // Transfer Source Characters
+};
+
+function $$(id) {
+    return document.getElementById(id);
+}
+
+function hasClass(id, name) {
+    /* returns true if element "e" has class "name" in its class list */
+    var e = $$(id);
+    var classes = e.className;
+
+    if (!e) {
+        return false;
+    } else if (classes == name) {
+        return true;
+    } else {
+        return (classes.search("\\b" + name + "\\b") >= 0);
+    }
+}
+
+function addClass(id, name) {
+    /* Adds a class "name" to the element "e"s class list */
+    var e = $$(id);
+
+    if (!hasClass(id, name)) {
+        e.className += (" " + name);
+    }
+}
+
+function removeClass(id, name) {
+    /* Removes the class "name" from the element "e"s class list */
+    var e = $$(id);
+
+    e.className = e.className.replace(new RegExp("\\b" + name + "\\b\\s*", "g"), "");
+}
+
+function setText(id, text) {
+    /* Replaces the children of the node having id="id" with a text node containing "text" */
+    var e = $$(id);
+    var f;
+
+    if (!e) {
+        alert("Invalid setText() node id \"" + id + "\"");
+    } else {
+        while (f = e.firstChild) {
+            e.removeChild(f);
+        }
+        e.appendChild(document.createTextNode(text));
+    }
+}
+
+function parseToOctal(e) {
+    /* Obtains the .value from the element "e", parses it, and returns the
+    result as a B5500 numeric word. If the element text contains any of "-+eE."
+    the text is parsed as a decimal integer or floating point number, otherwise
+    it is parsed as an octal value */
+    var ev = 0;                         // exponent of parsed value
+    var mv;                             // mantissa of parsed value
+    var sv = 0;                         // sign of parsed value
+    var tv = 0;                         // sign of parsed value exponent
+    var text = e.value;                 // text of element
+    var v;                              // parsed value of element text
+
+    if (text.search(/\S/) < 0) {
+        text = "0";
+    }
+    if (text.search(/[-+eE.]/) < 0) {
+        v = parseInt(text, 8);
+    } else {
+        v = parseFloat(text);
+        if (!isNaN(v) && v != 0) {
+            if (v < 0) {
+                sv = 1;
+                v = -v;
+            }
+            while (v < 0x1000000000) {
+                v *= 8;
+                ev--;
+            }
+            while (v >= 0x8000000000) {
+                v /= 8;
+                ev++;
+            }
+            mv = Math.floor(v);
+            if (ev >= -13) {
+                while (ev < 0 && mv%8 == 0) {
+                    mv /= 8;
+                    ev++;
+                }
+            }
+            if (ev < 0) {
+                tv = 1;
+                ev = -ev;
+            }
+            v = (((sv*2) + tv)*64 + ev%64)*0x8000000000 + mv;        // to B5500 format
+        }
+    }
+
+    if (isNaN(v)) {
+        e.style.backgroundColor = "red";
+    } else {
+        e.style.backgroundColor = "";
+    }
+    return v;
+}
+
+function padOctal(value, octades) {
+    /* Formats "value" as an octal number of "octades" length, left-padding with
+    zeroes as necessary */
+    var text = value.toString(8);
+    var len = text.length;
+
+    if (value >= 0) {
+        while (len++ < octades) {
+            text = "0" + text;
+        }
+    }
+    return text;
+}
+
+function decodeSyllable(syllable, mode, level, msff) {
+    /* Decodes the B5500 operator "syllable" and returns a string formatted with the
+    mnemonic description of that syllable.
+    "mode" indicates word (0) or character (1) mode.
+    "level" indicates program (0) or subroutine (1) level.
+    "msff" indicates whether MSFF is set (mark-stack pending) */
+    var opcode = padOctal(syllable, 4);
+    var text = opcode + " = ";
+    var v;
+
+    function decodeRelativeAddress(value, salf, msff) {
+        var text;
+
+        if (!salf) {
+            text = "R+" + padOctal(value, 4);
+        } else {
+            switch ((value >>> 7) & 0x07) {
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+                text = "R+" + padOctal(value, 3);
+                break;
+            case 4:
+            case 5:
+                if (msff) {
+                    text = "[R+7].[18:15]+" + padOctal(value & 0xFF, 3);
+                } else {
+                    text = "F+" + padOctal(value & 0xFF, 3);
+                }
+                break;
+            case 6:
+                text = "C+" + padOctal(value & 0x7F, 3);
+                break;
+            case 7:
+                if (msff) {
+                    text = "[R+7].[18:15]-" + padOctal(value & 0x7F, 3);
+                } else {
+                    text = "F-" + padOctal(value & 0x7F, 3);
+                }
+                break;
+            }
+        }
+        return text;
+    }
+
+    if (mode) {                         // CHARACTER MODE
+        v = syllable >>> 6;
+        switch (syllable % 64) {
+        case 0:
+            if (v == 1) {
+                text += charOps[opcode];
+            } else {
+                text += charOps["0000"];
+            }
+            break;
+        case 9:
+            text += wordOps[opcode] || "????";
+            break;
+        default:
+            text += (charOps[padOctal(syllable % 64, 4)] || "????") + " " +
+                padOctal(v, 2) + " (" + v + ")";
+            break;
+        } // switch on lower half of char-mode syllable
+
+    } else {                            // WORD MODE
+        switch (syllable % 4) {
+        case 0:                         // LITC: literal call
+            v = syllable >>> 2;
+            text += wordOps["0000"] + " " + padOctal(v, 4) + " (" + v + ")";
+            break;
+        case 2:                         // OPDC: operand call
+            v = syllable >>> 2;
+            text += wordOps["0002"] + " " + padOctal(v, 4) + " (" +
+                    decodeRelativeAddress(v, level, msff) + ")";
+            break;
+        case 3:                         // DESC: descriptor call
+            v = syllable >>> 2;
+            text += wordOps["0003"] + " " + padOctal(v, 4) + " (" +
+                    decodeRelativeAddress(v, level, msff) + ")";
+            break;
+        case 1:                         // all other operators
+            v = syllable >>> 6;
+            switch (syllable % 64) {
+            case 37:                    // XX45: ISO
+                text += wordOps["XX45"] + " (" + ((v >>> 3)*6 - v%8) + ")";
+                break;
+            case 41:                    // XX51: DEL, CFN, CBN, CFD, CBD
+                if (v == 0) {
+                    text += wordOps[opcode];
+                } else {
+                    v = v >>> 2;
+                    text += wordOps["X" + padOctal(syllable & 0xFF, 3)] + " (" + v + ")";
+                }
+                break;
+            case 45:                    // XX55: NOP, DIA
+                if (v == 0) {
+                    text += wordOps[opcode];
+                } else {
+                    text += wordOps["XX55"] + " (" + ((v >>> 3)*6 + v%8) + ")";
+                }
+                break;
+            case 49:                    // XX61: VARI, DIB
+                if (v == 0) {
+                    text += wordOps[opcode];
+                } else {
+                    text += wordOps["XX61"] + " (" + ((v >>> 3)*6 + v%8) + ")";
+                }
+                break;
+            case 53:                    // XX65: TRB
+                text += wordOps["XX65"] + " (" + v + ")";
+                break;
+            case 57:                    // XX71: FCL
+                text += wordOps["XX71"] + " (" + v + ")";
+                break;
+            case 61:                    // XX75: FCE
+                text += wordOps["XX75"] + " (" + v + ")";
+                break;
+            default:
+                text += wordOps[opcode];
+                break;
+            }
+        } // switch on low-order syllable bits
+    } // if mode
+    return text;
+}
+
+function displayOctal(id, value, octades) {
+    /* Formats the "value" as octal of length "octades" and sets the "id".value
+    property with the result */
+    var e = $$(id);
+
+    e.value = padOctal(value, octades);
+}
+
+function displayNumber(id, value) {
+    /* Converts the "value" as a B5500 number to a Javascript Number() object and
+    formats it as the text content of node "id" */
+    var m = value % 0x8000000000;       // get the mantissa
+    var e = (value - m)/0x8000000000;   // get the exponent and sign bits
+    var s = (e & 0x80) >>> 7;           // get the mantissa sign
+    var t = (e & 0x40) >>> 6;           // get the exponent sign
+
+    e = (t ? -(e & 0x3F) : (e & 0x3F)); // get signed value of exponent
+    if (e) {
+        setText(id, (Math.pow(8, e)*(s ? -m : m)).toPrecision(12));
+    } else {
+        setText(id, (s ? -m : m).toString());
+    }
+}
+
+function displayBIC(id, value) {
+    /* Converts the "value" as a B5500 word to an eight character string and inserts it
+    as the text content of node "id" */
+    var c;                              // current character
+    var s = "";                         // working string value
+    var w = value;                      // working word value
+    var x;                              // character counter
+
+    for (x=0; x<8; x++) {
+        c = w % 64;
+        w = (w-c)/64;
+        if (c == 0x30) {                // 0x30 = @60 = BIC space
+            s = "_" + s;
+        } else {
+            s = BICtoANSI[c] + s;
+        }
+    }
+    setText(id, s);
+}
+
+function displayMemWord(e, addr, bicID, valueID) {
+    /* Displays the contents of the memory word at "addr" as the value of element "e" */
+
+    setText(valueID, "");
+    e.setAttribute("data-b55sd-addr", addr.toString(8));
+    accessor.addr = addr;
+    cc.fetch(accessor);
+    if (accessor.MAIL) {
+        e.style.backgroundColor = "yellow";
+        e.value = "<< ADDR INH >>";
+    } else if (accessor.MPED) {
+        e.style.backgroundColor = "yellow";
+        e.value = "<< PARITY >>";
+    } else if (accessor.MAED) {
+        e.style.backgroundColor = "yellow";
+        e.value = "<< INV ADDR >>";
+    } else {
+        e.style.backgroundColor = "";
+        displayOctal(e.id, accessor.word, 16);
+        displayBIC(bicID, accessor.word);
+        displayNumber(valueID, accessor.word);
+    }
+}
+
+function displayStack() {
+    /* Displays the A and B registers, plus the top 8 words of the memory stack */
+    var addr;
+    var bicID;
+    var e;
+    var valueID;
+    var x;
+
+    displayOctal("AReg", px.A, 16);
+    displayBIC("ARegBIC", px.A);
+    displayNumber("ARegValue", px.A);
+    $$("AROF").checked = (px.AROF != 0);
+
+    displayOctal("BReg", px.B, 16);
+    displayBIC("BRegBIC", px.B);
+    displayNumber("BRegValue", px.B);
+    $$("BROF").checked = (px.BROF != 0);
+
+    for (x=0; x<=7; x++) {
+        addr = px.S - x;
+        setText("SAddr" + x, padOctal(addr, 5));
+        e = $$("SWord" + x);
+        bicID = e.getAttribute("data-b55sd-bicID");
+        valueID = e.getAttribute("data-b55sd-valueID");
+        displayMemWord(e, addr, bicID, valueID);
+    }
+}
+
+function displayMemory() {
+    /* Displays the words surrounding "memAddr" */
+    var addr;
+    var bicID;
+    var e;
+    var suffix;
+    var valueID;
+    var x;
+
+    for (x=-4; x<=4; x++) {
+        suffix = (x < 0 ? "M" + (-x) : "P" + x);
+        addr = memAddr + x;
+        if (x == 0) {
+            displayOctal("MAddr", addr, 5);
+        } else {
+            setText("MAddr" + suffix, padOctal(addr, 5));
+        }
+        e = $$("MWord" + suffix);
+        bicID = e.getAttribute("data-b55sd-bicID");
+        valueID = e.getAttribute("data-b55sd-valueID");
+        displayMemWord(e, addr, bicID, valueID);
+    }
+}
+
+function displaySyllable() {
+    /* Decodes the syllable in the T register and formats it for display in the
+    "TMnemonic" table cell */
+
+    setText("TMnemonic", decodeSyllable(px.T, px.CWMF, px.SALF, px.MSFF));
+}
+
+function displayRegisters() {
+    /* Displays the non-stack processor registers */
+
+    displayOctal("XReg", px.X, 13);
+    displayOctal("CReg", px.C, 5);
+    displayOctal("LReg", px.L, 1);
+    setText("SylAddr", (px.C*4 + px.L).toString(8));
+    displayOctal("PReg", px.P, 16);
+    $$("PROF").checked = (px.PROF != 0);
+    displayOctal("TReg", px.T, 4);
+    $$("TROF").checked = (px.TROF != 0);
+    displaySyllable();
+    displayOctal("EReg", px.E, 2);
+    displayOctal("IReg", px.I, 3);
+    if (px.I) {
+        addClass("IReg", "warn");
+    } else {
+        removeClass("IReg", "warn");
+    }
+    displayOctal("QReg", px.Q, 4);
+    displayOctal("MReg", px.M, 5);
+    displayOctal("GReg", px.G, 1);
+    displayOctal("HReg", px.H, 1);
+    displayOctal("SReg", px.S, 5);
+    displayOctal("KReg", px.K, 1);
+    displayOctal("VReg", px.V, 1);
+    displayOctal("FReg", px.F, 5);
+    displayOctal("RReg", px.R, 3);
+    displayOctal("YReg", px.Y, 2);
+    displayOctal("ZReg", px.Z, 2);
+    displayOctal("NReg", px.N, 2);
+    $$("NCSF").checked = (px.NCSF != 0);
+    $$("CWMF").checked = (px.CWMF != 0);
+    $$("MSFF").checked = (px.MSFF != 0);
+    $$("SALF").checked = (px.SALF != 0);
+    $$("VARF").checked = (px.VARF != 0);
+}
+
+function displayCentralControl() {
+    /* Displays the I/O and interrupt status in Central Control */
+    var cells;
+    var s;
+    var ubm = cc.unitBusyMask;
+    var usm = cc.unitStatusMask;
+    var x;
+
+    $$("AD1F").className = (cc.AD1F ? "busy" : "notReady");
+    $$("AD2F").className = (cc.AD2F ? "busy" : "notReady");
+    $$("AD3F").className = (cc.AD3F ? "busy" : "notReady");
+    $$("AD4F").className = (cc.AD4F ? "busy" : "notReady");
+
+    for (x=3; x<=16; x++) {
+        s = "CCI" + (x+100).toString().substring(1) + "F";
+        $$(s).className = (cc[s] ? "busy" : "notReady");
+    }
+
+    cells = $$("CCPeripheralRow").cells;
+    for (x=17; x<=47; x++) {
+        cells[x-16].className = (cc.bitTest(usm, x) ? (cc.bitTest(ubm, x) ? "busy" : "ready") : "notReady");
+    }
+}
+
+function displaySystemState() {
+    /* Extracts and displays the current processor state on the web page */
+
+    displayStack();
+    displayMemory();
+    displayRegisters();
+    displayCentralControl();
+    //window.focus();
+}
+
+function establishSilence(beQuiet) {
+    /* Maintains synchronization between the global "runSilently" flag, the
+    RunSilently checkbox, and cc.inhCCI03F */
+
+    runSilently = beQuiet;
+    cc.inhCCI03F = !(beQuiet && running);
+    $$("RunSilently").checked = beQuiet;
+}
+
+function goIt(ev) {
+    /* Branches to the location specified by the C and L registers: loads
+    P and T to set up for the execution of the instruction at that syllable
+    address, and then advances C/L to the next syllable address */
+
+    px.loadPviaC();
+    px.T = px.cc.fieldIsolate(px.P, px.L*12, 12);
+    px.TROF = 1;
+    if (px.L < 3) {
+        px.L++;
+    } else {
+        px.L = 0;
+        px.C++;
+    }
+    displaySystemState();
+}
+
+function stepIt(ev) {
+    /* Executes a single instruction. If that syllable was manually injected into
+    the T register, backs up C and L so that the originally-queued syllable can
+    be executed next */
+    var next;
+
+    ev.target.disabled = true;
+    setText("ARegOrig", padOctal(px.A, 16));
+    setText("BRegOrig", padOctal(px.B, 16));
+
+    if (injected) {
+        injected = false;
+        next = px.C*4 + px.L - 1;       // back up the auto-L increment
+        px.L = next%4;
+        px.C = (next - px.L)/4;
+    }
+    px.step();
+    displaySystemState();
+    ev.target.disabled = false;
+}
+
+function runIt(ev) {
+    /* Steps through instructions continuously until the C register matches the
+    StopAddr address. StopAddr can be changed while running. Setting it to zero
+    (or blank) will halt the continuous stepping */
+    var count = runningCycles;
+    var runBtn = $$("RunBtn");
+    var saveStopAddress = stopAddress;
+    var stopAddr = $$("StopAddr");
+
+    function syllabicate() {
+        var addr;
+        var prt;
+        var word;
+
+        do {
+            px.step();
+
+            if (false) {        // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< DEBUG <<<<<<<<<<
+            addr = cc.memMod[0][149] % 0x8000 + 1;              // MCP PRT @225: addr of PRT[1,*] DD
+            word = cc.memMod[addr >>> 12][addr & 0xFFF];        // PRT[2,*] DD
+            if (word > 0xA00000000000) {
+                prt = word % 0x8000
+
+                if (false) {    // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< DEBUG <<<<<<<<<<
+                addr = prt + 70;                                // addr of STACKHEAD DD
+                word = cc.memMod[addr >>> 12][addr & 0xFFF];    // STACKHEAD DD
+                if (word > 0xA00000000000) {
+                    addr = word % 0x8000 + 66;                  // addr of STACKHEAD[66]
+                    word = cc.memMod[addr >>> 12][addr & 0xFFF];
+                    if (word == 2) {
+                        alert("STACKHEAD[66]==2");
+                        stopAddress = 0;
+                    }
+                }
+                }               // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+                addr = prt + 204;                               // addr of NEXTINFO
+                word = cc.memMod[addr >>> 12][addr & 0xFFF];    // NEXTINFO
+                if (window.uglyLatch) {
+                    if (word <= 2) {
+                        alert("NEXTINFO==1");
+                        stopAddress = 0;
+                    }
+                } else {
+                    if (word > 255) {
+                        window.uglyLatch = true;
+                    }
+                }
+            }
+            }                   // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+            if (px.S > 0x7FFF) {
+                alert("P1.S out of range");
+                stopAddress = 0;
+            }
+            /***************************
+            if (px.C < 0x40) {
+                // There is an interrupt
+                switch (px.C) {
+                case 0x31:              // P1 invalid address
+                case 0x32:              // P1 stack overflow
+                case 0x3C:              // P1 integer overflow
+                    alert("Unexpected Processor Interrupt occurred");
+                    stopAddress = 0;
+                    break;
+                }
+            }
+            ***************************/
+            if (--count <= 0) {
+                count = runningCycles;
+                break;                  // exit loop to pick up events
+            }
+        } while (runSilently && stopAddress && px.C != stopAddress);
+
+        if (stopAddress && px.C != stopAddress) {
+            setCallback(syllabicate, this, 0);
+            if (!runSilently) {
+                displaySystemState();
+            }
+        } else if (isNaN(stopAddress)) {
+            stopAddress = 0;            // bad address
+            stopAddr.style.backgroundColor = "red";
+            $$("SelectProcessor").disabled = false;
+            runBtn.value = "Run";
+            running = false;
+            cc.inhCCI03F = true;
+        } else {
+            stopAddress = saveStopAddress;
+            stopAddr.style.backgroundColor = "";
+            stopAddr.value = padOctal(stopAddress, stopAddr.maxLength);
+            $$("SelectProcessor").disabled = false;
+            runBtn.value = "Run";
+            running = false;
+            cc.inhCCI03F = true;
+            displaySystemState();
+        }
+    }
+
+    if (runBtn.value != "Run") {
+        stopAddress = 0;                // stop syllabicating
+    } else {
+        setText("ARegOrig", "");
+        setText("BRegOrig", "");
+        injected = false;
+        stopAddr.style.backgroundColor = "green";
+        $$("SelectProcessor").disabled = true;
+        runBtn.value = "Stop";
+        running = true;
+        cc.inhCCI03F = !runSilently;
+        syllabicate();
+    }
+}
+
+function word_onChange(ev) {
+    /* Normalizes, sets, and displays the value of a memory word when changed */
+    var addr;
+    var e = ev.target;
+    var value;
+    var bicID = e.getAttribute("data-b55sd-bicID");
+    var valueID = e.getAttribute("data-b55sd-valueID");
+
+    value = e.getAttribute("data-b55sd-addr");
+    addr = parseInt(value, 8);
+    if (isNaN(addr)) {
+        e.style.backgroundColor = "orange";
+        alert("Invalid data-b55sd-addr address: " + value);
+    } else {
+        value = parseToOctal(e);
+        if (isNaN(value)) {
+            e.style.backgroundColor = "red";
+        } else {
+            e.style.backgroundColor = "";
+            accessor.addr = addr;
+            accessor.word = value;
+            cc.store(accessor);
+            displayMemWord(e, addr, bicID, valueID);
+        }
+    }
+    return value;
+}
+
+function reg_onChange(ev) {
+    /* Normalizes, sets, and displays the value of a register when changed */
+    var e = ev.target;
+    var value;
+
+    value = parseToOctal(e);
+    if (isNaN(value)) {
+        e.style.backgroundColor = "red";
+    } else {
+        e.style.backgroundColor = "";
+        e.value = padOctal(value, e.maxLength);
+    }
+    return value;
+}
+
+function ff_onChange(ev) {
+    /* Sets the value of a flip-flop when changed */
+    var e = ev.target;
+
+    return (e.checked ? 1 : 0);
+}
+
+function tos_onChange(ev, bicID, valueID, origID) {
+    /* Normalizes and displays the value of a register when changed */
+    var e = ev.target;
+    var value;
+
+    value = parseToOctal(e);
+    if (isNaN(value)) {
+        e.style.backgroundColor = "red";
+    } else {
+        e.style.backgroundColor = "";
+        displayOctal(e.id, value, 16);
+        displayBIC(bicID, value);
+        displayNumber(valueID, value);
+    }
+    return value;
+}
+
+function runSilently_onClick(ev) {
+    /* Handle the onchange event for the RunSilently checkbox */
+
+    establishSilence(ev.target.checked);
+}
+
+function fileLoader_onLoad(ev) {
+    /* Handle the onload event for an ArrayBuffer FileReader */
+    var addr = 0;                   // starting B5500 memory address
+    var buf = ev.target.result;
+    var words = 0;
+
+    cc.clear();
+    px.clear();
+    try {
+        words = cc.loadTest(buf, addr);
+        alert("File loaded: " + buf.byteLength + " bytes, " +
+              words + " words, last addr = @" + (addr+words-1).toString(8));
+    } catch (e) {
+        words = 0;
+        alert("File load failed: " + e.toString());
+    }
+    if (words > 0) {
+        px.preset(0x10);                // execute from address @20
+        displaySystemState();
+    }
+}
+
+function fileSelector_onChange(ev) {
+    /* Handle the <input type=file> onchange event when a file is selected */
+    var f = ev.target.files[0];
+    var reader = new FileReader();
+
+    reader.onload = fileLoader_onLoad;
+    reader.readAsArrayBuffer(f);
+}
+
+function hardwareLoad_onClick(ev) {
+    /* Handle the "Hardware Load" button click */
+    var result;
+
+    cc.clear();
+    $$("SelectProcessor").selectedIndex = 0;
+    px = cc.P1;
+    px.clear();
+    cc.cardLoadSelect = $$("CardLoadSelect").checked;
+    result = cc.load(true);
+    switch (result) {
+    case 0:                         // load initiated successfully
+        displaySystemState();
+        break;
+    case 1:
+        alert("P1 busy or not available");
+        break;
+    case 2:
+        alert("SPO is not ready");
+        break;
+    case 3:
+        alert("SPO is busy");
+        break;
+    default:
+        alert("cc.load() result = " + result);
+        break;
+    }
+}
+
+function selectProcessor_onChange(ev) {
+    /* Handle onChange for the SelectProcessor list to change the actively-displayed
+    processor state */
+    var value = ev.target.value;
+
+    if (value == "1") {
+        px = cc.P1;
+        displaySystemState();
+    } else if (value == "2") {
+        if (cc.P2) {
+            px = cc.P2;
+            displaySystemState();
+        } else {
+            ev.target.selectedIndex = 0;        // revert back to P1
+        }
+    }
+}
+
+function checkBrowser() {
+    /* Checks whether this browser can support the necessary stuff */
+    var missing = "";
+
+    if (!window.File) {missing += ", File"}
+    if (!window.FileReader) {missing += ", FileReader"}
+    if (!window.FileList) {missing += ", FileList"}
+    if (!window.Blob) {missing += ", Blob"}
+    if (!window.ArrayBuffer) {missing += ", ArrayBuffer"}
+    if (!window.DataView) {missing += ", DataView"}
+
+    if (missing.length == 0) {
+        return true;
+    } else {
+        alert("No can do... your browser does not support the following features:\n" + missing.substring(2));
+        return false;
+    }
+}
+
+function initialize() {
+
+    document.body.addEventListener("error", function(ev) {
+        console.log(ev);
+    }, false);
+
+    $$("LogoDiv").onclick = function(ev) {
+        displaySystemState();
+    };
+
+    $$("AReg").onchange = function(ev) {
+        px.A = tos_onChange(ev, "ARegBIC", "ARegValue", "ARegOrig");
+        px.AROF = 1;
+        $$("AROF").checked = true;
+    };
+    $$("AROF").onclick = function(ev) {
+        px.AROF = ff_onChange(ev);
+    };
+    $$("BReg").onchange = function(ev) {
+        px.B = tos_onChange(ev, "BRegBIC", "BRegValue", "BRegOrig");
+        px.BROF = 1;
+        $$("BROF").checked = true;
+    };
+    $$("BROF").onclick = function(ev) {
+        px.BROF = ff_onChange(ev);
+    };
+
+    $$("MAddr").onchange = function(ev) {
+        var addr = reg_onChange(ev);
+
+        if (!isNaN(addr)) {
+            memAddr = addr & 0x7FFF;
+            displayMemory();
+        }
+    };
+
+    $$("XReg").onchange = function(ev) {
+        px.X = reg_onChange(ev);
+    };
+    $$("CReg").onchange = function(ev) {
+        px.C = reg_onChange(ev);
+        setText("SylAddr", (px.C*4 + px.L).toString(8));
+    };
+    $$("LReg").onchange = function(ev) {
+        px.L = reg_onChange(ev);
+        setText("SylAddr", (px.C*4 + px.L).toString(8));
+    };
+    $$("PReg").onchange = function(ev) {
+        px.P = reg_onChange(ev);
+    };
+    $$("PROF").onclick = function(ev) {
+        px.PROF = ff_onChange(ev);
+    };
+    $$("TReg").onchange = function(ev) {
+
+        px.T = reg_onChange(ev);
+        injected = true;
+        displaySyllable();
+    };
+    $$("TROF").onclick = function(ev) {
+        px.TROF = ff_onChange(ev);
+    };
+    $$("EReg").onchange = function(ev) {
+        px.E = reg_onChange(ev);
+    };
+    $$("IReg").onchange = function(ev) {
+        px.I = reg_onChange(ev);
+        if (px.I) {
+            addClass("IReg", "warn");
+        } else {
+            removeClass("IReg", "warn");
+        }
+    };
+    $$("QReg").onchange = function(ev) {
+        px.Q = reg_onChange(ev);
+    };
+    $$("MReg").onchange = function(ev) {
+        px.M = reg_onChange(ev);
+    };
+    $$("GReg").onchange = function(ev) {
+        px.G = reg_onChange(ev);
+    };
+    $$("HReg").onchange = function(ev) {
+        px.H = reg_onChange(ev);
+    };
+    $$("SReg").onchange = function(ev) {
+        var addr = reg_onChange(ev);
+
+        if (!isNaN(addr)) {
+            px.S = addr & 0x7FFF;
+            displayStack();
+        }
+    };
+    $$("KReg").onchange = function(ev) {
+        px.K = reg_onChange(ev);
+    };
+    $$("VReg").onchange = function(ev) {
+        px.V = reg_onChange(ev);
+    };
+    $$("FReg").onchange = function(ev) {
+        px.F = reg_onChange(ev);
+    };
+    $$("RReg").onchange = function(ev) {
+        px.R = reg_onChange(ev);
+    };
+    $$("YReg").onchange = function(ev) {
+        px.Y = reg_onChange(ev);
+    };
+    $$("ZReg").onchange = function(ev) {
+        px.Z = reg_onChange(ev);
+    };
+    $$("NReg").onchange = function(ev) {
+        px.N = reg_onChange(ev);
+    };
+
+    $$("NCSF").onclick = function(ev) {
+        px.NCSF = ff_onChange(ev);
+    };
+    $$("CWMF").onclick = function(ev) {
+        px.CWMF = ff_onChange(ev);
+    };
+    $$("MSFF").onclick = function(ev) {
+        px.MSFF = ff_onChange(ev);
+    };
+    $$("SALF").onclick = function(ev) {
+        px.SALF = ff_onChange(ev);
+    };
+    $$("VARF").onclick = function(ev) {
+        px.VARF = ff_onChange(ev);
+    };
+
+    $$("SWord0").onchange = word_onChange;
+    $$("SWord1").onchange = word_onChange;
+    $$("SWord2").onchange = word_onChange;
+    $$("SWord3").onchange = word_onChange;
+    $$("SWord4").onchange = word_onChange;
+    $$("SWord5").onchange = word_onChange;
+    $$("SWord6").onchange = word_onChange;
+    $$("SWord7").onchange = word_onChange;
+
+    $$("MWordM4").onchange = word_onChange;
+    $$("MWordM3").onchange = word_onChange;
+    $$("MWordM2").onchange = word_onChange;
+    $$("MWordM1").onchange = word_onChange;
+    $$("MWordP0").onchange = word_onChange;
+    $$("MWordP1").onchange = word_onChange;
+    $$("MWordP2").onchange = word_onChange;
+    $$("MWordP3").onchange = word_onChange;
+    $$("MWordP4").onchange = word_onChange;
+
+    $$("StopAddr").onchange = function(ev) {
+        stopAddress = reg_onChange(ev);
+    };
+
+    $$("FileSelector").addEventListener("change", fileSelector_onChange, false);
+    $$("HardwareLoad").addEventListener("click", hardwareLoad_onClick, false);
+    $$("SelectProcessor").addEventListener("change", selectProcessor_onChange, false);
+    $$("GoBtn").addEventListener("click", goIt, false);
+    $$("StepBtn").addEventListener("click", stepIt, false);
+    $$("RunBtn").addEventListener("click", runIt, false);
+    $$("RunSilently").addEventListener("click", runSilently_onClick, false);
+
+    cc = new B5500CentralControl(window);
+    cc.powerOn();
+    px = cc.P1;                         // set current processor reference
+
+    px.S = 0x40;                        // stack at @100
+    px.R = 0x005;                       // PRT at @500 (R has addr div 64)
+
+    px.C = 0x10;                        // execute from address @20
+    px.loadPviaC();
+    px.T = cc.fieldIsolate(px.P, 0, 12);
+    px.TROF = 1;
+    px.L = 1;                           // point to the next syllable
+
+    px.NCSF = 0;                        // initiate test in control state
+
+    displaySystemState();
+    displayOctal("StopAddr", stopAddress, 5);
+    establishSilence(runSilently);
+    $$("StepBtn").disabled = false;
+}
+
+window.onload = function() {
+    if (checkBrowser()) {
+        initialize();
+    }
+}
+</script>
+</head>
+
+<body>
+
+<div id=LogoDiv>
+    <div id=BurroughsLogo>
+        <img id=BurroughsLogoImage src="Burroughs-Logo-Neg.jpg">
+    </div>
+    <div id=B5500Logo>B 5500
+    </div>
+</div>
+
+<h3>B5500 Syllable Debugger</h3>
+<p>
+    <input id=FileSelector type=file size=60>
+    &nbsp;&nbsp;
+    <input id=HardwareLoad type=button value="Hardware Load">
+    <input id=CardLoadSelect type=checkbox value="CardLoadSelect">
+    <label for=CardLoadSelect>Card Load Select</label>
+    &nbsp;&nbsp;
+    <select id=SelectProcessor>
+        <option value=1 selected>Show P1
+        <option value=2>Show P2
+    </select>
+</p>
+
+<table id=RegisterBank1 class="normal border">
+<colgroup>
+    <col span=4>
+    <col style="width:12em">
+    <col>
+</colgroup>
+<thead>
+<tr>
+    <th>Reg
+    <th>Addr
+    <th>Current (octal)
+    <th>BIC
+    <th>Current (decimal)
+    <th>Prior (octal)
+<tbody>
+<tr>
+    <td colspan=6 class="revcaption">STACK
+<tr>
+    <td class=center>A
+    <td>
+        <input id=AROF name=AROF type=checkbox value=1><label for=AROF>AROF</label>
+    <td>
+        <input id=AReg name=AReg type=text class=number size=16 maxlength=16
+               data-b55sd-bicID=ARegBIC data-b55sd-valueID=ARegValue data-b55sd-origID=ARegOrig>
+    <td id=ARegBIC class=data>
+    <td id=ARegValue class=number>
+    <td id=ARegOrig class=number>
+<tr>
+    <td class=center>B
+    <td>
+        <input id=BROF name=BROF type=checkbox value=1><label for=BROF>BROF</label>
+    <td>
+        <input id=BReg name=BReg type=text class=number size=16 maxlength=16
+               data-b55sd-bicID=BRegBIC data-b55sd-valueID=BRegValue data-b55sd-origID=BRegOrig>
+    <td id=BRegBIC class=data>
+    <td id=BRegValue class=number>
+    <td id=BRegOrig class=number>
+<tr>
+    <td class=center>S-0
+    <td id=SAddr0 class="data center">00000
+    <td>
+        <input id=SWord0 name=SWord0 type=text class=number size=16 maxlength=16
+               data-b55sd-bicID=SBIC0 data-b55sd-valueID=SValue0 data-b55sd-origID=SOrig0>
+    <td id=SBIC0 class=data>
+    <td id=SValue0 class=number>
+    <td id=SOrig0 class=number>
+<tr>
+    <td class=center>S-1
+    <td id=SAddr1 class="data center">11111
+    <td>
+        <input id=SWord1 name=SWord1 type=text class=number size=16 maxlength=16
+               data-b55sd-bicID=SBIC1 data-b55sd-valueID=SValue1 data-b55sd-origID=SOrig1>
+    <td id=SBIC1 class=data>
+    <td id=SValue1 class=number>
+    <td id=SOrig1 class=number>
+<tr>
+    <td class=center>S-2
+    <td id=SAddr2 class="data center">22222
+    <td>
+        <input id=SWord2 name=SWord2 type=text class=number size=16 maxlength=16
+               data-b55sd-bicID=SBIC2 data-b55sd-valueID=SValue2 data-b55sd-origID=SOrig2>
+    <td id=SBIC2 class=data>
+    <td id=SValue2 class=number>
+    <td id=SOrig2 class=number>
+<tr>
+    <td class=center>S-3
+    <td id=SAddr3 class="data center">33333
+    <td>
+        <input id=SWord3 name=SWord3 type=text class=number size=16 maxlength=16
+               data-b55sd-bicID=SBIC3 data-b55sd-valueID=SValue3 data-b55sd-origID=SOrig3>
+    <td id=SBIC3 class=data>
+    <td id=SValue3 class=number>
+    <td id=SOrig3 class=number>
+<tr>
+    <td class=center>S-4
+    <td id=SAddr4 class="data center">44444
+    <td>
+        <input id=SWord4 name=SWord4 type=text class=number size=16 maxlength=16
+               data-b55sd-bicID=SBIC4 data-b55sd-valueID=SValue4 data-b55sd-origID=SOrig4>
+    <td id=SBIC4 class=data>
+    <td id=SValue4 class=number>
+    <td id=SOrig4 class=number>
+<tr>
+    <td class=center>S-5
+    <td id=SAddr5 class="data center">55555
+    <td>
+        <input id=SWord5 name=SWord5 type=text class=number size=16 maxlength=16
+               data-b55sd-bicID=SBIC5 data-b55sd-valueID=SValue5 data-b55sd-origID=SOrig5>
+    <td id=SBIC5 class=data>
+    <td id=SValue5 class=number>
+    <td id=SOrig5 class=number>
+<tr>
+    <td class=center>S-6
+    <td id=SAddr6 class="data center">66666
+    <td>
+        <input id=SWord6 name=SWord6 type=text class=number size=16 maxlength=16
+               data-b55sd-bicID=SBIC6 data-b55sd-valueID=SValue6 data-b55sd-origID=SOrig6>
+    <td id=SBIC6 class=data>
+    <td id=SValue6 class=number>
+    <td id=SOrig6 class=number>
+<tr>
+    <td class=center>S-7
+    <td id=SAddr7 class="data center">77777
+    <td>
+        <input id=SWord7 name=SWord7 type=text class=number size=16 maxlength=16
+               data-b55sd-bicID=SBIC7 data-b55sd-valueID=SValue7 data-b55sd-origID=SOrig7>
+    <td id=SBIC7 class=data>
+    <td id=SValue7 class=number>
+    <td id=SOrig7 class=number>
+
+<tbody>
+<tr>
+    <td colspan=6 class="revcaption">MEMORY
+<tr>
+    <td class=center>+4
+    <td id=MAddrP4 class="data center">44444
+    <td>
+        <input id=MWordP4 name=MWordP4 type=text class=number size=16 maxlength=16
+               data-b55sd-bicID=MBICP4 data-b55sd-valueID=MValueP4 data-b55sd-origID=MOrigP4>
+    <td id=MBICP4 class=data>
+    <td id=MValueP4 class=number>
+    <td id=MOrigP4 class=number>
+<tr>
+    <td class=center>+3
+    <td id=MAddrP3 class="data center">33333
+    <td>
+        <input id=MWordP3 name=MWordP3 type=text class=number size=16 maxlength=16
+               data-b55sd-bicID=MBICP3 data-b55sd-valueID=MValueP3 data-b55sd-origID=MOrigP3>
+    <td id=MBICP3 class=data>
+    <td id=MValueP3 class=number>
+    <td id=MOrigP3 class=number>
+<tr>
+    <td class=center>+2
+    <td id=MAddrP2 class="data center">22222
+    <td>
+        <input id=MWordP2 name=MWordP2 type=text class=number size=16 maxlength=16
+               data-b55sd-bicID=MBICP2 data-b55sd-valueID=MValueP2 data-b55sd-origID=MOrigP2>
+    <td id=MBICP2 class=data>
+    <td id=MValueP2 class=number>
+    <td id=MOrigP2 class=number>
+<tr>
+    <td class=center>+1
+    <td id=MAddrP1 class="data center">11111
+    <td>
+        <input id=MWordP1 name=MWordP1 type=text class=number size=16 maxlength=16
+               data-b55sd-bicID=MBICP1 data-b55sd-valueID=MValueP1 data-b55sd-origID=MOrigP1>
+    <td id=MBICP1 class=data>
+    <td id=MValueP1 class=number>
+    <td id=MOrigP1 class=number>
+<tr>
+    <td class=center>Addr
+    <td class="center">
+        <input id=MAddr name=MAddr type=text class=center size=5 maxlength=5>
+    <td>
+        <input id=MWordP0 name=MWordP0 type=text class=number size=16 maxlength=16
+               data-b55sd-bicID=MBICP0 data-b55sd-valueID=MValueP0 data-b55sd-origID=MOrigP0>
+    <td id=MBICP0 class=data>
+    <td id=MValueP0 class=number>
+    <td id=MOrigP0 class=number>
+<tr>
+    <td class=center>-1
+    <td id=MAddrM1 class="data center">11111
+    <td>
+        <input id=MWordM1 name=MWordM1 type=text class=number size=16 maxlength=16
+               data-b55sd-bicID=MBICM1 data-b55sd-valueID=MValueM1 data-b55sd-origID=MOrigM1>
+    <td id=MBICM1 class=data>
+    <td id=MValueM1 class=number>
+    <td id=MOrigM1 class=number>
+<tr>
+    <td class=center>-2
+    <td id=MAddrM2 class="data center">22222
+    <td>
+        <input id=MWordM2 name=MWordM2 type=text class=number size=16 maxlength=16
+               data-b55sd-bicID=MBICM2 data-b55sd-valueID=MValueM2 data-b55sd-origID=MOrigM2>
+    <td id=MBICM2 class=data>
+    <td id=MValueM2 class=number>
+    <td id=MOrigM2 class=number>
+<tr>
+    <td class=center>-3
+    <td id=MAddrM3 class="data center">33333
+    <td>
+        <input id=MWordM3 name=MWordM3 type=text class=number size=16 maxlength=16
+               data-b55sd-bicID=MBICM3 data-b55sd-valueID=MValueM3 data-b55sd-origID=MOrigM3>
+    <td id=MBICM3 class=data>
+    <td id=MValueM3 class=number>
+    <td id=MOrigM3 class=number>
+<tr>
+    <td class=center>-4
+    <td id=MAddrM4 class="data center">44444
+    <td>
+        <input id=MWordM4 name=MWordM4 type=text class=number size=16 maxlength=16
+               data-b55sd-bicID=MBICM4 data-b55sd-valueID=MValueM4 data-b55sd-origID=MOrigM4>
+    <td id=MBICM4 class=data>
+    <td id=MValueM4 class=number>
+    <td id=MOrigM4 class=number>
+</table>
+
+<table id=RegisterBank2 class="normal border">
+<colgroup>
+    <col style="width:2em">
+    <col style="width:10em">
+    <col style="width:2em">
+    <col style="width:7em">
+    <col style="width:2em">
+    <col style="width:7em">
+</colgroup>
+<tbody>
+<tr>
+    <td class=center>X
+    <td colspan=5>
+        <input id=XReg name=XReg type=text class=number size=13 maxlength=13>
+<tr>
+    <td class=center>C
+    <td>
+        <input id=CReg name=CReg type=text class=number size=5 maxlength=5>
+    <td class=center>L
+    <td colspan=2>
+        <input id=LReg name=LReg type=text class=number size=1 maxlength=1>
+        &nbsp;
+        <span id=SylAddr></span>
+    <td class=center>
+        <input id=GoBtn name=GoBtn type=button value="Go To">
+<tr>
+    <td class=center>P
+    <td colspan=5>
+        <input id=PReg name=PReg type=text class=number size=16 maxlength=16>
+        <input id=PROF name=PROF type=checkbox value=1><label for=PROF>PROF</label>
+<tr>
+    <td class=center>T
+    <td>
+        <input id=TReg name=TReg type=text class=number size=4 maxlength=4>
+        <input id=TROF name=TROF type=checkbox value=1><label for=TROF>TROF</label>
+    <td id=TMnemonic colspan=4>
+<tr>
+    <td class=center>E
+    <td>
+        <input id=EReg name=EReg type=text class=number size=2 maxlength=2>
+    <td class=center>I
+    <td>
+        <input id=IReg name=IReg type=text class=number size=3 maxlength=3>
+    <td class=center>Q
+    <td>
+        <input id=QReg name=QReg type=text class=number size=4 maxlength=4>
+<tr>
+    <td class=center>M
+    <td>
+        <input id=MReg name=MReg type=text class=number size=5 maxlength=5>
+    <td class=center>G
+    <td>
+        <input id=GReg name=GReg type=text class=number size=1 maxlength=1>
+    <td class=center>H
+    <td>
+        <input id=HReg name=HReg type=text class=number size=1 maxlength=1>
+<tr>
+    <td class=center>S
+    <td>
+        <input id=SReg name=SReg type=text class=number size=5 maxlength=5>
+    <td class=center>K
+    <td>
+        <input id=KReg name=KReg type=text class=number size=1 maxlength=1>
+    <td class=center>V
+    <td>
+        <input id=VReg name=VReg type=text class=number size=1 maxlength=1>
+<tr>
+    <td class=center>F
+    <td>
+        <input id=FReg name=FReg type=text class=number size=5 maxlength=5>
+    <td class=center>R
+    <td colspan=3>
+        <input id=RReg name=RReg type=text class=number size=3 maxlength=3>
+<tr>
+    <td class=center>Y
+    <td>
+        <input id=YReg name=YReg type=text class=number size=2 maxlength=2>
+    <td class=center>Z
+    <td>
+        <input id=ZReg name=ZReg type=text class=number size=2 maxlength=2>
+    <td class=center>N
+    <td>
+        <input id=NReg name=NReg type=text class=number size=2 maxlength=2>
+<tr>
+    <td colspan=6 class=center>
+        <input id=NCSF name=NCSF type=checkbox value=1><label for=NCSF>NCSF</label>
+        &nbsp;&nbsp;
+        <input id=CWMF name=CWMF type=checkbox value=1><label for=CWMF>CWMF</label>
+        &nbsp;&nbsp;
+        <input id=MSFF name=MSFF type=checkbox value=1><label for=MSFF>MSFF</label>
+        &nbsp;&nbsp;
+        <input id=SALF name=SALF type=checkbox value=1><label for=SALF>SALF</label>
+        &nbsp;&nbsp;
+        <input id=VARF name=VARF type=checkbox value=1><label for=VARF>VARF</label>
+<tr>
+    <td colspan=6 class=revcaption>Manual Control
+<tr>
+    <td colspan=2 class=center>
+        <input id=StepBtn name=StepBtn type=button value="Step" accesskey=P>
+    <td colspan=4 class=rj>
+        Stop at
+        <input id=StopAddr name=StopAddr type=text class=number size=5 maxlength=5>
+        &nbsp;
+        <input id=RunBtn name=RunBtn type=button value="Run" accesskey=R>
+<tr>
+    <td colspan=6 class=rj>
+        <label for=RunSilently>Run Silently</label>
+        <input id=RunSilently name=RunSilently type=checkbox value=1>
+</table>
+
+<table id=CentralControl>
+<colgroup>
+    <col span=32 style="width:3%">
+</colgroup>
+<thead>
+<tr id=CCInterruptRow>
+    <td>CC:
+    <td id=AD1F>IOU1                    <!-- I/O unit 1 busy                            -->
+    <td id=AD2F>IOU2                    <!-- I/O unit 2 busy                            -->
+    <td id=AD3F>IOU3                    <!-- I/O unit 3 busy                            -->
+    <td id=AD4F>IOU4                    <!-- I/O unit 4 busy                            -->
+    <td id=CCI03F>TIMR                  <!-- Time interval interrupt                    -->
+    <td id=CCI04F>IOBZ                  <!-- I/O busy interrupt                         -->
+    <td id=CCI05F>KBD                   <!-- Keyboard request interrupt                 -->
+    <td id=CCI06F>PR1F                  <!-- Printer 1 finished interrupt               -->
+    <td id=CCI07F>PR2F                  <!-- Printer 2 finished interrupt               -->
+    <td id=CCI08F>IO1F                  <!-- I/O unit 1 finished interrupt (RD in @14)  -->
+    <td id=CCI09F>IO2F                  <!-- I/O unit 2 finished interrupt (RD in @15)  -->
+    <td id=CCI10F>IO3F                  <!-- I/O unit 3 finished interrupt (RD in @16)  -->
+    <td id=CCI11F>IO4F                  <!-- I/O unit 4 finished interrupt (RD in @17)  -->
+    <td id=CCI12F>P2BZ                  <!-- P2 busy interrupt                          -->
+    <td id=CCI13F>INQ                   <!-- Remote inquiry request interrupt           -->
+    <td id=CCI14F>SPEC                  <!-- Special interrupt #1 (not used)            -->
+    <td id=CCI15F>DK1F                  <!-- Disk file #1 read check finished           -->
+    <td id=CCI16F>DK2F                  <!-- Disk file #2 read check finished           -->
+    <td colspan=13>
+<tr id=CCPeripheralRow>
+    <td>PER:
+    <td id=DCA>DCA                      <!-- 17 -->
+    <td id=PPB>PPB                      <!-- 18 -->
+    <td id=PRB>PRB                      <!-- 19 -->
+    <td id=PRA>PRA                      <!-- 20 -->
+    <td id=PPA>PPA                      <!-- 21 -->
+    <td id=SPO>SPO                      <!-- 22 -->
+    <td id=CRB>CRB                      <!-- 23 -->
+    <td id=CRA>CRA                      <!-- 24 -->
+    <td id=CPA>CPA                      <!-- 25 -->
+    <td id=LPB>LPB                      <!-- 26 -->
+    <td id=LPA>LPA                      <!-- 27 -->
+    <td id=DKB>DKB                      <!-- 28 -->
+    <td id=DKA>DKA                      <!-- 29 -->
+    <td id=DRB>DRB                      <!-- 30 -->
+    <td id=DRA>DRA                      <!-- 31 -->
+    <td id=MTT>MTT                      <!-- 32 -->
+    <td id=MTS>MTS                      <!-- 33 -->
+    <td id=MTR>MTR                      <!-- 34 -->
+    <td id=MTP>MTP                      <!-- 35 -->
+    <td id=MTN>MTN                      <!-- 36 -->
+    <td id=MTM>MTM                      <!-- 37 -->
+    <td id=MTL>MTL                      <!-- 38 -->
+    <td id=MTK>MTK                      <!-- 39 -->
+    <td id=MTJ>MTJ                      <!-- 40 -->
+    <td id=MTH>MTH                      <!-- 41 -->
+    <td id=MTF>MTF                      <!-- 42 -->
+    <td id=MTE>MTE                      <!-- 43 -->
+    <td id=MTD>MTD                      <!-- 44 -->
+    <td id=MTC>MTC                      <!-- 45 -->
+    <td id=MTB>MTB                      <!-- 46 -->
+    <td id=MTA>MTA                      <!-- 47 -->
+</table>
+
+</body>
+</html>
