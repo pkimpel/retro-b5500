@@ -55,19 +55,16 @@ function B5500CentralControl(global) {
     this.nextTimeStamp = 0;             // Next actual Date.getTime() for timer tick
     this.timer = null;                  // Reference to the RTC setCallback id.
 
-    // Establish contexts for asynchronously-called methods
-    this.boundTock = B5500CentralControl.bindMethod(this.tock, this);
-
     this.clear();                       // Create and initialize the Central Control state
 }
 
 /**************************************/
     /* Global constants */
 
-B5500CentralControl.version = "0.16";
+B5500CentralControl.version = "0.17";
 
 B5500CentralControl.memReadCycles = 2;          // assume 2 탎 memory read cycle time (the other option was 3 탎)
-B5500CentralControl.memWriteCycles = 3;         // assume 4 탎 memory write cycle time (the other option was 6 탎)
+B5500CentralControl.memWriteCycles = 4;         // assume 4 탎 memory write cycle time (the other option was 6 탎)
 B5500CentralControl.rtcTick = 1000/60;          // Real-time clock period, milliseconds
 
 B5500CentralControl.pow2 = [ // powers of 2 from 0 to 52
@@ -135,21 +132,21 @@ B5500CentralControl.unitSpecs = {
     DKA: {unitIndex: 29, designate:  6, unitClass: "B5500DiskUnit"},
     DRB: {unitIndex: 30, designate:  8, unitClass: null},
     DRA: {unitIndex: 31, designate:  4, unitClass: null},
-    MTT: {unitIndex: 32, designate: 31, unitClass: null},
-    MTS: {unitIndex: 33, designate: 29, unitClass: null},
-    MTR: {unitIndex: 34, designate: 27, unitClass: null},
-    MTP: {unitIndex: 35, designate: 25, unitClass: null},
-    MTN: {unitIndex: 36, designate: 23, unitClass: null},
-    MTM: {unitIndex: 37, designate: 21, unitClass: null},
-    MTL: {unitIndex: 38, designate: 19, unitClass: null},
-    MTK: {unitIndex: 39, designate: 17, unitClass: null},
-    MTJ: {unitIndex: 40, designate: 15, unitClass: null},
-    MTH: {unitIndex: 41, designate: 13, unitClass: null},
-    MTF: {unitIndex: 42, designate: 11, unitClass: null},
-    MTE: {unitIndex: 43, designate:  9, unitClass: null},
-    MTD: {unitIndex: 44, designate:  7, unitClass: null},
-    MTC: {unitIndex: 45, designate:  5, unitClass: null},
-    MTB: {unitIndex: 46, designate:  3, unitClass: null},
+    MTT: {unitIndex: 32, designate: 31, unitClass: "B5500MagTapeDrive"},
+    MTS: {unitIndex: 33, designate: 29, unitClass: "B5500MagTapeDrive"},
+    MTR: {unitIndex: 34, designate: 27, unitClass: "B5500MagTapeDrive"},
+    MTP: {unitIndex: 35, designate: 25, unitClass: "B5500MagTapeDrive"},
+    MTN: {unitIndex: 36, designate: 23, unitClass: "B5500MagTapeDrive"},
+    MTM: {unitIndex: 37, designate: 21, unitClass: "B5500MagTapeDrive"},
+    MTL: {unitIndex: 38, designate: 19, unitClass: "B5500MagTapeDrive"},
+    MTK: {unitIndex: 39, designate: 17, unitClass: "B5500MagTapeDrive"},
+    MTJ: {unitIndex: 40, designate: 15, unitClass: "B5500MagTapeDrive"},
+    MTH: {unitIndex: 41, designate: 13, unitClass: "B5500MagTapeDrive"},
+    MTF: {unitIndex: 42, designate: 11, unitClass: "B5500MagTapeDrive"},
+    MTE: {unitIndex: 43, designate:  9, unitClass: "B5500MagTapeDrive"},
+    MTD: {unitIndex: 44, designate:  7, unitClass: "B5500MagTapeDrive"},
+    MTC: {unitIndex: 45, designate:  5, unitClass: "B5500MagTapeDrive"},
+    MTB: {unitIndex: 46, designate:  3, unitClass: "B5500MagTapeDrive"},
     MTA: {unitIndex: 47, designate:  1, unitClass: "B5500MagTapeDrive"}};
 
 
@@ -206,12 +203,12 @@ B5500CentralControl.prototype.clear = function clear() {
     this.LOFF = 0;                      // Load button pressed on console
     this.CTMF = 0;                      // Commence timing FF
     this.P2BF = 0;                      // Processor 2 busy FF
-    this.HP2F = 1;                      // Halt processor 2 FF
+    this.HP2F = 0;                      // Halt processor 2 FF
 
+    this.ccLatch = 0x20;                // I/O Unit busy & P2 latched status (reset by console UI)
     this.interruptMask = 0;             // Interrupt status mask
     this.interruptLatch = 0;            // Interrupt latched status (reset by console UI)
     this.iouMask = 0;                   // I/O Unit busy status mask
-    this.iouLatch = 0;                  // I/O Unit busy latched status (reset by console UI)
     this.unitBusyLatch = 0;             // Peripheral unit latched status (reset by console UI)
     this.unitBusyMask = 0;              // Peripheral unit busy-status bitmask
 
@@ -225,6 +222,7 @@ B5500CentralControl.prototype.clear = function clear() {
     this.P2 = (this.PB1L ? this.PA : this.PB);
     if (!this.P2) {
         this.P2BF = 1;                  // mark non-existent P2 as busy
+        this.ccLatch |= 0x10;
     }
 };
 
@@ -459,18 +457,6 @@ B5500CentralControl.prototype.clearInterrupt = function clearInterrupt() {
         case 0x12:                      // @22: Time interval
             this.CCI03F = 0;
             break;
-        case 0x13:                      // @23: I/O busy
-            this.CCI04F = 0;
-            break;
-        case 0x14:                      // @24: Keyboard request
-            this.CCI05F = 0;
-            break;
-        case 0x15:                      // @25: Printer 1 finished
-            this.CCI06F = 0;
-            break;
-        case 0x16:                      // @26: Printer 2 finished
-            this.CCI07F = 0;
-            break;
         case 0x17:                      // @27: I/O 1 finished
             this.CCI08F = 0;
             this.AD1F = 0;                      // make unit non-busy
@@ -491,31 +477,33 @@ B5500CentralControl.prototype.clearInterrupt = function clearInterrupt() {
             this.AD4F = 0;                      // make unit non-busy
             this.iouMask &= 0x7;
             break;
-        case 0x1B:                      // @33: P2 busy
-            this.CCI12F = 0;
+        case 0x15:                      // @25: Printer 1 finished
+            this.CCI06F = 0;
             break;
+        case 0x16:                      // @26: Printer 2 finished
+            this.CCI07F = 0;
+            break;
+
+        case 0x34:                      // @64-75: P1 syllable-dependent
+        case 0x35:
+        case 0x36:
+        case 0x37:
+        case 0x38:
+        case 0x39:
+        case 0x3A:
+        case 0x3B:
+        case 0x3C:
+        case 0x3D:
+            p1.I &= 0x0F;
+            break;
+
         case 0x1C:                      // @34: Inquiry request
             this.CCI13F = 0;
             break;
-        case 0x1D:                      // @35: Special interrupt 1
-            this.CCI14F = 0;
-            break;
-        case 0x1E:                      // @36: Disk file 1 read check finished
-            this.CCI15F = 0;
-            break;
-        case 0x1F:                      // @37: Disk file 2 read check finished
-            this.CCI16F = 0;
+        case 0x14:                      // @24: Keyboard request
+            this.CCI05F = 0;
             break;
 
-        case 0x20:                      // @40: P2 memory parity error
-            if (p2) {p2.I &= 0xFE}
-            break;
-        case 0x21:                      // @41: P2 invalid address error
-            if (p2) {p2.I &= 0xFD}
-            break;
-        case 0x22:                      // @42: P2 stack overflow
-            if (p2) {p2.I &= 0xFB}
-            break;
         case 0x24:                      // @44-55: P2 syllable-dependent
         case 0x25:
         case 0x26:
@@ -538,19 +526,32 @@ B5500CentralControl.prototype.clearInterrupt = function clearInterrupt() {
         case 0x32:                      // @62: P1 stack overflow
             p1.I &= 0xFB;
             break;
-        case 0x34:                      // @64-75: P1 syllable-dependent
-        case 0x35:
-        case 0x36:
-        case 0x37:
-        case 0x38:
-        case 0x39:
-        case 0x3A:
-        case 0x3B:
-        case 0x3C:
-        case 0x3D:
-            p1.I &= 0x0F;
+
+        case 0x20:                      // @40: P2 memory parity error
+            if (p2) {p2.I &= 0xFE}
+            break;
+        case 0x21:                      // @41: P2 invalid address error
+            if (p2) {p2.I &= 0xFD}
+            break;
+        case 0x22:                      // @42: P2 stack overflow
+            if (p2) {p2.I &= 0xFB}
             break;
 
+        case 0x1E:                      // @36: Disk file 1 read check finished
+            this.CCI15F = 0;
+            break;
+        case 0x1F:                      // @37: Disk file 2 read check finished
+            this.CCI16F = 0;
+            break;
+        case 0x13:                      // @23: I/O busy
+            this.CCI04F = 0;
+            break;
+        case 0x1B:                      // @33: P2 busy
+            this.CCI12F = 0;
+            break;
+        case 0x1D:                      // @35: Special interrupt 1
+            this.CCI14F = 0;
+            break;
         default:                        // no interrupt vector was set
             break;
         }
@@ -574,7 +575,7 @@ B5500CentralControl.prototype.tock = function tock() {
         }
     }
     interval = (this.nextTimeStamp += B5500CentralControl.rtcTick) - thisTime;
-    this.timer = setCallback(this.boundTock, this, interval);
+    this.timer = setCallback(tock, this, interval);
 };
 
 /**************************************/
@@ -587,12 +588,18 @@ B5500CentralControl.prototype.readTimer = function readTimer() {
 
 /**************************************/
 B5500CentralControl.prototype.haltP2 = function haltP2() {
-    /* Called by P1 to halt P2. storeForInterrupt() will set P2BF=0 */
+    /* Called by P1 to halt P2. We know that P2 is not currently running on this
+    thread, so check to see if it's running at all and has a callback scheduled.
+    If so, cancel the existing callback and schedule a new one for immediate
+    execution. With HP2F set, P2 will store its registers and stop at next SECL */
 
     this.HP2F = 1;
-    // We know P2 is not currently running on this thread, so save its registers
-    if (this.P2 && this.P2.busy) {
-        this.P2.storeForInterrupt(1, 0);
+    this.ccLatch |= 0x20;
+    if (this.P2 && this.P2BF) {
+        if (this.P2.scheduler) {
+            clearCallback(this.P2.scheduler);
+        }
+        this.P2.scheduler = setCallback(this.P2.schedule, this.P2, 0);
     }
 };
 
@@ -608,6 +615,7 @@ B5500CentralControl.prototype.initiateP2 = function initiateP2() {
         this.signalInterrupt();
     } else {
         this.P2BF = 1;
+        this.ccLatch |= 0x10;
         this.HP2F = 0;
         this.P2.initiateAsP2();
     }
@@ -620,22 +628,22 @@ B5500CentralControl.prototype.initiateIO = function initiateIO() {
     if (this.IO1 && this.IO1.REMF && !this.AD1F) {
         this.AD1F = 1;
         this.iouMask |= 0x1;
-        this.iouLatch |= 0x1;
+        this.ccLatch |= 0x1;
         this.IO1.initiate();
     } else if (this.IO2 && this.IO2.REMF && !this.AD2F) {
         this.AD2F = 1;
         this.iouMask |= 0x2;
-        this.iouLatch |= 0x2;
+        this.ccLatch |= 0x2;
         this.IO2.initiate();
     } else if (this.IO3 && this.IO3.REMF && !this.AD3F) {
         this.AD3F = 1;
         this.iouMask |= 0x4;
-        this.iouLatch |= 0x4;
+        this.ccLatch |= 0x4;
         this.IO3.initiate();
     } else if (this.IO4 && this.IO4.REMF && !this.AD4F) {
         this.AD4F = 1;
         this.iouMask |= 0x8;
-        this.iouLatch |= 0x8;
+        this.ccLatch |= 0x8;
         this.IO4.initiate();
     } else {
         this.CCI04F = 1;                // set I/O busy interrupt
@@ -700,30 +708,16 @@ B5500CentralControl.prototype.setUnitBusy = function setUnitBusy(index, busy) {
 };
 
 /**************************************/
-B5500CentralControl.prototype.fetchInterruptLatch = function fetchInterruptLatch() {
-    /* Returns and resets this.interruptLatch; used by console UI */
-    var latch = this.interruptLatch;
+B5500CentralControl.prototype.fetchCCLatches = function fetchCCLatches(latches) {
+    /* Returns the current latches in the "latches" array and and resets them.
+    Used by the Console UI */
 
+    latches[0] = this.ccLatch;
+    this.ccLatch = this.iouMask | (this.P2BF << 4) | (this.HP2F << 5);
+    latches[1] = this.interruptLatch;
     this.interruptLatch = this.interruptMask;
-    return latch;
-};
-
-/**************************************/
-B5500CentralControl.prototype.fetchIOUnitLatch = function fetchIOUnitLatch() {
-    /* Returns and resets this.iouLatch; used by console UI */
-    var latch = this.iouLatch;
-
-    this.iouLatch = this.iouMask;
-    return latch;
-};
-
-/**************************************/
-B5500CentralControl.prototype.fetchUnitBusyLatch = function fetchUnitBusyLatch() {
-    /* Returns and resets this.unitBusyLatch; used by console UI */
-    var latch = this.unitBusyLatch;
-
+    latches[2] = this.unitBusyLatch;
     this.unitBusyLatch = this.unitBusyMask;
-    return latch;
 };
 
 /**************************************/
@@ -791,6 +785,7 @@ B5500CentralControl.prototype.load = function load(dontStart) {
         return function boundLoadCompleteAnon() {return that.loadComplete(dontStart)}
     }(this, dontStart));
 
+    this.clear();                       // initialize P1/P2 configuration
     if (!this.P1 || this.P1.busy) {     // P1 is busy or not available
         result = 1;
     } else if (!this.testUnitReady(22)) { // SPO not ready
@@ -798,29 +793,28 @@ B5500CentralControl.prototype.load = function load(dontStart) {
     } else if (this.testUnitBusy(22)) { // SPO is busy
         result = 3;
     } else {                            // ready to rock 'n roll
-        this.clear();
         this.nextTimeStamp = new Date().getTime();
         this.tock();
         this.LOFF = 1;
         if (this.IO1 && this.IO1.REMF && !this.AD1F) {
             this.AD1F = 1;
             this.iouMask |= 0x1;
-            this.iouLatch |= 0x1;
+            this.ccLatch |= 0x1;
             this.IO1.initiateLoad(this.cardLoadSelect, boundLoadComplete);
         } else if (this.IO2 && this.IO2.REMF && !this.AD2F) {
             this.AD2F = 1;
             this.iouMask |= 0x2;
-            this.iouLatch |= 0x2;
+            this.ccLatch |= 0x2;
             this.IO2.initiateLoad(this.cardLoadSelect, boundLoadComplete);
         } else if (this.IO3 && this.IO3.REMF && !this.AD3F) {
             this.AD3F = 1;
             this.iouMask |= 0x4;
-            this.iouLatch |= 0x4;
+            this.ccLatch |= 0x4;
             this.IO3.initiateLoad(this.cardLoadSelect, boundLoadComplete);
         } else if (this.IO4 && this.IO4.REMF && !this.AD4F) {
             this.AD4F = 1;
             this.iouMask |= 0x8;
-            this.iouLatch |= 0x8;
+            this.ccLatch |= 0x8;
             this.IO4.initiateLoad(this.cardLoadSelect, boundLoadComplete);
         } else {
             this.CCI04F = 1;            // set I/O busy interrupt
