@@ -1,0 +1,690 @@
+%        I N T R I N S I C S     M A R K   XVI.0.00        10/01/74
+  COMMENT: * TITLE: B5500/B5700 MARK XVI SYSTEM RELEASE            *
+           * FILE ID: SYMBOL/INTRINS  TAPE ID: SYMBOL1/FILE000     *
+           * THIS MATERIAL IS PROPRIETARY TO BURROUGHS CORPORATION *
+           * AND IS NOT TO BE REPRODUCED, USED, OR DISCLOSED       *
+           * EXCEPT IN ACCORDANCE WITH PROGRAM LICENSE OR UPON     *
+           * WRITTEN AUTHORIZATION OF THE PATENT DIVISION OF       *
+           * BURROUGHS CORPORATION, DETROIT, MICHIGAN 48232        *
+           *                                                       *
+           * COPYRIGHT (C)  1971, 1972, 1974                       *
+           *       BURROUGHS CORPORATION                           *
+           *  AA320206   AA393180   AA332366                       *;
+ BEGIN
+    DEFINE    ETRLNG    = 5#,
+              INTDESC(INTDESC1) = FLAG(INTDESC1 & 85[1:41:7]) #,
+              INTCALL(INTCALL1,INTCALL2) = P(INTCALL2 & 85[1:41:7],
+                                              INTCALL1,COC) #,
+              CALLINT(CALLINT1) = P(CALLINT1 & 85[1:41:7],XCH,COC) #,
+              COBOLDCI= @167 #,
+              FORTERRI= @134 #,
+              EXPI    = @20 #,
+              LNI     = @17 #,
+              DEXPI   = @77 #,
+              DLOGI   = @101 #,
+              CABSI   = @53 #,
+              SINI    = @14 #,
+              SQRTI   = @13 #,
+              ATAN2I  = @114 #,
+              DMODI   = @65 #,
+              DSINI   = @105 #,
+              DSQRTI  = @123 #,
+              XTOII   = @6 #,
+              CXTOII  = @56 #,
+              COSI    = @15 #,
+              TANI    = @111 #,
+              ARCTANI = @16 #,
+              DATANI  = @113 #,
+              ARSINI  = @116 #,
+              GAMMAI  = @126 #,
+              EDITIT(EDITIT1,EDITIT2,EDITIT3,EDITIT4,EDITIT5) = P(MKS,
+                       EDITIT1,EDITIT2,EDITIT3,(-1),(EDITIT4),(EDITIT5),
+                         @153&85[1:41:7],XCH,COC) #,
+              % EDITIT(BUFFADDRESS,FIELDWIDTH(W),TYPE,LOWPART,HIGHPART)
+              % WILL EDIT THE VALUE (LOWPART,HIGHPART) INTO A FIELD
+              % STARTING AT BUFFADDRESS.  EDITIT RETURNS THE ENDING
+              % ADDRESS.  THE WIDTH OF THE EDITED FIELD IS CONSTRAINED
+              % TO W CHARACTERS (EDITED VALUE IS RIGHT JUSTIFIED WITH
+              % LEADING BLANKS IF W IS LARGER THAN NEEDED) -- BUT IF
+              % W=0, THEN EDITIT WILL ADJUST THE FIELD WIDTH TO
+              % ACCOMODATE FULL NUMERICAL SIGNIFICANCE. TYPE=2 => EDITIT
+              % WILL CHOOSE BETWEEN REAL, INTEGER, AND DOUBLEPRECISION
+              % EDITING (DOUBLEPRECISION IS USED IF LOWPART!0).
+              % TYPE=1 => USE ONLY INTEGER, TYPE=3 => USE ONLY REAL,
+              % TYPE=4 => USE ONLY LOGICAL, TYPE=5 => USE ONLY DOUBLE-
+              % PRECISION.
+              CTC       = 33:33:15#,
+              CTF       = 18:33:15#,
+              FTC       = 33:18:15#,
+              FTF       = 18:18:15#,
+              CF        = 33:15#,
+              FF        = 18:15#;
+    REAL      JUNK      = 5;
+   NAME MEM=2, M=2, MEMORY=2 ;
+    REAL      BLKCNTRL  = 5;
+     DEFINE DUMPNOW(DUMPNOW1)=P(DUMPNOW1,0,48,COM,DEL,DEL)#,
+            TRACENOW(TRACENOW1,TRACENOW2)=
+              P(TRACENOW1,1,TRACENOW2 ,+ ,48,COM,DEL,DEL)#;
+ PROCEDURE OUTPUTINT(TEN, FILX, CHSKP, LNSKP, FI, FRMT, LISX);%     %WF
+   VALUE      CHSKP, LNSKP, FI, LISX;%                              %WF
+   NAME       FILX;%                                                %WF
+   ARRAY      TEN[*], FRMT[*];%                                     %WF
+   REAL       LISX;%                                                %WF
+   INTEGER    CHSKP, LNSKP, FI;%                                    %WF
+        FORWARD;%       CODE=00200000, INTRINSIC NUMBER=@ 1         %WF
+ PROCEDURE INTRINSIC(DUPE, D, NUMDIM, SIZE, TYPE);%                 %WF
+    VALUE     DUPE, D, NUMDIM, SIZE, TYPE;%                         %WF
+    NAME      D;%                                                   %WF
+    ARRAY     DUPE[*];%                                             %WF
+    INTEGER   NUMDIM, SIZE, TYPE;%                                  %WF
+         FORWARD;%      CODE=00400000, INTRINSIC NUMBER=@ 2         %WF
+ PROCEDURE INPUTINT(TEN, FILX, DKADR, ACT,%                         %WF
+                              FI, FRMT, LISX, EOFL, PARL);%         %WF
+    VALUE     ACT, FI;%                                             %WF
+    NAME      FILX, LISX;%                                          %WF
+    ARRAY     TEN[*], FRMT[*];%                                     %WF
+    REAL      EOFL, PARL;%                                          %WF
+    INTEGER   DKADR, ACT, FI;%                                      %WF
+         FORWARD;%      CODE=00600000, INTRINSIC NUMBER=@ 3         %WF
+ PROCEDURE DISKSORT(T1, T2, RELA, ENDQ, BINGO, IPFIDX,%             %WF
+              OUTPRO, INPRO, OUTF, INF, OPTOG, IPTOG, DKO, DKI,%    %WF
+              TP1, TP2, TP3, TP4, TP5, NT, HIVALU, EQUALS,%         %WF
+              R, ALFA, CORESIZE, DISKSIZE);%                        %WF
+    VALUE     OPTOG, IPTOG, NT, HIVALU, EQUALS, R, ALFA,%           %WF
+              CORESIZE, DISKSIZE;%                                  %WF
+    NAME      TP1, TP2, TP3, TP4, TP5;%                             %WF
+    REAL      T1, T2, RELA, ENDQ, BINGO, IPFIDX, OUTPRO, INPRO,%    %WF
+              OUTF, INF, DKO, DKI, NT, HIVALU, EQUALS, CORESIZE;%   %WF
+    BOOLEAN   OPTOG, IPTOG, ALFA;%                                  %WF
+    INTEGER   R, DISKSIZE;%                                         %WF
+         FORWARD;%      CODE=00700000, INTRINSIC NUMBER=@ 4         %WF
+ REAL PROCEDURE DUMPINT(SN, CV, BV, TIPE,%                          %WF
+                              TENS, ALFA, CHAR, FIEL, FORMT);%      %WF
+    VALUE     SN, CV, BV, TIPE, TENS, ALFA, CHAR, FORMT;%           %WF
+    NAME      FIEL;%                                                %WF
+    REAL      SN, CV, BV, TIPE, TENS, ALFA, CHAR, FORMT;%           %WF
+         FORWARD;%      CODE=42000000, INTRINSIC NUMBER=@ 5         %WF
+ PROCEDURE XTOTHEIINT(BASE, EXPON, M, LOG, EXP);%                   %WF
+    VALUE     BASE, EXPON, M, LOG, EXP;%                            %WF
+    REAL      BASE, EXPON, M, LOG, EXP;%
+         FORWARD;%      CODE=42254000, INTRINSIC NUMBER=@ 6
+ REAL PROCEDURE ABSINT(X);%
+    VALUE     X;%
+    REAL      X;%
+         FORWARD;%      CODE=          INTRINSIC NUMBER=@ 7
+ REAL PROCEDURE SIGNINT(X);%
+    VALUE     X;%
+    REAL      X;%
+         FORWARD;%      CODE=          INTRINSIC NUMBER=@10
+ INTEGER PROCEDURE ENTIERINT(X);%
+    VALUE     X;%
+    REAL      X;%
+         FORWARD;%      CODE=          INTRINSIC NUMBER=@11
+ REAL PROCEDURE TIMEINT(X);%
+    VALUE     X;%
+    REAL      X;%
+         FORWARD;%      CODE=          INTRINSIC NUMBER=@12
+ PROCEDURE SQRTINT(X);%
+    VALUE     X;%
+    REAL      X;%
+         FORWARD;%      CODE=          INTRINSIC NUMBER=@13
+ PROCEDURE SININT(X);%
+    VALUE     X;%
+    REAL      X;%
+         FORWARD;%      CODE=          INTRINSIC NUMBER=@14
+ PROCEDURE COSINT(X);%
+    VALUE     X;%
+    REAL      X;%
+         FORWARD;%      CODE=          INTRINSIC NUMBER=@15
+ REAL PROCEDURE ARCTANINT(X);%
+    VALUE     X;%
+    REAL      X;%
+         FORWARD;%      CODE=          INTRINSIC NUMBER=@16
+ PROCEDURE LNINT(X);%
+    VALUE     X;%
+    REAL      X;%
+         FORWARD;%      CODE=          INTRINSIC NUMBER=@17
+ REAL PROCEDURE EXPINT(X);%
+    VALUE     X;%
+    REAL      X;%
+         FORWARD;%      CODE=          INTRINSIC NUMBER=@20
+ REAL PROCEDURE GOTOSOLVERINT(L, X, F, B);%
+    VALUE     L, X, F, B;%
+    ARRAY F[*];%
+    REAL      L, X, B;%
+         FORWARD;%      CODE=          INTRINSIC NUMBER=@21
+ PROCEDURE ALGOLWRITE(TEN, FILX, CHSKP, LNSKP, FI, AEXP,%
+              ARRY, LINESKIP, CHANSKIP, SUPRS, NUMWDS, TANK);%
+    VALUE     CHSKP, LNSKP, FI, AEXP, LINESKIP,%
+              CHANSKIP, SUPRS, NUMWDS, TANK;%
+    NAME      FILX, TANK;%
+    ARRAY     TEN[*], ARRY[*];%
+    INTEGER   CHSKP, LNSKP, FI, AEXP, LINESKIP,%
+              CHANSKIP, SUPRS, NUMWDS;%
+         FORWARD;%      CODE=00100100, INTRINSIC NUMBER=@22
+ PROCEDURE ALGOLREAD(TEN, FILX, DKADD, ACT, FI, AEXP,%
+              ARRY, EOFL, PARL, DKADR, CODE, TANK);%
+    VALUE     ACT, FI, AEXP, DKADR, CODE, TANK;%
+    NAME      FILX, TANK;%
+    ARRAY     TEN[*], ARRY[*];%
+    REAL      DKADD, EOFL, PARL, DKADR, CODE;%
+    INTEGER   ACT, FI, AEXP;%
+         FORWARD;%      CODE=00500000, INTRINSIC NUMBER=@23
+ PROCEDURE ALGOLSELECT(ACT1, ACT2, TANK, I);%
+    VALUE     ACT1, ACT2, TANK, I;%
+    NAME      TANK;%
+    INTEGER   ACT1, ACT2, I;%
+         FORWARD;%      CODE=          INTRINSIC NUMBER=@24
+ PROCEDURE COBOLFCR;%
+         FORWARD;%      CODE=43000000, INTRINSIC NUMBER=@25
+PROCEDURE COBOLID;%          % GO TO 02700000
+         FORWARD;%      CODE=43230000, INTRINSIC NUMBER=@26
+ PROCEDURE POLYMERGE(T1, T2, T3, ENDQ, BINGO, IPFIDX,%
+              OUTPRO, INPRO, OUTF, INF, OPTOG, IPTOG, DKO, DKI,%
+              TP1, TP2, TP3, TP4, TP5, NT, HIVALU, EQUALS,%
+              R, ALFA, CORESIZE, DISKSIZE);%
+    VALUE     OPTOG, IPTOG, NT, HIVALU, EQUALS, R, ALFA,%
+              CORESIZE, DISKSIZE;%
+    NAME      TP1, TP2, TP3, TP4, TP5;%
+    REAL      T1, T2, T3, ENDQ, BINGO, IPFIDX, OUTPRO, INPRO,%
+              OUTF, INF, DKO, DKI, NT, HIVALU, EQUALS, R, CORESIZE;
+    BOOLEAN   OPTOG, IPTOG, ALFA;%
+    INTEGER   DISKSIZE;%
+         FORWARD;%      CODE=40140000, INTRINSIC NUMBER=@27
+ PROCEDURE STATUSINT(T, C);%
+    VALUE     T, C;%
+    REAL      T;%
+    INTEGER   C;%
+         FORWARD;%      CODE=          INTRINSIC NUMBER=@30
+ REAL PROCEDURE MAXINT(X);%
+    VALUE     X;%
+    REAL      X;%
+         FORWARD;%      CODE=          INTRINSIC NUMBER=@31
+ REAL PROCEDURE MININT(X);%
+    VALUE     X;%
+    REAL      X;%
+         FORWARD;%      CODE=          INTRINSIC NUMBER=@32
+ PROCEDURE DELAYINT(ARRY, MASK, TIME);%
+    VALUE ARRY, MASK, TIME;%
+    ARRAY     ARRY[*];%
+    REAL      MASK;%
+    INTEGER TIME;%
+         FORWARD;%      CODE=          INTRINSIC NUMBER=@33
+ PROCEDURE SUPERMOVERINT(SORCE, DEST, AEXP);%
+    VALUE     AEXP;%
+    ARRAY     SORCE[*], DEST[*];%
+    INTEGER   AEXP;%
+         FORWARD;%      CODE=          INTRINSIC NUMBER=@34
+ PROCEDURE SISO;   FORWARD;    %INT#35,SEQ#08400000
+ INTEGER PROCEDURE DELTA(P1,P2);%INT#36,SEQ#00022300
+    VALUE P1,P2;   INTEGER P1,P2;    FORWARD;
+ PROCEDURE ICVD;   FORWARD;    %INT#37,SEQ#00022500
+PROCEDURE DYNAMICDIALER(B, A, X, F);
+VALUE B, A, X, F;
+INTEGER B, A, X; BOOLEAN F;
+         FORWARD;%      CODE=00022700, INTRINSIC NUMBER=@40
+ PROCEDURE SCAN(UPDPDD,PRT,UPDCDD,HISCOUNT,CASECODE,CHAR);
+    VALUE PTR, HISCOUNT, CASECODE, CHAR;
+    NAME UPDPDD, UPDCDD;
+    INTEGER PTR, HISCOUNT, CASECODE, CHAR;
+    FORWARD;
+ PROCEDURE REPL;   FORWARD;    %INT#42,SEQ#08420000
+ PROCEDURE COMPARE;FORWARD;    %INT#43,SEQ#08430000
+ PROCEDURE BASICPRINT(TYPE);
+    VALUE     TYPE;
+    REAL      TYPE;
+         FORWARD;       CODE=08500000, INTRINSIC NUMBER=@44
+ PROCEDURE SWAP;  FORWARD;   %INT#45,SEQ#00023700
+ PROCEDURE BASICINPUT(TYPES);
+    VALUE     TYPES;
+    REAL      TYPES;
+         FORWARD;%      CODE=08700000, INTRINSIC NUMBER=@46
+ PROCEDURE READATA(TYPE);
+    VALUE     TYPE;
+    REAL      TYPE;
+         FORWARD;%      CODE=08600000, INTRINSIC NUMBER=@47
+ PROCEDURE FTINT ; FORWARD; % 050
+ PROCEDURE FTOUT ; FORWARD; % 051
+ PROCEDURE DABS  ; FORWARD; % 052
+ PROCEDURE CABS  ; FORWARD; % 053
+ PROCEDURE AINT  ; FORWARD; % 054
+ PROCEDURE MATH  ; FORWARD; % 055
+ PROCEDURE XTOI  ; FORWARD; % 056
+ PROCEDURE IDINT ; FORWARD; % 057
+ PROCEDURE FLOAT ; FORWARD; % 060
+ PROCEDURE SNGL  ; FORWARD; % 061
+ PROCEDURE DBLE  ; FORWARD; % 062
+ PROCEDURE AMOD  ; FORWARD; % 063
+ PROCEDURE TIME  ; FORWARD; % 064
+ PROCEDURE DMOD  ; FORWARD; % 065
+ PROCEDURE DMAX1 ; FORWARD; % 066
+ PROCEDURE DMIN1 ; FORWARD; % 067
+ PROCEDURE SIGNV ; FORWARD; % 070
+ PROCEDURE DSIGN ; FORWARD; % 071
+ PROCEDURE DIIM  ; FORWARD; % 072
+ PROCEDURE REALP ; FORWARD; % 073
+ PROCEDURE AIMAG ; FORWARD; % 074
+ PROCEDURE CMPLX ; FORWARD; % 075
+ PROCEDURE CONJG ; FORWARD; % 076
+ PROCEDURE DEXP  ; FORWARD; % 077
+ PROCEDURE CEXP  ; FORWARD; % 100
+ PROCEDURE DLOG  ; FORWARD; % 101
+ PROCEDURE CLOG  ; FORWARD; % 102
+ PROCEDURE ALOG10; FORWARD; % 103
+ PROCEDURE DLOG10; FORWARD; % 104
+ PROCEDURE DSIN  ; FORWARD; % 105
+ PROCEDURE CSIN  ; FORWARD; % 106
+ PROCEDURE DCOS  ; FORWARD; % 107
+ PROCEDURE CCOS  ; FORWARD; % 110
+ PROCEDURE TANF  ; FORWARD; % 111
+ PROCEDURE COTAN ; FORWARD; % 112
+ PROCEDURE DATAN ; FORWARD; % 113
+ PROCEDURE ATAN2 ; FORWARD; % 114
+ PROCEDURE DATAN2; FORWARD; % 115
+ PROCEDURE ARSIN ; FORWARD; % 116
+ PROCEDURE ARCOS ; FORWARD; % 117
+ PROCEDURE SINH  ; FORWARD; % 120
+ PROCEDURE COSH  ; FORWARD; % 121
+ PROCEDURE TANH  ; FORWARD; % 122
+ PROCEDURE DSQRT ; FORWARD; % 123
+ PROCEDURE CSQRT ; FORWARD; % 124
+ PROCEDURE ERF   ; FORWARD; % 125
+ PROCEDURE GAMMA ; FORWARD; % 126
+ PROCEDURE ALGAMA; FORWARD; % 127
+ PROCEDURE ANDI  ; FORWARD; % 130
+ PROCEDURE ORI   ; FORWARD; % 131
+ PROCEDURE CMPL  ; FORWARD; % 132
+ PROCEDURE EQUIVP; FORWARD; % 133
+ PROCEDURE FORTERR;FORWARD; % 134
+ PROCEDURE MAX; FORWARD; % 135
+ PROCEDURE MIN; FORWARD; % 136
+ PROCEDURE IMOD; FORWARD; % 137
+ PROCEDURE CONCAT; FORWARD; % 140
+  PROCEDURE CONCAT;
+          FORWARD;%      CODE=08400000, INTRINSIC NUMBER=@140
+  PROCEDURE MATRIXDIDDLER(A, B, C, TYPE);
+     VALUE     A, B, C, TYPE;
+     ARRAY     A[*], B[*], C[*];
+     INTEGER   TYPE;
+          FORWARD;%      CODE=08800000, INTRINSIC NUMBER=@~4~
+  PROCEDURE INVERT(A, B);
+     VALUE     A, B;
+     ARRAY     A[*], B[*];
+          FORWARD;%      CODE=09100000, INTRINSIC NUMBER=@142
+  PROCEDURE TRANSPOSE(A, B);
+     VALUE     A, B;
+     ARRAY     A[*], B[*];
+          FORWARD;%      CODE=08900000, INTRINSIC NUMBER=@143
+  PROCEDURE MATRIXMULTIPLY(A, B, C);
+     VALUE     A, B, C;
+     ARRAY     A[*], B[*], C[*];
+          FOWARD;%       CODE=09000000, INTRINSIC NUMBER=@144
+  PROCEDURE RANDOM(NUMBER, BASE);
+     VALUE     NUMBER;
+     REAL      NUMBER;
+     INTEGER   BASE;
+          FORWARD;%      CODE=00022900, INTRINSIC NUMBER=@145
+  PROCEDURE FORTRANFREEREAD;
+          FORWARD;%      CODE=09200000, INTRINSIC NUMBER=@146
+ PROCEDURE BASICLOSE(FILX);
+    VALUE FILX;  NAME FILX;
+    BEGIN REAL SELECT=14, ALGOLWRITE=12;  ARRAY AIT=6[*];
+          REAL T,I;  ARRAY FIB[*];  NAME M=2;
+          SUBROUTINE MAYBEPRINT;
+          BEGIN FIB:=FILX[NOT 2];
+                IF FIB[5].[41:3]=0 THEN  %NOT CLOSED-NOT INPUT
+                IF FIB[4].[8:4] NEQ 10 THEN  %NOT DATA COM
+                IF FIB[20].[3:15]!0 THEN   % DATA LEFT
+                   P(MKS,1,0,0,(FIB[20].[18:10]+1),FILX,ALGOLWRITE);
+          END;
+          IF P(.FILX,LOD)=0 THEN  %EOJ FILE CLOSE
+          BEGIN I:=AIT[0]+1; WHILE (T:=AIT[I:=I-1]).[8:10] NEQ 0
+               DO IF T.[1:1] THEN
+               BEGIN FILX:=M[M[T.[18:15]] INX 4]; MAYBEPRINT END;
+          END ELSE  %FILE RESTORE
+          BEGIN MAYBEPRINT;
+                P(MKS,2,0,[FILX[NOT 2]],4,SELECT);
+                FIB[0]:=FIB[8]:=FIB[20]:=FIB[21]:=0;
+          END;
+    END BASIC FILE RESTORE;
+PROCEDURE FILEATTRIBUTES(T,E,D,V,G,I,TN); VALUE T,I,V,D,G; REAL D,G,I,E;
+INTEGER V; ARRAY TN[*]; NAME T; FORWARD; % CODE @ 0043000, INT # @150
+PROCEDURE COBOLDECIMALTOOCTALCONVERT(A); % INT #=@151, CODE=09300000
+VALUE A;  NAME A;  FORWARD ;
+PROCEDURE COBOLOCTOLTODECIMALCONVERT(A,L,H,R,N,S,T); % INT #=@152
+VALUE L,H,R,N,S,T;  REAL L,H,R,N,S,T; NAME A; FORWARD; % CODE=09400000
+PROCEDURE FORTRANFREEWRITE(F,D,R,W,L,I,N,S); VALUE I,D,R,W,L; INTEGER R,
+W; REAL I,D,L; NAME F; ARRAY S[*],N[*]; FORWARD ;%COD @02976019.INT@153
+PROCEDURE FINNAME; FORWARD;
+PROCEDURE FOUTNAME; FORWARD;
+PROCEDURE FTINTFIX(F1,D2,F2,F3,L1,E1,E2,P1); VALUE D1,F2,L1,E1,E2,P1 ;
+REAL D1,F2,L1,E1,E2,P1; ARRAY F3[*]; NAME F1; FORWARD; % INTRINSIC @156
+PROCEDURE FTOUTFIX(F,D,R,Q,L,E,EL,PL); VALUE D,R,L,E,EL,PL; REAL D,R,L,E
+,EL,PL; NAME F;  ARRAY Q[*]; FORWARD ; % CODE AT SEQ # 02886040, INT@157
+PROCEDURE FBINBACKBLOCK(F1,D,F2,F3,L,E1,E2,P1);  VALUE D,F2,L,E1,E2,P1 ;
+REAL D,F2,L,E1,E2,P1;  ARRAY F3[*];  NAME F1;  FORWARD;  % INT # @160.
+PROCEDURE COBOLVARSZ;  FORWARD;%  CODE=09500000  INT #=@161
+PROCEDURE COBOLIONONDSK;  FORWARD;%  CODE=096000000  INT #=@162
+PROCEDURE COBOLIODSK;  FORWARD;%  CODE=09700000  INT #=@163
+PROCEDURE FORTRANMEMHANDLER(A,H);VALUE H;REAL H;ARRAY A[*];FORWARD;%164
+PROCEDURE COBOLATT; FORWARD; % CODE = 02650000  INT # = @165   %CJC 103I
+PROCEDURE INTERRUPTER; FORWARD; % CODE=09800000; INT #=@166
+PROCEDURE COBOLDC; FORWARD; % CODE = 02690000  INT #=@167
+INTEGER PROCEDURE DELTA(P1,P2);  VALUE P1,P2;  REAL P1,P2;       %@036
+BEGIN
+       DEFINE
+       DOT=[18:13]#, AMPER=[18:35:13]#;
+         COMMENT @4000000=2|20, WHICH IS 1 LARGER THAN ANY 6500 COUNT.;
+         COMMENT DELTA=2|20 IF DESC(P1)!DESC(P2) OR CSIZE-S ARE !;
+         IF (P2-P1).[31:17]!0 THEN DELTA~@4000000 ELSE
+         DELTA~P2.DOT-P1.DOT;
+END DELTA;
+
+PROCEDURE ICVD;             %37
+BEGIN
+         DEFINE DOT=[18:13]#, AMPER=[18:35:13]#, CSIZE=[31:02]#,SIX=0#;
+         ARRAY STRING[*];
+         NAME M = 2;
+         REAL PTR=-3;   INTEGER N=-1;
+         IF PTR.CSIZE!SIX THEN POLISH(M&1[17:47:01],9999,CDC,DEL);
+         STRING ~ M[PTR];
+         N~N; COMMENT MAKE SURE N IS INTEGERIZED;
+         IF N>8 THEN POLISH(M&1[14:47:01],N,CDC,DEL);
+         POLISH([STRING[(PTR.DOT+N-1).[35:10]]], DEL);
+         STREAM(RESULT~0:S~[STRING[PTR.[18:10]]], N,
+              SKS~PTR.[28:03]);
+         BEGIN
+         DI ~ LOC RESULT;
+         SI ~ S; SI ~ SI+SKS
+         DS ~ N OCT;
+         END;
+         PTR ~ P;
+END ICVD;
+PROCEDURE DYNAMICDIALER(A,B,X,F) ;
+VALUE B, A, X, F;
+INTEGER B, A, X; BOOLEAN F;
+    BEGIN  % A,B,X,Y,Z ARE AS IN Y&Z[A:B:X].
+           % F=TRUE => X WAS LITERAL, AND TRB WILL BE DONE AFTER XITING.
+    REAL Y=-7, Z=-6, C=+1 ;
+    DEFINE Q= @3403007777777777 #, % MASK FOR ZERO-ING OUT THE G,H,K&V-
+                                   % REGISTER PARTS OF THE ROW.
+           R= @0055005500610065 #, % NOP,DIA,DIB,TRB.
+           S= @0055703404210435 #; % NOP,LITC Y,STD,XIT.
+    IF (A~A)<1 OR (B~B)<1 OR (X~X)<1  OR X+A>48 OR X+B>48
+       THEN P((-63),26,COM) ;
+    IF F THEN P(Q,AND,0&(B MOD 6)[4:9:3],A MOD 6,DIB 7,TRB 3,
+               P&(B DIV 6)[12:45:3],A DIV 6,DIB 15,TRB 3,OR,0,0,XIT) ;
+    GO P(P(R)&(B DIV 6)[12:45:3],A DIV 6,DIB 24,TRB 3,P&(B MOD 6)
+        [15:9:3],A MOD 6,DIB 27,TRB 3,P&X[36:42:6],.A,~,S,.B,~,Y,Z,[A]);
+END DYNAMICDIALER;
+
+
+PROCEDURE RANDOM(NUMBER, BASE);
+   VALUE     NUMBER;
+   REAL      NUMBER;
+   INTEGER   BASE;
+   BEGIN INTEGER  N;
+        REAL      T;
+        IF (T := NUMBER MOD 1.0)>0 THEN
+        BEGIN BASE := T.[9:38];  P(RTN);  END;
+        IF NUMBER!0 THEN
+        BEGIN T := POLISH(1, 1, COM);
+             N := 0 & T[10:36:6] & T[16:42:6] & T[22:30:6]
+                      & ((T.[30:18])|P(DUP))[28:22:20];
+        END ELSE IF (N := BASE)=0 THEN N := @2631353020000;
+        T := 3 & (N.[10:26]|6137 + 2197513)[10:12:36];
+        POLISH((((BASE := T) OR 0.5) - 0.5) + P(DUP), RTN);
+END RANDOM;
+
+
+PROCEDURE SWAP;             % 045
+BEGIN
+         ARRAY A = -2 [*,*], B = -1 [*,*];
+         STREAM(A, B, CA~0, CB~0, FA~A.[18:15], FB~B.[18:15]);
+    BEGIN
+         SI ~ A; CA ~ SI;
+         SI ~ B; CB ~ SI;
+         DI ~ LOC B; DI ~ DI+5; SKIP 3 DB;
+         SI ~ LOC CA; SI ~ SI+5; SKIP 3 SB;
+         3(IF SB THEN DS ~ SET ELSE DS ~ RESET; SKIP SB); DS ~ 2 CHR;
+         DI ~ DB; SI ~ LOC B; DS ~ WDS;
+         DI ~ LOC A; DI ~ DI+5; SKIP 3 DB;
+         SI ~ LOC CB; SI ~ SI+5; SKIP 2 SB;
+         3(IF SB THEN DS ~ SET ELSE DS ~ RESET; SKIP SB); DS ~ 2 CHR;
+         DI ~ FA; SI ~ LOC A; DS ~ WDS;
+    END;
+END SWAP;
+
+
+
+
+COMMENT ALGOL WRITE INTRINSIC;%
+PROCEDURE ALGOLWRITE(TEN, FILX, CHSKP, LNSKP, FI, AEXP,
+              ARRY, LINESKIP, CHANSKIP, SUPRS, NUMWDS, TANK);
+    VALUE     LINESKIP, CHANSKIP, SUPRS, NUMWDS, TANK,
+              CHSKP, LNSKP, FI, ARRY;
+    INTEGER   CHSKP, LNSKP, FI, AEXP,
+              LINESKIP, CHANSKIP, NUMWDS, SUPRS;
+    NAME      FILX, TANK;
+    ARRAY     ARRY[*], TEN[*];
+BEGIN REAL SELECT=14,REED=13,ADDRESS;%
+      NAME MEM=2;%
+      LABEL AB,ACTION;
+      LABEL DS,WINDUP1;
+      ARRAY FPB=3[*],FIB[*],HEADER[*];%
+      INTEGER I,RSIZE;%
+      INTEGER SPOUT;
+    ARRAY     TINK=TANK[*];
+    REAL CHNSKP=CHANSKIP;
+    REAL      ALGOLWRITE=12;
+    DEFINE FNUM = FIB[4].[11:31] #;
+ $ SET OMIT = NOT(TIMESHARING)
+SUBROUTINE WAIT; POLISH(TANK, @2000000000, 36, COM, DEL DEL);
+ $ POP OMIT
+ $ SET OMIT = TIMESHARING
+      LABEL ERR,LP1,MT1,CLOSED,DK1,SP1,CP1,DC1,PP1;%
+    LABEL DCN1,DCN2,SPIN;
+ $ SET OMIT = NOT SHAREDISK
+    SWITCH SW1~ ERR,LP1,MT1,CLOSED,DK1,SP1,CP1,LP1,PP1,ERR,DC1,
+                   ERR,LP1,DCN1;
+      LABEL LP2,MT2,DK2,SP2,CP2,DC2,PP2;%
+    SWITCH SW2~ ERR,LP2,MT2,ERR,DK2,SP2,CP2,LP2,PP2,ERR,DC2,ERR,
+                   LP2,DCN2;
+      LABEL DS1,DR1,DU1;%
+      SWITCH DSW1~DS1,DR1,DU1,CLOSED;
+      LABEL UT,PBIT,DWT,D19,RELEASE,STA,EXIT,L1,WINDUP,DBIT;%
+      LABEL TYPEU,TYPEA,TYPEC;%
+      SWITCH TYPE~TYPEU,TYPEA,ERR,TYPEC;%
+      LABEL DS2,DR2,DU2;%
+      SWITCH DSW2~DS2,DR2,DU2;%
+      SUBROUTINE BLOCK;%
+      BEGIN GO TO TYPE[I~FIB[5].[46:2]];%
+TYPEC:      STREAM(D1~IOD,S~(NUMWDS~NUMWDS+1)|8,%
+                   D2~(TANK[0]~NUMWDS INX IOD));%
+                  BEGIN SI~LOC S; DI~DI-8; DS~4 DEC; DI~D1;%
+                        SI~D2; SI~SI-8; DI~DI-4; DS~4 CHR;%
+                  END;%
+            IF (FIB[17]~FIB[17]-NUMWDS)>RSIZE+1 THEN BEGIN%
+OWT:                    FIB[7]~FIB[7]+1; P(XIT);%
+TYPEA:      IF (FIB[17]~FIB[17]-RSIZE)}RSIZE THEN%
+                  BEGIN TANK[0]~RSIZE INX IOD; GO OWT END END;%
+            NUMWDS~FIB[18].[18:5]-FIB[17]+(I=3);%
+TYPEU: END BLOCK;%
+ REAL SUBROUTINE DISKADDRESS;%
+      BEGIN%
+            ADDRESS~(CHANSKIP DIV HEADER[0].[30:12])|HEADER[0].[42:6];%
+            IF (SUPRS~ADDRESS DIV HEADER[1]+10)}30 THEN
+                  BEGIN P(0); GO TO EXIT END;
+            IF HEADER[SUPRS]=0 THEN
+            IF HEADER[9]>(SUPRS-10) THEN%
+              P(FPB[FNUM+3],FPB[FNUM],FPB[FNUM+1],SUPRS,HEADER,
+                   4,11,COM,DEL,DEL,DEL,DEL,DEL,DEL) ELSE
+                  BEGIN P(0); GO TO EXIT END;%
+            ADDRESS~HEADER[SUPRS]+SUPRS+ADDRESS MOD HEADER[1];%
+            STREAM(D~[ADDRESS]); BEGIN SI~D; DS~8 DEC END; P(1);%
+      EXIT: DISKADDRESS~P;%
+      END DISKADDRESS;%
+              IF TINK=0 THEN                                         %WF
+              BEGIN FIB ~ FILX[NOT 2];                               %WF
+              IF FIB[5].[11:2]<2 THEN P(MKS,"WRITING",FILX,7,SELECT) ;
+                   IF FIB[5].[43:1] THEN
+                     P(MKS, CHSKP, 0, FILX, 1, SELECT);
+                   IF LNSKP>1 AND ARRY{0 AND (I~FIB[4].[8:4])!1
+ $ SET OMIT = NOT(TIMESHARING)
+                        AND I!7 AND I!12 AND I!10 THEN
+ $ SET OMIT = TIMESHARING
+                        P(XIT);%CARRIAGE CONTROL ON NON-PRINTER FILE
+                        
+                        
+                   RSIZE ~ P(MKS, LNSKP, CHSKP, SUPRS,               %WF
+                                (-1), FILX, ALGOLWRITE);             %WF
+                   IF ARRY{0 THEN SUPRS ~ 1 ELSE                     %WF
+                   BEGIN %   11/24/72 - CORRECTED 10/3/73
+                        IF ARRY.[8:10]=P(DUP,0) THEN % INDEXED WRITE
+                          P(DEL,AEXP) % WRITE MIN(AEXP,RSIZE) WORDS
+                         ELSE % WRITE MIN(ARRY, SIZE,AEXP,RSIZE) WORDS
+                        IF P GTR P(DUP,AEXP) %
+                          THEN P(DEL,AEXP);                          %WF
+                        IF P(DUP)}RSIZE THEN P(DEL) ELSE RSIZE ~ P;  %WF
+                        STREAM(P4 ~ [ARRY[0]], P3 ~ RSIZE,           %WF
+                                  P2 ~ P(DUP).[36:6], P1 ~ *FILX);   %WF
+                        END;                                         %WF
+                   END;                                              %WF
+                   IF RSIZE>0 THEN P(MKS, LNSKP,                     %WF
+                     CHSKP, SUPRS, RSIZE, FILX, ALGOLWRITE);         %WF
+                   FILX[NOT 4] ~ FILX[NOT 3] ~ 0;                    %WF
+                   P(XIT);                                           %WF
+              END;                                                   %WF
+      FIB~TANK[NOT 2];%
+UT:   I~FIB[4].[8:4]; RSIZE~FIB[18].[33:15];%
+      SPOUT:=(I=5);
+ $ SET OMIT = TIMESHARING
+      IF CHNSKP.[4:1] THEN
+      BEGIN CHNSKP.[4:1]~0;
+ $ SET OMIT = NOT SHAREDISK
+      END;
+      IF NUMWDS<0 THEN GO TO SW1[I]; GO TO SW2[I];%
+ LP1: MT1: SP1: CP1: PP1:
+%
+D19:  IF IOD.[19:1] THEN%
+PBIT: IF IOD.[2:1] THEN P(RSIZE,RTN) ELSE%
+      IF IOD.[25:1] THEN%
+CLOSED:     BEGIN
+                 FIB[13].[27:1]~0;
+                 IF (I~(FPB[FNUM+3] AND 31)!10 AND I!12
+                 AND I!13 AND I!26 THEN FIB[5].[45:1]~0 ELSE
+                 FIB[5].[45:1]~P(TANK[NOT 3],DUP)!0 AND P(XCH)!15;
+                 P(TANK,0,11,COM,DEL,DEL) ;
+                 IF NOT FIB[5].[45:1] THEN GO UT ;
+                 P(TANK[NOT 3]);  TANK[NOT 3]~TANK[NOT 4]~0 ;
+                 P(MKS,9,BLKCNTRL,DEL) ;% TAKE PARITY ACTION LBL BRNCH.
+                 P(1); GO TO DS;
+            END ELSE
+      IF IOD.[27:1] AND (I=2 OR I=7 OR I=8) THEN%
+            BEGIN IF NOT FIB[4].[2:1] THEN%
+                        BEGIN HEADER~TANK[NOT 1];HEADER[4].[42:6]~1 END;
+                  IF I=7 THEN FIB[9].[1:1]~1; % MULTI-REEL PBT FILE
+                  I~FIB[13].[28:10]+1;%
+                  P(MKS,6,0,(NOT 2) INX TANK,4,SELECT);%
+                  FIB[13].[28:10]~I; GO TO CLOSED;%
+            END ELSE%
+            BEGIN
+ERR:             P(3);
+DS:              P(TANK,XCH,11,COM);
+            END;
+      WAIT; GO TO PBIT;%
+DK1:  HEADER~*[FIB[14]]; GO TO DSW1[FIB[4].[27:3]];%
+DK2:  HEADER~*[FIB[14]]; GO TO DSW2[FIB[4].[27:3]];%
+CP2:  BLOCK; TANK[0]~FLAG(FIB[16])&CHANSKIP[32:47:1]; GO TO RELEASE;%
+LP2:  IF SUPRS THEN STREAM(RSIZE,D~IOD); BEGIN RSIZE(DS~8 LIT " ") END;
+      CHANSKIP~CHANSKIP+LINESKIP.[45:1];
+      IF CHANSKIP!0 THEN%
+      BEGIN IF (I~FIB[17]-RSIZE)>0 THEN%
+            STREAM(I,D~RSIZE INX IOD); BEGIN I(DS~8 LIT " ") END;%
+      END ELSE BLOCK;%
+      TANK[0]~FLAG(FIB[16])&LINESKIP[27:47:1]&LINESKIP[28:46:1]%
+              &CHANSKIP[29:44:4]&NUMWDS[8:38:10];%
+      GO TO RELEASE;%
+SP2: PP2:%
+MT2:  BLOCK;%
+      P(TANK[0]~FLAG(FIB[16])&NUMWDS[8:38:10],NUMWDS,XCH,INX,%
+        @3700000000000000,XCH,~);%
+      IF SPOUT THEN % SPO OUTPUT
+         IF FPB[FNUM+3].[42:6]=43 THEN P(XIT) ELSE %DUMMY
+         P(0,0,NOT,IOD,INX,15,COM,XIT)
+         ELSE
+RELEASE:    P(FLAG(FIB[19])&IOD[3:3:5],TANK,PRL,DEL);%
+WINDUP:     I~FIB[19].[33:15]-FIB[16].[33:15];%
+            FIB[16].[33:15]~SUPRS~MEM[P(DUP) INX NOT 1].[18:15];%
+            FIB[19].[33:15]~SUPRS+I;%
+       WINDUP1:
+            FIB[6]~FIB[6]+1; FIB[7]~FIB[7]+1; FIB[17]~FIB[18].[18:15];%
+            P(XIT);%
+DU1:%
+DS1:  IF LINESKIP!0 THEN%
+      BEGIN IF IOD.[27:1] AND IOD.[19:1] THEN GO AB;
+            IF FIB[17]=FIB[18].[18:15] THEN
+            BEGIN CHANSKIP~FIB[7];%
+L1:               IF DISKADDRESS THEN%
+                  IF IOD.[19:1] THEN DBIT: IF IOD.[2:1] THEN%
+                  BEGIN
+ $ SET OMIT = NOT SHAREDISK
+                        MEM[FIB[16]]~ADDRESS;
+                        P(RSIZE,RTN);
+                  END ELSE
+                  IF IOD.[25:1] THEN GO TO CLOSED ELSE
+ $ SET OMIT = NOT SHAREDISK
+                  BEGIN
+ $ SET OMIT = NOT SHAREDISK
+                        GO TO AB;
+                  END ELSE
+                  BEGIN WAIT; GO TO DBIT; END ELSE
+                  BEGIN
+ $ SET OMIT = NOT SHAREDISK
+                        GO TO AB;
+                  END;
+            END;  P(RSIZE,RTN);%
+      END;%
+      P(MKS,CHANSKIP,4,TANK,1,SELECT); GO TO L1;
+DS2:  IF FIB[7]>HEADER[7] THEN HEADER[7]~FIB[7];%
+      BLOCK; TANK[0]~FLAG(FIB[16]); GO RELEASE;%
+DR1:  IF LINESKIP!0 THEN CHANSKIP~FIB[7] ELSE FIB[7]~CHANSKIP;%
+      IF HEADER[7]<CHANSKIP THEN HEADER[7]~CHANSKIP;%
+ $ SET OMIT = NOT SHAREDISK
+      IF FIB[5].[46:2]=0 THEN GO TO L1;%
+      IF DISKADDRESS THEN%
+      BEGIN FIB[16].[24:1]~1;%
+ $ SET OMIT = SHAREDISK
+            P(MKS,CHANSKIP+1,1,TANK,REED,RTN);%
+ $ SET POP OMIT
+ $ SET OMIT = NOT SHAREDISK
+      END;%
+ $ SET OMIT = NOT SHAREDISK
+      GO TO AB;
+DR2:
+ $ SET OMIT = NOT SHAREDISK
+      TANK[0]~FLAG(FIB[16])&0[24:24:1];
+      P(FLAG(FIB[19])&IOD[3:3:5]&1[27:47:1],TANK,PRL,DEL);%
+ $ SET OMIT = NOT SHAREDISK
+      GO TO WINDUP;%
+DU2:: FIB[5].[43:2]~2;%
+      IF FIB[7]>HEADER[7] THEN HEADER[7]~FIB[7];%
+      BLOCK;%
+      CHANSKIP~FIB[7]+FIB[13].[10:9]|HEADER[0].[30:12];%
+      IF DISKADDRESS THEN%
+      BEGIN P(TANK[0]~FLAG(FIB[16])&0[24:24:1],(NOT 0),XCH,INX,%
+              ADDRESS,XCH,~);%
+            P(FLAG(FIB[19])&1[24:47:1],TANK,PRL,DEL);%
+      END ELSE%
+      BEGIN TANK[0]~FLAG(FIB[16])&0[24:24:1];%
+            P(FLAG(FIB[19]&1[24:44:4],TANK,PRL,DEL);%
+      END;%
+      GO TO WINDUP;%
+ $ SET OMIT = NOT(TIMESHARING)
+ DC1::   P(RSIZE, RTN);
+ $ SET OMIT = TIMESHARING
+ AB::    BEGIN IF(ADDRESS~TANK[NOT 4])=0 THEN GO ERR;
+ ACTION::     TANK[NOT 3]~TANK[NOT 4] ~0;
+              TANK[0] := IOD OR MEM;
+              P(ADDRESS,MKS,9,JUNK); GO TO ERR;
+              

@@ -1,0 +1,1613 @@
+? COMPILE LISP/LISP WITH XALGOL LIBRARY                                 
+? XALGOL STACK = 1000                                                   
+?LABEL  0       0CARD                                                   
+$ CARD LIST SINGLE                                                      
+ BEGIN %8 SEPTEMBER 1969                                                00001000
+  %                                                                     00002000
+  %  CONSTANT DEFINES                                                   00003000
+  %                                                                     00004000
+  FILE DATA REMOTE(2,10);                                               00005000
+ DEFINE MEMORYROWS = 127#,NOOFPROCESSOPS=44#,STKSZ=2#;                  00006000
+REAL LASTUSEDSPACE,XADDR,LINKTONIL,CARADDR,NEXTTOKEN;                   00007000
+  REAL HASH,PRIORITY,TKNO,LABTAB,T,XX1,XX2;                             00008000
+POINTER CP;ARRAY JUNKARRAY[0:0],STACK[0:STKSZ,0:511];                   00009000
+DEFINE CHR=JUNKARRAY[0]#,LEXTREE=HASH#;                                 00010000
+REAL LASTRPID,STACKPOSITION;                                            00011000
+BOOLEAN TRACE;                                                          00012000
+REAL ATOMUNDEF,NULLIST,AT0,AT1,AT2,AT3,AT4,AT5,AT6,AT7,RC1,RC9;         00013000
+ ARRAY SYSMARRAY[0:2],  TYPEARRAY[0:15];                                00014000
+ARRAY PROCESSARRAY[0:NOOFPROCESSOPS];                                   00015000
+  ARRAY MEMORY[0:MEMORYROWS, 0:511];                                    00016000
+ ARRAY C1[0:0], C2[0:0],C3[0:0],C4[0:0],C5[0:0],C6[0:0];                00016050
+ REAL CURROW;                                                           00016060
+ DEFINE TYPE = [22:4]#,                                                 00017000
+  ADDR=[18:19]#;                                                        00018000
+ DEFINE TYPEGARBAGE =0#,                                                00019000
+  TYPECONS=1#,                                                          00020000
+  TYPELIST=2#,                                                          00021000
+TYPEAREA=3#,                                                            00022000
+  TYPEFIELD=4#,                                                         00023000
+  TYPESYMB=5#,                                                          00024000
+  TYPELOGIC=6#,                                                         00025000
+ TYPELINK =7#,                                                          00026000
+  TYPEPROCESS=8#,                                                       00027000
+ TYPEMONITOR=9#,                                                        00028000
+ TYPEGENERAL=10#,                                                       00029000
+TYPETOKEN=11#,                                                          00030000
+ TYPECODE=11#;                                                          00031000
+%                                                                       00032000
+% TOKEN ASSIGNMENTS                                                     00033000
+%                                                                       00034000
+%    1 TO 30= ALGOL RETURN LABELS                                       00035000
+%  100 = ASGN                                                           00036000
+%  101 = REF                                                            00037000
+%  102 = CAR                                                            00038000
+%  103 = CDR                                                            00039000
+%  104 = CONS                                                           00040000
+%  105 = NEWSYMB                                                        00041000
+%  106 = AMTSPACE                                                       00042000
+%  107 = MAKE                                                           00043000
+%  108 = PRINT                                                          00044000
+%  109 = INLEX                                                          00045000
+%  110 = GCL                                                            00046000
+%  111 = CREATE                                                         00047000
+%  112 = DELETE                                                         00048000
+%  113 = SUSPEND                                                        00049000
+%  114 = RESUME                                                         00050000
+%  115 = RETURN                                                         00051000
+%  116 = IDENTITY                                                       00052000
+%  117 = HALT                                                           00053000
+%  118 =                                                                00054000
+%  119 =                                                                00055000
+%  120 = TRACE                                                          00056000
+%  121 = EQLIST                                                         00057000
+%  122 = QUOTE                                                          00058000
+%  123 = ASGNENV                                                        00059000
+%  124 = REFENV                                                         00060000
+%  125 = EXE                                                            00061000
+%  126 = DEBUG                                                          00062000
+%  127 = LDMODE                                                         00063000
+%  128 = CONSTRUCT                                                      00064000
+%  129 = AREA                                                           00065000
+%  130 = TOKEN                                                          00066000
+%  131 = SINGLESTEP                                                     00067000
+%  132 = UP                                                             00068000
+%  133 = DP                                                             00069000
+%  134 = READ                                                           00070000
+%  135 =                                                                00071000
+%  136 = LIST                                                           00072000
+%  137 = COND                                                           00073000
+%  138 = EQ                                                             00074000
+%  139 = ATOM                                                           00075000
+%  140 = BLOCKOP                                                        00076000
+%  141 = NEQ                                                            00077000
+%  142 = IF                                                             00078000
+%  143 = NONTERM                                                        00079000
+  %144=USERL                                                            00079010
+  %145=LTAB                                                             00079020
+ %146=COPY                                                              00079030
+ %147=ADD                                                               00079035
+ %148=SUB                                                               00079040
+ %149=MUL                                                               00079045
+ %150 =DIV                                                              00079050
+ %151=EX                                                                00079055
+ %152=NEG                                                               00079060
+%                                                                       00080000
+%  512 TO 576 = SPECIAL CHARACTERS                                      00081000
+%                                                                       00082000
+%  118 = ALTERNATIVE OP IN BNF INTERPRETERS                             00083000
+% 1000 = RESULT VARIABLE FOR BASE LANGUAGE                              00084000
+% 1001 = LIST FORMAL PARAMETER                                          00085000
+% 1002 = QUOTED FORMAL PARAMETER                                        00086000
+% 1003 = QUOTED LIST FORMAL PARAMETER                                   00087000
+% 1004 = BASE LANGUAGE INTERPRETER                                      00088000
+% 1005 = BNF INTERPRETER                                                00089000
+% 1006 = STRING VARIABLE FOR BNF                                        00090000
+% 1007 = QUOTED SYMBOL IN SCANNER                                       00091000
+% 1008 = SINGLE STEP VARIABLE                                           00092000
+% 1009 = TRACE VARIABLE                                                 00093000
+% 1010 = REMOTE TERMINAL DEVICE                                         00094000
+% 1011 = DISK DEVICE                                                    00095000
+% 1012 = # IN BNF ALTERNATIVE                                           00096000
+% 1013 = LEXUNIT                                                        00097000
+% 1014 = ID                                                             00098000
+% 1015 = INT                                                            00099000
+% 1016 = SPCHAR                                                         00100000
+% 1017 = CODE GENERATOR INTERPRETER                                     00101000
+% 1018 = TREE VARIABLE IN BNF INTERPRETER                               00102000
+% 1019 = N VARIABLE IN BNF INTERPRETER                                  00103000
+ %1020 = NUMBER                                                         00103010
+%                                                                       00104000
+%  2000 TO 10000 = IDENTIFIERS                                          00105000
+%                                                                       00106000
+% 262144 TO 524287 = USER TOKENS                                        00107000
+%                                                                       00108000
+%  DEFINED SUBROUTINES                                                  00109000
+%                                                                       00110000
+DEFINE FNS(FNS1)=PSCAN(1,FNS1,F)#,STATS=PSCAN(0,0,V1)#;                 00111000
+DEFINE M[M1]=(IF BOOLEAN(M1)THEN                                        00112000
+MEMORY[(M1).[18:9],(M1).[9:9]].[22:23] ELSE                             00113000
+MEMORY[(M1).[18:9],(M1).[9:9]].[45:23])#,                               00114000
+STEPSPACE=(LASTUSEDSPACE:=LASTUSEDSPACE+1)#,                            00115000
+AT(AT1)=(AT0+AT1)#,                                                     00116000
+TOKEN(TOKEN1)=(TKNO+TOKEN1)#,                                           00117000
+ATOM(ATOM1)=((T:=ATOM1.TYPE)=TYPELOGIC OR T=TYPESYMB OR T=TYPETOKEN)#,  00118000
+DELETE(DELETE1)=BEGIN ASGN(AT2,DELETE1,ATOMDELETED)END#,                00119000
+SUSPEND(SUSPEND1)=BEGIN IF REF(AT2,SUSPEND1) NEQ ATOMRESUMED THEN       00120000
+PRIMERROR("SPND",SUSPEND1)ELSE ASGN(AT2,SUSPEND1,ATOMSUSPENDED)END#,    00121000
+AMTSPACE=((0&(MEMORYROWS+1)[18:8:9])-LASTUSEDSPACE-1)#,                 00122000
+ATOMUND=ATOMUNDEF#,                                                     00123000
+ATOMCAR=AT1#,                                                           00124000
+ATOMCDR=AT0#,                                                           00125000
+ATOMASSO=AT0#,                                                          00126000
+ATOMPRIORITY=AT1#,                                                      00127000
+ATOMSUSPENDED=AT1#,                                                     00128000
+ATOMRESUMED=AT2#,                                                       00129000
+ATOMDELETED=AT3#,                                                       00130000
+LOGIC(LOGIC1)=MAKE(TYPELOGIC,LOGIC1)#,                                  00131000
+DEC(DEC1)=(DEC1-1)#,                                                    00132000
+ MAKE(MAKE1,MAKE2)=((MAKE2)&(MAKE1)[22:3:4])#,                          00133000
+QQ(QQ1)=QU(1,QQ1)#,                                                     00134000
+UQ=QU(2,0)#,                                                            00135000
+ INQ(INQ1)=QU(3,INQ1)#,                                                 00136000
+  GCL=QU(4,0)#;                                                         00137000
+DEFINE SMEM(SMEM1)=QU(6," "&SMEM1[41:35:36])#;                          00138000
+DEFINE LMEM(LMEM1)=QU(7," "&LMEM1[41:35:36])#;                          00139000
+  DEFINE INLEX(INLEX1)=IL(1,0,0,INLEX1)#,INTLX=IL(0,0,0,0)#,            00140000
+  LOADMODE(LOADMODE1,LOADMODE2)=IL(2,LOADMODE1,LOADMODE2,0)#;           00141000
+DEFINE ID(ID1)=(ID1.TYPE=TYPECODE AND ID1.ADDR LSS 10000                00142000
+  AND ID1.ADDR GEQ 2000)#,                                              00143000
+INT(INT1)=(INT1.TYPE=TYPELOGIC)#,                                       00144000
+ NBR(NBR1)=(NBR1.TYPE=TYPELOGIC OR (IF NBR1.TYPE=TYPEAREA               00144010
+ THEN (IF REF(AT0,NBR1).ADDR EQL 3 THEN TRUE ELSE FALSE)ELSE FALSE))#,  00144020
+SPCHAR(SPCHAR1)=(SPCHAR1.TYPE=TYPECODE AND SPCHAR1.ADDR                 00145000
+  LEQ 576 AND SPCHAR1.ADDR GEQ 512)#;                                   00146000
+  %                                                                     00147000
+  %  FORWARD PROCEDURE DECLARATIONS                                     00148000
+  %                                                                     00149000
+REAL PROCEDURE TAIL(STRING); VALUE STRING; REAL STRING; FORWARD;        00150000
+  REAL PROCEDURE USERS(F);REAL F  ;FORWARD;                             00151000
+  REAL PROCEDURE USERL(X);REAL X  ;FORWARD;                             00152000
+  REAL PROCEDURE PSCAN(IJ,X,F);REAL X,F;INTEGER IJ;FORWARD;             00153000
+  REAL PROCEDURE BNFTREE(F);REAL F  ;FORWARD;                           00154000
+ PROCEDURE MEMSAVE(X,N,Y);                                              00155000
+VALUE N,Y;ARRAY X[0];REAL N,Y; FORWARD;                                 00156000
+ PROCEDURE UNSAVE(X,N,FID);                                             00157000
+VALUE FID;ARRAY X[0];REAL N,FID;FORWARD;                                00158000
+PROCEDURE GARBAGECOLLECT(QMEM,N);                                       00159000
+ VALUE N;ARRAY QMEM[0];REAL N;                                          00160000
+  FORWARD;                                                              00161000
+REAL PROCEDURE COPY(X);VALUE X;REAL X;FORWARD;                          00162000
+PROCEDURE DOTRACE(PROCESS);VALUE PROCESS;REAL PROCESS;FORWARD;          00163000
+PROCEDURE EQLIST(X,Y);VALUE X,Y;REAL X,Y;FORWARD;                       00164000
+PROCEDURE PRINT(X);VALUE X;REAL X;FORWARD;                              00165000
+PROCEDURE UREAD(FIL,BUF);VALUE FIL;REAL FIL;ARRAY BUF[0];FORWARD;       00166000
+ BOOLEAN PROCEDURE EQ(X,Y);VALUE X,Y;REAL X,Y;FORWARD;                  00167000
+REAL PROCEDURE LEXFIND;FORWARD;                                         00168000
+REAL PROCEDURE QU(P,Y);                                                 00169000
+VALUE P,Y;INTEGER P;REAL Y;                                             00170000
+  FORWARD;                                                              00171000
+  PROCEDURE PRIMERROR(A,V);                                             00172000
+VALUE A,V;REAL A,V;FORWARD;                                             00173000
+REAL PROCEDURE CONS(X,Y);VALUE X,Y;REAL X,Y;FORWARD;                    00174000
+ REAL PROCEDURE CAR(X);VALUE X;REAL X; FORWARD;                         00175000
+ REAL PROCEDURE CDR(X);VALUE X;REAL X; FORWARD;                         00176000
+PROCEDURE MASGN(A,V);VALUE A,V;REAL A,V;FORWARD;                        00177000
+PROCEDURE RESUME(PROCESS);VALUE PROCESS;REAL PROCESS;FORWARD;           00178000
+PROCEDURE RETURN(PROCESS,VAL);                                          00179000
+   VALUE PROCESS,VAL;REAL PROCESS,VAL;FORWARD;                          00180000
+PROCEDURE DEBUG;FORWARD;                                                00181000
+PROCEDURE INTERP;FORWARD;                                               00182000
+PROCEDURE SYSM;FORWARD;                                                 00183000
+REAL PROCEDURE CREATE(START,ENV,INTERPRETER,PROCESS);                   00184000
+ VALUE START,ENV,INTERPRETER,PROCESS;                                   00185000
+ REAL START,ENV,INTERPRETER,PROCESS;FORWARD;                            00186000
+PROCEDURE ASGN(X,Y,Z);VALUE X,Y,Z;REAL X,Y,Z;FORWARD;                   00187000
+REAL PROCEDURE NEWSYMB(ASSO);VALUE ASSO;REAL ASSO;FORWARD;              00188000
+REAL PROCEDURE REF(X,Y);VALUE X,Y;REAL X,Y;                             00189000
+FORWARD;                                                                00190000
+  REAL PROCEDURE HANGON (X,Y);                                          00191000
+  VALUE X,Y; REAL X,Y;FORWARD;                                          00192000
+  REAL PROCEDURE IL(M,C,CM,F);                                          00193000
+ INTEGER M; REAL C,CM,F; FORWARD;                                       00194000
+  REAL PROCEDURE CHAR(P,N);                                             00195000
+  POINTER P; INTEGER N; FORWARD;                                        00196000
+REAL PROCEDURE PMAKE(T,N);VALUE T,N;REAL T,N;FORWARD;                   00197000
+ REAL PROCEDURE DA(X);VALUE X;REAL X;FORWARD;                           00197010
+ REAL PROCEDURE AD(X);VALUE X;REAL X;FORWARD;                           00197020
+ REAL PROCEDURE AR(X,Y,Z);VALUE X,Y,Z;REAL X,Y,Z;FORWARD;               00197030
+ PROCEDURE APLPNT(X);VALUE X;REAL X;FORWARD;                            00197040
+REAL PROCEDURE TAIL(STRING);VALUE STRING;REAL STRING;                   00198000
+ BEGIN REAL X;                                                          00198010
+ IF CAR(TAIL:=X:=CDR(STRING)).TYPE=TYPEAREA AND NOT NBR(CAR(X)) THEN    00199000
+ ASGN(AT0,STRING,(TAIL:=CONS(USERS(CAR(X)),X)))  END;                   00200000
+REAL PROCEDURE QU(P,Y);                                                 00201000
+VALUE P,Y;INTEGER P;REAL Y;                                             00202000
+   BEGIN OWN INTEGER N;REAL V;                                          00203000
+DEFINE PR(PR1)=(PR1.[41:19])#;                                          00204000
+FORMAT F1(I4,": ",A4,I6,", ",A4,I6);                                    00205000
+  INTEGER L,LP; ALPHA A;                                                00206000
+   LABEL B1,B2,BB,BB1;                                                  00207000
+  SWITCH PSW:=B1,B2,BB,B2,B2,B2,B2,B2;                                  00208000
+   GO TO PSW[P];                                                        00209000
+   BB:N:=0;                                                             00210000
+  V:=MAKE(TYPELOGIC,0);                                                 00211000
+Y:=CONS(LABTAB,CONS(Y,NULLIST));                                        00212000
+ P:=8;                                                                  00213000
+GO TO BB1;                                                              00214000
+B1:QU:=ATOMUND;                                                         00215000
+V:=REF(ATOMPRIORITY,Y);                                                 00216000
+  BB1:N:=N+1;                                                           00217000
+A:=Y&V[45:22:23];                                                       00218000
+  B2: BEGIN OWN ALPHA ARRAY X[0:N];                                     00219000
+   LABEL B3,B4,B5,B6,B7,B8,B9;                                          00220000
+  LABEL B10,QDUMP,MEMDP,MEMLD,QIN,QSET;                                 00221000
+   INTEGER I,K,IS;                                                      00222000
+   ALPHA XS;                                                            00223000
+  SWITCH SW:=B3,B4,B5,B10,QDUMP,MEMDP,MEMLD,QIN,QSET;                   00224000
+   GO TO SW[P];                                                         00225000
+  QSET:K:=LASTUSEDSPACE.[18:18]+2;                                      00225010
+  FOR I:=0 STEP 1 UNTIL N DO                                            00225020
+  X[I]:=MEMORY[(K+I).[17:9],(K+I).[8:9]];                               00225030
+  LABTAB:=CAR(X[0].[45:23]);HASH:=CAR(CDR(X[0].[45:23]));               00225031
+  GO TO B9;                                                             00225040
+ QIN: X[0]:=Y&Y[45:22:23];                                              00226000
+ GO TO B3;                                                              00227000
+QDUMP:FOR P:=0 STEP 1 UNTIL N DO                                        00228000
+WRITE(DATA,F1,P,TYPEARRAY[X[P].[45:4]],X[P].[41:19],                    00229000
+   TYPEARRAY[X[P].TYPE],X[P].ADDR);                                     00230000
+GO TO B9;                                                               00231000
+ MEMDP:MEMSAVE(X,N,Y); GO TO B9;                                        00232000
+ MEMLD:UNSAVE(X,N,Y);P:=9;GO TO B2;                                     00233000
+  B10:GARBAGECOLLECT(X,N);                                              00234000
+LABTAB:=CAR(X[0].[45:23]);                                              00235000
+HASH:=CAR(CDR(X[0].[45:23]));GO TO B9;                                  00236000
+   B3:X[N]:=A;                                                          00237000
+   ;                                                                    00238000
+   I:=N;                                                                00239000
+   B6:IS:=I DIV 2;                                                      00240000
+    IF I LSS 2 THEN GO TO B9                                            00241000
+    ELSE IF PR(X[I]) GTR PR(X[IS]) THEN                                 00242000
+    BEGIN XS:=X[IS];                                                    00243000
+    X[IS]:=X[I];                                                        00244000
+    X[I]:=XS;                                                           00245000
+    I:=IS; GO TO B6 END                                                 00246000
+    ELSE GO TO B9;                                                      00247000
+  B4:QU:=X[1].[22:23];                                                  00248000
+   X[0]:=X[0]&X[1][22:22:23];                                           00249000
+                                                                        00250000
+   I:=1                                                                 00251000
+   ;                                                                    00252000
+   IS:= 2|I;                                                            00253000
+   WHILE IS LSS N DO BEGIN                                              00254000
+   IF PR(X[IS]) GTR PR(X[IS+1])                                         00255000
+   THEN BEGIN X[I]:=X[IS];                                              00256000
+   I:=IS END                                                            00257000
+   ELSE BEGIN X[I]:=X[IS+1];                                            00258000
+   I:=IS+1 END;                                                         00259000
+   IS:=2|I END                                                          00260000
+   ;                                                                    00261000
+   IF IS GTR N THEN BEGIN                                               00262000
+   N:=N-1                                                               00263000
+   ;                                                                    00264000
+   FOR K:=I STEP 1 UNTIL N DO                                           00265000
+   X[K]:=X[K+1];                                                        00266000
+   IF N EQL 0 THEN BEGIN                                                00267000
+   N:=N+1; GO TO B9 END END                                             00268000
+ELSE BEGIN N:=N-1;X[I]:=X[IS]END;                                       00269000
+   P:=3; GO TO B2;                                                      00270000
+   B5:P:=2;                                                             00271000
+  B9: PRIORITY:=X[1].[45:23] END                                        00272000
+END QU;                                                                 00273000
+  PROCEDURE PRIMERROR (A,V);                                            00274000
+ VALUE A,V;REAL A,V;                                                    00275000
+BEGIN FORMAT F1("SERR:",A4,X1,A4,I6);                                   00276000
+WRITE(DATA,F1,A,TYPEARRAY[V.TYPE],V.ADDR);                              00277000
+ A:=0/0;                                                                00278000
+END PRIMERROR;                                                          00279000
+%                                                                       00280000
+%   B A S E     L A N G U A G E     I N T E R P R E T E R               00281000
+%                                                                       00282000
+%ROUTINE INTERPRET(PROCESS)=                                            00283000
+%  [ INT1: WHEN STATUS/PROCESS NEQ "SUSPENDED";                         00284000
+%  IF STATUS/PROCESS NEQ "RESUMED" THEN DELETE(SELF);                   00285000
+%  INSTVAL(PROCESS);                                                    00286000
+%  GO TO INT1 ];                                                        00287000
+%                                                                       00288000
+%ROUTINE INSTVAL(PROCESS)=                                              00289000
+%  [ INST:= INST/NEXT/PROCESS;                                          00290000
+%  NEXT/PROCESS:= SUCCESSOR/NEXT/PROCESS;                               00291000
+%  ARGVAL(INST, PROCESS);                                               00292000
+%  RETURN(CALLER/SELF); DELETE(SELF) ];                                 00293000
+%                                                                       00294000
+%ROUTINE ARGVAL(ARG,PROCESS)=                                           00295000
+%  [ IF ATOM(ARG) THEN ARG:= I(ARG)/ENV/PROCESS ELSE                    00296000
+%  ARG:= APPLY(OPVAL(AP/ARG,PROCESS),ARGLIST/ARG,PROCESS);              00297000
+%  RETURN(CALLER/SELF,ARG); DELETE(SELF)];                              00298000
+%                                                                       00299000
+%ROUTINE OPVAL(OP,PROCESS)=                                             00300000
+%  [ IF NOT ATOM(OP) THEN OP:= ARGVAL(OP,PROCESS);                      00301000
+%  IF ATOM OP THEN OP:= I(OP)/MACHINE;                                  00302000
+%  RETURN(CALLER/SELF,OP); DELETE(SELF) ];                              00303000
+%                                                                       00304000
+%ROUTINE APPLY(ROUTINE,ARGLIST,PROCESS)=                                00305000
+%  IF ATOM(ROUTINE) THEN                                                00306000
+%  [RETURN(CALLER/SELG, PRIMVAL(ROUTINE,                                00307000
+%    LISTVAL(ARGLIST,PROCESS),PROCESS)); DELETE(SELF)];                 00308000
+%  ENV:=PARAPASS(FPARA/ROUTINE,MAKE("CONSTRUCT"),                       00309000
+%                  ARGLIST,PROCESS);                                    00310000
+%  RETURN(CALLER/SELF, CALL(ROUTINE,ENV,PROCESS));                      00311000
+%  DELETE(SELF) ];                                                      00312000
+%                                                                       00313000
+%ROUTINE CALL(ROUTINE,ENV,PROCESS)=                                     00314000
+%  [ RESUME(CREATE(START/ROUTINE,ENV,INTERPRETER/ROUTINE,               00315000
+%                  PROCESS));                                           00316000
+%  DELETE(SELF) ];                                                      00317000
+%                                                                       00318000
+%ROUTINE PARAPASS(FPARA,ENV,ARGLIST,PROCESS)=                           00319000
+%  [ IF FPARA NEQ "NIL" AND ARGLIST NEQ "NIL" THEN                      00320000
+%  IF CAR(FPARA) = "UNDEF" THEN                                         00321000
+%  CAR(CDR(FPARA))/ENV:= LISTVAL(ARGLIST,PROCESS) ELSE                  00322000
+%  [ CAR(FPARA)/ENV:= ARGVAL(CAR(ARGLIST),PROCESS);                     00323000
+%  ENV:= PARAPASS(CDR(FPARA),ENV,CDR(ARGLIST),PROCESS) ];               00324000
+%  RETURN(CALLER/SELF,ENV) ];                                           00325000
+%                                                                       00326000
+%ROUTINE LISTVAL(ARGLIST,PROCESS)=                                      00327000
+%  [ IF ARGLIST="NIL" THEN                                              00328000
+%  RETURN(CALLER/SELF,"NIL") ELSE                                       00329000
+%  RETURN(CALLER/SELF,CONS(ARGVAL(CAR(ARGLIST),PROCESS),                00330000
+%                          LISTVAL(CDR(ARGLIST),PROCESS)) ];            00331000
+%                                                                       00332000
+PROCEDURE INTERP;                                                       00333000
+BEGIN REAL ARG,ARGLIST,STRING,OP,ENV,FPARA,SAV,T,PROCESS;               00334000
+DEFINE ROUTINE=OP#;                                                     00335000
+DEFINE GET1=CAR(ARG)#,GET=CAR((ARG:=CDR(ARG)))#;                        00336000
+DEFINE STACK(STACK1)=SAV:=CONS(STACK1,SAV)#,                            00337000
+EXIT=BEGIN T:=CAR(SAV);SAV:=CDR(SAV);                                   00338000
+ IF T.TYPE NEQ TYPECODE THEN PRIMERROR("EXIT",T);                       00339000
+ GO TO RETSW[T.ADDR]END#;                                               00340000
+LABEL INTERPRET,INSTVAL,ARGVAL,APPLY,CALL,OPVAL,PARAPASS,               00341000
+LISTVAL,PRIMVAL,RETURNVAL,INT1,OP1,L1,                                  00342000
+R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12,R13,R14,R15,                     00343000
+R16,R17,R18,R19,R20,R21,R22,R23,R24,R25,R26,R27,R28,R29,R30,R31,        00344000
+ R32,R33,R34,R35,R36,R37,R38,R39,R40,R41,R42,R43,R44,R45,               00345000
+R46,LEND,R47,R48,R49,R50,R51,R52,R53,R54,R55,R56,R57;                   00346000
+SWITCH RETSW:=R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12,R13,R14,R15,       00347000
+R16,R17,R18,R19,R20,R21,R22,R23,R24,R25,R26,R27,R28,R29,R30,R31,        00348000
+  R32,R33,R34,R35,R36,R37,R38,R39,R40,R41,R42,R43,R44,R45,R46,R47,R48,  00349000
+  R49,R50,R51,R52,R53,R54,R55,R56,R57;                                  00350000
+REAL RC2,RC3,RC4,RC5,RC6,RC7,RC8,RC10;                                  00350001
+REAL PROCEDURE UNSTCK(SAV);REAL SAV;                                    00351000
+BEGIN UNSTCK:=CAR(SAV);SAV:=CDR(SAV)END;                                00352000
+DEFINE LV(LV1)=BEGIN STACK(MAKE(TYPECODE,LV1));                         00353000
+   GO TO LISTVAL;END#;                                                  00354000
+DEFINE UNSTACK=UNSTCK(SAV)#;                                            00355000
+LABEL BNFINSTVAL,BNFEXITVAL,BNFTERMVAL,BNFRETURNVAL,                    00356000
+BNFNONTERMVAL,WAITRETURN,BNFL1,BNFL2,BNFL3;                             00357000
+REAL INST,X,VAL;                                                        00358000
+DEFINE STR=CODE(1006)#,SLEXUNIT=CODE(1013)#,                            00359000
+SID=CODE(1014)#,SINT=CODE(1015)#,                                       00360000
+SSPCHAR=CODE(1016)#,SQUOTE=CODE(122)#,                                  00361000
+SCGINT=CODE(1017)#,TREE=CODE(1018)#,                                    00362000
+N=CODE(1019)#,CODE(CODE1)=TOKEN(CODE1)#;                                00363000
+ DEFINE SNBR=CODE(1020)#;                                               00364000
+ BOOLEAN PROCEDURE LOOK1(X,Y);VALUE X,Y;REAL X,Y;                       00364010
+ IF(X=SLEXUNIT)OR(X=SID AND ID(Y)) OR(X=SINT AND INT(Y))                00364020
+ OR(X=SNBR AND NBR(Y))OR(X=SSPCHAR AND SPCHAR(Y))                       00364030
+ OR(X=Y)OR(X.TYPE EQL TYPELIST)                                         00364040
+ OR(X=CODE(1012)) THEN LOOK1:=TRUE ELSE LOOK1:=FALSE;                   00364050
+PROCESS:=UQ;                                                            00364060
+SAV:=REF(AT7,PROCESS);                                                  00365000
+RC2:=MAKE(TYPECODE,2);                                                  00366000
+RC3:=MAKE(TYPECODE,3);                                                  00367000
+RC4:=MAKE(TYPECODE,4);                                                  00368000
+RC5:=MAKE(TYPECODE,5);                                                  00369000
+RC6:=MAKE(TYPECODE,6);                                                  00370000
+RC7:=MAKE(TYPECODE,7);                                                  00371000
+RC8:=MAKE(TYPECODE,8);                                                  00372000
+RC10:=MAKE(TYPECODE,10);                                                00373000
+EXIT;                                                                   00374000
+INTERPRET:R1: %(PROCESS)                                                00375000
+ IF REF(AT2,PROCESS) NEQ ATOMRESUMED THEN GO TO INT1;                   00376000
+ IF REF(AT1,PROCESS) LSS PRIORITY THEN                                  00377000
+ BEGIN STACK(RC1);T:=QQ(PROCESS);                                       00378000
+ INT1:ASGN(AT7,PROCESS,SAV);                                            00379000
+ PROCESS:=UQ;SAV:=REF(AT7,PROCESS); EXIT END;                           00380000
+ IF TRACE THEN BEGIN ASGN(AT7,PROCESS,SAV);                             00381000
+  DOTRACE(PROCESS) END;                                                 00382000
+ STACK(RC1);                                                            00383000
+ IF (OP:=REF(AT5,PROCESS))=TOKEN(1004) THEN GO TO INSTVAL;              00384000
+IF OP=TOKEN(1005) THEN GO TO BNFINSTVAL;                                00385000
+IF OP=TOKEN(1017) THEN GO TO INSTVAL;                                   00386000
+ ASGN(AT1,(ENV:=PMAKE(TYPECONS,0)),PROCESS);                            00387000
+ GO TO CALL;                                                            00388000
+INSTVAL: %(PROCESS)=ARG                                                 00389000
+ ARG:=REF(AT3,PROCESS);                                                 00390000
+ ASGN(AT3,PROCESS,CDR(ARG));                                            00391000
+ IF ARG=NULLIST THEN GO TO RETURNVAL;                                   00392000
+ ARG:=CAR(ARG);                                                         00393000
+ STACK(TOKEN(27)); GO TO ARGVAL;R27:                                    00394000
+ ASGN(TOKEN(1000),REF(AT4,PROCESS),ARG);                                00395000
+ EXIT;                                                                  00396000
+ARGVAL: %(ARG,PROCESS)=ARG                                              00397000
+ IF ATOM(ARG) THEN ARG:=REF(ARG,REF(AT4,PROCESS)) ELSE                  00398000
+ BEGIN STACK(CDR(ARG));                                                 00399000
+ OP:=CAR(ARG);                                                          00400000
+ STACK(RC2); GO TO OPVAL;R2:                                            00401000
+ ARGLIST:=UNSTACK;                                                      00402000
+ GO TO APPLY END; EXIT;                                                 00403000
+APPLY: %(OP,ARGLIST,PROCESS)=ARG                                        00404000
+ IF ROUTINE.TYPE=TYPECODE THEN GO TO PRIMVAL;                           00405000
+ FPARA:=REF(AT1,ROUTINE);                                               00406000
+ ENV:=PMAKE(TYPECONS,0);                                                00407000
+ STACK(ROUTINE);                                                        00408000
+ STACK(RC3);GO TO PARAPASS; R3:                                         00409000
+ ROUTINE:=UNSTACK;                                                      00410000
+ %GO TO CALL;                                                           00411000
+CALL: %(OP,ENV,PROCESS)=ARG                                             00412000
+ ASGN(AT7,PROCESS,SAV);                                                 00413000
+ PROCESS:=CREATE(REF(AT2,ROUTINE),ENV,REF(AT3,ROUTINE),PROCESS);        00413010
+ R39:ASGN(AT2,PROCESS,ATOMRESUMED);                                     00414000
+ GO TO INTERPRET;                                                       00415000
+ R9:IF REF(AT5,PROCESS)=CODE(1005) THEN %BNFINT                         00416000
+ BEGIN VAL:=UNSTACK;GO TO BNFRETURNVAL END;                             00417000
+ ARG:=UNSTACK;                                                          00418000
+ EXIT;                                                                  00419000
+OPVAL: %(OP,PROCESS)=ARG                                                00420000
+ IF ATOM(OP) THEN GO TO OP1;                                            00421000
+ BEGIN                                                                  00422000
+ ARG:=OP;                                                               00423000
+ STACK(RC4); GO TO ARGVAL;R4:                                           00424000
+ OP:=ARG END;                                                           00425000
+ OP1:EXIT;                                                              00426000
+PARAPASS: %(FPARA,ENV,ARGLIST,PROCESS)=ENV                              00427000
+ IF FPARA NEQ NULLIST THEN IF ARGLIST NEQ NULLIST THEN                  00428000
+ IF CAR(FPARA)=ATOMUNDEF THEN                                           00429000
+ BEGIN STACK(ENV);STACK(CAR(CDR(FPARA)));                               00430000
+ STACK(RC5);GO TO LISTVAL;R5:                                           00431000
+ ASGN(UNSTACK,UNSTACK,ARG)END ELSE                                      00432000
+ BEGIN STACK(FPARA);STACK(ENV);STACK(CDR(ARGLIST));                     00433000
+ ARG:=CAR(ARGLIST);                                                     00434000
+ STACK(RC6);GO TO ARGVAL;R6:                                            00435000
+ ARGLIST:=UNSTACK;ENV:=UNSTACK;FPARA:=UNSTACK;                          00436000
+ ASGN(CAR(FPARA),ENV,ARG);                                              00437000
+ FPARA:=CDR(FPARA);GO TO PARAPASS;END;                                  00438000
+ EXIT;                                                                  00439000
+LISTVAL: %(ARGLIST,PROCESS)=ARG                                         00440000
+ IF ARGLIST NEQ NULLIST THEN                                            00441000
+ BEGIN STACK(CDR(ARGLIST));ARG:=CAR(ARGLIST);                           00442000
+ STACK(RC7);GO TO ARGVAL;R7:                                            00443000
+ ARGLIST:=UNSTACK;STACK(ARG);                                           00444000
+ STACK(RC8);GO TO LISTVAL;R8:                                           00445000
+ ARG:=CONS(UNSTACK,ARG);                                                00446000
+ END ELSE ARG:=ARGLIST; EXIT;                                           00447000
+RETURNVAL: %(PROCESS)                                                   00448000
+ IF(OP:=REF(AT6,PROCESS))NEQ ATOMUNDEF THEN                             00449000
+ BEGIN ARG:=REF(TOKEN(1000),REF(AT4,PROCESS));                          00450000
+ RETURN(OP,ARG)END;                                                     00451000
+  DELETE(PROCESS);GO TO INT1 ;                                          00452000
+BNFINSTVAL: %(PROCESS)                                                  00453000
+ ASGN(AT3,PROCESS,CDR((INST:=REF(AT3,PROCESS))));                       00454000
+ IF INST=NULLIST THEN GO TO BNFEXITVAL ELSE                             00455000
+ IF ATOM((ARG:=CAR(INST))) THEN GO TO BNFTERMVAL ELSE                   00456000
+ GO TO BNFNONTERMVAL;                                                   00457000
+                                                                        00458000
+BNFEXITVAL: %(PROCESS)                                                  00459000
+ SUSPEND(PROCESS); RETURN(COPY(REF(AT6,PROCESS)),PROCESS);              00460000
+ ASGN(AT5,PROCESS,SCGINT); EXIT;                                        00461000
+                                                                        00462000
+BNFTERMVAL: %(ARG,PROCESS)                                              00463000
+ X:=CAR((STRING:=REF(STR,(ENV:=REF(AT4,PROCESS)))));                    00464000
+ IF ARG=SLEXUNIT THEN GO TO BNFL1;                                      00465000
+ IF ARG=SID THEN GO TO (IF ID(X) THEN BNFL1 ELSE BNFL2);                00466000
+ IF ARG=SINT THEN GO TO (IF INT(X) THEN BNFL1 ELSE BNFL2);              00467000
+ IF ARG=SSPCHAR THEN GO TO (IF SPCHAR(X) THEN BNFL1 ELSE BNFL2);        00468000
+ IF ARG=SNBR THEN GO TO(IF NBR(X) THEN BNFL1 ELSE BNFL2);               00469000
+ IF ARG=(OP:=CODE(117)) THEN GO TO PRIMVAL;                             00469010
+ IF ARG=CODE(1012) THEN GO TO BNFEXITVAL;                               00470000
+ IF X=ARG THEN                                                          00471000
+ ASGN(STR,ENV,TAIL(STRING)) ELSE GO TO BNFL2;                           00472000
+  EXIT;                                                                 00473000
+ BNFL1: INST:=CONS(SQUOTE,CONS(X,NULLIST));                             00474000
+ X:=CREATE(CONS(INST,NULLIST),PMAKE(TYPECONS,0),SCGINT,PROCESS);        00475000
+ ASGN(STR,ENV,TAIL(STRING));                                            00476000
+ ASGN(TREE,ENV,CONS(X,REF(TREE,ENV)));                                  00477000
+ ASGN(N,ENV,REF(N,ENV)+1);EXIT;                                         00478000
+ BNFL2:DELETE(PROCESS); EXIT;                                           00479000
+                                                                        00480000
+BNFRETURNVAL: %(PROCESS,VAL)                                            00481000
+ ASGN(AT4,PROCESS,ENV:=COPY(REF(AT4,PROCESS)));                         00482000
+ ASGN(TREE,ENV,CONS(VAL,REF(TREE,ENV)));                                00483000
+ ASGN(STR,ENV,REF(STR,REF(AT4,VAL)));                                   00484000
+ ASGN(N,ENV,REF(N,ENV)+1); EXIT;                                        00485000
+                                                                        00486000
+BNFNONTERMVAL: %(ARG,PROCESS)                                           00487000
+ IF CAR(ARG) NEQ CODE(118) THEN PRIMERROR("BNF ",ARG);                  00488000
+ X:=NULLIST;ENV:=REF(AT4,PROCESS);                                      00489000
+ARGLIST:=CDR(ARG);                                                      00490000
+ WHILE ARGLIST NEQ NULLIST DO                                           00491000
+ IF LOOK1(CAR(CAR(ARGLIST)),CAR(REF(STR,ENV))) THEN                     00492000
+ BEGIN ENV:=COPY(ENV);                                                  00493000
+ ASGN(TREE,ENV,NULLIST);                                                00493010
+ ASGN(N,ENV,AT0);                                                       00494000
+ X:=CONS(CREATE(CAR(ARGLIST),ENV,CODE(1005),PROCESS),X);                00495000
+ ARGLIST:=CDR(ARGLIST) END ELSE ARGLIST:=CDR(ARGLIST) ;                 00496000
+GO TO WAITRETURN;                                                       00497000
+WAITRETURN: %(X)                                                        00498000
+ WHILE X NEQ NULLIST DO                                                 00499000
+  BEGIN RESUME(CAR(X)); X:=CDR(X) END;                                  00500000
+ GO TO INT1;                                                            00501000
+PRIMVAL: %(OP,ARGLIST,PROCESS)=ARG                                      00502000
+CASE ROUTINE.ADDR-100 OF BEGIN                                          00503000
+ IF ATOM(CAR(ARGLIST)) THEN  % ASGN=CODE 100                            00504000
+  BEGIN STACK(CAR(ARGLIST)); ARGLIST:=CDR(ARGLIST);                     00505000
+  LV(41);R41:ASGN(UNSTACK,GET1,ARG:=GET) END ELSE                       00506000
+BEGIN LV(11);R11:ASGN(GET1,GET,(ARG:=GET))END; %ASGN=CODE100            00507000
+ IF ATOM(CAR(ARGLIST)) THEN  % REF=CODE 101                             00508000
+ BEGIN STACK(CAR(ARGLIST));ARGLIST:=CDR(ARGLIST);                       00509000
+  LV(42);R42:ARG:=REF(UNSTACK,GET1) END ELSE                            00510000
+BEGIN LV(12);R12:ARG:=REF(GET1,GET)END; %REF=CODE101                    00511000
+BEGIN LV(13);R13:ARG:=CAR(GET1)END; %CAR=CODE 102                       00512000
+BEGIN LV(14);R14:ARG:=CDR(GET1)END; %CDR=CODE103                        00513000
+BEGIN LV(15);R15:ARG:=CONS(GET1,GET)END; %CONS=CODE 104                 00514000
+BEGIN LV(16);R16:ARG:=NEWSYMB(GET1)END;                    %NEWSYMB     00515000
+ARG:=AMTSPACE;                   %AMTSPACE                              00516000
+BEGIN LV(17);R17:ARG:=PMAKE(GET1.TYPE,GET)END;            %MAKE         00517000
+BEGIN LV(18);R18:PRINT((ARG:=GET1))END;                   %PRINT        00518000
+BEGIN LV(19);R19:ARG:=INLEX(GET1)END;                     %INLEX        00519000
+ BEGIN SUSPEND(PROCESS);RESUME(PROCESS);GCL;                            00520000
+ PROCESS:=UQ;ARG:=AMTSPACE END;       % GCL                             00521000
+BEGIN LV(20);R20:ARG:=CREATE(GET1,GET,GET,GET)END;        %CREATE       00522000
+BEGIN LV(21);R21: DELETE(GET1);ARG:=ATOMUNDEF END;%DELETE               00522010
+BEGIN LV(22);R22: ARG:=GET1;SUSPEND(ARG)END;      %SUSPEND              00523000
+BEGIN LV(23);R23:RESUME((ARG:=GET1))END;                  %RESUME       00524000
+BEGIN LV(24);R24:RETURN(GET1,(ARG:=GET))END; %RETURN=CODE115            00525000
+BEGIN LV(25);R25:ARG:=GET1 END; %IDENTITY=CODE116                       00526000
+  BEGIN SUSPEND(PROCESS);SMEM("RERUN1") ; GO TO LEND END;%HALT = CODE 1100527000
+PRIMERROR("C118",PROCESS);%RESERVED FOR CODE118                         00528000
+PRIMERROR("C119",PROCESS);%RESERVED FOR CODE119                         00529000
+BEGIN LV(33);R33:ASGN(TOKEN(1009),REF(AT4,PROCESS),                     00530000
+  (ARG:=GET))END; % TRACE=CODE120                                       00531000
+BEGIN LV(26);R26:EQLIST(GET1,(ARG:=GET))END; %EQLIST                    00532000
+ARG:=CAR(ARGLIST); %QUOTE=CODE122                                       00533000
+ IF ATOM(CAR(ARGLIST)) THEN  % ASGNENV=CODE 123                         00534000
+  BEGIN STACK(CAR(ARGLIST)); ARGLIST:=CDR(ARGLIST);                     00535000
+   LV(43);R43:ASGN(UNSTACK,REF(AT4,PROCESS),(ARG:=GET1)) END ELSE       00536000
+BEGIN LV(28);R28:ASGN(GET1,REF(AT4,PROCESS),(ARG:=GET))END;%ASGNENV=CODE00537000
+ IF ATOM(CAR(ARGLIST)) THEN  %REFENV=CODE 124                           00538000
+  BEGIN STACK(CAR(ARGLIST)); ARGLIST:=CDR(ARGLIST);                     00539000
+   LV(44);R44:ARG:=REF(UNSTACK,REF(AT4,PROCESS)) END ELSE               00540000
+BEGIN LV(29);R29:ARG:=REF(GET1,REF(AT4,PROCESS))END; %REFENV=CODE124    00541000
+BEGIN LV(30);R30:ARG:=GET1;GO TO ARGVAL END; %EXE=CODE125               00542000
+DEBUG; %DEBUG=CODE126                                                   00543000
+  BEGIN LV(49);R49:ARG:=LOADMODE(GET1,GET) END; %LDMODE=127             00544000
+ARG:=PMAKE(TYPECONS,0); %CONSTRUCT=CODE128                              00545000
+BEGIN LV(31);R31:ARG:=PMAKE(TYPEAREA,GET1)END;                          00546000
+  %AREA = CODE129                                                       00547000
+  BEGIN LV(48);R48:ARG:=TOKEN(GET1.ADDR) END;%TOKEN=CODE 130            00548000
+BEGIN LV(32);R32:ASGN(TOKEN(1008),REF(AT4,PROCESS),                     00549000
+  (ARG:=GET1))END; % SINGLESTEP=CODE131                                 00550000
+BEGIN ASGN(AT1,PROCESS,REF(AT1,PROCESS)+1);                             00551000
+  ARG:=ATOMUNDEF END; %UP=CODE132                                       00552000
+BEGIN ASGN(AT1,PROCESS,REF(AT1,PROCESS)-1);                             00553000
+  ARG:=ATOMUNDEF END; %DP=CODE133                                       00554000
+;%BEGIN LV(34);R34:UREAD((ARG:=GET1))END; %READ=CODE134                 00555000
+;% RESERVED FOR CODE 135                                                00556000
+ GO TO LISTVAL;  % LIST=CODE 136                                        00557000
+ BEGIN STACK(CDR(ARGLIST)); ARG:=CAR(ARGLIST); %COND=CODE 137           00558000
+  STACK(TOKEN(36));GO TO ARGVAL;R36:ARGLIST:=UNSTACK;                   00559000
+  IF ARG.TYPE=TYPELOGIC THEN                                            00560000
+  BEGIN ARG:=(IF BOOLEAN(ARG) THEN CAR(ARGLIST) ELSE REF(AT2,ARGLIST)); 00561000
+   GO TO ARGVAL END ELSE ARG:=ATOMUNDEF END;                            00562000
+  BEGIN LV(37);R37:ARG:=(IF EQ(GET1,GET) THEN AT(524287)                00563000
+     ELSE AT0) END; % EQ=CODE 138                                       00564000
+ BEGIN LV(38);R38:ARG:=GET1;  % ATOM=CODE 139                           00565000
+ ARG:=(IF ATOM(ARG) THEN AT(524287) ELSE AT0) END;                      00566000
+ BEGIN PROCESS:=CREATE(ARGLIST,REF(AT4,PROCESS),REF(AT5,                00567000
+        PROCESS),PROCESS);                                              00568000
+  GO TO R29 END  ; % BLOCKOP=CODE 140                                   00569000
+ BEGIN LV(40);R40:ARG:=(IF EQ(GET1,GET) THEN AT0                        00570000
+     ELSE AT(524287)) END;  % NEG=CODE 141                              00571000
+BEGIN STACK(CAR(CDR(ARGLIST))); ARG:=CAR(ARGLIST);%IF=CODE 142          00572000
+ STACK(TOKEN(45));GO TO ARGVAL;R45:ARGLIST:=UNSTACK;                    00573000
+ IF BOOLEAN(ARG) THEN ASGN(AT3,PROCESS,ARGLIST) END;                    00574000
+BEGIN ENV:=REF(AT4,PROCESS);%NONTERM=CODE143                            00575000
+  ASGN(STR,ENV,AT0);                                                    00576000
+ BNFL3:IF (ARG:=REF(N,ENV)).ADDR GTR 0 THEN                             00577000
+  BEGIN ASGN(N,ENV,ARG-1);ASGN(STR,ENV,REF(STR,ENV)+1);                 00577050
+  ASGN(AT6,ARG:=REF(ARG,REF(TREE,ENV)),PROCESS);                        00578000
+  STACK(CODE(46));RESUME(ARG);                                          00579000
+ GO TO INT1;R46:                                                        00579050
+ ENV:=REF(AT4,PROCESS);                                                 00580000
+  ASGN(REF(STR,ENV),ENV,ARG);GO TO BNFL3 END;                           00581000
+  ARG:=REF(AT1,ENV);                                                    00582000
+ ASGN(TREE,ENV,ATOMUNDEF);                                              00583000
+ ASGN(STR,ENV,ATOMUNDEF);                                               00583050
+ ASGN(N,ENV,ATOMUNDEF) END NONTERM;                                     00584000
+  BEGIN LV(47);R47:ARG:=USERL(GET1) END;%USERL=CODE 144                 00585000
+  ARG:=LABTAB;  %LTAB=CODE 145                                          00586000
+ BEGIN LV(50);R50:ARG:=COPY(GET1) END; %COPY=CODE 146                   00586010
+ BEGIN LV(51);R51:ARG:=AR(0,GET1,GET) END; %ADD=CODE 147                00586020
+ BEGIN LV(52);R52:ARG:=AR(1,GET1,GET) END; %SUB=CODE 148                00586030
+ BEGIN LV(53);R53:ARG:=AR(2,GET1,GET) END; %MUL=CODE 149                00586035
+ BEGIN LV(54);R54:ARG:=AR(3,GET1,GET) END; %DIV=CODE 150                00586040
+ BEGIN LV(55);R55:ARG:=AR(4,GET1,GET) END; %EX=CODE 151                 00586045
+ BEGIN LV(56);R56:ARG:=AR(2,GET1,AD(-1)) END; %NEG=CODE 152             00586050
+ BEGIN LV(57);R57:ARG:=IF LOOK1(GET1,GET) THEN AT(524287)               00586055
+ ELSE AT0 END                           % LOOK1=CODE 153                00586060
+END CASE STATEMENT;                                                     00586070
+EXIT;                                                                   00586080
+L1:ASGN(AT7,PROCESS,SAV);DOTRACE(PROCESS);                              00587000
+R10:R35:R34: % THESE ARE TO BE LATER MOVED                              00588000
+LEND:XX1:=PROCESS; END INTERP;                                          00589000
+PROCEDURE GARBAGECOLLECT(QMEM,N);                                       00590000
+VALUE N;ARRAY QMEM[0];REAL N;                                           00591000
+BEGIN REAL RP,WP,X,XADDR,BASE,TYP,I;                                    00592000
+LABEL L1,L2,L3,L4,L5,L6;                                                00593000
+ARRAY TMEM[0:MEMORYROWS,0:511];                                         00594000
+DEFINE   CP(CP1,CP2)=%CONSTRUCT PROCESSING                              00595000
+BEGIN IF (X:=M[XADDR]).TYPE NEQ TYPEGARBAGE THEN                        00596000
+BEGIN TMASGN((WP:=WP+1),X);                                             00597000
+MASGN(XADDR,MAKE(TYPEGARBAGE,WP));                                      00598000
+CP1(RP,MAKE(XADDR.TYPE,WP),CP2)END ELSE                                 00599000
+CP1(RP,MAKE(XADDR.TYPE,X),CP2)END#;                                     00600000
+DEFINE LP(LP1,LP2)=                                                     00601000
+BEGIN IF (X:=CAR(XADDR)).TYPE = TYPEGARBAGE THEN                        00602000
+LP1(RP,MAKE(TYPELIST,X),LP2)ELSE                                        00603000
+IF CARADDR=NULLIST THEN LP1(RP,NULLIST,LP2)ELSE                         00604000
+BEGIN LP1(RP,MAKE(TYPELIST,(WP:=WP+1)),LP2)#,                           00605000
+LLP(LLP1)=TMASGN(WP,X);                                                 00606000
+MASGN(CARADDR,MAKE(TYPEGARBAGE,WP));                                    00607000
+XADDR:=CDR(XADDR);                                                      00608000
+IF (X:=CAR(XADDR)).TYPE NEQ TYPEGARBAGE THEN                            00609000
+IF CARADDR NEQ NULLIST THEN                                             00610000
+BEGIN WP:=WP+1;GO TO LLP1 END ELSE                                      00611000
+TMASGN((WP:=WP+1),LINKTONIL)ELSE                                        00612000
+TMASGN((WP:=WP+1),MAKE(TYPELINK,X))END END #;                           00613000
+DEFINE TM[TM1]=(IF BOOLEAN(TM1) THEN                                    00614000
+TMEM[(TM1).[18:9],(TM1).[9:9]].[22:23]ELSE                              00615000
+TMEM[(TM1).[18:9],(TM1).[9:9]].[45:23])#,                               00616000
+Q[Q1]=(IF BOOLEAN(Q1) THEN QMEM[Q1.[10:10]].[22:23] ELSE                00617000
+       QMEM[Q1.[10:10]].[45:23])#,                                      00618000
+TMASGN(TMASGN1,TMASGN2)=TA(TMASGN1,TMASGN2,TMEM)#,                      00619000
+QASGN(QASGN1,QASGN2)=QA(QASGN1,QASGN2,QMEM)#;                           00620000
+PROCEDURE TA(A,V,M);VALUE A,V;REAL A,V;ARRAY M[0,0];                    00621000
+IF BOOLEAN(A) THEN M[A.[18:9],A.[9:9]].[22:23]:=V ELSE                  00622000
+M[A.[18:9],A.[9:9]].[45:23]:=V;                                         00623000
+PROCEDURE QA(A,V,M);VALUE A,V;REAL A,V;ARRAY M[0];                      00624000
+IF BOOLEAN(A) THEN M[A.[10:10]].[22:23]:=V ELSE                         00625000
+M[A.[10:10]].[45:23]:=V;                                                00626000
+FORMAT F1("GCL:",I6," WORDS RECOVERED.",I6," WORDS IN USE.");           00627000
+WP:=0;                                                                  00628000
+% COPY FROM M TO TM UPSIDE DOWN USING Q                                 00629000
+FOR RP:=N+N+1 STEP -1 UNTIL 0 DO                                        00630000
+CASE (XADDR:=Q[RP]).TYPE OF                                             00631000
+BEGIN PRIMERROR("GCL1",XADDR);%GARBAGE                                  00632000
+L1:CP(QA,QMEM); %CONSTRUCT                                              00633000
+LP(QA,QMEM);L2:LLP(L2);%LIST                                            00634000
+L5:IF (X:=M[XADDR]).TYPE=TYPEGARBAGE THEN %AREA                         00635000
+QASGN(RP,MAKE(XADDR.TYPE,X))ELSE                                        00636000
+BEGIN WP:=WP+1;                                                         00637000
+FOR I:=X.ADDR STEP -1 UNTIL 0 DO                                        00638000
+TMASGN(WP+I,M[XADDR-I]);                                                00639000
+QASGN(RP,MAKE(XADDR.TYPE,WP));                                          00640000
+MASGN(XADDR,MAKE(TYPEGARBAGE,WP));                                      00641000
+WP:=WP+X.ADDR END;                                                      00642000
+PRIMERROR("GCL2",XADDR); %FIELD                                         00643000
+IF XADDR NEQ ATOMUNDEF THEN GO TO L1; %SYMBOL                           00644000
+; %LOGIC                                                                00645000
+PRIMERROR("GCL3",XADDR); %LINK                                          00646000
+GO TO L5; %PROCESS                                                      00647000
+GO TO L5; %MONITOR                                                      00648000
+GO TO L5; %GENERAL                                                      00649000
+; %TOKEN                                                                00650000
+PRIMERROR("GCL4",XADDR); %TP12                                          00651000
+PRIMERROR("GCL5",XADDR); %TP13                                          00652000
+PRIMERROR("GCL6",XADDR); %TP14                                          00653000
+PRIMERROR("GCL7",XADDR); %TP15                                          00654000
+END CASE STATEMENT;                                                     00655000
+%COPY FROM M TO TM UPSIDE DOWN USING TM                                 00656000
+FOR RP:=1 STEP 1 UNTIL WP DO                                            00657000
+CASE (XADDR:=TM[RP]).TYPE OF BEGIN                                      00658000
+PRIMERROR("GCL8",XADDR); %GARBAGE                                       00659000
+L3:CP(TA,TMEM); %CONSTRUCT                                              00660000
+LP(TA,TMEM);L4:LLP(L4);%LIST                                            00661000
+L6:IF (X:=M[XADDR]).TYPE=TYPEGARBAGE THEN %AREA                         00662000
+TMASGN(RP,MAKE(XADDR.TYPE,X))ELSE                                       00663000
+BEGIN WP:=WP+1;                                                         00664000
+FOR I:=X.ADDR STEP -1 UNTIL 0 DO                                        00665000
+TMASGN(WP+I,M[XADDR-I]);                                                00666000
+TMASGN(RP,MAKE(XADDR.TYPE,WP));                                         00667000
+MASGN(XADDR,MAKE(TYPEGARBAGE,WP));                                      00668000
+WP:=WP+X.ADDR END;                                                      00669000
+PRIMERROR("GCL9",XADDR); %FIELD                                         00670000
+IF XADDR NEQ ATOMUNDEF THEN GO TO L3; %SYMBOL                           00671000
+; %LOGIC                                                                00672000
+; %LINK                                                                 00673000
+GO TO L6; %PROCESS                                                      00674000
+GO TO L6; %MONITOR                                                      00675000
+GO TO L6; %GENERAL                                                      00676000
+; %TOKEN                                                                00677000
+END CASE STATEMENT;                                                     00678000
+% COPY FROM TM TO M AND INVERT                                          00679000
+BASE:=WP+1;                                                             00680000
+LASTUSEDSPACE:=0;                                                       00681000
+FOR RP:=WP STEP -1 UNTIL 1 DO                                           00682000
+BEGIN X:=TM[RP];                                                        00683000
+IF (TYP:=X.TYPE) NEQ TYPELOGIC THEN                                     00684000
+IF TYP NEQ TYPECODE THEN                                                00685000
+IF X.ADDR NEQ 524287 THEN                                               00686000
+X:=MAKE(TYP,BASE-X.ADDR);                                               00687000
+MASGN(STEPSPACE,X) END;                                                 00688000
+% FIX ADDRESSES IN Q                                                    00689000
+FOR RP:=N+N+1 STEP -1 UNTIL 0 DO                                        00690000
+IF (TYP:=Q[RP].TYPE) NEQ TYPELOGIC THEN                                 00691000
+IF TYP NEQ TYPECODE THEN                                                00692000
+IF Q[RP].ADDR NEQ 524287 THEN                                           00693000
+QASGN(RP,MAKE(TYP,BASE-Q[RP].ADDR));                                    00694000
+WRITE(DATA,F1,AMTSPACE,LASTUSEDSPACE);                                  00695000
+END GARBAGE COLLECT;                                                    00696000
+REAL PROCEDURE COPY(X);VALUE X;REAL X;                                  00697000
+BEGIN LABEL L1,L2;REAL I;                                               00698000
+CASE X.TYPE OF BEGIN                                                    00699000
+L1:PRIMERROR("COPY",X); %GARBAGE                                        00700000
+MASGN((COPY:=PMAKE(X.TYPE,0)),COPY(M[X]));%CONSTRUCT                    00701000
+COPY:=(IF X=NULLIST THEN NULLIST ELSE CONS(CAR(X),COPY(CDR              00702000
+   (X)))); %LIST                                                        00703000
+L2:BEGIN FOR I:=M[X].ADDR STEP -1 UNTIL 0 DO %AREA                      00704000
+MASGN(STEPSPACE, M[X-I]);                                               00705000
+COPY:=MAKE(X.TYPE,LASTUSEDSPACE)END;                                    00706000
+GO TO L1; %FIELD                                                        00707000
+COPY:=X; %SYMBOL                                                        00708000
+COPY:=X; %LOGIC                                                         00709000
+GO TO L1; %LINK                                                         00710000
+GO TO L2; %PROCESS                                                      00711000
+GO TO L2; %MONITOR                                                      00712000
+GO TO L2; %GENERAL                                                      00713000
+COPY:=X; %TOKEN                                                         00714000
+END CASE STATEMENT;                                                     00715000
+END COPY;                                                               00716000
+BOOLEAN PROCEDURE EQ(X,Y);VALUE X,Y; REAL X,Y;                          00717000
+ IF X=Y THEN EQ:=TRUE ELSE                                              00718000
+ IF X.TYPE NEQ Y.TYPE THEN EQ:= FALSE ELSE                              00719000
+ IF X.TYPE NEQ TYPELIST THEN EQ := FALSE ELSE                           00720000
+BEGIN X:=CAR(X); X:=CARADDR;                                            00721000
+      Y:=CAR(Y);EQ:=X=CARADDR                                           00722000
+ END OF EQ;                                                             00723000
+REAL PROCEDURE CAR(Y);VALUE Y;REAL Y;                                   00724000
+BEGIN LABEL L1,L2;                                                      00725000
+IF Y.TYPE NEQ TYPELIST THEN                                             00726000
+ IF Y.TYPE NEQ TYPELINK THEN PRIMERROR("CAR ",Y);                       00727000
+IF Y=NULLIST THEN GO TO L2;                                             00728000
+L1:CARADDR:=Y;                                                          00729000
+IF (Y:=M[Y]).TYPE=TYPELINK THEN                                         00730000
+IF Y NEQ LINKTONIL THEN GO TO L1 ELSE                                   00731000
+L2:BEGIN CAR:=ATOMUNDEF;                                                00732000
+CARADDR:=NULLIST END ELSE                                               00733000
+CAR:=Y END CAR;                                                         00734000
+REAL PROCEDURE CDR(Y);VALUE Y;REAL Y;                                   00735000
+BEGIN Y:=CAR(Y);                                                        00736000
+IF CARADDR NEQ NULLIST THEN Y:=CAR(MAKE(TYPELIST,DEC(CARADDR)));        00737000
+CDR:=MAKE(TYPELIST,CARADDR);                                            00738000
+END CDR;                                                                00739000
+PROCEDURE EQLIST(X,Y);VALUE X,Y;REAL X,Y;                               00740000
+BEGIN REAL T1,T2;LABEL LEND;                                            00741000
+T1:=CAR(Y);T1:=CARADDR;T2:=CAR(X);                                      00742000
+IF T1=CARADDR THEN GO TO LEND;                                          00743000
+IF CARADDR=NULLIST THEN PRIMERROR("EQL2",X);                            00744000
+MASGN(X,MAKE(TYPELINK,T1));                                             00745000
+LEND:END EQLIST;                                                        00746000
+REAL PROCEDURE CONS(X,Y);VALUE X,Y;REAL X,Y;                            00747000
+BEGIN IF Y.TYPE NEQ TYPELIST THEN PRIMERROR("CONS",Y);                  00748000
+IF Y.ADDR NEQ LASTUSEDSPACE THEN MASGN(STEPSPACE,MAKE(TYPELINK,Y));     00749000
+MASGN(STEPSPACE,X);                                                     00750000
+CONS:=MAKE(TYPELIST,LASTUSEDSPACE)END CONS;                             00751000
+REAL PROCEDURE REF(X,Y);VALUE X,Y;REAL X,Y;                             00752000
+BEGIN LABEL L1,L2,L3,L4;REAL T1,T2;                                     00753000
+CASE Y.TYPE OF                                                          00754000
+BEGIN PRIMERROR("REF1",Y);%GARBAGE                                      00755000
+L1:BEGIN T1:=M[Y];%CONSTRUCT                                            00756000
+L2:IF CAR(T1) NEQ ATOMUNDEF THEN                                        00757000
+IF CAR(T1) NEQ X THEN                                                   00758000
+BEGIN T1:=CDR(T1)-1;GO TO L2 END ELSE                                   00759000
+REF:=CAR(CDR(T1))ELSE                                                   00760000
+REF:=ATOMUNDEF END;                                                     00761000
+IF X=ATOMCAR THEN REF:=CAR(Y) ELSE%LIST                                 00762000
+IF X=ATOMCDR THEN REF:=CDR(Y) ELSE                                      00763000
+IF X.TYPE NEQ TYPELOGIC THEN REF:=ATOMUNDEF ELSE                        00764000
+BEGIN FOR X:=X.ADDR STEP -1 UNTIL 2 DO Y:=CDR(Y);                       00765000
+REF:=CAR(Y) END;                                                        00766000
+L3:BEGIN IF X.TYPE=TYPELOGIC THEN %AREA                                 00767000
+IF X.ADDR LEQ M[Y].ADDR THEN                                            00768000
+BEGIN REF:=M[Y-X.ADDR];GO TO L4 END;                                    00769000
+REF:=ATOMUNDEF;                                                         00770000
+L4:END;                                                                 00771000
+PRIMERROR("REF4",Y);%FIELD                                              00772000
+IF X=ATOMASSO THEN %SYMBOL                                              00773000
+REF:=(IF Y=ATOMUNDEF THEN Y ELSE M[Y])ELSE                              00774000
+PRIMERROR("REF5",Y);                                                    00775000
+PRIMERROR("REF6",Y);%LOGIC                                              00776000
+PRIMERROR("REF7",Y);%LINK                                               00777000
+GO TO L3; %PROCESS                                                      00778000
+GO TO L3;%MONITOR                                                       00779000
+PRIMERROR("REF8",Y);%GENERAL                                            00780000
+PRIMERROR("REF9",Y);%CODE                                               00781000
+END CASE STATEMENT;                                                     00782000
+END REF;                                                                00783000
+PROCEDURE ASGN(X,Y,Z);VALUE X,Y,Z;REAL X,Y,Z;                           00784000
+BEGIN LABEL L1,L2,L3;REAL T1,T2;                                        00785000
+CASE Y.TYPE OF                                                          00786000
+BEGIN PRIMERROR("ASG1",Y);%GARBAGE                                      00787000
+L1:BEGIN T1:=M[Y];%CONSTRUCT                                            00788000
+IF X=ATOMUNDEF THEN PRIMERROR("ASGD",Y);                                00789000
+L2:IF CAR(T1) NEQ ATOMUNDEF THEN                                        00790000
+IF CAR(T1) NEQ X THEN                                                   00791000
+BEGIN T1:=DEC(CDR(T1));GO TO L2 END ELSE                                00792000
+IF Z NEQ ATOMUNDEF THEN                                                 00793000
+MASGN(CDR(T1),Z) ELSE                                                   00794000
+IF T1=M[Y] THEN MASGN(Y,CDR(CDR(T1)))ELSE                               00795000
+MASGN(T1,MAKE(TYPELINK,CDR(CDR(T1))))ELSE                               00796000
+IF Z NEQ ATOMUNDEF THEN MASGN(Y,CONS(X,CONS(Z,M[Y])))END;               00797000
+BEGIN T1:=CAR(Y);%LIST                                                  00798000
+IF CARADDR=NULLIST THEN PRIMERROR("ASG0",Y);                            00799000
+IF X=ATOMCAR THEN MASGN(CARADDR,Z)ELSE                                  00800000
+IF X=ATOMCDR THEN                                                       00801000
+IF Z.TYPE NEQ TYPELIST THEN PRIMERROR("ASGC",Z)ELSE                     00802000
+MASGN(CARADDR,MAKE(TYPELINK,CONS(M[CARADDR],Z)))ELSE                    00803000
+IF X.TYPE NEQ TYPELOGIC THEN PRIMERROR("ASG2",X ) ELSE                  00804000
+BEGIN T1:=CARADDR;                                                      00805000
+FOR X:=X.ADDR STEP -1 UNTIL 2 DO                                        00806000
+ BEGIN IF (Y:=CDR(Y))=NULLIST THEN MASGN(T1-1,(Y:=MAKE(TYPELINK,        00807000
+CONS(ATOMUNDEF,NULLIST))));                                             00808000
+T1:=Y END;                                                              00809000
+MASGN(Y,Z) END END;                                                     00810000
+L3:BEGIN IF X.TYPE NEQ TYPELOGIC THEN PRIMERROR("ASG3",X);%AREA         00811000
+IF (X:=X.ADDR) GTR M[Y].ADDR THEN PRIMERROR("ASGA",Y);                  00812000
+IF X=0 THEN                                                             00813000
+IF X.TYPE NEQ TYPELOGIC OR X GTR M[Y] THEN PRIMERROR("ASGB",Z);         00814000
+MASGN(Y-X,Z)END;                                                        00815000
+PRIMERROR("ASG4",Y);%FIELD                                              00816000
+IF X=ATOMASSO AND Y NEQ ATOMUNDEF THEN MASGN(Y,Z)ELSE%SYMBOL            00817000
+PRIMERROR("ASG5",Y);                                                    00818000
+PRIMERROR("ASG6",Y);%LOGIC                                              00819000
+PRIMERROR("ASG7",Y);%LINK                                               00820000
+ GO TO L3; %PROCESS                                                     00821000
+GO TO L3;%MONITOR                                                       00822000
+PRIMERROR("ASG8",Y);%GENERAL                                            00823000
+PRIMERROR("ASG9",Y);%CODE                                               00824000
+END CASE STATEMENT;                                                     00825000
+END ASGN;                                                               00826000
+REAL PROCEDURE PMAKE(T,N);VALUE T,N;REAL T,N;                           00827000
+BEGIN LABEL L1,L2,L3; REAL I;                                           00828000
+CASE T OF BEGIN                                                         00829000
+L1:PRIMERROR("MK1 ",T); %GARBAGE                                        00830000
+L2:BEGIN MASGN(STEPSPACE,NULLIST); %CONSTRUCT                           00831000
+PMAKE:=MAKE(T,LASTUSEDSPACE)END;                                        00832000
+PMAKE:= NULLIST; %LIST                                                  00833000
+L3:IF N.TYPE NEQ TYPELOGIC THEN PRIMERROR("MK2 ",N)ELSE%AREA            00834000
+BEGIN FOR I:=N.ADDR STEP -1 UNTIL 1 DO                                  00835000
+MASGN(STEPSPACE,ATOMUNDEF);                                             00836000
+MASGN(STEPSPACE,N);                                                     00837000
+PMAKE:=MAKE(T,LASTUSEDSPACE)END;                                        00838000
+GO TO L1; %FIELD                                                        00839000
+PMAKE:=NEWSYMB(N); %SYMBOL                                              00840000
+PMAKE:=AT0; %LOGIC                                                      00841000
+GO TO L1; %LINK                                                         00842000
+GO TO L3; %PROCESS                                                      00843000
+GO TO L3; %MONITOR                                                      00844000
+GO TO L3;%GENERAL                                                       00845000
+PMAKE:=NEXTTOKEN:=NEXTTOKEN+1; %TOKEN                                   00846000
+END CASE STATEMENT;                                                     00847000
+END PMAKE;                                                              00848000
+REAL PROCEDURE NEWSYMB(ASSO);VALUE ASSO;REAL ASSO;                      00849000
+BEGIN MASGN(STEPSPACE,ASSO);                                            00850000
+NEWSYMB:=MAKE(TYPESYMB,LASTUSEDSPACE)END NEWSYMB;                       00851000
+ REAL PROCEDURE CHAR(P,N);                                              00852000
+ POINTER P; INTEGER N;                                                  00853000
+ BEGIN REAL ARRAY X[0:0];                                               00854000
+ X[0]:=0;                                                               00855000
+ IF N LSS 8 AND N GTR 0 THEN                                            00856000
+ REPLACE POINTER(X)+(8-N) BY P FOR N;                                   00857000
+ CHAR:=X[0] END; % END OF CHAR                                          00858000
+ REAL PROCEDURE HANGON (X,Y);                                           00859000
+ VALUE X,Y; REAL X,Y;                                                   00860000
+ BEGIN LABEL L1,L2;                                                     00861000
+ POINTER P;REAL ARRAY XD[0:0],X1[0:0];REAL Z                            00862000
+ ;                                                                      00863000
+P:=POINTER(STACK[STACKPOSITION.[18:7],*])+STACKPOSITION.[11:12];        00864000
+ X1[0]:=1;Z:=NULLIST;                                                   00865000
+ WHILE Y NEQ NULLIST DO                                                 00866000
+ BEGIN Z:=CONS(CAR(Y),Z);Y:=CDR(Y)END;                                  00867000
+WHILE Z NEQ NULLIST DO                                                  00868000
+ BEGIN                                                                  00869000
+ XD[0]:=CAR(Z);                                                         00870000
+ REPLACE P:=P+1 BY POINTER(XD)+7 FOR 1;                                 00871000
+ X1[0]:=X1[0]+1;                                                        00872000
+ Z:=CDR(Z) END;                                                         00873000
+ REPLACE POINTER(STACK[STACKPOSITION.[18:7],*])+                        00874000
+ STACKPOSITION.[11:12] BY POINTER(X1)+7 FOR 1;                          00875000
+ IF X1[0] EQL 2 THEN BEGIN                                              00876000
+ X1[0]:=LOADMODE(XD[0],X1[0]).ADDR;                                     00877000
+ IF X1[0] EQL 2 OR X1[0] EQL 66 THEN BEGIN                              00878000
+ HANGON:=TOKEN(XD[0].ADDR+512);X1[0]:=LOADMODE(XD[0],X1[0]);            00879000
+ GO TO L2 END;                                                          00880000
+ X1[0]:=LOADMODE(XD[0],X1[0]) END;                                      00881000
+ HANGON:=LEXFIND;                                                       00882000
+ L2:END OF HANGON;                                                      00883000
+ REAL PROCEDURE IL(M,C,CM,F);                                           00884000
+INTEGER M; REAL C,CM,F;                                                 00885000
+ BEGIN % PROCEDURE BLOCK;                                               00886000
+ DEFINE N=72#, NCPW=8#;                                                 00887000
+ DEFINE FILIN=DATA#,                                                    00888000
+ LAST="$"#;                                                             00889000
+ DEFINE TOTCHAR = 64#;                                                  00890000
+ DEFINE X=LEXTREE#;                                                     00891000
+ BEGIN % OWN BLOCK;                                                     00892000
+ OWN ALPHA ARRAY D[0:N DIV NCPW];                                       00893000
+ OWN REAL ARRAY MODE [0:TOTCHAR];                                       00894000
+ OWN INTEGER COUNT;                                                     00895000
+OWN POINTER P;                                                          00896000
+OWN REAL ARRAY SS[0:63];                                                00897000
+  CASE M OF BEGIN                                                       00898000
+ BEGIN INTEGER I; % M IS 0;                                             00898050
+ I:=0;                                                                  00899000
+ WHILE I LEQ 9 DO                                                       00900000
+ BEGIN MODE[I]:=1;I:=I+1 END;                                           00901000
+ WHILE I LEQ 63 DO                                                      00902000
+ BEGIN MODE[I]:=0; I:=I+1 END;                                          00903000
+ MODE[" "] := 3;                                                        00904000
+ MODE[I]:=68;                                                           00905000
+FILL SS[*] WITH ".","[","(","&","$","*",")",";",                        00906000
+""","/",",","%","=","]",""","#","@",":","+","?","|" ;                   00907000
+FOR I:=0 STEP 1 UNTIL 20 DO MODE[SS[I]]:=2 ;                            00907050
+ COUNT:=0 END ; % E0 M0                                                 00907060
+ BEGIN % M IS 1;                                                        00907080
+ LABEL L1,L2,L3,L4,L5,L6;                                               00908000
+ INTEGER I,J,IE;REAL IL1;                                               00909000
+ BOOLEAN EOL,IE1;                                                       00910000
+ REAL E;                                                                00911000
+ REAL Y;                                                                00912000
+ I:=0;                                                                  00913000
+ L4: IF COUNT EQL 0 THEN                                                00914000
+ BEGIN                                                                  00915000
+UREAD(F,D[*]);                                                          00916000
+ P:=POINTER(D);                                                         00917000
+ GO TO L6;                                                              00918000
+ END                                                                    00919000
+ ELSE IF COUNT EQL N                                                    00920000
+ THEN BEGIN                                                             00921000
+ E:=MAKE(TYPELOGIC,LAST);                                               00922000
+ J:=MODE[TOTCHAR].[5:6];                                                00923000
+ EOL:=TRUE END                                                          00924000
+ ELSE L6:BEGIN                                                          00925000
+ E:=MAKE(TYPELOGIC,CHAR(P,1));                                          00926000
+ J:=MODE[CHAR(P,1)];P:=P+1;                                             00927000
+ EOL:=BOOLEAN(J.[6:1]);                                                 00928000
+ J:=J.[5:6] END;                                                        00929000
+ L5:  CASE J OF BEGIN                                                   00930000
+ BEGIN % -J IS 0;                                                       00931000
+   CASE I OF BEGIN                                                      00932000
+ BEGIN % I IS 0;                                                        00933000
+ Y:=CONS(E,NULLIST);                                                    00934000
+ I:=1;                                                                  00935000
+ GO TO L1 END; % E0 I0                                                  00936000
+ BEGIN % I IS 1;                                                        00937000
+ Y:=CONS(E,Y);                                                          00938000
+ GO TO L1 END; % E0 I1;                                                 00939000
+ BEGIN %I IS 2                                                          00940000
+ J:=2;GO TO L5 END % E0 I2                                              00941000
+ END % CASE OF I;                                                       00942000
+ END; % E0 -J0                                                          00943000
+ BEGIN % -J IS 1;                                                       00944000
+   CASE I OF BEGIN                                                      00945000
+ BEGIN % I IS 0;                                                        00946000
+ IL1:=E.ADDR; I:=2;IE1:=FALSE;                                          00947000
+ GO TO L1 END; % E0 I0;                                                 00948000
+ BEGIN % I IS 1;                                                        00949000
+ Y:=CONS(E,Y);                                                          00950000
+ GO TO L1 END; % EQ I1;                                                 00951000
+ BEGIN % I IS 2;                                                        00952000
+IF IE1 THEN                                                             00953000
+IL1:=IL1+E.ADDR/10|(IE:=IE+1) ELSE                                      00954000
+ IL1:=IL1|10+E.ADDR;                                                    00954010
+ GO TO L1 END % E0 I2;                                                  00954020
+ END % CASES OF I;                                                      00955000
+ END; % E0 -J1;                                                         00956000
+ BEGIN % -J IS 2 SPECIAL;                                               00957000
+    CASE I OF BEGIN                                                     00958000
+ BEGIN % I IS 0;                                                        00959000
+ IL:=HANGON(X,CONS(E,NULLIST));                                         00960000
+ GO TO L3 END; % E0 I0;                                                 00961000
+ BEGIN % I IS 1;                                                        00962000
+ IL:=HANGON(X,Y);                                                       00963000
+ P:=P-1;                                                                00964000
+ GO TO L2 END; % E0 I1;                                                 00965000
+ BEGIN % I IS 2;                                                        00966000
+IF E.ADDR EQL "." THEN                                                  00967000
+BEGIN IE:=0;IE1:=TRUE;GO TO L1 END;                                     00968000
+IL:=AD(IL1);IE1:=FALSE;                                                 00968010
+ P:=P-1; GO TO L2 END % E0 I2;                                          00968020
+ END % CASES OF I;                                                      00969000
+ END;% E0 -J2;                                                          00970000
+ BEGIN % -J IS 3 SPACE;                                                 00971000
+    CASE I OF BEGIN                                                     00972000
+ BEGIN % I IS 0;                                                        00973000
+ GO TO L1 END; % E0 I0;                                                 00974000
+ BEGIN % I IS 1;                                                        00975000
+ IL:=HANGON(X,Y);                                                       00976000
+ GO TO L3 END; % E0 I1;                                                 00977000
+ BEGIN % I IS 2;                                                        00978000
+IL:=AD(IL1);IE1:=FALSE;                                                 00979000
+ GO TO L3 END % E0 I2;                                                  00980000
+ END % CASES OF I;                                                      00981000
+ END; % E0 -J3;                                                         00982000
+                                                                        00983000
+ BEGIN % -J IS 4 IGNORE;                                                00984000
+ GO TO L1 END   % E0-J4;                                                00985000
+ END;% CASES OF -J;                                                     00986000
+ L1: IF EOL THEN COUNT:=0                                               00987000
+ ELSE COUNT:=COUNT+1;                                                   00988000
+ GO TO L4;                                                              00989000
+ L3: IF EOL THEN COUNT:=0                                               00990000
+ ELSE COUNT:=COUNT+1;                                                   00991000
+ L2: END; % E0 M1                                                       00992000
+ BEGIN %  M IS 2;                                                       00993000
+ IL:=MAKE(TYPELOGIC,MODE[C.ADDR]);                                      00994000
+MODE[ C.ADDR]:=CM.ADDR;                                                 00995000
+END % E0 M2;                                                            00996000
+ END % CASES OF M;                                                      00997000
+ END % OWN BLOCK;                                                       00998000
+ END;% PROCEDURE BLOCK   *** END OF INLEX ***                           00999000
+REAL PROCEDURE LEXFIND;                                                 01000000
+BEGIN INTEGER T1,T,T2,T3;                                               01001000
+DEFINE X=STACKPOSITION#,                                                01002000
+P(P1)=POINTER(STACK[(P1.[18:7]),*])+P1.[11:12]#;                        01003000
+LABEL LEND;                                                             01004000
+CHR:=0;                                                                 01005000
+REPLACE CP BY P(X) FOR 1;                                               01006000
+T1:=CHR;                                                                01007000
+REPLACE CP-5 BY P(X) FOR (IF T1 LSS 6 THEN T1 ELSE 6);                  01008000
+T:=T3:=REF((T2:=AT(CHR MOD 127 )+1), HASH);                             01009000
+WHILE T NEQ NULLIST DO                                                  01010000
+IF P(X) NEQ P((CAR(T)-2000)) FOR T1 THEN                                01011000
+T:=CDR(T) ELSE                                                          01012000
+BEGIN LEXFIND:=CAR(T); GO TO LEND END;                                  01013000
+ASGN(T2,HASH,CONS(LEXFIND:=TOKEN(X+2000),T3));                          01014000
+X:=X+T1;                                                                01015000
+LEND:END LEXFIND;                                                       01016000
+PROCEDURE UREAD(FIL,BUF); VALUE FIL; REAL FIL; ARRAY BUF[0];            01017000
+BEGIN                                                                   01018000
+FILE IN DISKFIL DISK RANDOM (1,10,150,SAVE 999);                        01019000
+POINTER PX;                                                             01020000
+LABEL REM, L1,EOF;                                                      01021000
+REAL MFID,FID,N,X;                                                      01022000
+IF REF(AT6,FIL)=TOKEN(1010)THEN GO TO REM; %REMOTE DEVICE               01023000
+ IF REF(AT6,FIL)=TOKEN(1011)THEN  %DISK                                 01024000
+ BEGIN CHR:=0;                                                          01025000
+ X:= REF(AT2,FIL)-2000;                                                 01026000
+ PX:=POINTER(STACK[(X.[18:7]),*])+(X.[11:12]);                          01027000
+ REPLACE CP BY PX:PX FOR 1;                                             01028000
+ N:=(IF CHR GTR 7 THEN 7 ELSE (CHR-1));                                 01029000
+ REPLACE CP-5 BY " " FOR 6;                                             01030000
+ REPLACE CP-6 BY PX:PX FOR N;                                           01031000
+ MFID:=CHR;                                                             01032000
+ CHR:=0;                                                                01033000
+ X:= REF(AT3,FIL)-2000;                                                 01034000
+ PX:=POINTER(STACK[(X.[18:7]),*])+(X.[11:12]);                          01035000
+ REPLACE CP BY PX:PX FOR 1;                                             01036000
+ N:=(IF CHR GTR 7 THEN 7 ELSE (CHR-1));                                 01037000
+ REPLACE CP-5 BY "  " FOR 6;                                            01038000
+ REPLACE CP-6 BY PX:PX FOR N;                                           01039000
+ FID:=CHR;                                                              01040000
+ FILL DISKFIL WITH MFID, FID;                                           01041000
+ READ(DISKFIL [REF(AT1,FIL).ADDR],10,BUF[*])[EOF];                      01042000
+ WRITE(DATA,10,BUF[*]);                                                 01043000
+ ASGN(AT1,FIL,REF(AT1,FIL)+1);                                          01043010
+ GO TO L1 END;                                                          01044000
+ EOF: PRIMERROR("URED",FIL);                                            01045000
+ REM: READ(DATA,9,BUF[*]);                                              01046000
+ L1: END UREAD;                                                         01047000
+ PROCEDURE MEMSAVE(X,N,Y);                                              01048000
+VALUE N,Y;ARRAY X[0];REAL N,Y;                                          01049000
+ BEGIN INTEGER I,K;REAL M00;                                            01050000
+ SAVE FILE MEMFL DISK SERIAL[20:25] (2,512,512,SAVE 999);               01051000
+ FILL MEMFL WITH Y,TIME(-1);                                            01052000
+ K:=LASTUSEDSPACE.[18:18]+1;                                            01053000
+ MEMORY[K.[17:9],K.[8:9]]:=M00:=MEMORY[0,0];                            01054000
+ MEMORY[0,0]:=N&LASTUSEDSPACE[45:22:23];                                01055000
+ FOR I:=0 STEP 1 UNTIL N DO BEGIN                                       01056000
+ K:=K+1; MEMORY[K.[17:9],K.[8:9]]:=X[I] END;                            01057000
+ FOR I:=0 STEP 1 UNTIL K.[17:9] DO                                      01058000
+ WRITE (MEMFL,512,MEMORY[I,*]);                                         01059000
+  STACK[0,0]:=STACKPOSITION; I:=-1;                                     01060000
+ WHILE I:=I+1 LEQ STACKPOSITION.[18:7] DO                               01061000
+  WRITE (MEMFL,512,STACK[I,*]);                                         01062000
+LOCK(MEMFL);                                                            01063000
+  MEMORY[0,0]:=M00;END OF SAVE;                                         01064000
+ PROCEDURE UNSAVE(X,N,FID);                                             01065000
+VALUE FID;ARRAY X[0];REAL N,FID;                                        01066000
+ BEGIN INTEGER I,K;                                                     01067000
+  SAVE FILE MEMFL DISK SERIAL(1,512,512);                               01068000
+ IF BOOLEAN(XX1)THEN FILL MEMFL WITH FID,TIME(-1)ELSE                   01069000
+  FILL MEMFL WITH FID, XX2 & "B0005"[41:29:30];                         01070000
+  READ (MEMFL,512,MEMORY[0,*]);                                         01071000
+  LASTUSEDSPACE:=M[0].ADDR; N:=M[1].ADDR;                               01072000
+  K:=LASTUSEDSPACE.[18:18]+N+2;                                         01073000
+  FOR I:=1 STEP 1 UNTIL K.[17:9] DO                                     01074000
+  READ (MEMFL,512,MEMORY[I,*]); K:=K-N;                                 01075000
+   READ (MEMFL,512,STACK[0,*]);                                         01076000
+   STACKPOSITION:=STACK[0,0];  I:=0;                                    01077000
+   WHILE I:=I+1 LEQ STACKPOSITION.[18:7] DO                             01078000
+   READ (MEMFL,512,STACK[I,*]);                                         01079000
+  MEMORY[0,0]:=MEMORY[(K-1).[17:9],(K-1).[8:9]                          01080000
+   ] END OF UNSAVE;                                                     01081000
+   REAL PROCEDURE BNFTREE(F);                                           01082000
+   REAL F;                                                              01083000
+   BEGIN INTEGER I;                                                     01084000
+   REAL X,Y,Y1,Z,Z1;                                                    01085000
+   LABEL L1,L2,L3,L4,L5,L6,L7;                                          01086000
+   REAL ARRAY SS[0:5];                                                  01087000
+    PROCEDURE ERR(I);INTEGER I;                                         01088000
+   BEGIN                                                                01089000
+   FORMAT F1(X3,"$ ON LHS");                                            01090000
+   FORMAT F2(X3,"NON-TERMINAL IS TYPE LOGIC");                          01091000
+   CASE I OF BEGIN;                                                     01092000
+  WRITE(DATA,F1);                                                       01093000
+   WRITE(DATA,F2);                                                      01094000
+   END END OF ERR;                                                      01095000
+   SWITCH SW :=L5,L6,L4;                                                01096000
+   FILL SS[*] WITH "=",";","$",":","@","#";                             01097000
+   FOR I:= 0 STEP 1 UNTIL 5 DO BEGIN                                    01098000
+   X:=LOADMODE(SS[I],2);                                                01099000
+   X:=CONS(MAKE(TYPELOGIC,SS[I]),NULLIST);                              01100000
+   SS[I]:=HANGON(X,X) END;                                              01101000
+   X:=LOADMODE("%",68);                                                 01102000
+   L6:Z:=CONS(MAKE(TYPECODE,118),NULLIST);                              01103000
+   Y1:=CONS(ATOMUNDEF,NULLIST);                                         01104000
+ WHILE (X:=USERS(F)) NEQ SS[0] DO BEGIN                                 01105000
+  IF X EQL SS[2] THEN BEGIN ERR(1);GO TO L4 END; %$ ON LHS              01106000
+  IF X.TYPE EQL TYPELOGIC THEN BEGIN ERR(2); GO TO L4 END;  % LOGIC ON L01107000
+  EQLIST(Y1,(Y1:=USERL(X))) END;                                        01108000
+  IF(X:=USERS(F)) EQL SS[4] AND CAR(Y1) NEQ ATOMUNDEF                   01109000
+  THEN BEGIN EQLIST(Z,Y1); GO TO L5 END                                 01110000
+  ELSE BEGIN EQLIST(Y1,Z); Y1:=Y:=CONS(MAKE(TYPECODE,119),NULLIST);     01111000
+  GO TO L7 END;                                                         01112000
+  L5:Y1:=Y:=CONS(MAKE(TYPECODE,119),NULLIST);                           01113000
+  L2:X:=USERS(F);                                                       01114000
+  L7:IF X EQL SS[2] THEN BEGIN                                          01115000
+  ASGN(ATOMCDR,Y1,(Y1:=CONS(USERS(F),NULLIST)));                        01116000
+  GO TO L2 END; % TERMINAL                                              01117000
+   IF X EQL SS[4] THEN                                                  01118000
+  BEGIN I:=1; GO TO L3 END; % @                                         01119000
+  IF X EQL SS[5] THEN                                                   01120000
+ BEGIN                                                                  01121000
+ ASGN(ATOMCDR,Y1,(Y1:=CONS(USERL(X),NULLIST)));                         01122000
+ ASGN(ATOMCDR,Y1,FNS(X));                                               01123000
+  GO TO L7 END;                                                         01124000
+  IF X EQL SS[1] THEN                                                   01125000
+  BEGIN I:=2; GO TO L3 END; % SEMICOLON                                 01126000
+  IF X EQL SS[3] THEN                                                   01127000
+  BEGIN I:=3; GO TO L3 END; %  COLON                                    01128000
+  IF X.TYPE EQL TYPELOGIC THEN BEGIN ERR(2); GO TO L4 END; % NON-TERMINA01129000
+  ASGN(ATOMCDR,Y1,(Y1:=CONS(USERL(X),NULLIST)));                        01130000
+  GO TO L2;                                                             01131000
+  L3:ASGN(ATOMCDR,Z,CONS(CDR(Y),CDR(Z)));                               01132000
+  GO TO SW[I];                                                          01133000
+  L4:BNFTREE:=LABTAB                                                    01134000
+  END;  % END OF BNFTREE                                                01135000
+ REAL PROCEDURE DA(X);VALUE X;REAL X;                                   01136000
+ BEGIN IF X.TYPE EQL TYPELOGIC THEN                                     01137000
+ DA:=X.ADDR ELSE                                                        01138000
+ IF X.TYPE EQL TYPEAREA                                                 01138010
+ THEN DA:=0&REF(AT1,X)[46:8:9]&REF(AT2,X)[37:18:19]                     01138011
+ &REF(AT3,X)[18:18:19]ELSE PRIMERROR("DA",X) END;                       01138012
+ REAL PROCEDURE AD(X);VALUE X;REAL X;IF X GTR 0 AND                     01138013
+  X.[38:39] LSS 524288 THEN AD:=MAKE(TYPELOGIC,X)                       01138014
+ ELSE BEGIN REAL AD1;AD1:=AD:=PMAKE(TYPEAREA,MAKE(TYPELOGIC,3));        01138015
+ ASGN(AT1,AD1,MAKE(TYPELOGIC,X.[46:9]));                                01138016
+ ASGN(AT2,AD1,MAKE(TYPELOGIC,X.[37:19]));                               01138017
+ ASGN(AT3,AD1,MAKE(TYPELOGIC,X.[18:19]))END ;                           01138018
+ REAL PROCEDURE AR(X,Y,Z);VALUE X,Y,Z;REAL X,Y,Z;                       01138019
+ BEGIN REAL AR1,AR2;                                                    01138020
+ REAL PROCEDURE FN(I,J,K);VALUE I,J,K;REAL I,J,K;                       01138021
+ BEGIN REAL F;CASE I OF BEGIN                                           01138030
+ F:=J+K;F:=J-K;F:=J|K;F:=J/K;F:=J*K END; %END OF CASE                   01138035
+ FN:=AD(F) END;                                                         01138040
+ IF Y.TYPE EQL TYPELIST THEN                                            01138045
+ BEGIN AR2:=AR1:=CONS(ATOMUNDEF,NULLIST);                               01138050
+ IF Z.TYPE EQL TYPELIST THEN                                            01138055
+ BEGIN WHILE Y NEQ NULLIST AND Z NEQ NULLIST DO                         01138060
+ BEGIN ASGN(AT0,AR1,AR1:=CONS(FN(X,DA(CAR(Y)),DA(CAR(Z))),              01138065
+ NULLIST));Y:=CDR(Y);Z:=CDR(Z) END;                                     01138070
+ IF Y NEQ Z THEN PRIMERROR("AR",Y) ELSE AR:=CDR(AR2) END                01138080
+ ELSE BEGIN Z:=DA(Z);                                                   01138085
+ WHILE Y NEQ NULLIST DO BEGIN                                           01138090
+ ASGN(AT0,AR1,AR1:=CONS(FN(X,DA(CAR(Y)),Z),NULLIST));                   01138100
+ Y:=CDR(Y) END; AR:=CDR(AR2) END                                        01138105
+  END ELSE IF Z.TYPE EQL TYPELIST THEN                                  01138110
+ BEGIN Y:=DA(Y);AR2:=AR1:=CONS(ATOMUNDEF,NULLIST);                      01138115
+ WHILE Z NEQ NULLIST DO BEGIN                                           01138120
+ ASGN(AT0,AR1,AR1:=CONS(FN(X,Y,DA(CAR(Z))),NULLIST));                   01138125
+ Z:=CDR(Z) END; AR:=CDR(AR2) END                                        01138130
+ ELSE AR:=FN(X,DA(Y),DA(Z)) END;                                        01138140
+PROCEDURE RETURN(PROCESS,VAL);VALUE PROCESS,VAL;                        01138145
+ REAL PROCESS,VAL;                                                      01139000
+BEGIN IF PROCESS.TYPE NEQ TYPEPROCESS THEN PRIMERROR("RTRN",            01140000
+   PROCESS);                                                            01141000
+ASGN(AT7,PROCESS,CONS(RC9,CONS(VAL,REF(AT7,PROCESS))));                 01142000
+PROCESS:=QQ(PROCESS)END RETURN;                                         01143000
+PROCEDURE RESUME(PROCESS);VALUE PROCESS; REAL PROCESS;                  01144000
+BEGIN IF PROCESS.TYPE NEQ TYPEPROCESS THEN                              01145000
+PRIMERROR("RSM1",PROCESS);                                              01146000
+IF REF(AT2,PROCESS) NEQ ATOMSUSPENDED THEN                              01147000
+PRIMERROR("RSM2",PROCESS);                                              01148000
+ASGN(AT2,PROCESS,ATOMRESUMED);                                          01149000
+ASGN(AT7,PROCESS,CONS(RC1,REF(AT7,PROCESS)));                           01150000
+PROCESS:=QQ(PROCESS) END RESUME;                                        01151000
+REAL PROCEDURE CREATE(START,ENV,INTERPRETER,PROCESS);                   01152000
+VALUE START,ENV,INTERPRETER,PROCESS;                                    01153000
+REAL START,ENV,INTERPRETER,PROCESS;                                     01154000
+BEGIN REAL Y;                                                           01155000
+Y:=PMAKE(TYPEPROCESS,LOGIC(7));                                         01156000
+ASGN(AT1,Y,REF(AT1,PROCESS));                                           01157000
+ASGN(AT2,Y,ATOMSUSPENDED);                                              01158000
+ASGN(AT3,Y,START);                                                      01159000
+ASGN(AT4,Y,ENV);                                                        01160000
+ASGN(AT5,Y,INTERPRETER);                                                01161000
+ASGN(AT6,Y,PROCESS);                                                    01162000
+ASGN(AT7,Y,NULLIST);                                                    01163000
+CREATE:=Y END CREATE;                                                   01164000
+PROCEDURE DEBUG;                                                        01165000
+BEGIN FORMAT F1(8U),F2(A4,I6),F3(I6,":",A4,I6),                         01166000
+NOTE1("DEBUG?"),                                                        01167000
+NOTE2("INVALID PROCESS OPERATION"),                                     01168000
+NOTE3("INVALID TYPE ON FIRST PARAMETER"),                               01169000
+NOTE4("INVALID TYPE ON SECOND PARAMETER"),                              01170000
+NOTE5("INVALID TYPE ON THIRD PARAMETER"),                               01171000
+NOTE7("SYSTEM SAVE AS FILE--",A6),                                      01172000
+NOTE8("SYSTEM LOADED FROM FILE--",A6),                                  01173000
+NOTE9("#"),                                                             01174000
+NOTE10("SYSTEM LOADED FROM FILE--",A6,X1,A2),                           01175000
+NOTE6("NO PREVIOUS EXECUTE");                                           01176000
+FORMAT FMTLUSP("AMTSPACE=",I6,", LASTUSEDSPACE=",I6);                   01177000
+REAL OP,T1,V1,T2,V2,T3,V3,I,JUNK,J;                                     01178000
+  REAL ENV,PROCESS,X;                                                   01179000
+ BOOLEAN APLI;REAL APLENV,AP1,AP2,AP3,AP4;                              01180000
+LABEL L1,L2,L3,L4,L5,L6,LEND;                                           01180010
+ MONITOR ZERO;                                                          01181000
+DEFINE PP(PP1,PP2,PP3)=J:=0;WHILE TYPEARRAY[J] NEQ PP1 DO               01182000
+IF J NEQ 15 THEN J:=J+1 ELSE                                            01183000
+BEGIN WRITE(DATA,PP2);GO TO L2 END;                                     01184000
+PP3:=MAKE(J,PP3)#,                                                      01185000
+P1=BEGIN PP(T1,NOTE3,V1)END#,                                           01186000
+P2=BEGIN P1;PP(T2,NOTE4,V2)END#,                                        01187000
+P3=BEGIN P2;PP(T3,NOTE5,V3)END#;                                        01188000
+ ZERO:=L2;                                                              01189000
+L1:WRITE(DATA,NOTE1);                                                   01190000
+L2:T1:=T2:=T3:="SYMB";                                                  01191000
+V1:=V2:=V3:=524287;                                                     01192000
+READ(DATA[STOP],F1,OP,T1,V1,T2,V2,T3,V3,JUNK);                          01193000
+FOR I:=0 STEP 1 UNTIL NOOFPROCESSOPS DO                                 01194000
+IF OP=PROCESSARRAY[I] THEN GO TO L3;                                    01195000
+WRITE(DATA,NOTE2);GO TO L2;                                             01196000
+L3:CASE I OF BEGIN                                                      01197000
+GO TO LEND; % E N D                                                     01198000
+BEGIN P3;ASGN(V1,V2,(V1:=V3))END; %ASGN                                 01199000
+BEGIN P2; V1:=REF(V1,V2) END; %REF                                      01200000
+BEGIN P1;V1:=QQ(V1);GO TO L2 END; %QQ                                   01201000
+V1:=UQ; %UQ                                                             01202000
+BEGIN P1;V1:=CAR(V1) END; %CAR                                          01203000
+BEGIN P1;V1:=CDR(V1) END; %CDR                                          01204000
+BEGIN P2;V1:=CONS(V1,V2) END; %CONS                                     01205000
+BEGIN P1;V1:=NEWSYMB(V1)END; %NEWSYMB                                   01206000
+BEGIN WRITE(DATA,FMTLUSP,AMTSPACE,LASTUSEDSPACE);GO TO L2 END;%AMTSP    01207000
+BEGIN P2;V1:=PMAKE(V1.TYPE,V2)END; %MAKE                                01208000
+BEGIN P1;PRINT(V1);WRITE(DATA,NOTE9);GO TO L2 END; %PRINT               01209000
+;%BEGIN P3;V1:=LOADMODE(V1,V2,V3)END; %LDMODE                           01210000
+BEGIN GCL;GO TO L2 END;%GCL                                             01211000
+BEGIN P1;IF V1 NEQ ATOMUNDEF THEN %INTERP                               01212000
+ RESUME(V1);INTERP;GO TO L2 END;                                        01213000
+ V1:=LABTAB;                                                            01214000
+  V1:=LEXTREE;                                                          01215000
+ BEGIN P1;V1:=USERS(V1) END; % USERS                                    01216000
+BEGIN SMEM(T1);WRITE(DATA,NOTE7,T1);GO TO L2 END;%SMEM                  01217000
+BEGIN XX1:=1;LMEM(T1); %LMEM                                            01218000
+ APLI:=FALSE;                                                           01219000
+ WRITE(DATA,NOTE8,T1);                                                  01219010
+ I:=41;T1:="LIST";V1:=REF(AT2,REF(TOKEN(2742),LABTAB)).ADDR;            01220000
+ T2:="AREA";V2:=REF(TOKEN(2608),LABTAB);GO TO L3 END;                   01221000
+ BEGIN P1;V1:=STATS END;% PSCAN                                         01222000
+ BEGIN P1;V1:=BNFTREE(V1) END; % BNFTRE                                 01223000
+ BEGIN P2;V2:=USERS(V2);ASGN(V2,LABTAB,V1)END; % INCODE                 01224000
+BEGIN V1:=QU(5,0);WRITE(DATA,NOTE9);GO TO L2 END; %QDUMP                01225000
+BEGIN FOR I:=T1 STEP 1 UNTIL V1 DO %DUMP                                01226000
+WRITE(DATA,F3,I,TYPEARRAY[M[I].TYPE],M[I].ADDR);                        01227000
+WRITE(DATA,NOTE9);GO TO L2 END;                                         01228000
+BEGIN P1;PRIMERROR(T2,V1);GO TO L2 END;                                 01229000
+BEGIN P1;MASGN(T2,V1) END; %MASGN                                       01230000
+BEGIN P1; XX1:=V1;XX2:=T2;V1:=QU(5,1);GO TO L2 END;%QASGN               01231000
+V1:=M[T1]; %M                                                           01232000
+BEGIN XX2:=T1;V1:=QU(5,2)END; %Q                                        01233000
+ BEGIN P1;ENV:=IF APLI THEN APLENV                                      01233010
+ ELSE PMAKE(TYPECONS,0);              % EXE                             01234000
+ LOADMODE("$",2);                                                       01235000
+  PROCESS:= CREATE(NULLIST,ENV,TOKEN(1004),CONS(AT(262144),NULLIST));   01236000
+ASGN(AT6,PROCESS,ATOMUNDEF);                                            01237000
+L4:ASGN(AT2,PROCESS,ATOMSUSPENDED);                                     01238000
+  ASGN(AT3,PROCESS,(X:=V1));                                            01239000
+  WHILE CDR(X) NEQ NULLIST DO X:=CDR(X);                                01240000
+  ASGN(AT0,X,CONS(CONS(TOKEN(117),NULLIST),NULLIST));                   01241000
+  RESUME (PROCESS);                                                     01242000
+  INTERP;                                                               01243000
+ ENV:=REF(AT4,PROCESS:=XX1);                                            01244000
+ASGN(AT7,PROCESS,NULLIST);                                              01244010
+ V1:=REF(TOKEN(1000),ENV);                                              01244020
+ IF APLI THEN BEGIN APLPNT(V1); APLENV:=ENV;                            01244025
+ I:=36;T1:="LIST";T2:="AREA";V1:=REF(TOKEN(5003),LABTAB);               01244030
+ V2:=REF(AT2,V1).ADDR;V1:=REF(AT1,V1).ADDR;                             01245000
+ GO TO L3 END ;                                                         01247000
+  END;                                                                  01248000
+  IF PROCESS.TYPE EQL TYPEPROCESS THEN GO TO L4 %CEXE                   01249000
+ ELSE BEGIN WRITE(DATA,NOTE6);GO TO L2 END;                             01250000
+ BEGIN XX1:=0;XX2:="       ";                                           01251000
+ LMEM(T1);WRITE(DATA,NOTE10,T1);GO TO L2 END;                           01252000
+BEGIN ARRAY X[0:9]; %READ                                               01253000
+  P1; UREAD(V1,X);                                                      01254000
+  WRITE(DATA,9,X[*]); GO TO L2 END;                                     01255000
+  BEGIN POINTER SP,XP;   % DSTACK                                       01256000
+  REAL N;  ARRAY X[0:8];                                                01257000
+ XP:=POINTER(X); SP:=POINTER(STACK[0,*]);                               01258000
+  CHR:=N:=8;                                                            01259000
+WHILE N LSS STACKPOSITION DO                                            01260000
+   BEGIN REPLACE XP BY " " FOR 72;                                      01261000
+  REPLACE CP BY SP+N FOR 1;                                             01262000
+  REPLACE XP BY N+2000 FOR 4 DIGITS;                                    01263000
+  REPLACE XP+6 BY SP+N+1 FOR CHR-1;                                     01264000
+  N:=N+CHR;                                                             01265000
+  WRITE(DATA,9,X[*]) END;                                               01266000
+  WRITE(DATA,NOTE9);GO TO L2 END DSTACK;                                01267000
+BEGIN P1;X:=V1; % MODELD                                                01268000
+L6:V1:=ATOMUNDEF;T1:=3;T2:=T3:=0;                                       01269000
+READ(DATA,F1,V1,T1,T2,T3,V2,V3,OP,JUNK);                                01270000
+IF V1=ATOMUNDEF THEN GO TO L2;                                          01271000
+V1:=AT(V1+1);T1:=T1&T2[14:3:4]&T3[18:3:4];                              01272000
+ASGN(V1,X,AT(T1));GO TO L6 END;                                         01273000
+BEGIN P2;ENV:=PMAKE(TYPECONS,0); %PARSE                                 01274000
+ ASGN(TOKEN(1018),ENV,NULLIST);                                         01275000
+ ASGN(TOKEN(1019),ENV,AT0);                                             01276000
+ ASGN(TOKEN(1006),ENV,CONS(USERS(V2),CONS(V2,NULLIST)));                01277000
+ PROCESS:=CREATE(NULLIST,ENV,TOKEN(1005),CONS(AT(262144),NULLIST));     01278000
+ ASGN(AT6,PROCESS,ATOMUNDEF);                                           01279000
+ ASGN(AT3,PROCESS,CONS(V1,CONS(TOKEN(117),NULLIST)));                   01280000
+ ASGN(AT7,PROCESS,NULLIST);                                             01281000
+ RESUME(PROCESS); INTERP;                                               01281010
+ IF APLI THEN                                                           01281020
+ BEGIN T1:="PRCS";V1:=XX1.ADDR;                                         01281030
+ I:=37;GO TO L3 END;                                                    01282000
+ V1:=XX1 END PARSE;                                                     01283000
+ BEGIN P1;WHILE PRIORITY.ADDR GTR 0 DO JUNK:=UQ;%TRANS                  01284000
+ ASGN(AT3,V1,CONS(CONS(TOKEN(143),NULLIST),CONS(                        01284001
+  CONS(TOKEN(117),NULLIST),NULLIST)));                                  01284050
+  ASGN(AT7,V1,NULLIST);ASGN(AT5,V1,TOKEN(1017));                        01284060
+  RESUME(V1);                                                           01285000
+ INTERP;                                                                01286000
+ V1:=REF(AT1,REF(AT4,XX1));                                             01286010
+ IF APLI THEN                                                           01286020
+ BEGIN T1:="LIST";V1:=V1.ADDR;                                          01286030
+ I:=30;GO TO L3 END END TRANS ;                                         01287000
+BEGIN TRACE:=NOT TRACE; GO TO L2 END;%TRACE                             01288000
+BEGIN PRINT(HASH);GO TO L2 END; %HASH                                   01288010
+ BEGIN INTERP;V1:=XX1;END;%RSTART                                       01288020
+ BEGIN APLI:=TRUE;I:=36;                                                01288030
+ ASGN(TOKEN(5003),LABTAB,CONS(MAKE(TYPELIST,V1),                        01288035
+  CONS(MAKE(TYPEAREA,V2),NULLIST)));                                    01288040
+  APLENV:=PMAKE(TYPECONS,0); GO TO L3 END; %APL                         01288050
+  BEGIN XX1:=1;LMEM(T1);APLI:=FALSE;                                    01288060
+  WRITE(DATA,NOTE8,T1);GO TO L2 END; % LSTRT                            01289000
+ END CASE STATEMENT;                                                    01290000
+ L5:WRITE(DATA,F2,TYPEARRAY[V1.TYPE],V1.ADDR);                          01291000
+ GO TO L2;                                                              01292000
+ LEND:END DEBUG;                                                        01293000
+ PROCEDURE DOTRACE(PROCESS);VALUE PROCESS;REAL PROCESS;                 01294000
+ BEGIN PRINT(PROCESS);                                                  01295000
+ PRINT(REF(AT3,PROCESS));                                               01296000
+ PRINT(REF(AT4,PROCESS));                                               01297000
+ PRINT(REF(AT7,PROCESS))END DOTRACE;                                    01298000
+ PROCEDURE MASGN(A,V);VALUE A,V;REAL A,V;                               01299000
+ BEGIN IF BOOLEAN(A) THEN                                               01300000
+ MEMORY[A.[18:9],A.[9:9]].[22:23]:=V ELSE                               01301000
+ MEMORY[A.[18:9],A.[9:9]].[45:23]:=V END MASGN;                         01302000
+ PROCEDURE PRINT(X);VALUE X;REAL X;                                     01303000
+ BEGIN REAL I;                                                          01304000
+ LABEL L1,L2;                                                           01305000
+ FORMAT F1(":",A4,I6),                                                  01306000
+ F2(X3,A4,I6,"=",A4,I6),                                                01307000
+ F3(X3,I4,"=",A4,I6),                                                   01308000
+ F4(X3,I4,"=NIL");                                                      01309000
+ WRITE(DATA,F1,TYPEARRAY[X.TYPE],X.ADDR);                               01310000
+ CASE X.TYPE OF BEGIN                                                   01311000
+ ; %GARBAGE                                                             01312000
+ L1:BEGIN X:=M[X]; %CONS                                                01313000
+ WHILE X NEQ NULLIST DO                                                 01314000
+ BEGIN WRITE(DATA,F2,TYPEARRAY[CAR(X).TYPE],CAR(X).ADDR,                01315000
+ TYPEARRAY[CAR((X:=CDR(X))).TYPE],CAR(X).ADDR);                         01316000
+ X:=CDR(X)END END;                                                      01317000
+ BEGIN I:=1; WHILE X NEQ NULLIST DO %LIST                               01318000
+ BEGIN WRITE(DATA,F3,I,TYPEARRAY[CAR(X).TYPE],CAR(X).ADDR);             01319000
+ I:=I+1;X:=CDR(X) END;                                                  01320000
+ WRITE(DATA,F4)END;                                                     01321000
+ L2:FOR I:=0 STEP 1 UNTIL M[X].ADDR DO %AREA                            01322000
+ WRITE(DATA,F3,I,TYPEARRAY[M[X-I].TYPE],M[X-I].ADDR);                   01323000
+ ;%FIELD                                                                01324000
+ ;%SYMBOL                                                               01325000
+ ;%LOGIC                                                                01326000
+ ;%LINK                                                                 01327000
+ GO TO L2; %PROCESS                                                     01328000
+ GO TO L2; %MONITOR                                                     01329000
+ GO TO L2;%GENERAL                                                      01330000
+ END CASE STATEMENT;                                                    01331000
+ END PRINT;                                                             01331010
+  PROCEDURE APLPNT(X);VALUE X;REAL X;                                   01331015
+  BEGIN REAL I;FORMAT F1(X2,R12.5),F2(A4,I6);                           01331020
+  I:=0;                                                                 01331025
+  IF X.TYPE EQL TYPELIST THEN BEGIN                                     01331030
+  WHILE X NEQ NULLIST DO BEGIN                                          01331035
+  IF NBR(CAR(X)) THEN                                                   01331040
+  BEGIN IF I MOD 4 EQL 3 THEN WRITE(DATA,F1,DA(CAR(X)))                 01331045
+  ELSE WRITE(DATA[STOP],F1,DA(CAR(X)));                                 01331050
+  I:=I+1;X:=CDR(X) END ELSE BEGIN                                       01331060
+  WRITE(DATA,F2,TYPEARRAY[X.TYPE],X.ADDR);                              01331065
+  X:=NULLIST END END;WRITE (DATA) END                                   01331070
+  ELSE IF NBR(X) THEN WRITE(DATA,F1,DA(X))                              01331075
+  ELSE WRITE(DATA,F2,TYPEARRAY[X.TYPE],X.ADDR) END;                     01332000
+PROCEDURE SYSM;                                                         01333000
+BEGIN FORMAT F1(5U),                                                    01334000
+NOTE1("SYSTEM?"),                                                       01335000
+NOTE2("INVALID OPERATION"),                                             01336000
+ NOTE3("CANDE?");                                                       01337000
+ARRAY X[0:4];INTEGER I;                                                 01338000
+DEFINE LA=X[0],X[1],X[2],X[3],X[4]#;                                    01339000
+LABEL L1,L2,L3,LEND;                                                    01340000
+LASTUSEDSPACE:=0;CURROW:= 0 ;                                           01341000
+NEXTTOKEN:=TOKEN(2000);                                                 01342000
+TRACE:=FALSE;                                                           01343000
+CP:=POINTER(JUNKARRAY)+7;                                               01344000
+HASH:=PMAKE(TYPEAREA,AT(127));                                          01345000
+FOR I:=AT1 STEP 1 UNTIL AT(127)DO ASGN(I,HASH,NULLIST);                 01346000
+  STACKPOSITION:=8;                                                     01347000
+ MASGN (0,LINKTONIL);                                                   01348000
+  LABTAB:=PMAKE(TYPECONS,0);                                            01349000
+   INQ(HASH);                                                           01350000
+   INTLX;                                                               01358000
+  DEBUG;                                                                01361000
+  LEND:END SYSM;                                                        01362000
+   REAL PROCEDURE USERS(F);                                             01363000
+   REAL F;                                                              01364000
+  BEGIN  REAL X,X1;                                                     01365000
+   USERS:=INLEX(F)                                                      01366000
+   END OF USERS;                                                        01367000
+   REAL PROCEDURE USERL(X);                                             01368000
+   REAL X;                                                              01369000
+   BEGIN                                                                01370000
+  IF (USERL:=REF(X,LABTAB)) EQL ATOMUNDEF THEN                          01371000
+  ASGN(X,LABTAB,(USERL:=CONS(ATOMUNDEF,NULLIST)));                      01372000
+   END OF USERL;                                                        01373000
+   REAL PROCEDURE PSCAN(IJ,X,F);REAL X,F;INTEGER IJ;                    01374000
+   BEGIN OWN REAL ARRAY SS[0:11];                                       01375000
+   REAL Y;                                                              01376000
+   PROCEDURE ERR;                                                       01377000
+   BEGIN                                                                01378000
+   FORMAT F1(X3,"ARG MISSING");                                         01379000
+   WRITE(DATA,F1) END;                                                  01380000
+   REAL PROCEDURE QT(X);VALUE X;REAL X;                                 01381000
+  IF REF(X,LABTAB) NEQ ATOMUNDEF THEN BEGIN                             01382000
+   IF (X:=USERL(X)) EQL TOKEN(1007) THEN                                01383000
+   QT:=CONS(TOKEN(122),CONS(QT(USERS(F)),NULLIST))                      01384000
+  ELSE QT:=X END ELSE QT:=X;                                            01385000
+        REAL PROCEDURE FSCAN(X,Y,F);VALUE X; REAL X,Y,F;                01386000
+BEGIN REAL FSTK,F1,FN;                                                  01387000
+LABEL L1,L2,L3,L4,L5,L6,LEND;                                           01388000
+FSTK:=NULLIST;                                                          01389000
+ L1: IF Y NEQ SS[0] THEN BEGIN FSCAN:=X; GO TO LEND END;                01390000
+F1:=FN:=CONS(X,NULLIST);                                                01391000
+L2: IF (X:=USERS(F)) EQL SS[4] THEN                                     01392000
+BEGIN X:=ATOMUNDEF; GO TO L4 END; %DUMMY ARG                            01393000
+IF X EQL SS[1] THEN                                                     01394000
+BEGIN X:=ATOMUNDEF; GO TO L5 END; % DUMMY ARG LIST                      01395000
+ L6:X:=QT(X);                                                           01396000
+ IF (Y:=USERS(F)) EQL SS[4] THEN                                        01397000
+L4: BEGIN ASGN (ATOMCDR,FN,(FN:=CONS(X,NULLIST)));                      01398000
+GO TO L2 END; % COMMA                                                   01399000
+IF Y EQL SS[1] THEN                                                     01400000
+    BEGIN ASGN (ATOMCDR,FN,CONS(X,NULLIST));                            01401000
+ L5:X:=FN:=F1;                                                          01402000
+IF CAR(FSTK) EQL ATOMUNDEF THEN                                         01403000
+ BEGIN Y:=USERS(F);GO TO L1 END;                                        01404000
+; F1:=CAR(FSTK); FSTK:=CDR(FSTK);                                       01405000
+FN:=CAR(FSTK);                                                          01406000
+FSTK:=CDR(FSTK);                                                        01407000
+GO TO L6 END; % RPAREN                                                  01408000
+IF X EQL QT(SS[8]) THEN                                                 01409000
+BEGIN X:=USERL(Y); GO TO L6 END; % LABEL                                01410000
+FSTK:=CONS(FN,FSTK);                                                    01411000
+FSTK:=CONS(F1,FSTK);                                                    01412000
+GO TO L1;                                                               01413000
+LEND: END OF FSCAN;                                                     01414000
+REAL PROCEDURE SSCAN(F);                                                01415000
+REAL F;                                                                 01416000
+BEGIN REAL X,Y,Z,S1,S2;                                                 01417000
+LABEL L1,L2,L3,L4,L5,LEND,L6;                                           01418000
+SSCAN:=Z:=CONS(ATOMUNDEF,NULLIST);                                      01419000
+GO TO L1;                                                               01420000
+L3:Z:=CONS(ATOMUNDEF,NULLIST);                                          01421000
+L2:L1: IF (X:=USERS(F)) EQL SS[10] OR X EQL SS[1] THEN                  01422000
+L6:BEGIN                                                                01423000
+GO TO LEND END % END                                                    01424000
+ELSE L5: IF X EQL SS[5] THEN                                            01425000
+GO TO L1; % SEMICOLON                                                   01426000
+ IF (Y:=USERS(F)) EQL SS[6] THEN                                        01427000
+BEGIN EQLIST(USERL(X),Z);                                               01428000
+GO TO L1 END % COLON                                                    01429000
+ELSE ASGN(ATOMCAR,Z,FSCAN(QT(X),Y,F));                                  01430000
+ IF ATOM(CAR(Z)) THEN BEGIN ERR;GO TO L2 END;                           01431000
+IF (X:=Y) EQL SS[5] THEN                                                01432000
+BEGIN ASGN(ATOMCDR,Z,(Z:=CONS(ATOMUNDEF,NULLIST)));                     01433000
+GO TO L2 END % NO SUCCESSOR GIVEN                                       01434000
+ ;IF X EQL SS[10] THEN GO TO L6                                         01435000
+; IF X EQL SS[1] THEN GO TO LEND                                        01436000
+ ELSE ASGN(ATOMCDR,Z,CONS(ATOMUNDEF,NULLIST)); EQLIST(REF(AT0,Z),USERL( 01437000
+ X));                                                                   01438000
+ GO TO L3; % SUCCESSOR GIVEN                                            01439000
+ LEND: END OF SSCAN;                                                    01440000
+ PROCEDURE LDSS; BEGIN INTEGER I,J,K,KK; REAL STK;                      01441000
+ FILL SS[*] WITH "E","N","D","R","O","U","T","I","N","E";               01442000
+ K:=2;KK:=0; FOR J:=0 STEP 1 UNTIL 1 DO                                 01443000
+ BEGIN STK:=NULLIST;                                                    01444000
+ FOR I:=KK STEP 1 UNTIL K DO                                            01445000
+ STK:=CONS(MAKE(TYPELOGIC,SS[I]),STK);                                  01446000
+  SS[J+10]:=HANGON(STK,STK);                                            01447000
+ K:=9;KK:=3 END;                                                        01448000
+ FILL SS[*] WITH "(",")","[","]",",",";",":","*","#";                   01449000
+ FOR I:=0 STEP 1 UNTIL 8 DO                                             01450000
+ BEGIN K:=LOADMODE(SS[I],2);                                            01451000
+ STK:=CONS(MAKE(TYPELOGIC,SS[I]),NULLIST);                              01452000
+  SS[I]:=HANGON(STK,STK) END;                                           01453000
+ K:=LOADMODE("%",68)                                                    01454000
+ END OF LDSS;                                                           01455000
+  LDSS;                                                                 01456000
+  CASE IJ OF BEGIN                                                      01457000
+  PSCAN:=SSCAN(F);                                                      01458000
+ IF (Y:=QT(USERS(F))) EQL SS[0]                                         01459000
+  THEN BEGIN PSCAN:=SSCAN(F);                                           01460000
+ X:= USERS(F) END ELSE                                                  01461000
+  BEGIN X:= USERS(F); PSCAN:=CONS(FSCAN(Y,X,F),NULLIST)                 01462000
+ END END END OF PSCAN;                                                  01463000
+AT0:=LOGIC(0);                                                          01464000
+AT1:=LOGIC(1);                                                          01465000
+AT2:=LOGIC(2);                                                          01466000
+AT3:=LOGIC(3);                                                          01467000
+AT4:=LOGIC(4);                                                          01468000
+AT5:=LOGIC(5);                                                          01469000
+AT6:=LOGIC(6);                                                          01470000
+AT7:=LOGIC(7);                                                          01471000
+TKNO:=MAKE(TYPETOKEN,0);                                                01472000
+RC1:=MAKE(TYPECODE,1);                                                  01473000
+RC9:=MAKE(TYPECODE,9);                                                  01474000
+ATOMUNDEF:=MAKE(TYPESYMB+1,0)-1;                                        01475000
+LINKTONIL:=MAKE(TYPELINK+1,0)-1;                                        01476000
+NULLIST:=MAKE(TYPELIST+1,0)-1;                                          01477000
+FILL SYSMARRAY[*] WITH "END","DEBUG";                                   01478000
+FILL PROCESSARRAY[*] WITH "END","ASGN","REF","QQ","UQ","CAR",           01479000
+"CDR","CONS","NEWSYM","AMTSP","MAKE","PRINT",                           01480000
+ "LDMODE","GCL","INTERP","LABEL","NODES",                               01481000
+ "USERS","SMEM","LMEM","PSCAN","BNFTRE","INCODE","QDUMP",               01482000
+ "DUMP","PERROR","MAASGN","QASGN","M","Q","EXE","CEXE","LOAD",          01483000
+ "READ","DSTACK","MODELD","PARSE","TRANS","TRACE","HASH","RSTART",      01483010
+ "APL","PARLD";                                                         01484000
+FILL TYPEARRAY[*] WITH "GRBG","CONS","LIST","AREA",                     01485000
+ "BITS","SYMB","LGIC","LINK",                                           01486000
+ "PRCS","MNTR","GNRL","CODE",                                           01487000
+ "TP12","TP13","TP14","TP15";                                           01488000
+ SYSM;                                                                  01489000
+ END. END PROGRAM                                                       01490000
+? END                                                                   
