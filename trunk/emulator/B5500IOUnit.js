@@ -70,7 +70,9 @@ function B5500IOUnit(ioUnitID, cc) {
     this.boundFinishGeneric = this.makeFinish(this.finishGeneric);
     this.boundFinishGenericRead = this.makeFinish(this.finishGenericRead);
     this.boundFinishSPORead = this.makeFinish(this.finishSPORead);
+    this.boundFinishTapeIO = this.makeFinish(this.finishTapeIO);
     this.boundFinishTapeRead = this.makeFinish(this.finishTapeRead);
+    this.boundFinishTapeWrite = this.makeFinish(this.finishTapeWrite);
 
     this.initiateStamp = 0;             // Timestamp of last I/O initiation on this unit
 
@@ -960,11 +962,41 @@ B5500IOUnit.prototype.finishSPORead = function finishSPORead(errorMask, length) 
 };
 
 /**************************************/
-B5500IOUnit.prototype.finishTapeRead = function finishDiskRead(errorMask, length) {
+B5500IOUnit.prototype.finishTapeIO = function finishTapeIO(errorMask, count) {
+    /* For Mod III I/O Units, extra status bits can be reported in the word-count
+    field. The driver will report these in the higher-order bits of errorMask.
+       mask & 0x040000 => tape at EOT (becomes D14F)
+       mask & 0x080000 => tape at BOT (becomes D13F)
+       mask & 0x100000 => blank tape  (becomes D12F)
+       mask & 0x200000 => reserved for relocated D29F memory parity bit (becomes D11F)
+    The original memory parity bit in D29F is relocated to D11F, and both
+    D02F and D29F are set unconditionally.
+
+    In addition, the count of characters in a paritally-filled final word is
+    reported in the low-order three bits of the word count field.
+    For a forward read, this is the number of characters in the last partial word.
+    For a backward read, this is 7 minus the number of characters */
+    var partialCount = (errorMask % 0x040000) >>> 15;
+
+    if (errorMask & 0x1C0008) {
+        partialCount += ((errorMask % 0x200000) >>> 18) * 0x08 +
+            (errorMask & 0x08) * 0x08;  // relocate the memory parity bit
+        this.D02F = 1;                  // mark as a Mod III RD
+        errorMask |= 0x08;              // set the original mem parity bit (D29) unconditionally
+    }
+
+    this.DwordCount = partialCount;
+    this.finishGeneric(errorMask, count);
+
+    //console.log(this.mnemonic + " finishTapeIO: " + errorMask.toString(8) + " for " + count.toString() +
+    //            ", D=" + this.D.toString(8));
+};
+
+/**************************************/
+B5500IOUnit.prototype.finishTapeRead = function finishTapeRead(errorMask, length) {
     /* Handles I/O finish for a tape drive read operation */
     var count;
     var memWords = (length+7) >>> 3;
-    var partialCount = (errorMask % 0x040000) >>> 15;
 
     if (this.D23F && memWords > this.DwordCount) {
         memWords = this.DwordCount;
@@ -984,29 +1016,19 @@ B5500IOUnit.prototype.finishTapeRead = function finishDiskRead(errorMask, length
         }
     }
 
-    // For Mod III I/O Units, extra status bits can be reported in the word-count
-    // field. The driver will report these in the higher-order bits of errorMask.
-    //    mask & 0x040000 => tape at EOT (becomes D14F)
-    //    mask & 0x080000 => tape at BOT (becomes D13F)
-    //    mask & 0x100000 => blank tape  (becomes D12F)
-    //    mask & 0x200000 => reserved for relocated D29F memory parity bit (becomes D11F)
-    // The original memory parity bit in D29F is relocated to D11F, and both
-    // D02F and D29F are set unconditionally.
+    this.finishTapeIO(errorMask, count);
+};
 
-    // In addition, the count of characters in a paritally-filled final word is
-    // reported in the low-order three bits of the word count field. For a forward
-    // read, this is the number of characters in the last partial word. For a back-
-    // ward read, this is 7 minus the number of characters.
+/**************************************/
+B5500IOUnit.prototype.finishTapeWrite = function finishTapeWrite(errorMask, length) {
+    /* Handles I/O finish for a tape drive write operation */
 
-    if ((errorMask & 0x3C0000) || this.D29F) {
-        this.DwordCount = partialCount +
-            ((errorMask % 0x400000) >>> 18) * 0x08 +
-            this.D29F * 0x40;       // relocate the memory parity bit
-        this.D02F = 1;              // mark as a Mod III RD
-        errorMask |= 0x08;          // set the original mem parity bit unconditionally
-    }
+    /*** Temporary stub until tape write is implemented ***/
 
-    this.finishGeneric(errorMask, count);
+    this.finishTapeIO(errorMask, length);
+
+    //console.log(this.mnemonic + " finishTapeWr: " + errorMask.toString(8) + " for " + length.toString() +
+    //            ", D=" + this.D.toString(8));
 };
 
 /**************************************/
@@ -1021,17 +1043,17 @@ B5500IOUnit.prototype.initiateTapeIO = function initiateTapeIO(u) {
             this.D30F = 1;                      // (MAINTENANCE I/Os NOT YET IMPLEMENTED)
             this.finish();
         } else if (this.D23F && this.DwordCount == 0) { // forward or backward space
-            u.space(this.boundFinishGeneric, 0, this.D22F);
+            u.space(this.boundFinishTapeIO, 0, this.D22F);
         } else {                                // some sort of actual read
             memWords = (this.D23F ? this.DwordCount : this.buffer.length);
             u.read(this.boundFinishTapeRead, this.buffer, memWords*8, this.D21F, this.D22F);
         }
     } else {                            // tape write operation
         if (this.D23F && this.DwordCount == 0) {// interrogate drive status
-            u.writeInterrogate(this.boundFinishGeneric, 0);
+            u.writeInterrogate(this.boundFinishTapeIO, 0);
         } else if (this.D18F) {                 // memory inhibit
             if (this.D22F) {                    // backward write => rewind
-                u.rewind(this.boundFinishGeneric);
+                u.rewind(this.boundFinishTapeIO);
             } else {
                 this.D30F = 1;                  // (ERASE NOT YET IMPLEMENTED)
                 this.finish();

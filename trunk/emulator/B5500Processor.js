@@ -1031,8 +1031,9 @@ B5500Processor.prototype.streamCharacterToDest = function streamCharacterToDest(
 
 /**************************************/
 B5500Processor.prototype.streamNumericToDest = function streamNumericToDest(count, zones) {
-    /* Transfers character transfers from source to destination for the TRS syllable.
-    "count" is the number of source characters to transfer */
+    /* Transfers from source to destination for the TRN and TRZ syllables. "count"
+    is the number of source characters to transfer. If transferring numerics and the
+    low-order character has a negative sign (BA=10), sets MSFF=1 */
     var aBit;                           // A register bit nr
     var aw;                             // current A register word
     var bBit;                           // B register bit nr
@@ -1062,11 +1063,8 @@ B5500Processor.prototype.streamNumericToDest = function streamNumericToDest(coun
             c = this.cc.fieldIsolate(aw, aBit, 6);
             if (zones) {                // transfer only the zone portion of the char
                 bw = this.cc.fieldInsert(bw, bBit, 2, c >>> 4);
-            } else {                    // transfer only the numeric portion of the char
-                bw = this.cc.fieldInsert(bw, bBit+2, 4, c);
-                if (count == 1 && (c & 0x30) == 0x20) {
-                    this.MSFF = 1;              // neg. sign
-                }
+            } else {                    // transfer the numeric portion with a zero zone
+                bw = this.cc.fieldInsert(bw, bBit, 6, (c & 0x0F));
             }
             count--;
             if (bBit < 42) {
@@ -1102,6 +1100,9 @@ B5500Processor.prototype.streamNumericToDest = function streamNumericToDest(coun
         } while (count);
         this.B = bw;
         this.Y = c;                     // for display purposes only
+        if (!zones && (c & 0x30) == 0x20) {
+            this.MSFF = 1;              // last char had a negative sign
+        }
     }
 };
 
@@ -3087,9 +3088,14 @@ B5500Processor.prototype.run = function run() {
                             this.storeAviaS();          // [S] = A
                             this.S++;
                             this.M++;
-                            this.loadAviaM();           // A = [M]
-                        } while (--variant);
+                            if (--variant) {
+                                this.loadAviaM();       // A = [M]
+                            } else {
+                                break;
+                            }
+                        } while (true);
                     }
+                    this.AROF = 0;
                     break;
 
                 case 0x06:              // XX06: SED=Set destination address
@@ -3629,7 +3635,7 @@ B5500Processor.prototype.run = function run() {
                     break;
 
                 case 0x3D:              // XX75: TRN=Transfer source numerics
-                    this.MSFF = 0;                      // initialize true-false FF
+                    this.MSFF = 0;                      // initialize for negative sign test
                     this.streamNumericToDest(variant, false);
                     break;
 
@@ -4484,7 +4490,7 @@ B5500Processor.prototype.run = function run() {
                             this.A = cc.fieldIsolate(this.A, t1, t2);
                         } else {                                // handle wrap-around in the source value
                             this.A = cc.fieldInsert(
-                                    cc.fieldIsolate(this.A, 0, t2-48+t1, t1+t2-48), 48-t2, 48-t1,
+                                    cc.fieldIsolate(this.A, 0, t2-48+t1), 48-t2, 48-t1,
                                     cc.fieldIsolate(this.A, t1, 48-t1));
                         }
                         // approximate the shift cycle counts
