@@ -84,6 +84,7 @@ window.addEventListener("load", function() {
         $$("LoadSelectBtn").disabled = false;
         $$("LoadBtn").disabled = false;
         $$("HaltBtn").disabled = true;
+        $$("MemoryCheckBtn").disabled = false;
         window.focus();
         if (showAnnunciators) {
             $$("CentralControl").style.visibility = "visible";
@@ -108,6 +109,7 @@ window.addEventListener("load", function() {
         $$("LoadSelectBtn").disabled = true;
         $$("LoadBtn").disabled = true;
         $$("HaltBtn").disabled = true;
+        $$("MemoryCheckBtn").disabled = true;
         if (timer) {
             clearTimeout(timer);
             timer = null;
@@ -163,6 +165,85 @@ window.addEventListener("load", function() {
             cc.cardLoadSelect = 1;
             $$("LoadSelectBtn").className = "yellowButton yellowLit";
         }
+    }
+
+    function dumpState(caption) {
+        /* Generates a dump of the processor states and all of memory */
+        var doc;
+        var lastPhase = -2;
+        var win = window.open("", "", "resizable,scrollbars,status");
+        var x;
+
+        var htmlMatch = /[<>&"]/g;          // regular expression for escaping HTML text
+
+        function escapeHTML(text) {
+            /* Returns "text" as escaped HTML */
+
+            function htmlFilter(char) {
+                /* Used to escape HTML-sensitive characters in a string */
+                switch (char) {
+                case "&":
+                    return "&amp;";
+                case "<":
+                    return "&lt;";
+                case ">":
+                    return "&gt;";
+                case "\"":
+                    return "&quot;";
+                default:
+                    return char;
+                }
+            }
+
+            return text.replace(htmlMatch, htmlFilter);
+        }
+
+        function writer(phase, text) {
+            /* Call-back function for cc.dumpSystemState */
+
+            switch (phase) {
+            case 0:
+                lastPhase = phase;
+                doc.writeln(escapeHTML(text));
+                break;
+
+            case 1:
+            case 2:
+                if (phase == lastPhase) {
+                    doc.writeln(escapeHTML(text));
+                } else {
+                    lastPhase = phase;
+                    doc.writeln();
+                    doc.writeln(escapeHTML(text));
+                    doc.writeln();
+                }
+                break;
+
+            case 32:
+                if (phase != lastPhase) {
+                    lastPhase = phase;
+                    doc.writeln();
+                }
+                doc.writeln();
+                doc.writeln(escapeHTML(text));
+                break;
+
+            case -1:
+                break;
+            } // switch
+        }
+
+        doc = win.document;
+        doc.open();
+        doc.writeln("<html><head><title>B5500 Console State Dump</title>");
+        doc.writeln("</head><body>");
+        doc.write("<pre>");
+
+        cc.dumpSystemState(caption, writer);
+
+        doc.writeln("</pre></body></html>")
+        doc.close();
+        win.focus();
     }
 
     function displayCallbacks() {
@@ -479,6 +560,10 @@ window.addEventListener("load", function() {
     $$("RetroVersion").innerHTML = B5500CentralControl.version;
     if (!checkBrowser()) {
         $$("BurroughsLogo").addEventListener("click", BurroughsLogo_Click, false);
+        $$("B5500Logo").addEventListener("click", function(ev) {
+            alert("Dynamic configuration management is not yet implemented");
+        });
+
         $$("PowerOnBtn").addEventListener("click", PowerOnBtn_Click, false);
         $$("PowerOffBtn").addEventListener("click", PowerOffBtn_Click, false);
         $$("HaltBtn").addEventListener("click", HaltBtn_Click, false);
@@ -489,6 +574,9 @@ window.addEventListener("load", function() {
         $$("NotReadyBtn").addEventListener("click", function(ev) {
             B5500SystemConfiguration.PB ^= true;
             $$("RetroVersion").style.color = (B5500SystemConfiguration.PB ? "yellow" : "white");
+        });
+        $$("MemoryCheckBtn").addEventListener("click", function(ev) {
+            dumpState("Memory Check Button");
         });
 
         aControl = $$("AControlBtn");
@@ -510,7 +598,7 @@ window.addEventListener("load", function() {
     <button id=HaltBtn class="redButton" DISABLED>HALT</button>
 
     <button id=NotReadyBtn class=whiteButton>NOT READY</button>
-    <button id=MemoryCheckBtn class=redButton>MEMORY CHECK</button>
+    <button id=MemoryCheckBtn class=redButton DISABLED>MEMORY CHECK</button>
     <button id=LoadBtn class="blackButton blackLit" DISABLED>LOAD</button>
 
     <button id=LoadSelectBtn class="yellowButton" DISABLED>CARD LOAD SELECT</button>

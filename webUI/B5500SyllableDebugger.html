@@ -40,6 +40,8 @@ var running = false;                    // true if in run mode
 var runSilently = false;                // true if system state is not to be refreshed after each step
 var stopAddress = 0;                    // run-until-address stop point
 
+var htmlMatch = /[<>&"]/g;              // regular expression for escaping HTML text
+
 var accessor = {                        // Memory access control block
     requestorID: "A",                   // Memory requestor ID
     addr: 0,                            // Memory address
@@ -265,6 +267,52 @@ function setText(id, text) {
     }
 }
 
+function escapeHTML(text) {
+    /* Returns "text" as escaped HTML */
+
+    function htmlFilter(char) {
+        /* Used to escape HTML-sensitive characters in a string */
+        switch (char) {
+        case "&":
+            return "&amp;";
+        case "<":
+            return "&lt;";
+        case ">":
+            return "&gt;";
+        case "\"":
+            return "&quot;";
+        default:
+            return char;
+        }
+    }
+
+    return text.replace(htmlMatch, htmlFilter);
+}
+
+function padLeft(text, minLength, char) {
+    /* Pads "text" on the left to a total length of "minLength" with "char" */
+    var s = text.toString();
+    var len = s.length;
+    var pad = char || " ";
+
+    while (len++ < minLength) {
+        s = pad + s;
+    }
+    return s;
+}
+
+function padOctal(value, octades) {
+    /* Formats "value" as an octal number of "octades" length, left-padding with
+    zeroes as necessary */
+    var text = value.toString(8);
+
+    if (value >= 0) {
+        return padLeft(text, octades, "0");
+    } else {
+        return text;
+    }
+}
+
 function parseToOctal(e) {
     /* Obtains the .value from the element "e", parses it, and returns the
     result as a B5500 numeric word. If the element text contains any of "-+eE."
@@ -318,20 +366,6 @@ function parseToOctal(e) {
         e.style.backgroundColor = "";
     }
     return v;
-}
-
-function padOctal(value, octades) {
-    /* Formats "value" as an octal number of "octades" length, left-padding with
-    zeroes as necessary */
-    var text = value.toString(8);
-    var len = text.length;
-
-    if (value >= 0) {
-        while (len++ < octades) {
-            text = "0" + text;
-        }
-    }
-    return text;
 }
 
 function decodeSyllable(syllable, mode, level, msff) {
@@ -660,6 +694,171 @@ function displaySystemState() {
     //window.focus();
 }
 
+function dumpState__OLD(caption) {
+    /* Generates a dump of the processor states and all of memory */
+    var addr;
+    var bic;
+    var doc;
+    var dupCount = 0;
+    var lastLine = "";
+    var line;
+    var lineAddr;
+    var mod;
+    var win = window.open("", "", "resizable,scrollbars,status");
+    var x;
+
+    function convertWordtoANSI(value) {
+        /* Converts the "value" as a B5500 word to an eight character string and returns it */
+        var c;                              // current character
+        var s = "";                         // working string value
+        var w = value;                      // working word value
+        var x;                              // character counter
+
+        for (x=0; x<8; x++) {
+            c = w % 64;
+            w = (w-c)/64;
+            s = BICtoANSI[c] + s;
+        }
+        return s;
+    }
+
+    function dumpProcessorState(px) {
+        /* Dumps the register state for the specified processor */
+        var procNr = (px === cc.P1 ? "1" : "2");
+
+        doc.writeln();
+        doc.writeln("Processor P" + procNr + " = " + px.mnemonic + ":");
+
+        doc.writeln();
+        doc.writeln("NCSF=" + px.NCSF + " CWMF=" + px.CWMF + " MSFF=" + px.MSFF + " SALF=" + px.SALF +
+                    " VARF=" + px.VARF);
+        doc.writeln("C=" + padOctal(px.C, 5) + " L=" + px.L + " P=" + padOctal(px.P, 16) + " PROF=" + px.TROF +
+                    " T=" + padOctal(px.T, 4) + " TROF=" + px.TROF);
+        doc.writeln("I=" + padLeft(px.I.toString(2), 8, "0") + " E=" + padLeft(px.E.toString(2), 6, "0") +
+                    " Q=" + padLeft(px.Q.toString(2), 12, "0") + "  [bit masks]");
+        doc.writeln("M=" + padOctal(px.M, 5) + " G=" + px.G + " H=" + px.H);
+        doc.writeln("S=" + padOctal(px.S, 5) + " K=" + px.K + " V=" + px.V);
+        doc.writeln("F=" + padOctal(px.F, 5) + " R=" + padOctal(px.R, 3));
+        doc.writeln();
+        doc.writeln("X=   " + padOctal(px.X, 13) + " Y=" + padOctal(px.Y, 2) + " Z=" + padOctal(px.Z, 2) +
+                    " N=" + px.N);
+        doc.writeln("A=" + padOctal(px.A, 16) + " AROF=" + px.AROF);
+        doc.writeln("B=" + padOctal(px.B, 16) + " BROF=" + px.BROF);
+    }
+
+    doc = win.document;
+    doc.open();
+    doc.writeln("<html><head><title>B5500 Syllable Debugger State Dump</title>");
+    doc.writeln("</head><body>");
+    doc.writeln("<pre>Dump by " + escapeHTML(caption || "(unknown)") + " : " + new Date().toString());
+
+    dumpProcessorState(cc.P1);
+    if (cc.P2) {
+        dumpProcessorState(cc.P2);
+    }
+
+    doc.writeln();
+    for (mod=0; mod<0x8000; mod+=0x1000) {
+        for (addr=0; addr<0x1000; addr+=4) {
+            lineAddr = mod+addr;
+            line = bic = "";
+            for (x=0; x<4; x++) {
+                accessor.addr = lineAddr+x;
+                cc.fetch(accessor);
+                if (accessor.MAIL) {
+                    line += escapeHTML(" << ADDR INH >>  ");
+                    bic += "????????";
+                } else if (accessor.MPED) {
+                    line += escapeHTML(" << PARITY >>    ");
+                    bic += "????????";
+                } else if (accessor.MAED) {
+                    line += escapeHTML(" << INV ADDR >>  ");
+                    bic += "????????";
+                } else {
+                    line += " " + padOctal(accessor.word, 16);
+                    bic += convertWordtoANSI(accessor.word);
+                }
+            } // for x
+
+            if (line == lastLine && lineAddr < 0x7FFC) {
+                dupCount++;
+            } else {
+                if (dupCount > 0) {
+                    doc.writeln();
+                    doc.writeln("..... ................ for " + dupCount*4 + " words");
+                    dupCount = 0;
+                }
+                doc.writeln();
+                doc.write(padOctal(lineAddr, 5));
+                doc.write(" ");
+                doc.write(line);
+                doc.write(" ");
+                doc.writeln(escapeHTML(bic));
+                lastLine = line;
+            }
+        } // for addr
+    } // for mod
+
+    doc.writeln("</pre></body></html>")
+    doc.close();
+    win.focus();
+}
+
+function dumpState(caption) {
+    /* Generates a dump of the processor states and all of memory */
+    var doc;
+    var lastPhase = -2;
+    var win = window.open("", "", "resizable,scrollbars,status");
+    var x;
+
+    function writer(phase, text) {
+        /* Call-back function for cc.dumpSystemState */
+
+        switch (phase) {
+        case 0:
+            lastPhase = phase;
+            doc.writeln(escapeHTML(text));
+            break;
+
+        case 1:
+        case 2:
+            if (phase == lastPhase) {
+                doc.writeln(escapeHTML(text));
+            } else {
+                lastPhase = phase;
+                doc.writeln();
+                doc.writeln(escapeHTML(text));
+                doc.writeln();
+            }
+            break;
+
+        case 32:
+            if (phase != lastPhase) {
+                lastPhase = phase;
+                doc.writeln();
+            }
+            doc.writeln();
+            doc.writeln(escapeHTML(text));
+            break;
+
+        case -1:
+            break;
+        } // switch
+    }
+
+    doc = win.document;
+    doc.open();
+    doc.writeln("<html><head><title>B5500 Syllable Debugger State Dump</title>");
+    doc.writeln("</head><body>");
+    doc.write("<pre>");
+
+    cc.dumpSystemState(caption, writer);
+
+    doc.writeln("</pre></body></html>")
+    doc.close();
+    win.focus();
+}
+
 function establishSilence(beQuiet) {
     /* Maintains synchronization between the global "runSilently" flag, the
     RunSilently checkbox, and cc.inhCCI03F */
@@ -762,19 +961,14 @@ function runIt(ev) {
                 alert("P1.S out of range");
                 stopAddress = 0;
             }
-            /***************************
-            if (px.C < 0x40) {
-                // There is an interrupt
-                switch (px.C) {
-                case 0x31:              // P1 invalid address
-                case 0x32:              // P1 stack overflow
-                case 0x3C:              // P1 integer overflow
-                    alert("Unexpected Processor Interrupt occurred");
-                    stopAddress = 0;
-                    break;
-                }
+
+            /********************
+            if (stopAddress == 0x31 && (px.I & 0x02)) {         // There is an Invalid Address interrupt
+                dumpState("Invalid Address");
+                stopAddress = 0;
             }
-            ***************************/
+            ********************/
+
             if (--count <= 0) {
                 count = runningCycles;
                 break;                  // exit loop to pick up events
@@ -971,6 +1165,18 @@ function selectProcessor_onChange(ev) {
     }
 }
 
+function powerOff_onClick(ev) {
+    /* Power off the system in response to the Power Off button */
+
+    cc.powerOff();
+}
+
+function dump_onClick(ev) {
+    /* Dumps the system state to a new window */
+
+    dumpState("User Requested");
+}
+
 function checkBrowser() {
     /* Checks whether this browser can support the necessary stuff */
     var missing = "";
@@ -1147,6 +1353,8 @@ function initialize() {
     $$("FileSelector").addEventListener("change", fileSelector_onChange, false);
     $$("HardwareLoad").addEventListener("click", hardwareLoad_onClick, false);
     $$("SelectProcessor").addEventListener("change", selectProcessor_onChange, false);
+    $$("PowerOff").addEventListener("click", powerOff_onClick, false);
+    $$("Dump").addEventListener("click", dump_onClick, false);
     $$("GoBtn").addEventListener("click", goIt, false);
     $$("StepBtn").addEventListener("click", stepIt, false);
     $$("RunBtn").addEventListener("click", runIt, false);
@@ -1203,6 +1411,10 @@ window.onload = function() {
         <option value=1 selected>Show P1
         <option value=2>Show P2
     </select>
+    &nbsp;&nbsp;
+    <input id=PowerOff type=button value="Power Off">
+    &nbsp;&nbsp;
+    <input id=Dump type=button value="Dump">
 </p>
 
 <table id=RegisterBank1 class="normal border">

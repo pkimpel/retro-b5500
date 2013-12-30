@@ -61,7 +61,7 @@ function B5500CentralControl(global) {
 /**************************************/
     /* Global constants */
 
-B5500CentralControl.version = "0.17";
+B5500CentralControl.version = "0.18";
 
 B5500CentralControl.memReadCycles = 2;          // assume 2 탎 memory read cycle time (the other option was 3 탎)
 B5500CentralControl.memWriteCycles = 4;         // assume 4 탎 memory write cycle time (the other option was 6 탎)
@@ -889,6 +889,150 @@ B5500CentralControl.prototype.runTest = function runTest(runAddr) {
     this.LOFF = 0;
     this.P1.preset(runAddr);
     this.P1.start();
+};
+
+B5500CentralControl.prototype.dumpSystemState = function dumpSystemState(caption, writer) {
+    /* Generates a dump of the processor states and all of memory
+       "caption is an identifying string that is output in the heading line.
+       "writer" is a function that is called to output lines of text to the outside
+       world. It takes two parameters:
+           "phase" is a numeric code indicating the type of line being output:
+                   0 = initialization and heading line
+                   1 = processor 1 state
+                   2 = processor 2 state
+                  32 = core memory
+                  -1 = end of dump (text parameter not valid)
+           "text" is the line of text to be output.
+    */
+    var addr;
+    var bic;
+    var dupCount = 0;
+    var lastLine = "";
+    var line;
+    var lineAddr;
+    var mod;
+    var x;
+
+    var accessor = {                    // Memory access control block
+        requestorID: "C",               // Memory requestor ID
+        addr: 0,                        // Memory address
+        word: 0,                        // 48-bit data word
+        MAIL: 0,                        // Truthy if attempt to access @000-@777 in normal state
+        MPED: 0,                        // Truthy if memory parity error
+        MAED: 0                         // Truthy if memory address/inhibit error
+    };
+
+    var BICtoANSI = [
+            "0", "1", "2", "3", "4", "5", "6", "7",
+            "8", "9", "#", "@", "?", ":", ">", "}",
+            "+", "A", "B", "C", "D", "E", "F", "G",
+            "H", "I", ".", "[", "&", "(", "<", "~",
+            "|", "J", "K", "L", "M", "N", "O", "P",
+            "Q", "R", "$", "*", "-", ")", ";", "{",
+            " ", "/", "S", "T", "U", "V", "W", "X",
+            "Y", "Z", ",", "%", "!", "=", "]", "\""];
+
+    function padLeft(text, minLength, char) {
+        /* Pads "text" on the left to a total length of "minLength" with "char" */
+        var s = text.toString();
+        var len = s.length;
+        var pad = char || " ";
+
+        while (len++ < minLength) {
+            s = pad + s;
+        }
+        return s;
+    }
+
+    function padOctal(value, octades) {
+        /* Formats "value" as an octal number of "octades" length, left-padding with
+        zeroes as necessary */
+        var text = value.toString(8);
+
+        if (value >= 0) {
+            return padLeft(text, octades, "0");
+        } else {
+            return text;
+        }
+    }
+
+    function convertWordtoANSI(value) {
+        /* Converts the "value" as a B5500 word to an eight character string and returns it */
+        var c;                              // current character
+        var s = "";                         // working string value
+        var w = value;                      // working word value
+        var x;                              // character counter
+
+        for (x=0; x<8; x++) {
+            c = w % 64;
+            w = (w-c)/64;
+            s = BICtoANSI[c] + s;
+        }
+        return s;
+    }
+
+    function dumpProcessorState(px, nr) {
+        /* Dumps the register state for the specified processor */
+
+        writer(nr, "Processor P" + nr + " = " + px.mnemonic + ":");
+        writer(nr, "NCSF=" + px.NCSF + " CWMF=" + px.CWMF + " MSFF=" + px.MSFF + " SALF=" + px.SALF +
+                  " VARF=" + px.VARF);
+        writer(nr, "C=" + padOctal(px.C, 5) + " L=" + px.L + " P=" + padOctal(px.P, 16) + " PROF=" + px.TROF +
+                  " T=" + padOctal(px.T, 4) + " TROF=" + px.TROF);
+        writer(nr, "I=" + padLeft(px.I.toString(2), 8, "0") + " E=" + padLeft(px.E.toString(2), 6, "0") +
+                  " Q=" + padLeft(px.Q.toString(2), 9, "0") + "  [bit masks]");
+        writer(nr, "M=" + padOctal(px.M, 5) + " G=" + px.G + " H=" + px.H);
+        writer(nr, "S=" + padOctal(px.S, 5) + " K=" + px.K + " V=" + px.V);
+        writer(nr, "F=" + padOctal(px.F, 5) + " R=" + padOctal(px.R, 3));
+        writer(nr, "X=   " + padOctal(px.X, 13) + " Y=" + padOctal(px.Y, 2) + " Z=" + padOctal(px.Z, 2) +
+                  " N=" + px.N);
+        writer(nr, "A=" + padOctal(px.A, 16) + " AROF=" + px.AROF);
+        writer(nr, "B=" + padOctal(px.B, 16) + " BROF=" + px.BROF);
+    }
+
+    writer(0, "B5500 State Dump by " + (caption || "(unknown)") + " : " + new Date().toString());
+
+    // Dump the processor states
+    dumpProcessorState(this.P1, 1);
+    if (this.P2) {
+        dumpProcessorState(this.P2, 2);
+    }
+
+    // Dump all of memory
+    for (mod=0; mod<0x8000; mod+=0x1000) {
+        for (addr=0; addr<0x1000; addr+=4) {
+            lineAddr = mod+addr;
+            line = " ";
+            bic = "  ";
+            for (x=0; x<4; x++) {
+                accessor.addr = lineAddr+x;
+                this.fetch(accessor);
+                if (accessor.MPED) {
+                    line += " << PARITY >>    ";
+                    bic += "????????";
+                } else if (accessor.MAED) {
+                    line += " << INV ADDR >>  ";
+                    bic += "????????";
+                } else {
+                    line += " " + padOctal(accessor.word, 16);
+                    bic += convertWordtoANSI(accessor.word);
+                }
+            } // for x
+
+            if (line == lastLine && lineAddr < 0x7FFC) {
+                dupCount++;
+            } else {
+                if (dupCount > 0) {
+                    writer(32, ".....  ................ for " + dupCount*4 + " words");
+                    dupCount = 0;
+                }
+                writer(32, padOctal(lineAddr, 5) + line + bic);
+                lastLine = line;
+            }
+        } // for addr
+    } // for mod
+
+    writer(-1, null);
 };
 
 /**************************************/

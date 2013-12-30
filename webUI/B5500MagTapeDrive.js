@@ -274,10 +274,6 @@ B5500MagTapeDrive.prototype.setTapeRemote = function setTapeRemote(ready) {
             this.statusChange(0);
             this.removeClass(this.$$("MTRemoteBtn"), "yellowLit");
             this.addClass(this.$$("MTLocalBtn"), "yellowLit");
-            if (this.timer) {
-                clearCallback(this.timer);
-                this.timer = null;
-            }
         }
     }
 };
@@ -319,7 +315,7 @@ B5500MagTapeDrive.prototype.tapeRewind = function tapeRewind(makeReady) {
         this.timer = null;
         this.busy = false;
         this.removeClass(this.$$("MTRewindingLight"), "whiteLit");
-        if (makeReady) {
+        if (makeReady && this.tapeState == this.tapeRemote) {
             this.ready = true;
             this.statusChange(1);
         }
@@ -515,7 +511,7 @@ B5500MagTapeDrive.prototype.bcdSpaceBackward = function bcdSpaceBackward(checkEO
 
     if (imgIndex <= 0) {
         this.setAtBOT(true);
-        this.errorMask |= 0x100010;     // set blank-tape and parity bits
+        this.errorMask |= 0x100000;     // set blank-tape bit
     } else {
         if (this.atEOT) {
             this.setAtEOT(false);
@@ -652,7 +648,7 @@ B5500MagTapeDrive.prototype.bcdReadBackward = function bcdReadBackward(oddParity
 
     if (imgIndex <= 0) {
         this.setAtBOT(true);
-        this.errorMask |= 0x100010;     // set blank-tape and parity bits
+        this.errorMask |= 0x100000;     // set blank-tape bit
     } else {
         if (this.atEOT) {
             this.setAtEOT(false);
@@ -930,9 +926,10 @@ B5500MagTapeDrive.prototype.writeInterrogate = function writeInterrogate(finish,
     } else if (!this.ready) {
         finish(0x04, 0);                // report unit not ready
     } else {
-        this.buildErrorMask(0, true);
-        if (!this.writeRing) {
-            this.errorMask |= 0x50;     // RD bits 26 & 28 => no write ring
+        if (this.writeRing) {
+            this.buildErrorMask(0, true);
+        } else {
+            this.errorMask |= 0x50;     // RD bits 26 & 28 => no write ring, don't return Mod III bits
         }
         finish(this.errorMask, 0);
     }
