@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<head>
+<title>B5500 Emulator Operator Console Demo</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta name="Author" content="Nigel Williams & Paul Kimpel">
+<meta http-equiv="Content-Script-Type" content="text/javascript">
+<meta http-equiv="Content-Style-Type" content="text/css">
+<link id=defaultStyleSheet rel=stylesheet type="text/css" href="B5500DistributionAndDisplay.css">
+
+<script>
+var paPanel;
+var paState = 0;
+var paTimer = null;
+var pbState = 0;
+var pbTimer = null;
+
+var PAStateChange = function() {
+    var aNormal =  document.getElementById("ANormalBtn");
+    var aControl = document.getElementById("AControlBtn");
+    var delay = Math.random();
+
+    if (paState || !pbState) {          // PA will go to Normal State onlyl if PB is already in Normal State
+        paState = 0;
+        aNormal.className = "yellowButton";
+        aControl.className = "yellowButton yellowLit";
+        delay = Math.log(delay+1)*250;
+    } else {              
+        paState = 1;
+        aNormal.className = "yellowButton yellowLit";
+        aControl.className = "yellowButton";
+        delay = Math.log(2-delay)*delay*250;
+    }
+    paTimer = setTimeout(PAStateChange, delay);
+};
+
+var PBStateChange = function() {
+    var bNormal =  document.getElementById("BNormalBtn");
+    var delay = Math.random();
+
+    if (pbState) {
+        pbState = 0;
+        bNormal.className = "yellowButton";
+        delay = Math.log(delay+1)*1000;
+    } else {
+        pbState = 1;
+        bNormal.className = "yellowButton yellowLit";
+        delay = Math.log(2-delay)*delay*delay*1000;
+    }
+    pbTimer = setTimeout(PBStateChange, delay);
+};
+
+var PowerOnBtn_Click = function() {
+    document.getElementById("PowerOnBtn").className = "whiteButton whiteLit";
+    document.getElementById("AControlBtn").className = "yellowButton yellowLit";
+    paState = pbState = 0;
+    paTimer = setTimeout(PAStateChange, 3000);
+    pbTimer = setTimeout(PBStateChange, 10000);
+    if (!paPanel) {
+        paPanel = window.open("B5500ProcessorPanel.html", "PAPanel", "resizable=yes,scrollbars=yes,width=1,height=1");
+    }
+    return true;
+};
+
+var PowerOffBtn_Click = function() {
+    paState = pbSate = 0;
+    document.getElementById("PowerOnBtn").className = "whiteButton";
+    document.getElementById("ANormalBtn").className = "yellowButton";
+    document.getElementById("AControlBtn").className = "yellowButton";
+    document.getElementById("BNormalBtn").className = "yellowButton";
+    if (paPanel) {
+        paPanel.close();
+        paPanel = null;
+    }
+    if (paTimer) {
+        clearTimeout(paTimer);
+        paTimer = null;
+    }
+    if (pbTimer) {
+        clearTimeout(pbTimer);
+        pbTimer = null;
+    }
+    return true;
+};
+</script>
+</head>
+
+<body class=consoleBody>
+
+<div style="position:relative; width:1300px; height:128px">
+
+<div id=HaltBtn class=blackButton style="right:1200px">
+    <div class=buttonCaption style="margin-top:1em">HALT</div>
+</div>
+
+<div id=NotReadyBtn class=yellowButton style="right:1050px">
+    <div class=buttonCaption>NOT READY</div>
+</div>
+<div id=LoadSelectBtn class=blackButton style="right:975px">
+    <div class=buttonCaption>LOAD SELECT</div>
+</div>
+<div id=LoadBtn class=blackButton style="right:900px">
+    <div class=buttonCaption style="margin-top:1em">LOAD</div>
+</div>
+
+<div id=MemoryCheckBtn class=yellowButton style="right:750px">
+    <div class=buttonCaption>MEMORY CHECK</div>
+</div>
+<div id=ANormalBtn class=yellowButton style="right:675px">
+    <div class=buttonCaption>A NORMAL</div>
+</div>
+<div id=AControlBtn class=yellowButton style="right:600px">
+    <div class=buttonCaption>A CONTROL</div>
+</div>
+<div id=BNormalBtn class=yellowButton style="right:525px">
+    <div class=buttonCaption>B NORMAL</div>
+</div>
+<div id=BControlBtn class=yellowButton style="right:450px">
+    <div class=buttonCaption>B CONTROL</div>
+
+</div>
+<div id=PowerOnBtn class=whiteButton style="right:300px"
+     onclick="return PowerOnBtn_Click()">
+    <div class=buttonCaption>POWER ON</div>
+</div>
+<div id=PowerOffBtn class=blackButton style="right:225px"
+     onclick="return PowerOffBtn_Click()">
+    <div class=buttonCaption>POWER OFF</div>
+</div>
+
+<div id=BurroughsLogo>
+    <img id=BurroughsLogoImage src="../Burroughs-Logo-Neg.jpg">
+</div>
+<div id=B5500Logo> B 5500 Demo </div>
+
+</div>
+
+<p class=center>(Click the <b>Power On</b> button)</p>
+
+</body>
+</html>

@@ -1,0 +1,41 @@
+?COMPILE LOG/MAKER ALGOL GO
+?DATA CARD
+$ CARD LIST SINGLE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  LOG/MAKER                                                         %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   THIS PROGRAM WILL INITIALIZE THE B5500 MCP SYSTEM/LOG FILE.
+%   CAUTION: THIS PROGRAM SHOULD NOT BE USED IF THE LOG ALREADY EXISTS.
+%            IT MAY REMOVE THE EXISTING LOG. YOU MAY WISH TO USE AN 
+%            "LN" MESSAGE FIRST.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 2013-07-05  P.KIMPEL
+%   ORIGINAL VERSION.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+BEGIN
+DEFINE
+  WORDSPERREC =         5 #,
+  WORDSPERSEG =         30 #,
+  LOGRECS =             30000 #;
+SAVE FILE OUT 
+  LOG DISK RANDOM [1:LOGRECS] 
+      "SYSTEM" "LOG" (1, WORDSPERREC, WORDSPERSEG, SAVE 365);
+ARRAY
+  BUF [0:WORDSPERSEG-1];
+
+BUF[0] ~ 0;
+BUF[1] ~ LOGRECS-1;
+BUF[2] ~ 0;
+BUF[3] ~ 0;
+BUF[4] ~ "DISKLOG";
+WRITE(LOG[0], WORDSPERREC, BUF[*]);
+
+BUF[0] ~ 4;
+BUF[1] ~ BUF[4] ~ 0;
+WRITE(LOG[1], WORDSPERREC, BUF[*]);
+
+WRITE(LOG[LOGRECS-1], WORDSPERREC, BUF[*]);
+LOCK(LOG);
+END.
+?END
