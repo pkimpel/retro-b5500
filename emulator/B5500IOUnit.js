@@ -57,7 +57,7 @@ function B5500IOUnit(ioUnitID, cc) {
     };
 
     // Establish a buffer for the peripheral modules to use during their I/O.
-    // The size is sufficient for 63 disk sectors, rounded up to the next 8KB.
+    // The 16384 size is sufficient for 63 disk sectors, rounded up to the next 8KB.
     this.bufferArea = new ArrayBuffer(16384);
     this.buffer = new Uint8Array(this.bufferArea);
 
@@ -772,7 +772,7 @@ B5500IOUnit.prototype.finishGenericRead = function finishGenericRead(errorMask, 
     /* Handles a generic I/O finish when input data transfer, and optionally,
     word-count update, is needed. Note that this turns off the busyUnit mask bit in CC */
 
-    this.storeBuffer(length, 0, 1, (this.D23F ? this.DwordCount : this.buffer.length));
+    this.storeBuffer(length, 0, 1, (this.D23F ? this.DwordCount : this.buffer.length/8));
     this.finishGeneric(errorMask, length);
 };
 
@@ -957,7 +957,7 @@ B5500IOUnit.prototype.initiatePrinterIO = function initiatePrinterIO(u) {
 B5500IOUnit.prototype.finishSPORead = function finishSPORead(errorMask, length) {
     /* Handles I/O finish for a SPO keyboard input operation */
 
-    this.storeBufferWithGM(length, 0, 1, this.buffer.length);
+    this.storeBufferWithGM(length, 0, 1, this.buffer.length/8);
     this.finishGeneric(errorMask, length);
 };
 
@@ -1020,18 +1020,6 @@ B5500IOUnit.prototype.finishTapeRead = function finishTapeRead(errorMask, length
 };
 
 /**************************************/
-B5500IOUnit.prototype.finishTapeWrite = function finishTapeWrite(errorMask, length) {
-    /* Handles I/O finish for a tape drive write operation */
-
-    /*** Temporary stub until tape write is implemented ***/
-
-    this.finishTapeIO(errorMask, length);
-
-    //console.log(this.mnemonic + " finishTapeWr: " + errorMask.toString(8) + " for " + length.toString() +
-    //            ", D=" + this.D.toString(8));
-};
-
-/**************************************/
 B5500IOUnit.prototype.initiateTapeIO = function initiateTapeIO(u) {
     /* Initiates an I/O to a Magnetic Tape unit */
     var addr = this.Daddress;           // initial data transfer address
@@ -1039,28 +1027,36 @@ B5500IOUnit.prototype.initiateTapeIO = function initiateTapeIO(u) {
     var memWords;                       // words to fetch from memory
 
     if (this.D24F) {                    // tape read operation
-        if (this.D18F) {                        // memory inhibit -- maintenance commands
+        if (this.D18F) {                        // read memory inhibit => maintenance commands
             this.D30F = 1;                      // (MAINTENANCE I/Os NOT YET IMPLEMENTED)
             this.finish();
         } else if (this.D23F && this.DwordCount == 0) { // forward or backward space
             u.space(this.boundFinishTapeIO, 0, this.D22F);
         } else {                                // some sort of actual read
-            memWords = (this.D23F ? this.DwordCount : this.buffer.length);
+            memWords = (this.D23F ? this.DwordCount : this.buffer.length/8);
             u.read(this.boundFinishTapeRead, this.buffer, memWords*8, this.D21F, this.D22F);
         }
     } else {                            // tape write operation
         if (this.D23F && this.DwordCount == 0) {// interrogate drive status
             u.writeInterrogate(this.boundFinishTapeIO, 0);
-        } else if (this.D18F) {                 // memory inhibit
-            if (this.D22F) {                    // backward write => rewind
-                u.rewind(this.boundFinishTapeIO);
-            } else {
-                this.D30F = 1;                  // (ERASE NOT YET IMPLEMENTED)
-                this.finish();
+        } else if (this.D22F) {                 // backward write => rewind
+            u.rewind(this.boundFinishTapeIO);
+        } else {                                // some sort of actual write
+            memWords = (this.D23F ? this.DwordCount : this.buffer.length/8);
+            if (!this.D21F) {                   // if alpha mode, fetch the characters
+                chars = this.fetchBufferWithGM(1, memWords);
+            } else {                            // otherwise, it's binary mode
+                if (this.D18F) {                // if mem inhibit, just compute the size
+                    chars = this.DwordCount*8;
+                } else {                        // otherwise, fetch the characters
+                    chars = this.fetchBuffer(1, memWords);
+                }
             }
-        } else {
-            this.D30F = 1;                      // (ALL FORMS OF WRITE NOT YET IMPLEMENTED)
-            this.finish();
+            if (this.D18F) {                    // write memory inhibit => erase
+                u.erase(this.boundFinishTapeIO, chars);
+            } else {                            // write data
+                u.write(this.boundFinishTapeIO, this.buffer, chars, this.D21F, 0);
+            }
         }
     }
 };
@@ -1143,9 +1139,9 @@ B5500IOUnit.prototype.forkIO = function forkIO() {
         // SPO designate
         case 30:
             if (this.D24F) {
-                u.read(this.boundFinishSPORead, this.buffer, this.buffer.length, 0, 0);
+                u.read(this.boundFinishSPORead, this.buffer, this.buffer.length/8, 0, 0);
             } else {
-                chars = this.fetchBufferWithGM(1, this.buffer.length);
+                chars = this.fetchBufferWithGM(1, this.buffer.length/8);
                 u.write(this.boundFinishGeneric, this.buffer, chars, 0, 0);
             }
             break;

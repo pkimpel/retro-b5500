@@ -42,6 +42,7 @@ BCLtoANSI = [               // Index by 6-bit BCL to get 8-bit ANSI code
         "H", "I", "+", ".", "[", "(", "<", "~"];        // 38-3F, @70-77
 
 function html(c) {
+    /* Filter ANSI characters to escaped HTML */
     switch(c) {
         case "<": return "&lt;";
         case ">": return "&gt;";
@@ -53,12 +54,14 @@ function html(c) {
 }
 
 function parity(c) {
+    /* Compute even parity over six bits. Returns 0 or 1 */
     return ((c & 0x01) ^ ((c & 0x02) >>> 1) ^ ((c & 0x04) >>> 2) ^
            ((c & 0x08) >>> 3) ^ ((c & 0x10) >>> 4) ^ ((c & 0x20) >>> 5));
 
 }
 
 function pic9n(v, n) {
+    /* Formats a value padded with leading zeroes to length "n" */
     var text = v.toString();
 
     if (text.length > n) {
@@ -73,6 +76,8 @@ function pic9n(v, n) {
 
 var bcdEven = new Array(128);
 var bcdOdd  = new Array(128);
+var ansiOdd = new Array(128);
+var ansiEven= new Array(128);
 
 var c;
 var even;
@@ -84,7 +89,7 @@ document.write("<h3>Build .bdc Tape Image Translate Tables</h3>");
 
 // Initialize the tables with invalid parity codes
 for (x=0; x<128; x++) {
-    bcdEven[x] = bcdOdd[x] = 0xFF;
+    bcdEven[x] = ansiEven[x] = bcdOdd[x] = ansiOdd[x] = 0xFF;
 }
 
 // Build the even/odd parity codes
@@ -94,11 +99,13 @@ for (c=0; c<64; c++) {
     odd = 1-parity(c);
     x = c | (odd << 6);
     bcdOdd[x] = BICtoANSI[c].charCodeAt(0);
+    ansiOdd[bcdOdd[x]] = x;
 
     // Even parity translates
     even = parity(c);
     y = c | (even << 6);
-    bcdEven[y] = BICtoANSI[c].charCodeAt(0);
+    bcdEven[y] = BCLtoANSI[c].charCodeAt(0);
+    ansiEven[bcdEven[y]] = y;
 
     document.write("<tr><td>");
     document.write(pic9n(c.toString(8), 2));
@@ -115,20 +122,40 @@ for (c=0; c<64; c++) {
 }
 document.write("</table>");
 
-document.write("<h3>Odd Parity Table</h3><code>");
+document.write("<h3>BCD Odd Parity BIC to ANSI Table</h3><code>");
 
 for (x=0; x<128; x++) {
-    document.write("0x" + bcdOdd[x].toString(16).toUpperCase() + ", ");
+    document.write("0x" + pic9n(bcdOdd[x].toString(16).toUpperCase(), 2) + ", ");
     if (x % 16 == 15) {
         document.write("<br>");
     }
 }
 document.write("</code>");
 
-document.write("<h3>Even Parity Table</h3><code>");
+document.write("<h3>BCD Odd Parity ANSI to BIC Table</h3><code>");
 
 for (x=0; x<128; x++) {
-    document.write("0x" + bcdEven[x].toString(16).toUpperCase() + ", ");
+    document.write("0x" + pic9n(ansiOdd[x].toString(16).toUpperCase(), 2) + ", ");
+    if (x % 16 == 15) {
+        document.write("<br>");
+    }
+}
+document.write("</code>");
+
+document.write("<h3>BCD Even Parity BCL to ANSI Table</h3><code>");
+
+for (x=0; x<128; x++) {
+    document.write("0x" + pic9n(bcdEven[x].toString(16).toUpperCase(), 2) + ", ");
+    if (x % 16 == 15) {
+        document.write("<br>");
+    }
+}
+document.write("</code>");
+
+document.write("<h3>BCD Even Parity ANSI to BCL Table</h3><code>");
+
+for (x=0; x<128; x++) {
+    document.write("0x" + pic9n(ansiEven[x].toString(16).toUpperCase(), 2) + ", ");
     if (x % 16 == 15) {
         document.write("<br>");
     }
