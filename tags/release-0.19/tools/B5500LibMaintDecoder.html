@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<head>
+<title>B5500 LibMaint Decoder</title>
+<meta name="Author" content="Paul Kimpel">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta http-equiv="Content-Script-Type" content="text/javascript">
+<meta http-equiv="Content-Style-Type" content="text/css">
+
+<script>
+"use strict";
+
+window.onload = function() {
+
+    var BICtoANSI = [ 
+            "0", "1", "2", "3", "4", "5", "6", "7", 
+            "8", "9", "#", "@", "?", ":", ">", "}", 
+            "+", "A", "B", "C", "D", "E", "F", "G", 
+            "H", "I", ".", "[", "&", "(", "<", "~", 
+            "|", "J", "K", "L", "M", "N", "O", "P", 
+            "Q", "R", "$", "*", "-", ")", ";", "{", 
+            " ", "/", "S", "T", "U", "V", "W", "X", 
+            "Y", "Z", ",", "%", "!", "=", "]", "\""];
+
+    function appendLine(panel, text) {
+        /* Appends "text"+NL as a new text node to the panel DOM element */
+        var e = document.createTextNode(text + "\n");
+        
+        panel.appendChild(e);
+    }
+    
+    function clearPanel(panel) {
+        /* Clears the text panel */
+        var kid;
+        
+        while (kid = panel.firstChild) {
+            panel.removeChild(kid);
+        }
+    }
+
+    function fileLoader_onLoad(ev) {
+        /* Handle the onload event for an ArrayBuffer FileReader */
+        var buf = ev.target.result;
+        var bytes = buf.byteLength;
+        var data = new DataView(buf);   // use DataView() to avoid problems with littleendians.
+        var panel = document.getElementById("TextPanel");
+        var text = "";
+        var v;
+        var x = 0;
+
+        clearPanel(panel);
+        //alert("File loaded: " + bytes + " bytes");
+        
+        do {
+            v = data.getUint8(x);
+            if (v & 0x80) {
+                appendLine(panel, text);
+                panel.appendChild(document.createElement("hr"));
+                if (v == 0x8F) {
+                    text = "\\\\\\\\\\ [EOF] /////";
+                } else {
+                    text = BICtoANSI[v & 0x3F];
+                }
+            } else {
+                if (text.length >= 80) {
+                    appendLine(panel, text);
+                    text = "";
+                }
+                text += BICtoANSI[v & 0x3F];
+            }
+        } while (++x < bytes);
+        appendLine(panel, text);
+
+        //document.getElementById("RunBtn").disabled = false;
+    }
+
+    function fileSelector_onChange(ev) {
+        /* Handle the <input type=file> onchange event when a file is selected */
+        var f = ev.target.files[0];
+        var reader = new FileReader();
+
+        document.getElementById("GoBtn").disabled = true;
+        
+        alert("File selected: " + f.name + 
+                "\nModified " + f.lastModifiedDate +
+                "\nType=" + f.type + ", Size=" + f.size + " octets");
+
+        reader.onload = fileLoader_onLoad;
+        reader.readAsArrayBuffer(f.slice(0,65536));
+    }
+
+    function goBtn_onClick(ev) {
+        /* Driver to process the data file */
+
+    }
+
+    function checkBrowser() {
+        /* Checks whether this browser can support the necessary stuff */
+        var missing = "";
+
+        if (!window.File) {missing += ", File"}
+        if (!window.FileReader) {missing += ", FileReader"}
+        if (!window.FileList) {missing += ", FileList"}
+        if (!window.Blob) {missing += ", Blob"}
+        if (!window.ArrayBuffer) {missing += ", ArrayBuffer"}
+        if (!window.DataView) {missing += ", DataView"}
+
+        if (missing.length == 0) {
+            return false;
+        } else {
+            alert("No can do... your browser does not support the following features:\n" + missing.substring(2));
+            return true;
+        }
+    }
+
+    /* Start of window.onload() */
+    if (checkBrowser()) {
+        return;
+    }
+    document.getElementById("FileSelector").addEventListener("change", fileSelector_onChange, false);
+    document.getElementById("GoBtn").addEventListener("click", goBtn_onClick, false);
+}
+</script>
+</head>
+
+<body>
+
+<div style="position:relative; width:100%">
+    <div style="position:absolute; left:0; top:0; width:auto">
+        retro-B5500 LibMaint Tape Decoder
+    </div>
+    <div style="position:absolute; top:0; right:0; width:auto">
+        <input id=FileSelector type=file size=60>
+        &nbsp;
+        <input id=GoBtn type=button value=Go disabled>
+    </div>
+    
+</div>
+
+<pre id=TextPanel>
+</pre>
+
+</body>
+</html>
