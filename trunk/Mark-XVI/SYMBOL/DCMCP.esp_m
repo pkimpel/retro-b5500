@@ -24114,4 +24114,911 @@ BEGIN REAL RCW=+0;%                                                     39001000
       BEGIN IF USEPBD                                                   39092070        
  $ SET OMIT = NOT(DATACOM AND RJE )                                     39092074        
            THEN TYPE:=22; GO TO LOOKOUT;                                39092080        
-      END;                                                              39092090        
+      IF TYPE=1 OR TYPE=4 OR (TYPE>14 AND TYPE<19) THEN                 39092100        
+      BEGIN IF USEPDB                                                   39092150        
+ $ SET OMIT = NOT(DATACOM AND RJE )                                     39092154        
+            THEN TYPE:=15;                                              39092160        
+ $ SET OMIT = NOT(PACKETS)                                              39092164        
+IF (T1:=PSEUDOMIX[P1MIX])!0 THEN IF PACKETPAGE[T1-32]!0 THEN       %107-39092165        
+              IF FORMS THEN FPB[FNUM+3].[23:1]:=1 ELSE     % SETS FREEF 39092170        
+              IF NOT FPB[FNUM+3].[23:1] THEN TYPE:=15;                  39092175        
+ $ POP OMIT                                                             39092180        
+           GO LOOKOUT;                                                  39092185        
+      END;                                                              39092190        
+      IF REEL=0 THEN REEL~1;                                            39092200        
+      IF IO THEN                                                        39092500        
+         IF TYPE!6 AND TYPE!20 THEN                                     39093000        
+           IF TYPE}10 THEN GO TO INSW[TYPE-10] ELSE GO LOOK             39093500        
+         ELSE GO TO DCN;                                                39094000        
+      IF TYPE}10 AND TYPE!20 THEN GO TO OUTSW[TYPE-10] ELSE GO LOOKOUT; 39094500        
+LOOK: IF IO THEN OTHERFILEOPENIN(1) ELSE OTHERFILEOPENOUT(1);           39095000        
+      IF U LSS 0 THEN GO TO EXIT ELSE GO TO PREFINAL;                   39096000        
+DCN:  FILEMESS(-"I/O ERR",0,MFID,FID,REEL,CDATE,CYCLE);%                39143000        
+      GETBUFFERS(BLEN,NBUFS, U,ALPHA);%                                 39144000        
+PREFINAL::  MAKEIODS;%                                                  39145000        
+      IF KIND=11 THEN                                                   39145100        
+      BEGIN IF COBOL { 0 THEN          % ALGOL OR COBOL68               39145200        
+            IF READEMFROMDISK(CIDROW[U-32],M[ALPHA]) THEN               39145210        
+                  M[ALPHA]~P(DUP,LOD)&0[2:2:1]&1[27:47:1];              39145300        
+      END ELSE                                                          39145400        
+      FILLBUFFERS(FIB[16],FIB[19],COBOL,NBUFS);                         39146000        
+      IF COBOL>0 THEN FIB[16]~(*P(DUP))&M[ALPHA][CTC];                  39147000        
+FINALIN:: FIB[6] ~ FIB[7] ~ FIB[17] ~ 0; GO TO FIXFIB;                  39148000        
+LOOKOUT:: IF IO THEN OTHERFILEOPENIN(0) ELSE OTHERFILEOPENOUT(0);       39155000        
+          IF U LSS 0 THEN GO TO EXIT ELSE GO TO FIND;                   39156000        
+FINALOUT::  IF NOT FIB[18].[1:1] THEN GETBUFFERS(BLEN,NBUFS,U,ALPHA);%  39230000        
+FIND:       MAKEIODS;%                                                  39231000        
+            FIB[6]~FIB[7]~0;%                                           39232000        
+            FIB[17]~IF COBOL THEN FIB[18].[3:15]ELSE FIB[18].[18:15];%  39233000        
+              ID KINS = 10 THEN                                         39233100        
+              FOR T2 ~ 0 STEP 1 UNTIL (NBUFS-1) DO                      39233200        
+              P(@170000000000,M[ALPHA+T2],~);                           39233300        
+              IF KIND=13 THEN                                           39233400        
+                   M[ALPHA+1]~ P(DUP,LOD)&P(DUP,LNG)[24:24:1];          39233500        
+            GO TO FIXFIB;%                                              39234000        
+DC0:     U:=30; KIND:=10;                                               39235000        
+ $ SET OMIT = NOT(DATACOM AND RJE )                                     39235099        
+         GO TO SPDC;                                                    39235200        
+DC19:                                                                   39236000        
+         OTHERFILEOPENIN(2);                                            39236100        
+ $ SET OMIT = NOT(DATACOM AND DCSPO )                                   39236154        
+         GO TO SPDC;                                                    39236160        
+SPO::    MODE~ 0;  U~ 25;    KIND~ 5;                                   39236900        
+SPDC: CNTCTL~DIREC~0; UNLABELED~1;                                      39237000        
+      STARTIMING(FNUM,U);%                                              39238000        
+      GO TO FINALOUT;%                                                  39239000        
+SPN:: U~25; KIND~5;                                                     39240000        
+      MODE~CNTCTL~DIREC~0; UNLABELED~1;%                                39241000        
+      STARTIMING(FNUM,U);%                                              39242000        
+      IF BLEN<10 THEN BLEN~10;%                                         39243000        
+      GETBUFFERS(BLEN,NBUFS,U,ALPHA);%                                  39244000        
+      MAKEIODS;%                                                        39245000        
+      GO TO FINALIN;%                                                   39246000        
+DKRN:: DKR0: ACCESS:-1;                                                 39247000        
+             GO TO DK1;                                                 39248000        
+DKU0::       IO:=1;                                                     39249000        
+DKUN::       ACCESS:=2;                                                 39250000        
+             GO TO DK1;                                                 39251000        
+DKPN:: DKP0:                                                            39252000        
+ $ SET OMIT = NOT SHAREDISK                                             39252999        
+ $ SET OMIT = SHAREDISK                                                 39254999        
+             GO TO DCN;                                                 39255000        
+ $ POP OMIT                                                             39255001        
+DKSN:: DKS0: ACCESS~0;                                                  39256000        
+DK1:         DISKFILEOPEN(0);                                           39257000        
+             IF TOG THEN GO TO EXIT;                                    39258000        
+             GO TO FIXFIB;                                              39259000        
+ DCIN::  U~30; KIND~10;                                                 39293100        
+            CNTCTL~DIREC~0; UNLABELED~1;                                39293200        
+            STARTIMING(FNUM,U);                                         39293300        
+            GETBUFFERS(BLEN,NBUFS,U,ALPHA);                             39293400        
+            IOMASK:=0; MAKEIODS;                                        39293500        
+FIXFIB::    FIB[4].[2:1]~UNLABELED;%                                    39294000        
+            FIB[4].[8:4]~KIND;%                                         39295000        
+            FIB[15].[24:6]~U;                                           39296000        
+            FIB[13].[28:10]~REEL;%                                      39297000        
+            FPB~PRT[P1MIX,3];                                           39297010        
+            FPB[FNUM+3].[43:5]~TYPE;                                    39297020        
+            STREAM(REEL,D:=[FPB[FNUM+2]]);                              39297100        
+            BEGIN DI:=D;SI:=LOC REEL;DS:=30DEC END;                     39297200        
+            RDCTABLE[U].[8:6]~P1MIX;%                                   39298000        
+            IF FIB[18].[1:1] THEN%                                      39299000        
+            BEGIN FIB[16]~0;%                                           39300000        
+                  FIB[5]~STATE&8[39:42:6];%                             39301000        
+                   FIB[10].[3:15]~0;                                    39301100        
+            END ELSE%                                                   39302000        
+           FIB[5].[CF]~STATE&DIREC[44:47:1]&IO[39:43:5]&FIB[5][45:45:1];39303000        
+            IF COBOL>0 OR FIB[4].[7:1] THEN M[FIB INX NOT 1].[3:6] ~ 6  39304000        
+                     ELSE M[ALPHA-7].[3:6]~4;%                          39305000        
+            FIB[4].[27:3]~ACCESS;%                                      39306000        
+            IF U<16 THEN IF KIND!7 THEN FPB[FNUM+3].[23:1]:=10;         39306010        
+            IF (U~T1~FIB[10].[3:15])!0 THEN                             39306100        
+            DO BEGIN IF KIND=10 THEN M[U-1]~0;  %FAKE QUEUE             39306200        
+            M[U-2].[3:6]~3 END UNTIL (U~M[U].[FF]-2)=T1;                39306300        
+EXIT::%                                                                 39307000        
+      IF XTRA THEN                                                      39307100        
+         XTRAC:=NOT(FIB[4].[7:1] OR UNLABELED) AND XTRAC NEQ 2;         39307200        
+      IF XTRA LSS 2 THEN GO TO INITIATE;                                39307300        
+      RCW:=XTRAR;                                                       39307400        
+END FILEOPEN;%                                                          39308000        
+PROCEDURE SUSTATUS(A,DDD,B);  VALUE A,DDD,B;  REAL A,B;  ARRAY DDD[*];  39900000        
+    BEGIN REAL RT1,I;                                                   39901000        
+         ARRAY D[*],ZSF[*],VADAR[*];                                    39902000        
+         SUBROUTINE SPOUTITNOW;                                         39903000        
+         BEGIN                                                          39904000        
+              STREAM(X:=[TINU[B]], D, EUNUM:=0, SU:=0, I, RT1);         39905000        
+              BEGIN SI:=X; SI:=SI+5;                                    39906000        
+                   DS:=LIT" "; DS:=3 CHR; SI:=D;                        39907000        
+                   10(IF SC!"0" THEN                                    39908000        
+                      BEGIN X:=SI; EUNUM:=TALLY;                        39909000        
+                           SI:=LOC EUNUM; DS:= 3 LIT" EU"; DS:=DEC;     39910000        
+                           DS:=4 LIT" SU "; TALLY:=0;                   39911000        
+                           5(SU:=TALLY; SI:=X; SKIP SB; SKIP SU SB;     39912000        
+                             IF SB THEN                                 39913000        
+                             BEGIN SI:=LOC SU;                          39914000        
+                                  DS:=DEC; DS:=LIT",";                  39915000        
+                             END;                                       39916000        
+                             TALLY:=TALLY+1);                           39917000        
+                           SI:=X; TALLY:=EUNUM;                         39918000        
+                      END;                                              39919000        
+                      TALLY:=TALLY+1; SI:=SI+1);                        39920000        
+                   SI:-LOC I; SI:=SI+7; DI:=DI-1;                       39921000        
+                   IF SC!"0" THEN                                       39922000        
+                   BEGIN DS:=5 LIT" WENT";                              39923000        
+                        IF SC="2" THEN DS:=4 LIT" NOT";                 39924000        
+                   END ELSE DS:=4 LIT" ARE";                            39925000        
+                   DS:=8 LIT" READY.~";                                 39926000        
+              END;                                                      39927000        
+              SPOUT(RT1);                                               39928000        
+         END OF SPOUTITNOW;                                             39929000        
+                                                                        39929100        
+         SUBROUTINE DOIT;                                               39930000        
+         BEGIN                                                          39931000        
+              IF NOT (ZSF[0] OR ZSF[1].[1:11]) ! NOT 0 THEN             39932000        
+              BEGIN B:=18; D:=ZSF;                                      39933000        
+                   RT1:=SPACE(20);                                      39934000        
+                   SPOUTITNOW;                                          39935000        
+              END;                                                      39936000        
+              IF NOT (ZSF[2] OR ZSF[3].[1:11]) ! NOT 0 THEN             39937000        
+              BEGIN B:=19; D:=[ZSF[2]];                                 39938000        
+                   RT1:=SPACE(20);                                      39939000        
+                   SPOUTITNOW;                                          39940000        
+              END;                                                      39941000        
+         END OF DOIT;                                                   39942000        
+%                                                                       39942900        
+%        START OF CODE                                                  39942910        
+%                                                                       39942920        
+         IF B!0 THEN                                                    39943000        
+         BEGIN D:=[MULTITABLE[16]]&2[8:38:10];                          39944000        
+              RT1:=A;                                                   39945000        
+ $ SET OMIT = DFX                                                       39945999        
+              IF B THEN D:=2 INX D;                                     39946000        
+ $ POP OMIT                                                             39946001        
+              IF NOT (IF B THEN P(RRR).[28:1] ELSE P(RRR).[29:1])       39947000        
+ $ SET OMIT = DFX                                                       39947999        
+                 OR NOT (D[0] OR D[1].[1:11]) = NOT 0                   39948000        
+ $ POP OMIT                                                             39948001        
+              THEN                                                      39949000        
+              BEGIN STREAM(X:=[TINU[B]], RT1);                          39950000        
+                   BEGIN SI:=X; SI:=SI+5;                               39951000        
+                        DS:=LIT" "; DS:=3 CHR;                          39952000        
+                        DS:=11 LIT" NOT READY~";                        39953000        
+                   END;                                                 39954000        
+                   SPOUT(RT1);                                          39955000        
+              END ELSE SPOUTITNOW;                                      39956000        
+         END ELSE                                                       39957000        
+         BEGIN ZSF:=[M[SPACE(4)]]&4[8:38:10];                           39958000        
+              VADAR:=[MULTITABLE[16]]&4[8:38:10];                       39959000        
+              DISKWAIT(-A,-30,DIRECTORYTOP);                            39960000        
+              FOR I:=0 STEP 1 UNTIL 3 DO                                39961000        
+                   ZSF[I]:=VADAR[I] AND NOT DDD[23+I];                  39962000        
+              I:=1; DOIT;                                               39963000        
+              FOR I:=0 STEP 1 UNTIL 3 DO                                39964000        
+              BEGIN ZSF[I]:=NOT VADAR[I] AND DDD[23+I];                 39965000        
+                   DDD[23+I]:=VADAR[I];                                 39966000        
+              END;                                                      39967000        
+              DISKWAIT(A,-30,DIRECTORYTOP);                             39968000        
+              I:=2; DOIT;                                               39969000        
+              FORGETSPACE(ZSF);                                         39970000        
+         END;                                                           39971000        
+    END;                                                                39972000        
+ PROCEDURE DIRECTORYBUILDER(A,DDD);                                     40000000        
+         VALUE A,DDD;                                                   40001000        
+         REAL A;                                                        40002000        
+         ARRAY DDD[*];                                                  40003000        
+BEGIN REAL Y,Z,B,C,I,J,T,RA,RL,RT1,R;INTEGER RADD,RLEN;                 40004000        
+REAL  NEXTLINK, AD, X, K, SEVEN7, FORTY, EUSU;                     %791-40004500        
+ARRAY SU[*];                                                            40005000        
+ARRAY HEAD[*],KK[*],PL[*];                                              40005050        
+REAL W,ESPADD,DISKTOP,SUPER,EUM,NT1,NT2,NT3,NT4;                        40005100        
+BOOLEAN UCHANG,ERROR;INTEGER LO,REM,TN,TM,MN;REAL X1,X2,EUMASK;         40005110        
+ARRAY ZSF[*],SOCK[*];                                                   40005200        
+REAL D,Y1,Y2;                                                           40005210        
+REAL AA,AAA;                                                            40005220        
+LABEL FORGET;                                                           40005230        
+              ARRAY V[*,*];                                             40006000        
+              INTEGER S;                                                40006100        
+              ARRAY VR=V[*];                                            40007000        
+              REAL H,FI,FJ;                                             40007500        
+ $ SET OMIT = NOT SHAREDISK                                             40007990        
+              LABEL LOOKATDKB,BACK,EXIT,M1,SKBLK,BYE;                   40008050        
+DEFINE ROW=SU[X].[3:4]#,                                             %MC40008100        
+       LASTAVAIL=HEAD[0].[3:15]#,                                       40008110        
+     AVAILABLE=HEAD[0].[FF]#,                                           40008120        
+       FIRSTLINK=HEAD[0].[CF]#,                                         40008130        
+       DA=9:24]#,DAC[9:24:24#,                                       %MC40008140        
+     SIZE=PL[1].[DA]#,                                                  40008150        
+     ADDRESS=PL[0].[DA]#,                                               40008160        
+       HIGHLINK=PL[0].[CF]#,                                            40008170        
+       LOWLINK=PL[1].[CF]#,                                             40008180        
+       DISKRUNNING=[18:1]#,                                          %MC40008190        
+       FORTYMILLDISK=[19:1]#,                                        %MC40008200        
+       OCCUPIED=[20:1]#,                                             %MC40008210        
+        AV1=480#,AVBLOCK=16#;                                           40008220        
+SUBROUTINE SAVIT;                                                    %MC40008300        
+BEGIN                                                                %MC40008310        
+IF (W~W+2)}28 THEN                                                   %MC40008320        
+BEGIN ZSF[29]~ESPADD;DISKWAIT(ZSF INX 0,30,ESPADD~GETESPDISK);       %MC40008330        
+W~0 END;ZSF[W]~T;ZSF[W+1]~DDD[479-2|I];                              %MC40008340        
+END SAVIT;                                                           %MC40008350        
+ SUBROUTINE CLEAR;                                                      40009000        
+         BEGIN V[S,0]~0;                                                40010000        
+              V[S,1] ~ BYPASS.[CF];                                     40011000        
+              V[S,2]~@14;                                               40012000        
+              V[S,3]~V[S,4]~0;                                          40013000        
+              MOVE(57,[V[S,2]],[V[S,5]]);                               40014000        
+         END;                                                           40015000        
+SUBROUTINE SETUP;                                                    %MC40016000        
+BEGIN                                                                   40016020        
+LO:=(X+1) MOD 5;LO:=LO+(LO=0)|5;                                        40016025        
+IF RADD NEQ (LO:=LO|FORTY) OR (LO=RADD AND RLEN LSS FORTY) THEN         40016026        
+BEGIN                                                                %MC40016100        
+IF Y:=(SU[X].[CF]=0) THEN                                               40016200        
+    BEGIN                                                            %MC40016220        
+      NT1:=SU[X]:=SPACE(16)&SU[X][18:18:9];                             40016240        
+      MOVE(16,NT1-1,NT1);                                               40016260        
+    END;                                                             %MC40016300        
+M[SU[X] INX K]~RT1~SPACE(64+Y);                                         40016400        
+KK~[M[RT1]]&(64+Y)[8:38:10];JUNK~61+Y;                                  40016410        
+MOVE(64+Y,RT1-1,RT1);                                                   40016420        
+FOR R:=3|Y SETP 2 UNTIL JUNK DO KK[R]:=RT1+R+2;                         40016500        
+HEAD~[M[M[SU[X]]]&1[8:38:10];                                        %MC40016510        
+IF Y THEN                                                            %MC40016600        
+BEGIN                                                                   40016700        
+    KK[1]:=KK[2]:=SEVEN7;                                               40016800        
+    KK[1].[DA]:=LO;                                                     40016900        
+    KK[2].[DA]:=IF X EQL 0 THEN FORTY-(DISKBOTTOM+5) ELSE FORTY;        40016910        
+    M[SU[X]].[DA]:=LO;                                                  40016920        
+      HEAD[0]:=RT1+1;                                                   40017050        
+END;                                                                    40017100        
+HEAD[0].[FF]~RT1+3|Y;                                                %MC40017200        
+HEAD[0].[3:15]~62+RT1+Y;                                             %MC40017250        
+END                                                                     40017260        
+     ELSE                                                               40017270        
+DO                                                                      40017275        
+BEGIN SU[X].OCCUPIED:=1;                                                40017280        
+    RADD:=RADD-FORTY;                                                   40017285        
+    X:=X-1;                                                             40017290        
+END UNTIL (RLEN:=RLEN-FORTY) LSS FORTY;                                 40017295        
+END OF SETUP;                                                        %MC40017300        
+SUBROUTINE BUILDAVAIL;                                               %MC40027100        
+BEGIN                                                                %MC40027200        
+BACK::ERROR~1;REM~0;                                                 %MC40027230        
+IF (Z:=SU[X])!0 AND Z.[CF]=0 THEN                                       40027240        
+    BEGIN K:=0; SETUP; GO BACK END;                                     40027245        
+IF (Z:=SU[X]).DISKRUNNING AND NOT Z.OCCUPIED AND RLEN>0 THEN            40027250        
+    BEGIN                                                            %MC40027260        
+       IF M[SU[X]],[DA] GEQ RADD THEN                                   40027270        
+       BEGIN                                                            40027280        
+       P(M[M[SU[X]]],0&RADD[9:24:24],LLL,0,INX,.AD,~,DEL);           %MC40027290        
+       HEAD~[M[M[SU[X]]]]&1[8:38:10];PL~[M[AD]]&2[8:38:10];          %MC40027300        
+            IF ((RA:=ADDRESS)-(RL:=SIZE) LSS RADD-RLEN OR               40039000        
+             (REM:=IF(NT1:=RADD NOD FORTH)=0 THEN 0 ELSE NT1-RLEN) LSS  40039100        
+             0)AND RADD NEQ RA THEN                                     40039200        
+           BEGIN                                                     %MC40040000        
+              IF REM LSS 0 THEN RLEN:=RADD MOD FORTY;                   40040500        
+              IF AVAILABLE=0 THEN%NEED ANOTHER ROW                   %MC40041000        
+                BEGIN                                                %MC40042000        
+                   K~ROW;K~K+1;ROW~K;                                %MC40042100        
+                   IF K GTR 15 THEN DO UNTIL FALSE;                  %MC40043000        
+                        SETUP;                                       %MC40044000        
+                END;                                                 %MC40045000        
+              NEXTLINK~M[R~AVAILABLE];                               %MC40046000        
+              M[R]~AD&(RADD-RLEN)[DAC];                              %MC40047000        
+              IF AD.[CF]=SEVEN7 THEN M[SU[X]].[DA]~RADD-RLEN;        %MC40047100        
+            IF LOWLINK=SEVEN7 THEN                                      40048000        
+               FIRSTLINK:=R                                             40049000        
+                    ELSE                                                40050000        
+               M[LOWLINK].[CF]:=R;                                      40051000        
+           M[R+1]:=PL[1]&(RADD-RLEN-(RA-RL))[DAC];                      40055000        
+            PL[1]:=R&(RA-RADD)[DAC];                                    40056000        
+              RLEN~0;                                                %MC40056100        
+              AVAILABLE~NEXTLINK;ERROR~FALSE;                        %MC40057000        
+           END                                                       %MC40058000        
+              ELSE%REDUCE EXISTING AREA(BEWARE OF ADDRESS CONFLICT OR%MC40059000        
+                  %EU UNDERFLOW).                                    %MC40060000        
+         BEGIN                                                       %MC40060050        
+              IF (RA-RL) GEQ RADD THEN RLEN := 0 ELSE              %604-40060060        
+              IF RADD=RA AND RL GEQ RLEN THEN                           40060100        
+             BEGIN                                                   %MC40060200        
+                ADDRESS~RA-RLEN;                                     %MC40060300        
+                IF HIGHLINK=SEVEN7 THEN                              %MC40060302        
+                M[SU[X]].[DA]~ADDRESS;                               %MC40060305        
+                SIZE~RL~RLEN;ERROR~RLEN~0;                           %MC40060400        
+             END                                                     %MC40060500        
+              ELSE                                                   %MC40060600        
+           IF RLEN>RL THEN                                           %MC40061000        
+            IF LOWLINK=SEVEN7 AND(X-1)MOD 5!4 THEN                   %MC40062000        
+               BEGIN                                                 %MC40063000        
+                  RADD~RADD-RL-1;RLEN~RLEN-RL-1;SIZE~0;ERROR~0;      %MC40064000        
+               END                                                   %MC40065000        
+               ELSE                                                     40065010        
+              IF RADD0RLEN LSS (NT1:=M[LOWLINK].[DA]) THEN              40065020        
+                   BEGIN                                                40065030        
+                   RLEN:=RLEN-(RADD-(RADD:=NT1));                       40065040        
+                   SUPER:=1;GO BACK;                                    40065050        
+                   END                                                  40065060        
+                        ELSE                                            40065070        
+              IF RADD GTR RA-RL THEN                                    40065080        
+                   BEGIN                                                40065090        
+                   RLEN:=RADD-(RA-RL);SUPER:=1;                         40065100        
+                   GO BACK;                                             40065110        
+                   END                                                  40065120        
+                 ELSE  RLEN~ 0                                       %MC40066000        
+               ELSE                                                  %MC40067000        
+             BEGIN SIZE~RL-RLEN;ERROR~RLEN~0; END;                   %MC40068000        
+         END;                                                        %MC40068050        
+           IF SIZE=0 THEN                                            %MC40068100        
+             BEGIN                                                   %MC40069000        
+                IF HIGHLINK-SEVEN7 AND LOWLINK=SEVEN7 THEN           %MC40070000        
+                  BEGIN                                              %MC40071000        
+                 SU[X].OCCUPIED~TRUE;                                %MC40072000        
+                     K~-1;                                           %MC40073000        
+                   WHILE(Y~M[SU[X]INX (K~K+1)])!0 AND K{15 DO        %MC40074000        
+                        FORGETSPACE(Y);                              %MC40075000        
+                     FORGETSPACE(SU[X]]);                            %MC40076000        
+                  END                                                %MC40077000        
+                 ELSE                                                %MC40078015        
+                  BEGIN                                              %MC40078020        
+                      IF HIGHLINK=SEVEN7 THEN                        %MC40078030        
+                        BEGIN                                        %MC40078031        
+                        M[PL[1]].[CF]~SEVEN7;                        %MC40078032        
+                        M[SU[X]].[DA]~M[PL[1]].[DA];                 %MC40078033        
+                        END                                          %MC40078034        
+                             ELSE                                    %MC40078035        
+                        BEGIN                                        %MC40078036        
+                  M[PL[0]+1].[CF]:=LOWLINK;                             40078038        
+                        IF LOWLINK=SEVEN7 THEN                       %MC40078040        
+                           FIRSTLINK~HIGHLINK                        %MC40078042        
+                                ELSE                                 %MC40078046        
+                     M[PL[1]].[CF]:=HIGHLINK;                           40078048        
+                        END;                                         %MC40078050        
+                     IF M[LASTAVAIL]=O THEN                          %MC40078052        
+                              M[LASTAVAIL]~AD;LASTAVAIL~AD;          %MC40078054        
+                     IF AVAILABLE=0 THEN AVAILABLE~AD;               %MC40078058        
+               PL[0]:=0;                                                40078060        
+                  END;                                               %MC40078065        
+        END;                                                         %MC40078067        
+IF REM LSS 0 THEN BEGIN RADD~X MOD 5;RADD~(RADD+(RADD=0))|FORTY;        40078068        
+    RLEN~ABS(REM); END;                                                 40078069        
+           X~X-(RLEN!0);                                             %MC40078070        
+          END ELSE                                                      40078072        
+          IF(NT1:=M[SU[X]].[DA]) GTR RADD-RLEN THEN                     40078074        
+              BEGIN RLEN:=RLEN-(RADD-(RADD:=NT1));                      40078076        
+              SUPER:=1; GO BACK;                                        40078078        
+           END                                                       %MC40078080        
+           ELSE                                                         40078085        
+              RLEN~0;                                                %MC40078087        
+        END;                                                         %MC40078090        
+    IF RLEN>0 AND NOT ERROR THEN GO BACK;                            %MC40078091        
+SUPER:=SUPER OR (ERROR AND SU[X].DISKRUNNING);                          40078092        
+END OF COMPLEMENTING DISK DIRECTORY;                                    40078093        
+SUBROUTINE LOCKED;                                                      40100000        
+BEGIN                                                                   40100100        
+IF (X1:=(RADD-RLEN) DIV TN)=(XS:=RADD DIV TN) THEN                      40100200        
+IF(TWO(X1) AND EUM)=0 THEN BUILDAVAIL ELSE GO FORGET ELSE               40100300        
+BEGIN                                                                   40100400        
+    Y1:=RADD;Y2:=RLEN;                                                  40100500        
+    IF(RLEN:=(X1+1)|TN-(RADD-Y2  )  )GTR 0 AND (TWO(X1) AND EUM)=0 THEN 40100600        
+         BEGIN RADD:=(X1+1)|TN;X:=5|D+((Y1-Y2)DIV FORTY);BUILDAVAIL END;40100700        
+    IF (RLEN:=  Y1-(X2|TN)) GTR 0 AND (TWO(X2) AND EUM) EQL 0 THEN      40100800        
+         BEGIN RADD:=Y1;X:=5|D+RADD DIV FORTY;BUILDAVAIL; END;          40100900        
+    WHILE (X2:=X2-1) GTR X1 DO                                          40101100        
+         BEGIN                                                          40101200        
+         RLEN:=TN;X:=5|D+((RADD:=(X2+1)|TN)-1)DIV FORTY;                40101250        
+         IF (TWO(X2) AND EUM)=0 THEN BUILDAVAIL;                        40101300        
+         END;                                                           40101400        
+END;                                                                    40101500        
+FORGET:                                                                 40101510        
+END OF LOCKED;                                                          40101600        
+%                                                                       40199900        
+ $ SET OMIT = NOT SHAREDISK                                             40199990        
+SU~[M[RT1~SPACE(100)]]&100[8:38:10];                                    40249100        
+SEVEN7:=@77777;FORTY:=40000;TN:=10000;MN:=1000000;TM:=10000000;         40249105        
+MOVE(100,RT1-1,RT1);                                                    40249110        
+SOCK:=[M[RT1:=SPACE(40)]]&40[8:38:10];                                  40249120        
+MOVE(40,RT1-1,RT1);                                                     40249130        
+X1:=NEUP.[3:15]-1;% CHECK ONLY UNITS THAT EXIST                         40249200        
+VR:=[MULTITABLE[16]]&4[8:38:10];                                        40249250        
+LOOKATDKB;                                                           %MC40249300        
+FOR J:=0 STEP 1 UNTIL X1 DO                                             40250000        
+BEGIN                                                                   40251000        
+X2:=19;                                                                 40252000        
+FOR I:=0STEP 1 UNTIL X2 DO                                              40253000        
+BEGIN                                                                   40254000        
+    RADD:=MN|J+I|TN;                                                    40254100        
+    STREAM(Q:=RADD,B:=40+A);                                            40255000        
+    BEGIN SI:=LOC Q;DS:=8 DEC END;                                      40256000        
+OKSEGZEROWRITE:= TRUE;                                             %204-40256010        
+    IF I EQL 0 THEN                                                     40257000        
+         BEGIN X2:=20|WAITIO(40+A INX@140000000,@64,18+C).[43:1]+X2;    40257030        
+               IF X2=39 THEN VR[NT1:=1+C|2]:=P(DUP,LOD) OR TWO(11-J);   40257060        
+         END;                                                           40257100        
+    IF NOT(R~WAITIO(40+A INX @100000000,@64,18+C)).[42:1] THEN          40258000        
+    BEGIN                                                               40261000        
+    NT2:=(NT1:=5|J+50|C)+(I DIV(SU[NT1].FORTYMILLDISK+1)DIV 4);         40261010        
+    SU[NT2]:=P(DUP,LOD)&1[18:47:1]&(X2>19)[19:47:1];                    40261040        
+    IF R.[43:1] THEN                                                    40261042        
+    BEGIN FORTY:=FORTY|((X2 GTR 19)+1);                                 40261043        
+    SOCK[C|10+J]:=(*P(DUP)) OR TWO(I);                                  40261044        
+    X:=NT2;RADD:=(RADD MOD MN)+(RLEN:=TN);BUILDAVAIL;                   40261046        
+    FORTY:=40000;                                                       40261047        
+    END ELSE SOCK[C+10+J+20]:=(*P(DUP)) OR TWO(IF X2=19 THEN I ELSE     40261048        
+                              (I DIV 8)|4 + (I AND 3));                 40261049        
+    END ELSE %NOT READY CHECK NEXT SU                                   40261050        
+     BEGIN EUSU:=EUSU OR TWO(4-(IF X2=19 THEN I ELSE (I DIV 8)|4+(I AND 40261100        
+                              3))DIV 4);                                40261150        
+            I:=I+(((SU[NT1:=(5|J+50|C)].FORTYMILLDISK+1)|4)-1);         40261200        
+OKSEGZEROWRITE:= FALSE;                                            %204-40261210        
+END END;                                                                40261250        
+    STREAM(A:=(NOT EUSU).[43:5], J, D:=VR INX C INX C);                 40261300        
+    BEGIN SI:=LOC A; SI:=SI+7;                                          40261350        
+         DI:=DI+J; DS:=CHR;                                             40261400        
+    END;                                                                40261450        
+    EUSU:=0;                                                            40261500        
+END;                                                                    40262000        
+ $ SET OMIT = NOT(DK8NODFX AND NOT DFX)                                 40262299        
+ $ SET OMIT = NOT(DFX)                                                  40262369        
+              J~DIRMOD;                                                 40262500        
+              V ~ [M[SPACE(J)]]& J [8:38:10];                           40263000        
+              J ~ J-1;                                                  40264000        
+              FOR S ~ 0 STEP 1 UNTIL J DO                               40264500        
+                   BEGIN VR[S] ~  [M[GETSPACE(61,0,0)+1]]&62[8:38:10];  40265000        
+                       BYPASS~BYPASS-2;                                 40266000        
+                        CLEAR;                                          40267000        
+                   END;                                                 40268000        
+              AAA:=AA:=SPACE(480);                                      40275200        
+              DISKWAIT(-A,480,J:=DIRECTORYTOP+4);                       40275300        
+              ZSF~[M[SPACE(31)]]&30[8:38:10];                           40275500        
+              ZSF[0]~@14;                                               40275600        
+              W~0;                                                      40275700        
+              FOR J:=J STEP 16 WHILE J!16 DO                            40276000        
+              BEGIN                                                     40277000        
+                        DISKIO(NT3,-(AAA-1),480,J+16);                  40278000        
+                        IF J+15 GEQ BYPASS.[CF] THEN                    40278100        
+    BYE:                  BYBY("DIRECTORY FULL~",15);                   40278150        
+                        BYPASS.[FF]~J+15;                               40278200        
+                        FOR I ~ 0 STEP 1 UNTIL 14 DO%                   40279000        
+                             BEGIN T ~ DDD[478-2|I];%                   40280000        
+                                  H:=J+14-I;                            40280100        
+                                  IF T=@114 THEN                        40281000        
+                                       BEGIN DDD[479-2|I]:=0;           40281100        
+                                            UCHANG:=0;              %R6140281110        
+                                            I:=15;                      40281200        
+                                       END ELSE                         40281300        
+                                  IF T=@14 OR                           40282000        
+                                     DDD[424-I|30].[1:1] THEN           40283100        
+                                       BEGIN DDD[478-2|I]:=@14;         40283200        
+                                            UCHANG:0;               %R6140283210        
+                                            DDD[479-2|I]:=NEXTSLOT;     40283300        
+                                            IF NEXTSLOT=0 THEN          40283400        
+                                            BEGIN FI:=I;FJ:=J+15 END;   40283500        
+                                            NEXTSLOT:=H;                40283600        
+                                       END ELSE                         40284000        
+                                       BEGIN DDD[429-I|30].[1:42]:=0;   40285000        
+                                            B:=DDD[429-I|30];           40285005        
+                                            IF (C~DDD[423-I|30])}0 THEN 40285010        
+                                            BEGIN DDD[423-I|30]~        40285020        
+                                                 -C&C[2:8:10];          40285030        
+                                                 UCHANG:=0;         %R6140285035        
+                                                        DDD[424-I|30]+0;40285135        
+                                            END                         40285140        
+                                                 ELSE                   40285150        
+                                            DDD[424-I|30]~P(DUP,LOD)    40285160        
+                                          AND @0037000000007774;        40285170        
+                                            IF C.[2:10]=0 OR            40285500        
+                                               DDD[424-I|30].[44:1] THEN40285600        
+                                               SAVIT;                   40285700        
+                   FOR C:=1 STEP 1 UNTIL B DO                           40286000        
+                   BEGIN RADD:=DDD[429-I|30+C];                         40287000        
+                   IF RADD GEQ DISKBOTTOM+5 THEN                        40290000        
+                   BEGIN                                                40290100        
+                   IF (RADD:=RADD+(RLEN:=DDD[428-I|30])) GTR TM THEN    40290200        
+                   BEGIN RADD:=RADD MOD TM;X:=50 END ELSE X:=0;         40290300        
+                   IF SU[X:=X+5|(D:=RADD DIV MN)].FROTYMILLDISK THEN    40290400        
+                   FORTY:=P(FORTY,DUP,+);                               40290500        
+                   X:=((RADD:=RADD MOD MN)-1) DIV FORTY + X;            40290600        
+                   IF (EUM:=SOCK[D]) NEQ 0 THEN LOCKED ELSE BUILDAVAIL; 40292050        
+                   FORTY:=40000;                                        40292060        
+IF SUPER THEN                                                           40292200        
+    BEGIN                                                            %MC40292210        
+    STREAM(A:=T,B:=DDD[479-2|I],T:=SUPER:=SPACE(10));                   40292212        
+    BEGIN DS:=2LIT". "; SI:=LOC A; SI:=SI+1; DS:=7CHR; DS:=LIT"/";      40292214        
+          SI:=SI+1; DS:=7CHR; DS:=19LIT" DISK ADDRESS ERROR";           40292216        
+          DS:=LIT"~";                                                   40292218        
+    END;                                                                40292220        
+    SPOUT(SUPER);                                                       40292222        
+    ERROR:=SUPER:=0;                                                    40292230        
+    END;                                                             %MC40292240        
+                   END;                                                 40292250        
+                                                 END;                %MC40292300        
+                                            B:=DDD[479-2|I];            40293010        
+                                            S:=(S:=DISKBOTTOM           40293020        
+                                             -SCRAMBLE(T,B)).           40293030        
+                                             [36:11];                   40293040        
+                                            C:=V[S,0];                  40293050        
+                                            V[S,C+2]:=T; V[S,C+3]:=B;   40293060        
+                                            V[X,C+4]:=H;                40293070        
+                                            IF (V[S,0]:=C+3)=60 THEN    40293080        
+                                            BEGIN V[X,4].[FF]~BYPASS~   40293090        
+                                                 BYPASS-2;              40293100        
+                                                 IF J+15}BYPASS.[CF]THEN40293101        
+                                                   GO BYE;              40293102        
+                                                 DISKWAIT([V[S,2]].[CF],40293110        
+                                                  60,V[S,1]);           40293120        
+                                                 CLEAR;                 40293140        
+                                            END;                        40293150        
+                   PBCOUNT:= (((("PBD    " EQV T) = NOT 0) OR           40309100        
+                               (("PUD    " EQV T) = NOT 0)) AND         40309150        
+                                (B.[CF] = 1)) + PBCOUNT;                40309200        
+                             END;      END;%                            40310000        
+                        SLEEP([NT3],NOT 0);                             40311000        
+                        DDD:=DDD&P(DUP,AAA)[CTC];                       40311100        
+                        AAA:=P INX 0; %SWAP DDD BUFFERS                 40311200        
+                        DISKWAIT(AAA,480,J);                            40311300        
+                        IF I = 16 THEN%                                 40312000        
+                             BEGIN%                                     40313000        
+                                  J ~ 0;%                               40314000        
+                             END;%                                      40315000        
+                   END;%                                                40317000        
+              FOR I:= 0 STEP 1 UNTIL DIRMOD-1 DO                        40317200        
+                   BEGIN DISKIO(T,[C[I,1]].[CF],60,V[I,1]);             40317210        
+                        SLEEP([T],IOMASK);                              40317220        
+                        FORGETSPACE([V[I,1]]);                          40317230        
+                   END;                                                 40317240        
+              B:=V.[CF];                                                40317300        
+              IF NEXTSLOT!0 THEN                                        40317310        
+              BEGIN                                                     40317320        
+              DISKWAIT(-B,30,FJ);                                       40317400        
+              VR[-2*FI+29]:=H;                                          40317500        
+              DISKWAIT(B,30,FJ);                                        40317600        
+              END ELSE NEXTSLOT:=H;                                     40317610        
+              FORGETSPACE(B);                                           40317700        
+              DDD:=DDD&A[CTC]; FORGETSPACE(AA);                         40317800        
+              IF PBCOUNT > 0 THEN      % TELL OPERATOR             %791-40320100        
+              BEGIN;STREAM(PBCOUNT,X~X~SPACE(10));                      40320200        
+                   BEGIN DS~11 LIT" THERE ARE"; X~DI; SI~LOC PBCOUNT;   40320300        
+                        DS~4 DEC; DS~18 LIT" PB FILES ON DISK~";        40320400        
+                        DI~X; DS~3 FILL;                                40320500        
+                   END; SPOUT(X);                                       40320600        
+              END;                                                      40320700        
+Z~USERDISKBOTTOM;                                                    %MC40321000        
+X:=-5; DDD[1]:=0;                                                       40321100        
+ $ SET OMIT = NOT(SHAREDISK)                                            40321104        
+ $ SET OMIT = SHAREDISK                                                 40321129        
+R:=0; VR:=AVTABLE;                                                      40321130        
+ $ POP OMIT                                                             40321131        
+RADD:=R;  R:=R-1 ;                                                      40321135        
+ NT3:=NEUP.NEUF-1;  % DONT USE NT3 BETWEEN HERE AND 40334065            40321140        
+ FOR NT2:=0 STEP 1 UNTIL NT3 DO                                         40321200        
+    BEGIN I~RA~-1;RLEN~RL~0;RADD~RADD+(Z-USERDISKBOTTOM)|30;            40321300        
+         FORTY:=(SU[X:=X+5].FORTYMILLDISK+1)|FORTY;                     40321310        
+  WHILE (C:=SU[X+(I:=I+1)]).DISKRUNNING AND I LEQ 4 DO                  40321400        
+IF NOT C.OCCUPIED THEN                                                  40321500        
+    BEGIN                                                            %MC40321600        
+        IF C.[CF]=0 THEN                                             %MC40321700        
+          BEGIN                                                      %MC40321800        
+           RA~RA+1;                                                  %MC40321810        
+           C:=0;                                                        40321900        
+              S:=(I+1)|FORTY;                                           40322000        
+           J~IF X+I=0 THEN                                           %MC40322100        
+              FORTY-(DISKBOTTOM+5) ELSE FORTY;                          40322150        
+           END                                                       %MC40322200        
+              ELSE                                                   %MC40322210        
+           BEGIN AD~M[M[SU[X+1]]].[CF];RA~-1;    END;                %MC40322220        
+        DO                                                           %MC40322250        
+           BEGIN                                                     %MC40322300        
+              IF C!0 THEN BEGIN S~M[AD].[DA];F~M[1+AD].[DA] END;     %MC40322400        
+              S:=S+(X MOD 50)DIV 5|MN;                                  40322410        
+              IF J>RLEN THEN RLEN:=J;                                   40322420        
+              IF X GEQ 50 THEN S:=S+TM;                                 40322425        
+              IF J GTR 0 AND (NT1:=S-J) GEQ DISKBOTTOM+3 THEN           40322430        
+              IF (Y:=DDD[ABS(R)]).DEND EQL NT1 THEN                     40322440        
+              BEGIN DDD[R]:=S&(LO:=Y.DSIZE+J)[TODSIZE];                 40322442        
+             IF LO GTR RLEN THEN RLEN:=LO END                           40322444        
+                 ELSE                                                %MC40322450        
+               BEGIN                                                 %MC40322460        
+                  IF R=AV1 THEN                                      %MC40322470        
+                    BEGIN                                            %MC40322480        
+                       DISKWAIT(A,AV1,Z);Z~Z + AVBLOCK;R~ -1;        %MC40322600        
+                    END;                                             %MC40322700        
+            DDD[R~R+1]~ S& J[TODSIZE];RL~RL+1;                          40322800        
+               END;                                                  %MC40323000        
+                IF C!0 THEN                                          %MC40323100        
+                 IF M[AD].[CF]!SEVEN7 THEN                           %MC40323200        
+                     AD~M[AD].[CF] ELSE                              %MC40323300        
+                     BEGIN                                           %MC40323400        
+                     K~-1;                                           %MC40323500        
+                      WHILE (B~(M[SU[X+1]INX(K~K+1)]))!0 AND K{15 DO %MC40323600        
+                        FORGETSPACE(B);FORGETSPACE(SU[X+I]);         %MC40323700        
+                      C~0;                                           %MC40323710        
+                     END;                                            %MC40323800        
+           END UNTIL C=0;                                            %MC40323900        
+  END;                                                                  40324000        
+IF (DDD[R].DEND MOD MN)=((NT1:=5|FORTY)-1) THEN DDD[R].DEND:=NT1+       40324102        
+ NT2|MN;  % NT2 = X DIV 5                                               40324104        
+RL~RL+1;                                                                40324120        
+ VR[NT2+1]:=0&(SU[X].FORTYMILLDISK+1)[TOSPEED]&RL[TONUMENT]&            40324200        
+ RADD[TOSTARTWRD]&RLEN[TOMAXSIZ]&(NT2}NEUP.[3:15] AND NT2<10)[TOEUNP];  40324210        
+  IF R=AV1 THEN                                                         40324300        
+    BEGIN                                                               40324400        
+      DISKWAIT(A,AV1,Z);                                                40324800        
+      Z~Z+AVBLOCK;R~-1;                                                 40325300        
+    END;                                                                40326000        
+DDD[R:=R+1]:=400000 DIV(2-SU[X].FORTYMILLDISK)+(X MOD 100)DIV 5|MN+1;   40327000        
+  IF (LO:=RL DIV 4) LSS AVDIFFMIN THEN LP:=AVDIFFMIN ELSE               40328000        
+  IF LO>AVDIFFMAX THEN LO~AVDIFFMAX;                                    40329000        
+    IF (R:=R+LO) GTR AV1 THEN                                           40330000        
+     BEGIN                                                              40331000        
+      DISKWAIT(A,AV1,Z);Z~Z+AVBLOCK;                                    40332000        
+         R:=R-AV1 ;                                                     40333000        
+     END;                                                               40334000        
+FORTY:=40000 ;                                                          40334054        
+RADD:=R+1 ;                                                             40334055        
+END;                                                                    40334056        
+DISKWAIT(A,AV1,Z);                                                      40334057        
+ NT2:=NT3 + 3;  % NT2:=NEUP.NUEF+2                                      40334060        
+ FOR NT1:=NT3 STEP -1 UNTIL 0 DO                                        40334065        
+ IF (NT4:=(NOT SOCK[NT1+20]).[28:20]) ! 0 THEN % LOCK OUT THIS EU       40334070        
+ BEGIN EUMASK:=TWO(NT1) OR EUMASK;  % TURN ON EU LOCK OUT MASK          40334075        
+     IF NT1 THEN VR[NT1 DIV 2 + NT2].[8:20]:=NT4                        40334077        
+     ELSE        VR[NT1 DIV 2 + NT2].[28:20]:=NT4;                      40334079        
+ END;                                                                   40334081        
+VR[0]:=P(DUP,LOC)&EUMASK[TOMAXSIZ];                                     40334085        
+ $ SET OMIT = NOT(SHAREDISK)                                            40334308        
+              FORGETSPACE(SU);                                          40335000        
+ $ SET OMIT = SHAREDISK                                                 40335990        
+              UNLOCKDIRECTORY;                                          40336000        
+ $ POP OMIT                                                             40336010        
+           TOGLE:=TOGLE OR ABORTMASK OR USERDISKMASK;                   40336100        
+              MESSAGETABLEBUILDER;                                      40339000        
+              FOR W~W STEP -2 WHILE ZSF[W]!@14 DO                       40353100        
+              BEGIN                                                     40353110        
+                   IF W<0 THEN                                          40353120        
+                   BEGIN                                                40353130        
+                        DISKWAIT(-(ZSF INX 0),30,ESPADD);               40353140        
+                        FORGETESPDISK(ESPADD);                          40353160        
+                        ESPADD~ZSF[29];                                 40353170        
+                        W~26;                                           40353180        
+                   END;                                                 40353190        
+                   FORGETSPACE(DIRECTORYSEARCH(ZSF[W],ZSF[W+1],6));     40353200        
+              END;                                                      40353210        
+              FORGETSPACE(ZSF); FORGETSPACE(SOCK);                      40356550        
+            SUSTATUS(A,DDD,0);                                          40356800        
+         END;                                                           40400000        
+PROCEDURE REALFILECLOSE(ALPHA); VALUE ALPHA; INTEGER ALPHA;%            41000000        
+BEGIN ARRAY FIB[*],FPB[*],HEADER[*];%                                   41001000        
+%%%      DONT ADD ANY SECLARATIONS BETWEEN "HEADER" AND "KIND" %%% MCP  41001500        
+         INTEGER KIND,NUBFS,U,BLEN,CODE,UNLABELED,COBOL,I,J,FNUM;       41002000        
+         REAL MID,FID,R,D,C,FORMS,STATE;                                41003000        
+      REAL RCW=+0,XTRA=-3;                                              41003100        
+      LABEL PX,PBD;                                                  %P 41004000        
+    LABEL DC19;    REAL STA;                                            41004100        
+      LABEL CR,LP,MT,CLOSED,DK,SP,CP,BKUP,PP,PR,DC,CD,CC;               41005000        
+    SWITCH SW~ CR,LP,MT,CLOSED,DK,SP,CP,BKUP,PP,PR,DC,CD,BKUP,DC19;     41006000        
+      LABEL EOF,ON,DNE,CLEANUP;%                                        41007000        
+      LABEL EOD;                                                        41007100        
+      REAL T1,T2,T3,TOD; ARRAY SEG0[*],SKEL[*]; LABEL L1,L2,L3;         41007200        
+      REAL T,ACCESS;%                                                   41017000        
+      NAME SAIOD=T;                                                     41017100        
+      BOOLEAN COMPGO;                                                   41017200        
+      REAL TYPE;                                                        41017300        
+      DEFINE REW=CODE.[47:1]#,%                                         41018000        
+             KRUNCH=NOT CODE.[42:1]#,                                   41018100        
+             REL=CODE.[46:1]#,%                                         41019000        
+             TIME=CODE.[45:1]#,%                                        41020000        
+             LOCK=NOT CODE.[44:1]#,%                                    41021000        
+             PURGE=NOT CODE.[43:1]#;%                                   41022000        
+      LABEL CLOSEOUT;%                                                  41035000        
+      LABEL EOFIT;%                                                     41036000        
+      CODE~(NOT *P(.ALPHA)).[18:15];%                                   41038000        
+      ALPHA~P(.ALPHA,LOD).[33:15];%                                     41039000        
+      FIB~M[ALPHA-3]; FPB~PRT[P1MIX,3];%                                41040000        
+      IF (STATE~FIB[5]).[42:1] THEN GO TO CLOSED;%                      41041000        
+      NBUFS~FIB[13].[1:9]; FNUM~FIB[4].[13:11];%                        41042000        
+      U~FIB[15].[24:6];                                                 41043000        
+      UNLABELED~FIB[4].[2:1];%                                          41044000        
+      BLEN~FIB[18].[3:15];%                                             41045000        
+      STREAM(S~[FPB[FNUM]],D~[MID]);%                                   41046000        
+            BEGIN SI~S; DS~2 WDS; DS~3 OCT; DS~5 OCT; DS~ OCT END;%     41047000        
+      IF D<0 THEN D~D.[18:30];%                                         41047500        
+      FORMS~FPB[FNUM+3].[42:1];%                                        41048000        
+      I~FIB[13].[28:10];%                                               41049000        
+      IF (R=0 AND I!1) OR R!0 THEN R~I;%                                41050000        
+      COBOL~(FIB[13] AND 1)&(PFIB].[8:10]=22)[1:47:1];  % COBOL 60 & 68 41051000        
+      IF COBOL>0 OR FIB[4].[7:1] THEN  % COBOL 60 OR SORT               41051100        
+      M[FIB INX NOT 1].[3:6]~2                                          41051200        
+      ELSE M[ALPHA-7].[3:6]~2;                                          41051300        
+      IF (I~J~FIB[10].[3:15])!0 THEN   %THERE-S A BUFFER RING TO MARK   41051400        
+      DO M[I-2].[3:6]~2 UNTIL (I~M[I].[FF]-2)=J;                        41051500        
+      COMMENT MARK IT ALL DATA TO PROTECT IT FROM NSEC DS;              41051600        
+      IF FIB.[7:1] THEN CHECKJOBORFILEMESS(P1MIX,ALPHA-3,U);            41051620        
+      GO TO SW[KIND~FIB[4].[8:4]];%                                     41052000        
+CR:CC:CP:LP:SP:MT:PP:PR:CD:                                             41054000        
+      OTHERCLOSE(0);                                                    41055000        
+      GO TO CLEANUP;%                                                   41142000        
+BKUP: TYPE:=FPB[FNUM+3].[43:5]; BACKCLOSE(0);                           41144000        
+CLOSEOUT::  STATE.[39:4]~1; TIME~1;%                                    41187000        
+CLEANUP::%                                                              41188000        
+      IF NOT STATE.[41:1] THEN%                                         41189000        
+      IF KIND{2 OR KIND=11 OR KIND}6 AND KIND{9                         41190000        
+ $ SET OMIT = NOT(PACKETS)                                              41190099        
+      OR KIND=4                                                         41190100        
+ $ POP OMIT                                                             41190101        
+      THEN BEGIN                                                        41190200        
+ $ SET OMIT = PACKETS                                                   41190299        
+      FILEMESSAGE((                                                     41190600        
+ $ SET OMIT = NOT(PACKETS)                                              41190699        
+            IF PURGE THEN " PRG" ELSE IF LOCK THEN " LOK" ELSE          41190700        
+ $ POP OMIT                                                             41190701        
+            " REL")&TINU[U][6:30:18],0,MID,FID,                         41190800        
+            IF KIND=2 OR KIND=9 THEN R ELSE 0,                          41190900        
+            IF KIND=2 OR KIND=9 THEN D ELSE 0,                          41191000        
+            C,IF KIND=4 THEN 64 ELSE                                    41191100        
+            CLOSEMESS AND ((T:=JAR[P1MIX,0])>0                          41191200        
+            OR (T<0) AND COPNMESS));                                    41191300        
+      END;                                                              41191500        
+      IF (FIB[5]~STATE).[42:1] THEN FIB[4].[6:4]~3;%                    41194000        
+      IF (T~FIB[10].[3:15])!0 THEN   %THERE-S A BUFFER RING TO FORGET   41195000        
+      BEGIN   %FORGETTING IT                                            41196000        
+            FOR I~0 STEP 1 UNTIL NBUFS-1 DO%                            41197000        
+            BEGIN J~M[T1.[18:15]-2;%                                    41198000        
+                  forgetspace(t);%                                      41199000        
+                  T~J;%                                                 41200000        
+                  M[ALPHA+I]~P(DUP,LOD)&0[2:2:1]&1[25:47:1]%            41201000        
+                              &(ALPHA+1)[33:33:15];%                    41202000        
+            END;%                                                       41203000        
+            FIB[10].[3:15]~0; FIB[16].[CF]~0;                      %501-41204000        
+      END;%                                                             41205000        
+      IF NOT UNLABELED THEN%                                            41206000        
+      IF KIND!0 THEN%                                                   41207000        
+      IF (T~M[ALPHA-2].[33:15])!0 THEN%                                 41208000        
+            FORGETSPACE(T-2);%                                          41209000        
+      M[ALPHA-2]~P(DUP,LOD)&P(0,XCH)[8:8:10];%                          41210000        
+      FIB[6]~FIB[7]~0;%                                                 41211000        
+      IF TIME THEN STOPTIMING(FNUM,1023);                               41212000        
+    IF COBOL>0 OR FIB[4].[7:1] THEN        % COBOL 60 OR SORT           41212100        
+         M[FIB INX NOT 1].[3:6]:=6 ELSE M[ALPHA-7].[3:6]:=4;            41212200        
+      GO TO CLOSED;%                                                    41213000        
+DK::  DISKCLOSE(0);                                                     41215000        
+      GO CLEANUP;%                                                      41269000        
+ DC::                                                                   41281000        
+ $ SET OMIT = NOT(DATACOM )                                             41281999        
+DC19::                                                                  41307010        
+ $ SET OMIT = NOT(DATACOM)                                              41307020        
+         GO CLOSEOUT;                                                   41307290        
+ CLOSED::                                                               41308000        
+      RCW:=XTRA;                                                        41309000        
+END FILE CLOSE;                                                         41310000        
+PROCEDURE LINKUP(TYPE,KEY); VALUE TYPE,KEY; REAL TYPE,KEY;              41310100        
+  BEGIN                                                                 41310200        
+    KEY := P(.KEY,LOD) INX 0 -1;                                        41310300        
+    M[KEY+1]:= (*P(DUP))&TYPE[3:42:6]&(LOGENTRY:=LOGENTRY+1)[25:34:14]; 41310400        
+    M[KEY+2] := (*P(DUP)) & (XCLOCK + P(RTR))[3:24:24];                 41310500        
+    IF (LOGHOLDER INX 0) = 0 THEN                                       41310600        
+    BEGIN LOGHOLDER.[CF] := KEY;                                        41310700        
+          INDEPENDENTRUNNER(P(.MAINTLOGGER),0,100);                     41310800        
+    END ELSE M[LOGHOLDER.[FF]].[CF] := KEY;                             41310900        
+    M[KEY].[CF] := 0; LOGHOLDER.[FF] := KEY;                            41311000        
+    IF (NUMAINTMESS:=NUMAINTMESS+1) > 0 THEN SLEEP([NUMAINTMESS],-0);   41311100        
+  END  LINKUP;                                                          41311200        
+PROCEDURE CHECKJOBORFILEMESS(MIX,FIB,U);                                41312000        
+  VALUE MIX,FIB,U; REAL MIX,FIB,U;                                      41312100        
+  BEGIN                                                                 41312200        
+    REAL KEY,FNUM;                                                      41312300        
+      IF NOT JAR[MIX,2].[3:1] THEN                                      41312400        
+      BEGIN                                                             41312500        
+        JAR[MIX,2].[3:1] := 1;                                          41312600        
+        KEY := TYPEDSPACE(5,MAINTBUFAREAV);%                       %167-41312700        
+        M[KEY-2].[9:6] := 0;                                            41312800        
+        M[KEY  ] := 0 & MIX[20:43:5];                                   41312900        
+        M[KEY+1] := JAR[MIX,5].[6:18];                                  41313000        
+        M[KEY+2] := JAR[MIX,5];                                         41313100        
+        M[KEY+3] := JAR[MIX,0];                                         41313200        
+        M[KEY+4] := JAR[MIX,1];                                         41313300        
+        LINKUP(12,KEY);                                                 41313400        
+      END;                                                              41313500        
+      IF FIB!0 THEN IF NOT M[FIB].[6:1] THEN                            41313600        
+      BEGIN                                                             41313700        
+        M[FIB].[6:1] := 1;                                              41313800        
+        FNUM := M[M[FIB] INX 4].[13:11];                                41313900        
+        KEY := TYPEDSPACE(5,MAINTBUFFAREAV);%                      %167-41314000        
+        M[KEY-2].[9:6] := 0;                                            41314100        
+        M[KEY  ] := 0 & MIX[20:43:5]                                    41314200        
+                      & ((FNUM DIV ETRLNG)+1)[9:39:9];                  41314300        
+        M[KEY+1] := JAR(MIX,5].[6:18];                                  41314400        
+        M[KEY+2] := M[(FNUM:= PRT[MIX,3] INX FNUM)+3];                  41314500        
+        M[KEY+3] := M[FNUM];                                            41314600        
+        M[KEY+4] := M[FNUM+1];                                          41314700        
+        LINKUP(13,KEY);                                                 41314800        
+  END;END CHECKJOBORFILEMESS;                                           41314900        
+PROCEDURE LOGOUTMAINT(B); VALUE B; REAL B;                              41316000        
+  BEGIN                                                                 41316100        
+    REAL RCW = +0;                                                      41316200        
+    REAL MSCW=-2;                                                       41316250        
+    REAL FH = +1, T1 = +2, T2 = +3, T3 = +4, SAVENTRY = +5;             41316300        
+    REAL MFID = +6, FID = +7; BOOLEAN FORKED = +8;                      41316400        
+    INTEGER LASTL = +9, SEGNO = +10, SEGSIZ = +11, LDATE = +12;         41316410        
+    LABEL CS,SCAN,NEWLOG,BUILDMESS,EXIT,FINISHUP;                       41316500        
+    SUBROUTINE FIXCOLDHDR;                                              41316505        
+    BEGIN                                                               41316510        
+      M[FH INX 0]:= @0000500036000601;                                  41316515        
+      M[FH INX 1]:= (XCLOCK+P(RTR)) & LDATE[6:30:18];                   41316520        
+      STREAM(DATE,X:=FH INX 3);                                         41316525        
+      BEGIN SI:=LOC DATE; DS:=8 OCT; DI:=X; DS:=2 LIT"+#";              41316530        
+            SI:=X; SI:=SI+5; DS:=3 CHR;                                 41316535        
+      END;                                                              41316540        
+ $ SET OMIT = NOT(SHAREDISK)                                            41316545        
+ $ SET OMIT = SHAREDISK                                                 41316575        
+      M[FH INX 4]:= 0 & 72[9:41:7]; % SYSTEM DATA FILE                  41316580        
+ $ POP OMIT                                                             41316585        
+      M[FH INX 7]:= (LOGSIZE|6)-1;                                      41316590        
+    END FIXCOLDHDR;                                                     41316595        
+    P(0,0,0,0,0,0,0,0,0,0,0,0);                                         41317100        
+    IF FORKED:= B=0 THEN  % INDEPENDENT RUNNER                          41317200        
+    BEGIN IF MROW > 0 THEN SLEEP([MROW],-0);                            41317300        
+          MROW := ABS(MROW);                                            41317400        
+          LASTL := LOGENTRY;                                            41317500        
+          LOGENTRY := 0;                                                41317600        
+    END ELSE LASTL:=ABS(B)-2;                                           41317700        
+    FID:= "MNTLOG "                                                     41317710        
+ $ SET OMIT = NOT(SHAREDISK)                                            41317719        
+                   ;                                                    41317730        
+    STREAM(DATE,C:=[LDATE]); BEGIN SI:=LOC DATE; DS:=8 OCT; END;        41317780        
+    T1:=SPACE(335);                                                     41317790        
+    IF (FH:=DIRECTORYSEARCH(MFID:="MAINT  ",T3:="LOG    "               41317800        
+ $ SET OMIT = NOT(SHAREDISK)                                            41317900        
+                                                    ,5))=0 THEN         41318100        
+    BEGIN                                                               41318200        
+      FH:=SPACE(30);                                                    41318210        
+      MOVE(30,FH-1,FH);                                                 41318220        
+      M[FH+ 9]:= 1;                                                     41318230        
+      M[FH+10]:= GETUSERDISK(-(M[FH+8]:=LOGSIZE:=1000));                41318240        
+CS:   FIXCOLDHDR;                                                       41318250        
+      IF FH.[FF]=0 THEN ENTERUSERFILE(-MFID,T3,FH-1)                    41318360        
+      ELSE DISKWAIT(FH INX 0,30,FH.[FF]);                               41318370        
+      FID:= T3;                                                         41318380        
+      MROW:= M[FH INX 10];                                              41318400        
+      GO BUILDMESS;                                                     41318500        
+    END;                                                                41318600        
+    LOGSIZE:= M[FH INX 8];                                              41318610        
+    IF M[FH INX 4].[45:1] THEN FORKED:=FORKED OR 2; % JUST COLD STARTED 41318620        
+    IF B>0 THEN                                                         41318630        
+    BEGIN                                                               41318640        
+ $ SET OMIT = NOT(SHAREDISK)                                            41318649        
+ $ SET OMIT = SHAREDISK                                                 41318679        
+      M[FH INX 4]:= 0 & 72[9:41:7]; % SYSTEM DATA FILE                  41318680        
+ $ POP OMIT                                                             41318681        
+      DISKWAIT(-T1,5,MROW:=M[FH INX 10]);                               41318740        
+      MLOG:= SEGNO:= M[T1].[24:15];                                     41318760        
+SCAN: IF MLOG}LOGSIZE-1 THEN                                            41318780        
+      BEGIN                                                             41318800        
+        IF (FORKED AND 2)!0 THEN GO CS;                                 41318810        
+        IF MLOG!SEGNO THEN DISKWAIT(-T1,5,MROW);                        41318820        
+        M[T1]:= P(DUP,LOD) & 1[2:47:1];                                 41318840        
+        DISKWAIT(T1,5,MROW);                                            41318860        
+        MLOG:= IF SEGNO<LOGSIZE-1 THEN SEGNO ELSE LOGSIZE-2;            41318880        
+        GO NEWLOG;                                                      41318900        
+      END;                                                              41318920        
+      DISKWAIT(-T1,30,MROW+(MLOG:=MLOG+1));                             41318940        
+      IF M[T1]! NOT 0 THEN GO SCAN;                                     41318960        
+      MLOG:= MLOG-1;                                                    41318980        
+      LOGENTRY:= M[T1+1].[CF]; LASTL:= M[T1+1].[FF];                    41319000        
+      IF (T3:=LOGHOLDER INX 0) ! 0 THEN                                 41319020        
+      WHILE T3!0 DO                                                     41319040        
+      BEGIN                                                             41319060        
+        IF M[T3]<0 THEN M[T3].[FF]:= LOGENTRY:=LOGENTRY+1               41319080        
+        ELSE M[T3+1].[25:14]:= LOGENTRY:=LOGENTRY+1;                    41319100        
+        T3:= M[T3] INX 0;                                               41319120        
+      END;                                                              41319140        
+      IF LASTL!0 THEN                                                   41319160        
+      BEGIN                                                             41319180        
+        DISKWAIT(-T1,30,MROW+(SEGNO:=LASTL DIV 30));                    41319200        
+        T3:= [M[T1+(SEGSIZ:=LASTL MOD 30)].[39:9]+1)|5;                 41319220        
+        IF T3>5 THEN IF LASTL+T3 > (T2:=(MLOG+1)|30) THEN               41319240        
+        BEGIN                                                           41319260        
+          M[T1+SEGSIZ]:= P(DUP,LOD) & 1[2:47:1] &                       41319280        
+                         ((T2-LASTL) DIV 5 -1)[39:39:9];                41319300        
+          DISKWAIT(T1,30,MROW+SEGNO);                                   41319320        
+      END;END;                                                          41319340        
+    END;                                                                41319360        
