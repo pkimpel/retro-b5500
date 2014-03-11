@@ -25022,3 +25022,676 @@ SCAN: IF MLOG}LOGSIZE-1 THEN                                            41318780
           DISKWAIT(T1,30,MROW+SEGNO);                                   41319320        
       END;END;                                                          41319340        
     END;                                                                41319360        
+    M[T1  ] := 5 & 62[3:42:6] &                                         41319600        
+               (MLOG +(MDELTA!0))[24:33:15] & LASTL[9:33:15];           41319700        
+    M[T1+1] := LDATE & (XCLOCK+P(RTR))[3:24:24];                        41319900        
+    M[T1+2] := PATCHLEVEL;                                              41320000        
+    M[T1+3] := LOGVERSION;                                              41320100        
+    M[T1+4] := DATE;                                                    41320200        
+    DISKWAIT(T1,5,MROW);                                                41320220        
+    IF B>0 THEN % CALLED FROM INITIALIZE                                41320240        
+    BEGIN                                                               41320250        
+      IF (FORKED AND 2)!0 THEN FIXCOLDHDR;                              41320255        
+      DISKWAIT(FH INX 0,30,FH.[FF]);                                    41320260        
+      GO FINISHUP;                                                      41320270        
+    END;                                                                41320280        
+NEWLOG:                                                                 41320300        
+    IF HOLDFREE=0 THEN SLEEP([TOGLE],HOLDMASK);                         41320310        
+    LOCKTOG(HOLDMASK);                                                  41320320        
+    DISKWAIT(-T1,-30,DIRECTORYTOP-SYSNO);                               41320330        
+    SEGNO:= (M[T1+22].[38:10] +1) MOD 1000;                             41320340        
+    M[T1+22]:= P(DUP,LOD) & SEGNO[38:38:10];                            41320345        
+    DISKWAIT(T1,-30,DIRECTORYTOP-SYSNO);                                41320350        
+    UNLOCKTOG(HOLDMASK);                                                41320355        
+    STREAM(A:=[ACTDATE],B:=SEGNO,C:=[MFID]);                            41320360        
+    BEGIN                                                               41320370        
+      SI:=A; SI:=SI+2; DI:=DI+1; DS:=4 CHR; SI:=LOC B; DS:=3 DEC;       41320380        
+    END;                                                                41320390        
+    IF DIRECTORYSEARCH(-MFID,FID,5) ! 0 THEN GO NEWLOG;                 41320400        
+    M[FH INX 3]:= P(DUP,LOD) & LDATE[12:30:18]; % ACCESSED              41320410        
+    MOVE(10,FH INX 0,T1);                                               41320420        
+    M[FH INX 1]:= (XCLOCK+P(RTR)) & LDATE[6:30:18];                     41320430        
+    M[FH INX 3]:= P(DUP,LOD) & LDATE[30:30:18]; % CREATION              41320440        
+    M[T1+ 4]:= 0 & 1[9:47:1]; % TYPE DATA                               41320450        
+    M[T1+ 7]:= (T2:= (MLOG+(MDELTA!0)+2))|6 -1;                         41320460        
+    M[T1+ 8]:= T2+10; % TO SIMPLIFY DUMPING                             41320470        
+    M[T1 +9]:= 2;                                                       41320480        
+    M[T1+10]:= 0; MOVE(20,[M[T1+10]],[M[T1+11]]);                       41320490        
+    IF (M[T1+10]:= GETUSERDISK(-T2-10 OR M)) = 0 THEN                   41320500        
+    BEGIN                                                               41320550        
+      STREAM(A:=[MFID],C:=T3:=SPACE(5));                                41320600        
+        BEGIN                                                           41320700        
+        DS:=18 LIT"-NO USER DISK FOR "; SI:=A; SI:=SI+1;                41320800        
+        DS:=7 CHR; DS:=LIT"/"; SI:=SI+1; DS:=7 CHR; DS:=LIT"~";         41320900        
+        END;                                                            41321000        
+      SPOUT(T2);                                                        41321100        
+      M[T1+10]:= GETUSERDISK(-T2-10);                                   41321200        
+    END;                                                                41321300        
+    T3:=0; SEGNO:=M[T1+10];                                             41321350        
+    DO BEGIN                                                            41321400        
+      DISKWAIT(-T1-31,300,MROW+T3);                                     41321450        
+      DISKWAIT(T1+31,300,SEGNO+T3);                                     41321500        
+    END UNTIL (T3:=T3+10) GEQ T2;                                       41321550        
+    ENTERUSERFILE(-MFID,FID,T1-1);                                      41321600        
+    DISKWAIT(FH INX 0,30,FH,[FF]);                                      41321650        
+BUILDMESS:                                                              41321700        
+    MLOG:= MDELTA:= 0;                                                  41321750        
+    M[T1   ]:= 5 & 62[3:42:6];                                          41321800        
+    M[T1+ 1]:= LDATE & (XCLOCK+P(RTR))[3:24:24];                        41321900        
+    M[T1 +2]:= PATCHLEVEL;                                              41322000        
+    M[T1 +3]:= LOGVERSION;                                              41322100        
+    M[T1+ 4]:= DATE;                                                    41322200        
+    M[T1+30]:= NOT 0;                                                   41322300        
+    M[T1+31]:= NUMAINTMESS+100;                                         41322400        
+    DISKWAIT(T1,32,MROW);                                               41322450        
+    STREAM(A:=[MFID],TOG:=MFID="MAINT  ",M:=MROW,B:=T1);                41322500        
+      BEGIN                                                             41322600        
+      DS:=29 LIT"#NEW MAINTENANCE LOG FILE IS "; SI:=A; SI:=SI+1;       41322700        
+      DS:=7 CHR; DS:=LIT"/"; SI:=SI+1; DS:=7 CHR; DS:=LIT"~";           41322800        
+      TOG(DI:=DI-1; DS:=4 LIT" AT "; SI:=LOC M; DS:=8 DEC; DS:=LIT"~";  41322820        
+          DI:=DI-9; DS:=7 FILL);                                        41322840        
+      END;                                                              41322900        
+  EXIT:                                                                 41323000        
+    SPOUT(T1);                                                          41323100        
+    IF B>0 THEN                                                         41323110        
+    BEGIN                                                               41323120        
+      T1 := TYPEDSPACE(15,MAINTBUFFAREAV);%                        %167-41323130        
+FINISHUP:                                                               41323140        
+      MOVE(10,B,T1+2);                                             %144-41323150        
+      M[T1  ]:= 2;                                                      41323160        
+      M[T1+1]:= LDATE;                                                  41323170        
+      LINKUP(15,T1);                                                    41323180        
+    END ELSE                                                            41323190        
+    IF (T1:=P(.MAINTLOGARRAY,LOD) INX 0)!0 THEN MOVE(31,T1-2,T1-1);     41323300        
+    T1 := FH INX 0;                                                     41323400        
+    WHATMCP(FH);                                                        41323500        
+    MOVE(26,FH,T1+4); FORGETSPACE(FH);                                  41323550        
+    STREAM(KTR:=T1+4:);                                                 41323600        
+    BEGIN SI:=KTR;                                                      41323700        
+          4(52(IF SC!"~" THEN SI:=SI+1 ELSE JUMP OUT 2 TO LL));         41323800        
+    LL:   KTR:=SI;                                                      41323900        
+    END;                                                                41324000        
+    NT1:= P INX 0;                                                      41324100        
+    M[T1]:= (NT1-T1) DIV 5;                                             41324200        
+    M[T1+1]:= LDATE;                                                    41324300        
+ $ SET OMIT = NOT(SHAREDISK)                                            41324400        
+ $ SET OMIT = SHAREDISK                                                 41324700        
+    STREAM(A:=[AVTABLE[1]],N:=NEUP.NEUF,D:=T1+3);                       41324800        
+ $ POP OMIT                                                             41324801        
+    BEGIN SI:=LOC N; DS:=WDS; DI:=DI-6; SI:=A; SI:=SI+4;                41324900        
+          N(IF SB THEN DS:=SET ELSE DS:=RESET; SI:=SI+8);               41325000        
+    END;                                                                41325100        
+ $ SET OMIT = NOT(SHAREDISK)                                            41325200        
+    M[T1+2] := MCPBASE;                                                 41325400        
+    LINKUP(16,T1);                                                      41325500        
+    IF FORKED THEN BEGIN MROW:=NABS(MROW); KILL([MSCW]); END;           41325600        
+  END LOGOUTMAINT;                                                      41325700        
+PROCEDURE MAINTLOGGER(B); VALUE B; REAL B;                              41327000        
+  BEGIN                                                                 41327100        
+    REAL RCW = +0;                                                      41327200        
+    REAL MSCW=-2;                                                       41327250        
+    ARRAY MLA = MAINTLOGARRAY[*];                                       41327300        
+    REAL KLUDGE = +1, KEY = +2, TRANS = +3, RECS = +4, WT = +5;         41327400        
+    REAL WMCP  = +6, WLOG = +7, WD = +8, A = +9, LASTENTRY = +10;       41327500        
+    REAL T1 = +11, T2 = +12, U = +13;                                   41327600        
+    REAL LOCN= WLOG, NUM= WD;                                           41327700        
+    LABEL LOGANOTHER,RECYCLE,KILLL;                                     41327800        
+    P(0,0,0,0,0,0,0,0,0,0,0,0,0);                                       41328000        
+    IF MROW > 0 THEN SLEEP([MROW],-0);                                  41328200        
+    MROW := ABS(MROW);                                                  41328300        
+    IF (A:=P(.MLA,LOD) INX 0) = 0 THEN                                  41328400        
+    BEGIN                                                               41328500        
+      MLA := [M[(A:=GETSPACE(33,MAINTBUFFAREAV,0)+3)]] & 32[8:38:10];%  41328600        
+      MOVE(31,A-2,A-1);                                                 41328700        
+      MLA[30] := NOT 0;                                                 41328800        
+      IF MDELTA!0 THEN DISKWAIT(-A,30,MROW+MLOG+1);                     41328900        
+    END;                                                                41329000        
+  LOGANOTHER:                                                           41329100        
+    IF M[LOCN:=LOGHOLDER INX 0] < 0 THEN                                41329200        
+    BEGIN                                                               41329300        
+      MOVE(4,LOCN,[TRANS]); KLUDGE := TRANS INX 0;                      41329400        
+      KEY := -0 & TRANS[26:20:13] & (TRANS.[2:1]+4)[3:42:6] &           41329500        
+                  TRANS[9:9:9] & TRANS[18:18:2] & TRANS[20:4:5];        41329600        
+      TRANS:= TRANSACTION[U:=TRANS.[2:2]+16]&(XCLOCK+P(RTR))[3:24:24];  41329700        
+      LOGHOLDER.[CF] := LOCN := [KLUDGE] INX 0;                         41329800        
+      IF KLUDGE=0 THEN LOGHOLDER.[FF] := LOCN;                          41329900        
+    END;                                                                41330000        
+    NUM := (M[LOCN+1].[39:9]+1) | 5;                                    41330100        
+    IF (LASTENTRY:=(MLOG+1)|30+MDELTA) + NUM > (LOGSIZE-1)|30 THEN      41330200        
+    BEGIN                                                               41330300        
+      IF MDELTA!0 THEN                                                  41330400        
+      BEGIN MLA[31]:=LOGENTRY; DISKWAIT(A,32,MROW+MLOG+1); END;         41330500        
+      LOGOUTMAINT(-(M[LOCN+1].[25:14]+1));                              41330600        
+      LOGENTRY := 0; T1 := LOCN;                                        41330700        
+      WHILE T1 ! 0 DO                                                   41330800        
+      BEGIN                                                             41330900        
+        IF M[T1]<0 THEN M[T1].[FF] := LOGENTRY:=LOGENTRY+1              41331000        
+        ELSE M[T1+1].[25:14] := LOGENTRY:=LOGENTRY+1;                   41331100        
+        T1 := M[T1] INX 0;                                              41331200        
+      END;                                                              41331300        
+      LASTENTRY := 30;                                                  41331400        
+    END;                                                                41331500        
+  RECYCLE:                                                              41331600        
+    IF (T1:=30-MDELTA)  >  NUM THEN                                     41331700        
+    BEGIN                                                               41331800        
+      MOVE(NUM,LOCN+1,[MLA[MDELTA]]);                                   41331900        
+      MDELTA := MDELTA + NUM;                                           41332000        
+    END ELSE                                                            41332100        
+    BEGIN                                                               41332200        
+      MOVE(T1,LOCN+1,[MLA[MDELTA]]); MLA[31]:=LOGENTRY & LASTENTRY[CTF];41332300        
+      DISKWAIT(A, 32,MROW+(MLOG:=MLOG+1));                              41332400        
+      LOCN := LOCN + T1;                                                41332500        
+      NUM  := NUM = T1;                                                 41332600        
+      MDELTA := 0; MOVE(31,A -2, A -1);                                 41332700        
+      IF NUM ! 0 THEN GO RECYCLE;                                       41332800        
+    END;                                                                41332900        
+    NUMAINTMESS:=NUMAINTMESS - 1;                                       41332950        
+    IF (T1:=M[T2:=LOGHOLDER INX 1]) < 0 THEN     % SPOUT MESSAGE FOR RE-41333000        
+    IF (T1.[3:6] AND @76) = 4 THEN               % COVERED DISK/DRUM ERR41333001        
+ $ SET OMIT = PACKETS                                                   41333002        
+    BEGIN STREAM(A:=TINU[U], R:=RECS.[1:4], X:=KEY.[20:5], S:=WT.[27:6],41333005        
+                 B:=[RECS], DSK:=T1.[8:1], D:=T1:=SPACE(10));           41333010        
+         BEGIN SI:=LOC A; SI:=SI+5; DS:=LIT" "; DS:=3 CHR;              41333015        
+              DS:=3 DEC; A:=DI; DI:=DI-3; DS:=2 FILL; DI:=A;            41333020        
+              DS:=14 LIT" RETRIES, MIX=";                               41333025        
+              DS:=2 DEC; A:=DI; DI:=DI-2; DS:=FILL; DI:=A;              41333030        
+              SI:=B; DS:=5 LIT", DA="; CI:=CI+DSK; GO TO DRM;           41333033        
+              SI:=SI+1; DS:=7 CHR; DS:=7 LIT", SEGS=";                  41333036        
+              SI:=LOC S; DS:=2 DEC; SI:=B; SI:=SI+16; GO TO L;          41333037        
+         DRM: SI:=SI+11; 5(DS:=3 RESET;                                 41333039        
+              3(IF SB THEN DS:=SET ELSE DS:=RESET; SKIP SB)); SI:=SI+2; 41333042        
+         L:   DS:=4 LIT", R=";                                          41333045        
+              16(DS:=3 RESET;                                           41333048        
+                 3(IF SB THEN DS:=SET ELSE DS:=RESET; SKIP SB));        41333050        
+              SI:=SI-5; DS:=5 LIT", IO=";                               41333055        
+              IF SB THEN DS:=2 LIT"4,"; SKIP SB;                        41333060        
+              IF SB THEN DS:=2 LIT"3,"; SKIP SB;                        41333065        
+              IF SB THEN DS:=2 LIT"2,"; SKIP SB;                        41333070        
+              IF SB THEN DS:=2 LIT"1,";                                 41333075        
+              DI:=DI-1; DS:=LIT"~";                                     41333080        
+         END;                                                           41333085        
+         SPOUTER(T1,PSEUDOMIX[KEY.[20:5]],DISKMSG OR 34);               41333090        
+    END;                                                                41333095        
+    IF (T1:=M[LOGHOLDER] INX 0) = 0 THEN                                41333100        
+    BEGIN                                                               41333200        
+      IF MDELTA ! 0 THEN                                                41333300        
+      BEGIN                                                             41333400        
+        MLA[31] := LOGENTRY & LASTENTRY[CTF];                           41333500        
+        DISKWAIT(A,32,MROW+MLOG+1);                                     41333600        
+      END;                                                              41333700        
+      RECS := 5 & 62[3:42:6] & MLOG[24:33:15] & LASTENTRY[9:33:15];     41333800        
+      WT   := 0 & (XCLOCK+P(RTR))[3:24:24];                             41333900        
+      WMCP := PATCHLEVEL;                                               41334000        
+      MLOG := LOGVERSION;                                               41334100        
+      WD   := DATE;                                                     41334200        
+      DISKWAIT([RECS ] INX 0,5,MROW);                                   41334300        
+      T1 := M[LOGHOLDER] INX 0;                                         41334400        
+    END;                                                                41334500        
+    IF M[T2] LSS 0 THEN M[T2].[2:1] := 1 ELSE FORGETSPACE(T2);          41334600        
+    IF T1 ! 0 THEN BEGIN LOGHOLDER.[CF]:=T1; GO LOGANOTHER; END;        41334700        
+  KILLL:                                                                41334800        
+    LOGHOLDER.[CF] := 0; MROW := NABS(MROW);                            41334900        
+    IF LOGHOLDER.[9:9]=0 THEN BEGIN FORGETSPACE(A -1); MLA:=0; END;     41335000        
+    KILL([MSCW]);                                                       41335100        
+  END MAINTLOGGER;                                                      41335200        
+ $ SET OMIT = NOT(STATISTICS)                                           41399999        
+PROCEDURE MESSAGETABLEBUILDER;                                          41430000        
+BEGIN                                                                   41430100        
+INTEGER I,I1,I2,TBL,TBLCNT;                                             41430300        
+DEFINE MARKER = "~~~~~~~"#;                                             41430400        
+LABEL L, START;                                                         41430500        
+     GO TO START; P(.L);                                                41430600        
+L:::                                                                    41430700        
+%*** BEGINNING OF OPTION RESERVED WORD TABLE ***************************41430800        
+     "DRA0",    "0000",       %47%                                      41430900        
+     "DRB0",    "0000",       %46%                                      41431000        
+     "BOJ0",    "0000",       %45%                                      41431100        
+     "EOJ0",    "0000",       %44%                                      41431200        
+     "OPEN",    "0000",       %43%                                      41431300        
+     "TERM",    "NATE",       %42%                                      41431400        
+     "DATE",    "0000",       %41%                                      41431500        
+     "TIME",    "0000",       %40%                                      41431600        
+     "ONEB",    "REAK",       %39%                                      41431700        
+     "AUTO",    "PRNT",       %38%                                      41431800        
+     "CLEA",    "RWRS",       %37%                                      41431900        
+ $ SET OMIT = NOT DATACOM                                               41432000        
+     "    ",    "    ",       %36%                                      41432300        
+ $ RESET OMIT                                                           41432400        
+     "CMPL",    "FILE",       %35%                                      41432500        
+     "CLOS",    "E000",       %34%                                      41432600        
+     "ERRO",    "RMSG",       %33%                                      41432700        
+     "RET0",    "0000",       %32%                                      41432800        
+     "LIBM",    "SG00",       %31%                                      41432900        
+     "SCHE",    "DMSG",       %30%                                      41433000        
+     "SECM",    "SG00",       %29%                                      41433100        
+     "DSKT",    "OG00",       %28%                                      41433200        
+     "RELT",    "OG00",       %27%                                      41433300        
+     "PBDR",    "EL00",       %26%                                      41433400        
+ $ SET OMIT = NOT(DEBUGGING OR CHECKLINK)                               41433500        
+          0,         0,       %25%                                      41433800        
+ $ POP OMIT                                                             41433900        
+     "DISK",    "MSG0",       %24                                       41434000        
+     "NOT ",    "USED",       %23%                                      41434100        
+     "LIBE",    "RR00",       %22%                                 %149-41434200        
+     "PBDO",    "NLY0",       %21%                                      41434300        
+     "SAVE",    "PBT0",       %20%                                      41434400        
+     "RSMS",    "G000",       %19%                                      41434500        
+     "AUTO",    "UNLD",       %18%                                      41434600        
+           "AUTO",   "RN00",          %17%                         %902-41434700        
+     "CODE",    "OLAY",       %16%                                      41434800        
+     "CORE",    "ST00",       %15%                                      41434900        
+     "DATA",    "OLAY",       %14%                                      41435000        
+     "HALT",    "0000",       %13%                                      41435100        
+     "NOT ",    "USED",       %12%                                      41435200        
+     "NOT ",    "USED",       %11%                                      41435300        
+     "NOT ",    "USED",       %10%                                      41435400        
+     "NOT ",    "USED",       % 9%                                      41435500        
+     "STOP",    "TEST",       % 8%                                      41435600        
+     "PNCH",    "LOCK",       % 7%                                      41435700        
+     "CDON",    "LY00",       % 6%                                      41435800        
+     "PKTO",    "NLY0",       % 5%                                      41435900        
+     "SEPA",    "RATE",       % 4%                                      41436000        
+     "NOT ",    "USED",       % 3%                                      41436100        
+     "    ",    "    ",       % 2%                                      41436200        
+     "AUTO",    "DS00",       % 1%                                 %747-41436300        
+     "OPTN",    "0000",       % 0%                                      41436400        
+     "~000",    "0000",       %STP                                      41436500        
+     MARKER,                                                            41436600        
+%*** END OF OPTION RESERVED WORD TABLE *********************************41436700        
+%*** BEGINNING OF TERMINAL MESSAGE TABLE *******************************41440000        
+             0,               % 0%                                      41440100        
+     "8STACK ", "6OVRFLW",    % 1%                                      41440200        
+     "8OPTR  ", "5DS-ED0",    % 3%                                      41440300        
+     "8FLAG B", "2IT0000",    % 5%                                      41440400        
+     "8INVALD", "6 INDEX",    % 7%                                      41440500        
+     "8EXPON ", "6OVRFLW",    % 9%                                      41440600        
+     "8INTGR ", "6OVRFLW",    %11%                                      41440700        
+     "8DIV BY", "5 ZERO0",    %13%                                      41440800        
+     "8EXCESS", "5 TIME0",    %15%                                      41440900        
+     "8INVALD", "6 ADRSS",    %17%                                      41441000        
+     "8UNEXP ", "6IO ERR",    %19%                                      41441100        
+     "8DC TU ", "8NOT OU",    %21%                                      41441200        
+     "8TPUT P", "6OSSIBLE,                                              41441300        
+     "8FILE U", "8UNOPENE,    %25%                                      41441400        
+     "1D00000",                                                         41441500        
+     "8INVALI", "5D EOJ0",    %28%                                      41441600        
+     "8INVALI", "5D PRL0",    %30%                                      41441700        
+     "8MEMORY", "8 PARIT",    %32%                                      41441800        
+     "1Y00000",                                                         41441900        
+     "8OPRTR ", "5ES-ED.",    %35%                                      41442000        
+     "8INVALD", "8 ARRAY",    %37%                                      41442100        
+     "8 SIZE ", "3IDN...",                                              41442200        
+     "8INVALD", "8 INPUT",    %41%                                      41442300        
+     "6 DATUM",                                                         41442400        
+     "8TYPE M", "8ISMATC",    %44%                                      41442500        
+     "8H READ", "4STMT..",                                              41442600        
+     "8OUT OF", "5 DATA.",    %48%                                      41442700        
+     "8NON-CO", "8NFORMA",    %50%                                      41442800        
+     "8L ARRA", "2YS....",                                              41442900        
+     "8NON-SQ", "8UARE M",    %54%                                      41443000        
+     "5ATRIX.",                                                         41443100        
+     "8NEARLY", "8 SINGU",    %57%                                      41443200        
+     "8LAR MA", "4TRIX..",                                              41443300        
+     "8USER D", "4S-ED..",    %61%                                      41443400        
+     "8INVALD", "8 DYNAM",    %63%                                      41443500        
+     "8IC DIA", "1L.....",                                              41443600        
+     "8INVALD", "8 DETAC",    %67%                                      41443700        
+     "1H.....",                                                         41443800        
+     "8PARITY", "6 ERROR",    %70%                                      41443900        
+     "8DIMENS", "8ION SI",    %72%                                      41444000        
+     "6ZE ERR",                                                         41444100        
+     "8INVALD", "8 FILE ",    %75%                                      41444200        
+     "4NAME..",                                                         41444300        
+     "8INVALD", "8 BLOCK",    %78%                                      41444400        
+     "5 EXIT.",                                                         41444500        
+     "8INVALI", "5D COM.",    %81%                                      41444600        
+     "8EXCESS", "8 IO TI",    %83%                                      41444700        
+     "2ME....",                                                         41444800        
+     "8DS-ED ", "8BY TAS",    %86%                                      41444900        
+     "8K ANCE", "4STOR..",                                              41445000        
+     "8ES-ED ", "8BY TAS",    %90%                                      41445100        
+     "8K ANCE", "4STOR..",    %__%                                      41445200        
+     "8INVALI", "8D TASK",    %94%                                      41445300        
+     "8 INITI", "5ATION.",                                              41445400        
+     "8INVALI", "8D TASK",    %98%                                      41445500        
+     "8 CONTI", "8NUATIO",                                              41445600        
+     "1N.....",                                                         41445700        
+     "8SOFTWA", "8RE INT",    %103%                                     41445800        
+     "8ERRUPT", "8 QUEUE",                                              41445900        
+     "6 OVFLW",                                                         41446000        
+     "8INVALD", "8 LINKE",    %108%                                     41446100        
+     "6D TAPE",                                                         41446200        
+     "8ARRAY ", "8OLAY S",    %111%                                %517-41446300        
+     "8PACE U", "6SED UP",    %                                    %517-41446400        
+             0,               %STP%                                     41449700        
+     MARKER,                                                            41449800        
+%*** END OF TERMINAL MESSAGE TABLE *************************************41449900        
+%*** BEGINNING OF KEYIN MESSAGE TABLE **********************************41450000        
+     COMMENT                                                            41450100        
+     KEYIN MESSAGE TABLE ENTRIES -                                      41450200        
+     EACH TABLE WORD IS CONFIGURED AS FOLLOWS:                          41450300        
+     [ 6:6 ] = - MIX OR INFO CODE -                                     41450400        
+               0 = INFO MESSAGE ONLY                                    41450500        
+               1 = MIX OR INFO MESSAGE                                  41450600        
+               2 = MIX MESSAGE ONLY                                     41450700        
+     [12:12] = TWO LETTER KEYBOARD MESSAGE                              41450800        
+     [24:6 ] = - KEYIN PROCEDURE TO BE CALLED -                         41450900        
+               0 = PROCEDURE KEYIN0 ( DIRECT CALL )                     41451000        
+               1 = PROCEDURE KEYIN1 ( DIRECT CALL )                     41451100        
+               2 = PROCEDURE KEYIN2 ( INDEPENDENT RUNNER )              41451200        
+     [33:1 ] = 1 FOR ALLOWABLE STANDARD RJE REQUESTS                    41451300        
+     [34:2 ] = - MIXCODE ( FOR MIX MESSAGES ) -                         41451400        
+               1 = JOB SHOULD BE WAITING FOR THIS INPUT                 41451500        
+               2 = JOB SHOULD BE RUNNING, BUT NOT NECESSARILY           41451600        
+                   WAITING                                              41451700        
+               3 = JOB NEED NOT BE RUNNING                              41451800        
+     [36:12] = LABEL NUMBER ( SWITCH LOCATION IN PROCEDURE)             41451900        
+     END OF COMMENT;                                                    41452000        
+     "2AX0501",               %AX% INPUT TO JOB FROM SPO                41452100        
+     "2IL0102",               %IL% INPUT FILE WITH LABEL SPECIFIED      41452200        
+     "2UL0103",               %UL% INPUT FILE WITH UNKNOWN LABEL        41452300        
+     "0QT0004",               %QT% QUIT PROCESSING PRINTER-BACK UP      41452400        
+     "2QT0604",               %QT% QUIT PROCESSING PRINTER-BACK UP      41452500        
+     "2OU0105",               %OU% OUTPUT TO SPECIFIED UNIT             41452600        
+     "0WY0006",               %WY% SYSTEM INQUIRY                       41452700        
+     "2WY0506",               %WY% SYSTEM INQUIRY                       41452800        
+     "0RY0007",               %RY% READY PERIPHERAL UNIT OR SYSTEM      41452900        
+     "0DS0008",               %DS% TERMINATE JOB                        41453000        
+     "2DS0608",               %DS% TERMINATE JOB                        41453100        
+     "2SD0209",               %SD% TERMINATE JOB WITHOUT REMOVING DECK  41453200        
+     "0TF0410",               %TF% TYPE CORE FACTOR                     41453300        
+     "0SF0011",               %SF% SET CORE FACTOR                      41453400        
+     "2RM0512",               %RM% REMOVE DUP FILE                      41453500        
+ $ SET OMIT = NOT(DATACOM OR DEBUGGING)                                 41453600        
+     "0DP0013",               %DP% CORE DUMP                            41453700        
+ $ SET OMIT = DUMP OR DEBUGGING                                         41453800        
+     "0DD7014",               %DD% DISK DUMP                            41454500        
+     "0DB7015",               %DB% DISK BUG                             41454600        
+     "0PT7016",               %PT% PRINT TRACE                          41454700        
+ $ RESET OMIT                                                           41454800        
+     "2ST0617",               %ST% STOP JOB                             41454900        
+     "0CM0018",               %CM% CHANGE MCP                           41455000        
+     "0SV0019",               %SV% SAVE PERIPHERAL UNIT                 41455100        
+     "0CL0020",               %CL% CLEAR PERIPHERAL UNIT OR SYSTEM      41455200        
+     "1BK0721",               %BK% BREAK                                41455300        
+     "2OK0522",               %OK% CONTINUE PROCESSING JOB              41455400        
+     "2RM0123",               %FM% FORMS READY                          41455500        
+     "2FR0124",               %FR% FINAL REEL (COBOL)                   41455600        
+     "2OF0125",               %OF% OPTIONAL FILE-COBOL, OK FILE-LIBMAIN 41455700        
+     "2TI0626",               %TI% PRINT TIME FOR JOB                   41455800        
+     "2PR0227",               %PR% PRINT PRIORITY OF JOB                41455900        
+     "0RO0028",               %RO% RESET OPTION BIT                     41456000        
+     "0SO0029",               %SO% SET OPTION BIT                       41456100        
+     "2IT0230",               %IT% MAINTENANCE INTERRUPT                41456200        
+     "0WT0431",               %WI% WHAT INTRINSIC                       41456300        
+     "2IF0532",               %IF% IGNORE IN-USE FILE                   41456400        
+     "0RC0033",               %RC% REEL CHANGE ON WRITE                 41456500        
+     "1**77**",               %**% END OF FIRST KEYIN PROCEDURE CALLS   41459900        
+ $ SET OMIT = NOT(DATACOM AND DCSPO)                                    41460000        
+     "0BO7001",               %BO% BLACK OUT                            41461500        
+     "0LI7002",               %LI% LOG IN                               41461600        
+     "0LO7403",               %LO% LOG OUT                              41461700        
+     "0ZZ7004",               %ZZ% SENSE EOT                            41461800        
+     "0TC7005",               %TC% TIME AND CHARGES FOR REMOTE STATTION 41461900        
+     "0HM7006",               %HM% HALT MESSAGES                        41462000        
+     "2HR7201",               %HR% HALT MESSAGES FOR JOB                41462100        
+     "0SS7408",               %SS% STATION TO STATION MESSAGE           41462200        
+     "2SS7208",               %SS% STATION TO STATION MESSAGE           41462300        
+     "0BS7009",               %BS% SET BACK UP SPO                      41462400        
+     "0US7010",               %US% RESET BACK UP SPO                    41462500        
+     "0SC7011",               %SC% PRINT SPO CONSOLES                   41462600        
+     "0QV7012",               %QV% SET REMOTE TIME OUT VALUE            41462700        
+ $ SET OMIT = NOT DATACOM                                               41462800        
+     "0RR7013",               %RR% RESET REMOTE AS NON-SPO              41463100        
+ $ SET OMIT = NOT AUXMEM                                                41463200        
+     "0LA7014",               %LA% LIST AUXMEM FILES                    41463600        
+     "0CA7015",               %CA% CHANGE AUXMEM FILES                  41463700        
+ $ RESET OMIT                                                           41463800        
+     "0DT1016",               %DT% CHANGE DATE                          41463900        
+     "0WD1417",               %WD% WHAT DATE                            41464000        
+     "0TR1018",               %TR% SET TIME                             41464100        
+     "0WT1419",               %WT% WHAT TIME                            41464200        
+     "0WM1420",               %WM% WHAT MCP                             41464300        
+     "0CC1421",               %CC% CONTROL CARD (SEE 16043680 FOR QMARK)41464400        
+     "0OL1022",               %OL% PRINT OUTPUT LABEL                   41464500        
+     "0PB1423",               %PB% START PRINTER BACK-UP                41464600        
+     "0RN1024",               %RN% SET PSEUDO READERS                   41464700        
+     "0LD1025",               %LD% START LOAD CONTROL                   41464800        
+     "0RD1026",               %RD% REMOVE PSEUDO DECK                   41464900        
+ $ SET OMIT = NOT PACKETS                                               41465000        
+     "0RP1427",               %RP% REMOVE PACKET                        41465100        
+ $ SET OMIT = PACKETS                                                   41465200        
+     "0ED1028",               %ED% END PSEUDO DECK                      41465500        
+ $ SET OMIT = NOT STATISTICS                                            41465600        
+     "OSI7029",               %SI% SET STATISTICS INTERVAL              41465900        
+ $ SET OMIT = NOT(DATACOM AND DCLOG)                                    41466000        
+     "0LR7030",               %LR% SET REMOTE LOG                       41466300        
+ $ RESET OMIT                                                           41466400        
+     "1OT1631",               %OT% PRINT PRT CELL OR CORE LOCATION VALUE41466500        
+     "2IN1632",               %IN% SET VALUE OF PRT CELL                41466600        
+     "0FE1033",               %FE% ENTER MAINT. LOG COMMENT             41466700        
+     "1OC1234",               %OC% ENTER OPERATOR COMMENT IN LOG        41466800        
+     "0SQ1035",               %SQ% DISK SQUASH                          41466900        
+ $ SET OMIT = NOT SEPTICTANK                                            41467000        
+     "0CS7036",               %CS% CREATE SEPTIC TANK                   41467400        
+     "0HS7037",               %HS% HALT SEPTIC TANK                     41467500        
+ $ RESET OMIT                                                           41467600        
+ $ SET OMIT = NOT(WORKSET)                                              41467700        
+     "0WK1338",               %WK% WORKSET REQUESTS                     41467800        
+ $ POP OMIT                                                             41467900        
+ $ SET OMIT = WORKSET                                                   41468000        
+     "1**77**",               %**% END OF SECOND KEYIN PROCEDURES       41469900        
+ $ SET OMIT = NOT(DATACOM AND DCSPO)                                    41470000        
+     "1WU7201",               %WU% WHAT (REMOTE) USERS                  41470500        
+     "0WP7002",               %WP% WHAT PROGRAMS ATTACHED TO REMOTES    41470600        
+     "2WA7202",               %WA% WHAT (REMOTES) ATTACHED TO JOB       41470700        
+ $ SET OMIT = NOT(DATACOM AND DCSPO AND DCLOG)                          41470800        
+     "0WR7003",               %WR% WHAT REMOTE LOG                      41471100        
+ $ RESET OMIT                                                           41471200        
+     "0MX2404",               %MX% LIST JOBS IN MIX                     41471300        
+     "1TS2305",               %TS% TYPE SCHEDULE                        41471400        
+     "2BS2306",               %PS% CHANGE PRIORITY OF JOB IN SCHEDULE   41471500        
+     "2ES2707",               %ES% REMOVE JOB FROM SCHEDULE             41471600        
+     "2XS2308",               %XS% FORCE SELECTION FROM SCHEDULE        41471700        
+     "0LF2409",               %LF% LIST FILES FOR USER                  41471800        
+     "0LC2410",               %LC% LIST FILES FOR CREATOR               41471900        
+     "0LS2411",               %LS% LIST FILES FOR SECURITY              41472000        
+     "0EX2412",               %EX% LIST FILES EXPIRED                   41472100        
+     "0RD2413",               %PD% PRINT DIRECTORY                      41472200        
+ $ SET OMIT = NOT(DATACOM AND DCSPO)                                    41472300        
+     "1SM7214",               %SM% START MIX MESSAGES                   41472600        
+ $ RESET OMIT                                                           41472700        
+     "0TO2415",               %TO% TYPE OPTIONS                         41472800        
+     "0PO2416",               %PO% PRINT SPECIFIED OPTION               41472900        
+     "0PG2017",               %PG% PURGE TAPE UNIT                      41473000        
+ $ SET OMIT = NOT AUXMEM                                                41473100        
+     "1AU7418",               %AU% PRINT AUXMEM IN USE                  41473300        
+ $ POP OMIT OMIT                                                        41473350        
+ $ SET OMIT = NOT MONITOR                                               41473400        
+     "0MS7019",               %MS% SET/RESET SYSTEM MONITOR             41473600        
+ $ POP OMIT OMIT                                                        41473700        
+     "0LN2020",               %LN% START LOG                            41473800        
+     "0CD2421",               %CD% PRINT PSEUDO DECKS ON DISK           41473900        
+ $ SET OMIT = NOT PACKETS                                               41474000        
+     "0PP2422",               %PP% PRINT PACKETS                        41474100        
+     "0PC2423",               %PC% PACKET COUNT                         41474200        
+ $ SET OMIT = PACKETS                                                   41474300        
+     "1CU2624",               %CU% PRINT CORE USAGE                     41474700        
+ $ SET OMIT = NOT STATISTICS                                            41474800        
+     "0SY7025",               %SY% SET STATISTICS FILES                 41475200        
+     "0SL7026",               %SL% SET STATISTICS FILE                  41475300        
+ $ RESET OMIT                                                           41475400        
+     "0RW2027",               %RW% REWIND TAPE UNIT                     41475500        
+     "0CI2028",               %CI% CHANGE INSTRINSIC FILES              41475600        
+     "2CT2629",               %CT% CHANGE TIME LIMITS                   41475700        
+     "2XT2630",               %XT% EXTEND TIME LIMITS                   41475800        
+     "2TL2631",               %TL% PRINT TIME LIMITS                    41475900        
+     "0XO2032",               %XD% CREATE BAD-DISK AREA                 41476000        
+     "0WR2033",               %WR% MAKE RESERVE DISK                    41476100        
+     "0MC2034",               %MC% MAKE COMPILER                        41476200        
+ $ SET OMIT = NOT BREAKOUT                                              41476300        
+     "0RS7035",               %RS% RE-START AFTER BREAKOUT              41476600        
+ $ RESET OMIT                                                           41476700        
+     "0HD2036",               %HD% HOW MUCH (AVAILABLE) DISK            41476800        
+     "2SA2637",               %SA% SEG & REL ADDR OF RUNNING PROGRAM    41476900        
+ $ SET OMIT = NOT(BREAKOUT)                                        %139-41477000        
+     "1EI7638",               %EI% BREAKOUT FROM SPO               %139-41477300        
+ $ POP OMIT OMIT                                                   %139-41477400        
+     "1~~0000",               %~~% END OF TABLE                         41479700        
+     MARKER,                                                            41479800        
+%*** END OF KEYIN MESSAGE TABLE ****************************************41479900        
+%*** BEGINNING OF CC RESERVED WORD TABLE *******************************41480000        
+     "UNLOCK ",       21 ,                                              41480100        
+     "USE    ",       22 ,                                              41480200        
+     "LOCK   ",       23 ,                                              41480300        
+     "FREE   ",       24 ,                                              41480400        
+     "PUBLIC ",       25 ,                                              41480500        
+     "PACKET ",       26 ,                                              41480700        
+     "USER   ",       27 ,                                              41480900        
+     "RUN    ",       28 ,                                              41481000        
+     "R      ",       28 ,                                              41481100        
+     "COMPILE",       29 ,                                              41481200        
+     "C      ",       29 ,                                              41481300        
+     "EXECUTE",       30 ,                                              41481400        
+     "EX     ",       30 ,                                              41481500        
+     "COPY   ",       31 ,                                              41481550        
+     "DUMP   ",       32 ,                                              41481600        
+     "UNLOAD ",       33 ,                                              41481700        
+     "ADD    ",       34 ,                                              41481800        
+     "LOAD   ",       35 ,                                              41481900        
+     "REMOVE ",       36 ,                                              41482000        
+     "CHANGE ",       37 ,                                              41482100        
+     "UNIT   ",       38 ,                                              41482200        
+     "PACKEND",       39 ,                                              41482400        
+     "END    ",       39 ,                                              41482600        
+ $ SET OMIT = NOT PACKETS                                               41482700        
+     "WAIT   ",       40 ,                                              41482800        
+ $ POP OMIT                                                             41482900        
+     "DATA   ",       41 ,                                              41483000        
+     "DATA029",       41 ,                                         %890-41483010        
+     "LABEL  ",       42 ,                                              41483100        
+     "SET    ",       43 ,                                              41483200        
+     "RESET  ",       44 ,                                              41483300        
+     "FILE   ",       47 ,                                              41483400        
+     "EXPIRED",       48 ,                                              41483500        
+     "ACCESSD",       49 ,                                              41483600        
+     "PROCESS",       50 ,    % A STORE NEAR THE END OF PCC             41483700        
+     "IO     ",       51 ,    % MAKES USE OF THE ORDER AND VALUES       41483800        
+     "PRIORIT",       52 ,    % OF "PROCESS" THRU "SAVE".               41483900        
+     "COMMON ",       53 ,                                              41484000        
+     "CORE   ",       54 ,                                              41484100        
+     "STACK  ",       55 ,                                              41484200        
+     "SAVE   ",       56 ,                                              41484300        
+     "ALGOL  ",       60 ,                                              41484400        
+     "XALGOL ",       61 ,                                              41484500        
+     "FORTRAN",       62 ,                                              41484600        
+     "TSPOL  ",       63 ,                                              41484700        
+     "BASIC  ",       64 ,                                              41484800        
+     "COBOL68",       65 ,                                              41484900        
+     "WITH   ",       66 ,                                              41485000        
+     "COBOL  ",       67 ,                                              41485100        
+     "LIBRARY",       68 ,                                              41485200        
+     "SYNTAX ",       69 ,                                              41485300        
+     "FROM   ",       70 ,                                              41485400        
+     "TO     ",       71 ,                                              41485500        
+     "ON     ",       72 ,                                         %148-41485510        
+     "FORM   ",        75 ,      % SWITCH D(PCC)                   %846-41485600        
+    "RANDOM ",        78 ,                                         %603-41485610        
+   "LINES66",         77 ,                                         %724-41485620        
+     "DUMMY  ",         76 ,                                       %846-41485630        
+     "NO     ",       79 ,    % "FORM"-"SPECIAL"                        41485700        
+     "DISK   ",       80 ,                                              41485800        
+     "TAPE   ",       81 ,                                              41485900        
+     "PUNCH  ",       82 ,                                              41486000        
+     "PRINT  ",       83 ,                                              41486100        
+     "BACK   ",       85 ,                                              41486200        
+     "SPECIAL",       90 ,                                              41486300        
+     "REMOTE ",       89 ,                                              41486400        
+     "SERIAL ",       86 ,                                              41486500        
+     "UPDATE ",       87 ,                                              41486600        
+     "SPO    ",       88 ,                                              41486700        
+     "PAPER  ",       84 ,                                              41486800        
+     "EU     ",       91 ,                                              41486900        
+     "SLOW   ",       92 ,                                              41487000        
+     "B6500  ",       93 ,                                              41487100        
+     "FAST   ",       94 ,                                              41487200        
+     "MAXIMUM",       96 ,                                              41487400        
+     "FREEF  ",       97 ,                                              41487500        
+     "FIXED  ",       98 ,                                              41487600        
+     "PROTECT",       99 ,                                              41487700        
+     "SENSITI",      100 ,                                              41487800        
+     "LATEST ",      101 ,                                              41487900        
+     "EXCEPT ",      102 ,                                              41488000        
+     "AS     ",      103 ,                                              41488100        
+     "NOHASH ",      104 ,                                              41488200        
+     "CC     ",       14 ,    % CC MUST EQUAL QUEST %                   41488900        
+             0,        0 ,                                              41489000        
+     MARKER,                                                            41489100        
+%*** END OF CC RESERVED WORD TABLE *************************************41489200        
+%*** BEGINNING OF LBMESS MESSAGE TABLE *********************************41490000        
+     "~      ", % 0                                                     41490100        
+     "LOADED ","~      ", % 1                                           41490200        
+     "DUMPED ","~      ", % 3                                           41490300        
+     "CHANGED"," ~     ", % 5                                           41490400        
+     "REMOVED"," ~     ", % 7                                           41490500        
+     "MC-ED ~", % 9                                                     41490600        
+     "FIXED ~", % 10                                                    41490700        
+     "RESET ~", % 11                                                    41490800        
+     "SET ~  ", % 12                                                    41490900        
+     "ACCESSE","D~     ", % 13                                          41491000        
+     "NOT ON ","DISK~  ", % 15                                          41491100        
+     "NOT 0N ","TAPE~  ", % 17                                          41491200        
+     "NOT EXE","CUTABLE"," CODE~ ", % 19                                41491300        
+     "NOT A C","OMPILER","~      ", % 22                                41491400        
+     "SYSTEM ","FILE~  ", % 25                                          41491500        
+     "TAPE PA","RITY~  ", % 27                                          41491600        
+     "DUP FIL","E~     ", % 29                                          41491700        
+     "NO USER"," DISK~ ", % 31                                          41491800        
+     "UNEXPED"," EOF~  ", % 33                                          41491900        
+     "DISK PA","RITY~  ", % 35                                          41492000        
+     "BAD NAM","E~     ", % 37                                          41492100        
+     "INV REC"," SIZE~ ", % 39                                          41492200        
+     "INVALID"," USER~ ", % 41                                          41492300        
+     "BAD HEA","DER~   ", % 43                                          41492400        
+     "IN USE~", % 45                                                    41492500        
+     "ADDED ~", % 46                                                    41492600        
+     ",TAPE P","OSITION","ED~    ", % 47                                41492650        
+     "AUTO-ZI","PPED~  ", % 50                                          41492700        
+     "CHANGED"," TO ~  ", % 52                                          41493010        
+     "MC-ED T","O ~    ", % 54                                          41493020        
+     "EXTRA R","ECORDS~", % 56                                          41493030        
+     "DUP LIB","RS~    ", % 58                                          41493040        
+     "SENSITI","VE~    ", % 60                                          41493050        
+     "BEING B","LANKED~", % 62                                          41493060        
+     "NOT LAT","EST VER","SION~  ", % 64                                41493070        
+     "COPIED~", % 67                                                    41493080        
+     "ON DISK","~      ", % 68                                     %160-41493085        
+     MARKER;                                                            41493100        
+%*** END OF LBMESS MESSAGE TABLE ***************************************41493200        
+%*** END OF RESERVED WORD AND MESSAGE TABLES ***************************41500000        
+START:                                                                  41500100        
+     TBL:=I2:=M[P(..MESSAGETABLEBUILDER)].[CF]+2;                       41500200        
+     WHILE M[TBL:=TBL+1]!MARKER DO; % SEARCH FOR END OF OPTION TBLE     41500300        
+     I1:=TBL; TB;:=TBL+1;                                               41500400        
+     FOR I:=2 STEP 1 UNTIL MESSAGETABLESIZE DO                          41500500        
+     WHILE M[TBL:=TBL+1] ! MARKER DO;                                   41500600        
+     I:=I1-I2; I1:=(TBL+2)-I1;                                          41500700        
+     STREAM(A:=I DIV 60,B:=(I:=(I MOD 60)),C:=I1 DIV 60,                41500800        
+            D:=(I1:=(I1 MOD 60)),E:=12);                                41500900        
+     BEGIN                                                              41501000        
+          SI:=E; DI:=E;                                                 41501100        
+          A(60(SI:=SI+4; DS:=4 CHR));                                   41501200        
+          B(SI:=SI+4; DS:=4 CHR);                                       41501300        
+          C(DS:=60 WDS);                                                41501400        
+          D(DS:=WDS);                                                   41501500        
+     END;                                                               41501600        
+     TBL:=I2;                                                           41501700        
+     FOR TBLCNT:=0 STEP 1 UNTIL (MESSAGETABLESIZE-1) DO                 41501800        
+     BEGIN                                                              41501900        
+          WHILE M[TBL:=TBL+1]!MARKER DO; I:=TBL-12;                     41502000        
+          MESSAGETABLE[TBLCNT]:=GETUSERDISK((I+29) DIV 30)&I[8:38:10];  41502100        
+          DISKWAIT(I2,I,MESSAGETABLE[TBLCNT].[22:26]);                  41502300        
+          I2:=TBL:=TBL+1;                                               41502400        
+     END;                                                               41502500        
+END BUILLDING TABLES;                                                   41502600        
+                                                                        99999900        
