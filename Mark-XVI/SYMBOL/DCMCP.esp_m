@@ -25694,4 +25694,302 @@ START:                                                                  41500100
           I2:=TBL:=TBL+1;                                               41502400        
      END;                                                               41502500        
 END BUILLDING TABLES;                                                   41502600        
+PROCEDURE ENTERSYSFILE(N); VALUE N; REAL N;                             41600000        
+%                                                                       41600100        
+BEGIN                                                                   41600200        
+     REAL A,J,WC,MFID,DISK;                                             41600300        
+     ARRAY DDD[*];                                                      41600400        
+     LABEL RETURN,EXIT;                                                 41600500        
+%                                                                       41600600        
+     IF N=1 THEN                                                        41600700        
+     BEGIN                                                              41600800        
+          MFID := "LIBMAIN"; J := 1;                                    41600900        
+     END ELSE                                                           41601000        
+     IF N=2 THEN                                                        41601100        
+     BEGIN                                                              41601200        
+          MFID := "LDNCTRL";                                            41601300        
+     END ELSE                                                           41601400        
+     IF N=3 THEN                                                        41601500        
+     BEGIN                                                              41601600        
+          MFID := "PRNPBT ";                                            41601700        
+     END ELSE                                                           41601800        
+     GO EXIT;                                                           41601900        
+%                                                                       41602000        
+     DISK := "DISK   ";                                                 41602100        
+     IF (A:=DIRECTORYSEARCH(MFID,DISK,5)) ! 0 THEN                      41602200        
+     BEGIN                                                              41602300        
+          M[A INX 2] := MCP;                                            41602400        
+          M[A INX 5] := M[A INX 6] := @14;                              41602500        
+          DISKWAIT(A.[CF],30,A.[FF]);                                   41602600        
+          GO RETURN;                                                    41602700        
+     END;                                                               41602800        
+     DDD := [M[A := SPACE(WC := 181+30|J)]]&WC[8:38:10];                41602900        
+     MOVE(WC,A-1,A);                                                    41603000        
+     STREAM(DATE,D:=A+3);                                               41603100        
+     BEGIN                                                              41603200        
+          SI:=LOC DATE; DS:=8 OCT;                                      41603300        
+          DI:=D; DS:=2 LIT"+#";                                         41603400        
+          SI:=D; SI:=SI+5; DS:=3 CHR;                                   41603500        
+     END;                                                               41603600        
+     DDD[ 0] := @3600036000101;                                         41603700        
+     DDD[ 1] := (XCLOCK+P(RTR))&DDD[3][6:30:18];                        41603800        
+     DDD[ 2] := MCP;                                                    41603900        
+     DDD[ 4].[9:2] := 3;                                                41604000        
+     DDD[ 5] := DDD[6] := @14;                                          41604100        
+     DDD[ 7] := 4+J;                                                    41604200        
+     DDD[ 9] := 1;                                                      41604300        
+     DDD[10] := PETUSERDISK((DDD[8] := 5+J)&1[2:47:1],1);               41604400        
+     DDD[31] := 3-J;                                                    41604500        
+     DDD[32] := DDD[38] := 2;                                           41604600        
+     DDD[33] := 4-J;                                                    41604700        
+     DDD[34] := 22;                                                     41604800        
+     DDD[35] := 2+J+J;                                                  41604900        
+     DDD[36] := 6;                                                      41605000        
+     DDD[37] := IF J THEN -1 ELSE 1;                                    41605100        
+     DDD[47] := DDD[48] := @377777777777;           % TIME LMT          41605200        
+     DDD[49] := IF J THEN 2 ELSE 0; %               % PRIORITY     %711-41605300        
+     DDD[51] := IF J THEN 64 ELSE 4;                % CORE EST          41605400        
+     DDD[52] := IF J THEN 200 ELSE 150;             % STACKSIZ          41605500        
+     DDD[61] := @0000012600001011                                       41605600        
+               &(IF J THEN 35 ELSE IF N=2 THEN 23 ELSE 19)[24:38:10];   41605700        
+     DDD[62] := @0024101100000000;                                      41605800        
+     DDD[122-30|J] := @0000220000200001;                                41605900        
+     DDD[169-30|K] := FLAG(@2740010000100000);                          41606000        
+     IF NOT J THEN                                                      41606100        
+     STREAM(C:=N=2, D:=[DDD[91]]);                                      41606200        
+     BEGIN                                                              41606300        
+          CI:=CI+C; GO L1;                                              41606400        
+          DS:=40 LIT                                                    41606500        
+              "012CONTROLDECK   1A022BACK-UP0F DECK1B00";               41606600        
+          GO L2;                                                        41606700        
+     L1:  DS:=40 LIT                                                    41606800        
+              "012PRINTERBACK-UP1A0220000000PRINTER1B00";               41606900        
+     L2:                                                                41607000        
+     END;                                                               41607100        
+     ENTERUSERFILE(MFID,DISK,A-1);                                      41607200        
+     DISKWAIT(A+31,WC-31,DDD[10]);                                      41607300        
+RETURN:                                                                 41607400        
+     FORGETSPACE(A);                                                    41607500        
+EXIT:                                                                   41607600        
+END ENTERSYSFILE;                                                       41607700        
+COMMENT ARTN RETURNS ALL STORAGE FOR AN N-DIMENSIONAL ARRAY A;%         42473000        
+PROCEDURE ARTN(A,N); VALUE A,N; ARRAY A[*]; INTEGER N;%                 42474000        
+              BEGIN INTEGER I;%                                         42475000        
+                    IF NOT STOREDY THEN SLEEP([TOGLE],STOREMASK);       42476000        
+                    IF A.[18:15]!0 THEN A~M[A.[18:15]];                 42476100        
+                    IF N>1 THEN DO ARTN(A[I],N-1) UNTIL (I~I+1)}A.SIZE; 42477000        
+                              N~A INX 0;                                42478000        
+                    IF A.PBIT THEN                                      42478200        
+                              BEGIN I~M[N-1].[FF];                      42478400        
+                                   FORGETSPACE(N)                       42478600        
+                              END ELSE I~N;                             42478800        
+                    IF I>511 THEN DISKRTN(I, A.SIZE);                   42479000        
+              END ARTN;%                                                42480000        
+COMMENT ASR IS THE ALGOL STORAGE RETURN COMMUNICATE;%                   42481000        
+PROCEDURE ASR; BEGIN INTEGER I,BCNTR; ARRAY AIT[*]; REAL TEMP;%         42482000        
+                   LABEL L,L1;                                          42483000        
+                    REAL MOTHER; ARRAY DESC[*];%                        42484000        
+                    WHILE (AIT~PRT[P1MIX,AITNDX]).PBIT=0 DO%            42485000        
+                          MAKEPRESENT([PRT[P1MIX,AITNDX]] INX 0);%      42486000        
+                   MEMORY[AIT INX NOT 1].[2:1]~1;%                      42487000        
+                   I:=AIT[0]+1;                                         42488000        
+                   IF (BCNTR:=PRT[P1MIX,CURBLKCNTR]) LEQ 0 THEN         42488100        
+                   BEGIN TERMINATE(P1MIX);                              42488200        
+                        TERMINALMESSAGE(78);                            42488300        
+                   END;                                                 42488400        
+              WHILE (TEMP~AIT[I~I-1]).BLKCNTR}BCNTR%                    42489000        
+                 DO BEGIN DESC~MEMORY[MOTHER~TEMP.MOM];%                42490000        
+                   IF TEMP.[1:2]!1 THEN % CHECK FOR FAULT ENTRY         42490100        
+                          IF TEMP.[1:2]=2 THEN % FILE                   42491000        
+                          IF TEMP.[33:15]=2 THEN BEGIN%                 42492000        
+                          FILECLOSE((MOTHER+3)&((DESC[4].[25:2]=2)|@12) 42493000        
+                                                 [18:33:15]);           42494000        
+                          GO TO L                END ELSE%              42496000        
+                          BEGIN FILECLOSE((DESC INX 5)&                 42497000        
+                                  ((M[DESC[2] INX 4].[25:2]=2)|@12)     42498000        
+                                                        [18:33:15]);    42499000        
+                                FORGETSPACE(DESC INX 0);%               42500000        
+                          END ELSE IF TEMP.[1:1] THEN % SAVE MYSELF TASK42501000        
+                           IF MOTHER=TSX THEN ELSE IF % ARRAY FOR COM5  42501040        
+                           ((NT1~DESC[3])=1 OR(NT1=2 AND DESC[4]!P1MIX))42501050        
+                           THEN % TASK ARRAY OF A SCHEDULED OR          42501060        
+                                % RUNNING OFFSPRING                     42501070        
+                           BEGIN IF NT1=1 THEN                          42501100        
+                                        SHEETDIDDLER(0,20,DESC[4]); % ES42501200        
+                                IF DESC[3]=2 THEN            % RUNNING  42501300        
+                               BEGIN TERMINATE(DESC[4]&86[CTF]);    % DS42501400        
+                                     HALT;                              42501500        
+                                     NOPROCESSTOG ~ NOPROCESSTOG-1;     42501550        
+                               END;                                     42501600        
+                               SLEEP([DESC[3]],-0);       % WAIT FOR DS 42501650        
+                               GO TO L1;                                42501700        
+                           END ELSE GO TO L1 ELSE                       42501800        
+                           IF SOFTI>0 THEN IF JAR[P1MIX,2].[5:1] THEN   42501810        
+                                 IF MOTHER=SFINTX THEN ELSE             42501820        
+                           ELSE ELSE                                    42501830        
+              L1:        ARTN(DESC,TEMP.DIMENSIONS);                    42501900        
+                          MEMORY[MOTHER]~0;%                            42502000        
+              L:                                                        42503000        
+                    END;%                                               42504000        
+                    AIT[0]~I;%                                          42505000        
+                    PRT[P1MIX,CURBLKCNTR]~BCNTR-1;%                     42506000        
+                    IF I>0 THEN DO%%WIPE OUT BAD LABELS IN FAULT CELLS  42506100        
+                        IF AIT[I].[1:2]=1 THEN                          42506200        
+                        IF M[AIT[I].MOM].BLKCNTR}BCNTR THEN             42506300        
+                        M[AIT[I].MOM]~0 UNTIL (I~I-1){50;               42506400        
+                   MEMORY[AIT INX NOT 1].[2:1]~0;%                      42507000        
+              END ASR;%                                                 42508000        
+PROCEDURE INTERRUPT(TYPE); VALUE TYPE; REAL TYPE;                       42510000        
+BEGIN LABEL FLAGBIT,INVALIDINDEX,EXPUNDERFLOW,DIVIDEBYZERO;             42511000        
+      LABEL XYT;                                                        42511500        
+      SWITCH SW~FLAGBIT,INVALIDINDEX,EXPUNDERFLOW,DIVIDEBYZERO;         42512000        
+      ARRAY TOP=-5[*];                                                  42513000        
+      REAL FLAGTESTER=-3;                                               42513500        
+      REAL MOM,SIZE,ALOC,I;                                             42514000        
+      REAL RCW=+1,RCWL=+2,SAVIT=+4; NAME A=+3;                          42515000        
+      REAL R=+1,S=+2,Y=+3;                                              42516000        
+BOOLEAN SUBROUTINE DOUBLEPRECISION;                                     42517010        
+BEGIN R~M[S~PRT[P1MIX,8] INX 0]; %IRCW                                  42517020        
+      STREAM(R~(R INX 0)&R[30:10:2],Y~[Y]); %GET OP CODE                42517030        
+      BEGIN SI~R; SI~SI-2; DI~DI+6; DS~2 CHR END;                       42517040        
+DOUBLEPRECISION~Y.[45:3]=5;                                             42517050        
+END;                                                                    42517060        
+      CHECKSTACKSPACE;%                                             %WF 42517100        
+      GO TO SW[TYPE];                                                   42518000        
+FLAGBIT:                                                                42520000        
+      SAVIT~TOP;                                                        42521000        
+      NT1~ANALYSIS;                                                     42522000        
+      IF SYLLABLE.[41:7]!@35 THEN                                       42523000        
+      IF SYLLABLE.[45:3]!0 THEN                                         42524000        
+      BEGIN ERRORFIXER(16); TERMINATE(P1MIX); TERMINALMESSAGE(5) END;   42524100        
+      A~PRT[P1MIX,4];                                                   42524200        
+      RCW ~ M[RCWL ~ PRT[P1MIX,8] INX NOT ((SYLLABLE=@235)+2)];%        42525000        
+      IF RCW.[33:1] THEN % TYPE 13 INTRNSC                              42525100        
+      BEGIN                                                             42525110        
+      I~0;                                                              42525115        
+      Y~[I].[CF];                                                       42525120        
+      I  ~FLAG((@2520000000000000)&(RCW,[34:14])[CTC]);                 42525130        
+      MAKEPRESENT(Y);                                                   42525140        
+      M[RCWL]~FLAG(RCW&(M[RCW.[FF]]INX (NFLAG( 1 )).[CF])[CTC]);        42525150        
+      GO TO INITIATE;                                                   42525160        
+      END ELSE                                                          42525170        
+      IF NOT PRT[P1MIX,A[RCW].[8:10].[2:1] THEN%                        42525500        
+      MAKEPRESENT(PRTROW[P1MIX] INX A[RCW].[8:10]);%                    42526000        
+      M[RCWL]~FLAG(RCW&(M[RCW.[18:15]] INX A[RCW].[18:15])[33:33:15]);  42527000        
+      GO TO INITIATE;                                                   42528000        
+INVALIDINDEX:                                                           42530000        
+      FOR I~6 STEP 5 UNTIL 11 DO                                        42531000        
+      IF TOP.[18:15]=(MOM~[PRT[P1MIX,I]].[33:15]) THEN                  42532000        
+      IF (SIZE~M[MOM].[8:10])<1023 THEN                                 42533000        
+      BEGIN IF M[MOM].[2:1]=0 THEN MAKEPRESENT(MOM);                    42534000        
+            M[(ALOC~M[MOM].[33:15])-2].[2:1]~1;                         42535000        
+            IF (NT1:=M[ALOC-1].[FF])!0 THEN DISKRTN(NT1, SIZE);         42535500        
+            M[MOM]~FLAG(0&MOM[18:33:15]                                 42536000        
+                   &(IF SIZE<512 THEN 2|SIZE ELSE 1023)[8:38:10]);      42537000        
+            IF TYPE ~ P(FLAGTESTER,TOP,XCH,DEL) THEN MAKEPRESENT(MOM)   42537050        
+              ELSE                                                      42537060        
+            MAKEPRESENT(ANALYSIS);                                      42538000        
+            MOVE(SIZE,ALOC,M[MOM]);                                     42539000        
+            FORGETSPACE(ALOC);                                          42539050        
+            IF TYPE THEN GO XYT;                                        42539060        
+            GO TO INITIATE;                                             42539100        
+      END;                                                              42539200        
+      ERRORFIXER(4); TERMINATE(P1MIX); TERMINALMESSAGE(7);              42540000        
+EXPUNDERFLOW:                                                           42542000        
+      IF DOUBLEPRECISION THEN M[S-3]~0;                                 42546000        
+      M[S-2]~0;                                                         42547000        
+              IF JAR[P1MIX,2].[3:1] AND PRT[P1MIX,@51].[43:1] THEN      42547100        
+         PRT[P1MIX,@51]~P(DUP,LOD) OR 6;                                42547200        
+      GO TO INITIATE;                                                   42548000        
+DIVIDEBYZERO:                                                           42550000        
+              IF (P(JAR[P1MIX,2],DUP)}0 AND NOT(P(XCH).[3:1] AND        42550500        
+                 PRT[P1MIX,@51].[44:1])) THEN                           42550600        
+         BEGIN ERRORFIXER(8); TERMINATE(P1MIX); TERMINALMESSAGE(13) END 42551000        
+         ELSE IF JAR[P1MIX,2] < 0 THEN IF PRT[P1MIX,11].[FF] = 0 THEN   42551090        
+              PRT[P1MIX,11]~1 ELSE PRT[P1MIX,PRT[P1MIX,11].[FF]]~1      42551100        
+         ELSE                                                           42551110        
+         BEGIN PRT[P1MIX,@51]~P(DUP,LOD) OR 1;                          42551200        
+              IF DOUBLEPRECISION THEN M[S-3]~0;                         42551300        
+              M[S-2]~0;                                                 42551400        
+         END;                                                           42551500        
+      GO TO INITIATE;                                                   42552000        
+XYT:                                                                    42553000        
+END INTERRUPT;                                                          42554000        
+ $ SET OMIT = NOT(DCLOG AND DATACOM )                                   42599999        
+ %  THE FORMAT OF DIRECTORY TOP%                                        44000000        
+ %       D[0]=OPTIONS WORD%                                             44001000        
+ %       D[1]=DATE%                                                     44002000        
+ %       D[2]=NUMBER OF ELECTRONIC UNITS%                               44003000        
+ %       D[3]=HIGHEST ADDRESS OF BACKUP STORAGE%                        44004000        
+ %       D[4]=HIGHEST ADDRESS OF DIRECTORY%                             44005000        
+ %       D[5]=LAST NUMBER USED FOR CONTROL DECK%                        44006000        
+ %       D[6]=FIRST CONTROL DECK QUEUED (LOCATION IN DIRECTORY)%        44007000        
+ %       D[7]=LAST CONTROL DECK QUEUED (LOCATION IN DIRECTORY)%         44008000        
+ %       D[8]=NEXT NUMBER AVAILABLE FOR PRINTER BACKUP DISK          %P 44008100        
+ %       D[9]=CORE, CONTAINS MULTIPROCESSING FACTOR                     44008200        
+ %       D[10] THRU D[15] SPECIFY WHICH DC-STATIONS ARE SPO-LIKE,       44008300        
+ %       D[16]=QUEUE VALUES FOR SPO STATIONS                            44008305        
+%       D[17] SPECIFIES WHAT THE SPOES ARE                              44008310        
+ %       D[18]=TIME OF DAY                                              44008320        
+ %       D[19]=VALUE OF FENCE (TIME SHARING MCP)                        44008330        
+ %       D[20].[8:10]=NUMBER OF LAST LOG FILE                           44008340        
+ %            .[18:30]=NUMBER OF ENTRIES IN LOG (TIMESHARING)           44008350        
+ %       D[21]=SCHEDWORD (TIMESHARING)                                  44008360        
+ %       D[22].[38:10]=NUMBER OF CURRENT MAINTENANCE LOG.               44008380        
+ %            .[28:10]=NUMBER OF CURRENT REMOVTE LOG.                   44008390        
+ %       D[23] THRU D[20] SPECIFY WHICH SU-S WERE READY AT THE LAST H/L.44008400        
+ %       D[27] SI RESERVED FOR USE BY THE LOCAL SITE.                   44008410        
+ %      D[28]=DISK ADDRESS OF DIRECTORYTOP                              44008499        
+PROCEDURE INTFINISH(A);                                                 44008998        
+    VALUE AA;REAL AA; FORWARD;                                          44008999        
+SAVE PROCEDURE MOREINITIALIZE;FORWARD;                                  44009000        
+SAVE PROCEDURE INITIALIZE;                                              44010000        
+BEGIN                                                                   44010100        
+    REAL A,B,C,I,J,T,W,Y,Z;                                             44011000        
+    REAL INTS,INTSS,LASTL,LDATE,LOC,MEND;                               44012000        
+    REAL IRPB,IRPTB,IRPDBS,IRPTU,IRPBUF;                                44013000        
+    REAL MSTART=A, T1=LASTL, SHLM=MEND;                                 44014000        
+    INTEGER IRPBTS,IRPWRS;                                              44015000        
+    INTEGER XCLICK=XCLOCK;                                              44016000        
+    ARRAY DDD[*],GI[I*];                                                44017000        
+    ARRAY X=W[*];                                                       44018000        
+    LABEL UNITL,TINUL,MISSL;                                            44019000        
+    LABEL AVLP,INLP,LT,LE,LF,LN,LP,LS;                                  44020000        
+ $ SET OMIT = NOT SHAREDISK                                             44024990        
+ $ SET OMIT = DUMP OR DEBUGGING OR BREAKOUT                             44025990        
+ SUBROUTINE XXXXXX; BEGIN A~X-X-X-X-X-X-X-X-X-X-X-X-X-X-X; END;%        44037000        
+ SUBROUTINE MAKESAVE;                                                   44037200        
+ BEGIN DISKWAIT(-C,M[I].[8:10],M[I]. [FF]~MCPBASE);                     44037300        
+         M[I].[CF]:=C; M[C-1]:=@77777; C:=C+M[I].[8:10]+1;%        %162-44037400        
+ END;                                                                   44037500        
+    SUBROUTINE FIX;%                                                    44079000        
+         BEGIN P([M[J]]&I[8:38:10],T,~);%                               44080000        
+              J ~ J+I;%                                                 44081000        
+         END;%                                                          44082000        
+ $ SET OMIT = NOT(DCSPO AND DATACOM )                                   44082049        
+MCPBASE:=M[0].[18:30];                                                  44083000        
+DIRECTORYTOP:=M[1];                                                     44083100        
+ $ SET OMIT = NOT(SHAREDISK)                                            44083200        
+              RESTARTING~1023;                                          44085000        
+PEUIO:=EUIO:=[M[@133]]&20[8:38:10] ;                                    44085100        
+              IOQUESLOTS:=32;                                           44085500        
+              IOQUEAVAIL:=31;                                           44085600        
+    HOLDER:=DIRECTORYTOP-7-(HOLDMAX+29) DIV 30;  % SEE ALSO 40200100    44086100        
+    USERDISKBOTTOM:=HOLDER-DISKAVAILTABLEMAX;                           44086200        
+    IF (I:=(USERDISKBOTTOM-50) DIV SYSMAX) > 247 THEN I:=247;           44086300        
+    ESPDISKBOTTOM:=50+(SYSNO|I); % BOTTOM OF ESPDISK                    44087000        
+    ESPDISKTOP~ESPDISKBOTTOM+I-8; %TOP OF ESPDISK                       44087100        
+              RRRMECH ~ @140000000;%                                    44088000        
+              WITCHINGHOUR:=5184000;                                    44090500        
+              WORDOFEASE:=@2525252525252525;                            44091000        
+              NOPROCESSTOG ~ -1;%                                       44092000        
+              SOFTI ~ 0;                                                44092100        
+ $ SET OMIT = NOT STATISTICS                                            44092490        
+    STREAM(S~18,D~100);%                                                44093000        
+         BEGIN%                                                         44094000        
+              SI ~ S; DS ~ 11 WDS; D ~ DI;                              44095000        
+              DI ~ S; 11(DS ~ 8 LIT "102(0000" );                       44096000        
+              19(SI ~ SI+8);  S ~ SI;                                   44097000        
+              DI~D; DS~2 WDS;%                                          44098000        
+              DI~S; DS~16 LIT"042(0000"%                                44099000        
                                                                         99999900        
