@@ -25992,4 +25992,690 @@ PEUIO:=EUIO:=[M[@133]]&20[8:38:10] ;                                    44085100
               19(SI ~ SI+8);  S ~ SI;                                   44097000        
               DI~D; DS~2 WDS;%                                          44098000        
               DI~S; DS~16 LIT"042(0000"%                                44099000        
-                                                                        99999900        
+         END;%                                                          44100000        
+    MSTART:=P(..INITIALIZE,LOD).[CF];                                   44101000        
+    AVAIL~@77776;%                                                      44102000        
+   AVLP:M[AVAIL]~@777770000+AVAIL;%                                     44103000        
+    INLP:IF J~COREND THEN%                                              44104000        
+              BEGIN%                                                    44105000        
+                   MEMASK:=MEMASK OR TWO(AVAIL DIV 4096);               44106000        
+                   AVAIL~AVAIL-4096;%                                   44107000        
+                   GO TO AVLP%                                          44108000        
+              END;%                                                     44109000        
+         IF J=2 THEN GO TO INLP;%                                       44110000        
+    M[AVAIL+1]~AVAIL;%                                                  44111000        
+    M[MEND~AVAIL-1]~0&1[2:47:1]%                                        44112000        
+                     &MSTART[CTF];%                                     44113000        
+    M[0]~MSTART&MEND[CTF]&1[2:47:1];%                                   44114000        
+    M[MSTART]~LASTL~MEND;%                                              44115000        
+    LOC~MEND-4094;%                                                     44116000        
+ LT:IF LOC>4095 THEN%                                                   44117000        
+         BEGN%                                                          44118000        
+              M[LOC]~@77777;%                                           44119000        
+          LE:IF J~COREND THEN%                                          44120000        
+                   BEGIN%                                               44121000        
+                   MEMASK:=MEMASK OR TWO(LOC DIV 4096);                 44122000        
+                    M[LOC+1]~LASTL&MSTART[CTF];%                        44123000        
+                    M[LASTL]~M[LASTL]&(LOC+1)[CTF];%                    44124000        
+                    M[MSTART]~LASTL~LOC+1;%                             44125000        
+              LF:   M[LOC~LOC-4096]~(T~  LASTL )&MSTART[CTF]%           44126000        
+                                                    &1[2:47:1];%        44127000        
+         LS:IF J:=COREND THEN                                           44128000        
+                 BEGIN                                                  44128100        
+                 MEMASK:=MEMASK OR TWO(LOC DIV 4096);                   44128200        
+                 GO TO LF;                                              44128300        
+                 END;                                                   44128400        
+                    IF J=2 THEN GO TO LS;%                              44129000        
+                    M[LASTL]~M[LASTL]&LOC[CTF];%                        44130000        
+                    M[MSTART]~LASTL~LOC;%                               44131000        
+                   END    ELSE%                                         44132000        
+              IF J=2 THEN GO TO LE;%                                    44133000        
+              LOC~LOC-4096; GO TO LT%                                   44134000        
+         ENDE;%                                                         44135000        
+    LOC~M[MEND].[FF];%                                                  44136000        
+ LP:IF M[LOC].[2:1] THEN    BEGIN%                                      44137000        
+     LN: LOC~M[LOC].[FF];GO TO LP END;%                                 44138000        
+              FORGETSPACE(LOC+2);%                                      44139000        
+              IF LOC!MSTART THEN%                                       44140000        
+              GO TO LN;%                                                44141000        
+ STOREDY~TRUE;%                                                         44142000        
+ $ SET OMIT = NOT(DFX)                                                  44142999        
+         STREAM(S~100,D~18);%                                           44144000        
+              BEGIN%                                                    44145000        
+              SI ~ S; DS ~ 11 WDS;                                      44146000        
+              19(DI ~ DI+8); DS ~ 2 WDS;                                44147000        
+              END;%                                                     44148000        
+              SPACESTACK:=MEND-128;                                     44148100        
+              TAR:=[M[MEND-130]]&2[8:38:10];                            44148200        
+INTS:=GETSPACE(P(..COREND,LOD).[CF]-P(..INITIALIZE,LOD).                44149000        
+                   [CF],1,1)+2;                                         44150000        
+INTSS~GETSPACE(240,12,1)+2;                                        %102-44150005        
+ $ SET OMIT = NOT(AUXMEM)                                               44150009        
+         I:=(MIXMAX+1)|12                        %PRT THRU USRECODE     44151000        
+              + MIXMAX|NDX                       % NFO                  44151010        
+              + JOBNUMAX                         % BED                  44151020        
+              + 10                              % CHANNEL, CHANIO ARRAY 44151030        
+ $ SET OMIT = NOT(AUXMEM)                                               44151034        
+              +SLATESIZE                         % SLATE                44151050        
+ $ SET OMIT = NOT(WORKSET)                                              44151051        
+            +WKSETDATASIZE+MIXMAX+1+STQUEMAX+1 % WKSET,OLAYTIME,STQUE   44151052        
+ $ POP OMIT % WORKSET                                                   44151053        
+              + MESSAGETABLESIZE                                        44151055        
+              +16                                % PRNTABLE             44151060        
+              +(6|32)                            %I/O QUEUES            44151062        
+ $SET OMIT=SHAREDISK                                                    44151064        
+              +65                                %TINU                  44151066        
+ $SET OMIT=NOT OMIT                                                     44151068        
+ $SET OMIT=NOT DFX                                                      44151074        
+              + PUNTSIZE                         %PUNTER                44151080        
+              +48                                %ISTACK                44151082        
+              +SPACESTACKSIZE                                           44151083        
+              +20                               %MAINTBUFFER            44151084        
+              -1                                 % NFO[0] MUST START IN 44151085        
+                                                 % SECOND MEM LINK      44151090        
+              +2|PSEUDOMAX1 + 9                  % CIDROW,UNITCODE      44151092        
+              +3|(PSEUDOMAXT+1)                  % I/O ASSGNMNT TBLS    44151094        
+ $ SET OMIT = NOT(DCLOG AND DATACOM )                                   44151099        
+ $ SET OMIT = NOT(DATACOM)                                              44151199        
+ $ SET OMIT = NOT(STATISTICS)                                           44151219        
+ $ SET OMIT = NOT(BREAKOUT)                                             44151299        
+ $ SET OMIT = NOT DEBUGGING                                        %763-44151399        
+ $ SET OMIT = NOT(DCSPO AND DATACOM )                                   44151499        
+ $ SET OMIT = NOT(DEBUGGING)                                            44151599        
+ $ SET OMIT = NOT(PACKETS)                                              44151619        
+                        + PSEUDOMAX1 %PSEUDO[*]                         44151620        
+                        +2|(MIXMAX+1) %PSEUDOMIX[*],NYLONZIPPER[*]      44151630        
+ $ POP OMIT                                                             44151631        
+                +(W:=(ESPDISKTOP-ESPDISKBOTTOM+48) DIV 48) % ESPTAB     44151700        
+ $ SET OMIT = NOT(SHAREDISK)                                            44151799        
+ $ SET OMIT = NOT(SAVERESULTS)                                          44151820        
+ $ SET OMIT = NOT(NEWLOGGING)                                           44151889        
+ $ SET OMIT = NOT(DATACOM )                                             44151900        
+ $ SET OMIT = NOT(DEBUGGING)                                            44151920        
+               + P(.OLAY,LOD).[8:10]+1;                                 44151950        
+              J ~ GETSPACE(I,MCPTABLEAREAV,0)+1;%                  %167-44152000        
+              M[J] ~ 0;%                                                44153000        
+              MOVE(I-1,J,J+1);%                                         44154000        
+              C~J+1; J~J % C IS USED IN MAKESAVE                        44154010        
+ $ SET OMIT = NOT(DATACOM )                                             44154020        
+ $ SET OMIT = NOT(DEBUGGING)                                            44154040        
+              + P(.OLAY,LOD).[8:10]+1;                                  44154070        
+              WHILE FALSE DO; %C-REL CONS FIX                           44154080        
+              I~MIXMAX|NDX;                                             44154100        
+              T~P(.NFO); FIX;                                           44154200        
+              I ~ MIXMAX+1;%                                            44155000        
+              T ~ P(.PRT); FIX;%                                        44156000        
+              T ~ P(.INTABLE); FIX;%                                    44156100        
+ $ SET OMIT = NOT(AUXMEM)                                               44156199        
+              T ~ P(.JAR); FIX;%                                        44157000        
+              T~P(.PRYOR); FIX;                                         44157100        
+              T~P(.SHEET); FIX;                                         44157200        
+              T ~ P(.PROCTIME); FIX;%                                   44158000        
+              T ~ P(.IOTIME); FIX;%                                     44159000        
+              T ~ P(.DALOC);  FIX;                                      44160000        
+              T:=P(.TAR); FIX;                                          44160050        
+ $ SET OMIT = NOT(STATISTICS)                                           44160099        
+ $ SET OMIT = NOT(PACKETS)                                              44160399        
+              T:=P(.PSEUDOMIX); FIX;                                    44160400        
+              T:=P(.NYLONZIPPER); FIX;                                  44160500        
+ $ POP OMIT                                                             44160501        
+ $ SET OMIT = NOT(BREAKOUT)                                             44160999        
+              T ~ P(.REPLY); FIX;%                                      44162000        
+              T ~ P(.FS); FIX;                                          44162050        
+              T:= P(.USERCODE); FIX;                                    44162100        
+ $ SET OMIT = NOT(DATACOM )                                             44162109        
+ $ SET OMIT = NOT(DCLOG AND DATACOM )                                   44162119        
+ $ SET OMIT = NOT(NEWLOGGING)                                           44162199        
+              T ~ JOBNUMAX; T ~ P(.BED); FIX;%                          44163000        
+ $ SET OMIT = NOT(WORKSET)                                              44163010        
+              T:=WKSETDATASIZE; T:=P(.WKSETDATA); FIX;                  44163020        
+              T := MIXMAX+1; T:=P(.OLAYTIME); FIX;                      44163030        
+              T:=16; T:=P(.STQUE); FIX;                                 44163040        
+ $ POP OMIT % WORKSET                                                   44163050        
+              I ~ 5;                                                    44164000        
+              T ~ P(.CHANNEL); FIX;                                     44164010        
+              T ~ P(.CHANIO); FIX;                                      44164020        
+ $ SET OMIT = NOT(AUXMEM OR MONITOR)                                    44164099        
+              I ~ SUEDOMAX1; T~ P(.CIDROW); FIX;                        44164500        
+ $ SET OMIT = NOT(PACKETS)                                              44164599        
+              T:=P(.PSEUDO); FIX;                                       44164600        
+ $ POP OMIT                                                             44164601        
+ $ SET OMIT = NOT DEBUGGING                                        %763-44164999        
+ $ SET OMIT = NOT(DEBUGGING)                                            44165099        
+ $ SET OMIT = NOT(DCSPO AND DATACOM )                                   44165599        
+              I ~ MESSAGETABLESIZE; T ~ P(.MESSAGETABLE); FIX;          44165700        
+              T:=SLATESIZE; T:= P(.SLATE); FIX;%                        44166000        
+              I~16;                                                     44166200        
+              T ~ P(.PRNTABLE); FIX;%                                   44167000        
+ $SET OMIT=NOT DFX                                                      44167200        
+ $SET OMIT=SHAREDISK                                                    44167500        
+              I:=65;                                                    44167600        
+ $SET OMIT=NOT OMIT                                                     44167700        
+              T:=P(.TINU);FIX;                                          44168000        
+              I:=32;                                                    44168100        
+              T:=P(.UNIT);FIX;                                          44168200        
+              T ~ P(.FINALQUE); FIX;%                                   44169000        
+              T ~ P(.LOCATQUE); FIX;%                                   44170000        
+              T ~ P(.IOQUE); FIX;%                                      44171000        
+ $ SET OMIT = NOT(STATISTICS)                                           44171099        
+              T ~ P(.TRANSACTION); FIX;%                                44172000        
+              T ~ P(.WAITQUE); FIX;%                                    44173000        
+              SPACESTACK:=J; J:=J+SPACESTACKSIZE;                       44173010        
+ $ SET OMIT = NOT(SHAREDISK)                                            44173099        
+              ESPTAB~J; J~W+J;                                          44173200        
+              ESPCOUNT:=ESPDISKTOP-ESPDISKBOTTOM;                       44173300        
+                   I ~ PSUEDOMAXT + 1;                                  44174000        
+              T ~ P(.LABELTABLE); FIX;%                                 44175000        
+              T ~ P(.MULTITABLE); FIX;%                                 44176000        
+              T ~ P(.RDCTABLE); FIX;%                                   44177000        
+ $ SET OMIT = NOT(STATISTICS)                                           44177099        
+ $ SET OMIT = NOT(SAVERESULTS)                                          44177999        
+              I ~ PSEUDOMAX1 + 9;  T ~ P(.UNITCODE); FIX;               44178100        
+              I:=48; T:=P(.ISTACK); FIX;                                44179000        
+              I:=20; T:=P(.MAINTBUFFER); FIX;                           44179050        
+              I:=PUNTSIZE; T:=P(.PUNTER); FIX;                          44179100        
+              STACKUSE ~ TRUE;%                                         44180000        
+ $ SET OMIT = NOT DEBUGGING                                             44180099        
+              STREAM(A:=[PUNTER[3]]);                                   44181000        
+              BEGIN DS:=13 LIT"INVALID LINK~"; DI:=DI+3;        %  3    44181100        
+                    DS:=16 LIT"INVALID ADDRESS~";               %  5    44181200        
+                    DS:=16 LIT"SLATE OVERFLOW~";                %  7    44181300        
+                    DS:=13 LIT"BED OVERFLOW~"; DI:=DI+3;        %  9    44181400        
+ $ SET OMIT = AUXMEM                                                    44181420        
+                    DS:=16 LIT"INVLD AUXMEM IO~";                       44181430        
+ $ SET OMIT = NOT SHAREDISK                                             44181450        
+                    DS:=32 LIT"10100)0)4A0DKI002900SI000|+A144A";       44181600        
+                    DS:=32 LIT"1DM908/I1|007Y0(1|00P|1{0SK)0QKI";       44181700        
+                    DS:=25 LIT"0WK)0HKIO,K)08KI0]K)1C~R1"; DS:=LIT""";  44181800        
+                    DS:=30 LIT"KI00002900SI0)000000512900SI00";         44181900        
+                    DS:=28 LIT"806!8A#04A1.1D4A#31!4A0)0Y/I";           44182000        
+ $ POP OMIT OMIT OMIT                                                   44182050        
+              END;                                                      44182100        
+              HALTSET:=1;                                               44182200        
+PSEUDOCOPY ~ 0;                                                         44186005        
+         JOBNUM ~ -2;%                                                  44187000        
+              PRYOR[0] ~ -1;                                            44187200        
+ $ SET OMIT = NOT(DATACOM AND DCSPO )                                   44187299        
+              NUMESS := NUMAINTMESS := -100;                            44188000        
+            LOGHOLDER:=LIGEBTRTl=MDELTA:=MLOG:=MAINTLOGARRAY:=NXDISK:=0;44188200        
+            MROW:=100;                                                  44188300        
+              KEYBOARDCOUNTER:=1;      % KEEPS KEYIN FROM RUNNING       44188500        
+ $ SET OMIT = NOT DEBUGGING                                             44188999        
+              M[SPACESTACK]:=WORDOFEASE;                                44189500        
+              MOVE(SPACESTACKSIZE-1,I:=SPACESTACK.[CF],I+1);            44189550        
+              MOVE(48,I,ISTACK.[CF]);                                   44189600        
+              MOVE(@60,I,@100);                                         44189800        
+              NT1:=0; MOVE(14,@160,@161);        % NT1 = @160           44189900        
+ $ SET OMIT = NOT SHAREDISK                                             44189995        
+              IOMASK ~ @2000000000;%                                    44191000        
+              UNIT[0]:=@0400007777777777;                               44191005        
+              MOVE(15,UNIT INX 0,P(DUP)+1);                             44191010        
+              MOVE(16,[UNITL],UNIT INX 16);                             44191015        
+ $SET OMIT=SHAREDISK                                                    44191020        
+              MOVE(65,P([TINUL]),TINU INX 0);                           44191025        
+ $SET OMIT=NOT OMIT                                                     44191030        
+ $SET OMIT=NOT DFX                                                      44191125        
+              GO TO MISSL;                                              44191145        
+UNITL:::                                                                44191150        
+              @0600007777777777,%DRA = 16                               44191155        
+              @0600007777777777,%DRB = 17                               44191160        
+              @1000007777777777,%DKA = 18                               44191165        
+              @1000007777777777,%DKB = 19                               44191170        
+              @0200007777777777,%LPA = 20                               44191175        
+              @0200007777777777,%LPB = 21                               44191180        
+              @1400007777777777,%CPA = 22                               44191185        
+              @0000007777777777,%CRA = 23                               44191190        
+              @0000007777777777,%CRB = 24                               44191195        
+              @1200007777777777,%SPO = 25                               44191200        
+              @2000007777777777,%PPA = 26                               44191205        
+              @2200007777777777,%PRA = 27                               44191210        
+              @2200007777777777,%PRB = 28                               44191215        
+              @2000007777777777,%PPB = 29                               44191220        
+              @2400007777777777,%DCA = 30                               44191225        
+              @3600007777777777 %    = 31                               44191230        
+TINUL:::                                                                44191235        
+              @ 020010040446321,  COMMENT MTA;                          44191240        
+              @ 060020040446322,  COMMENT MTB;%                         44191245        
+              @ 120040040446323,  COMMENT MTC;%                         44191250        
+              @ 160110040446324,  COMMENT MTD;%                         44191255        
+              @ 220120040446325,  COMMENT MTE;%                         44191260        
+              @ 260140040446326,  COMMENT MTF;%                         44191265        
+              @ 320210040446330,  COMMENT MTH;%                         44191270        
+              @ 360220040446341,  COMMENT MTJ;%                         44191275        
+              @ 420240040446342,  COMMENT MTK;%                         44191280        
+              @ 460310040446343,  COMMENT MTL;%                         44191285        
+              @ 520320040446344,  COMMENT MTM;%                         44191290        
+              @ 560340040446345,  COMMENT MTN;%                         44191295        
+              @ 620410040446347,  COMMENT MTP;%                         44191300        
+              @ 660420040446351,  COMMENT MTR;%                         44191305        
+              @ 720440040446362,  COMMENT MTS;%                         44191310        
+              @ 760510040446363,  COMMENT MTT;%                         44191315        
+              @ 100520040245121,  COMMENT DRA;%                         44191320        
+              @ 200540040245122,  COMMENT DRB;%                         44191325        
+              @ 140610040244221,  COMMENT DKA;%                         44191330        
+              @ 300620040244222,  COMMENT DKB;%                         44191335        
+              @ 540640000434721,  COMMENT LPA;%                         44191340        
+              @ 640710000434722,  COMMENT LPB;%                         44191345        
+              @ 240720000234721,  COMMENT CPA;%                         44191350        
+              @ 240740040235121,  COMMENT CRA;%                         44191355        
+              @ 341010040235122,  COMMENT CRB;%                         44191360        
+              @ 741020000624746,  COMMENT SPO;%                         44191365        
+              @ 441040000474721,  COMMENT PPA;%                         44191370        
+              @ 441110000475121,  COMMENT PRA;%                         44191375        
+              @ 501120000475122,  COMMENT PRB;%                         44191380        
+              @ 501140000474722,  COMMENT PPB;%                         44191385        
+              @ 401210000242321,  COMMENT DCA;%                         44191390        
+              @ 001220000713147,  COMMENT ZIP;%                         44191395        
+              @ 001240000232421,  COMMENT CDA;%                         44191400        
+              @ 001310000232422,  COMMENT CDB;%                         44191405        
+              @ 001320000232423,  COMMENT CDC;%                         44191410        
+              @ 001340000232424,  COMMENT CDD;                          44191415        
+              @ 001410000232425,  COMMENT CDE;                          44191420        
+              @ 001420000232426,  COMMENT CDF;                          44191425        
+              @ 001440000232427,  COMMENT CDG;                          44191430        
+              @ 001510000232430,  COMMENT CDH;                          44191435        
+              @ 001520000232441,  COMMENT CDJ;                          44191440        
+              @ 001540000232442,  COMMENT CDK;                          44191445        
+              @ 001610000232443,  COMMENT CDL;                          44191450        
+              @ 001620000232444,  COMMENT CDM;                          44191455        
+              @ 001640000232445,  COMMENT CDN;                          44191460        
+              @ 001710000232447,  COMMENT CDP;                          44191465        
+              @ 001720000232450,  COMMENT CDQ;                          44191470        
+              @ 001740000232451,  COMMENT CDR;                          44191475        
+              @ 002010000232462,  COMMENT CDS;                          44191480        
+              @ 002020000232463,  COMMENT CDT;                          44191485        
+              @ 002040000232464,  COMMENT CDU;                          44191490        
+              @ 002110000232465,  COMMENT CDV;                          44191495        
+              @ 002120000232466,  COMMENT CDW;                          44191500        
+              @ 002140000232467,  COMMENT CDX;                          44191505        
+              @ 002210000232470,  COMMENT CDY;                          44191510        
+              @ 002220000232471,  COMMENT CDZ;                          44191515        
+              @ 002240000232402,  COMMENT CD2;                          44191520        
+              @ 002310000232403,  COMMENT CD3;                          44191525        
+              @ 002320000232404,  COMMENT CD4;                          44191530        
+              @ 002340000232405,  COMMENT CD5;                          44191535        
+              @ 002410000232406,  COMMENT CD6;                          44191540        
+              @ 002420000232407,  COMMENT CD7;                          44191545        
+              @ 002440000232410,  COMMENT CD8;                          44191550        
+              @ 002510000232411,  COMMENT CD9;                          44191555        
+ $SET OMIT=NOT SHAREDISK                                                44191560        
+              @ 000000000446367  COMMENT MTX, ALL SCRATCH TAPES;        44191590        
+MISSL:                                                                  44191595        
+              FOR I ~ 1 STEP 1 UNTIL MIXMAX DO%                         44192000        
+ $ SET OMIT = NOT DATACOM                                               44192490        
+                   PROCTIME[I] ~ IOTIME[I] ~ @2003777777777777;%        44193000        
+              FOR I:=0 STEP 1 UNTIL 31 DO                               44193200        
+              BEGIN IOQUE[I]:=I-1;                                      44193400        
+                   TINU[I].[18:12]:=0;                                  44193600        
+              END;                                                      44193800        
+              FOR I:=0 STEP 1 UNTIL PSEUDOMAXT DO                       44194000        
+                   LABELTABLE[I] ~ @114;%                               44195000        
+              LABELTABLE[25] ~ 0;%                                      44196000        
+ $ SET OMIT = NOT DEBUGGING                                             44196999        
+              FOR I ~ 0 STEP 1 UNTIL PSEUDOMAX + 9 DO                   44201110        
+                   UNITCODE[I] := -0; UNITCODE[7] := 0;                 44201120        
+          % FIND INITIAL VALUE FOR CORE                                 44201200        
+CORE:=P(..COREND,LOD).[CF]-P(..INITIALIZE,LOD).[CF];                    44201300        
+              I ~ M[M[AVAIL]];                                          44201400        
+              WHILE I.[FF] ! @77777 DO                                  44201500        
+                   BEGIN CORE ~ CORE + I.[FF];  I ~ M[I] END;           44201600        
+              CORE ~ CORE DIV 64;                                       44202000        
+ $ SET OMIT = NOT(DATACOM )                                             44202004        
+ $ SET OMIT = NOT(DEBUGGING)                                            44202105        
+             I~P(.OLAY); MAKESAVE;                                      44202119        
+              SHLM~SPACE(10);                                           44202120        
+              DDD:=[M[A:=SPACE(483)]]&483[8:38:10];                     44202500        
+              DISKWAIT(-A,-30,0);                                       44202600        
+              DISKWAIT(-31-A,-30,MCPNAMESEG);                           44202700        
+              MOVE(2,A+10+5|SYSNO,A+51+2|SYSNO);                        44202800        
+              DISKWAIT(A+31,-30,MCPNAMESEG);                            44202900        
+              STREAM(ML:=MARKLEVEL,PL:=M[3]:=PATCHLEVEL,LL,:=LOCALEVL   44203000        
+                   ,MEMASK,N:=A+10+5|SYSNO                              44203150        
+ $ SET OMIT = NOT(SHAREDISK)                                            44203179        
+                   ,T:=NT1:=SPACE(10));                                 44203200        
+              BEGIN DS~5 LIT "-H/L ";                                   44204000        
+ $ SET OMIT = NOT(SHAREDISK)                                            44204099        
+                    DS~6 LIT" WITH ";SI~N;SI~SI+1;DS~7 CHR;             44204200        
+              DS:=LIT"/";SI:=SI+1;DS:=7 CHR;DS:=6 LIT" MARK ";          44204500        
+              SI:=LOC ML; IF SC GEQ " " THEN;                           44204600        
+              8(IF TOGGLE THEN IF SC="0" THEN SI:=SI+1 ELSE DS:=CHR     44204650        
+                ELSE DS:=CHR); DS:=LIT".";                              44204700        
+              SI:=LOC PL; IF SC GEQ " " THEN;                           44204750        
+              6(IF TOGGLE THEN IF SC="0" THEN SI:=SI+1 ELSE DS:=CHR     44204800        
+                ELSE DS:=CHR); DS:=2CHR;                                44204850        
+              SI:=LOC LL; IF SC GEQ " " THEN;                           44205000        
+              8(IF TOGGLE THEN IF SC="0" THEN SI:=SI+1 ELSE DS:=CHR     44205050        
+                ELSE DS:=CHR);                                          44205100        
+              DS:=17LIT" MODS          -~";                             44205220        
+              SI:=LOC MEMASK; SI:=SI+6; SKIP 4 SB; DI:=DI-2;            44205300        
+              8(DI:=DI-2;IF SB THEN DS:=LIT"@" ELSE DS:=LIT"R";SKIP SB);44205600        
+              END;                                                      44206100        
+              MOVE(10,NT1,SHLM);                                        44206200        
+              SPOUT(NT1);                                               44206300        
+              MOREINITIALIZE;                                           44206350        
+END OF INITIALIZE;                                                      44206400        
+SAVE PROCEDURE MOREINITIALIZE;                                          44206450        
+BEGIN                                                                   44206500        
+    REAL                                                                44206550        
+      A=+1,B=+2,C=+3,I=+4,J=+5,T=+6,W=+7,Y=+8,Z=+9;                     44206700        
+    REAL                                                                44206750        
+      INTS=+10,INTSS=+11,LASTL=+12,LDATE=+13,LOC=+14,MEND=+15;          44206800        
+    REAL                                                                44206850        
+      IRPB=+16,IRPTB=+17,IWPDBS=+18,IRPTU=+19,IRPBUF=+20;               44206900        
+    REAL                                                                44206950        
+      T1=LASTL,SHLM=MEND;                                               44207000        
+    INTEGER                                                             44207050        
+      IRPBTS=+21,IRPWRS=+22,XCLICK=XCLOCK;                              44207100        
+    ARRAY DDD=+23[*],GI=+24[*];                                         44207150        
+    ARRAY X  =W[*];                                                     44207200        
+ $ SET OMIT = NOT SHAREDISK                                             44207218        
+    LABEL NULLINT,CONTINUE,BOMBOUT;                                     44207250        
+              P(DEL,STF);                                               44207300        
+ $ SET OMIT = NOT(SHAREDISK)                                            44207899        
+ $ SET OMIT = NOT(WORKSET)                                         %143-44209000        
+              DISKWAIT(-A,30,DIRECTORYTOP+1);                      %143-44209100        
+              WKSETCYCLETIME:=DDD[T:=4|SYSNO+4];                   %143-44209200        
+              WKSETINSTRUCT :=DDD[T+1         ];                   %143-44209300        
+              WKSETOLERANCE :=DDD[T+2         ];                   %143-44209400        
+              WKSETMAXOLAY  :=DDD[T+3         ];                   %143-44209500        
+ $ POP OMIT                                                             44209600        
+              DISKWAIT(-A,30,DIRECTORYTOP-SYSNO);                       44213000        
+              CORE.[4:14]:=IF DDD[9]=0 THEN 100 ELSE DDD[9].[4:14];     44213500        
+              OPTION ~ DDD[0];%                                         44214000        
+              SAVEWORD:=RRRMECH:=DDD[29];                          %146-44214100        
+              FOR I:=0 STEP 1 UNTIL 31 DO                          %146-44214200        
+                 IF (TWO(T) AND SAVEWORD) ! 0 THEN                 %146-44214300        
+                    LABELTABLE[T]:=@114;  % MARK SAVED             %146-44214400        
+              T ~ 0;%                                                   44215000        
+ $ SET OMIT = NOT SHAREDISK                                             44216690        
+              XCLICK:=(@7777777777700 AND DDD[18]) MOD 5184000;         44216900        
+              NEUP:=DDD[2] MOD 100 ;                                    44216910        
+              NEUP:=NEUP&(NEUP+DDD[2] DIV 100)[CTF]&NEUP[3{33{15];      44216940        
+              DATE:=DDD[1];                                             44216950        
+ $ SET OMIT = NOT(SHAREDISK)                                            44216959        
+%                                                                       44239500        
+%   SET UP DISK POINTERS AND BUILD OR CLEANOUT DIRECTORY.               44239600        
+%                                                                       44239700        
+%   ESPDISK MAY NOT BE USED ABOVE THIS POINT SO THAT THE SHAREDISK      44239800        
+%   SCRATCHDIRECTORY, WHICH IS UNPROTECTED, CAN BE RECOVERED.           44239900        
+%                                                                       44240000        
+              STREAM(B:=0:A:=BYPASS:=DDD[4],D:=P(.DIRDSK));             44240500        
+              BEGIN SI:=LOC A; DS:=8 DEC; DI:=LOC 8;                    44240520        
+                   SI:=LOC D; SI:=SI+8; DS:=WDS;                        44240540        
+              END; I:=P INX 0;  % GET LOCATION IN INITIALIZE            44240560        
+              DISKBOTTOM:=BYPASS-2;                                     44240580        
+              M[INTS-2]:=(J:=*P(DUP))&I[CTC];                           44240600        
+              M[J].[FF]:=I;                                             44240620        
+              M[I]:=J&(INTS-2)[CTF];                                    44240640        
+              FORGETSPACE(INTS);  % RETURN PART OF INITIALIZE           44240660        
+              INTS:=I + 2;                                              44240680        
+              IF (T~NEUP.[FF]-NEUP.[CF])>0 THEN                         44240690        
+              NEUP~NEUP&10[CTC]&(10+T)[CTF];%SAVE # OF EUS ON DKA.      44240695        
+              I:=NEUP.NEUF;                                             44240700        
+              Z:=(Y:=I + EUIOFFSET) + I                                 44240800        
+ $ SET OMIT = SHAREDISK                                                 44240819        
+                 + (B:=(I+1) DIV 2 + I + 2)                             44240820        
+ $ POP OMIT                                                             44240821        
+              ;J:=GETSPACE(Z,AVTABLEAREAV,1)+2;                    %167-44240840        
+              MOVE(Z,J-1,J);                                            44240860        
+              EUIO:=(J INX M)&Y[8:38:10];                               44240880        
+              PEUIO:=((J:=J+Y) INX M)&I[8:38:10];                       44240900        
+ $ SET OMIT = SHAREDISK                                                 44240919        
+              AVTABLE:=((J+I) INX M)&B[8:38:10];                        44240920        
+ $ POP OMIT                                                             44240921        
+              T1:=GETSPACE(200,0,1)+2;           % SPACE FOR INTRNSC    44241000        
+              ACTDATE:=WEEKDAY:=0;                                      44241150        
+ $ SET OMIT = NOT(SHAREDISK)                                            44241179        
+              DIRECTORYBUILDER(A,DDD);                                  44242000        
+              FORGETSPACE(P(..DIRECTORYBUILDER,LOD) INX 0);             44242010        
+              M[P(..DIRECTORYBUILDER)]:=(*P(DUP))&(*P(.ESPBIT))[CTC];%  44242020        
+ $ SET OMIT = NOT(SHAREDISK)                                            44242049        
+%                                                                       44242700        
+%   SET UP INTRINSICS TABLES AND LOCK MCP.                              44242800        
+%                                                                       44242900        
+    DISKWAIT(-A,-30,0);                                                 44243000        
+    IF (DDD[I:=5|SYSNO+13] EQV 0) AND (DDD[I+1] EQV 0) = NOT 0 THEN     44243250        
+      GO TO NULLINT;                                                    44243500        
+    IF (T:=DIRECTORYSEARCH(DDD[I],DDD[I+1],17))!0 THEN                  44243750        
+    IF (NT1:=M[T+4].[36:6])!0 AND NT1!DCINTYPE THEN                     44244000        
+    BEGIN FORGETSPACE(T);                                               44244500        
+         P(DIRECTORYSEARCH(NABS(DDD[I]),DDD[I+1],16),DEL);              44245000        
+         DDD[I]:=DDD[I+1]:=0;                    % REMOVE INTRINSICS    44245500        
+OKSEGZEROWRITE:= TRUE;                                             %204-44245999        
+         DISKWAIT(A,-30,0);                                             44246000        
+OKSEGZEROWRITE:=FALSE;                                             %204-44246001        
+NULLINT: FORGETSPACE(T1);                                               44246500        
+         T1:=0;                                                         44247000        
+    END ELSE                                                            44247500        
+    BEGIN INTRINSICTABLEBUILDER(T&T1[CTF]);;                            44248000        
+         FORGETSPACE(T);                                                44248500        
+    END ELSE GO TO NULLINT;                                             44249000        
+ $ SET OMIT = NOT SHAREDISK                                             44249495        
+    INTFREE:=1;                                                         44250000        
+    IF (T:=DIRECTORYSEARCH(DDD[I-3],DDD[I-2],17))!0 THEN                44250500        
+    BEGIN                                                               44251000        
+ % SET OMIT = NOT STATISTICS                                            44251495        
+         FORGETSPACE(T);                                                44252000        
+    END ELSE                                                            44252500        
+              LBMESS(DDD[I-3],DDD[I-2],-15,0,0,0,1);                    44253000        
+ $ SET OMIT = SHAREDISK                                                 44253495        
+    MCPFREE:=1;                                                         44253500        
+ $ POP OMIT                                                             44253505        
+%                                                                       44253700        
+%   ABORT LOGGING.                                                      44253800        
+%                                                                       44253900        
+    DISKWAIT(-,210,ESPDISKTOP+1);                                       44254000        
+    T:=0;                                                          %761-44254100        
+    FOR I ~ 1 STEP 1 UNTIL MIXMAX DO%                                   44254500        
+    BEGIN USERCODE[I] := 0;                                             44255000        
+         T ~ DDD[3|I+92].[24:24] OR T;                                  44255500        
+    END;                                                                44256000        
+    GI:=[M[SPACE(210]]&210[8:38:10];                               %761-44256100        
+    MOVE(210,A,GI);                                                %761-44256150        
+    DDD[3]:=0;                                                     %761-44256200        
+    MOVE(206,A+3,A+4);                                             %761-44256250        
+    DISKWAIT(A,210,ESPDISKTOP+1);                                  %761-44256300        
+    IF T ! 0 AND DDD[2] = "ABORT" THEN%                                 44256500        
+    BEGIN                                                          %761-44257000        
+         FOR I ~ 1 STEP 1 UNTIL MIXMAX DO%                              44259500        
+         IF (B~GI[3|I+92].[CF])!0 THEN                                  44260000        
+         IF B DIV 1000000+1 LEQ NEUP.[CF] THEN                          44260500        
+         BEGIN                                                          44261000        
+              DISKWAIT(A-,30,B);                                        44261500        
+              IF (T:=DDD[1] DIV 5|6) GTR 999 OR T LSS 0 THEN GO BOMBOUT;44262000        
+              USERCODE[I]+SPACE(T);                                     44262500        
+              FOR J~0 STEP 1 UNTIL (T-1) DIV 30 DO                      44263000        
+              BEGIN                                                     44263500        
+                   MOVE(IF (C~T-30|J)>30 THEN 30 ELSE C,                44264000        
+                        A,USERCODE[I]+J|30);                            44264500        
+                   IF (C~DDD[0])!0 THEN                                 44265000        
+                   IF C DIV 1000000}NEUP.[CF] RO C<0 THEN               44265500        
+                        GO BOMBOUT ELSE                                 44266000        
+                        DISKWAIT(-A,30,C);                              44266500        
+              END;                                                      44267000        
+         END ELSE GO BOMBOUT;                                           44267500        
+         FOR I~1 STEP 1 UNTIL MIXMAX DO                                 44268000        
+         IF (C~USERCODE[I])~0 THEN                                      44268500        
+         BEGIN                                                          44269000        
+              GI[3|I+92].[24:24]~B~GETESPDISK;                          44269500        
+              T~(USERCODE[I]~M[C+1]) DIV 5|6;                           44270000        
+              FOR J~0 STEP 1 UNTIL (T-1) DIV 30-1 DO                    44270500        
+                   M[C+J|30]~GETESPDISK;                                44271000        
+              DISKWAIT(C,T,8);                                          44271500        
+              FORGETSPACE(C);                                           44272000        
+         END;                                                           44272500        
+    END;                                                                44273000        
+    GO CONTINUE;                                                        44273500        
+BOMBOUT:                                                                44274000        
+    STREAM(D~T~SPACE(3));                                               44274500        
+         DS~22 LIT"**ABORT LOG DESTROYED~";                             44275000        
+    SPOUT(T);                                                           44275500        
+    FOR I~1 STEP 1 UNTIL MIXMAX DO USERCODE[I]~0;                       44276000        
+CONTINUE:                                                               44276500        
+    INTFINISH(A);                                                       44280000        
+    IF AUTORN THEN BEGIN RUNUMBER~MIXMAX; STARTADECK(0) END;       %902-44280100        
+    FORGETSPACE(INTS);  FORGETSPACE(INTSS);                             44281000        
+    M[P(..MOREINITIALIZE)]:=(*P(DUP))&(*P(.ESPBIT))[CTC];%         %162-44281500        
+    GO TO NOTHINGTODO;                                                  44282000        
+END;                                                                    44440000        
+ SAVE REAL PROCEDURE COREND;%                                           44441000        
+BEGIN REAL T; P(INI); END;%                                             44442000        
+PROCEDURE INTFINISH(AA);VALUE AA;REAL AA;                               45000000        
+BEGIN REAL RCW=+0,MSCW=-2;                                              45001000        
+    REAL A=+1,B=A+1,C=B+1,I=C+1,J=I+1,T=J+1,W=T+1,Y=W+1,Z=Y+1;          45002000        
+    REAL INTS=Z+1,INTSS=INTS+1,LASTL=INTSS+1,LDATE=LASTL+1,LOC=LDATE+1, 45002100        
+         MEND=LOC+1;                                                    45002200        
+    REAL IRPB=MEND+1,IRPTB=IRPB+1,IRPDBS=IRPTB+1,IRPTU=IRPDBS+1,        45002300        
+         IRPBUF=IRPTU+1;                                                45002400        
+    INTEGER IRPBTS=IRPBUF+1,IRPWRS=IRPBTS+1;                            45002500        
+    REAL T1=LASTL,SHLM=MEND;                                            45002600        
+    ARRAY DDD=IRPWRS+1[*],GI=DDD+1[*];                                  45002700        
+    ARRAY X=W[*];                                                       45002800        
+    LABEL NOGOOD,LOOP;                                                  45003000        
+ $ SET OMIT = NOT(STATISTICS)                                           45003199        
+ $ SET OMIT = NOT(AUXMEM)                                               45003299        
+ $ SET OMIT = NOT(DATACOM)                                              45003999        
+         P(RCW,MSCW,STF); RCW~RCW&P(XCH)[CTC];                          45075590        
+              TIMEOUT(SPACE(10));DATEOUT(SPACE(10));                    45075600        
+ $ SET OMIT = NOT SEPTICTANK                                            45088990        
+ $ SET OMIT = NOT(DCSPO AND DATACOM )                                   45090000        
+         WHILE FALSE DO; %FIX FOR C-RELATIVE CONSTANT ERRORS            45092105        
+         IF(I:=DIRECTORYSEARCH("SYSTEM ","LOG    ",5))!0 THEN           45092110        
+              BEGIN IF(J:=M[I+10])=0 THEN                               45092120        
+                    BEGIN M[I+10]:=J:=GETUSERDISK(M[I+8]);              45092130        
+                    STREAM(DATE,A:=0,B:=I INX 1);                       45092140        
+                    BEGIN SI:=LOC DATE;DI:=LOC A;DS:=8 OCT;             45092150        
+                          DI:=LOC A;DI:=B;DI:=DI+1;DS:=3 CHR;           45092160        
+                    END;                                                45092170        
+                    M[I INX 1].[25:23]:=XCLOCK+P(RTR);                  45092180        
+                    DISKWAIT(I INX 0,30,I.[FF]);                        45092190        
+                    END;                                                45092200        
+              DISKWAIT(-A,30,J);                                        45092210        
+              IF DDD[0] LSS DDD[1] AND                                  45092220        
+                 DDD[1]=M[I+8]|6 AND                                    45092230        
+                 DDD[4]="DISKLOG" THEN                                  45092240        
+                 BEGIN DISKWAIT(-A-60,30,J+DDD[2] DIV 6);               45092250        
+                 IF DDD[(DDD[2] MOD 6)|5+60)=4 THEN                     45092260        
+                    BEGIN DDD[0]:=DDD[2]-1;                             45092270        
+                          DISKWAIT(A,30,J);                             45092280        
+                    END;                                                45092290        
+                 END ELSE                                               45092300        
+                 BEGIN DDD[0]:=0;DDD[1]:=M[I+8]|6;                      45092310        
+                       DDD[2]:=DDD[3]:=0;                               45092320        
+                       DDD[4]:="DISKLOG";DDD[5]:=4;                     45092330        
+                       DISKWAIT(A,30,J);                                45092340        
+                 END;                                                   45092350        
+              FORGETSPACE(I);                                           45092360        
+              LOGFREE:=NABS(J);                                         45092370        
+              END ELSE J~0;                                             45092380        
+ $ SET OMIT = NOT(SHAREDISK)                                            45092390        
+              IF (I:=DIRECTORYSEARCH("REMOTE ","USERS  ",5))!0 THEN     45093000        
+                   BEGIN IF (J:=M[I+10])!0 THEN                         45094000        
+                        BEGIN DISKWAIT(-A,30,J);                        45094200        
+                             MCP:=NFLAG(M[A]);                          45094400        
+                             X:=M[I].[1:14] - 1;                        45094600        
+                             T:=0;                                      45094800        
+LOOP:                                                                   45095000        
+ $ SET OMIT = NOT(DATACOM AND RJE )                                     45095199        
+                        END;                                            45099400        
+                        FORGETSPACE(I);                                 45099600        
+                   END ELSE MCP~"SITE   "; % CHANGE IF REMOTE/USERS%714-45099800        
+              ENTERSYSFILE(1); % "LIBMAIN"                              45099900        
+              ENTERSYSFILE(2); % "LDCNTRL"                              45099910        
+              ENTERSYSFILE(3); % "PRNPBT "                              45099920        
+              X:=[M[SPACE(30)]]&30[8:38:10];                            45101000        
+         TOGLE~TOGLE OR ABORTMASK OR USERDISKMASK ;                     45102000        
+              IF GI!0 THEN%                                             45103000        
+              BEGIN%                                                    45104000        
+              FOR I~20 STEP 1 UNTIL 21 DO                               45104100        
+               P(WAITIO(@4000100000,@777,I),DEL);                       45104200        
+              LDATE:=FI[1];                                             45105000        
+              FOR I ~ 1 STEP 1 UNTIL MIXMAX DO%                         45106000        
+              IF USERCODE[I]!0 THEN                                     45107000        
+              BEGIN                                                     45108000        
+                   J ~ 3|I;                                             45109000        
+                   JARROW[I]:=X;                                        45111000        
+                   PROCTIME[I] ~ -CLOCK-P(RTR);%                        45112000        
+                   P1MIX ~ 1;%                                          45113000        
+                   X[0] ~ GI[J+90];                                     45114000        
+                   X[1] ~ NABS(GI[J+91]);                               45115000        
+                   STREAM(A~[LDATE],B~[X[5]]);                          45116000        
+                   BEGIN SI~A; DS~8 OCT END;                            45117000        
+                   IF GI[J+92].[1:223] GTR XCLOCK THEN                  45118000        
+                   IF X[5] MOD 1000 GTR 1 THEN X[5]:=*P(DUP)-1 ELSE     45119000        
+                   X[5]:=(X[5]-1001)+365+((X[5] DIV 1000)MOD 4=0);      45120000        
+                   X[5]~GI[J+92].[ 1:23]&X[5][1:25:23];                 45121000        
+                   X[6]~GI[J+92].[24:24]&USERCODE[I][CTF];              45122000        
+                   USERCODE[I]~GI[I+180];P1MIX~I;                       45123000        
+                   X[3] ~ GI[J];%                                       45124000        
+                   X[4] ~ GI[J+1];%                                     45125000        
+                   X[7] ~ GI[J+2];%                                     45126000        
+                   IOTIME[I] ~ 0;%                                      45127000        
+                   OLDIDLETIME ~ (CLOCK~P(RTR))|2-X[3];%                45128000        
+                   X[2].[8:10] ~ 99;%                                   45129000        
+ $ SET OMIT = NOT(STATISTICS)                                           45129099        
+                   SIGNOFF(X,[M[SPACE(5)]],0);                          45130000        
+                   P1MIX~0;                                             45130100        
+                   JARROW[I]~0; % IN CASE LOG IS NOT ON DISK.           45131000        
+                   STREAM(I,X,J:=J:=SPACE(10));%                        45131100        
+                   BEGIN SI:=X;DS:=2WDS;DI:=J;%                         45131200        
+                         DS:=LIT"=";DI:=DI+7;DS:=LIT"/";                45131300        
+                         DI:=DI+7;DS:=LIT"=";SI:=LOC I;                 45131400        
+                         DS:=2DEC;DS:=9LIT":ABORTED~";%                 45131500        
+                   END;%                                                45131600        
+                   SPOUT(J);%                                           45131700        
+    NOGOOD:%                                                            45132000        
+              END;%                                                     45133000        
+ $ SET OMIT = NOT(STATISTICS)                                           45133099        
+              FORGETSPACE(GI);%                                         45134000        
+              END;                                                      45134100        
+              FORGETSPACE(X);                                           45135010        
+              IF CLOCK=0 THEN          % CC103F IS INHIBITED            45135030        
+              BEGIN STREAM(T:=T:=SPACE(10));                            45135040        
+                   BEGIN DS:=19 LIT"#TIMER NOT RUNNING.";               45135050        
+                         DS:=22 LIT" RESET CC103F INHIBIT~";            45135060        
+                   END;                                                 45135070        
+                   SPOUT(T);                                            45135080        
+              END;                                                      45135090        
+              IF GIVEDATE THEN                                          45135100        
+              BEGIN; STREAM(B~I~SPACE(2));                              45135110        
+                     DS~11 LIT "#DT PLEASE~";                           45135120        
+                     SPOUT(1);                                          45135130        
+                     DATE~-1;                                           45135140        
+              END;                                                      45135150        
+              IF GIVETIME THEN                                          45135160        
+              BEGIN; STREAM(B~I~SPACE(2));                              45135170        
+                     DS~11 LIT "#TR PLEASE~";                           45135180        
+                     SPOUT(I);                                          45135190        
+                     XCLOCK~-5184000;                                   45135200        
+              END;                                                      45135210        
+              KEYBOARDCOUNTER:=0;                                       45135215        
+              TOGLE~TOGLE OR HOLDMASK OR KEYBOARDMASK;                  45135220        
+              COMPLEXSLEEP(CLOCK>0 AND XCLOCK}0 AND DATE}0);            45135230        
+ $ SET OMIT = NOT(AUXMEM)                                               45135299        
+              LOGOUTMAINT(SHLM);                                        45135600        
+              MROW:=NABS(MROW);                                         45135700        
+              FORGETSPACE(SHLM);                                        45135800        
+ $ SET OMIT = SHAREDISK                                                 45136000        
+              DISKWAIT(-KLUMP,3,DIRECTORYTOP+3);                        45137000        
+ $ POP OMIT                                                             45137001        
+              TOGLE:=TOGLE OR CDMASK;                           %RHR    45138000        
+ $ SET OMIT = NOT(DATACOM AND DCLOG)                                    45141000        
+              FORGETSPACE(A);                                           45143000        
+ $ SET OMIT = NOT DEBUGGING                                             45144000        
+                      TOGLE ~ TOGLE OR SHEETMASK OR STATUSMASK          45150000        
+                    OR NSECONDMASK;                                     45151000        
+              READY ~ @341600000;%                                      45152000        
+              PRTROW[P1MIX].[PSF]:=0;                                   45153000        
+              IF T1=0 THEN                                              45154000        
+              BEGIN STREAM(D:=I:=SPACE(4));                             45155000        
+                   DS:=27 LIT"## LOAD INTRINSICS NOW....~";             45156000        
+                   SPOUT(I);                                            45157000        
+              END;                                                      45158000        
+ $ SET OMIT = NOT(STATISTICS)                                           45178000        
+              RRRMECH ~ RRRMECH AND @7637777777;%                       45229000        
+              READY ~ READY AND @7637777777;%                           45230000        
+ $ SET OMIT = NOT(DCSPO AND DATACOM )                                   45231000        
+ $ SET OMIT = NOT(BREAKOUT)                                             45247099        
+         P(P&RCW[CTC],0,RDS,0,XCH,P&P[CTF],STF);                        45248000        
+         END;%                                                          45249000        
