@@ -26679,3 +26679,274 @@ LOOP:                                                                   45095000
  $ SET OMIT = NOT(BREAKOUT)                                             45247099        
          P(P&RCW[CTC],0,RDS,0,XCH,P&P[CTF],STF);                        45248000        
          END;%                                                          45249000        
+              :16: P(..COREND,LOD,4,INX,STS); INITIALIZE; % 20-1ST CODE 46000000        
+%             :17:                             % 21 - RES FOR NO MEM MSG46000500        
+              :18: GO TO TIMER;                % 22 - TIM INTERVAL%     46001000        
+              :19: GO TO IOBUSY;               % 23 - I-O BUSY%         46002000        
+              :20: GO TO KEYBOARDREQUEST;      % 24 - KEYBOARD REQUEST% 46003000        
+              :21: PRINTERFINISH(20);          % 25 - PRINTER 1 FINISH% 46004000        
+              :22: PRINTERFINISH(21);          % 26 - PRINTER 2 FINISH% 46005000        
+              :23: IOFINISH(RESULT1,1);        % 27 - CHANNEL 1 COMPLETE46006000        
+              :24: IOFINISH(RESULT2,2);        % 30 - CHANNEL 2 COMPLETE46007000        
+              :25: IOFINISH(RESULT3,3);        % 31 - CHANNEL 3 COMPLETE46008000        
+              :26: IOFINISH(RESULT4,4);        % 32 - CHANNEL 4 COMPLETE46009000        
+              :27: GO TO P2BUSY;               % 33 - P2 BUSY%          46010000        
+              :28: GO TO INQUEST;              % 34 - DATACOM INQUIRY   46011000        
+              :29: GO TO EXTERNAL;             % 35 - SPECIAL INTERRUPT 46011500        
+ $ SET OMIT = SHAREDISK                                                 46011990        
+              :30: GO TO EXTERNAL;             % 36 - DKA READ CHECK    46012000        
+              :31: GO TO EXTERNAL;             % 37 - DKB READ CHECK    46012500        
+ $ SET OMIT = NOT SHAREDISK                                             46012750        
+              :32: P(0);      GO TO P2PROCESS; % 40 - P2 MEMORY PARITY% 46014000        
+              :33: P(4,17);   GO TO P2PROCESS; % 41 - P2 INVALID ADDRESS46015000        
+              :34: P(4,1);    GO TO P2PROCESS; % 42 - P2 STACK OVERFLOW 46016000        
+              :36: P(6);      GO TO P2PROCESS; % 44 - P2 COMMUNICATE%   46017000        
+              :37: P(8);      GO TO P2PROCESS; % 45 - P2 PROGRAM RELEASE46018000        
+              :38: P(10);     GO TO P2PROCESS; % 46 - P2 CONTINUITY BIT 46019000        
+              :39: P(18);     GO TO P2PROCESS; % 47 - P2 PRESENCE BIT   46020000        
+              :40: P(12,0);   GO TO P2PROCESS; % 50 - P2 FLAG BIT       46021000        
+              :41: P(12,1);   GO TO P2PROCESS; % 51 - P2 INVALID INDEX  46022000        
+              :42: P(12,2);   GO TO P2PROCESS; % 52 - P2 EXP UNDERFLOW  46023000        
+              :43: P(4,9);    GO TO P2PROCESS; % 53 - P2 EXP OVERFLOW%  46024000        
+              :44: P(4,11);   GO TO P2PROCESS; % 54 - P2 KINT OVERFLOW% 46025000        
+              :45: P(12,3);   GO TO P2PROCESS; % 55 - P2 DIVIDE BY ZERO 46026000        
+              :48: P(0);      GO TO P1PROCESS; % 60 - P1 MEMORY PARITY% 46027000        
+              :49: P(4,17);   GO TO P1PROCESS; % 61 - P1 INVALID ADDRESS46028000        
+STACKOVERFLOW :50: P(4,1);    GO TO P1PROCESS; % 62 - P1 STACK OVERFLOW 46029000        
+              :52: P(6);      GO TO P1PROCESS; % 64 - P1 COMMUNICATE%   46030000        
+              :53: P(8);      GO TO P1PROCESS; % 65 - P1 PROGRAM RELEASE46031000        
+              :54: P(10);     GO TO P1PROCESS; % 66 - P1 CONTINUITY BIT 46032000        
+              :55: P(18);     GO TO P1PROCESS; % 67 - P1 PRESENCE BIT   46033000        
+              :56: P(12,0);   GO TO P1PROCESS; % 70 - P1 FLAG BIT       46034000        
+              :57: P(12,1);   GO TO P1PROCESS; % 71 - P1 INVALID INDEX  46035000        
+              :58: P(12,2);   GO TO P1PROCESS; % 72 - P1 EXP UNDERFLOW  46036000        
+              :59: P(4,9);    GO TO P1PROCESS; % 73 - P1 EXP OVERFLOW%  46037000        
+              :60: P(4,11);   GO TO P1PROCESS; % 74 - P1 KINT OVERFLOW% 46038000        
+              :61: P(12,3);   GO TO P1PROCESS; % 75 - P1 DIVIDE BY ZERO 46039000        
+START:*:                                                                46040000        
+ TIMER:       CLOCK ~ CLOCK+64; XCLOCK ~ XCLOCK+64;                     48000000        
+ $ SET OMIT = NOT(NEWLOGGING)                                           48000099        
+              IF CLOCK.[37:5] = 0 OR                                    48000500        
+                   (SECONDCTR ~ (P2MIX{0)+SECONDCTR)} 4 OR%             48001000        
+                   XCLOCK GEQ WITCHINGHOUR THEN                         48002000        
+                   BEGIN IF P(TIO) ! 0 THEN%                            48003000        
+                        IF FIRSTWAIT ! NEXTWAIT THEN%                   48004000        
+                             NEWIO;%                                    48005000        
+                        SECONDCTR ~ 3;%                                 48006000        
+                        IF NSECONDREADY THEN%                           48007000        
+                             BEGIN TOGLE~TOGLE AND NOT NSECONDMASK;     48008000        
+                                  INDEPENDENTRUNNER(P(.NSECOND),9,100); 48009000        
+                   END       END;%                                      48010000        
+ $ SET OMIT = NOT(STATISTICS)                                           48010004        
+ $ SET OMIT = NOT(WORKSET)                                              48010070        
+    IF WKSETCYCLETIME GTR 0 THEN % WORKSET IS OPERATIONAL               48010072        
+      IF (CLOCK-WKSETCLOCK) GEQ WKSETCYCLETIME THEN                     48010074        
+         IF WKSETRUNNING=0 THEN % WORKSET IS NOT CURRENTLY RUNNING      48010076        
+            BEGIN                                                       48010078        
+            WKSETCLOCK := CLOCK; % RESET THEN WORKSET CLOCK             48010080        
+            INDEPENDENTRUNNER(P(.WORKSET),0,100);                       48010082        
+            WKSETRUNNING := 1;                                          48010084        
+            END;                                                        48010086        
+ $ POP OMIT                                                             48010088        
+ $ SET OMIT = NOT(DATACOM AND DCSPO )                                   48010099        
+              IF (P(RRR) OR RRRMECH)~READY THEN                         48012000        
+              IF STATUSBIT THEN                                         48012500        
+                   BEGIN TOGLE~TOGLE AND NOT STATUSMASK;                48013000        
+                        INDEPENDENTRUNNER(P(.STATUS),0,100);            48014000        
+                   END;%                                                48015000        
+              IF P2MIX>0 THEN                                           48015100        
+              IF NSLATE=LSLATE THEN                                     48015200        
+              IF JOBNUM}0 THEN                                          48015300        
+              IF (PRYOR[P2MIX] INX 0)}(PRYOR[BED[0].[3:5]].[FF]) THEN   48015400        
+                 GO TO P2FAKE;                                          48015500        
+ EXTERNAL::%                                                            48016000        
+         IF P1MIX = 0 THEN GO TO NOTHINGTODO;%                          48017000        
+ INITIATE::%                                                            48018000        
+         NT1 ~ PRT[P1MIX,8];%                                           48019000        
+         IF P2MIX=0 THEN GO TO COMINIT;                                 48019500        
+         IF NSLATE = LSLATE THEN%                                       48020000        
+         IF JOBNUM < 0 THEN%                                            48021000        
+ COMINIT:%                                                              48022000        
+ $ SET OMIT = NOT(DATACOM )                                             48022099        
+         IF NOPROCESSTOG < 0 THEN%                                      48023000        
+ GOGOGO:      BEGIN IF PRT[P1MIX,0] ! WORDOFEASE THEN                   48024000        
+                   BEGIN P(64,STS);                                     48025000        
+ $ SET OMIT = NOT(NEWLOGGING)                                           48025099        
+                         GO TO STACKOVERFLOW;                           48025200        
+                   END;                                                 48025300        
+                   P(INI);%                                             48026000        
+                   IF PRTROW[P1MIX].[PSF] NEQ 0 THEN                    48027000        
+                   BEGIN P(NT1,STS,0,STF);                              48028000        
+ $ SET OMIT = NOT(BREAKOUT)                                        %139-48028090        
+                         IF NOTERMSET(P1MIX)                            48029000        
+                         THEN STOPM(TRUE)                               48030000        
+                         ELSE IF NOT TERMGOING(P1MIX) THEN              48031000        
+                              TERMINALMESSAGE(PRTROW[P1MIX].[FF]);      48031100        
+                   END;                                                 48031200        
+                   SECONDCTR ~ 0;%                                      48032000        
+                   IF SOFTI>0 THEN                                      48032100        
+                   IF JAR[P1MIX,2].[5:1] THEN % POSS.SOFTWARE INTERRUPTS48032150        
+                   IF (TSKA ~ PRT[P1MIX,TSX]).PBIT THEN                 48032200        
+                        IF TSKA[8].[1:3]=2 THEN                         48032250        
+                        BEGIN                                           48032300        
+                             IF NOT PRT[P1MIX,INTRPTX].PBIT THEN        48032400        
+                               BEGIN                                    48032500        
+                                 P(NT1,STS,0,STF);                      48032600        
+                                 MAKEPRESENT([PRT[P1MIX,INTRPTX]]INX 0);48032700        
+                                 NT1 ~ PRT[P1MIX,8];                    48032800        
+                               END;                                     48032900        
+                             P(NT1,STS,NFLAG(NT1),            % OLD INCW48032910        
+                               FLAG(0&PRTROW[P1MIX] [6:33:9]       % ICW48032920        
+                                    &1 [17:47:1]),SSN,                  48032925        
+                               FLAG(0&PRT[P1MIX,INTRPTX][CTC]      %IRCW48032930        
+                               &(NT1 INX 1)[CTF]),SSN);%F-REG==>OLD INCW48032935        
+                             P(8 INX PRT[P1MIX,TSX],DUP,LOD,NT1,CFX,    48032940        
+                               XCH,~);                                  48032945        
+                             PRT[P1MIX,8] ~ NT1 ~ -FLAG(NT1 INX 3);%INCW48032950        
+                        END ELSE TSKA[8] ~ P(DUP,LOD,SSP);              48032960        
+ $ SET OMIT = NOT(NEWLOGGING)                                           48032979        
+              IF P2MIX ! 0 THEN P(NT1,IP1);%                            48033000        
+                   IF NSLATE=LSLATE THEN%                               48034000        
+              IF JOBNUM < 0 THEN P(NT1,IP1);%                           48035000        
+              P(NT1,IP2);%                                              48036000        
+                   P2MIX ~ P1MIX;%                                      48037000        
+              GO TO NOTHINGTODO;%                                       48038000        
+              END;%                                                     48039000        
+         P(INI);%                                                       48040000        
+         P(NT1,STS,0,STF);%                                             48041000        
+         SLEEP([NOPROCESSTOG],-0);%                                     48042000        
+         NT1 ~ PRT[P1MIX,8];%                                           48043000        
+         GO GOGOGO;%                                                    48044000        
+ NOTHINGTODO::P1MIX = 0;%                                               48045000        
+ $ SET OMIT = NOT(STATISTICS)                                           48045899        
+              P(INI);%                                                  48046000        
+ $ SET OMIT = NOT(DATACOM )                                             48046099        
+              IF NSLATE ~ LSLATE THEN%                                  48047000        
+              IF STACKUSE THEN%                                         48048000        
+                   BEGIN TOGLE:=TOGLE AND NOT STACKMASK;                48049000        
+                        % MOVE INTO ISTACK                              48050000        
+                        P(ISTACK,STS,SECONDCTR:=0,STF);                 48051000        
+                        NSLATE:=NSLATE+2 AND SLATEND;                   48052000        
+                        % IF "RUN" THEN NO STACK NECESSARY              48053000        
+                        IF (NT4:=SLATE[NSLATE+1]).[FF] NEQ 0 THEN       48054000        
+                        BEGIN                                           48054200        
+                            P(GETSPACE(NT4.[FF],12,NT4 LSS 0)+1,STS);   48054400        
+                            STACKUSE:=TRUE;                             48054600        
+                        END;                                            48054800        
+                        P(MKS,NT4:=SLATE[NSLATE+1],DIB 0,LOD,           48055000        
+                          SLATE[NSLATE],COC);                           48055200        
+                        GO TO NOTHINGTODO;%                             48056000        
+                   END;%                                                48057000        
+              P( 64,STS);%                                              48058000        
+              IF TOGLE THEN GO TO PROCSWIT; COMMENT TEST HP2TOG;        48059000        
+              FOR NT1 ~ 0 STEP 2 UNTIL JOBNUM DO%                       48060000        
+                   BEGIN P(INI);%                                       48061000        
+                        NT2 ~ BED[NT1];%                                48062000        
+                        IF P(NT3 ~ BED[NT1+1],TOP,XCH,DEL,NOT) THEN%    48063000        
+                             BEGIN P1MIX ~ [NT2].MIXF;%                 48064000        
+       P([INT2].[FF]+1,STS); % SET S REGISTER ABOVE LOGGING FLAG.  %153-48065000        
+                                  NT3 ~ NT3;%                           48066000        
+                                  P1MIX ~ 0;%                           48067000        
+                                  P( 64,STS);%                          48068000        
+                             END;%                                      48069000        
+                        IF NOT(NT2 AND NT3) ! NOT 0 THEN%               48070000        
+                             BEGIN P1MIX ~ [NT2].MIXF;%                 48071000        
+                                  IF JOBNUM ! NT1 THEN%                 48074000        
+                                  STREAM(N~JOBNUM-NT1,A~[BED[NT1+2]],%  48075000        
+                                       B~[BED[NT1]]);%                  48076000        
+                                       BEGIN SI~A; DS ~ N WDS END;%     48077000        
+                                  JOBNUM ~ JOBNUM-2;%                   48078000        
+                                  SECONDCTR ~ 0;%                       48079000        
+                                  PRYOR[P1MIX].[FF]~ 0;                 48079100        
+                                 P([NT2],STF);                          48080000        
+ $ SET OMIT = NOT(NEWLOGGING)                                           48080099        
+                                STARTLOG(P1MIX);                        48080200        
+                                P(XIT);                                 48080300        
+                             END;%                                      48081000        
+                   END;%                                                48082000        
+ $ SET OMIT = NOT(STATISTICS)                                           48082999        
+              DO DO P(INI) UNTIL (P(RRR) OR RRRMECH)!READY%             48084000        
+                   UNTIL STATUSBIT;%                                    48084100        
+              TOGLE~TOGLE AND NOT STATUSMASK;                           48084200        
+              INDEPENDENTRUNNER(P(.STATUS),0,100);                      48084300        
+              GO TO NOTHINGTODO;%                                       48084400        
+ P2FAKE:                TOGLE~TOGLE OR HP2MASK;                         48085000        
+ $ SET OMIT = NOT(NEWLOGGING)                                           48085099        
+                        P(HP2,INI);%                                    48086000        
+ $ SET OMIT = NOT(NEWLOGGING)                                           48086099        
+ PROCSWIT:              P(16);                                          48087000        
+ P2PROCESS::%                                                           48095000        
+         IF P(P1MIX,P2MIX,.P1MIX,~,.P2MIX,STN) ! 0 THEN%                48096000        
+         BEGIN                                                          48097000        
+ $ SET OMIT = NOT(NEWLOGGING)                                           48097099        
+              P(PRT[P2MIX,8],IP2);                                      48097200        
+         END;                                                           48097300        
+         TOGLE~TOGLE AND NOT HP2MASK;                                   48098000        
+ P1PROCESS::%                                                           48099000        
+         P(PRT[P1MIX,8],STS,0,STF);%                                    48100000        
+ $ SET OMIT = NOT(NEWLOGGING)                                      %550-48100499        
+         GO TO P(ONEOHONE);%                                            48101000        
+         GO TO MEMORYPARITY:      %  0%                             %WF 48102000        
+         P(NOP,NOP);              %  2%                             %WF 48102100        
+         GO TO NORMALERROR;       %  4%                                 48103000        
+         SHORTCOMMUNICATE;        %  6%                                 48104000        
+         PROGRAMRELEASE;          %  8                                  48105000        
+         CONTINUITYBIT;           % 10                                  48106000        
+         INTERRUPT(ONEOHTWO); P(NOP); % 12                              48107000        
+         GO TO INITIATE;          % 16                                  48108000        
+         MAKEPRESENT(ANALYSIS);   % 18                                  48109000        
+ RETURN::     NT1~PRT[P1MIX,8];                                         48110000        
+              GO TO COMINIT;                                            48111000        
+ IOBUSY::                                                               48117000        
+ $ SET OMIT = NOT(NEWLOGGING)                                           48117099        
+         NT1 ~ UNIT[NT2-CHANNEL[0]];                                    48117200        
+         UNIT[NT2] ~ NT1&0[13:5:5];%                                    48118000        
+         STARTIO(NT2);%                                                 48119000        
+         GO TO EXTERNAL;%                                               48120000        
+ P2BUSY::                                                               48121000        
+ $ SET OMIT = NOT(NEWLOGGING)                                           48121099        
+         SAVEMIX(P1MIX);                                                48121200        
+         P1MIX ~ P2MIX;%                                                48122000        
+         P2MIX ~ -1;%                                                   48123000        
+         OLDIDLETIME ~ OLDIDLETIME-CLOCK-P(RTR);%                       48124000        
+         GO TO EXTERNAL;%                                               48125000        
+ $ SET OMIT = NOT(SHAREDISK)                                            48125099        
+INQUEST:                                                                48125500        
+ $ SET OMIT = NOT(NEWLOGGING)                                           48125509        
+ $ SET OMIT = NOT DATACOM                                               48125540        
+ $ SET OMIT = DATACOM                                                   48126400        
+% USE ACTUALIOERR STACK TO SPOUT "DATACOM/INQUIRY INTERRUPT IGNORED"    48126429        
+         INDEPENDENTRUNNER(P(..ACTUALIOERR),0,100);                     48126430        
+ $ POP OMIT                                                             48126431        
+            GO TO EXTERNAL;%                                            48127000        
+ KEYBOARDREQUEST::%                                                     48128000        
+ $ SET OMIT = NOT(NEWLOGGING)                                           48128099        
+ $ SET OMIT = NOT DEBUGGING                                             48128500        
+         IF (KEYBOARDCOUNTER ~ KEYBOARDCOUNTER+1) = 1 THEN%             48131000        
+         INDEPENDENTRUNNER(P(.KEYIN),1,160);                            48132000        
+         GO TO EXTERNAL;%                                               48133000        
+ MEMORYPARITY::%                                                    %WF 48134000        
+         TERMINATE(P1MIX);%                                         %WF 48135000        
+         TERMINALMESSAGE(32);%                                      %WF 48136000        
+ NORMALERROR::%                                                         48137000        
+              IF P1MIX = 0 THEN%                                        48138000        
+                   BEGIN P(@100,STS);%                                  48139000        
+                        PUNT(5);       % INVALID ADDRESS                48140000        
+                   END;%                                                48141000        
+              IF ONEOHTOW=1 THEN                                        48141100        
+              BEGIN P(NFO[(NT1~(P1MIX-1)|NDX)+2],STS);                  48141200        
+                   PRT[P1MIX,15]~M[PRT[P1MIX,8]];                       48141300        
+                   PRT[P1MIX,8]~-[PRT[P1MIX,15]];                       48141400        
+                   PRT[P1MIX,3]~NFO[NT1];                               48141500        
+                   PRT[P1MIX,4]~NFO[NT1+1];                             48141600        
+              END;                                                      48141700        
+              P(ONEOHTWO);                                              48142000        
+                   IF P(DUP,DUP)=9 OR P(XCH)=11 THEN                    48142100        
+                        ERRORFIXER((ONEOHTWO=9)+1);                     48142200        
+              TERMINATE(P1MIX);                                         48142500        
+              NT1 ~ P;                                                  48143000        
+              TERMINALMESSAGE(NT1);                                     48143500        
+ DIFFCOM::NT4~P;                                                        48144000        
+         P(0,STF,PRT[P1MIX,8],STS,MKS,NT4,DIB 0,LOD,XCH,COC);           48145000        
+         GO TO INITIATE;                                                48146000        
+END.%                                                                   48161000        
