@@ -1,0 +1,242 @@
+﻿        PROGRAM
+        BLOCK
+        BLOKHEAD
+        BLOKBODY
+        LABDEF
+        STAT
+        STAT-
+        EXPR
+        EXPR-
+        IFCLAUSE
+        TRUEPART
+        CATENA
+        DISJ
+        DISJHEAD
+        CONJ
+        CONJ-
+        CONJHEAD
+        NEGATION
+        RELATION
+        CHOICE
+        CHOICE-
+        SUM
+        SUM-
+        TERM
+        TERM-
+        FACTOR
+        FACTOR-
+        PRIMARY
+        PROCDEF
+        PROCHEAD
+        LIST*
+        LISTHEAD
+        REFERENC
+        NUMBER
+        REAL*
+        INTEGER*
+        INTEGER-
+        DIGIT
+        LOGVAL
+        VAR
+        VAR-
+        VARDECL
+        FORDECL
+        LABDECL
+*
+        0
+        1
+        2
+        3
+        4
+        5
+        6
+        7
+        8
+        9
+        ,
+        .
+        ;
+        :
+        @
+        NEW
+        FORMAL
+        LABEL
+        IDENT*
+        [
+        ]
+        BEGIN
+        END
+        (
+        )
+        LQ
+        RQ
+        GOTO
+        OUT
+        ~
+        IF
+        THEN
+        ELSE
+        &
+        OR
+        AND
+        NOT
+        =
+        !
+        <
+        {
+        }
+        >
+        MIN
+        MAX
+        +
+        -
+        |
+        /
+        %
+        MOD
+        *
+        ABS
+        LENGTH
+        INTEGER
+        REAL
+        LOGICAL
+        LIST
+        TAIL
+        IN
+        ISB
+        ISN
+        ISR
+        ISL
+        ISLI
+        ISY
+        ISP
+        ISU
+        SYMBOL*
+        UNDEFINE
+        TEN
+        #
+        TRUE
+        FALSE
+        $
+*
+ VARDECL           NEW IDENT*                                                001
+ FORDECL           FORMAL IDENT*                                             002
+ LABDECL           LABEL IDENT*                                              003
+ VAR-              IDENT*                                                    004
+ VAR-              VAR- [ EXPR ]                                             005
+ VAR-              VAR- .                                                    006
+ VAR               VAR-                                                      007
+ LOGVAL            TRUE                                                      010
+ LOGVAL            FALSE                                                     011
+ DIGIT             0                                                         012
+ DIGIT             1                                                         013
+ DIGIT             2                                                         014
+ DIGIT             3                                                         015
+ DIGIT             4                                                         016
+ DIGIT             5                                                         017
+ DIGIT             6                                                         020
+ DIGIT             7                                                         021
+ DIGIT             8                                                         022
+ DIGIT             9                                                         023
+ INTEGER-          DIGIT                                                     024
+ INTEGER-          INTEGER- DIGIT                                            025
+ INTEGER*          INTEGER-                                                  026
+ REAL*             INTEGER* . INTEGER*                                       027
+ REAL*             INTEGER*                                                  030
+ NUMBER            REAL*                                                     031
+ NUMBER            REAL* TEN INTEGER*                                        032
+ NUMBER            REAL* TEN # INTEGER*                                      033
+ NUMBER            TEN INTEGER*                                              034
+ NUMBER            TEN # INTEGER*                                            035
+ REFERENC          @ VAR                                                     036
+ LISTHEAD          LISTHEAD EXPR ,                                           037
+ LISTHEAD          (                                                         040
+ LIST*             LISTHEAD EXPR )                                           041
+ LIST*             LISTHEAD )                                                042
+ PROCHEAD          PROCHEAD FORDECL ;                                        043
+ PROCHEAD          LQ                                                        044
+ PROCDEF           PROCHEAD EXPR RQ                                          045
+ PRIMARY           VAR                                                       046
+ PRIMARY           VAR LIST*                                                 047
+ PRIMARY           LOGVAL                                                    050
+ PRIMARY           NUMBER                                                    051
+ PRIMARY           SYMBOL*                                                   052
+ PRIMARY           REFERENC                                                  053
+ PRIMARY           LIST*                                                     054
+ PRIMARY           TAIL PRIMARY                                              055
+ PRIMARY           PROCDEF                                                   056
+ PRIMARY           UNDEFINE                                                  057
+ PRIMARY           [ EXPR ]                                                  060
+ PRIMARY           IN                                                        061
+ PRIMARY           ISB VAR                                                   062
+ PRIMARY           ISN VAR                                                   063
+ PRIMARY           ISR VAR                                                   064
+ PRIMARY           ISL VAR                                                   065
+ PRIMARY           ISLI VAR                                                  066
+ PRIMARY           ISY VAR                                                   067
+ PRIMARY           ISP VAR                                                   070
+ PRIMARY           ISU VAR                                                   071
+ PRIMARY           ABS PRIMARY                                               072
+ PRIMARY           LENGTH VAR                                                073
+ PRIMARY           INTEGER PRIMARY                                           074
+ PRIMARY           REAL PRIMARY                                              075
+ PRIMARY           LOGICAL PRIMARY                                           076
+ PRIMARY           LIST PRIMARY                                              077
+ FACTOR-           PRIMARY                                                   100
+ FACTOR-           FACTOR- * PRIMARY                                         101
+ FACTOR            FACTOR-                                                   102
+ TERM-             FACTOR                                                    103
+ TERM-             TERM- | FACTOR                                            104
+ TERM-             TERM- / FACTOR                                            105
+ TERM-             TERM- % FACTOR                                            106
+ TERM-             TERM- MOD FACTOR                                          107
+ TERM              TERM-                                                     110
+ SUM-              TERM                                                      111
+ SUM-              + TERM                                                    112
+ SUM-              - TERM                                                    113
+ SUM-              SUM- + TERM                                               114
+ SUM-              SUM- - TERM                                               115
+ SUM               SUM-                                                      116
+ CHOICE-           SUM                                                       117
+ CHOICE-           CHOICE- MIN SUM                                           120
+ CHOICE-           CHOICE- MAX SUM                                           121
+ CHOICE            CHOICE-                                                   122
+ RELATION          CHOICE                                                    123
+ RELATION          CHOICE = CHOICE                                           124
+ RELATION          CHOICE ! CHOICE                                           125
+ RELATION          CHOICE < CHOICE                                           126
+ RELATION          CHOICE { CHOICE                                           127
+ RELATION          CHOICE } CHOICE                                           130
+ RELATION          CHOICE > CHOICE                                           131
+ NEGATION          RELATION                                                  132
+ NEGATION          NOT RELATION                                              133
+ CONJHEAD          NEGATION AND                                              134
+ CONJ-             CONJHEAD CONJ-                                            135
+ CONJ-             NEGATION                                                  136
+ CONJ              CONJ-                                                     137
+ DISJHEAD          CONJ OR                                                   140
+ DISJ              DISJHEAD DISJ                                             141
+ DISJ              CONJ                                                      142
+ CATENA            CATENA & PRIMARY                                          143
+ CATENA            DISJ                                                      144
+ TRUEPART          EXPR ELSE                                                 145
+ IFCLAUSE          IF EXPR THEN                                              146
+ EXPR-             BLOCK                                                     147
+ EXPR-             IFCLAUSE TRUEPART EXPR-                                   150
+ EXPR-             VAR ~ EXPR-                                               151
+ EXPR-             GOTO PRIMARY                                              152
+ EXPR-             OUT EXPR-                                                 153
+ EXPR-             CATENA                                                    154
+ EXPR              EXPR-                                                     155
+ STAT-             LABDEF STAT-                                              156
+ STAT-             EXPR                                                      157
+ STAT              STAT-                                                     160
+ LABDEF            IDENT* :                                                  161
+ BLOKHEAD          BEGIN                                                     162
+ BLOKHEAD          BLOKHEAD VARDECL ;                                        163
+ BLOKHEAD          BLOKHEAD LABDECL ;                                        164
+ BLOKBODY          BLOKHEAD                                                  165
+ BLOKBODY          BLOKBODY STAT ;                                           166
+ BLOCK             BLOKBODY STAT END                                         167
+ PROGRAM           $ BLOCK $                                                 170
+*
