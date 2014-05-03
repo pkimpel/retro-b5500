@@ -175,10 +175,8 @@ DEFINE        %    DEFINES FOR MPX AND EVENTS PARTIAL FIELDS            00345000
          MPXWLO    =  [ 1: 1]#,   % 1 = WRITE LOCK-OUT                  00357000
          TUB       =  [ 2:9]#,    % TU & BUF ADDRESS                    00358000
          MPXBUFF   =  [14:10]#;   % BUFFER LENGTH                       00359000
-         RSLTUNIT  =  [23: 8]#,   % UNIT                                00351000
-         TCHRS     =  [20: 3]#,   % RESULT CHRS                         00352000
-         RSLTADRS  =  [ 1:19]#,   % ADDRESS                             00353000
-}?P$5C 7T T 0000   =  [38:10]#,   % MPX INTERRUPT VALUE                 00354000
+REAL    ARRAY FIRSTEVENT [0:31], LASTEVENT [0:31];         % JWF
+INTEGER ARRAY FIRSTEVENTI[0:31], LASTEVENTI[0:31];         % JWF
 REAL CURRENTT,     % THE TIME FOR THE NEXT MULTIPLEXOR INTERRUPT        00363000
      CURRENTMPX;   % THE MPX FOR THE NEXT MULTIPLEXOR INTERRUPT         00364000
 ARRAY MPXOPS [0:2];%OPERATIONS PER MPX                                  00365000
@@ -325,7 +323,8 @@ BOOLEAN  AROF, %  1     A REGISTER OCCUPIED                             00710000
          BROF, %  1     B REGISTER OCCUPIED                             00711000
          PROF; %  1     P REGISTER OCCUPIED                             00712000
 DEFINE   MEMCYCLE = DELTATIME ~ DELTATIME + MEMTIME;#;                  00713000
-LONG ARRAY M [0:MEMMODS];                                              00714000
+%LONG ARRAY M [0:MEMMODS];                                              00714000
+ARRAY M [0:MEMMODS]; %JWF                                               00714000
                            %NOTE: INDICIES ARE AUTOMATICALLY DOUBLED    00715000
                            %      AND THE ARRAY IS PARTIONED INTO A     00716000
                            %      TWO-DIMENSIONAL ARRAY WITH 256-WD ROWS00717000
@@ -5566,8 +5565,10 @@ PROCEDURE FLAGHANDLE (MESS, MINDEX, WORDS, IOCW);                       71169000
               END;                                                      71193000
               DEFINE    TAGGERIN =                                      71194000
                    SKIP BCD SB;                                         71195000
-                   DI ~ B; DI ~ DI + 15; SKIP 2 DB;#;                   71196000
-                   DI ~ B; DI ~ DI + 15; SKIP 2 DB;                     71196000
+                   DI ~ B; DI ~ DI + 15; SKIP 2 DB;#;       % JWF       71196000
+% JWF              DI ~ B; DI ~ DI + 15; SKIP 2 DB;                     71196000
+         STREAM PROCEDURE TAGIN (MESS, M, JDIV, JMOD, BCD); % JWF
+              VALUE JDIV, JMOD, BCD;                        % JWF
               BEGIN                                                     71201000
                    LOCAL B;                                             71202000
                    SI ~ MESS; DI ~ M; B ~ DI;                           71203000
