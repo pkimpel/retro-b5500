@@ -1,5 +1,5 @@
          B 6 5 0 0   I M P L E M E N T A T I O N   L A N G U A G E      00001000          
-                           C 0 M P I L E R                              00002000          
+                           C O M P I L E R                              00002000          
                                  1/68                                   00003000          
  DIRECTORY BY SECTION:                                                  00004000          
          0         COMMENTARY & ERROR MESSAGE CODES.                    00005000          
@@ -418,7 +418,7 @@ BOOLEAN  DONSBUG; % PRT 26        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%10008000
  ARRAY                                                                  10094000          
        STACKMASK,               % MAX DISP IN [18:15], LL IN[33:15]     10095000          
        STACKTOP,                % CURRENT ASSIGNMENT FOR EACH LEVEL     10096000          
-       MAXSTACK[0:3],           % MAX STACK SIZE FOR EACH ADDR LEVEL    10097000          
+       MAXSTACK[0:31],          % MAX STACK SIZE FOR EACH ADDR LEVEL    10097000          
        LBUFF[0:16];          % FOR BUILDING PRINT IMAGES.               10098000          
  DEFINE MAXDISPF = [18:15]#,                                            10099000          
         LLMASKF  = [33:15]#;                                            10100000          
@@ -629,7 +629,7 @@ COMMENT ONE ENTRY OF ONE OR TWO WORDS PER STANDARD Q ALGORITHM WITH     10199000
   TLSU=232#,TGEU=233#,TGTU=234#,TLEU=235#,TEQU=236#,TNEU=237#,TUNU=238#,10222000          
   CLSD=240#,CGEQ=241#,CGTD=242#,CLED=243#,CEQD=244#,CNED=245#,CLSU=248#,10223000          
   CGEU=249#,CGTU=250#,CLEU=251#,CEQU=252#,CNEU=253#,NOOP=254#,NVLD=255#,10224000          
-  JOIN=322#,SPLT=323#,IDLE=324#,SINT=325#,EEXI=326#,DEXI=327#,SCNI=33O#,10225000          
+  JOIN=322#,SPLT=323#,IDLE=324#,SINT=325#,EEXI=326#,DEXI=327#,SCNI=330#,10225000          
   SCNO=331#,WHOI=334#,HEYU=335#,NTGD=385#,OCRX=389#,LOG2=395#,IRWL=429#,10226000          
   PCWL=430#,MVST=431#,STAG=436#,RTAG=437#,RSUP=438#,RSDN=439#,RPRR=440#,10227000          
   SPRR=441#,RDLK=442#,CBON=443#,LODT=444#,LLLU=445#,SRCH=446#,USND=464#,10228000          
@@ -834,7 +834,7 @@ DEFINE PROCD = 6#                                                       11042000
  DEFINE  SIZEKEY     =15#    % KEY FOR SIZE   ALGORITHM/PROPERTY        11049100          
         ,LOCKKEY     =16#    % KEY FOR LOCKED ALGORITHM/PROPERTY        11049200          
         ,BUSYKEY     =17#    % KEY FOR BUSY   ALGORITHM/PROPERTY        11049300          
-        ,BUZZKEY    =16#    % KEY FOR BUZZ ALGORITHM                    11049330          
+        ,BUZZKEY    =18#    % KEY FOR BUZZ ALGORITHM                    11049330          
         ,BUZZCONTROLKEY=20# %                                           11049360          
         ,UNLOCKKEY     =21# % KEY FOR UNLOCK ALGORITHM/PROPERTY         11049400          
         ;                                                               11049450          
@@ -927,7 +927,7 @@ COMMENT * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 20000000
                      VALUE FCR,LST,V,SEG,C,L     ;                      20024000          
     BEGIN LABEL B, C, T, P, L;                                          20025000          
          DI~BUF; DS~16 LIT" "; SI~FCR; DS~9 WDS; DS~8 LIT" "; BUF~DI;   20026000          
-         DS~WDS; DS~6 LIT" ";                                           20027000          
+         DS~WDS; DS~8 LIT" ";                                           20027000          
          V(DI~DI-6; SI~LOC SEG; DS~3 DEC; DS~LIT":"; DS~4 DEC;          20028000          
               DS~LIT":"; DS~DEC);                                       20029000          
          DI~BUF; DI~DI-2; CI~CI+LST; GO B; GO B; GO C; GO P; GO T;      20030000          
@@ -1397,7 +1397,7 @@ BACK:                                                                   31032100
               BEGIN                                                     31108000          
                    IF LISTOG.[46:1] THEN DATIME; % FIRST LINE           31109000          
                    EDITLINE(LCR-9,IF LISTING THEN 6 ELSE LASTUSED,1,    31110000          
-                        SEGNO,L DIV 6,GTI1+L MOD 6, LBUFF);             31111000          
+                        SEGNO,L DIV 6,GTI1~L MOD 6, LBUFF);             31111000          
                    WRITELBUFF;                                          31112000          
               END LISTING;                                              31113000          
               IF LISTING THEN GO BACK;                                  31113100          
@@ -1411,7 +1411,7 @@ BACK:                                                                   31032100
     BEGIN                                                               31120000          
          INTEGER DAY,MO,DA,YR,HR,MN;                                    31121000          
          LABEL OWT;                                                     31122000          
-         FORMAT DT(X25,"B 6 5 0 0   E S P 0 L   C 0 M P I L A T I 0 N,",31123000          
+         FORMAT DT(X25,"B 6 5 0 0   E S P O L   C O M P I L A T I O N,",31123000          
                    A8,"DAY, ",2(I2,"/"),I2,", ",A2,":"A2" H.");         31124000          
          DA~(((DAY~TIME(0)).[30:6]|10)+DAY.[36:6])|10+DAY.[42:6];       31125000          
          YR~HR+DAY.[18:6]|10+DAY.[24:6];                                31126000          
@@ -7246,7 +7246,7 @@ ROUND:        IF STEPI ! UNKNOWNID THEN FLAG(739);                      70659000
               BEGIN T ~ T + BOOPROCID; STEPIT; GO TO SIMPLENV END;      70694000          
               IF PJ = ARRAYV THEN                                       70695000          
               BEGIN                                                     70696000          
-                   IF T ~ T ~ BOOARRAYID = PCID THEN FLAG(741);         70697000          
+                   IF T ~ T + BOOARRAYID = PCID THEN FLAG(741);         70697000          
                    STEPIT;                                              70698000          
                    GO TO ARRAI                                          70699000          
               END;                                                      70700000          
