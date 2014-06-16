@@ -498,7 +498,7 @@ INTEGER  NEXTCHAR,      % NEXT AVAILABLE CHAR IN ADDL                   10160000
                         % BY A GIVEN CALL ON TEXT.                      10166000          
 BOOLEAN  BADSTUFF;      % ALPHA LONGER THAN 2047 CHARACTERS (TOTAL)     10167000          
          COMMENT        DEFINES FOR PARAMETERS TO TEXT                  10168000          
-                        DEFINFV                                        ;10169000          
+                        DEFINEV                                        ;10169000          
  DEFINE  FIELDEXPA =    DEFINEV + 1#,                                   10170000          
          LAYEXPA   =    FIELDEXPA  #,                                   10171000          
          FIELDEXPB =    DEFINEV + 2#,                                   10172000          
@@ -1227,8 +1227,8 @@ COMMENT  THE NEXT SECTION CONTAINS THE SCANNER.  IT IS COMPOSED OF THREE30003000
     THE TAPE FILE.  HOWEVER, SOME CHUNKS ARE TEXTS FROM A DEEINE: THESE 30008000          
     COME, A WORD AT A TIME, FROM ADDL.  READACARD IS IN CHARGE OF       30009000          
     FINDING THE NEXT CHUNK:  IN FACT, VIRTUALLY ALL THE SOURCE-LANGUAGE 30010000          
-    MANAGEMFNT IS HANDLED BY READACARD, INCLUDING NORMAL LISTING,       30011000          
-    VOIDING, SEQUEWCE DIDDLING, ETC., UNDER CONTROL OF SCAN AND TABLE.  30012000          
+    MANAGEMENT IS HANDLED BY READACARD, INCLUDING NORMAL LISTING,       30011000          
+    VOIDING, SEQUENCE DIDDLING, ETC., UNDER CONTROL OF SCAN AND TABLE.  30012000          
          SCAN IS RESPONSIBLE FOR GETTING AN ITEM FROM THE SOURCE AS     30013000          
     PRESENTED BY READACARD: AN ITEM MAY BE 1) A SPECIAL CHARACTER, 2) A 30014000          
     NUMBER, OR 3) AN IDENTIFIER.  HOWEVER, SCAN-S LIFE IS COMPLICATED BY30015000          
@@ -1265,7 +1265,7 @@ COMMENT  THE NEXT SECTION CONTAINS THE SCANNER.  IT IS COMPOSED OF THREE30003000
          LINK :    FOR IDENTIFIERS, THE INFO INDEX OF ITS ENTRY.        30045000          
          ELBAT WORDS COME FROM DIFFERENT PLACES, DEPENDING ON THE KIND  30046000          
     OF ITEM.  FOR NUMBERS, THEY ARE BUILT BY TABLE.  FOR SPECIAL        30047000          
-    CHARACTERS, THEY COME FROM AN ARRAY CALLED "SPECIAL"* WHICH IS      30048000          
+    CHARACTERS, THEY COME FROM AN ARRAY CALLED "SPECIAL", WHICH IS      30048000          
     INDEXED BY THE CHARACTER ITSELF.  NOTE THAT THIS WORD IS GOTTEN FROM30049000          
     SPECIAL BY SCAN, AND IS LEFT IN SPEC:  ALSO NOTE THAT SOME SPECIAL  30050000          
     CHARACTERS--LIKE ., :, $--REQUIRE SPECIAL CONSIDERATION.  FOR THESE 30051000          
@@ -1414,7 +1414,7 @@ BACK:                                                                   31032100
          FORMAT DT(X25,"B 6 5 0 0   E S P O L   C O M P I L A T I O N,",31123000          
                    A8,"DAY, ",2(I2,"/"),I2,", ",A2,":"A2" H.");         31124000          
          DA~(((DAY~TIME(0)).[30:6]|10)+DAY.[36:6])|10+DAY.[42:6];       31125000          
-         YR~HR+DAY.[18:6]|10+DAY.[24:6];                                31126000          
+         YR~HR~DAY.[18:6]|10+DAY.[24:6];                                31126000          
          FOR DAY~31,REAL(YR MOD 4=0)+28,31,30,31,30,31,31,30,31,30 DO   31127000          
               IF DA{DAY THEN GO OWT ELSE                                31128000          
               BEGIN MO~MO+1; DA~DA-DAY END;                             31129000          
@@ -1634,7 +1634,7 @@ BOOLEAN FIELDING;  %KEEPS TABLE FROM STUTTERING IMPROPERLY.             31145200
                          DOUBLE(THI,TLO,TEN[MIN(TCOUNT-N,16)],0,|,      31314000          
                                         ~,THI,TLO);                     31315000          
                          DOUBLE(THI,TLO,NHI,NLO,+,~,THI,TLO)            31316000          
-                                      END OP ELSE                       31317000          
+                                      END DP ELSE                       31317000          
                           THI~THI|TEN[TCOUNT]+NHI;                      31318000          
                           COMMENT THE NUMBER IS IN (THI,TLO) AS AN      31319000          
                              INTEGER (MAYBE NORMALIZED, BUT WITH ZEROES 31320000          
@@ -1719,14 +1719,14 @@ AWAY:                                                                   31365900
          BEGIN BUMPNCR; UNHOOK; GO ON END;                              31376000          
     END;                                                                31377000          
  COMMENT AND THEN THERE ARE THESE GUYS, AGAIN;                          31378000          
- PROCEDURE STEPIT; ELCLASS~TABLE(I~I+I);                                31379000          
+ PROCEDURE STEPIT; ELCLASS~TABLE(I~I+1);                                31379000          
  INTEGER PROCEDURE STEPI; STEPI~ELCLASS~TABLE(I~I+1);                   31380000          
  PROCEDURE CONVERTINTO(HI,LO); REAL HI,LO;                              31381000          
               COMMENT CONVERTS THE NUMBER IN ACCUM INTO INTERNAL FORM,  31382000          
                       IN H AND L.  IT TRIES TO KEEP THINGS INTEGER;     31383000          
     BEGIN REAL J,K;                                                     31384000          
          HI~INPUTCONVERT(ACCUM[1],4,N~COUNT.[45:3]);                    31385000          
-         WHILE K<COUNT DO                                               31386000          
+         WHILE N<COUNT DO                                               31386000          
          BEGIN IF (J~(K~INPUTCONVERT(ACCUM[N.[42:3]+1],N.[45:3]+4,8))   31387000          
                       +HI|100000000){549755813887 THEN HI~J ELSE        31388000          
                    DOUBLE(HI,LO,@8,0,|,K,0,+,~,HI,LO);                  31389000          
@@ -1984,7 +1984,7 @@ INN:               COMMENT NOW WE FUDGE THE BIT COUNTER, SO THAT THE NEW31616000
                    COMMENT WE MAY NOW CHECK FOR 48 BITS;                31625000          
          IF COUNT < 48 THEN GO ROUND;                                   31626000          
                    COMMENT WE DIDNT FIND THE TERMINATOR OF THE STRING,  31627000          
-                        BUT WF HAVE BITTEN OFF A COMPLETE MOUTHFUL OF   31628000          
+                        BUT WE HAVE BITTEN OFF A COMPLETE MOUTHFUL OF   31628000          
                         STUFF.  WE RETURN TRUE TO THE GUY WHO IS GOING  31629000          
                         TO SWALLOW;                                     31630000          
          GOBBLE ~ TRUE;                                                 31631000          
@@ -2076,7 +2076,7 @@ COMMENT * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 40000000
          MOVE8BITS(EDOC[(GT1~L DIV 6).[35:5],GT1.[40:8]],GTI1~L MOD 6,L)40034000          
          ; GET ~ L.[40:8]                                               40035000          
     END GET;                                                            40036000          
- COMMENT PUTSYL PUTS A SYLLABLE INTO EDOC, THE OBJECT COOE ARRAY;       40037000          
+ COMMENT PUTSYL PUTS A SYLLABLE INTO EDOC, THE OBJECT CODE ARRAY;       40037000          
  PROCEDURE PUTSYL(SYL); VALUE SYL; INTEGER SYL;                         40038000          
     BEGIN                                                               40039000          
          REAL GT1;%FOR WALLY                                            40040000          
@@ -2491,7 +2491,7 @@ COMMENT * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 44000000
                                 REAL ENTRY;                             44153000          
          BEGIN                                                          44154000          
 COMMENT PUTADDL INSERTS ENTRY AT LINK IN ADDL AND THEN UPDATES LINK BY  44155000          
-        ONE:                                                            44156000          
+        ONE;                                                            44156000          
            ADDL[LINK.LINKR,LINK.LINKC] ~ ENTRY;                         44157000          
            LINK ~ LINK+1                                                44158000          
          END PUTADDL;                                                   44159000          
@@ -3406,7 +3406,7 @@ PROCEDURE MONITER (ELBW);                                               57000000
     VALUE ELBW;                                                         57001000          
     REAL ELBW;                                                          57002000          
     BEGIN     COMMENT   MONITER SETS UP PARAMETERS AND ISSUES A CALL ON 57003000          
-              A TYPED PROCEDURE WHOSE ADDRESS 1S KEPT IN THE LINK FIELD 57004000          
+              A TYPED PROCEDURE WHOSE ADDRESS IS KEPT IN THE LINK FIELD 57004000          
               OF THE INFO WORD.  THE FIRST PARAMETER IS THE FIRST       57005000          
               7 (5500) OR FEWER CHARACTERS OF THE IDENTIFIER AND THE    57006000          
               SECOND IS THE VALUE BEING ASSIGNED TO THE VARIABLE AND    57007000          
@@ -3759,7 +3759,7 @@ PROCEDURE DOTTER (DIALS);                                               57235000
 INTEGER PROCEDURE DOTIT;                                                57251000          
     BEGIN     COMMENT   WHEN DOTIT RETURNS A ZERO, CODE WILL HAVE BEEN  57252000          
               EMITTED TO INITIALIZE THE STACK TO THE PROPER VARIABLES   57253000          
-              SO THAT THE CALLER MAY EMIT A DINS 0R DISO AT SOME LATER  57254000          
+              SO THAT THE CALLER MAY EMIT A DINS OR DISO AT SOME LATER  57254000          
               TIME.  WHEN DOTIT IS NON-ZERO IT CONTAINS THE STARTING BIT57255000          
               36:6 AND NUMBER OF BITS 42:6.                             57256000          
                                                                         57257000          
@@ -3891,7 +3891,7 @@ COMMENT * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 60000000
                         IF TABLE(I+1) ! LABELID THEN                    60022000          
                         BEGIN I ~ I + 1;                                60022100          
                              IF FUTZALABEL THEN I ~ I - 1 ELSE          60022200          
-                             BEGIN E ~ ELBAT[I]; I~1-1; GO INN END;     60022300          
+                             BEGIN E ~ ELBAT[I]; I~I-1; GO INN END;     60022300          
                         END ELSE                                        60022400          
                         IF (E ~ ELBAT[I+1]).LINK } NINFOO THEN          60023000          
  INN:                                                                   60023100          
@@ -4477,7 +4477,7 @@ REAL PROCEDURE PROCALL(FROM, WISH); VALUE FROM, WISH;                   60486000
 COMMENT PROCALL COMPILES CODE FOR ALL PROCEDURE STATEMENTS AND FUNCTION 60487000          
                 CALLS. THE PARAMETER...FROM....TELLS WHO CALLED. IF     60488000          
                 STMT CALLED FROM IS FALSE. PROCALL ALSO HANDLES FUNCTION60489000          
-                NAME ASSIGNMEMT OPERATIONS;                             60490000          
+                NAME ASSIGNMENT OPERATIONS;                             60490000          
 COMMENT WISH TELLS WHAT TYPE OF EXPRESSION WE ARE HOPING FOR;           60490100          
           BEGIN                                                         60491000          
            INTEGER ADDLADRES,T1,T2,T3;                                  60492000          
@@ -4624,7 +4624,7 @@ COMMENT ACTUALPARAPART IS RESPONSIBLE FOR CONSTRUCTING ALL CALLS ON PAR-60538000
                   FBIT TELLS IF THE PROCEDURE BEING CALLED IS FORMAL OR 60542000          
                        NOT                                              60543000          
                  AD IS FIRST ADDL WORD FOR PROCEDURE OR QUEUE           60544000          
-                  FROM TRUE IF CALL FROM PROCALL.FALSE IF FROM ENTRYEXP 60544100          
+                  FROM TRUE IF CALL FROM PROCALL,FALSE IF FROM ENTRYEXP 60544100          
                  INDEX IS THE INDEX INTO ADDL (-VE IF FROM STOREITEM)   60545000          
                  ;                                                      60545500          
           BEGIN                                                         60546000          
@@ -4714,13 +4714,13 @@ COMMENT ***      ADDL WORDS OF PROCEDURE CONTAIN ELBAT WORDS FOR FORMAL 60596000
               ;                                                         60599000          
 COMMENT ***     WHEN NOT FORMAL OR VARIABLE PARAMETER OBTAIN VBIT,SCLASS60600000          
                 FROM THE ADDL ENTRY FOR THE PROCEDURE. SCLASS MAY BE    60601000          
-                MODIEIED TO ELIMINATE DISTINCTION BETWEEN REAL AND INTE-60602000          
+                MODIFIED TO ELIMINATE DISTINCTION BETWEEN REAL AND INTE-60602000          
                 GER. NOTE DEPENDENCE UPON CLASS RELATIVITIES;           60603000          
                                                                         60604000          
                  IF NOT FROM AND NOT STOREITEMFLAG THEN                 60604300          
                     BEGIN EMIT(DUPL);EMITNUM(T7.QINDEXF);EMIT(INDX) END;60604500          
 COMMENT             ACTUALPARAPART IS CALLED FROM ENTRYEXP WITH AN      60604800          
-                    INDEXABLE DD IN THE TOP OF THE STACK, ALL ACTUAL    60604810          
+                    INDEXABLE DD IN THE TOP OF THE STACK. ALL ACTUAL    60604810          
                     PARAMETERS MUST BE PASSED TO THE SPACE REFERENCED BY60604820          
                     THIS DD (SEE BELOW). AT THIS POINT - I.E. AT THE    60604830          
                     BEGINNING OF PROCESSING FOR ALL PARAMETERS, AN      60604840          
@@ -4891,7 +4891,7 @@ COMMENT PROCEDURE;                                                      60702000
 COMMENT ***INTRINSIC PROCEDURE AS ACTUAL PARAMETER- FIX UP LATER;       60707000          
            IF T1 ~ GIT(WHOLE~TAKE(WHOLE).LINK).NOPAR =0 THEN            60708000          
               BEGIN                                                     60709000          
-COMMENT       THE PROCEOURE BEING PASSED HAS ZERO PARAMETERS;           60710000          
+COMMENT       THE PROCEDURE BEING PASSED HAS ZERO PARAMETERS;           60710000          
                IF TB1 THEN GO TO NAMCPAR; COMMENT PROCID OR DPPROCID;   60711000          
                IF NOT FBIT AND NOT VP THEN                              60712000          
                 BEGIN                                                   60713000          
@@ -5395,7 +5395,7 @@ COMMENT                SOMETHING IS WRONG. NOMINALLY AN ILLEGAL PARAMETR60967000
                        THEN IF MISSINGACTUAL                            60970000          
                           THEN                                          60971000          
                           BEGIN COMMENT(MCS 5);                         60972000          
-COMMENT                   THE ALGORITHM CALLS FOP A REFERENCE PARAMETER.60973000          
+COMMENT                   THE ALGORITHM CALLS FOR A REFERENCE PARAMETER.60973000          
                           THERE IS NO CORRESPONDING ACTUAL PARAMETER.   60974000          
                           THIS IS NOT AN ERROR HOWEVER WE PASS ZERO     60975000          
                           WHICH WILL CAUSE A RUN-TIME ERROR IF          60976000          
@@ -6331,7 +6331,7 @@ COMMENT * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *   70000000
                    CONTEXT ~ 2;         % UNFUTZ THE SCANNER            70027000          
                    ELCLASS ~ TABLE(I~I+2);  % MEANS STEPIT TWICE.       70028000          
                    JUMPCHKX;                                            70028100          
-                   EXPRESSION(B);      % AND DD THE THING.              70029000          
+                   EXPRESSION(B);      % AND DO THE THING.              70029000          
                    I ~ I - 1;                                           70029010          
                    IF CURRENT = 0 THEN                                  70029100          
                    BEGIN                                                70029200          
@@ -6700,7 +6700,7 @@ INTEGER PROCEDURE TEXT (FROM, FINAL);                                   70335000
     BEGIN     COMMENT   TEXT HANDLES THE PLACING OF A SEQUENCE OF VALID 70338000          
               SYMBOLS IN ADDL.  THE PARAMETER FROM DETERMINES HOW THE   70339000          
               TRANSFER IS TERMINATED AND THE TERMINATING SYMBOL THAT IS 70340000          
-              PLACED IN ADDL.  CURRENTLY RECOGNIZED FHOM(S) ARE:        70341000          
+              PLACED IN ADDL.  CURRENTLY RECOGNIZED FROM(S) ARE:        70341000          
                    DEFINEV = <TEXT> #,                                  70342000          
                    FIELDEXPA OR LAYEXPA = <ARITHMETIC EXPRESSION> :     70343000          
                    FIELDEXPB = <ARITHMETIC EXPRESSION> <, OR SEMICOLON> 70344000          
@@ -7193,7 +7193,7 @@ COMMENT  THE FOLLOWING APPLIES TO CODE AT 70616500-700;                 70605000
          PARAMETERS, AND SVAES THAT MANY SPOTS IN ADDL.                 70647000          
               HE LEAVES FUNNY THINGS IN THE ELBAT WORDS IN INFO:        70648000          
          THE LINK FIELD POINTS TO THE ELBAT WORD FOR THE NEXT PARAM, AND70649000          
-         THR LINK-FIELD-VALUE, AS APPROPRIATE, IS IN THE ADDRESS FIELD. 70650000          
+         THE LINK-FIELD-VALUE, AS APPROPRIATE, IS IN THE ADDRESS FIELD. 70650000          
          THE ADDRESS FIELD IS OTHERWISE MEANINGLESS;                    70651000          
     BEGIN                                                               70652000          
          INTEGER MARK,PJ,T;                                             70653000          
@@ -8444,7 +8444,7 @@ COMMENT  WE MUST HAVE AN EVENT DESIGNATOR OF ONE KIND OR ANOTHER. AN IRW79031000
          IF ELCLASS!COMMA THEN GO  QUIT ELSE STEPIT;                    79033000          
          EMITBUZEVENT;                                                  79033500          
          EMIT(ZERO);                                                    79033650          
-COMMENT  IN TOS AT THIS POINT-POINTER TO EVENT (IRW OR INDEXED DO),FIRST79033700          
+COMMENT  IN TOS AT THIS POINT-POINTER TO EVENT (IRW OR INDEXED DD),FIRST79033700          
          WORD OF EVENT (WITH DOUBLE TAG), ZERO;                         79033750          
          INFO[LASTINFO.LINKR,LASTINFO.LINKC].ADDRESS~ INTADDR~INSERTPCW;79034000          
 COMMENT  A PCW, REFERENCING THE NON-EXECUTABLE CODE, NOW FOLLOWS THE    79035000          
@@ -8484,7 +8484,7 @@ COMMENT * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 80000000
          ROUTINE.  BECAUSE OF THE POSSIBILITY OF MULTIPLE DECLARATORS IN80007000          
          A DECLARATION(I.E.,"SAVE OWN REAL ARRAY"), WE USE A WIERD      80008000          
          ENCODING SCHEME TO REMEMBER THE (VALID) ONES WE HAVE SEEN.     80009000          
-         THE BOOLEAN, SAVEBIT. IS TRUE IF WE HAVE SEEN "SAVE".  THE     80010000          
+         THE BOOLEAN, SAVEBIT, IS TRUE IF WE HAVE SEEN "SAVE".  THE     80010000          
          INTEGER, SEEN, REMEMBERS "OWN","QUEUE","EVENT", AND <TYPE>:    80011000          
          FOR <TYPE>, TYP REMEMBERS WHICH (OF "REAL","INTEGER",ETC).     80012000          
          AS "OWN" IS INDEPENDENT, IT HAS A BIT BY ITSELF, THE "1" BIT.  80013000          
@@ -9457,7 +9457,7 @@ BEGIN LABEL NEXTPROCEDURE;                                              90002200
            OCT0077737000;                                               90044000          
          TEN[0]~1.0; COMMENT STARTING TO INITIALIZE THE POWERS OF TEN;  90045000          
          FOR I~1 STEP 1 UNTIL 68 DO                                     90046000          
-         DOUBLE(TEN[I-1],ELBAT[I-1],10.0,0,|,~,TEN[1],ELBAT[I]);        90047000          
+         DOUBLE(TEN[I-1],ELBAT[I-1],10.0,0,|,~,TEN[I],ELBAT[I]);        90047000          
          FOR I~16 STEP 1 UNTIL 68 DO                                    90048000          
          IF BOOLEAN(ELBAT[I].[9:1])THEN TEN[I].[9:39]~TEN[I].[9:39]+1;  90049000          
          FILL OPS [*] WITH                                              90050000          
@@ -9476,7 +9476,7 @@ BEGIN LABEL NEXTPROCEDURE;                                              90002200
       0,     0,     0,     0,     0,     0,     0,"NAMC","ADD ","SUBT", 90063000          
  "MULT","DIVD","IDIV","RDIV","NTIA","NTGR","LESS","GREQ","GRTR","LSEQ", 90064000          
  "EQUL","NEQL","CHSN","MULX","LAND","LOR ","LNOT","LEQV","SAME","VARI", 90065000          
- "BSFT","DBST","FLTR","DFTR","ISOL","DISO","INSR","DINS","BRST","DBRS", 90066000          
+ "BSET","DBST","FLTR","DFTR","ISOL","DISO","INSR","DINS","BRST","DBRS", 90066000          
  "BRFL","BRTR","BRUN","EXIT","STBR","NXLN","INDX","RETN","DBFL","DBTR", 90067000          
  "DBUN","ENTR","EVAL","NXLV","MKST","STFF","ZERO","ONE ","LT8 ","LT16", 90068000          
  "PUSH","DLET","EXCH","DUPL","STOD","STON","OVRD","OVRN",     0,"LOAD", 90069000          
@@ -9508,7 +9508,7 @@ BEGIN LABEL NEXTPROCEDURE;                                              90002200
  "RPRR","SPRR","RDLK","CBON","LODT","LLLU","SRCH",     0,     0,     0, 90095000          
       0,     0,     0,     0,     0,     0,     0,     0,     0,     0, 90096000          
       0,     0,     0,     0,"USND","UABD","TWFD","TWTD","SWFD","SWTD", 90097000          
-      0,"TRNS","USMU","UABU","TWFU","TWTU","SWFU","SWTU",     0,     0, 90098000          
+      0,"TRNS","USNU","UABU","TWFU","TWTU","SWFU","SWTU",     0,     0, 90098000          
       0,     0,     0,     0,     0,     0,     0,     0,     0,     0, 90099000          
       0,     0,     0,     0,     0,     0,"SLSD","SGED","SGTD","SLED", 90100000          
  "SEQD","SNED",     0,     0,"SLSU","SGEU","SGTU","SLEU","SEQU","SNEU", 90101000          
@@ -9777,7 +9777,7 @@ COMMENT *** SOME OF THE PARAMETER DESCRIPTORS ARE SUSPECT. THIS TABLE   90204000
               IF GT2 ~ GT1.ALFACNT ! 0 THEN                             91003000          
               PUT(GT1 & STACKHEAD[SCRAM ~ GT2 MOD 125][3:33:15],        91004000          
                    STACKHEAD[SCRAM] ~ NEXTINFO);                        91005000          
-         COMMENT AND PUT QUESTION MARKS IN OPS FOR UNDEFINED OPERAT0RS; 91006000          
+         COMMENT AND PUT QUESTION MARKS IN OPS FOR UNDEFINED OPERATORS; 91006000          
          FOR GT1~0 STEP 1 UNTIL 767 DO IF OPS[GT1]=0 THEN OPS[GT1]~     91007000          
                                                      3195660;           91008000          
          OPS[768] ~ "LINK";                                             91009000          
@@ -10123,7 +10123,7 @@ COMMENT * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 93000000
                            (I MOD 6) [12:9:3] & C[28:6:1] &             93163000          
                            1[33:47:1];                                  93164000          
                         T ~ 7                                           93165000          
-                   END PCW CASE                                         93166000          
+                   END PCW CASE;                                        93166000140608PK  
               END CASES OF PDPRT ENTRIES;                               93167000          
               TAG[MOM.LINKR,MOM.LINKC] ~ T                              93168000          
          END ANALYSIS OF PDPRT ENTRIES;                                 93169000          
@@ -10170,3 +10170,4 @@ COMMENT * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 93000000
          WRITE(NEWTAPE,10,SEPA[*]);                                     94015000          
     END;                                                                94016000          
 END OF ESPOL COMPILER. . . . . .                                        98888888          
+                                                                        99999980          
