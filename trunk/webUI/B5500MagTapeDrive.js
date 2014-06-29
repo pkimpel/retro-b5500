@@ -31,7 +31,7 @@
 function B5500MagTapeDrive(mnemonic, unitIndex, designate, statusChange, signal) {
     /* Constructor for the MagTapeDrive object */
     var that = this;
-    var x = ((mnemonic.charCodeAt(2) - "A".charCodeAt(0) + 1)*30);
+    var x = ((mnemonic.charCodeAt(2) - "A".charCodeAt(0))*30);
 
     this.mnemonic = mnemonic;           // Unit mnemonic
     this.unitIndex = unitIndex;         // Ready-mask bit number
@@ -39,7 +39,7 @@ function B5500MagTapeDrive(mnemonic, unitIndex, designate, statusChange, signal)
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (not used here)
 
-    this.timer = null;                  // setCallback() token
+    this.timer = 0;                     // setCallback() token
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
 
     this.clear();
@@ -51,7 +51,7 @@ function B5500MagTapeDrive(mnemonic, unitIndex, designate, statusChange, signal)
     }
     this.doc = null;
     this.window = window.open("../webUI/B5500MagTapeDrive.html", mnemonic,
-        "scrollbars=no,resizable,width=560,height=120,left="+x+",top="+x);
+        "scrollbars=no,resizable,width=560,height=120,left=280,top="+x);
     this.window.addEventListener("load", function windowLoad() {
         that.tapeDriveOnLoad();
     }, false);
@@ -75,6 +75,8 @@ B5500MagTapeDrive.prototype.startStopTime = 0.0045 + 0.0042;
                                         // tape start+stop time [sec]
 B5500MagTapeDrive.prototype.rewindSpeed = 320;
                                         // rewind speed [inches/sec]
+B5500MagTapeDrive.prototype.tapeSpeed = B5500MagTapeDrive.prototype.charsPerSec/B5500MagTapeDrive.prototype.density;
+                                        // tape motion speed [inches/sec]
 B5500MagTapeDrive.prototype.maxTapeLength = 2410*12;
                                         // max tape length on reel [inches]
 B5500MagTapeDrive.prototype.postEOTLength = 20*12;
@@ -83,9 +85,9 @@ B5500MagTapeDrive.prototype.maxBlankFrames = 9*12*B5500MagTapeDrive.prototype.de
                                         // max blank tape length, 9 feet [frames]
 B5500MagTapeDrive.prototype.bcdTapeMark = 0x8F;
                                         // .bcd image EOF code
-B5500MagTapeDrive.prototype.reelCircumference = 10*3.14159;
+B5500MagTapeDrive.prototype.reelCircumference = 10*Math.PI;
                                         // max circumference of tape [inches]
-B5500MagTapeDrive.prototype.maxSpinAngle = 37;
+B5500MagTapeDrive.prototype.maxSpinAngle = 33;
                                         // max angle to rotate reel image [degrees]
 
 B5500MagTapeDrive.prototype.bcdXlateInOdd = [   // Translate odd parity BIC to ASCII
@@ -153,7 +155,7 @@ B5500MagTapeDrive.prototype.clear = function clear() {
     this.imgWritten = false;            // tape image has been modified (implies writable)
 
     this.tapeState = this.tapeUnloaded; // tape drive state
-    this.angle = 0;                     // current rotation angle of reel image [degrees]
+    this.reelAngle = 0;                 // current rotation angle of reel image [degrees]
     this.tapeInches = 0;                // number of inches currently up-tape
     this.writeRing = false;             // true if write ring is present and tape is writable
     this.atBOT = true;                  // true if tape at BOT
@@ -197,19 +199,19 @@ B5500MagTapeDrive.prototype.removeClass = function removeClass(e, name) {
 /**************************************/
 B5500MagTapeDrive.prototype.spinReel = function spinReel(inches) {
     /* Rotates the reel image icon an appropriate amount based on the number of
-    inches of tape movement. The rotation is limited to 33 degrees in either
-    direction so that movement remains apparent to the viewer */
+    inches of tape movement. The rotation is limited to this.maxSpinAngle degrees
+    in either direction so that movement remains apparent to the viewer */
     var circumference = this.reelCircumference*(1 - this.tapeInches/this.maxTapeLength/2);
-    var angle = inches/circumference*360;
+    var degrees = inches/circumference*360;
 
-    if (angle >= this.maxSpinAngle) {
-        angle = this.maxSpinAngle;
-    } else if (angle < -this.maxSpinAngle) {
-        angle = -this.maxSpinAngle;
+    if (degrees >= this.maxSpinAngle) {
+        degrees = this.maxSpinAngle;
+    } else if (degrees < -this.maxSpinAngle) {
+        degrees = -this.maxSpinAngle;
     }
 
-    this.angle = (this.angle + angle)%360;
-    this.reelIcon.style.transform = "rotate(" + this.angle.toFixed(0) + "deg)";
+    this.reelAngle = (this.reelAngle + degrees)%360;
+    this.reelIcon.style.transform = "rotate(" + this.reelAngle.toFixed(0) + "deg)";
 };
 
 /**************************************/
@@ -273,7 +275,7 @@ B5500MagTapeDrive.prototype.setTapeUnloaded = function setTapeUnloaded() {
         this.reelIcon.style.visibility = "hidden";
         if (this.timer) {
             clearCallback(this.timer);
-            this.timer = null;
+            this.timer = 0;
         }
     }
 };
@@ -628,25 +630,24 @@ B5500MagTapeDrive.prototype.unloadTape = function unloadTape() {
         var text = doc.getElementById("TapeText");
         var x = 0;                      // image data index
 
-        while (text.firstChild) {
+        while (text.firstChild) {       // delete the please-wait message
             text.removeChild(text.firstChild);
         }
 
         c = image[x];
         do {
-            c &= 0x7F;
+            c &= 0x7F;                  // clear the start-of-block bit
             table = (mt.bcdXlateInEven[c] < 0xFF ? mt.bcdXlateInEven : mt.bcdXlateInOdd);
             bufIndex = 0;
             do {
-                if (bufIndex >= bufLength) {
+                if (bufIndex >= bufLength) { // ASCII block size exceeded
                     text.appendChild(doc.createTextNode(String.fromCharCode.apply(null, buf.subarray(0, bufIndex))));
                     bufIndex = 0;
                 }
-                if (c > 0) {
+                if (c > 0) {            // drop any unrecorded tape frames
                     buf[bufIndex++] = table[c];
                 }
-                x++;
-                if (x < imgLength) {
+                if (++x < imgLength) {
                     c = image[x];
                 } else {
                     break;
@@ -666,7 +667,7 @@ B5500MagTapeDrive.prototype.unloadTape = function unloadTape() {
     doc.write("<html><head></head><body><pre id=TapeText>Converting... please wait...</pre></body></html>");
     doc.close();
     doc.title = "B5500 " + this.mnemonic + " Unload Tape";
-    setCallback(unloadDriver, this, 20);       // give the message time to display
+    setCallback(this.mnemonic, this, 50, unloadDriver);         // give the message time to display
 };
 
 /**************************************/
@@ -675,11 +676,11 @@ B5500MagTapeDrive.prototype.tapeRewind = function tapeRewind(makeReady) {
     of time depending on how far up-tape we are. If makeReady is true [valid only when
     called from this.rewind()], then readies the unit again when the rewind is complete */
     var inches;
-    var lastStamp = new Date().getTime();
-    var updateInterval = 30;            // ms
+    var lastStamp = performance.now();
+    var updateInterval = 15;            // ms
 
     function rewindFinish() {
-        this.timer = null;
+        this.timer = 0;
         this.busy = false;
         this.removeClass(this.$$("MTRewindingLight"), "whiteLit");
         if (makeReady && this.tapeState == this.tapeRemote) {
@@ -689,7 +690,7 @@ B5500MagTapeDrive.prototype.tapeRewind = function tapeRewind(makeReady) {
     }
 
     function rewindDelay() {
-        var stamp = new Date().getTime();
+        var stamp = performance.now();
         var interval = stamp - lastStamp;
 
         if (interval <= 0) {
@@ -698,20 +699,20 @@ B5500MagTapeDrive.prototype.tapeRewind = function tapeRewind(makeReady) {
         if (this.tapeInches > 0) {
             inches = interval/1000*this.rewindSpeed;
             this.tapeInches -= inches;
+            lastStamp = stamp;
+            this.timer = setCallback(this.mnemonic, this, updateInterval, rewindDelay);
             this.spinReel(-inches);
             this.progressBar.value = this.imgMaxInches - this.tapeInches;
-            lastStamp = stamp;
-            this.timer = setCallback(rewindDelay, this, updateInterval);
         } else {
-            this.spinReel(6);
             this.setAtBOT(true);
-            this.timer = setCallback(rewindFinish, this, 2000);
+            this.timer = setCallback(this.mnemonic, this, 2000, rewindFinish);
+            this.spinReel(6);
         }
     }
 
     if (this.timer) {
         clearCallback(this.timer);
-        this.timer = null;
+        this.timer = 0;
     }
     if (this.tapeState != this.tapeUnloaded && !this.atBOT) {
         this.busy = true;
@@ -719,7 +720,7 @@ B5500MagTapeDrive.prototype.tapeRewind = function tapeRewind(makeReady) {
         this.statusChange(0);
         this.setAtEOT(false);
         this.addClass(this.$$("MTRewindingLight"), "whiteLit");
-        this.timer = setCallback(rewindDelay, this, 1000);
+        this.timer = setCallback(this.mnemonic, this, 1000, rewindDelay);
     }
 };
 
@@ -1178,11 +1179,12 @@ B5500MagTapeDrive.prototype.read = function read(finish, buffer, length, mode, c
         }
 
         this.buildErrorMask(residue);
-        this.timer = setCallback(function readDelay() {
-            this.busy = false;
-            finish(this.errorMask, count);
-        }, this, (imgCount/this.charsPerSec + this.startStopTime)*1000 +
-                  this.initiateStamp - new Date().getTime());
+        this.timer = setCallback(this.mnemonic, this,
+            (imgCount/this.charsPerSec + this.startStopTime)*1000 + this.initiateStamp - performance.now(),
+            function readDelay() {
+                this.busy = false;
+                finish(this.errorMask, count);
+        });
 
         this.spinReel(inches);
         if (this.tapeInches < this.imgMaxInches) {
@@ -1235,11 +1237,12 @@ B5500MagTapeDrive.prototype.space = function space(finish, length, control) {
         }
 
         this.buildErrorMask(0);
-        this.timer = setCallback(function readDelay() {
-            this.busy = false;
-            finish(this.errorMask, 0);
-        }, this, (imgCount/this.charsPerSec + this.startStopTime)*1000 +
-                  this.initiateStamp - new Date().getTime());
+        this.timer = setCallback(this.mnemonic, this,
+            (imgCount/this.charsPerSec + this.startStopTime)*1000 + this.initiateStamp - performance.now(),
+            function readDelay() {
+                this.busy = false;
+                finish(this.errorMask, 0);
+        });
 
         this.spinReel(inches);
         if (this.tapeInches < this.imgMaxInches) {
@@ -1287,11 +1290,12 @@ B5500MagTapeDrive.prototype.write = function write(finish, buffer, length, mode,
 
         this.imgWritten = true;
         this.buildErrorMask(residue);
-        this.timer = setCallback(function writeDelay() {
-            this.busy = false;
-            finish(this.errorMask, count);
-        }, this, (imgCount/this.charsPerSec + this.startStopTime)*1000 +
-                  this.initiateStamp - new Date().getTime());
+        this.timer = setCallback(this.mnemonic, this,
+            (imgCount/this.charsPerSec + this.startStopTime)*1000 + this.initiateStamp - performance.now(),
+            function writeDelay() {
+                this.busy = false;
+                finish(this.errorMask, count);
+        });
 
         this.spinReel(inches);
         if (this.tapeInches < this.imgMaxInches) {
@@ -1334,11 +1338,12 @@ B5500MagTapeDrive.prototype.erase = function erase(finish, length) {
 
         this.imgWritten = true;
         this.buildErrorMask(0);
-        this.timer = setCallback(function eraseDelay() {
-            this.busy = false;
-            finish(this.errorMask, 0);
-        }, this, (length/this.charsPerSec + this.startStopTime)*1000 +
-                  this.initiateStamp - new Date().getTime());
+        this.timer = setCallback(this.mnemonic, this,
+            (length/this.charsPerSec + this.startStopTime)*1000 + this.initiateStamp - performance.now(),
+            function eraseDelay() {
+                this.busy = false;
+                finish(this.errorMask, 0);
+        });
 
         this.spinReel(inches);
         if (this.tapeInches < this.imgMaxInches) {

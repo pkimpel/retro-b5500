@@ -5,7 +5,7 @@
 * Licensed under the MIT License,
 *       see http://www.opensource.org/licenses/mit-license.php
 ************************************************************************
-* B5500 Central Control module.
+* B5500 Emulator Central Control module.
 ************************************************************************
 * 2012-06-03  P.Kimpel
 *   Original version, from thin air.
@@ -53,15 +53,15 @@ function B5500CentralControl(global) {
     this.cardLoadSelect = 0;            // 0=> load from disk/drum; 1=> load from cards
 
     this.nextTimeStamp = 0;             // Next actual Date.getTime() for timer tick
-    this.timer = null;                  // Reference to the RTC setCallback id.
+    this.timer = 0;                     // RTC setCallback id.
 
     this.clear();                       // Create and initialize the Central Control state
 }
 
 /**************************************/
-    /* Global constants */
 
-B5500CentralControl.version = "0.19";
+/* Global constants */
+B5500CentralControl.version = "0.20";
 
 B5500CentralControl.memReadCycles = 2;          // assume 2 탎 memory read cycle time (the other option was 3 탎)
 B5500CentralControl.memWriteCycles = 4;         // assume 4 탎 memory write cycle time (the other option was 6 탎)
@@ -153,8 +153,8 @@ B5500CentralControl.unitSpecs = {
 /**************************************/
 B5500CentralControl.bindMethod = function bindMethod(f, context) {
     /* Returns a new function that binds the function "f" to the object "context".
-    Note that this is a constructor property function, NOT an instance method of
-    the CC object */
+    Note that this is a static constructor property function, NOT an instance
+    method of the CC object */
 
     return function bindMethodAnon() {f.apply(context, arguments)};
 };
@@ -166,7 +166,7 @@ B5500CentralControl.prototype.clear = function clear() {
 
     if (this.timer) {
         clearCallback(this.timer);
-        this.timer = null;
+        this.timer = 0;
     }
 
     this.IAR = 0;                       // Interrupt address register
@@ -212,17 +212,17 @@ B5500CentralControl.prototype.clear = function clear() {
     this.unitBusyLatch = 0;             // Peripheral unit latched status (reset by console UI)
     this.unitBusyMask = 0;              // Peripheral unit busy-status bitmask
 
-    if (this.PA) {
-        this.PA.clear();
-    }
-    if (this.PB) {
-        this.PB.clear();
-    }
     this.P1 = (this.PB1L ? this.PB : this.PA);
     this.P2 = (this.PB1L ? this.PA : this.PB);
     if (!this.P2) {
         this.P2BF = 1;                  // mark non-existent P2 as busy
         this.ccLatch |= 0x10;
+    }
+    if (this.PA) {
+        this.PA.clear();
+    }
+    if (this.PB) {
+        this.PB.clear();
     }
 };
 
@@ -562,11 +562,9 @@ B5500CentralControl.prototype.clearInterrupt = function clearInterrupt() {
 /**************************************/
 B5500CentralControl.prototype.tock = function tock() {
     /* Handles the 1/60th second real-time clock tick */
-    var interval;                       // milliseconds to next tick
-    var thisTime = new Date().getTime();
 
     if (this.TM < 63) {
-        this.TM++;
+        ++this.TM;
     } else {
         this.TM = 0;
         if (!this.inhCCI03F) {
@@ -574,14 +572,13 @@ B5500CentralControl.prototype.tock = function tock() {
             this.signalInterrupt();
         }
     }
-    interval = (this.nextTimeStamp += B5500CentralControl.rtcTick) - thisTime;
-    this.timer = setCallback(tock, this, interval);
+    this.nextTimeStamp += B5500CentralControl.rtcTick;
+    this.timer = setCallback(this.mnemonic, this, this.nextTimeStamp - performance.now(), this.tock);
 };
 
 /**************************************/
 B5500CentralControl.prototype.readTimer = function readTimer() {
     /* Returns the value of the 1/60th second timer */
-    var thisTime = new Date().getTime();
 
     return this.CCI03F*64 + this.TM;
 };
@@ -599,7 +596,7 @@ B5500CentralControl.prototype.haltP2 = function haltP2() {
         if (this.P2.scheduler) {
             clearCallback(this.P2.scheduler);
         }
-        this.P2.scheduler = setCallback(this.P2.schedule, this.P2, 0);
+        this.P2.scheduler = setCallback(this.P2.mnemonic, this.P2, 0, this.P2.schedule);
     }
 };
 
@@ -726,7 +723,7 @@ B5500CentralControl.prototype.halt = function halt() {
 
     if (this.timer) {
         clearCallback(this.timer);
-        this.timer = null;
+        this.timer = 0;
     }
 
     if (this.PA && this.PA.busy) {
@@ -793,9 +790,9 @@ B5500CentralControl.prototype.load = function load(dontStart) {
     } else if (this.testUnitBusy(22)) { // SPO is busy
         result = 3;
     } else {                            // ready to rock 'n roll
-        this.nextTimeStamp = new Date().getTime();
+        this.nextTimeStamp = performance.now();
         this.tock();
-        this.LOFF = 1;
+        this.LOFF = 1;                  // set the Load FF
         if (this.IO1 && this.IO1.REMF && !this.AD1F) {
             this.AD1F = 1;
             this.iouMask |= 0x1;
@@ -870,8 +867,8 @@ B5500CentralControl.prototype.loadTest = function loadTest(buf, loadAddr) {
         // Store any partial word that may be left
         while (bytes > 0) {
             word += data.getUint8(x, false)*power;
-            x++;
-            bytes--;
+            ++x;
+            --bytes;
             power /= 0x100;
         }
         store.call(this, addr, word);
@@ -932,11 +929,11 @@ B5500CentralControl.prototype.dumpSystemState = function dumpSystemState(caption
             " ", "/", "S", "T", "U", "V", "W", "X",
             "Y", "Z", ",", "%", "!", "=", "]", "\""];
 
-    function padLeft(text, minLength, char) {
-        /* Pads "text" on the left to a total length of "minLength" with "char" */
+    function padLeft(text, minLength, c) {
+        /* Pads "text" on the left to a total length of "minLength" with "c" */
         var s = text.toString();
         var len = s.length;
-        var pad = char || " ";
+        var pad = c || " ";
 
         while (len++ < minLength) {
             s = pad + s;
@@ -963,7 +960,7 @@ B5500CentralControl.prototype.dumpSystemState = function dumpSystemState(caption
         var w = value;                      // working word value
         var x;                              // character counter
 
-        for (x=0; x<8; x++) {
+        for (x=0; x<8; ++x) {
             c = w % 64;
             w = (w-c)/64;
             s = BICtoANSI[c] + s;
@@ -1004,7 +1001,7 @@ B5500CentralControl.prototype.dumpSystemState = function dumpSystemState(caption
             lineAddr = mod+addr;
             line = " ";
             bic = "  ";
-            for (x=0; x<4; x++) {
+            for (x=0; x<4; ++x) {
                 accessor.addr = lineAddr+x;
                 this.fetch(accessor);
                 if (accessor.MPED) {
@@ -1020,7 +1017,7 @@ B5500CentralControl.prototype.dumpSystemState = function dumpSystemState(caption
             } // for x
 
             if (line == lastLine && lineAddr < 0x7FFC) {
-                dupCount++;
+                ++dupCount;
             } else {
                 if (dupCount > 0) {
                     writer(32, ".....  ................ for " + dupCount*4 + " words");
@@ -1116,7 +1113,7 @@ B5500CentralControl.prototype.configureSystem = function configureSystem() {
     if (cfg.IO4) {this.IO4 = new B5500IOUnit("4", this)}
 
     // Configure memory
-    for (x=0; x<8; x++) {
+    for (x=0; x<8; ++x) {
         if (cfg.memMod[x]) {
             this.addressSpace[x] = new ArrayBuffer(32768);  // 4K B5500 words @ 8 bytes each
             this.memMod[x] = new Float64Array(this.addressSpace[x]);
@@ -1162,11 +1159,11 @@ B5500CentralControl.prototype.powerOff = function powerOff() {
 
         if (this.timer) {
             clearCallback(this.timer);
-            this.timer = null;
+            this.timer = 0;
         }
 
         // Shut down the peripheral devices
-        for (x=0; x<this.unit.length; x++) {
+        for (x=0; x<this.unit.length; ++x) {
             if (this.unit[x]) {
                 this.unit[x].shutDown();
             }
@@ -1180,7 +1177,7 @@ B5500CentralControl.prototype.powerOff = function powerOff() {
         this.IO2 = null;
         this.IO3 = null;
         this.IO4 = null;
-        for (x=0; x<8; x++) {
+        for (x=0; x<8; ++x) {
             this.memMod[x] = null;
             this.addressSpace[x] = null;
         }
@@ -1191,6 +1188,6 @@ B5500CentralControl.prototype.powerOff = function powerOff() {
     if (this.poweredUp) {
         this.halt();
         // Wait a little while for I/Os, etc., to finish
-        setCallback(shutDown, this, 500);
+        setCallback(this.mnemonic, this, 500, shutDown);
     }
 };

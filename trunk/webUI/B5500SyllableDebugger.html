@@ -10,13 +10,19 @@
 <script src="./B5500SetCallback.js"></script>
 
 <script src="./B5500DummyUnit.js"></script>
+
+<!-- Uncomment the following elements to enable I/O devices in the debugger.
+     To halt/load the MCP, you will need at least the SPO and Disk. -->
+
+<!--
 <script src="./B5500SPOUnit.js"></script>
 <script src="./B5500DiskUnit.js"></script>
 <script src="./B5500CardReader.js"></script>
-<script src="./B5500CardPunch.js"></script>
 <script src="./B5500DummyPrinter.js"></script>
+<script src="./B5500CardPunch.js"></script>
 <script src="./B5500DatacomUnit.js"></script>
 <script src="./B5500MagTapeDrive.js"></script>
+-->
 
 <script src="../emulator/B5500SystemConfiguration.js"></script>
 <script src="../emulator/B5500CentralControl.js"></script>
@@ -25,10 +31,6 @@
 
 <script>
 "use strict";
-
-if (!window.indexedDB) {                // for Safari, mostly
-    window.indexedDB = window.webkitIndexedDB || window.mozIndexedDB;
-}
 
 var runningCycles = 1000;               // Number of instructions per run-mode interval
 
@@ -270,9 +272,9 @@ function setText(id, text) {
 function escapeHTML(text) {
     /* Returns "text" as escaped HTML */
 
-    function htmlFilter(char) {
+    function htmlFilter(c) {
         /* Used to escape HTML-sensitive characters in a string */
-        switch (char) {
+        switch (c) {
         case "&":
             return "&amp;";
         case "<":
@@ -282,18 +284,18 @@ function escapeHTML(text) {
         case "\"":
             return "&quot;";
         default:
-            return char;
+            return c;
         }
     }
 
     return text.replace(htmlMatch, htmlFilter);
 }
 
-function padLeft(text, minLength, char) {
-    /* Pads "text" on the left to a total length of "minLength" with "char" */
+function padLeft(text, minLength, c) {
+    /* Pads "text" on the left to a total length of "minLength" with "c" */
     var s = text.toString();
     var len = s.length;
-    var pad = char || " ";
+    var pad = c || " ";
 
     while (len++ < minLength) {
         s = pad + s;
@@ -976,7 +978,7 @@ function runIt(ev) {
         } while (runSilently && stopAddress && px.C != stopAddress);
 
         if (stopAddress && px.C != stopAddress) {
-            setCallback(syllabicate, this, 0);
+            setCallback(null, this, 0, syllabicate);
             if (!runSilently) {
                 displaySystemState();
             }
@@ -1101,7 +1103,7 @@ function fileLoader_onLoad(ev) {
               words + " words, last addr = @" + (addr+words-1).toString(8));
     } catch (e) {
         words = 0;
-        alert("File load failed: " + e.toString());
+        alert("File load failed: " + e.name + ", " + e.message);
     }
     if (words > 0) {
         px.preset(0x10);                // execute from address @20
@@ -1395,7 +1397,8 @@ window.onload = function() {
     <div id=BurroughsLogo>
         <img id=BurroughsLogoImage src="Burroughs-Logo-Neg.jpg">
     </div>
-    <div id=B5500Logo>B 5500
+    <div id=B5500Logo>
+        <img id=RetroLogoImage src="retro-B5500-Logo.png" alt="retro-B5500 logo">
     </div>
 </div>
 
