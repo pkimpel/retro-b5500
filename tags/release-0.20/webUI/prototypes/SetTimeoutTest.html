@@ -1,0 +1,58 @@
+<html>
+<head>
+    <title>B5500 setTimeout() tests</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<style>
+BODY {
+    background-color:   white}
+</style>
+
+<script>
+var lastStamp = new Date().getTime();
+var cycle = 1;
+var delay = 0;
+var delays = new Array(30);
+
+function timeIt() {
+    var lastDelay;
+    var stamp = new Date().getTime();
+
+    lastDelay = stamp - lastStamp;
+    delays[delay] = (delays[delay]*(cycle-1) + lastDelay)/cycle;
+
+    delay++;
+    if (delay >= delays.length) {
+        delay = 0;
+        cycle++;
+    }
+
+    if (cycle < 10) {
+        lastStamp = stamp;
+        setTimeout(timeIt, delay);
+    } else {
+        for (delay=0; delay<delays.length; delay++) {
+            document.getElementById("panel").appendChild(
+                document.createTextNode("[" + delay + "] = " + delays[delay].toFixed(3) +  "\r\n"));
+        }
+    }
+}
+
+window.onload = function() {
+    var x;
+
+    for (x=delays.length-1; x>=0; x--) {
+        delays[x] = 0;
+    }
+    setTimeout(timeIt, delay);
+};
+</script>
+
+</head>
+
+<body>
+
+<pre id=panel>
+</pre>
+
+</body>
+</html>
