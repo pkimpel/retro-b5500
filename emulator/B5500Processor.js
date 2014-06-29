@@ -2813,7 +2813,7 @@ B5500Processor.prototype.doublePrecisionMultiply = function doublePrecisionMulti
                         this.I = (this.I & 0x0F) | 0xB0;    // set I05/6/8: exponent-overflow
                         this.cc.signalInterrupt();
                     }
-                    /********** dumpState("Exponent Overflow in DLM"); ************************************//
+                    /********** dumpState("Exponent Overflow in DLM"); ************************************/
                 } else if (eb < 0) {
                     if (eb >= -63) {
                         eb = (-eb) | 0x40;                  // set the exponent sign bit
