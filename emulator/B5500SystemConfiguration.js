@@ -54,9 +54,9 @@ var B5500SystemConfiguration = {
         DRA:    false,                  // Drum/Auxmem A
         DRB:    false,                  // Drum/Auxmem B
         MTA:    true,                   // Magnetic Tape Unit A
-        MTB:    false,                  // Magnetic Tape Unit B
-        MTC:    false,                  // Magnetic Tape Unit C
-        MTD:    false,                  // Magnetic Tape Unit D
+        MTB:    true,                   // Magnetic Tape Unit B
+        MTC:    true,                   // Magnetic Tape Unit C
+        MTD:    true,                   // Magnetic Tape Unit D
         MTE:    false,                  // Magnetic Tape Unit E
         MTF:    false,                  // Magnetic Tape Unit F
         MTH:    false,                  // Magnetic Tape Unit H
@@ -68,5 +68,5 @@ var B5500SystemConfiguration = {
         MTP:    false,                  // Magnetic Tape Unit P
         MTR:    false,                  // Magnetic Tape Unit R
         MTS:    false,                  // Magnetic Tape Unit S
-        MTT:    false},                 // Magnetic Tape Unit X
+        MTT:    false}                  // Magnetic Tape Unit X
 };

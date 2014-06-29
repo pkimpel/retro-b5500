@@ -26,7 +26,7 @@ function B5500CardPunch(mnemonic, unitIndex, designate, statusChange, signal) {
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (not used here)
 
-    this.timer = null;                  // setTimeout() token
+    this.timer = 0;                     // setCallback() token
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
 
     this.clear();
@@ -108,6 +108,7 @@ B5500CardPunch.prototype.setPunchReady = function setPunchReady(ready) {
 
     if (ready && !this.ready) {
         this.statusChange(1);
+        this.addClass(this.$$("CPStartBtn"), "greenLit")
         this.removeClass(this.$$("CPNotReadyLight"), "redLit");
         this.ready = true;
         if (this.runoutArmed) {
@@ -128,6 +129,7 @@ B5500CardPunch.prototype.setPunchReady = function setPunchReady(ready) {
         }
     } else if (!ready && this.ready) {
         this.statusChange(0);
+        this.removeClass(this.$$("CPStartBtn"), "greenLit")
         this.addClass(this.$$("CPNotReadyLight"), "redLit");
         this.ready = false;
     }
@@ -268,7 +270,6 @@ B5500CardPunch.prototype.space = function space(finish, length, control) {
 B5500CardPunch.prototype.write = function write(finish, buffer, length, mode, control) {
     /* Initiates a write operation on the unit */
     var text;
-    var that = this;
 
     this.errorMask = 0;
     this.busy = true;
@@ -290,10 +291,12 @@ B5500CardPunch.prototype.write = function write(finish, buffer, length, mode, co
         }
     }
 
-    this.timer = setTimeout(function writeDelay() {
-        that.busy = false;
-        finish(that.errorMask, length);
-    }, 60000/this.cardsPerMinute + this.initiateStamp - new Date().getTime());
+    this.timer = setCallback(this.mnemonic, this,
+        60000/this.cardsPerMinute + this.initiateStamp - performance.now(),
+        function writeDelay() {
+            this.busy = false;
+            finish(this.errorMask, length);
+    });
 };
 
 /**************************************/
@@ -336,7 +339,7 @@ B5500CardPunch.prototype.shutDown = function shutDown() {
     /* Shuts down the device */
 
     if (this.timer) {
-        clearTimeout(this.timer);
+        clearCallback(this.timer);
     }
     this.window.removeEventListener("beforeunload", this.beforeUnload, false);
     this.window.close();

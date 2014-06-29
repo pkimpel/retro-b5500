@@ -19,7 +19,7 @@
 function B5500CardReader(mnemonic, unitIndex, designate, statusChange, signal) {
     /* Constructor for the CardReader object */
     var that = this;
-    var x = (mnemonic == "CRA" ? 0 : 30);
+    var x = (mnemonic == "CRA" ? 0 : 1)*110;
 
     this.mnemonic = mnemonic;           // Unit mnemonic
     this.unitIndex = unitIndex;         // Ready-mask bit number
@@ -27,7 +27,7 @@ function B5500CardReader(mnemonic, unitIndex, designate, statusChange, signal) {
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (not used here)
 
-    this.timer = null;                  // setTimeout() token
+    this.timer = 0;                     // setCallback() token
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
 
     this.clear();
@@ -39,7 +39,7 @@ function B5500CardReader(mnemonic, unitIndex, designate, statusChange, signal) {
     }
     this.doc = null;
     this.window = window.open("../webUI/B5500CardReader.html", mnemonic,
-        "scrollbars=no,resizable,width=560,height=160,left="+x+",top="+x);
+        "scrollbars=no,resizable,width=560,height=160,left=0,top="+x);
     this.window.addEventListener("load", function windowLoad() {
         that.readerOnload();
     }, false);
@@ -122,9 +122,11 @@ B5500CardReader.prototype.setReaderReady = function setReaderReady(ready) {
     this.ready = ready;
     if (ready) {
         this.statusChange(1);
+        this.addClass(this.$$("CRStartBtn"), "greenLit")
         this.removeClass(this.$$("CRNotReadyLight"), "redLit");
     } else {
         this.statusChange(0);
+        this.removeClass(this.$$("CRStartBtn"), "greenLit")
         this.addClass(this.$$("CRNotReadyLight"), "redLit");
     }
 };
@@ -369,7 +371,6 @@ B5500CardReader.prototype.read = function read(finish, buffer, length, mode, con
     buffer is empty and EOF is armed, returns EOF; otherwise if not ready,
     returns Not Ready */
     var card;
-    var that = this;
 
     this.errorMask = 0;
     if (this.busy) {
@@ -389,10 +390,12 @@ B5500CardReader.prototype.read = function read(finish, buffer, length, mode, con
             card = this.readCardBinary(buffer, length);
         }
 
-        this.timer = setTimeout(function readDelay() {
-            that.busy = false;
-            finish(that.errorMask, length);
-        }, 60000/this.cardsPerMinute + this.initiateStamp - new Date().getTime());
+        this.timer = setCallback(this.mnemonic, this,
+            60000/this.cardsPerMinute + this.initiateStamp - performance.now(),
+            function readDelay() {
+                this.busy = false;
+                finish(this.errorMask, length);
+        });
 
         if (this.bufIndex < this.bufLength) {
             this.progressBar.value = this.bufLength-this.bufIndex;
@@ -467,7 +470,7 @@ B5500CardReader.prototype.shutDown = function shutDown() {
     /* Shuts down the device */
 
     if (this.timer) {
-        clearTimeout(this.timer);
+        clearCallback(this.timer);
     }
     this.window.removeEventListener("beforeunload", this.beforeUnload, false);
     this.window.close();

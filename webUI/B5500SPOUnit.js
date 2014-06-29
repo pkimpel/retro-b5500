@@ -30,8 +30,8 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal) {
     this.signal = signal;               // external function to call for special signals (e.g,. SPO input request)
 
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
-    this.inTimer = null;                // input setCallback() token
-    this.outTimer = null;               // output setCallback() token
+    this.inTimer = 0;                   // input setCallback() token
+    this.outTimer = 0;                  // output setCallback() token
 
     this.clear();
 
@@ -134,7 +134,7 @@ B5500SPOUnit.prototype.setLocal = function setLocal() {
     this.buffer = null;
     this.bufLength = 0;
     this.bufIndex = 0;
-    this.nextCharTime = new Date().getTime();
+    this.nextCharTime = performance.now();
     this.finish = null;
 };
 
@@ -207,25 +207,25 @@ B5500SPOUnit.prototype.outputChar = function outputChar() {
     calls finished(). If the column counter exceeds 72, a CR/LF pair is output.
     A CR/LF pair is also output at the end of the message */
     var nextTime = this.nextCharTime + this.charPeriod;
-    var delay = nextTime - new Date().getTime();
+    var delay = nextTime - performance.now();
 
     this.nextCharTime = nextTime;
     if (this.printCol < 72) {           // print the character
         if (this.bufIndex < this.bufLength) {
             this.printChar(this.buffer[this.bufIndex]);
             this.bufIndex++;
-            this.outTimer = setCallback(this.outputChar, this, delay);
+            this.outTimer = setCallback(this.mnemonic, this, delay, this.outputChar);
         } else {                        // set up for the final CR/LF
             this.printCol = 72;
-            this.outTimer = setCallback(this.outputChar, this, delay);
+            this.outTimer = setCallback(this.mnemonic, this, delay, this.outputChar);
         }
     } else if (this.printCol == 72) {   // delay to fake the output of a carriage-return
         this.printCol++;
-        this.outTimer = setCallback(this.outputChar, this, delay+this.charPeriod);
+        this.outTimer = setCallback(this.mnemonic, this, delay+this.charPeriod, this.outputChar);
     } else {                            // actually output the CR/LF
         this.appendEmptyLine();
         if (this.bufIndex < this.bufLength) {
-            this.outTimer = setCallback(this.outputChar, this, delay);
+            this.outTimer = setCallback(this.mnemonic, this, delay, this.outputChar);
         } else {                        // message text is exhausted
             this.finish(this.errorMask, this.bufLength);  // report finish with any errors
             if (this.spoLocalRequested) {
@@ -246,7 +246,7 @@ B5500SPOUnit.prototype.terminateInput = function terminateInput() {
     if (this.spoState == this.spoInput) {
         this.removeClass(this.$$("SPOReadyBtn"), "yellowLit");
         this.bufLength = this.bufIndex;
-        this.nextCharTime = new Date().getTime();
+        this.nextCharTime = performance.now();
         this.outputChar();
     }
 };
@@ -271,7 +271,7 @@ B5500SPOUnit.prototype.keyPress = function keyPress(ev) {
     var delay;
     var index = this.bufLength;
     var nextTime;
-    var stamp = new Date().getTime();
+    var stamp = performance.now();
 
     nextTime = (this.nextCharTime > stamp ? this.nextCharTime : stamp) + this.charPeriod;
     delay = nextTime - stamp;
@@ -279,13 +279,13 @@ B5500SPOUnit.prototype.keyPress = function keyPress(ev) {
     if (this.spoState == this.spoInput) {
         if (c >= 32 && c < 126) {
             this.buffer[this.bufIndex++] = c = this.keyFilter[c];
-            this.inTimer = setCallback(this.printChar, this, delay, c);
+            this.inTimer = setCallback(this.mnemonic, this, delay, this.printChar, c);
             this.nextCharTime = nextTime;
             ev.preventDefault();
         }
         if (c == 126) {                 // "~" (B5500 group-mark)
             c = this.keyFilter[c];
-            this.inTimer = setCallback(this.printChar, this, delay, c);
+            this.inTimer = setCallback(this.mnemonic, this, delay, this.printChar, c);
             this.nextCharTime = nextTime + this.charPeriod;
             this.terminateInput();
             ev.preventDefault();
@@ -293,7 +293,7 @@ B5500SPOUnit.prototype.keyPress = function keyPress(ev) {
     } else if (this.spoState == this.spoLocal) {
         if (c >= 32 && c <= 126) {
             c = this.keyFilter[c];
-            this.inTimer = setCallback(this.printChar, this, delay, c);
+            this.inTimer = setCallback(this.mnemonic, this, delay, this.printChar, c);
             this.nextCharTime = nextTime;
             ev.preventDefault();
         }
@@ -306,7 +306,7 @@ B5500SPOUnit.prototype.keyDown = function keyDown(ev) {
     var c = ev.keyCode;
     var delay;
     var nextTime;
-    var stamp = new Date().getTime();
+    var stamp = performance.now();
 
     nextTime = (this.nextCharTime > stamp ? this.nextCharTime : stamp) + this.charPeriod;
     delay = nextTime - stamp;
@@ -330,7 +330,7 @@ B5500SPOUnit.prototype.keyDown = function keyDown(ev) {
         switch (this.spoState) {
         case this.spoInput:
         case this.spoLocal:
-            this.inTimer = setCallback(this.backspaceChar, this, delay);
+            this.inTimer = setCallback(this.mnemonic, this, delay, this.backspaceChar);
             this.nextCharTime = nextTime;
             ev.preventDefault();
             break;
@@ -344,7 +344,7 @@ B5500SPOUnit.prototype.keyDown = function keyDown(ev) {
             ev.preventDefault();
             break;
         case this.spoLocal:
-            this.inTimer = setCallback(this.appendEmptyLine, this, delay+this.charPeriod);
+            this.inTimer = setCallback(this.mnemonic, this, this.charPeriod+delay, this.appendEmptyLine);
             this.nextCharTime = nextTime;
             ev.preventDefault();
             break;
@@ -369,7 +369,7 @@ B5500SPOUnit.prototype.printText = function printText(msg, finish) {
     this.bufLength = length;
     this.bufIndex = 0;
     this.printCol = 0;
-    this.nextCharTime = new Date().getTime();
+    this.nextCharTime = performance.now();
     this.finish = finish;
     this.outputChar();                  // start the printing process
 };
@@ -456,7 +456,7 @@ B5500SPOUnit.prototype.read = function read(finish, buffer, length, mode, contro
         this.buffer = buffer;
         this.bufLength = length;
         this.bufIndex = 0;
-        this.nextCharTime = new Date().getTime();
+        this.nextCharTime = performance.now();
         this.finish = finish;
         this.window.focus();
         break;
@@ -543,10 +543,10 @@ B5500SPOUnit.prototype.shutDown = function shutDown() {
     /* Shuts down the device */
 
     if (this.inTimer) {
-        clearTimeout(this.inTimer);
+        clearCallback(this.inTimer);
     }
     if (this.outTimer) {
-        clearTimeout(this.outTimer);
+        clearCallback(this.outTimer);
     }
     this.window.removeEventListener("beforeunload", this.beforeUnload, false);
     this.window.close();

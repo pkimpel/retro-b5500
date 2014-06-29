@@ -39,8 +39,8 @@ function B5500DatacomUnit(mnemonic, unitIndex, designate, statusChange, signal) 
 
     this.buffer = new ArrayBuffer(448); // adapter buffer storage
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
-    this.inTimer = null;                // input setCallback() token
-    this.outTimer = null;               // output setCallback() token
+    this.inTimer = 0;                   // input setCallback() token
+    this.outTimer = 0;                  // output setCallback() token
 
     this.clear();
 
@@ -69,12 +69,12 @@ B5500DatacomUnit.prototype.bufWriteReady = 5;
 B5500DatacomUnit.prototype.keyFilter = [    // Filter keyCode values to valid BCL ones
         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,  // 00-0F
         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,  // 10-1F
-        0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x00,0x28,0x29,0x2A,0x2B,0x2C,0x2D,0x2E,0x2F,  // 20-2F
+        0x20,0x7D,0x22,0x23,0x24,0x25,0x26,0x7B,0x28,0x29,0x2A,0x2B,0x2C,0x2D,0x2E,0x2F,  // 20-2F
         0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x3A,0x3B,0x00,0x3D,0x00,0x3F,  // 30-3F
         0x40,0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,  // 40-4F
-        0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x5B,0x00,0x5D,0x00,0x00,  // 50-5F
+        0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x5B,0x7C,0x5D,0x21,0x7E,  // 50-5F
         0x00,0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,  // 60-6F
-        0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x7B,0x7C,0x7D,0x7E,0x00]; // 70-7F
+        0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x00,0x00,0x00,0x7E,0x00]; // 70-7F
 
 /**************************************/
 B5500DatacomUnit.prototype.$$ = function $$(e) {
@@ -303,31 +303,34 @@ B5500DatacomUnit.prototype.outputChar = function outputChar() {
     var stamp;
 
     if (this.bufIndex < this.bufLength) {
-        stamp = new Date().getTime();
+        stamp = performance.now();
         nextTime = (this.nextCharTime < stamp ? stamp : this.nextCharTime) + this.charPeriod;
         delay = nextTime - stamp;
         this.nextCharTime = nextTime;
 
         c = this.buffer[this.bufIndex++];
         switch (c) {
-        case 0x7B:      // { less-or-equal, output CR
-            this.printCol = 0;
-            this.outTimer = setCallback(this.outputChar, this, delay);
-            break;
         case 0x21:      // ! not-equal, output LF
             this.appendEmptyLine();
-            this.outTimer = setCallback(this.outputChar, this, delay);
+            this.outTimer = setCallback(this.mnemonic, this, delay, this.outputChar);
             break;
         case 0x3C:      // < less-than, output RO (DEL)
         case 0x3E:      // > greater-than, output X-ON (DC1)
-            this.outTimer = setCallback(this.outputChar, this, delay);
+            this.outTimer = setCallback(this.mnemonic, this, delay, this.outputChar);
             break;              // do nothing, just delay
+        case 0x7B:      // { less-or-equal, output CR
+            this.printCol = 0;
+            this.outTimer = setCallback(this.mnemonic, this, delay, this.outputChar);
+            break;
         case 0x7D:      // } greater-or-equal, disconnect
             this.termDisconnect();
             break;
+        case 0x7E:      // ~ left-arrow, end-of-message (should never happen)
+            this.bufIndex = this.bufLength;
+            this.outTimer = setCallback(this.mnemonic, this, 0, this.outputChar);
         default:
             this.printChar(c);
-            this.outTimer = setCallback(this.outputChar, this, delay);
+            this.outTimer = setCallback(this.mnemonic, this, delay, this.outputChar);
             break;
         }
         this.showBufferIndex();
@@ -352,16 +355,16 @@ B5500DatacomUnit.prototype.keyPress = function keyPress(ev) {
     /* Handles keyboard character events. Depending on the state of the buffer,
     either buffers the character for transmission to the I/O Unit, echos
     it to the printer, or ignores it altogether */
-    var c = ev.charCode;
-    var delay;
-    var index = this.bufLength;
-    var nextTime;
-    var stamp;
+    var b;                              // translated character
+    var c = ev.charCode;                // input character, ASCII
+    var delay;                          // inter-character delay, ms
+    var nextTime;                       // next character output time, ms
+    var stamp;                          // current timestamp, ms
 
     //this.$$("CharCode").innerHTML = c.toString() + ":0x" + c.toString(16);
 
     if (this.connected) {
-        stamp = new Date().getTime();
+        stamp = performance.now();
         if (this.bufState == this.bufIdle) {
             this.bufIndex = this.bufLength = 0;
             this.nextCharTime = stamp;
@@ -406,15 +409,16 @@ B5500DatacomUnit.prototype.keyPress = function keyPress(ev) {
         if (this.bufState == this.bufReadReady && this.fullBuffer) {
             this.interrupt = true;
             this.setState(this.bufInputBusy);
-            setCallback(this.signal, this, delay);      // buffer overflow
+            setCallback(this.mnemonic, this, delay, this.signal);       // buffer overflow
             ev.stopPropagation();
             ev.preventDefault();
         } else if (this.bufState == this.bufInputBusy || this.bufState == this.bufIdle) {
             switch (c) {
             case 0x7E:                  // ~ left-arrow (Group Mark), end of message
-                this.inTimer = setCallback(this.printChar, this, delay, c);
+            case 0x5F:                  // _ underscore (TTY left-arrow), end of message
+                this.inTimer = setCallback(this.mnemonic, this, delay, this.printChar, c);
                 this.nextCharTime = this.charPeriod + nextTime;
-                setCallback(this.terminateInput, this, this.charPeriod+delay);
+                setCallback(this.mnemonic, this, this.charPeriod+delay, this.terminateInput);
                 ev.stopPropagation();
                 ev.preventDefault();
                 break;
@@ -422,7 +426,7 @@ B5500DatacomUnit.prototype.keyPress = function keyPress(ev) {
                 if (this.bufIndex > 0) {
                     this.bufIndex--;
                 }
-                this.inTimer = setCallback(this.printChar, this, delay, c);
+                this.inTimer = setCallback(this.mnemonic, this, delay, this.printChar, c);
                 this.nextCharTime = nextTime;
                 ev.stopPropagation();
                 ev.preventDefault();
@@ -432,8 +436,8 @@ B5500DatacomUnit.prototype.keyPress = function keyPress(ev) {
                 this.interrupt = true;
                 this.abnomal = true;
                 this.setState(this.bufReadReady);
-                setCallback(this.signal, this, delay);
-                this.inTimer = setCallback(this.printChar, this, delay, c);
+                setCallback(this.mnemonic, this, delay, this.signal);
+                this.inTimer = setCallback(this.mnemonic, this, delay, this.printChar, c);
                 this.nextCharTime = nextTime;
                 ev.stopPropagation();
                 ev.preventDefault();
@@ -449,7 +453,7 @@ B5500DatacomUnit.prototype.keyPress = function keyPress(ev) {
                     this.interrupt = true;
                     this.abnormal = true;
                     this.setState(this.bufWriteReady);
-                    setCallback(this.signal, this, delay);
+                    setCallback(this.mnemonic, this, delay, this.signal);
                 }
                 ev.stopPropagation();
                 ev.preventDefault();
@@ -466,10 +470,13 @@ B5500DatacomUnit.prototype.keyPress = function keyPress(ev) {
                 this.setState(this.bufState);       // just to turn on the annunciator
                 // no break
             default:
-                c = this.keyFilter[c];
-                if (c) {                // if it's a character we will accept
-                    this.buffer[this.bufIndex++] = c;
-                    this.inTimer = setCallback(this.printChar, this, delay, c);
+                b = this.keyFilter[c];
+                if (b) {                // if it's a character we will accept
+                    this.buffer[this.bufIndex++] = b;
+                    if (c >= 0x61 && c <= 0x7A) {
+                        c -= 32;        // up-case echoed letters
+                    }
+                    this.inTimer = setCallback(this.mnemonic, this, delay, this.printChar, c);
                     this.nextCharTime = nextTime;
                     if (this.bufIndex < this.bufferSize) {
                         this.setState(this.bufInputBusy);
@@ -477,7 +484,7 @@ B5500DatacomUnit.prototype.keyPress = function keyPress(ev) {
                         this.interrupt = true;
                         this.fullBuffer = true;
                         this.setState(this.bufReadReady);
-                        setCallback(this.signal, this, this.charPeriod+delay);  // full buffer, no GM detected
+                        setCallback(this.mnemonic, this, this.charPeriod+delay, this.signal);  // full buffer, no GM detected
                     }
                     ev.stopPropagation();
                     ev.preventDefault();
@@ -489,7 +496,7 @@ B5500DatacomUnit.prototype.keyPress = function keyPress(ev) {
                 this.interrupt = true;
                 this.abnormal = true;
                 this.setState(this.bufReadReady);
-                setCallback(this.signal, this, delay);
+                setCallback(this.mnemonic, this, delay, this.signal);
                 ev.stopPropagation();
                 ev.preventDefault();
             }
@@ -538,7 +545,7 @@ B5500DatacomUnit.prototype.datacomOnload = function datacomOnload() {
             "</style>";
 
     this.window.focus();
-    this.nextCharTime = new Date().getTime();
+    this.nextCharTime = performance.now();
 
     this.window.addEventListener("beforeunload", this.beforeUnload, false);
 
@@ -784,10 +791,10 @@ B5500DatacomUnit.prototype.shutDown = function shutDown() {
     /* Shuts down the device */
 
     if (this.inTimer) {
-        clearTimeout(this.inTimer);
+        clearCallback(this.inTimer);
     }
     if (this.outTimer) {
-        clearTimeout(this.outTimer);
+        clearCallback(this.outTimer);
     }
     this.window.removeEventListener("beforeunload", this.beforeUnload, false);
     this.window.close();
