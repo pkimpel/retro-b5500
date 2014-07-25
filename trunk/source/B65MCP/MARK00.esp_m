@@ -550,7 +550,7 @@ DEFINE   EBCDICALPHANUMERIC       = TRUTHSETS[00] #,                    08100000
          3"0416227316541500",3"0215650301354503", %2364507430552 =@0102408151500
          3"0504620511515514",3"0225724603203653", %0555750424133 =@0108808152000
          3"0573504063603007",3"0230356777015603", %0655471421103 =@0115208152500
-         3"0662605010657142",3"0245363441540115 ",%3421137501315 =@0121608153000
+         3"0662605010657142",3"0245363441540115", %3421137501315 =@0121608153000
          3"0752061310601672",3"0257025566260413", %3631527002756 =@0128008153500
          3"0041457313355310",3"0276331702015753", %3773670162764 =@0134408154000
          3"4131153323315222",3"0306736070051361", %5040437573377 =@0140808154500
@@ -565,7 +565,7 @@ DEFINE   EBCDICALPHANUMERIC       = TRUTHSETS[00] #,                    08100000
          3"4106413245605716",3"0426047563137443", %5242020310123 =@0198408159000
          3"0174750547327342",3"0434752736224723", %2243161451531 =@0204808159500
          3"4263606774750311",3"0446764211226705", %4547637466166 =@0211208160000
-         3"4352667652055261",3"04540%3%67341401", %737746771?610 =@0217608160500
+         3"4352667652055261",3"0454023267541401", %7377467717610 =@0217608160500
          3"4442127774503364",3"0463742052221706", %4122154367526 =@0224008161000
          3"0531514561003110",3"0471751001571765", %0310004020172 =@0230408161500
          3"4621201540275231",3"0506473330776521", %5366506221123 =@0236808162000
@@ -594,7 +594,7 @@ DEFINE   EBCDICALPHANUMERIC       = TRUTHSETS[00] #,                    08100000
          3"0201115560167157",3"1025614475554304", %3513554047640 =@0384008173500
          3"4266777643636764",3"1030310431025755", %4146654653371 =@0390408174000
          3"0355242335310112",3"1046512350074012", %0066765167472 =@0396808174500
-         3"4444024052516417",3"1051111675276213", %4500576335227 =@0403208175000
+         3"4444024052516417",3"1051111675276213");%4500576335227 =@0403208175000
  DOUBLE VALUE ARRAY POTH                                                08175500
                                                                         08176000
        ~(3"1141000000000000",3"0000000000000000", %              =@0000008176500
@@ -690,7 +690,7 @@ COMMENT  FOLLOWING ARE THE VARIOUS VALUES OF THE TAG FIELD;             10055000
               TOS       = 3 #,                                          10063000
               RCW       = 3 #,                                          10064000
               DATADESC  = 5 #,                                          10065000
-              STRINGDESC     =    5#.                                   10066000
+              STRINGDESC     =    5#,                                   10066000
               UNITAL    = 6 #,                                          10067000
               PCW       = 7 #                                           10068000
               ;                                                         10069000
@@ -1375,3 +1375,450 @@ ARRAY                                                                   13133000
     COMMENT   THE ARRAYS DICA THROUGH TYPEINDX WILL BE CONVERTED TO     13137000
     EBCDIC STRING DESCRIPTORS IN PERIPHERALINITIALIZE.  CARE SHOULD BE  13138000
     USED WHEN ADDING DECLARATIONS INBETWEEN AND WHEN USING THE          13139000
+    DESCRIPTORS, SINCE ALL INDEXING WILL BE BY CHARACTERS;              13140000
+ARRAY DATE ~(8"1969182TUESDAY, JULY  1, 1969"4"00",0);%                 13140100
+REAL     TODAYSDATE~69182;                                              13140110
+DEFINE FORMATTEDDATEPOINTER = POINTER(DATE,8) + 7 #;                    13140150
+ARRAY    TIME[1];%                                                      13140200
+LAYOUT   TIMEL (   47:16,31:16,15:16);%                                 13140210
+BOOLEAN ARRAY OLDSTATUSWORD[*];   % OLD STATUS                          13141000
+REAL     RDLBLP;                  % READALABEL PROCESS CONTROL WORD     13142000
+DEFINE%       FOR STATUS, READALABEL                                    13143000
+         MAXRDLBLP     = 6#,3     MAXIMUM # READALABELS                 13143010
+         STATOPM(N)= N&WHOCALLSL(STATMSGSEC)#,%                         13143020
+         NOTREADYMSG(U)= MESSER(STATOPM(0),U)#,%                        13143030
+         UFUMSG(U)= MESSER(STATOPM(1),U)#,%                             13143040
+         PARITYRWLMSG(U)=MESSER(STATOPM(2),U)#,%                        13143050
+         RETMSG(U)= MESSER(STATOPM(3),U)#,%                             13143060
+         PBTONMSG(U)= MESSER(STATOPM(4),U)#,%                           13143070
+ENDSTATDEF=0#;%                                                         13143990
+FIELD    RF = 6:6;                 % READALABEL CONTROL FIELD (0:1-LOCK)13144000
+REAL     PRGT;                     % PURGIT PROCESS CONTROL WORD        13145000
+FIELD                                                                   13146000
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%13147000
+    %                   UNIT TABLE                                     %13148000
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%13149000
+         UNITTYPE       = 47:5,                                         13150000
+         UNITTYPECNTRF =42:8,%         ORDINAL # OF UNIT WITHIN TYPE    13150100
+         UERRORSTATUSBITS = 34:14,COMMENT   COMBINED FIELD FOR ERROR    13151000
+                                             AND STATUS BITS;           13152000
+         UNITERRORFIELD = 30:5,   % UNIT ERROR COUNT (USED BY IOFINISH) 13154000
+         UNITSTATUS     =25:5 ,   COMMENT FIELD INDICATING UNIT STATE-AS13155000
+                                  UNITREADY,UNITERROR,UNITBUSY ETC;     13156000
+           UNITNOTREADY=25:1,     COMMENT 1- NOT READY                  13157000
+                                          0- READY;                     13158000
+           UNITERROR=24:1 ,       COMMENT IF SET(=1),ERROR ON UNIT;     13159000
+           UCHANWAITORBUSY=23:3,  COMMENT UNIT BUSY OR WAITING FOR A    13160000
+                                  CHANNEL;                              13161000
+              UCHANWAIT=23:1,     COMMENT UNIT WAITING FOR A CHANNEL;   13162000
+              UNITIOBUSY=22:2,    COMMENT I/O IN PROCESS & UNITBUSY;    13163000
+                                  % 01 - AWAITING PRINTER FINISH        13164000
+                IOINPROCESS=22:1,    COMMENT I/O IN PROCESS;            13165000
+                UNITINPROCESS=22:1,  COMMENT UNIT IN PROCESS;           13166000
+         UNITSTATE      = 20:15,  % STATE OF UNIT                       13167000
+         UNITRETRY      =20:1,    COMMENT UNIT BEING RETRIED;           13168000
+         ULOCKED        = 19:1,   % UNIT LOCKED                         13169000
+         USAVED         = 18:1,   % UNIT SAVED                          13170000
+         DENSITYF       = 17:3,   % DISK TYPE                           13171000
+         USCRATCH       = 14:1,   % UNIT IS SCRATCH                     13172000
+         UNITASSIGNED   = 13:1,   % UNIT ASSIGNED TO A USER             13173000
+         ULABELLED      = 12:1,   % UNIT LABELLED                       13174000
+         UINREWIND      = 11:1,   % UNIT REWINDING                      13175000
+         UCLOSEDNOREWIND= 10:1,   % UNIT CLOSED WITH NO REWIND          13176000
+         UTOBEPURGED    =  9:1,   % UNIT CLOSED WITH PURGE              13177000
+         UWRITERING     =  8:1,   % WRITE RING                          13178000
+         UNITMPXD       =5:4,     COMMENT MPXDESIGNATOR FOR THE UNIT;   13179000
+         UNITMPXI       =1:1;     COMMENT MPXINDICATOR FOR THE UNIT;    13180000
+COMMENT                 =0:1      RESERVED FOR UNITNOLOCK;              13181000
+LAYOUT   UNITL(UNITNOTREADY,19:2,14:3,UINREWIND);                       13182000
+REAL                                                                    13183000
+              MAXUNIT,       COMMENT MAXIMUM UNIT NO ON THE SYSTEM. UNIT13187000
+                             NO ASSIGNED TO PSEUDO CARD READER IS       13188000
+                             MAXUNIT + 1;                               13189000
+              MINUNIT ~ - 1;  COMMENT MINIMUM UNIT ON SYSTEM;           13190000
+INTEGER       MAXPSEUDOUNIT,           COMMENT MAXIMUM UNIT FOR PSEUDO  13191000
+                                      CARD READERS - IT IS EQUAL TO     13192000
+                                      MAXUNIT + NO. OF PSEUDO CARD      13193000
+                                      READERS;                          13194000
+              UBITSTABLESIZE;          COMMENT SIZE = HIGHEST WHOLE NO. 13195000
+                                       OF MAXPSEUDOUNITS/48;            13196000
+FIELD    RDMEMADDR=47:20,   COMMENT MEMORY ADDRESS FIELD OR RESULT DESC;13198000
+         RDCHRCNT =27:3 ,   COMMENT CHARACTER COUNT FIELD OF R.D.;      13199000
+         RDUNUMERR=24:25,%   BOTH UNIT NUMBER AND ERROR FIELD.          13200000
+         RDUNITNO =24:8 ,   COMMENT UNIT NO. FIELD IN RESULT DESC.;     13201000
+         RDERROR  =16:17,   COMMENT RESULT DESCRIPTOR ERROR FIELD;      13202000
+           RDSTNDERROR=6:7, COMMENT STANDARD ERROR FIELD OF R.D.;       13203000
+            RDATTNEXCP=1:2,            % ATTENTION EXCEPTION BITS       13204000
+              RDEXCEPTION=0:1,                        % HARDWARE EXCEPTN13205000
+              RDATTENTION=1:1,                        % SOFTWARE ATTNTN 13206000
+            RDBIT432       =4:3,    COMMENT UNITUSABLE BITS;            13207000
+              RDBUSY       =2:1, COMMENT      BUSY;                     13208000
+              RDNOTREADY   =3:1, COMMENT      NOT READY;                13209000
+              RDERRORBIT   =4:1, COMMENT      DESCRIPTOR ERROR;         13210000
+              RDMEMADDRBIT =5:1, COMMENT      MEMORY ADDRESS ERROR;     13211000
+              RDMEMPARITY  =6:1, COMMENT      MEMORY PARITY ERROR;      13212000
+           RDUNITERROR=15:9, COMMENT UNIT ERROR FIELD OF R. D. ;        13213000
+              RDMEMACCESS  =7:1, COMMENT  MEMORY ACCESS ERROR;          13214000
+              RDENDOFTAPE  =8:1, COMMENT  END OR BEGINNING OF TAPE;     13215000
+              RDLOWPAPER= 8:1,    % LOW PAPER                           13216000
+              RDWLOOREOF   =9:1,  COMMENT WRITE LOCK-OUT OR END OF FILE;13217000
+              RDCNTRLCARD  =10:1,COMMENT CONTROL CARD;                  13218000
+              RDINCREC  = 10:1,   % INCOMPLETE RECORD                   13219000
+           RDDENSITY    = 11:2,   % DENSITY IN RD AFTER TEST            13220000
+              RDOVERFLOW   =11:1,COMMENT EXCEED WORD COUNT;             13221000
+              RDCRCCORRECT =12:1,COMMENT CRC CORRECTION;                13222000
+              RDNONPRESENT =13:1,COMMENT NON-PRESENT;                   13223000
+              RDREWINDING  =14:1,COMMENT REWINDING;                     13224000
+              RDBLANKTAPE  =15:1,COMMENT BLANK TAPE;                    13225000
+              RDMEMPROTECT =16:1;COMMENT MEMORY PROTECT ERROR;          13225500
+FIELD         RDDISKFILETYPEF= 11:2;                                    13226000
+                   COMMENT   1C-5 = 0                                   13227000
+                             1A-X = 1                                   13228000
+                             1C-3 = 2                                   13229000
+                             1C-4 = 3;                                  13230000
+                   COMMENT   1A-X = 0 ALSO, BUT ONLY ON 101, I HOPE;    13231000
+FIELD         SLCNTRDY  = 15:1;  COMMENT SINGLE LINE CONTROL TIMEOUT;   13232000
+FIELD         CONSOLEIDF = 14:3;                                        13232100
+FIELD         COMMENT I/O CONTROL WORD FIELDS;                          13233000
+       IOSTANDARDFIELD  =45:10,                                         13234000
+         IOATTENTION    =45:1,                                          13235000
+         IOREADBIT      =44:1,                                          13236000
+         IOMEMINHIBIT   =43:1,                                          13237000
+        IOMODE          =42:2,                                          13238000
+         IOTRANSLATE    =42:1,                                          13239000
+         IOFRAMESIZE    =41:1,                                          13240000
+         IOMEMPROTECT   =40:1,                                          13241000
+         IOBACKWARD     =39:1,                                          13242000
+         IOTESTBIT      =38:1,                                          13243000
+         IOTRANSFERTAG  =37:1,                                          13244000
+         IOFORCETAG    =36:1,                                           13245000
+       IOUNITFIELD     =35:36;                                          13246000
+FIELD    ADDRESS        =19:20,                                         13247000
+         USTATUSVECTORNO=11:3,    COMMENT EACH VECTOR NO REPRESENTS     13248000
+                                  READY STATUS OF 32 UNITS;             13249000
+         MPXDESIGNATOR  = 4:4,    COMMENT MPXA(=1), MPXB(=2), ETC;      13250000
+         MPXINDICATOR   = 0:1,    COMMENT 0 MEANS INTERROGATE ALL MPXS  13251000
+                                          1 MEANS INTERROGATE THE ONE   13252000
+                                            SPECIFIED BY MPXDESIGNATOR; 13253000
+         UNITNO         =16:8,    COMMENT NOTE-UNITNO WITH UNIT STATUS  13254000
+                                  VECTOR NO PRECEEDING MAKES UNITNOS    13255000
+                                  FROM 0 TO 255;                        13256000
+         BUFFERLENGTH   =39:20,  COMMENT BUFFER LENGTH IN AREA DESC.;   13257000
+         SIGNBITF=46:1,                                                 13260000
+         DIV4E = 47:46,%                                                13260100
+         MOD4F = 1:2,%                                                  13260200
+         DIV2F = 47:47,%                                                13260300
+         MOD2F =  0:1,%                                                 13260400
+         FIRSTCHRF     =47:6,   COMMENT FIELD FOR FIRST CHARACTER;      13261000
+         CONTROLFIELD   =8:4;    COMMENT CONTROL FIELD FOR VARIOUS      13262000
+                                         SCAN IN FUNCTIONS;             13263000
+DEFINE   IOCBSIZE       =6#,      % SIZE OF IOCB                        13263100
+                                  % INDICES OF ITEMS IN IOCB            13263200
+         USERINDEX      =0#,                                            13263300
+         MISCINDEX      =1#,                                            13263400
+         AREADESCINDEX  =2#,                                            13263500
+         EVENTINDEX     =3#;                                            13263600
+COMMENT  FIELDS FOR USER WORD OF IOCB;                                  13264000
+FIELD    IDNO          =47:10,  COMMENT USER IDENTIFICATION NO.;        13265000
+         PRIORITYF     =37:5 ,  COMMENT CONTAINS PRIORITY;              13266000
+         UNITNOF       =32:9 ,  COMMENT CONTAINS LOGICAL UNIT NO.;      13267000
+         IOERRORRECOVERY= 23:1,   % I/O RECOVEIQ09N PROCESS FOR THIS I/O13268000
+        USERIOFIELD    =22:10,    % FIELD FOR USER I/O ACTION           13269000
+         USERPARITYBIT =22:1,     % PARITY ACTION TO BE TAKEN BY USER   13269200
+         USEREOFORTBIT =21:1,     % END OF FILE OR END OF TAPE ACTION   13269400
+         USERIOFINISH  =20:1,     % USER I/O FINISHED                   13269600
+         USERSPECIALID =19:1 ,    % SPECIAL ACTION TO BE TAKEN          13269800
+         USERIOBIT     =18:1;     % USER I/O                            13270000
+COMMENT  FIELDS FOR MISC WORD OF IOCB;                                  13270100
+FIELD                                                                   13270200
+         WORDCOUNTF          =47:20,   % WORD COUNT FIELD               13270300
+COMMENT  RDCHRCNT            =27:3,      CHARACTER COUNT FIELD;         13270400
+COMMENT  RDUNITNO            =24:8,      UNIT NUMBER;                   13270500
+         IOERRORMASKFIELD    =16:17;   % FOR MASKING I/O ERRORS IN      13270600
+                                       % IOFINISH                       13270700
+COMMENT  AFTER SUCCESSFUL IOFIMISH , IOERRORMASKFIELD CONTAINS          13270800
+         ERROR FIELD (AFTER MASKING) OF RESULT DESCRIPTOR;              13270850
+COMMENT  ADDITIONAL FIELDS HAVE BEEN ADDED TO USERL.  PRESENT REFERENCES13270880
+         TO USERL WILL NOT BE AFFECTED,FOR USING ADDITIONAL FIELDS      13270900
+         NEW LAYOUT MAY BE NECESSARY;                                   13270950
+LAYOUT   IOPATHWORD(UNITNO,MPXDESIGNATOR,MPXINDICATOR),                 13271000
+                   COMMENT WORD USED FOR INTERROGATING I/O PATH;        13272000
+         USTATUSWORD(USTATUSVECTORNO, 8:4~1,MPXDESIGNATOR,MPXINDICATOR),13273000
+                   COMMENT WORD USED FOR INTERROGATING PERIPHERAL       13274000
+                           STATUS;                                      13275000
+         UNITINITIALIZE (UNITTYPE, UNITMPXD, UNITMPXI),                 13276000
+                        COMMENT TO INITIALIZE UNIT TABLE;               13277000
+         BINEL (47:8),                                                  13278000
+         TYPEINTERROGATE(UNITNO,                                        13279000
+                        CONTROLFIELD ~6,                                13280000
+                        MPXDESIGNATOR,                                  13281000
+                        MPXINDICATOR),                                  13282000
+                        COMMENT   TO INTERROGATE TYPE (AND PATH) AT     13283000
+                        INITIALIZE TIME.;                               13284000
+          BITL(     BIT47=47:1,  BIT46=46:1,  BIT45=45:1,  BIT44=44:1,  13285000
+                    BIT43=43:1,  BIT42=42:1,  BIT41=41:1,  BIT40=40:1,  13286000
+                    BIT39=39:1,  BIT38=38:1,  BIT37=37:1,  BIT36=36:1,  13287000
+                    BIT35=35:1,  BIT34=34:1,  BIT33=33:1,  BIT32=32:1,  13288000
+                    BIT31=31:1,  BIT30=30:1,  BIT29=29:1,  BIT28=28:1,  13289000
+                    BIT27=27:1,  BIT26=26:1,  BIT25=25:1,  BIT24=24:1,  13290000
+                    BIT23=23:1,  BIT22=22:1,  BIT21=21:1,  BIT20=20:1,  13291000
+                    BIT19=19:1,  BIT18=18:1,  BIT17=17:1,  BIT16=16:1,  13292000
+                    BIT15=15:1,  BIT14=14:1,  BIT13=13:1,  BIT12=12:1,  13293000
+                    BIT11=11:1,  BIT10=10:1,  BIT9 = 9:1,  BIT8 = 8:1,  13294000
+	    BIT7 = 7:1,  BIT6 = 6:1,  BIT5 = 5:1,  BIT4 = 4:1,  13295000
+                    BIT3 = 3:1,  BIT2 = 2:1,  BIT1 = 1:1,  BIT0 = 0:1), 13296000
+         DIVMOML(PCBITSF~0,ADDRESSF~0),                                 13297010
+         IOL(BL=39:20,FL=19:20),                                        13297020
+              IOLINKL(NUMRECSLNK=47:16,BCKWRDLNK=31:16,FRWRDLNK=15:16), 13297030
+         SCANINWORD(CONTROLFIELD,MPXDESIGNATOR,MPXINDICATOR),           13298000
+               COMMENT CONTROL WORD USED FOR VARIOUS SCAN IN FUNCTIONS; 13299000
+         SCANOUTWORD(CONTROLFIELD,MPXDESIGNATOR,MPXINDICATOR),          13299100
+               COMMENT SCAN OUT CONTROL WORD;                           13299200
+         RDLBL(PNO=19:8,PTP=11:4,UNO=7:8),            % READALABL LAYOUT13300000
+         IOCWDISKL(REPORTF=35:4,DECADDRF=27:28),                        13301000
+                        COMMENT UNIT FIELD OF IOCW FOR DISK;            13302000
+         IOCWPRINTERL(SKIPF=35:4,SPACEF=31:2),  COMMENT FOR MAKING      13303000
+                          UNIT FIELD OF IOCW FOR PRINTER;               13304000
+         IOCWTAPEL(FUNCTIONF=35:2,BPISPECF=33:1,BPIF=32:2,              13305000
+                   PARITYF=30:1,CRCSPECF=29:1,CRCTRACK=28:3),           13306000
+                        COMMENT FOR MAKING UNIT FIELD OF IOCW FOR TAPE; 13307000
+                        COMMENT TO MAKE UP A DESCRIPTOR;                13308000
+         IOCWL(IOSTANDARDFIELD,IOUNITFIELD), COMMENT TO FORM IOCW;      13309000
+         IOCWDETAILL(IOATTENTION,IOREADBIT,IOMODE,IOUNITFIELD),         13310000
+                   COMMENT FOR SETTING UP IOCW FOR DIFF. RECORDING MODE;13311000
+         IOCWSPACEL(IOSTANDARDFIELD~@600,39:1,23:16)                    13312000
+              ,    COMMENT TO MAKE UP TAPE SPACE ;                      13313000
+         TAPEIOCWL(IOREADBIT,IOTRANSLATE,IOFRAMESIZE,33:3,PARITYF),     13313010
+         PRINTIOCWL(IOREADBIT~0,IOTRANSLATE,IOFRAMESIZE,SKIPF,SPACEF),  13313020
+         PPRTIOCWL(IOREADBIT,IOTRANSLATE,IOFRAMESIZE,IOMEMPROTECT,      13313030
+              FUNCTIONF),                                               13313040
+         MISCL   (SIGNBITF~1,IOERRORMASKFIELD),                         13314000
+         IOERRORMASKL(BUFFERLENGTH,ADDRESS),                            13315000
+                        COMMENT TO MAKE UP IOERRORMASK FOR WAITIO;      13316000
+         USERL(IDNO,PRIORITYF,UNITNOF,IOERRORRECOVERY);                 13317000
+                          COMMENT TO FORM     USER WORD FOR IOCB;       13318000
+REAL                                                                    13319000
+         MAXVECTORNO;       COMMENT MAXIMUM VECTOR NO;                  13321000
+DEFINE   TIMEOFDAYWORD=96 #;    COMMENT CONTROL WORD FOR SETTING &      13324000
+                                        READING TIME OF DAY;            13325000
+DEFINE             BASICCLOCKUNIT =    2.4 #     % BASIC UNIT TOD CLOCK 13326000
+              ,    ONESECOND      =    416667 #  % NUMBER OF BASIC UNITS13327000
+                                                 % IN ONESECOND(ACTUALLY13328000
+                                                 % IN 1.0000008 SECONDS)13329000
+                                                                        13330000
+              ,    REARRANGETIME  =    416667 #  % NUMBER OF BASIC UNITS13331000
+                                                 % BETWEEN RE-ARRANGING 13332000
+                                                 % READYQ               13333000
+              ;                                                         13334000
+DEFINE        COMMENT DEFINES FOR UNIT TYPES-(REF FIELD UNITTYPE);      13335000
+         NOUNIT        =0#,                                             13336000
+         DISKFILE      =1#,                                             13337000
+         CONN          = 2#,                                            13338000
+         SPO           = CONN#,%       SPO IS HOLD-OVER FROM B5500.     13339000
+         PAPERTAPERDR  =4#,   COMMENT PAPER TAPE READER;                13340000
+         PAPERTAPEPNCH =5#,   COMMENT PAPER TAPE PUNCH;                 13341000
+         BUFFPRINTER   =6#,   COMMENT LINE PRINTER I BUFFERED;          13342000
+         UNBUFFPRINTER =7#,   COMMENT LINE PRINTER IIUNBUFFERED;        13343000
+         CARDREADER    =9#,                                             13344000
+         CARDPUNCH1    =10#,  COMMENT CARD PUNCH I;                     13345000
+         CARDPUNCH2    =11#,  COMMENT CARD PUNCH II ;                   13346000
+         MAGTAPE1      =13#,  COMMENT MAGNETIC TAPE I(7 TRACK);         13347000
+         MAGTAPE2      =14#,  COMMENT MAGNETIC TAPE II (9 TRACK);       13348000
+         MAGTAPE3      = 15#,  COMMENT MAGNETIC TAPE III (9 TRACK);     13349000
+         MAGTAPCLUSTER1= 29#,%    MAGNETIC TAPE CLUSTER I   (7 TRACK)   13350000
+         MAGTAPCLUSTER2= 30#,%    MAGNETIC TAPE CLUSTER II  (9 TRACK)   13351000
+         MAGTAPCLUSTER3= 31#,%    MAGNETIC TAPE CLUSTER III (9 TRACK)   13352000
+         MAGTAPE(TYPE) = (TYPE } 13 AND TYPE { 15 OR TYPE } 29) #;      13353000
+DEFINE   MAXUNITTYPE = 31 #;                                            13353100
+                                                                        13354000
+DEFINE%       FOR KEYIN AND ASSOCIATED PROCEDURES                       13355000
+         POINTTOMSGAREA= POINTER(MSGAREA[1],BYTESZ)#,                   13356000
+         MCP           = 0#,                                            13357000
+         KEYINQSZ      = 2#,                                            13358000
+         INVKBDSZ      = 2#,                                            13359000
+         JFACTOR       = INVKBDSZ+3#,                                   13360000
+         TI(X)         = REAL(POINTER(TYPEINDX[X], *), 1) #,            13361000
+         UNITBL(U1,U2) = REAL(POINTER(MNEMTOUNIT[U1+U2-1],*),1)#,       13362000
+         CLEAR(P,B)    = REPLACE P BY B" " FOR B WORDS#,%               13363000
+         ETX           = 48"03"#,%                                      13364000
+         BLANK         = 8" "#,%                                        13366000
+         CLEARSCREEN   = 48"0C0000" #,                                  13367000
+         LINEERASE     = 48"00110000"#,%                                13368000
+         REVERSELF     = 48"00130000"#,%                                13369000
+         HOME          = 48"3C00"#,%                                    13370000
+         CARRETURN     = 48"0D0000"#,%                                  13371000
+         LINEFEED      = 48"2500"#,%                                    13372000
+         COLON         = 8":"#,%                                        13373000
+         EQUAAL        = 8"="#,%                                        13374000
+         AT            = 8"@"#,%                                        13375000
+         SLASH         = 8"/"#,%                                        13376000
+         PERIOD        = 8"."#,%                                        13377000
+         COMMA         = 8","#,%                                        13377100
+         QUESTION      = 48"6F"#,%                                      13378000
+         BACKSPACE     = 48"1600"#,%                                    13379000
+         NUL           = 48"00"#,%                                      13379900
+         ZERO          = 8"0"#,%                                        13380100
+         DISPLAYONMIX  = DISPLAYONKEYER#,                               13381000
+         DISPLAYONPER  = DISPLAYONKEYER#,                               13382000
+         DISPLAYONKEYER= SCREEN[2]#,                                    13383000
+         DISPLAYONCON  = DISPLAYONKEYER#,                               13384000
+         NOOFSCREENSRQD= 4#,                                            13385000
+         MNEMLIM       = 14#,                                           13386000
+         MNEMSZ        = 2#,                                            13387000
+         BUFFS         = 6#,                                            13388000
+         CHRS          = 6#,                                            13389000
+         BYTESZ        = 8#,                                            13390000
+         RUSER(U)      = 0&USERL(,,U,)#,                                13391000
+         RIOCW         = 0&IOCWL(@440)#,%                               13392000
+         RERRMSK       = @116001#,                                      13393000
+         WIOCW         = 0%IOCWL(#40)#,%                                13394000
+         WUSER(U)      = 0%USERL(*,*,U,*)#,                             13395000
+         WERRMSK       = @110001#,                                      13396000
+         RDTIMEOUT     = RDBLANKTAPE#,                                  13397000
+         DATEIS        = 8"DATE IS "#,%                                 13398100
+         TIMEIS        = 8"TIME IS "#,%                                 13398200
+         MAXMSGSZ      = 1000#,                                         13399000
+         LINESZ        = 40#,%                                          13400000
+         SCREENSZ      = 960#,%                                         13400100
+         MAXPGS        = 2#,%                                           13400200
+         MAXLNS        = 20#,%                                          13401000
+         DICASZ        = 3#,                                            13402000
+         MAXDICA       = 24#,                                           13403000
+         DICBSZ        = 2#,                                            13404000
+         MAXDICB       = 102#,                                          13405000
+         MIN(A,B)      = (IF A{B THEN A ELSE B)#,                       13406000
+         INPUT(IOCW)   = BOOLEAN(IOCW.IOREADBIT)#,                      13407000
+         TIMEDOUT      = BOOLEAN(RSDS.RDTIMEOUT)#,%                     13407100
+         INTEVNTARY(S,D,L) =                                            13408000
+              REPLACE POINTER(D) BY POINTER(S) FOR 2x(L-1) OVERWRITE#,  13409000
+         USINGSTACK(S) = NOT STACKVECTOR[S] IS 0&DATADESCRIPTOR()#,%    13410000
+         MCPNOTUSINGSTACK(S)=STACK[S,FIRSTMSCWPLACE].STKMRF!0#,%        13410100
+         D2STACKIS(S)  = STACK[S,PROCESSNATUREPLACE].PROCESSHISTORYF!0#,13410200
+         HAVENTSUSPENDED(S)=WORDSTACK[S,REPLYEVENTPLACE].TAG=0 OR%      13410300
+                            BOOLEAN(M[STACK[S,REPLYEVENTPLACE]])#,      13410302
+         JOBREF(S)     = WORDSTACK[S,JOBIDPLACE]#,%                     13410400
+         KFPSCRATCHWORDSZ= 1#,%                                         13428000
+         LEAP(Y)       = Y.MOD4F=0 AND(Y MOD 100!0 OR(Y MOD 400=0 AND   13428100
+                                                      Y MOD 4000!0))#,  13428102
+         DAY           = 8"DAY, "#,%                                    13428200
+         JULDATESZ     = 7#,%                                           13428300
+                                                                        13428400
+         STARTYEARPLACE= 0#,%                                           13428500
+         STARTDAYPLACE = 4#,%                                           13428600
+         YEARSZ        = 4#,%                                           13428700
+         DAYSZ         = 3#,%                                           13428800
+         BASEYEAR      = 1700#,%                                        13428900
+         PERCENTAGE(X) = X DIV 10 FOR 2 DIGITS,PERIOD,%                 13431000
+                         X MOD 10 FOR 1 DIGITS#,%                       13432000
+         TIMECORRFACT  = 2400#,%  ::= (2.4|10@6)/10@3 GIVING SECONDS    13433000
+         DIV2(X)       = REAL(BOOLEAN(X)AND NOT BOOLEAN(3))#,%          13433100
+DEFINEND=0#;                                                            13434000
+DEFINE                                                                  13435000
+         % FOR READALABEL AND PURGIT                                    13436000
+              USAH      = 0&USERL(,,U,)#,                               13437000
+              SCHANNEL  = UNT.UNITTYPE=13#,                             13438000
+              NCHANNEL  = NOT SCHANNEL#,                                13439000
+              ERAH(M,S) = 0&IOERRORMASKL(M,S)#,                         13440000
+              UNEXP     = 3"377635"#,                                   13441000
+              TAPETEST  = 4#,                                           13442000
+              TAPEPARITY=BOOLEAN(RSLT.RDMEMACCESS)AND RSLT.RDDENSITY=3#,13444000
+              GETUNT    = WHILE BOOLEAN(UNT~READLOCK(1,UNIT[U])) DO#,   13445000
+              PUTUNT(A,B,C,D)=GETUNT;UNIT[U]~UNT&UNITL(A,B,C,D)#,       13446000
+              GETOLDS   = OLDSTATUS~OLDSTATUSWORD[VECTORNO];            13447000
+                             % KLUDGE                                   13448000
+                             OLDSTATUSWORD[VECTORNO]~OLDSTATUS AND NOT  13449000
+                             BOOLEAN(BITWORD)#,                         13450000
+              RD432     = RDBIT432#,                                    13451000
+              PHDR1     = PVOL1#,                                       13452000
+              PHDR2     = PVOL1#,                                       13453000
+              RCRDFRMT  = IF TAPETYPE=1 THEN                            13454000
+                             IF URF=6"F"THEN 0 ELSE IF URF=6"D"THEN 1   13455000
+                                  ELSE IF URF=6"V"THEN 2 ELSE           13456000
+                             IF URF=6"I"THEN 4 ELSE IF URF=6"L"THEN 5   13457000
+                                  ELSE IF URF=6"Z"THEN 6 ELSE 3         13457050
+                          ELSE                                          13458000
+                             IF URF=8"F"THEN 0 ELSE IF URF=8"D"THEN 1   13459000
+                                  ELSE IF URF=8"V"THEN 2 ELSE           13460000
+                             IF URF=8"I"THEN 4 ELSE IF URF=8"L"THEN 5   13461000
+                                  ELSE IF URF=8"Z"THEN 6 ELSE 3#,       13461050
+              WERRORS   = BOOLEAN(@260201)#;                            13462000
+COMMENT DECLARATIONS FOR QUEUES OF I/O REQUESTS WAITING FOR UNIT        13463000
+        ONE QUEUE FOR EACH UNIT;                                        13464000
+ARRAY    DUMMYIOQUE[*];   COMMENT FOR MAKING ENTRY IN IOQUE;            13465000
+DEFINE   FIRSTIOU=FIRSTIO[INDEX]#,  COMMENT INDEX IS QUEUE HEAD INDEX;  13466000
+         LASTIOU=LASTIO[INDEX]#;                                        13467000
+QUEUE ARRAY IOQUE:FIRSTIO[*](USER.MISC,AREADESC,EVNT:                   13468000
+                               PRVSIO,NEXTIO);                          13469000
+                               VALUE USER,MISC,AREADESC,                13470000
+                                     PRVSIO,NEXTIO;                     13471000
+                               REAL USER,MISC;                          13472000
+                               EVENT EVNT;                              13473000
+                               REFERENCE PRVSIO,NEXTIO,AREADESC;        13474000
+    USING                                                               13475000
+         ALLOCATE IS REFERENCE(DUMMYIOQUE &                             13476000
+                             ARRAYDESCL(3, 6, GETAREA(6))):             13477000
+    NEXT IS NEXTIO @ FIRSTIO[INDEX]:                                    13478000
+    TO INSERT,     COMMENT QUEUE IS ARRANGED ON A FIRST COME FIRST      13479000
+                           BASIS;                                       13480000
+    BEGIN                                                               13481000
+         IF LASTIOU=NULL THEN COMMENT QUEUE IS EMPTY;                   13482000
+         BEGIN                                                          13483000
+              LASTIOU~FIRSTIOU~ENTRY;  COMMENT ENTRY IS THE ADDRESS OF  13484000
+                                       DESC. POINTING TO DATA OF NEW    13485000
+                                       ENTRY;                           13486000
+              NEXTIO@(FIRSTIOU)~PRVSIO @(FIRSTIOU)~ NULL;               13487000
+         END             ELSE                                           13488000
+         BEGIN     COMMENT PUT ENTRY AT TAIL OF QUEUE;                  13489000
+              PRVSIO @(ENTRY)~ LASTIOU;                                 13490000
+              NEXTIO @(LASTIOU)~ENTRY;                                  13491000
+              LASTIOU ~ENTRY;                                           13492000
+              NEXTIO @(ENTRY)~NULL;                                     13493000
+         END;                                                           13494000
+    END INSERTION OF ENTRY IN QUEUE:                                    13495000
+    TO DELINK,                                                          13496000
+    BEGIN                                                               13497000
+         IF ENTRY=FIRSTIOU THEN COMMENT ENTRY IS THE TOP OF QUEUE;      13498000
+         IF FIRSTIOU=LASTIOU      THEN COMMENT ONLY ONE ENTRY IN QUEUE; 13499000
+         FIRSTIOU ~ LASTIOU ~NULL ELSE                                  13500000
+         BEGIN     COMMENT REMOVES ENTRY FROM TOP;                      13501000
+              FIRSTIOU ~NEXTIO ~ FIRSTIOU;                              13502000
+              PRVSIO @(FIRSTIOU)  ~ NULL;                               13503000
+         END               ELSE                                         13504000
+         IF ENTRY=LASTIOU THEN COMMENT REMOVES LAST ENTRY OF QUEUE;     13505000
+         BEGIN                                                          13506000
+              LASTIOU~PRVSIO @ ENTRY;                                   13507000
+              NEXTIO @(LASTIOU)~ NULL;                                  13508000
+         END              ELSE  COMMENT REMOVES ANY OTHER ENTRY;        13509000
+         BEGIN                                                          13510000
+               COMMENT FIX NEXTIO POINTER IN THE UPPER LINK OF ENTRY;   13511000
+              NEXTIO @(PRVSIO @ ENTRY)~ NEXTIO @ ENTRY;                 13512000
+               COMMENT FIX PRVSIO POINTER IN THE LOWER LINK OF ENTRY;   13513000
+              PRVSIO @(NEXTIO @ ENTRY)~ PRVSIO @ ENTRY;                 13514000
+         END;                                                           13515000
+    END DELINKING OF ENTRY FROM OUEUE;                                  13516000
+COMMENT DECLARATIONS FOR QUEUES OF UNITS WAITING FOR CHANNEL.           13517000
+        ONE QUEUE FOR EACH MPX;                                         13518000
+ARRAY    DUMMYWAITCHANNELQUE[*];  COMMENT FOR MAKING ENTRY IN           13519000
+                                  WAITCHANNELQUE;                       13520000
+REFERENCE ARRAY LASTUNIT[*]   COMMENT POINTS TO LAST ENTRY IN           13521000
+                             WAITCHANNELQUE;                            13522000
+DEFINE   FIRSTUNITI=FIRSTUNIT[INDEX]#, COMMENT INDEX-QUEUE HEAD INDEX;  13523000
+         LASTUNITI=LASTUNIT[INDEX]#;                                    13524000
+QUEUE ARRAY WAITCHANNELQUE:FIRSTUNIT[1](UNTWORD:PRVSUNIT,NEXTUNIT);     13525000
+                                  VALUE UNTWORD,PRVSUNIT,NEXTUNIT;      13526000
+                                  REAL UNTWORD;                         13527000
+                                  REFERENCE PRVSUNIT,NEXTUNIT;          13528000
+    USING                                                               13529000
+         ALLOCATE IS REFERENCE(DUMMYWAITCHANNELQUE &                    13530000
+                               ARRAYDESCL(,3,GETAREA(3))):              13531000
+    NEXT IS NEXTUNIT @ FIRSTUNIT[INDEX]:                                13532000
+    TO INSERT,          COMMENT QUEUE IS ARRANGED ON A FIRST COME FIRST 13533000
+                                BASIS;                                  13534000
+    BEGIN                                                               13535000
+         IF LASTUNITI=NULL THEN COMMENT QUEUE IS EMPTY;                 13536000
+         BEGIN                                                          13537000
+              LASTUNITI~FIRSTUNITI~ENTRY; COMMENT ENTRY IS THE ADDRESS  13538000
+                                          OF DESC. POINTING TO DATA OF  13539000
+                                          NEW ENTRY;                    13540000
+              NEXTUNIT @(FIRSTUNITI)~PRVSUNIT @(FIRSTUNITI) ~NULL;      13541000
+         END               ELSE                                         13542000
