@@ -126,7 +126,7 @@ SAVE REAL PROCEDURE GETSPACE (SIZE, WHOFOR, TYPE, ADDRESS);             02007000
     REAL      ADDRESS;                                     FORWARD;     02010000
 SAVE INTEGER PROCEDURE FORGETSPACE (ADDRESS);                           02011000
     VALUE     ADDRESS;  INTEGER   ADDRESS;                 FORWARD;     02012000
-SAVE PROCEOURE OVERLAY (ADDRESS); VALUE ADDRESS;INTEGER ADDRESS;FORWARD;02013000
+SAVE PROCEDURE OVERLAY (ADDRESS); VALUE ADDRESS;INTEGER ADDRESS;FORWARD;02013000
 REAL PROCEDURE DIRECTORYSEARCH(POINT, CODE, LLOCK);                     02016100
          VALUE POINT, CODE, LLOCK;                                      02016200
          POINTER POINT;                                                 02016300
@@ -137,7 +137,7 @@ SAVE PROCEDURE IOFINISH(MPXINDEX);     VALUE MPXINDEX;                  02017000
 PROCEDURE FINISHOFFIO(IOCB);       VALUE IOCB;  REFERENCE IOCB; FORWARD;02019000
 PROCEDURE FINISHOFFIO(IOCB); VALUE IOCB; REFERENCE IOCB; ; COMMENT * * ;02020000
 SAVE                                                                    02020998
-    PROCEDURE SPOUT(IOCB,U);VALUE IOCB,U;REAL U;REFERERCE IOCB;FORWARD; 02021000
+    PROCEDURE SPOUT(IOCB,U);VALUE IOCB,U;REAL U;REFERENCE IOCB;FORWARD; 02021000
 PROCEDURE MESSER(W,INFO);VALUE W,INFO;REAL W;WORD INFO;FORWARD;%        02021100
          PROCEDURE MIXPRINT(BUF);ARRAY BUF[*]; FORWARD;%                02022000
 BOOLEAN PROCEDURE JULIT(P);POINTER P; FORWARD;                          02022300
@@ -154,13 +154,13 @@ SAVE REAL PROCEDURE WAITIO(AREA, USER, IOMASK);                         02030000
     ARRAY AREA[*];                                                      02032000
     REAL USER, IOMASK;                                                  02033000
     FORWARD;                                                            02034000
-SAVE PROCEDURE IOREQUEST(IOCB);VALUE IOCB;REFERENCE IOCB:FORWARD;       02034100
+SAVE PROCEDURE IOREQUEST(IOCB);VALUE IOCB;REFERENCE IOCB;FORWARD;       02034100
 SAVE REFERENCE PROCEDURE DISKIO(CORE,INDEX,SIZE,DISK,MASK,DISKIOEVNT);  02035000
                         VALUE INDEX,SIZE,DISK,MASK;                     02036000
                         INTEGER INDEX,SIZE,DISK,MASK;                   02037000
                    ARRAY CORE [*];                                      02038000
                    EVENT DISKIOEVNT  ;                     FORWARD;     02039000
-SAVE PROCEDURE DISKWAIT(CORE,INDEX,SIZE.DISK,MASK);                     02040000
+SAVE PROCEDURE DISKWAIT(CORE,INDEX,SIZE,DISK,MASK);                     02040000
                         VALUE INDEX,SIZE,DISK,MASK;                     02041000
                         INTEGER INDEX,SIZE,DISK,MASK;                   02042000
               ARRAY CORE[*];                                            02043000
@@ -168,8 +168,1210 @@ SAVE PROCEDURE DISKWAIT(CORE,INDEX,SIZE.DISK,MASK);                     02040000
  PROCEDURE HARDWAREINTERRUPT(P1,P2); VALUE P1,P2;                       02045000
                         INTEGER P1; WORD P2;               FORWARD;     02046000
 WORD HARDWAREINTERRUPTPCW = HARDWAREINTERRUPT;                          02046100
-WORD D03 = (O, 3);                                                      02046200
+WORD D03 = (0, 3);                                                      02046200
 SAVE PROCEDURE HOLDINITIALISE;                             FORWARD;     02047000
 SAVE PROCEDURE PERIPHERALINITIALIZE;                       FORWARD;     02048000
 REAL MCPDISKBASE = PERIPHERALINITIALIZE; COMMENT ADDRESS OF MCP DISK;   02049000
 SAVE PROCEDURE INITIALIZE(P1, P2);                                      02050000
+         VALUE P1;                                                      02051000
+         INTEGER P1;                                                    02052000
+         WORD P2;                                          FORWARD;     02053000
+REAL MAXCHANNELS = INITIALIZE; COMMENT THE NUMBER OF MULTIPLEXORS;      02054000
+BOOLEAN MAXMPX = MAXCHANNELS;                                           02055000
+WORD INITIALIZEPCW = INITIALIZE;                                        02055100
+SAVE INTEGER PROCEDURE GETAREA(SIZE); VALUE SIZE; INTEGER SIZE; FORWARD;02057000
+SAVE PROCEDURE FORGETAREA(SIZE,ADDRESS);    VALUE SIZE,ADDRESS;         02058000
+                                       INTEGER SIZE,ADDRESS;  FORWARD;  02059000
+PROCEDURE UPDATEUNITBITSTABLE(TABLENAME,U);   VALUE U;                  02060000
+                                              INTEGER U;                02061000
+BOOLEAN ARRAY TABLENAME[*]; FORWARD;                                    02062000
+PROCEDURE EVENTHANDLER = (0,15) (THEEVENT,EVENTWORD1,WAITFLAG);         02063000
+              VALUE EVENTWORD1,WAITFLAG;                                02064000
+              WORD THEEVENT,EVENTWORD1;                                 02065000
+              BOOLEAN WAITFLAG;                            FORWARD;     02066000
+WORD PROCEDURE SOFTWAREINTERRUPTDEC = (0,14) (THEEVENT,EVENTWORD1,      02067000
+                                  EVENTWORD2,KLUDGE,PCWPOINTER);        02068000
+              VALUE EVENTWORD1,EVENTWORD2,PCWPOINTER,KLUDGE;            02069000
+              WORD THEEVENT,EVENTWORD1,EVENTWORD2,PCWPOINTER,KLUDGE;    02070000
+                                                           FORWARD;     02071000
+DEFINE INTERLOCK = EVENT #                                              02071100
+    ,  PROCURE(LOCK) = GAOLER(LOCK, FALSE) #                            02071200
+    ,  LIBERATE(LOCK) = GAOLER(LOCK, TRUE) #                            02071300
+    ;                                                                   02071400
+PROCEDURE GAOLER = (0,18) (E,U); VALUE U; EVENT E; BOOLEAN U; FORWARD;  02071500
+SAVE WORD PROCEDURE DOPEVECTOR(MOM);                                    02072000
+              VALUE MOM;                                                02073000
+              WORD MOM;                                    FORWARD;     02074000
+SAVE PROCEDURE ARRAYDEC =(0,7) (NOOFDIMS,NOOFARRAYS,TYPE);              02075000
+                   VALUE NOOFDIMS,NOOFARRAYS,TYPE;                      02076000
+                   INTEGER NOOFDIMS,NOOFARRAYS,TYPE;       FORWARD;     02077000
+SAVE PROCEDURE DUMMYFORCUTTINGSTACK;   ;                                02077100
+WORD     DUMMYFORCUTTINGSTACKPCW=DUMMYFORCUTTINGSTACK;                  02077200
+SAVE WORD PROCEDURE SIM1TOR(A,V); VALUE A, V; REAL A; WORD V;           02078000
+    BEGIN                                                               02079000
+         INTEGER T;                                                     02080000
+         T ~REGISTERS [63];                                             02081000
+         SIM1TOR ~ V;                                                   02082000
+    END;                                                                02083000
+SAVE PROCEDURE MEMDUMP = (0,20) (I,J);VALUE I,J;REAL I,J;FORWARD;       02083100
+WORD PROCEDURE JACKMONITOR (A, V); VALUE A, V; REAL A; WORD V;          02084000
+                        FORWARD;                                        02085000
+WORD PROCEDURE  RAJMONITOR (A, V); VALUE A, V; REAL A; WORD V;          02086000
+                        FORWARD;                                        02087000
+WORD PROCEDURE  BOBMONITOR (A, V); VALUE A, V; REAL A; WORD V;          02088000
+         FORWARD;                                                       02089000
+WORD PROCEDURE  DONMONITOR (A, V); VALUE A, V; REAL A; WORD V; FORWARD; 02090000
+WORD PROCEDURE STEVEMONITOR(A,V);VALUE A,V;REAL A;WORD V; FORWARD;      02090100
+WORD PROCEDURE MIKEMONITOR(A,V); VALUE A,V; REAL A; WORD V; FORWARD;    02090200
+REAL PROCEDURE GETUSERDISK(SEGMENTS, SPEED);                            02091000
+         VALUE SEGMENTS, SPEED;                                         02092000
+         REAL SEGMENTS, SPEED;                             FORWARD;     02093000
+PROCEDURE FORGETUSERDISK(DKADDR, SEGMENTS);                             02094000
+         VALUE DKADDR, SEGMENTS;                                        02095000
+         REAL DKADDR, SEGMENTS;                            FORWARD;     02095500
+REAL PROCEDURE NOUSERDISK(SEGMENTS, SPEED);                             02095600
+    VALUE SEGMENTS, SPEED;                                              02095700
+    REAL SEGMENTS, SPEED;                                  FORWARD;     02095800
+SAVE PROCEDURE BLOCKEXIT = (0,10);                         FORWARD;     02096000
+PROCEDURE FORGETDOPEVECTORS(DD);       WORD ARRAY DD[*];   FORWARD;     02097000
+SAVE PROCEDURE MOMTOVECTOR (MOM, VECTOR, INDEX);                        02098000
+    VALUE               COMMENT   A COPY OR MOM  DESCRIPTOR THAT IS AC- 02098100
+                        CEPTABLE TO PRESENCE BIT;                       02098200
+                        COMMENT   AN-UNINDEXED DESCRIPTOR THAT IS AC-   02099000
+                        CEPTABLE TO AN NXLN OPERATOR;                   02099100
+              INDEX;    COMMENT   THE INDEX FOR VECTOR WHERE MOM IS TO  02100000
+                        BE PLACED;                                      02100100
+    WORD ARRAY MOM[*],                                                  02100200
+               VECTOR[*];                                               02100300
+    INTEGER   INDEX;                   FORWARD;                         02100400
+SAVE REFERENCE PROCEDURE ALLOCATEMAMEQ;          FORWARD;               02101000
+SAVE BOOLEAN PROCEDURE TURNOVERLAYKEY (ADDRESSOFMOM);                   02102000
+    VALUE     ADDRESSOFMOM;                                             02103000
+    INTEGER   ADDRESSOFMOM;                                FORWARD;     02104000
+SAVE PROCEDURE MAKEPRESENTANDSAVE (DATA);                               02104100
+    WORD ARRAY DATA [*];               FORWARD;                         02104200
+PROCEDURE LIBMAIN(MFID);VALUE MFID;POINTER MFID;FORWARD;                02105000
+SAVE INTEGER PROCEDURE CONSOLIDATEANDORDER(ADDRESS);                    02109000
+    VALUE     ADDRESS;                                                  02110000
+    INTEGER   ADDRESS;  FORWARD;                                        02111000
+PROCEDURE OPEN=(0,31)(FIB,TYPEV);VALUE TYPEV;ARRAY FIB[*];REAL TYPEV;   02111100
+    FORWARD;                                                            02111200
+PROCEDURE GOTOSOLVER = (0,11) (SIRW); VALUE SIRW; REAL SIRW; FORWARD;   02112000
+REAL PROCEDURE FINDINPUT(LEB,CODE);VALUE CODE;INTEGER CODE;ARRAY LEB[*];02112010
+    FORWARD;                                                            02112020
+SAVE                                                                    02113000
+WORD PROCEDURE MON1TOR (A, V); VALUE A, V; REAL A; WORD V; FORWARD;     02114000
+INTEGER PROCEDURE VECTORINSERT(READYINDICATOR,NEWENTRY);                02115000
+                  VALUE     READYINDICATOR                              02116000
+                       ,    NEWENTRY                                    02117000
+                       ;                                                02118000
+                  REAL      READYINDICATOR                              02119000
+                       ;                                                02120000
+                  WORD NEWENTRY                                         02121000
+                       ;                                  FORWARD;      02122000
+PROCEDURE STACKQREARRANGE(READYINDICATOR) ;                             02123000
+                  VALUE     READYINDICATOR                              02124000
+                       ;                                                02125000
+                  BOOLEAN   READYINDICATOR                              02126000
+                       ;                                  FORWARD;      02127000
+PROCEDURE STACKQREMOVE (PATH,STACKINDICATOR);                           02128000
+   VALUE     PATH                                                       02129000
+             ,    STACKINDICATOR                                        02130000
+             ;                                                          02131000
+   REAL      PATH                                                       02132000
+             ;                                                          02133000
+   INTEGER        STACKINDICATOR                                        02134000
+             ;                                            FORWARD;      02135000
+PROCEDURE INSERTINQUEUE (PATH,STACKINDICATOR);                          02136000
+             VALUE     PATH                                             02137000
+                  ,    STACKINDICATOR                                   02138000
+                  ;                                                     02139000
+             REAL      PATH                                             02140000
+                  ,    STACKINDICATOR                                   02141000
+                  ;                                       FORWARD;      02142000
+INTEGER PROCEDURE GETINDEPENDENTRUNNERSTACK(STAKADRES);REAL STAKADRES;  02143000
+                                                          FORWARD;      02144000
+                                                                        02145000
+                                                                        02146000
+PROCEDURE NEXTPROCESS;                                    FORWARD;      02147000
+INTEGER PROCEDURE NEXTINSCHEDULE;                         FORWARD;      02148000
+                                                                        02149000
+                                                                        02150000
+                                                                        02151000
+PROCEDURE SELECTION;                                      FORWARD;      02152000
+PROCEDURE RUN (PARAMETER,PROCEEDURE);                                   02153000
+    VALUE          PARAMETER                                            02154000
+              ;                                                         02155000
+    WORD           PARAMETER                                            02156000
+              ;                                                         02157000
+    PROCEDURE      PROCEEDURE                                           02158000
+              ;                                            FORWARD;     02159000
+WORD RUNPCW = RUN;      COMMENT USED BY INDEPENDENTRUNNER MECHANISM;    02160000
+PROCEDURE STANDARDINSERT(FIRSTENTRY,LASTENTRY,ENTRY);                   02161000
+    VALUE ENTRY;                                                        02162000
+    REFERENCE FIRSTENTRY,LASTENTRY,ENTRY;                  FORWARD;     02163000
+PROCEDURE STANDARDDELINK(FIRSTENTRY,LASTENTRY,ENTRY);                   02164000
+    VALUE ENTRY;                                                        02165000
+    REFERENCE FIRSTENTRY,LASTENTRY,ENTRY;                  FORWARD;     02166000
+SAVE PROCEDURE QUEUEMYSTACK (AUTHORITY, REQUIRED, COUNT, MYEVENT, HEAD);02167000
+    VALUE     AUTHORITY, COMMENT  THE SORTKEY FOR THIS OUEUE;           02168000
+              REQUIRED, COMMENT AN ADDITIONAL INFORMATION WORD FOR THE  02169000
+                        QUEUE ENTRY;                                    02170000
+              COUNT;    COMMENT   A 10 BIT COUNTER IN THE STACK LINK    02171000
+                        WORD FOR THIS QUEUE;                            02172000
+    EVENT     MYEVENT;  COMMENT  THE LOCAL EVENT MY STACK IS TO WAIT ON;02172500
+    INTEGER   COUNT;                                                    02172550
+    REAL      AUTHORITY,                                                02172600
+              REQUIRED,                                                 02172700
+              HEAD ;    COMMENT A GLOBAL REAL THAT CONTAINS THE BACK-   02173000
+                        WARD AND FORWARD LINKS FOR THE QUEUE.  THE BACK 02174000
+                        WARD LINK POINTS TO THE ENTRY WITH THE HIGHEST  02175000
+                        AUTHORITY;               FORWARD;               02176000
+PROCEDURE DELINKASTACK (WHOSE, HEAD);                                   02177000
+    VALUE     WHOSE;                                                    02178000
+    INTEGER   WHOSE;    COMMENT   THE AUTHORITY TYPE STACK TO DELINK;   02179000
+    REAL      HEAD ;    COMMENT   THE HEAD OF THE AUTHORITY TYPE STACK; 02180000
+                                                 FORWARD;               02181000
+PROCEDURE PARAMETERINSERT (FIRSTPARAM, LASTPARAM, ENTRY);               02182000
+    VALUE     ENTRY;                                                    02183000
+    REFERENCE FIRSTPARAM, LASTPARAM, ENTRY;      FORWARD;               02184000
+BOOLEAN SIMULATING = (0,12); % TRUE FOR SIMULATOR RUN                   02560000
+    VALUE ARRAY BCLTOEBC = (0,33) ~ (                                   08000000
+              4"F0F1F2F3"                                               08001000
+         ,    4"F4F5F6F7"                                               08002000
+         ,    4"F8F97B7C"                                               08003000
+         ,    4"6F7A6E69"                                               08004000
+         ,    4"4EC1C2C3"                                               08005000
+         ,    4"C4C5C6C7"                                               08006000
+         ,    4"C8C94B70"                                               08007000
+         ,    4"504D4C48"                                               08008000
+         ,    4"00D1D2D3"                                               08009000
+         ,    4"D4D5D6D7"                                               08010000
+         ,    4"D8D95B5C"                                               08011000
+         ,    4"605D5E49"                                               08012000
+         ,    4"4061E2E3"                                               08013000
+         ,    4"E4E5E6E7"                                               08014000
+         ,    4"E8E96B6C"                                               08015000
+         ,    4"597E6A7F"                                               08016000
+         );                                                             08017000
+    VALUE ARRAY EBCTOBCL = (0,34) ~ (                                   08018000
+              4"0C0C0C0C"                                               08019000
+         ,    4"0C0C0C0C"                                               08020000
+         ,    4"0C0C0C0C"                                               08021000
+         ,    4"0C0C0C0C"                                               08022000
+         ,    4"0C0C0C0C"                                               08023000
+         ,    4"0C0C0C0C"                                               08024000
+         ,    4"0C0C0C0C"                                               08025000
+         ,    4"0C0C0C0C"                                               08026000
+         ,    4"0C0C0C0C"                                               08027000
+         ,    4"0C0C0C0C"                                               08028000
+         ,    4"0C0C0C0C"                                               08029000
+         ,    4"0C0C0C0C"                                               08030000
+         ,    4"0C0C0C0C"                                               08031000
+         ,    4"0C0C0C0C"                                               08032000
+         ,    4"0C0C0C0C"                                               08033000
+         ,    4"0C0C0C0C"                                               08034000
+         ,    4"300C0C0C"                                               08035000
+         ,    4"0C0C0C0C"                                               08036000
+         ,    4"1F2F0C1A"                                               08037000
+         ,    4"1E1D100C"                                               08038000
+         ,    4"1C0C0C0C"                                               08039000
+         ,    4"0C0C0C0C"                                               08040000
+         ,    4"0C3C0C2A"                                               08041000
+         ,    4"2B202E0C"                                               08042000
+         ,    4"2C310C0C"                                               08043000
+         ,    4"0C0C0C0C"                                               08044000
+         ,    4"0C0F3E3A"                                               08045000
+         ,    4"3B0C0E0C"                                               08046000
+         ,    4"1B0C0C0C"                                               08047000
+         ,    4"0C0C0C0C"                                               08048000
+         ,    4"0C0C0D0A"                                               08049000
+         ,    4"0B0C3D3F"                                               08050000
+         ,    4"0C0C0C0C"                                               08051000
+         ,    4"0C0C0C0C"                                               08052000
+         ,    4"0C0C0C0C"                                               08053000
+         ,    4"0C0C0C0C"                                               08054000
+         ,    4"0C0C0C0C"                                               08055000
+         ,    4"0C0C0C0C"                                               08056000
+         ,    4"0C0C0C0C"                                               08057000
+         ,    4"0C0C0C0C"                                               08058000
+         ,    4"0C0C0C0C"                                               08059000
+         ,    4"0C0C0C0C"                                               08060000
+         ,    4"0C0C0C0C"                                               08061000
+         ,    4"0C0C0C0C"                                               08062000
+         ,    4"0C0C0C0C"                                               08063000
+         ,    4"0C0C0C0C"                                               08064000
+         ,    4"0C0C0C0C"                                               08065000
+         ,    4"0C0C0C0C"                                               08066000
+         ,    4"0C111213"                                               08067000
+         ,    4"14151617"                                               08068000
+         ,    4"18190C0C"                                               08069000
+         ,    4"0C0C0C0C"                                               08070000
+         ,    4"0C212223"                                               08071000
+         ,    4"24252627"                                               08072000
+         ,    4"28290C0C"                                               08073000
+         ,    4"0C0C0C0C"                                               08074000
+         ,    4"0C0C3233"                                               08075000
+         ,    4"34353637"                                               08076000
+         ,    4"38390C0C"                                               08077000
+         ,    4"0C0C0C0C"                                               08078000
+         ,    4"00010203"                                               08079000
+         ,    4"04050607"                                               08080000
+         ,    4"08090C0C"                                               08081000
+         ,    4"0C0C0C0C"                                               08082000
+         );                                                             08083000
+    SAVE VALUE ARRAY FOURBITSTUFF = (0,39) ~ (                          08083100
+              4"00010203", 4"04050607", 4"08091112", 4"13141516",       08083200
+              8"0123",  8"4567",  8"89AB",  8"CDEF" );                  08083300
+DEFINE HEXTOBCL = FOURBITSTUFF[0]#,                                     08083400
+       HEXTOEBC = FOURBITSTUFF[4]#;                                     08083500
+    VALUE ARRAY TRUTHSETS = (0,38) ~ (                                  08084000
+              6(0)                     % EBCDIC ALPHA-NUMERIC           08085000
+         ,    4"7FC07FC0"              % EBCDIC ALPHA-NUMERIC           08086000
+         ,    4"3FC0FFC0"              % EBCDIC ALPHA-NUMERIC           08087000
+         ,    6(0)                     % EBCDIC ALPHABETIC              08088000
+         ,    4"7FC07FC0"              % EBCDIC ALPHABETIC              08089000
+         ,    4"3FC00000"              % EBCDIC ALPHABETIC              08090000
+         ,    7(0)                     % EBCDIC NUMERIC                 08091000
+         ,    4"0000FFC0"              % EBCDIC NUMERIC                 08092000
+         ,    4"FFC07FC0"              % BCL ALPHA NUMERIC              08093000
+         ,    4"7FC03FC0"              % BCL ALPHA NUMERIC              08094000
+         ,    4"00007FC0"              % BCL ALPHABETIC                 08095000
+         ,    4"7FC03FC0"              % BCL ALPHABETIC                 08096000
+         ,    4"FFC00000"              % BCL NUMERIC                    08097000
+         ,    0                        % BCL NUMERIC                    08098000
+         ,    2(0)                     % EBCDIC SPECIAL CHARACTERS      08098100
+         ,    4"803F803F"              % EBCDIC SPECIAL CHARACTERS      08098200
+         ,    4"C03F007F"              % EBCDIC SPECIAL CHARACTERS      08098300
+         ,    0                        % EBCDIC SPECIAL CHARACTERS      08098400
+         ,    4"40000000"              % EBCDIC SPECIAL CHARACTERS      08098500
+         ,    4"80008000"              % EBCDIC SPECIAL CHARACTERS      08098600
+         ,    4"C0000000"              % EBCDIC SPECIAL CHARACTERS      08098700
+         );                                                             08099000
+DEFINE   EBCDICALPHANUMERIC       = TRUTHSETS[00] #,                    08100000
+         EBCDICALPHABETIC         = TRUTHSETS[08] #,                    08101000
+         EBCDICNUMERIC            = TRUTHSETS[16] #,                    08102000
+         BCLALPHANUMERIC          = TRUTHSETS[24] #,                    08103000
+         BCLALPHABETIC            = TRUTHSETS[26] #,                    08104000
+         BCLNUMERIC               = TRUTHSETS[28]#,                     08105000
+         EBCDICSPECIALS           = TRUTHSETS[30]#,                     08105100
+    ENDTRUTHSETS=0#;%                                                   08105990
+ COMMENT THESE ARE THE 6500 POWERS OF TEN TABLES.                       08106000
+    10*I=POTL[I.[05:06]]|POTM[I.[11:06])|POTH[I.[14:03]].               08106500
+    THE VALUES ARE ALL DOUBLE PRECISION AND ARE ALL --TRUNCATED--.  THE 08107000
+    FLAG-BIT OF THE MOST-SIGNIFICANT WORD IS THE FIRST BIT DROPPED      08107500
+    (FIRST BIT AFTER THE PERCENT).  ALL VALUES WERE CALCULATED TO FULL  08108000
+   SIGNIFICANCE (I.E., AS INTEGERS), THEN CHOPPED TO 78 BITS.;          08108500
+                                                                        08109000
+ DOUBLE VALUE ARRAY POTL                                                08109500
+                                                                        08110000
+       ~(3"1141000000000000",3"0000000000000000", %              =@0000008110500
+         3"1131200000000000",3"0000000000000000", %              =@0000108111000
+         3"1121440000000000",3"0000000000000000", %              =@0000208111500
+         3"1111750000000000",3"0000000000000000", %              =@0000308112000
+         3"1102342000000000",3"0000000000000000", %              =@0000408112500
+         3"1073032400000000",3"0000000000000000", %              =@0000508113000
+         3"1063641100000000",3"0000000000000000", %              =@0000608113500
+         3"1054611320000000",3"0000000000000000", %              =@0000708114000
+         3"1045753604000000",3"0000000000000000", %              =@0000808114500
+         3"1037346545000000",3"0000000000000000", %              =@0000908115000
+         3"1011124027620000",3"0000000000000000", %              =@0001008115500
+         3"0001351035564000",3"0000000000000000", %              =@0001108116000
+         3"0011643245121000",3"0000000000000000", %              =@0001208116500
+         3"0022214116345200",3"0000000000000000", %              =@0001308117000
+         3"0032657142036440",3"0000000000000000", %              =@0001408117500
+         3"0043432772446150",3"0000000000000000", %              =@0001308118000
+         3"0054341571157602",3"0000000000000000", %              =@0001608118500
+         3"0065432127413542",3"0004000000000000", %              =@0001708119000
+         3"0076740555316473",3"0001000000000000", %              =@0001808119500
+         3"0111053071060221",3"0001720000000000", %              =@0001908120000
+         3"0121265707274265",3"0004304000000000", %              =@0002008120500
+         3"0131543271153342",3"0007365000000000", %              =@0002108121000
+         3"0142074147406233",3"0005262200000000", %              =@0002208121500
+         3"0152513201307702",3"0004536640000000", %              =@0002308122000
+         3"0163236041571663",3"0001666410000000", %0             =@0002408122500
+         3"0174105452130240",3"0000244112000000", %00            =@0002508123000
+         3"0205126764556310",3"0000315134400000", %000           =@0002608123500
+         3"0216354561711772",3"0000400363500000", %0000          =@0002708124000
+         3"0231004771627437",3"0000450046042000", %000000        =@0002808124500
+         3"0241206170175346",3"0006562057453400", %0000000       =@0002908125000
+         3"0251447626234640",3"0004316473365100", %00000000      =@0003008125500
+         3"0261761573704010",3"0005402212262320", %000000000     =@0003108126000
+         3"0272356132665012",3"0006702654737004", %0000000000    =@0003208126500
+         3"0303051561442215",3"0004463430126605", %00000000000   =@0003308127000
+         3"0313664115752660",3"0007600336154346", %200000000000  =@0003408127500
+         3"4324641141345435",3"0001540425607437", %6400000000000 =@0003508128000
+         3"4336011371636744",3"0004070533151347", %6100000000000 =@0003608128500
+         3"4347413670206535",3"0005106662003641", %5520000000000 =@0003708129000
+         3"0361131664625026",3"0005033043640461", %2104400000000 =@0003808129500
+         3"4371360241772234",3"0002241654610575", %4525500000000 =@0003908130000
+         3"4401654312370703",3"0002712227752734", %7653020000000 =@0004008130500
+         3"0412227375067064",3"0001474675745524", %1625624000000 =@0004108131000
+         3"0422675274304701",3"0002014055337051", %2173171000000 =@0004208131500
+         3"4433454553366061",3"0004417070626663", %4632027200000 =@0004308132000
+         3"4444367706263475",3"0007522706774440", %4000435040000 =@0004408132500
+         3"4455465667740415",3"0003347470573550", %5000544250000 =@0004508133000
+         3"4467003245730520",3"0006361406732502", %6200675322000 =@0004608133500
+         3"0501060411731664",3"0005005571052122", %3364105460640 =@0004708134000
+         3"0511274514320241",3"0006207127264547", %0261126775010 =@0004808134500
+         3"4521553637404312",3"0001650755141700", %6335354574212 =@0004908135000
+         3"0532106607305374",3"0006223150372261", %0024647733254 =@0005008135500
+         3"0542530351166673",3"0007670002470735", %2032021722127 =@0005108136000
+         3"4553256443424452",3"0007646003207124", %4440426306555 =@0005208136500
+         3"4564132154331565",3"0005617404050751", %5550533770310 =@0005308137000
+         3"0575160607420123",3"0001163305063144", %1102662766373 =@0005408137500
+         3"0606414751324147",3"0007420166277775", %1323437564071 =@0005508138000
+         3"4621012014361120",3"0001732422375777", %4361034752111 =@0005608138500
+         3"0631214417455344",3"0002321127075377", %3455244144533 =@0005708139000
+         3"0641457523370635",3"0003005354714677", %2370515175662 =@0005808139500
+         3"0651773450267004",3"0005606650100057", %1066640435236 =@0005908140000
+         3"4662372362344605",3"0007150422120072", %7304410544506 =@0006008140500
+         3"4673071057035747",3"0003002526544111", %5165512675627 =@0006108141000
+         3"0703707272645341",3"0001603254275134", %0423035455175 =@0006208141500
+         3"0714671151416631",3"0004144127354363");%0527644770435 =@0006308142000
+ DOUBLE VALUE ARRAY POTM                                                08142500
+                                                                        08143000
+       ~(3"1141000000000000",3"0000000000000000", %              =@0000008143500
+         3"4726047403722377",3"0007175154247457", %6655616166544 =@0006408144000
+         3"4014473510762300",3"0023514315770633", %6315541553040 =@0012808144500
+         3"0103403417361516",3"0032235253250267", %3704517643661 =@0019208145000
+         3"0172523756577347",3"0043747364335667", %3440156307756 =@0025608145500
+         3"0262014102745174",3"0055463433536324", %1053014006506 =@0032008146000
+         3"0351423057061025",3"0066761250270402", %3777752636047 =@0038408146500
+         3"4441125722256075",3"0073757717235176", %5234420343164 =@0044808147000
+         3"0527061464053523",3"0100164434331431", %2561245705013 =@0051208147500
+         3"4615310177342265",3"0115474537630672", %7473770141554 =@0057608148000
+         3"0704060636744362",3"0125124721622671", %1262127057024 =@0064008148500
+         3"4773070652155207",3"0137074016271665", %5207710607022 =@0070408149000
+         3"4062271771625063",3"0152002464306621", %5177450026246 =@0076808149500
+         3"0151627122640561",3"0165346774161061", %0506313263060 =@0083208150000
+         3"4241272171262634",3"0173653557514160", %5215416216354 =@0089608150500
+         3"0331022323162501",3"0205135477216203", %1245320571711 =@0096008151000
+         3"0416227316541500",3"0215650301354503", %2364507430552 =@0102408151500
+         3"0504620511515514",3"0225724603203653", %0555750424133 =@0108808152000
+         3"0573504063603007",3"0230356777015603", %0655471421103 =@0115208152500
+         3"0662605010657142",3"0245363441540115 ",%3421137501315 =@0121608153000
+         3"0752061310601672",3"0257025566260413", %3631527002756 =@0128008153500
+         3"0041457313355310",3"0276331702015753", %3773670162764 =@0134408154000
+         3"4131153323315222",3"0306736070051361", %5040437573377 =@0140808154500
+         3"4217264213744524",3"0311675660467444", %4154541753113 =@0147208155000
+         3"4305453406516634",3"0326235176210225", %7260732301656 =@0153608155500
+         3"0374174156441746",3"0333645413752311", %0303470002531 =@0160008156000
+         3"4463162072241271",3"0341737734347416", %7422224407341 =@0166408156500
+         3"0552345400577533",3"0356011231622714", %1525032050036 =@0172808157000
+         3"0641670156730222",3"0362225342141324", %0160746354415 =@0179208157500
+         3"4731323261527331",3"0372522515457463", %6343655705733 =@0185608158000
+         3"4021045371360351",3"0413414001145703", %5702156731116 =@0192008158500
+         3"4106413245605716",3"0426047563137443", %5242020310123 =@0198408159000
+         3"0174750547327342",3"0434752736224723", %2243161451531 =@0204808159500
+         3"4263606774750311",3"0446764211226705", %4547637466166 =@0211208160000
+         3"4352667652055261",3"04540%3%67341401", %737746771?610 =@0217608160500
+         3"4442127774503364",3"0463742052221706", %4122154367526 =@0224008161000
+         3"0531514561003110",3"0471751001571765", %0310004020172 =@0230408161500
+         3"4621201540275231",3"0506473330776521", %5366506221123 =@0236808162000
+         3"0707473511634104",3"0517004116002775", %1152751023607 =@0243208162500
+         3"4775622261444010",3"0521205705141406", %7655434075660 =@0249608163000
+         3"4064312252460020",3"0542417412313577", %5502311046401 =@0256008163500
+         3"0153255351072377",3"0556751574341722", %1215026472552 =@0262408164000
+         3"4242422450716472",3"0565704017717023", %6360057144043 =@0268808164500
+         3"4331732353517622",3"0577535625522740", %5134162537656 =@0275208165000
+         3"0421355270251523",3"0603662737142310", %0207247354427 =@0281608165500
+         3"0511071176733572",3"0613704412666424", %2133176163115 =@0288008166000
+         3"0576603323156425",3"0623433740626150", %0550153112134 =@0294408166500
+         3"0665103732441040",3"0630015131727227", %3211033421651 =@0300808167000
+         3"0753714225644566",3"0641055324257642", %0430466411545 =@0307208167500
+         3"4042754362757206",3"0667221753325314", %7312430336457 =@0313608168000
+         3"4132177767210373",3"0670275217323337", %7025527435203 =@0320008168500
+         3"0221553062356341",3"0707214653450062", %3447603463570 =@0326408169000
+         3"0311230607367652",3"0716463771052416", %1546004325010 =@0332808169500
+         3"0377707704136465",3"0723164760756106", %3250540305734 =@0339208170000
+         3"4465774701726534",3"0732463541673204", %4732427535727 =@0345608170500
+         3"0554433204752653",3"0746747152676716", %3707123370534 =@0352008171000
+         3"0643352734424257",3"0756237637571265", %2043073016410 =@0358408171500
+         3"0732501217041756",3"0762617070716002", %2726527630323 =@0364808172000
+         3"0021775736715436",3"1005415273205562", %1025012750314 =@0371208172500
+         3"4111410235752271",3"1011076017302041", %6734200515373 =@0377608173000
+         3"0201115560167157",3"1025614475554304", %3513554047640 =@0384008173500
+         3"4266777643636764",3"1030310431025755", %4146654653371 =@0390408174000
+         3"0355242335310112",3"1046512350074012", %0066765167472 =@0396808174500
+         3"4444024052516417",3"1051111675276213", %4500576335227 =@0403208175000
+ DOUBLE VALUE ARRAY POTH                                                08175500
+                                                                        08176000
+       ~(3"1141000000000000",3"0000000000000000", %              =@0000008176500
+         3"4533043005100212",3"1064202274654451", %4052376002244 =@0409608177000
+         3"4431132435035057",3"2157536204320307", %6050444301372 =@0819208177500
+         3"0323470676540576",3"3242655607106551", %3574104722476 =@1228808178000
+         3"0221305102507076",3"4331314016653042", %3341046467066 =@1638408178500
+         3"4114177702444352",3"5423212615565017", %4553563624050 =@2048008179000
+         3"4011502433123006",3"6513114751647704", %4507464541024 =@2457608179500
+         3"4705000563145240",3"7575774067453713");%5601112567747 =@2867208180000
+                                                                        08180500
+              COMMENT   SKELETON PARAMETER QUEUE ENTRIES FOR COMPILER   08247000
+                        FILES.;                                         08248000
+SAVE ARRAY    COMPILERCODEFILE ~ (                                      08249000
+                   4"000003000008", 4"010104C3D6C4C500"),               08250000
+              COMPILERCARDFILE ~ (                                      08251000
+                   4"000003000008", 4"010104C3C1D9C400"),               08252000
+              COMPILERCARDEXTERNAL ~ (                                  08253000
+                   4"000005000015", 4"010112000000", 0, 0, 0);          08254000
+QUEUE STANDARDQUEUE (PREVIOUSSTANDARD, NEXTSTANDARD);                   09000000
+    VALUE     PREVIOUSSTANDARD, NEXTSTANDARD;                           09001000
+    REFERENCE PREVIOUSSTANDARD, NEXTSTANDARD;                           09002000
+    COMMENT   STANDARDQUEUE EXISTS ONLY TO ESTABLISH THE LOCATION OF ITS09003000
+              ITEMS FOR USE BY QUEUEING ALGORITHMS THAT DEAL WITH QUEUES09004000
+              THAT ARE ORDERED ON A FIRST IN - FIRST OUT BASIS.;        09005000
+         USING LOCKED;                                                  09006000
+    INTEGER        PBLOK     %PRESENCE BIT LOCK                         10000000
+              ,    GROSSLOK  % LOCK ON INTERRUPTS                       10001000
+              ,    PROCESSCHANGELOCK                                    10002000
+              ;                                                         10003000
+    DEFINE              SETOVERFLOWFF  =     ; #                        10004000
+              ;                                                         10005000
+    REAL           MULTIPLEREFERENCELOK     %FOR PRESENCE BIT           10006000
+              ;                                                         10007000
+REAL          MONITORLOCK;                        % MONITOR             10008000
+REAL MONITORVALUE = (0,8),                                              10009000
+     MONITORMASK = (0,9);                                               10010000
+FIELD    MONMASKF = 19:10,  MONVALF =9:10;                              10011000
+DEFINE   JACKBIT =2#                                                    10012000
+         ,RAJBIT =4#                                                    10013000
+         ,DONBIT = 8#                                                   10014000
+         ,BOBBIT =16#                                                   10015000
+         ,STEVEBIT = 32#                                                10015100
+         ,MIKEBIT = 64#                                                 10015200
+         ,GLOBALSTOP = STOP (PDR, PIR)#                                 10015990
+         ;                                                              10016000
+COMMENT                        THE FOLLOWING DEFINES SPECIFY VALUES OF  10017000
+                               PARAMETERS TO PROCEDURES SUCH AS KILLME, 10018000
+                               NOTYETCODED AND ARITHMETICFAULT          10019000
+              ;                                                         10020000
+    DEFINE    DZ                  =    1#   )"DIVIDE BY ZERO          "(10021000
+              EO                  =    2#   )"EXPONENT OVERFLOW       "(10022000
+              EU                  =    3#   )"EXPONENT UNDERFLOW      "(10023000
+              II                  =    4#   )"INVALID INDEX           "(10024000
+              IO                  =    5#   )"INTEGER OVERFLOW        "(10025000
+              GCAINTERRUPT        =    6#   )"FIRST UNASSIGNED MPX INT"(10026000
+              STACKOVER           =    7#   )"STACK OVERFLOW          "(10027000
+              SYLLABLEDEPENDENT2  =    8#   )"COMPROMISED SYLLABLE DEP"(10028000
+              BLOWUP              =    9#   )"BASE FOR ALARM INTERRUPT"(10029000
+              LOOP                =    10#  )"                        "(10030000
+              MEMPARITY           =    11#  )"                        "(10031000
+              MPXPARITY           =    12#  )"                        "(10032000
+              INVALIDADDRESS      =    13#  )"                        "(10033000
+              STACKUNDER          =    14#  )"STACK UNDERFLOW         "(10034000
+              INVALIDOPCODE       =    15#  )"CODE NOT VALID OPERATOR "(10035000
+              MEMPROTECT          =    16#  )"                        "(10036000
+              INVALIDOP           =    17#  )"OPERATION ILLEGAL       "(10037000
+              SEQERROR            =    18#  )"SEQUENCE ERROR          "(10038000
+              ML1                 =    19#  )"INTERUPT ON MULTI-LINE 1"(10039000
+              ML2                 =    20#  )"INTERUPT ON MULTI-LINE 2"(10040000
+              ML3                 =    21#  )"                        "(10041000
+              ML4                 =    22#  )"                        "(10042000
+              EXTMPX              =    23#  )"EXTERNAL MPX            "(10043000
+              UA2                 =    24#  )"SECND UNASSIGNED MPX INT"(10044000
+              UA3                 =    25#  )"THIRD UNASSIGNED MPX INT"(10045000
+              UA4                 =    26#  )"FORTH UNASSIGNED MPX INT"(10046000
+              MACHINEERROR        =    27#  )"HOPEFULLY               "(10047000
+              PRTOPR              =    28#  )"PROCESSOR TO PROCESSOR  "(10048000
+              STACKBOTTOM         =    29#  )"BOTTOM OF STACK INT     "(10049000
+              EVENTLISTERR        =    30 # %ERROR IN EVENTIST          10050000
+          ,   INTERRUPTDEC        =    31 # %ERROR IN INTERRUPT DEC     10051000
+                                                                        10052000
+          ,   GROSSLOCK           =    64 # % TEMPORARY GROSSLOK STOP   10053000
+              ;                                                         10054000
+COMMENT  FOLLOWING ARE THE VARIOUS VALUES OF THE TAG FIELD;             10055000
+    DEFINE    SINGL     = 0 #,                                          10056000
+              IRW       = 1 #,                                          10057000
+              DOUBL     = 2 #,                                          10058000
+              MEMLINK   = 3 #,                                          10059000
+              CODE      = 3 #,                                          10060000
+              SEGDESC   = 3 #,                                          10061000
+              MSCW      = 3 #,                                          10062000
+              TOS       = 3 #,                                          10063000
+              RCW       = 3 #,                                          10064000
+              DATADESC  = 5 #,                                          10065000
+              STRINGDESC     =    5#.                                   10066000
+              UNITAL    = 6 #,                                          10067000
+              PCW       = 7 #                                           10068000
+              ;                                                         10069000
+                                                                        10070000
+    DEFINE         SINGLE    =    SINGL#                                10071000
+              ;                                                         10072000
+ FIELD             FULLWORD  =    47:48                                 10073000
+              ;                                                         10074000
+    LAYOUT    DATADESCRIPTOR (    TAG                 ~    DATADESC     10075000
+                             ,    PBITF     = 47:1    %PRESENCE BIT     10076000
+                             ,    CBITF     = 46:1    %COPY BIT         10077000
+                             ,    IBITF     = 45:1    %INDEXED BIT      10078000
+                             ,    SBITF     = 44:1    %SEGMENT BIT      10079000
+                             ,    RBITF     = 43:1    %READ ONLY BIT    10080000
+                             ,    NUF       =42:2:=0  %MUST BE ZERO     10081000
+                             ,    DBITF     = 40:1    %DOUBLE PREC. BIT 10082000
+                             ,    LENTHINDEXF=39:20   %LENGTH/INDEX FLD 10083000
+                             ,    ADDRESSF  = 19:20   %ADDRESS FIELD    10084000
+                             )                                          10085000
+          ,   REFERENCED     (    PBITF                                 10086000
+                             ,    IBITF                                 10086100
+                             ,    LENTHINDEXF                           10087000
+                             ,    ADDRESSF                              10088000
+                             )                                          10089000
+         ,    DESCADDRESS    (    ADDRESSF                              10090000
+                             )                                          10091000
+          ,   STRINGDESCRIPTOR (   TAG                ~    STRINGDESC   10092000
+                              ,   PBITF                                 10093000
+                             ,    CBITF                                 10094000
+                             ,    IBITF               ~ 0               10095000
+                             ,    SBITF                                 10096000
+                             ,    RBITF                                 10097000
+                             ,    SZF       = 42:3    %CHARACTER SIZE   10098000
+                             ,    LENGTHSTF = 39:20   %LENGTH FIELD     10099000
+                             ,    ADDRESSF                              10100000
+                             )                                          10101000
+         ,    INDEXEDSTRINGDESCRIPTOR(TAG             ~ STRINGDESC      10102000
+                             ,    PBITF                                 10103000
+                             ,    CBITF                                 10104000
+                             ,    IBITF               ~ 1               10105000
+                             ,    SBITF                                 10106000
+                             ,    RBITF                                 10107000
+                             ,    SZF                                   10108000
+                             ,    BYTEF     = 39:4    %BYTE FILED       10109000
+                             ,    INDEXSTF  = 35:16   %INDEX FILED      10110000
+                             ,    ADDRESSF                              10111000
+                             )                                          10112000
+          ,   SEGMENTDESCRIPTOR(  TAG                 ~    SEGDESC      10113000
+                             ,    PBITF                                 10114000
+                             ,    CBITF                                 10115000
+                             ,    DICTIONARYF    = 45:1                 10116000
+                             ,    LOCKBITF   =   44:1                   10117000
+                             ,    LENGTHSEGF                            10118000
+                             ,    ADDRESSF                              10119000
+                             ,    SVBITF      =19:1   %SAVE BIT FIELD   10120000
+                             )                                          10121000
+          ,   SETTAG         (    TAG                                   10122000
+                             )                                          10123000
+                             ;                                          10124000
+    DEFINE                        LENGTHF   = LENTHINDEXF #%)CONVENIENT 10125000
+                             ,    INDEXF    = LENTHINDEXF #%)NOMENCLATUR10126000
+                             ,    EBCDIC    = 4 # %CHARACTER SIZE AS    10127000
+                             ,    BCL       = 3 # %PER SZF FIELD IN     10128000
+                             ,    DIGIT     = 2 # %STRING DESCRIPTOR    10129000
+                             ,    TAGZOT(X) = (X) & SETTAG(SINGL) #     10130000
+                             ,    DESCRIPTORLOCK =(MOM.DESCRIPTORLOCKF  10130100
+                                       =7 AND KIND = DATADESC) #        10130200
+                             ;                                          10131000
+    FIELD                         OLAYTYPEF = 18:1                      10132000
+                                                                        10133000
+                             ,    FILETYPEF = 18:1                      10134000
+                             ,    MCPF      = 19:1                      10135000
+                             ,    AITINDICATORF = 17:1                  10136000
+                             ,    ADDRESF = 16:17                       10137000
+                             ,    DESCRIPTORLOCKF = 19:3                10137100
+                             ,    MCPCODEF =19:2                        10138000
+                             ;                                          10139000
+    LAYOUT    NOTPRESENTARRAYDESCL(                                     10139050
+                   PCBITSF   = 47:2    ~0                               10139100
+              ,    LENGTHF                                              10139150
+              ,    MCPCODEF                                             10139200
+              ,    AITINDICATORF                                        10139300
+              ,    ADDRESF                                              10139350
+         ),                                                             10139400
+         ARRAYDESCL (                                                   10139430
+                   PCBITSF   ~ 2                                        10139450
+              ,    LENGTHF                                              10139500
+              ,    ADDRESSF                                             10139550
+         );                                                             10139600
+COMMENT  FOLLOWING IS THE FORMAT OF THE NORMAL AND STUFFED IRWS;        10140000
+    LAYOUT    NORMALIRW      (   TAG                  ~    IRW          10141000
+                             ,   EBITF      = 46:1    ~    0    % E BIT 10142000
+                             ,   ADRCPLF    = 13:14                     10143000
+                             )                                          10144000
+          ,   STUFFEDIRW     (   TAG                  ~    IRW          10145000
+                             ,   EBITF                ~    1            10146000
+                             ,   STKNRF     = 45:10                     10147000
+                             ,   DISPF      = 33:66             %OF MKST10148000
+                             ,   SIRWDELTAF = 12:13             %DELTA  10149000
+                             )                                          10150000
+          ,   MARKSTACKCW( TAG                        ~    MSCW         10151000
+                             ,   DSBITF =47:1                           10152000
+                             ,   EBITF                                  10153000
+                             ,   STKNRF,                                10154000
+                             ,   VBITF = 19:1                           10155000
+                             ,   LLF   = 18:5                           10156000
+                             ,   DFF   = 13:14                          10157000
+                             )                                          10158000
+         ,    MARKSTACKWD( TAG                        ~    MSCW         10159000
+                             ,   DSBITF                                 10160000
+                             ,   EBITF                                  10161000
+                             ,STKNRF                                    10162000
+                             ,   DISPFMS    =    35:16                  10163000
+                             ,   VBITF                                  10164000
+                             ,   LLF                                    10165000
+                             ,   DFF                                    10166000
+                             )                                          10167000
+         ,    RETURNCONTROLWORD (TAG                  ~    RCW          10168000
+                             ,   STKNRF                                 10169000
+                             ,   PSRF =35:3                             10170000
+                             ,   PIRF = 32:13                           10171000
+                             ,   NCSFF= 19:1                            10172000
+                             ,   LLF                                    10173000
+                             ,   SDIF = 13:14                           10174000
+                             )                                          10175000
+         ,    POINTTOIOCB    (   LOCKBITF                               10176000
+                             ,    ADDRESSF                              10177000
+                             )                                          10178000
+                             ;                                          10179000
+COMMENT  FOLLOWING IS FORMAT OF TOS CONTROL WORD;                       10180000
+    LAYOUT         TOSCW          (    TAG       ~    TOS               10181000
+                                  ,    SGNFFF    =    47:1              10182000
+                                  ,    OFFFF     =    46:1              10183000
+                                  ,    TFFFF     =    45:1              10184000
+                                  ,    FLTFF     =    44:1              10185000
+                                  ,    DSF       =    39:20             10186000
+                                  ,    NCSFF                            10187000
+                                  ,    LLF                              10188000
+                                  ,    DF        =    13:14             10189000
+                                  )                                     10190000
+                                  ;                                     10191000
+COMMENT  FOLLOWING IS THE FORMAT OF THE FIRST WORD OF AN EVENT;         10192000
+    LAYOUT FIRSTEVENTWORD(TAG~DOUBL                                     10193000
+                   ,COUNTF = 47:27                                      10194000
+                             ,    WAITQHEADF=  18:10  % HEAD WAITQ      10195000
+                             ,    WAITQTAILF=  22:10  % TAIL WAITQ      10196000
+                             ,    AVAILABLEBITF=  2:1                   10197000
+                             ,    HAPPENEDBITF =  1:1                   10198000
+                             ,    EVENTLOCKBITF=  0:1                   10199000
+                             )                                          10200000
+                             ;                                          10201000
+    FIELD          EVENTLINKSF    =    22:20                            10202000
+              ;                                                         10203000
+    LAYOUT         LOKMOM(LOCKBITF,DESCRIPTORLOCKF)                     10204000
+              ,    FIXDESC(PBITF,LOCKBITF,ADDRESSF)                     10205000
+              ,    SETCOPYBIT(CBITF)                                    10206000
+              ;                                                         10207000
+    SAVE                                                                10208000
+    REAL ARRAY     SOFTWAREINTERRUPTMASK[32]%EACH BIT INDICATES WHETHER 10209000
+                                            %THERE ARE ANY SOFTWARE     10210000
+                                            %INTERRUPTS FOR THE CORRES- 10211000
+                                            %PONDING STACK              10212000
+              ;                                                         10213000
+                                                                        10214000
+    FIELD          ENABLEBITF    =     46:1                             10215000
+              ,    MOD32F    = 4:5                                      10216000
+              ,    DIV32F    = 9:5                                      10217000
+         ,    MOD64F    = 5:6                                           10217010
+         ,    DIV64F    = 9:4                                           10217020
+              ,    D0DISPF   = 12:13                                    10217100
+              ,    D2DISPF   = 11:12                                    10217200
+              ,    D4DISPF   = 10:11                                    10217300
+              ,    D8DISPF   =  9:10                                    10217400
+              ,    D16DISPF  =  8:9                                     10217500
+              ,    D0D1SEGBIT= 13:1                                     10217600
+              ,    REALSDIF  = 12:13                                    10217700
+              ;                                                         10218000
+    DEFINE         MYCOURSEWORD = 20 #                                  10219000
+              ,    CODEFILEDESC=1#                                      10220000
+              ,    OLAYFILEDESC=2#                                      10221000
+              ;                                                         10222000
+                                                                        10223000
+                                                                        10224000
+    REAL           COUNTFORTIMERINTERRUPTEVENT                          10225000
+         ,    NUMBEROFPROCESSORS                                        10226000
+              ;                                                         10227000
+    BOOLEAN        MORETHANONEPROCESSOR                                 10228000
+              ;                                                         10229000
+    DEFINE         IFTHEREISASOFTWAREINTERRUPT   =                      10230000
+                                    IF BOOLEAN (SOFTWAREINTERRUPTMASK   10231000
+                                               [MYSNR.DIV32F].MOD32F)#  10232000
+              ,    MYCOURSE  =    STACK[MYSNR,MYCOURSEWORD] #           10233000
+              ,    MYDIVIDEBYZERO(X)   =    KILLME(WHICH) #             10234000
+              ,    MYEXPONENTUNDERFLOW(X) = KILLME(WHICH) #             10235000
+              ,    MYEXPONENTOVERFLOW(X)  = KILLME(WHICH) #             10236000
+              ,    MYINVALIDINDEX(X)      = KILLME(WHICH) #             10237000
+              ,    MYINTEGEROVERFLOW(X)   = KILLME(WHICH) #             10238000
+              ;                                                         10239000
+    REAL           CORESIZE            =    (0,6)                       10240000
+              ,    SOFTWAREINTERRUPTLOCK=   (0,17)                      10241000
+              ,    INDEPENDENTRUNNERSTACKS                              10242000
+              ;                                                         10243000
+    SAVE REFERENCE ARRAY                                                10244000
+                   SHEETVECTOR         =    (0,16) [*  ]                10245000
+              ;                                                         10246000
+    SAVE WORD ARRAY                                                     10247000
+                   SHEETARRAY     =    SHEETVECTOR[*,*]                 10248000
+              ;                                                         10249000
+    SAVE REAL ARRAY                                                     10250000
+                   SHEETREALS     =    SHEETVECTOR[*,*]                 10250200
+              ;                                                         10251000
+COMMENT  THE FOLLOWING ILLUSTRATE THE METHOD OF ACCESSIN REGISTERS;     10252000
+    DEFINE    D         = REGISTERS # ,                                 10253000
+              D0        = D[0] #,                                       10254000
+              D1        = D[1] #,                                       10255000
+              D2        = D[2] #,                                       10256000
+              D3        = D[3] #,                                       10257000
+              D4        = D[4] #,                                       10258000
+              D5        = D[5] #,                                       10259000
+              D6        = D[6] #,                                       10260000
+              D7        = D[7] #,                                       10261000
+              D8        = D[8] #,                                       10262000
+              D9        = D[9] #,                                       10263000
+              D10       = D[10]#,                                       10264000
+              D11       = D[11]#,                                       10265000
+              D12       = D[12]#,                                       10266000
+              D13       = D[13]#,                                       10267000
+              D14       = D[14]#,                                       10268000
+              D15       = D[15]#,                                       10269000
+              D16       = D[16]#,                                       10270000
+              D17       = D[17]#,                                       10271000
+              D18       = D[18]#,                                       10272000
+              D19       = D[19]#,                                       10273000
+              D20       = D[20]#,                                       10274000
+              D21       = D[21]#,                                       10275000
+              D22       = D[22]#,                                       10276000
+              D23       = D[23]#,                                       10277000
+              D24       = D[24]#,                                       10278000
+              D25       = D[25]#,                                       10279000
+              D26       = D[26]#,                                       10280000
+              D27       = D[27]#,                                       10281000
+              D28       = D[28]#,                                       10282000
+              D29       = D[29]#,                                       10283000
+              D30       = D[30]#,                                       10284000
+              D31       = D[31]#,                                       10285000
+              IRSR(X)   = REGISTERS[X+32]#,                             10286000
+              PIR       = REGISTERS[32]#,                               10287000
+              SIR       = REGISTERS[33]#,                               10288000
+              DIR       = REGISTERS[34]#,                               10289000
+              TIR       = REGISTERS[35]#,                               10290000
+              LOSR      = REGISTERS[36]#,                               10291000
+              BOSR      = REGISTERS[37]#,                               10292000
+              F         = REGISTERS[38]#,                               10293000
+              BRSR(X)   = REGISTERS[X+48] #,                            10294000
+              PBR       = REGISTERS[48]#,                               10295000
+              SBR       = REGISTERS[49]#,                               10296000
+              DBR       = REGISTERS[50]#,                               10297000
+              TBR       = REGISTERS[51]#,                               10298000
+              S         = REGISTERS[52]#,                               10299000
+              SNR       = REGISTERS[53]#,                               10300000
+              PDR       = REGISTERS[54]#                                10301000
+              ;                                                         10302000
+    DEFINE         OLAYROWLENTH   =    180 #                            10303000
+              ,    CODEROWLENTH   =    180 #                            10304000
+              ;                                                         10305000
+    DEFINE    UPTOYOU   =0#       )"THE MCP DOES AS IT PLEASES        "(10306000
+              FINISH    =1#       )"THE MCP MUST D-ES ME              "(10307000
+              CARRYON   =3#       )"THE MCP MUST IGNORE INTERRUPT     "(10308000
+              TELLME    =4#       )"THE MCP MUST SET SOME FLAGS       "(10309000
+              SELECT    =5#       )"ACCESS PCW APPROPRIATE TO INTERUPT"(10310000
+              FAULTROUTINE   =6#                                        10311000
+              ;                                                         10312000
+    DEFINE         DISABLEOVERLAY = ;#   % DUMMY DECLARATION            10313000
+              ,    ENABLEOVERLAY  = ;#   % DUMMY DECLARATION            10314000
+              ;                                                         10315000
+    PROCEDURE      HANDLETHESOFTWAREINTERRUPT;;                         10316000
+COMMENT            THIs IS A DUMMY PROCEDURE;                           10317000
+    QUEUE          SOFTWAREINTERRUPTQ(Y);REAL Y;                        10318000
+COMMENT            THIS IS A DUMMY DECLARATION;                         10319000
+                   USING                                                10320000
+                        TO INSERT,ENTRY    ~ENTRY                       10321000
+         ;                                                              10322000
+    DEFINE         SETINTERVALTIMER    =    TIMER(100)#;                10323000
+SAVE PROCEDURE KILLME(KILLVALUE); VALUE KILLVALUE; REAL KILLVALUE;      10324000
+         BEGIN                                                          10325000
+              MONITOR   JACKMONITOR(KILLVALUE);                         10326000
+              LAYOUT    KILLLAYOUT (39:16, 19:20);                      10326100
+                   KILLVALUE~KILLVALUE;                                 10327000
+              STOP (0&KILLLAYOUT (KILLVALUE, PDR), PIR);                10328000
+                   IF NOT SIMULATING THEN MEMDUMP(0,0);                 10328100
+                   STOP(4"93C838E049E4",4"038038E491C0");               10328200
+         END KILLME;                                                    10329000
+ PROCEDURE         MYFAULT(W); WORD W;;                    %DUMMY DEC   10330000
+LAYOUT   FIRSTPOINTERWORDL                                              10982000
+              (TOTALINFOWORDSF= 47:16                                   10983000
+              ,INFOINDEXF     = 31: 8                                   10984000
+              ,INFOLENGTHF    = 23: 8                                   10985000
+              ,INFOTYPEF      = 15: 9                                   10986000
+              ,ALFALENGTHF    =  6: 7                                   10987000
+              ,KEYFIELDF      = 15:16                                   10988000
+              );                                                        10989000
+              COMMENT   DEFINES FOR INFOTYPEF AS USED IN PARAMETER QUEUE10990000
+                        ALGORITHMS.  VALUES SHOULD BE GREATER THAN 128  10991000
+                        AND LESS THAN 511.;                             10992000
+DEFINE        FILETYPEP = 129#,                                         10993000
+              ENDOFPTYPE= 511#;                                         10994000
+DEFINE             UPDATEWORDCOUNT(NEWWORDS, ENTRY) =                   10995000
+                   REPLACE POINTERTOID@(ENTRY)                          10996000
+                        BY (REAL(POINTERTOID@(ENTRY)         , 6) &     10997000
+                             FIRSTPOINTERWORDL(NEWWORDS))               10998000
+                        FOR 6             #,                            10999000
+                   UPDATEINFOINDEX  (INFOI, ENTRY) =                    10999900
+                   REPLACE POINTERTOID@(ENTRY)                          10999930
+                        BY (REAL(POINTERTOID@(ENTRY), 6) &              10999960
+                             FIRSTPOINTERWORDL(*,*,INFOI))FOR 6      ;#;10999990
+COMMENT  STORAGE ALLOCATION VARIABLES  ***********;                     11000000
+INTEGER  PREVADDR,      COMMENT THE ABSOLUTE ADDRESS FOR AVAILA OF THE  11001000
+                        LARGEST AVAILABLE AREA NOT FOLLOWING AN OVER-   11002000
+                        LAYABLE AREA OF MEMORY;                         11003000
+         AVAILI,        COMMENT THE ABSOLUTE ADDRESS OF THE FIRST       11004000
+                        AVAILABLE LINK.;                                11005000
+         MINDEX,        COMMENT  A UTILITY MEMORY INDEX;                11006000
+         MLENGTH,       COMMENT  A UTILITY MEMORY LENGTH;               11007000
+         AVAILABLECORE, COMMENT THE AMOUNT OF PRIMARY MEMORY(FRAGMENTED 11007100
+                        OR OTHERWISE) THAT IS AVAILABLE AT ANY MOMENT;  11007200
+         SPACEQHEAD,    COMMENT   THE STACK THAT CONTAINS THE SUPER     11007300
+                        SPACE AUTHORITY AND THE LINK TO THE STACK THAT  11007400
+                        HAS THE SPACE REQUEST WITH THE HIGHEST PRIORITY;11007500
+         BACKALLOCATED, COMMENT  ABSOLUTE ADDRESS LINKA FOR MOST        11008000
+                        RECENTLY ALLOCATED AREA.;                       11009000
+         LEFTOFF,       COMMENT  ABSOLUTE ADDRESS OF LINKA FOR HEAD OF  11010000
+                        LEFTOFF LIST.;                                  11011000
+         STOPPER;       COMMENT  ABSOLUTE ADDRESS OF AVAILA FOR END OF  11012000
+                        AVAILABLE LIST.  BIT 42:1 = 1, I.E. SIZE IS     11013000
+                        LARGER THAN LARGEST MEMORY POSSIBLE AND THE LINK11014000
+                        IS ZERO.  AVAILB OF STOPPER IS ADDRESS OF LARG- 11015000
+                        EST AVAILABLE AREA.;                            11016000
+REAL     SPACELOCK;     COMMENT   SPACELOCK INSURES THAT ONLY ONE PROC- 11017000
+                        CESS AT A TIME HAS ACCESS TO MEMORY LINKS.  IT  11018000
+                        IS THEREFORE BUZZED UPON ENTRY TO GETSPACE AND  11019000
+                        FORGETSPACE AND UNLOCKED BEFORE THESE PROCEDURES11020000
+                        ARE EXITED.;                                    11021000
+DEFINE   FASTPLACE =    BACKWARDLINKF#,                                 11021100
+         SLOWPLACE =    FORWARDLINKF #,                                 11021200
+         RETRYCOUNT =   SELFIDENTF #,                                   11021300
+         SPACERETRY =   10#; COMMENT   THE MAXIMUM NUMBER OF TIMES A    11021400
+                        SPACE "QUEUE" ENTRY CAN BE IGNORED BECAUSE AN   11021500
+                        ORDERED SIZE IS NOT ADEQUATE.  THE ENTRY MUST BE11021600
+                        AT THE HEAD OF THE QUEUE BEFORE THE COUNTER IS  11021700
+                        DECREMENTED.;                                   11021800
+LAYOUT   LINKA          COMMENT  THE FIRST LINK WORD OF AN IN-USE AREA; 11022000
+              (TAG ~ 3,                                                 11023000
+              INUSEID = 47:1O, COMMEMT THE USERS ID FOR THIS AREA  ;    11024000
+              INUSELENGTH = 37:17, COMMENT A SELF-RELATIVE INDEX FOR    11025000
+                        FINDING LINKZ FOR THIS AREA.  I.E. LENGTH OF    11026000
+                        AREA + NUMBER OF LINK WORDS;                    11027000
+              AVAILABLE = 20:1 ~ 0,                                     11028000
+              BACKLINK = 19:20), COMMENT THE LINK TO THE LAST PREVIOUSLY11029000
+                        ALLOCATED AREA FOR THIS USER;                   11030000
+         LINKB          COMMENT  THE SECOND LINK WORD OF AN IN-USE AREA;11031000
+              (TAG ~ 3,                                                 11032000
+              USAGE = 47:7, COMMENT  THE USAGE OF THE AREA;             11033000
+              ADDRTYPE = 40:1, COMMENT IS THE ADDRESS OF MOM ABSOLUTE OR11034000
+                        BOS RELATIVE.  1 IS BOS RELATIVE.;              11035000
+              ADDRMOM = 39:20, COMMENT  THE ADDRESS OF THE MOM DESCRIPT;11036000
+              DISKADDR = 19:20), COMMENT  THE DISK ADDRESS OF THE AREA  11037000
+                        DESCRIBED BY MOM.  19:1 = 1 INDICATES OVERLAY   11038000
+                        DISK.;                                          11039000
+         LINKC          COMMENT  THE THIRD LINK WORD OF AN IN-USE AREA; 11040000
+              (TAG ~ 3                                                  11041000
+              ),        COMMENT  THIS WORD IS RESERVED FOR EXPANSION;   11042000
+         LINKZ          COMMENT  THE FINAL LINK WORD OF AN IN-USE AREA; 11043000
+              (TAG ~ 3,                                                 11044000
+              OLAY = 47:1, COMMENT   THE PERMANENT OVERLAYABLE STATE OF 11045000
+                           AN AREA.  GETSPACE PLACES THE RESULT OF A    11046000
+                           LOGICAL AND OF THE OERLAY BIT OF ITS TYPE    11047000
+                           AND ADDRESS (OF MOM)! 0 IN THIS BIT;         11048000
+              DELTAWDS = 46:5,                                          11049000
+FRONTLINK =43:20, COMMENT - CHECK-OUT * * * * * * *                     11050000
+              FRONTLINK = 41:20,  COMMENT THE LINK TO THE NEXT ALLOCATED11051000
+                        AREA FOR THIS IN-USE ID.;                       11052000
+              SPACEOLAYLOCK = 21:1,  COMMENT  IF BIT IS ON AREA IS OVER-11053000
+                        LAYABLE.  GETSPACE TURNS THE BIT OFF AND THE    11054000
+                        CALLER HAS THE RESPONSIBILITY OF EXCHANGING THE 11055000
+                        OLAY BIT AND THIS BIT.;                         11056000
+              AVAILABLE ~ 0,                                            11057000
+              INUSELENGTHZ = 19:20), COMMENT A SELF-RELATIVE INDEX FOR  11058000
+                        FINDING LINKA OF THIS AREA.;                    11059000
+         AVAILA    COMMENT THE FIRST LINK WORD OF AN AVAILABLE AREA.;   11060000
+              (TAG ~ 3,                                                 11061000
+              PREOLAY = 41:1, COMMENT  THE OLAY BIT OF THE PREVIOUS     11062000
+                        AREA;                                           11063000
+              LENGTH =  40:20, COMMENT  A SELF-RELATIVE INDEX TO AVAILZ 11064000
+                        OF THIS AREA.  LENGTH = WORDS IN AREA + LINKSIZ;11065000
+              AVAILABLE ~ 1,                                            11066000
+              LINK = 19:20),  COMMENT  THE ABSOLUTE ADDRESS OF THE NEXT 11067000
+                        AVAILABLE AREA;                                 11068000
+         AVAILB    COMMENT THE SECOND LINK WORD OF AN AVAILABLE AREA.;  11069000
+              (TAG ~ 0,                                                 11070000
+              LINKTOPREVIOUSAVAILABLEAREA = 47:48),                     11071000
+         AVAILZ    COMMENT THE FINAL LINK WORD OF AN AVAILABLE AREA.;   11072000
+              (TAG ~ 3,                                                 11073000
+              AVAILABLE ~ 1,                                            11074000
+              LENGTHZ = 19:20),  COMMENT A SELF-RELATIVE INDEX TO FIND  11075000
+                        AVAILA FOR THIS AREA.;                          11076000
+         SPACETYPE                                                      11077000
+              (                                                         11078000
+              PRINTNOMEM  = 4:1,  COMMENT  1 = PRINT NO MEM MESSAGE;    11079000
+              MAKEROOM    = 3:1,  COMMENT  1 = OVERLAY IF REQUIRED;     11080000
+              SLEEPY      = 2:1,  COMMENT  1 = SLEEP IF MEMORY N/A;     11081000
+                                                                        11082000
+              OERLAY      = 0:1), COMMENT  1 = SPACE FOR OVERLAYABLE;   11083000
+         LLLUARG                                                        11084000
+              (21:1,    COMMENT  PREVIOUS OVERLAYABILITY;               11085000
+              20:20);   COMMENT  SIZE;                                  11086000
+DEFINE   INITIALIZETOZERO (ADDRESS, LENGTH) =                           11087000
+         REPLACE POINTER(M[ADDRESS]) BY 0 FOR LENGTH OVERWRITE#;        11088000
+FIELD    AVAILKEY  = 47:28;  COMMENT  AVAILA SORT KEY FIELD.;           11089000
+DEFINE   LINKSIZE  =    COMMENT   NUMBER OF WORDS IN MEMORY LINKS -1;   11090000
+                   3#,                                                  11091000
+         LINKSIZETIMES2PLUS1 =    COMMENT   SIZE OF TEMPLINKS ARRAY.;   11092000
+                   8#;                                                  11093000
+DEFINE   PROCSTACKSIZE  =                                               12000000
+                   512#,                                                12001000
+                             COMMENT   ARBITRARY - F AND S ARE SET TO   12002000
+                             SOME ADDRESS IN THE SECOND HALF OF MOD 0   12003000
+                             UNTIL MORE PERMANENT STACKS CAN BE GOTTEN.;12004000
+                                                                        12005000
+                                                                        12006000
+                        COMMENT   THEN NUMBER OF WORDS IN A SHEET ENTRY 12007000
+                        AND THE NUMBER OF WORDS THAT ARE RESERVED AT THE12008000
+                        BOTTOM OF A PROCESSES LOWEST LEVEL STACK.      ;12009000
+         STACKOFLOWSIZE =                                               12010000
+                   64 #,                                                12011000
+                        COMMENT   THE NUMBER OF WORDS THAT ARE RESERVED 12012000
+                        ABOVE LOSR TO HANDLE STACK OVERFLOWS.          ;12013000
+         STACKSPERMODULE =                                              12014000
+                   32#,                                                 12015000
+                        COMMENT   THE NUMBER OF STACK VECTOR WORDS THAT 12016000
+                        ARE ALLOCATED FOR EACH PRESENT MEMORY MODULE UP 12017000
+                        TO THE MAXIMUM OF 1024 STACKS.;                 12018000
+         INTEGER   MAXSTACKS;     COMMENT THE MAXIMUM INDEX FOR THE     12019000
+                                  STACK VECTOR.;                        12020000
+SAVE WORD ARRAY TEMPLINKS [LINKSIZETIMES2PLUS1];                        12021000
+                                  COMMENT   RESERVES SPACE IN LEVEL 0   12022000
+                                            STACK FOR FIRST AVAILABLE   12023000
+                                            AND STOPPER LINKS;          12024000
+ARRAY    MEMMODS [64];       COMMENT   DURING MEMORY INITIALIZATION EACH12025000
+                             WORD CONTAINS A ONE IF THE CORRESPONDING   12026000
+                             MODULE IS PRESENT.  AFTER MISSING MODS ARE 12027000
+                             ACCOUNTED FOR THE ELEMENTS ARE AVAILABLE TO12028000
+                             BE DEFINED AS VARIOUS LOCAL INITIALIZE     12029000
+                             VARIABLES.  AFTER INITIALIZE THE AREA IS   12030000
+                             FORGOTTEN AND THE STACK CELL IS AVAILABLE  12031000
+                             FOR A PERMANENT GLOBAL.;                   12032000
+INTEGER  PROCSTACKSTART = MEMMODS;                                      12033000
+WORD     PROCSTACKSTARTW= MEMMODS;COMMENT   ONLY WAY TO OVERWRITE DESC.;12034000
+REAL     SLAVEQUARTERS,      COMMENT USED TO LOCK ALL PROCESSORS EX-    12035000
+                             CEPT THE ONE THAT LOCKS IT UNTIL INITIAL-  12036000
+                             IZATION HAS THE SITUATION SOMEWHAT UNDER   12037000
+                             CONTROL;                                   12038000
+         TIMEOUT,            COMMENT   CONTAINS SOME VALUE OF THE TIME- 12039000
+                             OF-DAY CLOCK + AN INCREMENT OF TIME THAT IS12040000
+                             SUFFICIENT TO ALLOW ALL EXPECTED PROCESSORS12041000
+                             TO GET THEIR STACKS IN TEMPORARY ORDER.;   12042000
+         MEMMAX,             COMMENT   THE MAXIMUM AMOUNT OF AVAILABLE  12043000
+                             MEMORY.;                                   12044000
+         SAVE1ADDRESS,       COMMENT   THE ADDRESS OF MEMORY AREA THAT  12045000
+                             CONTAINS INITIALIZATION CODE AND IS TO BE  12046000
+                             FORGOTTEN AFTER INITIALIZATION.  STACK CELL12047000
+                             IS AVAILABLE AFTER INITIALIZATION.;        12048000
+         PROCMASK = NUMBEROFPROCESSORS;                                 12049000
+                             COMMENT   A ONE BIT IN THIS WORD IDENTIFIES12050000
+                             AN AVAILABLE PROCESSOR, THE BITS POSITION  12051000
+                             IS THE PROCESSOR ID.;                      12052000
+BOOLEAN  INITSWITCH;    COMMENT   USED TO CHANGE MPX INTERRUPT TO       12053000
+                                  PTPI INTERRUPT IN INITIALIZE AND      12054000
+                                  TO TELL STORAGE ALLOCATION WHEN A     12054500
+                                  PERMANENT LEFTOFF HEAD IS READY.;     12055000
+LAYOUT   SEGTRACEL (STKNRF~1, PIRF, ADDRESSF);                          12055500
+ SAVE REAL PROCEDURE SEGTRACE(SEGTRACTER);%                             12055600
+         VALUE SEGTRACTER;   REAL SEGTRACTER;%                          12055610
+    BEGIN                                                               12055620
+         IF NOT SIMULATING THEN RETURN(0);%                             12055625
+         SEGTRACE~REGISTERS[60];                                        12055630
+         REGISTERS[60]~SEGTRACTER;                                      12055640
+    END SEGTRACE;                                                       12055650
+SAVE INTEGER PROCEDURE TRACE (TRACTER);                                 12056000
+    VALUE     TRACTER;                                                  12057000
+    INTEGER   TRACTER;                                                  12058000
+    BEGIN                                                               12059000
+         IF NOT SIMULATING THEN RETURN(0);%                             12059100
+         TRACE ~ REGISTERS [64];                                        12060000
+         REGISTERS [64] ~ TRACTER;                                      12061000
+    END  TRACE;                                                         12062000
+                        COMMENT   THE ARRAYS BETWEEN "UNIT" AND         13000000
+                                  "TRANSACTION" ARE INITIALIZED TO MAXI-13001000
+                                  MUM NUMBER OF UNITS ON A GIVEN SYSTEM 13002000
+                                  BY THE CALL:                          13003000
+                                  INITIALIZEARRAY(UNIT,TRANSACTION,MAXU)13004000
+                                  IN THE INITIALIZE PROCEDURE.  THIS    13005000
+                                  SERIES OF ARRAY DECLARATIONS SERVES TO13006000
+                                  ILLUSTRATE THE METHOD FOR THE DECLAR- 13007000
+                                  ATION AND INITIALIZATION OF A NUMBER  13008000
+                                  (ONE OR MORE) ARRAYS TO THE SAME SIZE.13009000
+                                  ALL ARRAYS INITIALIZED THIS MANNER    13010000
+                                  ARE PLACED IN HIGH CONTIGUOUS MEMORY  13011000
+                                  AND MARKED AS NON-OVERLAYABLE.  TO ADD13012000
+                                  ANOTHER ARRAY THAT IS TO HAVE A LENGTH13013000
+                                  OF MAXU, IT IS ONLY NECESSARY TO DE-  13014000
+                                  CLARE THE ARRAY BETWEEN "UNIT" AND    13015000
+                                  "TRANSACTION". (ALSO SEE DECLARATION &13016000
+                                  PROCEDURE CALL FOR "OLDSTATUSWORD").  13017000
+                                                                        13018000
+                                       FROM THE FOREGOING IT SHOULD BE  13019000
+                                  APPARENT THAT:                        13020000
+                                  1.   ARRAYS THAT ARE TO BE INITIALIZED13021000
+                                       TO THE SAME LENGTH SHOULD BE DE- 13022000
+                                       CLARED CONTIGUOUSLY.             13023000
+                                  2.   AT LEAST ONE PROCEDURE CALL IS   13024000
+                                       REQUIRED FOR EACH SERIES (ONE OR 13025000
+                                       MORE) OF ARRAYS THAT ARE TO BE   13026000
+                                       INITIALIZED TO THE SAME LENGTH.  13027000
+                                  3.   ALL STACKCELLS BETWEEN THE FIRST 13028000
+                                       AND LAST ARRAY DECLARATIONS WILL 13029000
+                                       BE INITIALIZED TO ARRAY DESCRIP- 13030000
+                                       TORS.                            13031000
+                                                                       ;13032000
+INTEGER       DIAGNOSTICUNIT;COMMENT   THE LOGICAL UNIT NO. OF THE      13033000
+                             DIAGNOSTIC FILE;                           13034000
+DEFINE DIAGNOSTICIOCW = 40"04004" #,   % IOCW FOR PRINTER-BCL SNG SPACE 13037100
+       DIAGNOSTICUNITTYPE = BUFFPRINTER#; %UNIT TYPE FOR MONITOR UNIT   13037200
+SAVE WORD ARRAY DIAGNOSTICARRAY[22]; %BUFFER AND IOCW FOR MONITOR       13037300
+ARRAY MONITER[*];                    %DESCRIPTOR TO I/O AREA OF ABOVE   13037400
+EVENT MONITORFINISH;                 %MONITOR I/O FINISH EVENT          13037500
+REAL DCPSANDGCAS;                                                       13037600
+BOOLEAN MULTIPLEXORMASK; % A ONE BIT "N" MEANS THERE IS AN MPX-N        13037700
+ARRAY UNIT[ * ];   COMMENT CONTAINS INFORMATION OF EACH UNITS CURRENT   13038000
+                   STATE;                                               13039000
+REFERENCE ARRAY   LASTIO [*];                                           13040000
+ARRAY    UINFO[*],      % DESCRIPTORS FOR NON-DISK UNITS WHICH ARE      13041000
+                        % READY.  THE DESCRIPTORS POINT TO A "LABEL     13042000
+                        % BLOCK" WHICH HAS THE SAME FORM AS A "LABEL-   13043000
+                        % EQUATION BLOCK" (LEB) (SEE 24000000 FOR THE   13044000
+                        % FORMAT OF THE LEB).                           13045000
+                                                                        13046000
+         IOTIME [*],    COMMENT ARRAY FOR RECORDING USERS IO TIME;      13047000
+         TRANSACTION[*], COMMENT FOR RECORDING RECORD TRANSACTIONS;     13048000
+         DUMMYAREA[1];            % FOR MAKING I/O REQUEST              13050000
+WORD ARRAY UINFOW  = UINFO[*];                                          13050100
+ARRAY    UINFOP    = UINFO[*,*];                                        13050200
+WORD ARRAY    UINFOPW=UINFOW[*,*];                                      13050210
+BOOLEAN  OPTIONS;%      OPTIONS BIT WORD                                13051000
+    DEFINE%             OPTIONS                                         13051100
+         RETTOG        = OPTIONS.BIT47#,%                               13051200
+                                                                        13052000
+    ENDOPTDEF=0#;%                                                      13054000
+COMMENT                                                                 13054990
+SCREEN IS INITIALIZED        BY PERIPHERALINITIALIZE--SHOULD BE DYNAMIC;13055000
+ARRAY    SCREEN[*];%                                                    13055010
+%        GLOBALS FOR OUTPUTMESS AND MESSER                              13056000
+LAYOUT   WHOCALLSL (WHOF=47:24,WHICHF=11:12,WHATF=23:12);%              13056100
+DEFINE%       FOR OUTPUTMESS AMD MESSER                                 13057000
+         BEGFINMSG     = 0#,%                                           13057100
+         BEGFOUTMSG    = BEGFINMSG + FINSZ#,%                           13057200
+         BEGMATHERR    = BEGFOUTMSG + FOUTSZ#,%                         13057300
+         BEGSTATMSG    = BEGMATHERR + MATHERRSZ#,%                      13057400
+         BEGMCPID      = BEGSTATMSG + STATSZ#,%                         13057500
+         BEGIOERR      = BEGMCPID + MCPIDSZ#,                           13057510
+         BEGSTDIOERR   =BEGIOERR + IOERRSZ#,%                           13057520
+         BEGMISCMSG= BEGSTDIOERR + STDIOERRSZ#,%                        13057530
+         FINSZ         = 6#,%                                           13057600
+         FOUTSZ        = 4#,%                                           13057700
+         MATHERRSZ     = 30#,%                                          13057800
+         STATSZ        = 11#,%                                          13057900
+         MCPIDSZ       = 4#,%                                           13058000
+         IOERRSZ       = 5#,%                                           13058010
+         STDIOERRSZ    = 18#,%                                          13058020
+         MISCSZ= 2#,%                                                   13058030
+         FINMSGSEC= 0#,%                                                13058100
+         FOUTMSGSEC= 1#,%                                               13058200
+         MATHERRMSGSEC= 2#,%                                            13058300
+         STATMSGSEC= 3#,%                                               13058400
+         MCPIDSEC= 4#,%                                                 13058500
+         IOERRSEC=5#,%                                                  13058600
+         STDIOERRSEC=6#,%                                               13058700
+         MISCMSGSEC= 7#,%                                               13058710
+         OPMINDXR(N)   = CASE N OF (%                                   13059000
+                         BEGFINMSG,BEGFOUTMSG,BEGMATHERR,%              13059010
+                         BEGSTATMSG,%                                   13059020
+                         BEGMCPID,%                                     13059030
+                         BEGIOERR,%                                     13059040
+                         BEGSTDIOERR,%                                  13059050
+                                                                        13059050
+                         BEGMISCMSG,%                                   13059060
+                         0)#,%                                          13059090
+         IOERRMESSL(A,B,C)=MESSER(0&WHOCALLSL(5,A,B),C)#,               13059800
+         BOJMESSER(SNR)= MESSER(0&WHOCALLSL(MISCMSGSEC),SNR)#,%         13059810
+         EOJMESSER(SNR)= MESSER(1&WHOCALLSL(MISCMSGSEC),SNR)#,%         13059820
+ ENDOPMDEF=0#; %                                                        13059990
+    ARRAY%    **** "SCAN" DOES NOT LIKE READ ONLY ARRAYS                13060000
+    OUTPUTMESS~(%  ALL MESSAGES USED BY MESSER                          13065000
+              8"NO FILE"4"00"%                  ****     FINDINPUT MSG**13066000
+              8"UNMATCHED GENEALOGY"4"00"%                            * 13066100
+              8"DUP FIL"4"00"%                                        * 13067000
+                                               ,%  END FIND-INPUT MSG** 13068000
+              8"REQUIRED"4"00" 8"NEW PBT ON"4"00"%   FIND-OUTPUT MSG### 13069000
+                                            ,%   END FIND-OUTPUT MSG### 13070000
+              8"ALGAMA"4"00" 8"ALOG"4"00" 8"ALOG10"4"00"%MATH ERRORS*** 13071000
+              8"ARCOS"4"00" 8"ARSIN"4"00" 8"ATAN"4"00" %              * 13072000
+              8"ATAN2"4"00" 8"COS"4"00" 8"COSH"4"00" 8"COTAN"4"00"%   * 13073000
+              8"ERF"4"00" 8"EXP"4"00" 8"GAMMA"4"00" 8"SIN"4"00"%      * 13074000
+              8"SINH"4"00" 8"SQRT"4"00" 8"TAN"4"00" 8"TANH"4"00"%     * 13075000
+              8"XTOI"4"00"%                                           * 13076000
+              8"DATAN"4"00" 8"DATAN2"4"00" 8"DCOS"4"00" 8"DEXP"4"00"% * 13077000
+              8"DLOG"4"00" 8"DLOG10"4"00" 8"DSIN"4"00" 8"DSQRT"4"00"% * 13078000
+              8"CABS"4"00" 8"CCOS"4"00* 8"CEXP"4"00" 8"CLOG"4"00"%    * 13079000
+              8"CSIN"4"00" 8"CSQRT"4"00",%           END MATH ERRORS*** 13080000
+              8"NOT READY"4"00"%                 STATUS MESSAGES   SSSS 13081000
+              8"UNIDENTIFIED FLYING UNIT"4"00"%                       S 13081200
+         8"PARITY RW/L"4"00"%                                         S 13081300
+              8"RET"4"00"%                                            S 13081500
+              8"MCP PBT ON"4"00"%                                     S 13081700
+              ,%                             END STATUS MESSAGES   SSSS 13081990
+              8"B6500 MCP"%       **** BEGINNING MCP ID         ******* 13082000
+              8" LEVEL "%                                             * 13082200
+              8"0"%                    LEVEL NUMBER                   * 13082200
+              8"."%                                                   * 13082300
+              8"0"%                    PATCH NUMBER WITHIN LEVEL      * 13082400
+              4"00",%              **** END MCPID               ******* 13082500
+              8"FILE OPEN"4"00"                       % I/O ERRORS      13082600
+              8"FILE ATTRIBUTE"4"00"                                    13082700
+              ,                                       % END I/O ERRORS  13082800
+              8"DESCRIPTOR ERROR"4"00"           % STD I/O ERRORS       13082900
+              8"INVALID MEM ADDRESS"4"00"%                              13083000
+              8"I/O MEMORY PARITY"4"00"%                                13083100
+              8"MEMORY PROTECT ERROR"4"00"%                             13083200
+              8"UNIT READ CHECK"4"00"%                                  13083300
+              8"WRITE LOCK-OUT"4"00"%                                   13083400
+              ,                                  % END STD I/O ERRORS   13084000
+              8"BOJ"4"00"%             BEGIN MISCELLANEOUS MESSAGES MMM 13085000
+              8"EOJ"4"00"%                                            M 13085100
+              ,%                         END MISCELLANEOUS MESSAGES MMM 13085900
+         0),%         END MESSAGES USED BY MESSER                       13099900
+    MONTHS ~( 8"JANUARY"4"00",8"FEBRUARY"4"00",8"MARCH"4"0000",         13120000
+              8"APRIL"4"0000",8"MAY"4"00000000".8"JUNE"4"000000",       13120010
+              8"JULY"4"000000",8"AUGUST","00",8"SEPTEMBER"4"00",        13120020
+              8"OCTOBER"4"00",8"NOVEMBER"4"00".8"DECEMBER"4"00"),       13120030
+    PIE~(   8"3.1415926535897932384626433832795028841971693993751058"   13120100
+            8"209749445923078164062862089986280348253421170679821480"   13120110
+            8"865132823066470938446095505822317253594081284811174502"   13120120
+            8"841027019385211055596446229489549303819644288109756659"   13120130
+            8"334461284756482337867831652712019091456485669234603486"   13120140
+            8"104543266482133936072602491412737245870066063155881748"   13120150
+            8"815209209628292540917153643678925903600113305305488204"   13120160
+            8"665213841469519415116094330572703657595919530921861173"   13120170
+            8"819326117931051185480744623799627495673518857527248912"   13120180
+            8"279381830119491298336733624406566430860213949463952247"   13120190
+            8"371907021798609437027705392171762931767523846748148676"   13120200
+            8"694051320005681271452635608277857713427577896091736371"   13120210
+            8"787214684409012249534301465495853710507922796892589235"   13120220
+            8"420199561121209219608640344181598136297747713099605187"   13120230
+            8"072113499999983729780499510597317328160963185950244594"   13120240
+            8"553469083026425223082533446850352619311881710100031378"   13120250
+            8"387528865875332083814206171776691473035982534904287554"   13120260
+            8"6873115956286388235378759375195778185778 5321712268066"), 13120270
+      DICA~(8"MIXSCHJOB   PERPCD   DIREXP   "),%                        13124000
+    DICB~(%                                                             13125000
+         8"TISTXSES"%                  PREFIX, NO SUFFIX                13125100
+         8"DSRMOKILFMULOUFROFUSAXPR"%  PREFIX, NO SUFFIX--VALID REPLIES 13125200
+         8"OLRYPGPBSVRWCL"%            SUFFIX, NO PREFIX                13125300
+         8"TRDRRDSFSOROTC"%            SUFFIX, NO PREFIX                13125400
+         8"LORNTO"%                    NO PREFIX, SUFFIX OPTIONAL       13125500
+         8"TFWTWDWMPIEILE"%            NO PREFIX, NO SUFFIX             13125600
+         ),%                                                            13125900
+      MNEMONIC~(8"  DKSCODPRPPLPLP  CRCPCP  MTMTMT    ",%  BE SURE THESE13131000
+                8"                          MT");%     ARE CONTIGUOUS   13132000
+ARRAY                                                                   13133000
+      MNEMTOUNIT [*],%  USED TO OBTAIN PHYS. UNIT NO. FROM UNIT MNEM.   13134000
+         TYPEINDX[*];%  USED TO OBTAIN INDEX INTO MNEMTOUNIT OF LOWEST  13135000
+%                       NUMBERED UNIT OF TYPE I.                        13136000
+    COMMENT   THE ARRAYS DICA THROUGH TYPEINDX WILL BE CONVERTED TO     13137000
+    EBCDIC STRING DESCRIPTORS IN PERIPHERALINITIALIZE.  CARE SHOULD BE  13138000
+    USED WHEN ADDING DECLARATIONS INBETWEEN AND WHEN USING THE          13139000
