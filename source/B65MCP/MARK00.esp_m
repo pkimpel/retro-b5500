@@ -3124,7 +3124,7 @@ COMMENT THE FOLLOWING ARE VALUES FOR PROCESSCLASS;                      21409000
               ,    LIBRARYNGOJOB = 6#                                   21415100        
               ,    COMPILENSYNTAXOBJECT = 7#                            21415200        
               ;                                                         21416000        
-    DEFINE         FIRSTCOMPILEEOPTION = COMPILENGOJOB #                21416200        
+    DEFINE         FIRSTCOMPILEROPTION = COMPILENGOJOB #                21416200        
               ,    LASTCOMPILEROPTION = COMPILETOLIBRARYJOB #           21416300        
               ;                                                         21416400        
     FIELD          INITIATESTACKF = 21:1                                21416500        
@@ -3350,8 +3350,8 @@ DEFINE                                                                  24255000
               LBLEQTN        = FIBW[8]#,    % LABEL EQUATION BLOCK      24265000        
     %%%%% REGULAR I/O                                                   24266000        
               BUFDESC        = FIBW[9]#,    % BUFFER DESCRIPTOR         24267000        
-              UNITSLEFT      = FIB[10]#,    % WORDS OR CHARACTERS LEFT  24268000        
-              BLOCKCOUNT     = FIB[11]#,    % BLOCK COUNT OR PAGE COUNT 24269000        
+      UNITSLEFT      = FIB[10]#,    % WORDS OR CHARACTERS LEFT          24268000        
+      BLOCKCOUNT     = FIB[11]#,    % BLOCK COUNT OR PAGE COUNT         24269000        
               RECORDCOUNT    = FIB[12]#,    % RECORD COUNT OR LINE COUNT24270000        
               LABELATT       = FIB[13]#;    % LABEL ATTRIBUTES          24272000        
 LAYOUT                                                                  24273000        
@@ -5273,7 +5273,7 @@ COMMENT  HANDLES DIVIDE BY ZERO,EXPONENT OVERFLOW,EXPONENT UNDERFLOW,   33116000
                                                  GO LOOKFORJOB END      33153000        
          ELSE IF MYACTION =FAULTROUTINE THEN                            33154000        
               MYFAULT(P2)                                               33155000        
-         ELSE                                                           33155100        
+         ELSE                                                           33156000        
               CASE WHICH OF                                             33157000        
                    BEGIN                                                33158000        
                         MYDIVIDEBYZERO(P2);                             33159000        
@@ -5869,5 +5869,788 @@ LOOKFORANOTHER:              IFTHEREISASOFTWAREINTERRUPT                33709000
                              INSERTINQUEUE(WAITI,EVENTWAITQ);           33724000        
                              UNLOCK(READYQ);                            33725000        
     END  ;    %%%%%%%%%%                                        %%%MCS 833726000        
+                   IF INTERRUPTQCOUNT ~ EVENTWORD1.COUNTF!0             33727000        
+                        THEN                                            33728000        
+    BEGIN%%%%%%%%%%%%%%%                                        %%%MCS 933729000        
+                             NEXTSTACK~INTERRUPTPOINTER                 33730000        
+                                                ~SECONDWORD(THISEVENT) ;33731000        
+                             DO                                         33732000        
+    BEGIN%%%%%%%%%%%%%%%                                        %%%MCS9A33733000        
+                                  BUZZ(SOFTWAREINTERRUPTLOCK);          33734000        
+                                  IF BOOLEAN(NEXTINTERRUPTPCW).         33735000        
+                                                            ENABLEBITF  33736000        
+                                       THEN                             33737000        
+    BEGIN%%%%%%%%%%%%%%%                                        %%%MCS1033738000        
+              INTERRUPTPOINTER~INTERRUPTPOINTER&STUFFEDIRW(,,*,*,*);    33739000        
+              INSERT(SOFTWAREINTERRUPTQ,REFERENCEINTERRUPTPOINTER);     33740000        
+              IF WORDSTACK[NEXTSNR,0].TAG = SINGL                       33741000        
+                   THEN HEYOU                                           33742000        
+                   ELSE IF STACK[NEXTSNR,READYQLINK].FULLINDICATORF=0   33743000        
+                        THEN                                            33744000        
+    BEGIN%%%%%%%%%%%%%%%                                        %%%MCS5033745000        
+                             BUZZ(READYQ);                              33746000        
+                             INSERTINQ(READYQ,DUMMYREF,MYSNR);          33747000        
+                                                                        33748000        
+                             UNLOCK(READYQ);                            33749000        
+    END ;%%%%%%%%%%%%%%%                                        %%%MCS5033750000        
+    END ;%%%%%%%%%%%%%%%                                        %%%MCS1033751000        
+                                  NEXTSTACK~INTERRUPTPOINTER            33752000        
+                                       ~STACK[NEXTSNR,DISPPCW-1];       33753000        
+                                  UNLOCK(SOFTWAREINTERRUPTLOCK);        33754000        
+    END  %%%%%%%%%%%%%%%                                        %%%MCS9A33755000        
+                             UNTIL INTERRUPTQCOUNT~INTERRUPTQCOUNT-1=0; 33756000        
+    END ;%%%%%%%%%%%%%%%                                        %%%MCS 933757000        
+                   THEEVENT~EVENTWORD1&FIRSTEVENTWORD(,*,0,0,*,1,0);    33758000        
+                   GO LOOKFORANOTHER;                                   33759000        
+    END ;%%%%%%%%%%%%%%%                                        %%%MCS 733760000        
+FINI:                                                                   33761000        
+    END EVENTHANDLER;                                                   33762000        
+SAVE PROCEDURE GAOLER(EVENTT, UNLOCK);                                  33762100        
+    VALUE UNLOCK;                                                       33762120        
+    EVENT EVENTT;                                                       33762140        
+    BOOLEAN UNLOCK;                                                     33762160        
+    COMMENT THE GAOLER KEEPS THE KEYS TO THE INTERLOCKS;                33762180        
+    BEGIN                                                               33762200        
+    LABEL LOCKUP;                                                       33762220        
+    IF UNLOCK THEN                                                      33762240        
+         BEGIN                                                          33762260        
+         FREE(EVENTT);                                                  33762280        
+         CAUSE(EVENTT);                                                 33762300        
+         END                                                            33762320        
+    ELSE                                                                33762340        
+LOCKUP:  IF FIX(EVENTT) THEN                                            33762360        
+         BEGIN                                                          33762400        
+         WAIT(EVENTT);                                                  33762420        
+         GO LOCKUP;                                                     33762440        
+         END                                                            33762460        
+    ELSE                                                                33762465        
+         RESET(EVENTT);                                                 33762470        
+    END GAOLER;                                                         33762480        
+SAVE WORD PROCEDURE SOFTWAREINTERRUPTDEC(THEEVENT,EVENTWORD1,EVENTWORD2,33763000        
+                                            KLUDGE,PCWPOINTER);         33764000        
+              VALUE EVENTWORD1,EVENTWORD2,PCWPOINTER,KLUDGE;            33765000        
+         WORD      THEEVENT,      % IRW OR INDEXED DD POINTING TO       33766000        
+                                  % INTERRUPT EVENT                     33767000        
+                   EVENTWORD1,    % FIRST WORD OF EVENT                 33768000        
+                   EVENTWORD2,    % ZERO USED TO FIX UP SECOND WORD OF  33769000        
+                                  % EVENT AT FIRST ENTRY                33770000        
+                   PCWPOINTER     % POINTER TO INTERRUPT PCW (SIRW)     33771000        
+                  ,KLUDGE         % HORRIBLE KLUDGE FOR COMPILER        33772000        
+                   ;                                                    33773000        
+COMMENT                                                                 33774000        
+    THE ESPOL INTERRUPT DECLARATION PLACES ZERO IN THE FIRST WORD OF    33775000        
+    INTERRUPT AND A PCW REFERENCING THE STATEMENT IN THE SECOND WORD. IT33776000        
+    GENERATES A CALL ON THIS PROCEDURE.                                 33777000        
+         THIS PROCEDURE LINKS THIS STACK INTO THE INTERRUPT QUEUE BEHIND33778000        
+    THE EVENT AFTER FIRST CHECKING THAT THE STACK IS NOT ALREADY SO     33779000        
+    LINKED (A RUN TIME ERROR IS NOTED IF THIS CHECK FAILS)              33780000        
+         THE INTERRUPT QUEUE IS DERIVED AS FOLLOWS:                     33781000        
+         (1)  THE EVENT DECLARATION HAS PRODUCED A DOUBLE-LENGTH REAL   33782000        
+         (2)  THE FIRST (ENCOUNTERED) INTERRUPT DECLARATION REFERENCING 33783000        
+              THE EVENT CAUSES THE SECOND WORD OF THE EVENT TO POINT TO 33784000        
+              THE INTERRUPT PCW.THE SECOND WORD OF THE EVENT IS NOW     33785000        
+              ESSENTIALLY A STUFFED IRW EXCEPT FOR ITS TAG FIELD.       33786000        
+         (3)  THE SECOND AND SUBSEQUENT INTERRUPT DECLARATIONS CAUSE THE33787000        
+              FIRST WORD OF INTERRUPT IN THE STACK AT THE END OF THE    33788000        
+              INTERRUPT QUEUE TO BE CHANGED FROM ZERO TO A STUFFED IRW  33789000        
+                   THIS STUFFED IRW POINTS TO THE PCW OF THE NEW        33790000        
+              INTERRUPT DECLARATION.                                    33791000        
+              ;                                                         33792000        
+    BEGIN                                                               33793000        
+    DOUBLE    EVENTVALUE=EVENTWORD1    %TWO WORDS OF EVENT STARTING WITH33794000        
+                                       %EVENTWORD1                      33795000        
+          ,   EVENTPLACE=THEEVENT      %THEEVENT INVOKES OVRD.EVENTPLACE33796000        
+                                       % INVOKES STOD.NOTE NO EVAL FOR  33797000        
+                                       % EVENTPLACE, HOWEVER STOD CHASES33798000        
+                                       % IRWS.                          33799000        
+              ;                                                         33800000        
+    BOOLEAN        FIRST     % TRUE WHEN FIRST DECLARATION              33801000        
+              ;                                                         33802000        
+    INTEGER        COUNT     % NUMBER OF STACKS IN QUEUE (INC THIS ONE) 33803000        
+              ;                                                         33804000        
+    WORD           NEXTSTACK  % POINTS TO NEXT STACK IN QUEUE           33805000        
+              ;                                                         33806000        
+    REAL           NEXTSTACKNO                                          33807000        
+              ,    DISPSIRW                                             33808000        
+              ,    MYSNR                                                33809000        
+              ;                                                         33810000        
+    DEFINE    NEXTINTERRUPTSIRW = STACK                                 33811000        
+                                                      [NEXTSTACKNO      33812000        
+                                                      ~NEXTSTACK.STKNRF,33813000        
+                                            DISPSIRW~NEXTSTACK.DISPF-1  33814000        
+                                            + NEXTSTACK.SIRWDELTAF]#    33815000        
+              ;                                                         33816000        
+         MYSNR ~ SNR;                                                   33817000        
+         SOFTWAREINTERRUPTDEC~KLUDGE;                                   33818000        
+         EVENTWORD1.COUNTF ~ COUNT ~ EVENTWORD1.COUNTF+1;               33819000        
+         IF COUNT=1                                                     33820000        
+              THEN                                                      33821000        
+    BEGIN%%%%%%%%%%%%%%%                                        %%%MCS 133822000        
+                                       % FIRST DECLARATION              33823000        
+                   FIRST~TRUE;                                          33824000        
+COMMENT *** THIS CODE SLOPPY-OPTIMISE LATER;                            33825000        
+    END  %%%%%%%%%%%%%%%                                        %%%MCS 133826000        
+              ELSE                                                      33827000        
+                                                                        33828000        
+    BEGIN%%%%%%%%%%%%%%%                                        %%%MCS 233829000        
+                                       % SECOND AND SUBSEQUENT DECS.    33830000        
+                   NEXTSTACK~SECONDWORD(EVENTVALUE);                    33831000        
+                   DO                                                   33832000        
+    BEGIN%%%%%%%%%%%%%%%                                        %%%MCS 333833000        
+                        NEXTSTACK ~ NEXTINTERRUPTSIRW;                  33834000        
+                                                                        33835000        
+                        IF MYSNR=NEXTSTACKNO THEN KILLME(INTERRUPTDEC); 33836000        
+    END  %%%%%%%%%%%%%%%                                        %%%MCS 333837000        
+                   UNTIL (COUNT~COUNT-1)=1;                             33838000        
+                   STACK[NEXTSTACKNO,DISPSIRW-1] ~ PCWPOINTER;          33839000        
+    END; %%%%%%%%%%%%%%%                                        %%%MCS 233840000        
+         %%%%%%%%%%%%%%%               CLEAN UP                         33841000        
+         EVENTWORD1.EVENTLOCKBITF~0;                                    33842000        
+         EVENTWORD1.TAG~DOUBL;                                          33843000        
+         IF FIRST                                                       33844000        
+              THEN BEGIN                                                33845000        
+COMMENT *** (NO GOOD)   EVENTWORD2~PCWPOINTER&STUFFEDIRW(DOUBL,*,*,*,*);33846000        
+                        PCWPOINTER.TAG~DOUBL;EVENTWORD2~PCWPOINTER;     33847000        
+                        THEEVENT~EVENTWORD1;                            33848000        
+COMMENT                 THIS IS TERRIBLE,DOUBLE TAG SCREWS EVERYTHING;  33849000        
+                        EVENTPLACE~EVENTVALUE;                          33850000        
+COMMENT  ***  OPTIMISE LATER;                                           33851000        
+                   END                                                  33852000        
+              ELSE THEEVENT ~ EVENTWORD1;   % INVOKES OVRD              33853000        
+    END  SOFTWAREINTERRUPTDEC;                                          33854000        
+ SAVE PROCEDURE HOLD;                                                   33855000        
+COMMENT  SENDS A PROCESS TO SLEEP. THE PROCESS WILL NOT WAKE UP UNTIL   33856000        
+         A SOFTWARE INTERRUPT IS DIRECTED TO IT                         33857000        
+              IF THERE IS NOTHING IN THE READYQ, THE PROCESS ENTERS A   33858000        
+         NOTHING TO DO LOOP (WITH INTERRUPTS ALLOWED). SHOULD A SOFTWARE33859000        
+         INTERRUPTED BE DIRECTED AT IT IN THIS CONDITION, IT WILL BE    33860000        
+         INTERRUPTED BY A HEYOU (HARDWARE) INTERRUPT                    33861000        
+              THE HEYOU INTERRUPT WILL TURN ON THE HEYOUINTERRUPT FIELD 33862000        
+         TO INDICATE THE PROCESSING OF THE SOFTWARE INTERRUPT           33863000        
+                                                                        33864000        
+              PART OF THE NOTHING TO DO LOOP TESTS THE READYQLINK AND   33865000        
+         THE PROCESS EXITS IF IT IS NON ZERO                            33866000        
+         ;                                                              33867000        
+    BEGIN                                                               33868000        
+    REAL           MYSNR                                                33869000        
+              ;                                                         33870000        
+    LABEL LOOKFORNEWPROCESS                                             33871000        
+         ,FINI                                                          33872000        
+         ;                                                              33873000        
+         SETINTERVALTIMER;                                              33874000        
+         MYSNR~SNR;                                                     33875000        
+         BUZZCONTROL(READYQ);                    % *** BUZZ             33876000        
+LOOKFORNEWPROCESS:                                                      33877000        
+         IF NOTHINGTODO                                                 33878000        
+              THEN IF WORDSTACK[MYSNR,LINKPLACE].HEYOUINTERRUPTF!0      33879000        
+                   THEN                                                 33880000        
+    BEGIN%%%%%%%%%%%%%%%                                        %%%MCS 133881000        
+              WORDSTACK[MYSNR,LINKPLACE].HEYOUINTERRUPTF~0;             33882000        
+                        UNLOCK(READYQ);                                 33883000        
+                        GO FINI;                                        33884000        
+    END  %%%%%%%%%%%%%%%                                        %%%MCS 133885000        
+                   ELSE LOOKFORSOMETHING                                33886000        
+              ELSE MOVETONEXTONEINREADYQ;                               33887000        
+FINI:                                                                   33888000        
+    END HOLD;                                                           33889000        
+ SAVE PROCEDURE HOLDINITIALISE;                                         33890000        
+COMMENT  THIS PROCEDURE IS ENTERED FROM INITIALISE AND PERFORMS THE     33891000        
+         FOLLOWING FUNCTIONS:                                           33892000        
+            A.FORGETS SPACE ASSOCIATED WITH INITIALISE                  33893000        
+            B.FIXES UP STACK SO THAT RUN WILL BE ENTERED WHEN IT IS     33894000        
+              MOVED TO LATER ON (I.E. IT IS AN INDEPENDENTRUNNER STACK) 33895000        
+            C.ENTERS A NOTHING-TO-DO LOOP                               33896000        
+              ;                                                         33897000        
+    BEGIN                                                               33898000        
+    INTEGER        I                                                    33899000        
+              ,    STACKNO                                              33899200        
+              ;                                                         33900000        
+    MONITOR        JACKMONITOR(IRSTACKS)                                33901000        
+              ;                                                         33902000        
+    REAL           STAKADRES                                            33903000        
+              ,    MYSNR                                                33904000        
+              ;                                                         33905000        
+    ARRAY          MYSTACK[*];                                          33906000        
+    WORD ARRAY     MYWORDSTACK = MYSTACK[*];                            33907000        
+                                                                        33908000        
+    LABEL          FIXUPPROCESSOR                                       33909000        
+              ;                                                         33910000        
+    INTEGER        HI                       % *** FOR MONITOR ONLY      33911000        
+              ;                                                         33912000        
+         MONITOR   JACKMONITOR(HI)                                      33913000        
+              ;                                                         33914000        
+         HI~HI;                             % *** FOR MONITOR ONLY      33915000        
+         MYSNR ~ SNR;                                                   33916000        
+         PIRSTACKS~IRSTACKS~SET(IRSTACKS,MYSNR);                        33917000        
+         WORDSTACK[MYSNR,PROCESSNATUREPLACE].DEDICATEDSTACKF ~ 1;       33918000        
+         IF NOT LOCK(FIRSTLOK)                                          33919000        
+              THEN BEGIN                                   %%%MCS000010033920000        
+                        PERIPHERALINITIALIZE;                           33921000        
+                        FORGETSPACE(SAVE1ADDRESS);                      33922000        
+                                                                        33922500        
+                        IF INDEPENDENTRUNNERSTACKS > NUMBEROFPROCESSORS 33923000        
+                             THEN                                       33924000        
+BEGIN                                                      %%%MCS000012533925000        
+COMMENT  WE HAVE TO BUILD SOME MORE INDEPENDENT RUNNER STACKS;          33926000        
+    DISABLEOVERLAY;                                                     33927000        
+    FOR I~NUMBEROFPROCESSORS+1 STEP 1 UNTIL INDEPENDENTRUNNERSTACKS DO  33928000        
+    BEGIN                                                  %%%MCS000015033929000        
+         IRSTACKS~SET(IRSTACKS,(STACKNO~GETINDEPENDENTRUNNERSTACK(      33930000        
+                                                           STAKADRES)));33931000        
+         WORDSTACK[STACKNO,LINKPLACE         ].DEDICATEDSTACKF ~ 1;     33932000        
+COMMENT ***                                                             33933000        
+    CHANGESPACE(STAKADRES);                                             33934000        
+    END;                                                   %%%MCS000015033935000        
+    ENABLEOVERLAY;                                                      33936000        
+END                                                        %%%MCS000012533937000        
+                             ELSE INDEPENDENTRUNNERSTACKS~I~            33938000        
+                                                 NUMBEROFPROCESSORS ;   33939000        
+         PIRSTACKS~IRSTACKS~RESET(IRSTACKS,TERMINATESTACK~MYSNR);       33946000        
+         NOTFIRSTWAIT~TRUE; COMMENT *** IS THIS A KLUDGE;               33947000        
+                                                                        33948000        
+                   END;                                    %%%MCS000010033949000        
+                                                                        33950000        
+         MYSTACK~STACK[MYSNR ,*];                                       33951000        
+         MYSTACK[COREPLACE]~IRCORE;                                     33952000        
+         MYSTACK[PROCTIMEPLACE]~IRPROCTIME;                             33953000        
+         MYSTACK[IOTIMEPLACE]~IRIOTIME;                                 33954000        
+         MYWORDSTACK[FIRSTPLACE]~IRTOSCW;                               33954100        
+         MYWORDSTACK[FIRSTMSCWPLACE]~IRMSCW1;                           33955000        
+         MYWORDSTACK[FIRSTRCWPLACE]~IRRCW1;                             33956000        
+         MYWORDSTACK[SECNDMSCWPLACE]~IRMSCW2&MARKSTACKWD(*,*,*,MYSNR    33957000        
+                                                           ,*,*,*,*);   33958000        
+         MYWORDSTACK[RETURNCONTROLWORDPLACE]~RUNRETURNCONTROLWORD;      33959000        
+         LASTNOTAVAILABLEINVECTOR~(FIRSTAVAILABLEINVECTOR~FIRSTONE      33959020        
+                                                      (IRSTACKS))-1;    33959040        
+         FORK(DIRECTORYCOMPLEMENT, SYSTEMDIRECTORY);                    33959060        
+         HOLD;                                                          33959200        
+    END HOLDINITIALISE;                                                 33960000        
+SAVE                                                                    33960100        
+ INTEGER PROCEDURE GETINDEPENDENTRUNNERSTACK(STAKADRES);                33961000        
+    REAL           STAKADRES                                            33962000        
+              ;                                                         33963000        
+    BEGIN                                                               33964000        
+    INTEGER        NEWSTACK                                             33965000        
+              ;                                                         33967000        
+    INTEGER        GIR ;                    % ***FOR MONITOR ONLY       33970000        
+    MONITOR        JACKMONITOR(GIR);                                    33971000        
+         STAKADRES~GETSPACE  (    INDEPENDENTRUNNERCORE                 33973000        
+                             ,    0                                     33974000        
+                             ,    0&SPACETYPE(1,1,1,0)                  33975000        
+                             ,    0                                     33976000        
+                             )                                          33977000        
+                             ;                                          33978000        
+         GIR~STAKADRES;                     %*** FOR MONITOR ONLY       33979000        
+         M[STAKADRES-LINKSIZE].INUSEID~NEWSTACK~                        33980000        
+                                       GETINDEPENDENTRUNNERSTACK ~      33981000        
+              VECTORINSERT (  GETIRS                                    33982000        
+                             , DUMMYAREA & DATADESCRIPTOR               33983000        
+                                  (*,1,0,0,0,0,0,0                      33984000        
+                                  ,INDEPENDENTRUNNERCORE                33985000        
+                                  ,STAKADRES                            33986000        
+                                  )                                     33987000        
+                           )  ;                                         33988000        
+         M[STAKADRES-LINKSIZE+1].ADDRMOM ~ STACKVECTOR.ADDRESSF         33989000        
+                                                           + NEWSTACK;  33990000        
+    INITIALIZETOZERO(STAKADRES,INDEPENDENTRUNNERCORE);                  33991000        
+    LOADFIXEDIRSTACK(NEWSTACK);                                         33992000        
+         UNLOCK(READYQ);                                                33993000        
+         UNLOCK(VECTORLOK[1]);                                          33993100        
+    END  GETINDEPENDENTRUNNERSTACK;                                     33994000        
+                                                                        33995000        
+ SAVE PROCEDURE INDEPENDENTRUNNER(INDEX,PAR);                           33996000        
+              VALUE INDEX,PAR;                                          33997000        
+              REAL INDEX;                                               33998000        
+              WORD PAR;                                                 33999000        
+    BEGIN                                                               34000000        
+    INTEGER        STACKNO                                              34001000        
+              ;                                                         34002000        
+    WORD ARRAY     IRWORDSTACK [*];                                     34002020        
+    ARRAY          IRSTACK=IRWORDSTACK[*] ;                             34002040        
+    BOOLEAN        NEWSTACK                                             34002100        
+              ;                                                         34002200        
+    DEFINE         MYSNR = SNR #                                        34002300        
+              ;                                                         34002400        
+    INTEGER        IR;                      % ***FOR MONITOR ONLY       34003000        
+    MONITOR        JACKMONITOR(IR);                                     34004000        
+         IR~INDEX;                          %*** FOR MONITOR ONLY       34005000        
+         IR~PAR;                            %*** FOR MONITOR ONLY       34006000        
+         BUZZCONTROL(INDEPENDENTRUNNERLOK);                             34007000        
+         IF INDEX=TERMINATEINDICATOR AND STACK[SNR,PROCESSNATUREPLACE]  34007200        
+                        .PROCESSHISTORYF =TERMINATEIR                   34007400        
+              THEN BEGIN                                   %%%MCS000050034007600        
+                        UNLOCK(INDEPENDENTRUNNERLOK);                   34007620        
+                        STACKINUSE[INDEX]~0 ;                           34007700        
+IR~STACKINUSE[TERMINATEINDICATOR];               %*** FOR MONITOR ONLY  34007710        
+                        GO FINI;                                        34007800        
+                   END;                                    %%%MCS000050034007900        
+         BUZZCONTROL(IRPARAMETERLOK[INDEX]);                            34007910        
+         IF(NEWSTACK~(INDEX<ONEONLYINDEX OR((STACKNO~STACKINUSE[INDEX]) 34008000        
+                                                           =0)))        34009000        
+                                                                        34010000        
+              THEN                                                      34011000        
+    BEGIN                                                  %%%MCS000100034012000        
+COMMENT  WE HAVE TO GET A NEW STACK;                                    34013000        
+         UNLOCK(IRPARAMETERLOK[INDEX]);                                 34013100        
+         IF INDEX=TERMINATEINDICATOR                                    34014000        
+              THEN BEGIN                                   %%%MCS000080034015000        
+                        STACKNO ~ TERMINATESTACK;                       34015200        
+                        GO TO FIXEDSTACKS;                              34015400        
+                   END                                     %%%MCS000080034015600        
+              ELSE                                                      34016000        
+                   IF STACKNO~FIRSTONE(IRSTACKS)=0                      34017000        
+                        THEN                                            34018000        
+                                                                        34019000        
+COMMENT                 WE HAVE TO BUILD A NEW STACK;                   34020000        
+                   BEGIN                                   %%%MCS000200034021000        
+                             STACKNO~GETINDEPENDENTRUNNERSTACK(STACKNO);34022000        
+                                                                        34023000        
+                                                                        34024000        
+                                                                        34025000        
+                   END                                     %%%MCS000200034026000        
+                        ELSE                                            34027000        
+              BEGIN                                        %%%MCS000300034028000        
+                   IRSTACKS~RESET(IRSTACKS,STACKNO~STACKNO-1);          34029000        
+FIXEDSTACKS:       REPLACE POINTER(STACK                                34029200        
+                                  [STACKNO,RETURNCONTROLWORDPLACE+1]    34029400        
+                                  ) BY 0 FOR INDEPENDENTRUNNERCORE      34029600        
+                                       - RETURNCONTROLWORDPLACE -1      34029800        
+                                                           OVERWRITE;   34030000        
+              END ;                                        %%%MCS000300034030200        
+         IRSTACK ~ STACKVECTOR[STACKNO];                                34031000        
+         IRWORDSTACK[ FIRSTPLACE]~IRTOSCW;                              34031200        
+         IRWORDSTACK [IRPARAMETERPLACE]~PAR;                            34031500        
+         IRWORDSTACK [IRPCWPLACE]~0&NORMALIRW(,,IRPCWSTARTPLACE+INDEX); 34032000        
+         PUTINJOBIDANDTIME(IRWORDSTACK ,STACKNO);                       34032500        
+         IRWORDSTACK [SECNDMSCWPLACE]~IRMSCW2&MARKSTACKWD(*,*,*,STACKNO,34033000        
+                                                           *,*,*,*);    34033500        
+         IRWORDSTACK [RETURNCONTROLWORDPLACE]~ RUNRETURNCONTROLWORD;    34034000        
+         IRSTACK [PRIORITYPLACE]~ IRPRIORITIES[INDEX];                  34034500        
+         IRSTACK [PROCESSNATUREPLACE]~*&NATUREOFPROCESS(IF INDEX =      34035000        
+              TERMINATEINDICATOR THEN TERMINATEIR ELSE INDEPENDENT,     34035500        
+                                                                 INDEX);34035800        
+         IRSTACK [STACKSIZEPLACE]~INDEPENDENTRUNNERCORE;                34036000        
+COMMENT *** WE SHOULD USE DIFFERENT STACK SIZES FOR DIFFERENT IR S;     34036200        
+    END  ELSE UNLOCK(IRPARAMETERLOK[INDEX]);               %%%MCS000100034036500        
+         IF INDEX } ONEONLYINDEX  THEN                                  34037000        
+    BEGIN                                                  %%%MCS000400034038000        
+              BUZZCONTROL(IRPARAMETERLOK[INDEX]);                       34039000        
+              STACK[STACKNO,IRPARAMETERPLACE]~*+1;                      34040000        
+              UNLOCK(IRPARAMETERLOK[INDEX                ]);            34041000        
+                                                                        34042000        
+    END ;                                                  %%%MCS000400034043000        
+         STACKINUSE[INDEX                ]~STACKNO;                     34043100        
+         IF INDEX = TERMINATEINDICATOR THEN                             34043200        
+              BEGIN                                        %%%MCS000500034043300        
+                   BUZZCONTROL(IRPARAMETERLOK[TERMINATEINDICATOR]);     34043400        
+                   INSERTINQ(TERMINATEQ,DUMMYREF,MYSNR  );              34043500        
+                   UNLOCK(IRPARAMETERLOK[TERMINATEINDICATOR]);          34043600        
+              END ;                                        %%%MCS000500034043700        
+         UNLOCK(INDEPENDENTRUNNERLOK);                                  34044000        
+         BUZZCONTROL(READYQ);                                           34045200        
+         IF NEWSTACK THEN                                               34046000        
+         INSERTINQUEUE(OTHERREDY,STACKNO);                              34047000        
+FINI:                                                                   34047200        
+    UNLOCK(READYQ);                                                     34048000        
+    EXIT;                                                               34048100        
+    END INDEPENDENTRUNNER;                                              34049000        
+ SAVE                                                                   34050000        
+ PROCEDURE RUN (PARAMETER,PROCEEDURE);                                  34051000        
+    VALUE          PARAMETER                                            34052000        
+              ;                                                         34053000        
+    WORD           PARAMETER                                            34054000        
+              ;                                                         34055000        
+    PROCEDURE      PROCEEDURE                                           34056000        
+              ;                                                         34057000        
+COMMENT  INDEPENDENT RUNNER STACKS, INITIATE STACKS AND JOB (D2) STACKS 34058000        
+         ALL EXIT TO RUN AFTER A MVST TAKES THEM OUT OF THE READYQ FOR  34058020        
+         THE FIRST TIME                                                 34058040        
+              RUN DETERMINES (FROM "NATURE OF PROCESS" IN THE PROCESS   34058060        
+         STACK) WHETHER INITIATE, AN INDEPENDENT RUNNER OR A NORMAL     34058080        
+         STATE PROGRAM (WHICH MAY BE A TYPED OR UNTYPED PROCEDURE       34058100        
+         REQUIRING OR NOT REQUIRING PARAMETERS) IS TO BE ENTERED        34058120        
+              UPON RETURN TO RUN (AT EXIT OR RETURN FROM THE CALLED     34058140        
+         PROCEDURE), RUN TAKES APPROPRIATE ACTION AS REQUIRED BY        34058160        
+         COMPILERS, DIFFERENT INDEPENDENT RUNNERS ETC. AND THEN CALLS   34058180        
+         TERMINATE                                                      34058200        
+         ;                                                              34059000        
+    BEGIN                                                               34059200        
+    REAL           PROCESSNATUR                                         34059300        
+              ,    RESULT                                               34059400        
+              ,    TEMPORARY = RESULT                                   34059500        
+              ,    MYSNR                                                34059600        
+              ;                                                         34060000        
+    DEFINE         COMPILER = PROCESSNATUR                              34060200        
+                                  .PROCESSHISTORYF!INDEPENDENT AND      34060220        
+                                  (TEMPORARY~PROCESSNATUR.PROCESSCLASSF)34060240        
+                                  }FIRSTCOMPILEROPTION AND              34060260        
+                                  TEMPORARY{LASTCOMPILEROPTION#         34060400        
+              ,    IFINDEPENDENTRUNNER                                  34060600        
+                        = IF (PROCESSNATUR~MYSTACK[PROCESSNATUREPLACE]) 34060800        
+                             .PROCESSHISTORYF=INDEPENDENT               34060802        
+                             OR PROCESSNATUR.PROCESSHISTORYF=TERMINATEIR34060805        
+                             OR PROCESSNATUR.INITIATESTACKF=1#          34060810        
+              ,    SYNTAXTOG = PROCESSNATUR.PROCESSCLASSF=              34060820        
+                                                 COMPILENSYNTAXJOB#     34060830        
+              ;                                                         34061000        
+    ARRAY          MYSTACK[*]                                           34061200        
+              ;                                                         34062000        
+    REAL PROCEDURE REALPROCEEDURE=PROCEEDURE;NULL;                      34062010        
+    INTEGER        GALLOP                  ;     % *** FOR MONITOR ONLY 34064740        
+    MONITOR        JACKMONITOR(GALLOP);                                 34064760        
+         GALLOP~TRACE(0);                                               34064800        
+         MYSTACK~STACKVECTOR[MYSNR~SNR];                                34065000        
+         LOSR~MYSTACK[STACKSIZEPLACE]-STACKOFLOWSIZE;                   34065200        
+         IFINDEPENDENTRUNNER                                            34066000        
+              THEN                                                      34066020        
+                   BEGIN                                   %%%MCS000100034066040        
+                        PROCEEDURE(PARAMETER);                          34066200        
+                   END                                     %%%MCS000100034066800        
+              ELSE                                                      34066900        
+                   BEGIN                                   %%%MCS000150034067000        
+                        BOJMESSER(MYSNR);                               34067200        
+                        IF COMPILER                                     34067400        
+                             THEN                                       34067600        
+                                  BEGIN                    %%%MCS000200034067800        
+                                       RESULT~REALPROCEEDURE(SYNTAXTOG);34068000        
+                                  END                      %%%MCS000200034070600        
+                             ELSE                                       34070800        
+                                  BEGIN                    %%%MCS000300034071000        
+COMMENT                           WE HAVE A PROGRAM WITH NO PARAMETERS; 34071200        
+                                       PROCEEDURE;                      34071400        
+                                  END;                     %%%MCS000300034072800        
+                        EOJMESSER(MYSNR);                               34073000        
+                   END;                                    %%%MCS000150034074000        
+COMMENT  *** 5 MARCH 1969, THE ABOVE CODE WILL HAVE TO BE EXPANDED TO   34074010        
+         CATER FOR MORE EXTENSIVE TREATMENT OF COMPILERS AND PROGRAMS AS34074020        
+         (TYPED OR UNTYPED) PROCEDURES. ALSO THE FOLLOWING TERMINATE    34074040        
+         CODE MAY REQUIRE ALTERING                                      34074060        
+         ;                                                              34074080        
+         FORK(TERMINATE,0);                                             34075000        
+IF SIMULATING THEN                                                      34075010        
+         GALLOP~GALLOP;                          %*** FOR MONITOR ONLY  34075100        
+         TRACE(GALLOP);                                                 34075200        
+         HOLD;                                                          34076000        
+    END  RUN ;                                                          34077000        
+SAVE PROCEDURE IRTEST(IND); INTEGER IND;                                34077200        
+    BEGIN                                                               34078000        
+    MONITOR        JACKMONITOR(IND);                                    34079000        
+    REAL           MYSNR;                                               34080000        
+    REAL OLDTIME;                                                       34080100        
+    MONITOR        JACKMONITOR(MYSNR);                                  34081000        
+         IND~IND;                           %*** FOR MONITOR ONLY       34082000        
+         MYSNR~SNR;                         %*** FOR MONITOR ONLY       34083000        
+         DO BEGIN                                                       34083100        
+                   IF(OLDTIME~OLDTIME+1) MOD 10  = 0 THEN               34083200        
+                             FORK(STATUS,0);                            34083300        
+                   WAIT(TIMERINTERRUPTEVENT);                           34083400        
+              END UNTIL FALSE;                                          34083500        
+         HOLD;                                                          34084000        
+    END  IRTEST;                                                        34085000        
+SAVE                                                                    34085300        
+                                                                        34085310        
+ PROCEDURE LOADFIXEDIRSTACK(STACKNO);                                   34086000        
+    VALUE          STACKNO   ;                                          34087000        
+    INTEGER        STACKNO                                              34088000        
+              ;                                                         34089000        
+COMMENT  PUTS THE FIRST (TOSCW),SECOND (SELF IDENTIFYING MSCW) WORDS    34090000        
+         IN AN INDEPENDENT RUNNER STACK.PUTS THE RUN RETURN CONTROL     34091000        
+         WORD AND THE PROCESS INFORMATION WHICH IS FIXED FOR ALL        34092000        
+         INDEPENDENT RUNNERS I.E. CORE ESTIMATE,PROCESSOR TIME          34093000        
+         ESTIMATE,I/O TIME ESTIMATE.PUTS IN SOME OTHER CONTROL WORDS    34094000        
+         ;                                                              34095000        
+    BEGIN                                                               34096000        
+    INTEGER        LFI  =    STACKNO        % *** FOR MONITOR ONLY      34097000        
+              ;                                                         34098000        
+    MONITOR        JACKMONITOR(LFI)                                     34099000        
+              ;                                                         34100000        
+    ARRAY          MYSTACK[*];                                          34101000        
+    WORD ARRAY     MYWORDSTACK =MYSTACK[*]                              34102000        
+              ;                                                         34103000        
+         LFI~LFI;                           % *** FOR MONITOR ONLY      34104000        
+         MYSTACK~STACK[STACKNO,*];                                      34105000        
+         MYWORDSTACK[FIRSTPLACE]~IRTOSCW;                               34106000        
+         MYWORDSTACK[LINKPLACE]~0&MARKSTACKWD(,*,1,STACKNO,*,*,*,*);    34107000        
+                                                                        34110100        
+         MYWORDSTACK[FIRSTMSCWPLACE]~IRMSCW1;                           34111000        
+         MYWORDSTACK[FIRSTRCWPLACE]~IRRCW1;                             34112000        
+         EXIT;                                                          34115100        
+    END LOADFIXEDIRSTACK;                                               34116000        
+PROCEDURE CONTROLCARD (PARAMETER);                                      38000000        
+    WORD      PARAMETER;                                                38001000        
+    BEGIN     COMMENT   CONTROL CARD PROCESSES THE EBCDIC RECORD AS     38002000        
+                        DESCRIBED BY THE AREA DESCRIPTOR OF THE IOCB AND38003000        
+                        READS ADDITIONAL RECORDS UNTIL A "LABEL", "DATA"38004000        
+                        OR "END" IS ENCOUNTERED.  WHILE A CONTROL DECK  38005000        
+                        IS BEING PROCESSED, THE UNIT OF THE IOCB IS     38006000        
+                        ASSIGNED TO THE CONTROL CARD PROCEDURE.  THE    38007000        
+                        FINAL OUTPUT OF CONTROLCARD IS ONE OR MORE SHEET38008000        
+                        ENTRIES OR AN ASSIGNMENT OF A LABEL TO A UNIT.  38009000        
+                                                                       ;38010000        
+    REFERENCE IOCB =PARAMETER;                                          38011000        
+    INTEGER   UNITNO =  PARAMETER;                                      38012000        
+VALUE ARRAY RESERVED ~ (0,0,0,0,0,0,0,0,0,0,0,0,0,0, 8"UNKNOWNID",   0  38013000        
+    , 8"#     "                         ,  114800 % CLASS 148           38014000        
+    , 8".     "                         ,  114600 % CLASS 146           38015000        
+    , 8"~     "                         ,  114100 % CLASS 141           38016000        
+    , 8"-     "                         ,  114500 % CLASS 145           38017000        
+    , 8";     "                         ,  114300 % CLASS 143           38018000        
+    , 8"/     "                         ,  114700 % CLASS 147           38019000        
+    , 8",     "                         ,  114200 % CLASS 142           38020000        
+    ,40"7F4040404040",  114400    % QUOTE MARK CLASS 144                38021000        
+    ,40"6F4040404040",  114100    % QUEST MARK CLASS 141                38022000        
+    , 8"ALGOL "                         ,  505202 % CLASS  52 CASE   2  38023000        
+    , 8"ALPHA "                         ,  513600 % CLASS 136           38024000        
+    , 8"BACKUP"                         ,  608900 % CLASS  89           38025000        
+    , 8"CC    "                         ,  214000 % CLASS 140           38026000        
+    , 8"CHANGE"                         ,  600701 % CLASS   7 CASE   1  38027000        
+    , 8"COBOL "                         ,  506502 % CLASS  65 CASE   2  38028000        
+    , 8"COMMON"                         ,  603902 % CLASS  39 CASE   2  38029000        
+    , 8"COMPILE"                        ,  700301 % CLASS   3 CASE   1  38030000        
+    , 8"CORE  "                         ,  404002 % CLASS  40 CASE   2  38031000        
+    , 8"DATA  "                         ,  400801 % CLASS   8 CASE   1  38032000        
+    , 8"DATAB "         , 501401  % CLASS 14 CASE 1                     38033000        
+    , 8"DISK  "                         ,  407900 % CLASS  79           38034000        
+    , 8"DISPLAY"                        ,  708300 % CLASS  83           38035000        
+    , 8"DUMP  "                         ,  400601 % CLASS   6 CASE   1  38036000        
+    , 8"END   "                         ,  302401 % CLASS  24 CASE   1  38037000        
+    , 8"ESPOL "                         ,  505402 % CLASS  54 CASE   2  38038000        
+    , 8"EXECUTE"                        ,  700201 % CLASS   2 CASE   1  38039000        
+    , 8"EXTERNAL"                       ,  806600 % CLASS  66           38040000        
+    , 8"FILE  "                         ,  403502 % CLASS  35 CASE   2  38041000        
+    , 8"FORM  "                         ,  413700 % CLASS 137           38042000        
+    , 8"FORTRAN"                        ,  705302 % CLASS  53 CASE   2  38043000        
+    , 8"FREE  "                         ,  401201 % CLASS  12 CASE   1  38044000        
+    , 8"GO    ",   206900         % CLASS 69                            38045000        
+    , 8"IO    "                         ,  203702 % CLASS  37 CASE   2  38046000        
+    , 8"LIBRARY"                        ,  706700 % CLASS  67           38047000        
+    , 8"LOAD  "                         ,  400501 % CLASS   5 CASE   1  38048000        
+    , 8"PAPER "                         ,  508600 % CLASS  86           38049000        
+    , 8"PRINT "                         ,  508700 % CLASS  87           38050000        
+    , 8"PRIORITY"                       ,  803802 % CLASS  38 CASE   2  38051000        
+    , 8"PROCESS"                        ,  703602 % CLASS  36 CASE   2  38052000        
+    , 8"PROTECT"                        ,  711200 % CLASS 112           38053000        
+    , 8"PUBLIC"                         ,  601301 % CLASS  13 CASE   1  38054000        
+    , 8"PUNCH "                         ,  508500 % CLASS  85           38055000        
+    , 8"RANDOM"                         ,  612500 % CLASS 125           38056000        
+    , 8"READER"                         ,  608800 % CLASS  88           38057000        
+    , 8"RELEASE"                        ,  701101 % CLASS  11 CASE   1  38058000        
+    , 8"REMOTE"                         ,  608400 % CLASS  84           38059000        
+    , 8"REMOVE"                         ,  600401 % CLASS   4 CASE   1  38060000        
+    , 8"RUN   "                         ,  300101 % CLASS   1 CASE   1  38061000        
+    , 8"SAVE  "                         ,  411100 % CLASS 111           38062000        
+    , 8"SERIAL"                         ,  612300 % CLASS 123           38063000        
+    , 8"SPECIAL"                        ,  710000 % CLASS 100           38064000        
+    , 8"STACK "                         ,  504102 % CLASS  41 CASE   2  38065000        
+    , 8"SYNTAX"                         ,  606800 % CLASS  68           38066000        
+    , 8"TAPE7 "                         ,  508100 % CLASS  81           38067000        
+    , 8"TAPE9 "                         ,  508200 % CLASS  82           38068000        
+    , 8"TAPE  "                         ,  408000 % CLASS  80           38069000        
+    , 8"UNIT  "                         ,  413800 % CLASS 138           38070000        
+    , 8"UNLABELED"                      ,  913900 % CLASS 139           38071000        
+    , 8"UPDATE"                         ,  612400 % CLASS 124           38072000        
+    , 8"USER  "                         ,  401001 % CLASS  10 CASE   1  38073000        
+    , 8"USE   "                         ,  300901 % CLASS   9 CASE   1  38074000        
+                       );                                               38075000        
+DEFINE                                                                  38076000        
+        RUNCLS                          =       1#,                     38077000        
+        EXECUTECLS                      =       2#,                     38078000        
+        COMPILECLS                      =       3#,                     38079000        
+        REMOVECLS                       =       4#,                     38080000        
+        LOADCLS                         =       5#,                     38081000        
+        DUMPCLS                         =       6#,                     38082000        
+        CHANGECLS                       =       7#,                     38083000        
+        DATACLS                         =       8#,                     38084000        
+        USECLS                          =       9#,                     38085000        
+        USERCLS                         =      10#,                     38086000        
+        RELEASECLS                      =      11#,                     38087000        
+        FREECLS                         =      12#,                     38088000        
+        PUBLICCLS                       =      13#,                     38089000        
+         DATABCLS            =14#,                                      38090000        
+        ENDCLS                          =      24#,                     38091000        
+        FILECLS                         =      35#,                     38092000        
+        PROCESSCLS                      =      36#,                     38093000        
+        IOCLS                           =      37#,                     38094000        
+        PRIORITYCLS                     =      38#,                     38095000        
+        COMMONCLS                       =      39#,                     38096000        
+        CORECLS                         =      40#,                     38097000        
+        STACKCLS                        =      41#,                     38098000        
+        ALGOLCLS                        =      52#,                     38099000        
+        FORTRANCLS                      =      53#,                     38100000        
+        ESPOLCLS                        =      54#,                     38101000        
+        COBOLCLS                        =      65#,                     38102000        
+        EXTERNALCLS                     =      66#,                     38103000        
+        LIBRARYCLS                      =      67#,                     38104000        
+        SYNTAXCLS                       =      68#,                     38105000        
+          GOCLS                = 69#,                                   38106000        
+        DISKCLS                         =      79#,                     38107000        
+        TAPECLS                         =      80#,                     38108000        
+        TAPE7CLS                        =      81#,                     38109000        
+        TAPE9CLS                        =      82#,                     38110000        
+        DISPLAYCLS                      =      83#,                     38111000        
+        REMOTECLS                       =      84#,                     38112000        
+        PUNCHCLS                        =      85#,                     38113000        
+        PAPERCLS                        =      86#,                     38114000        
+        PRINTCLS                        =      87#,                     38115000        
+        READERCLS                       =      88#,                     38116000        
+        BACKUPCLS                       =      89#,                     38117000        
+        SPECIALCLS                      =     100#,                     38118000        
+        SAVECLS                         =     111#,                     38119000        
+        PROTECTCLS                      =     112#,                     38120000        
+        SERIALCLS                       =     123#,                     38121000        
+        UPDATECLS                       =     124#,                     38122000        
+        RANDOMCLS                       =     125#,                     38123000        
+        ALPHACLS                        =     1346,                     38124000        
+        FORMCLS                         =     137#,                     38125000        
+        UNITCLS                         =     138#,                     38126000        
+        UNLABELEDCLS                    =     139#,                     38127000        
+        CCCLS                           =     140#,                     38128000        
+        QUESTIONCLS                     =     141#,%                  ~ 38129000        
+        COMMACLS                        =     142#,%                  , 38130000        
+        SEMICOLONCLS                    =     143#,%                  ; 38131000        
+        QUOTECLS                        =     144#,%                  " 38132000        
+        HYPHENCLS                       =     145#,%                  - 38133000        
+        PERIODCLS                       =     146#,%                  . 38134000        
+        SLASHCLS                        =     147#,%                  / 38135000        
+        CROSSHATCHCLS                   =     148#,%                  # 38136000        
+        UNKNOWNIDCLS                    =       0#;                     38137000        
+INTEGER  MYCOMMON;      %%%%%                                           38138000        
+         ARRAY SEGZERO [SIZE(SHEETQ)];                                  38139000        
+              COMMENT   SEGMENT ZERO WILL BE READ INTO THIS ARRAY AND   38140000        
+                        THE SHEET WILL BE BUILT IN THE ARRAY AND A REF- 38141000        
+                        ERENCE TO THE ARRAY WILL BE ENTERED IN THE      38142000        
+                        SHEET.;                                         38143000        
+         ARRAY SEGZEROSKELETON [SIZE(SHEETQ)];                          38144000        
+         ARRAY SEGZEROTEMP [*] ;   %%%%%%                               38145000        
+              COMMENT   PRESERVE FOR LOOPING;                           38146000        
+         WORD      SEGZEROWORD = SEGZEROSKELETON;                       38147000        
+         WORD ARRAY HEADERW [*];  COMMENT THE DISK HEADER RETURNED BY   38148000        
+                                  DIRECTORYSEARCH BASED ON NAME POINTER;38149000        
+         ARRAY     SOURCEAREA [15],                                     38150000        
+              COMMENT   THE AREA DESCRIPTOR OF THE IOCB.;               38151000        
+                   ACCUMULATOR [13];                                    38152000        
+              COMMENT   THE FIRST 14 WORDS OF THE RESERVED ARRAY.  USED 38153000        
+                        AS A TEMPORARY HOLDING AREA FOR CONTROL CARD    38154000        
+                        SYNTACTICAL UNITS AND THE RESERVED SEARCH       38155000        
+                        ARGUMENT (AND STOPPER).;                        38156000        
+         REAL RESULT    COMMENT   AN I/O RESULT DESCRIPTOR;             38157000        
+              , FILEID   COMMENT   WAITIO CALLS IT "USER";              38158000        
+              ,ACTION   COMMENT   WAITIO CALLS IT " IOERRORMASK";       38159000        
+              ,CONTROLWORD                                              38160000        
+              ;                                                         38161000        
+         INTEGER   COUNT,    COMMENT A UTILITY CHARACTER COUNTER.;      38162000        
+                   LIMIT,    COMMENT THE CHARACTERS OF A RECORD THAT ARE38163000        
+                             TO BE SCANNED.;                            38164000        
+                   WORDDIVCHARSIZE, COMMENT THE NUMBER OF CHARACTERS IN 38165000        
+                        A WORD.;                                        38166000        
+                   T,   COMMENT   TEMPORARY;                            38167000        
+         LABELTYPE,                                                     38168000        
+                   ORIGINALLIMIT, COMMENT THE NUMBER OF CHARACTERS IN A 38169000        
+                        RECORD.;                                        38170000        
+                   RESERVECASE,                                         38171000        
+                   CLASS,                                               38172000        
+                   WORDCOUNT;  COMMENT THE NUMBER OF WORDS REQUIRED TO  38173000        
+                        CONTAIN AN IDENTIFIER.;                         38174000        
+         WORD WORDMON;  %%%%%%%%%%%%%                                   38175000        
+         REFERENCE SOURCEREFERENCE = SOURCEAREA,                        38176000        
+                   SUCCESSORSHEET, PREDECESSORSHEET;                    38177000        
+                   COMMENT   REFERENCES TO THE SHEET ENTRIES FOR THE    38178000        
+                        PROCESSES THAT ARE DIRECTLY RELATED TO THE      38179000        
+                        PROCESS REFERENCED BY SEGZERO.;                 38180000        
+         ARRAY     SUCCESSOR = SUCCESSORSHEET [*],                      38181000        
+                   PREDECESSOR = PREDECESSORSHEET [*];                  38182000        
+         POINTER   ACCUMPOINTER, COMMENT A POINTER TO THE ACCUMULATOR.; 38183000        
+                   SOURCE, COMMENT THE SOURCE AREA - MAY BE UPDATED.;   38184000        
+                   ORIGINALSOURCE,  COMMENT SOURCE-MAY NOT BE UPDATED;  38185000        
+                   DESTINATION,   COMMENT - DITTO FOR ACCUMULATOR.;     38186000        
+                   TSOURCE,  COMMENT - USUALLY POINTS AT BEGINNING OF   38187000        
+                             LAST ENTITY SCANNED.;                      38188000        
+                   NAMEPOINTER;  COMMENT  POINTS TO COMPLETE NAME       38189000        
+                        CHARACTER STRING.;                              38190000        
+         BOOLEAN   SPECIAL,  COMMENT   TRUE WHILE A SPECIAL CHARACTER IS38191000        
+                        TO BE SCANNED.;                                 38192000        
+                   ALFA,     COMMENT   TRUE IF IDENTIFIER TYPE STUFF IS 38193000        
+                        BEING SCANNED.;                                 38194000        
+                   ENDOFRECORD, COMMENT TRUE IF LIMIT HAS BEEN REACHED  38195000        
+                        OR "." HAS BEEN SEEN.;                          38196000        
+                   CONVERT,  COMMENT WHEN TRUE THE SCANNER ATTEMPTS TO  38197000        
+                        LEAVE A CONVERTED INTEGER IN ACCUMULATOR[0].;   38198000        
+                   COMPILER, COMMENT   TRUE WHEN "COMPILE" HAS BEE SEEN;38199000        
+                   EXECUTESHEET,  COMMENT TRUE WHEN EXECUTE SHEET ENTRY 38200000        
+                                  (IMPLICIT OR EXPLICIT) IS TO BE       38201000        
+                                  ENTERED IN THE SHEET QUEUE.;          38202000        
+                   SHEETENTERED; COMMENT TRUE WHEN SEGZERO HAS BEEN     38203000        
+                        ENTERED IN THE SHEETQ.;                         38204000        
+         LABEL     CCERROR,                                             38205000        
+                   NATURALDEATH,                                        38206000        
+                   NEWLIFE,                                             38207000        
+                   EXECUTE,                                             38208000        
+         DATA,                                                          38209000        
+                   SUICIDE;                                             38210000        
+         DEFINE    CONTROLCARDID =                                      38211000        
+              BEGIN                                                     38212000        
+                   SOURCEAREA [0] ~ CONTROLWORD;                        38213000        
+                   RESULT ~ WAITIO (SOURCEAREA. FILEID, ACTION);        38214000        
+                   LIMIT ~ORIGINALLIMIT;                                38215000        
+                   SOURCE ~ ORIGINALSOURCE;                             38216000        
+                   CONTROLCARDCHECK;                                    38217000        
+              END  #,                                                   38218000        
+                   CONTROLCARDCHECK =                                   38219000        
+IF BOOLEAN (RESULT.RDNOTREADY) THEN GO SUICIDE;  %STATUS VECTOR KLUDGE  38220000        
+                   COMMENT - WAIT ON MPX                                38220100        
+                   IF NOT BOOLEAN (RESULT.RDCNTRLCARD)                  38221000        
+                   THEN CONTROLCARDERROR (2);                           38222000        
+                   #,                                                   38223000        
+                   CONVERTEDINTEGER = 999#,                             38224000        
+                   CHARSIZE = 8#,                                       38225000        
+                   QUOTE = 8        """#,                               38226000        
+                   BLANK = 8        " "#,                               38227000        
+                   A =8"A"#,                                            38228000        
+                   ZERO = 8"0"#,                                        38229000        
+                   DEBLANK (P) =                                        38230000        
+                   BEGIN                                                38231000        
+                        SCAN P:P FOR T:LIMIT WHILE = BLANK;             38232000        
+                        ENDOFRECORD ~ LIMIT ~ T =0;                     38233000        
+                   END  #,                                              38234000        
+                   BLANKIT (PTR, CHARS) =                               38235000        
+                   REPLACE PTR BY BLANK FOR CHARS#,                     38236000        
+                   CONTROLCARDERROR (WHICH) =                           38237000        
+                   BEGIN                                                38238000        
+                        GO TO CCERROR;                                  38239000        
+                   END #,                                               38240000        
+                   LEQACTION = 0#,                                      38241000        
+                   CARDACTION =1#,                                      38242000        
+                   CODEACTION =2#,                                      38243000        
+         NATUREOFPROCESS(A, V) =                                        38244000        
+              A[PROCESSNATUREPLACE].PROCESSCLASSF ~ V #,                38245000        
+                   CURRENTTIME = TIMEOFDAY#,  %%%%%%%%%                 38246000        
+              FIXEDFPBSIZE = 4#,                                        38247000        
+                   COMPARE (SOURCE, DESTINATION, COUNT) =               38248000        
+                        IF SOURCE = DESTINATION FOR COUNT               38249000        
+                        THEN TRUE ELSE FALSE#,                          38250000        
+                   MOVE (SOURCE ,    DESTINATION ,       CONDITION) =   38251000        
+                        REPLACE DESTINATION BY SOURCE CONDITION #,      38252000        
+                   MOVEUPDATE (SOURCE ,    DESTINATION ,       COND) =  38253000        
+                        REPLACE DESTINATION:DESTINATION BY              38254000        
+                             SOURCE:SOURCE COND #,                      38255000        
+                   RESERVEINFOWRD =                                     38256000        
+                   RESERVED [RESERVEI+((COUNT+WORDDIVCHARSIZE) DIV      38257000        
+                        WORDDIVCHARSIZE -                               38258000        
+                       (IF COUNT MOD WORDDIVCHARSIZE=0 THEN 1 ELSE 0))]#38259000        
+                        ,                                               38260000        
+                   RANGE (LOW, HIGH) =                                  38261000        
+                  (CLASS } LOW AND CLASS { HIGH)#,                      38262000        
+                   COUNTDIV = 100000#,                                  38263000        
+                   CLASSDIV = 100#,                                     38264000        
+                   RESERVECOUNT = RESERVEINFOWRD DIV COUNTDIV#;         38265000        
+         FIELD     VECTOR = 7:3,                                        38266000        
+                   WHICHUNIT = (UNITNO MOD 32+1):1;                     38267000        
+         MONITOR   DONMONITOR (                                         38268000        
+                   SHEETENTERED,                                        38269000        
+                   RESULT,                                              38270000        
+                   CLASS);                                              38271000        
+         SAVE INTEGER PROCEDURE SCANNER;                                38272000        
+    BEGIN                                                               38273000        
+         INTEGER   RESERVEI                                             38274000        
 end. end. end. end. end. end. end. end. end. end. end. end. end. end.   99999998140723PK
 ?END                                                                    99999999        
