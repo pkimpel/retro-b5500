@@ -1,8 +1,3 @@
-?EXECUTE B65ESP/DISK                                                    00000010140621PK
-?STACK=1000                                                             00000020140722PK
-?FILE CODE=B65MCP/DISK                                                  00000030140621PK
-?DATA CARD                                                              00000080140621PK
-$ LIST PRT                                                              00000090140724PK
 BEGIN                                                                   00000100        
 COMMENT                 MCP    LISTING   DIRECTORY                      00001000        
     010000000           INDEPENDENT RUNNER FORWARD DECLARATION          00002000        
@@ -319,7 +314,7 @@ PROCEDURE STANDARDDELINK(FIRSTENTRY,LASTENTRY,ENTRY);                   02164000
     VALUE ENTRY;                                                        02165000        
     REFERENCE FIRSTENTRY,LASTENTRY,ENTRY;                  FORWARD;     02166000        
 SAVE PROCEDURE QUEUEMYSTACK (AUTHORITY, REQUIRED, COUNT, MYEVENT, HEAD);02167000        
-    VALUE     AUTHORITY, COMMENT  THE SORTKEY FOR THIS OUEUE;           02168000        
+    VALUE     AUTHORITY, COMMENT  THE SORTKEY FOR THIS QUEUE;           02168000        
               REQUIRED, COMMENT AN ADDITIONAL INFORMATION WORD FOR THE  02169000        
                         QUEUE ENTRY;                                    02170000        
               COUNT;    COMMENT   A 10 BIT COUNTER IN THE STACK LINK    02171000        
@@ -1800,7 +1795,7 @@ QUEUE ARRAY IOQUE:FIRSTIO[*](USER,MISC,AREADESC,EVNT:                   13468000
                COMMENT FIX PRVSIO POINTER IN THE LOWER LINK OF ENTRY;   13513000        
               PRVSIO @(NEXTIO @ ENTRY)~ PRVSIO @ ENTRY;                 13514000        
          END;                                                           13515000        
-    END DELINKING OF ENTRY FROM OUEUE;                                  13516000        
+    END DELINKING OF ENTRY FROM QUEUE;                                  13516000        
 COMMENT DECLARATIONS FOR QUEUES OF UNITS WAITING FOR CHANNEL.           13517000        
         ONE QUEUE FOR EACH MPX;                                         13518000        
 ARRAY    DUMMYWAITCHANNELQUE[*];  COMMENT FOR MAKING ENTRY IN           13519000        
@@ -3487,7 +3482,7 @@ DEFINE                                                                  24409000
               PARITYP   = 9#,                                           24419000        
               NOINPUTF  = 10#,                                          24420000        
               BREAKF    = 11#,                                          24421000        
-              OUEUEFULLF= 12#,                                          24422000        
+              QUEUEFULLF= 12#,                                          24422000        
               INQUEUEF  = 13#,                                          24423000        
               TLISTF    = 14#,                                          24424000        
               TOWF      = 15#,                                          24425000        
@@ -6587,10 +6582,10 @@ INTEGER  MYCOMMON;      %%%%%                                           38138000
                    EXECUTE,                                             38208000        
          DATA,                                                          38209000        
                    SUICIDE;                                             38210000        
-         DEFINE    CONTROLCARDID =                                      38211000        
+         DEFINE    CONTROLCARDIO =                                      38211000        
               BEGIN                                                     38212000        
                    SOURCEAREA [0] ~ CONTROLWORD;                        38213000        
-                   RESULT ~ WAITIO (SOURCEAREA. FILEID, ACTION);        38214000        
+                   RESULT ~ WAITIO (SOURCEAREA, FILEID, ACTION);        38214000        
                    LIMIT ~ORIGINALLIMIT;                                38215000        
                    SOURCE ~ ORIGINALSOURCE;                             38216000        
                    CONTROLCARDCHECK;                                    38217000        
@@ -6652,5 +6647,1194 @@ IF BOOLEAN (RESULT.RDNOTREADY) THEN GO SUICIDE;  %STATUS VECTOR KLUDGE  38220000
          SAVE INTEGER PROCEDURE SCANNER;                                38272000        
     BEGIN                                                               38273000        
          INTEGER   RESERVEI                                             38274000        
-end. end. end. end. end. end. end. end. end. end. end. end. end. end.   99999998140723PK
-?END                                                                    99999999        
+                   ;                                                    38275000        
+         REAL      DELIMIT                                              38276000        
+                   , MASK ~3"7777777777777777"                          38277000        
+                   , RESERVEINFO                                        38278000        
+                   ;                                                    38279000        
+         LABEL     BACK                                                 38280000        
+                   , AWAY                                               38281000        
+                   ;                                                    38282000        
+         BOOLEAN   FIRSTQUOTE                                           38283000        
+                   , FOUND                                              38284000        
+                   ;                                                    38285000        
+         FIELD     FIRSTCHAR = 47:CHARSIZE;                             38286000        
+BACK:    DESTINATION ~ ACCUMPOINTER;                                    38287000        
+         MOVE (BLANK, DESTINATION, FOR WORDDIVCHARSIZE);                38288000        
+         TSOURCE ~ SOURCE;                                              38289000        
+         IF SPECIAL ~ SOURCE < A FOR 1                                  38290000        
+         THEN MOVEUPDATE (SOURCE, DESTINATION, FOR 1)                   38291000        
+         ELSE IF ALFA ~ SOURCE < ZERO FOR 1 OR FIRSTQUOTE               38292000        
+              THEN MOVEUPDATE (SOURCE, DESTINATION,                     38293000        
+                        FOR COUNT:LIMIT UNTIL { QUOTE)                  38294000        
+              ELSE IF CONVERT                                           38295000        
+                   THEN BEGIN                                           38296000        
+                             SCAN SOURCE FOR COUNT:LIMIT UNTIL < QUOTE; 38297000        
+                             COUNT ~ LIMIT - COUNT;                     38298000        
+                             LIMIT ~ LIMIT - COUNT;                     38299000        
+                             ACCUMULATOR [0] ~ INTEGER (SOURCE, COUNT); 38300000        
+                             SOURCE ~ SOURCE + COUNT;                   38301000        
+                             DEBLANK (SOURCE);                          38302000        
+                             RETURN (CONVERTEDINTEGER);                 38303000        
+                        END                                             38304000        
+                   ELSE MOVEUPDATE (SOURCE, DESTINATION,                38305000        
+                             FOR COUNT:LIMIT UNTIL { QUOTE);            38306000        
+         COUNT ~ IF SPECIAL THEN 1 ELSE LIMIT - COUNT;                  38307000        
+         LIMIT ~ LIMIT - COUNT;                                         38308000        
+         IF FIRSTQUOTE                                                  38309000        
+         THEN BEGIN                                                     38310000        
+                   IF SOURCE ! QUOTE FOR 1                              38311000        
+                   THEN BEGIN COMMENT FINISH THE STRING;                38312000        
+                              T ~ LIMIT - COUNT;                        38313000        
+                              LIMIT ~ * - T;                            38314000        
+                              MOVEUPDATE (SOURCE, DESTINATION,          38315000        
+                                   FOR COUNT:LIMIT UNTIL = QUOTE);      38316000        
+                              COUNT ~ LIMIT - COUNT + T;                38317000        
+                              LIMIT ~ * - COUNT - 1;                    38318000        
+                         END ELSE LIMIT ~ COUNT - 1;                    38319000        
+                    SOURCE ~ SOURCE +1;                                 38320000        
+                    RESERVEI ~ 0;                                       38321000        
+              END;                                                      38322000        
+         IF COUNT > 17 THEN COUNT ~ 17;        % USASI                  38323000        
+         WORDCOUNT ~ (COUNT + WORDDIVCHARSIZE - 1) DIV WORDDIVCHARSIZE; 38324000        
+         IF FIRSTQUOTE THEN GO AWAY;                                    38325000        
+         RESERVEI ~ MASKSEARCH (RESERVED[0], MASK, RESERVED);           38326000        
+         IF COUNT > WORDDIVCHARSIZE                                     38327000        
+         THEN WHILE RESERVEI > 0 AND NOT FOUND                          38328000        
+              DO   BEGIN                                                38329000        
+                        FOUND ~ COMPARE (ACCUMPOINTER+WORDDIVCHARSIZE,  38330000        
+                             POINTER(RESERVED[RESERVEI+1], CHARSIZE),   38331000        
+                             COUNT - WORDDIVCHARSIZE);                  38332000        
+                        FOUND ~ FOUND AND COUNT = RESERVECOUNT;         38333000        
+                        IF NOT FOUND                                    38334000        
+                        THEN RESERVEI ~ MASKSEARCH (ACCUMULATOR[0],     38335000        
+                                       MASK,                            38336000        
+                                       RESERVED & DATADESCRIPTOR        38337000        
+                                        (,,,1,,,,,RESERVEI-1));         38338000        
+                   END;                                                 38339000        
+AWAY:    DEBLANK (SOURCE);                                              38340000        
+         RESERVEINFO ~  IF RESERVEI = 0 THEN 0                          38341000        
+                        ELSE RESERVEINFOWRD MOD COUNTDIV;               38342000        
+         CLASS ~ RESERVEINFO DIV CLASSDIV;                              38343000        
+         RESERVECASE  ~ RESERVEINFO MOD CLASSDIV;                       38344000        
+         IF CLASS } CCCLS THEN                                          38345000        
+         BEGIN                                                          38346000        
+              CASE CLASS - CCCLS OF                                     38347000        
+              BEGIN                                                     38348000        
+                   CLASS ~ QUESTIONCLS;     %  CC                       38349000        
+                   ;                        %  QUESTION MARK            38350000        
+                   GO BACK;                 %  ,                        38351000        
+                   CLASS ~ QUESTIONCLS;     %  ;                        38352000        
+                   BEGIN                    %  "                        38353000        
+                        FIRSTQUOTE ~ TRUE;                              38354000        
+                        GO BACK;                                        38355000        
+                   END;                                                 38356000        
+                   BEGIN                    %  -                        38357000        
+                        CONTROLCARDIO;                                  38358000        
+                        DEBLANK (SOURCE);                               38359000        
+                        GO BACK;                                        38360000        
+                   END;                                                 38361000        
+                   ENDOFRECORD ~ TRUE;      %  .                        38362000        
+                   ;                        %  /                        38363000        
+                   ;                        %  #                        38364000        
+              END  SPECIAL CHARACTER CASES;                             38365000        
+         END;                                                           38366000        
+         SCANNER ~ CLASS;                                               38367000        
+    END  SCANNER;                                                       38368000        
+         SAVE POINTER PROCEDURE NAMES (CALLER);                         38369000        
+              VALUE     CALLER;                                         38370000        
+              INTEGER   CALLER;                                         38371000        
+    BEGIN                                                               38372000        
+         REFERENCE THISNAME;                                            38373000        
+         POINTER   ANAME, ALLNAMEPTR, P;                                38374000        
+         ARRAY     ONENAME, ALLNAMES, DUMMY [*];                        38375000        
+         FIELD     CHARS = 19:20;                                       38376000        
+         LAYOUT    WORDS (WRDCNT = 39:20);                              38377000        
+         LAYOUT    IDSANDNAMES (47:8, 39:8);                            38378000        
+         FIELD     COUNTF = 47:8;                                       38379000        
+         INTEGER   TOTALCHARS,    COMMENT THE TOTAL CHARACTERS IN A NAM;38380000        
+                   TOTALNAMES, COMMENT THE NUMBER OF NAMES IN AN        38381000        
+                               IDENTIFIER (THE THING THAT UNIQUELY      38382000        
+                               IDENTIFIES A FILE);                      38383000        
+                   TOTALIDENTIFIERS; COMMENT THE TOTAL NUMBER OF        38384000        
+                               IDENTIFIERS IN A SERIES (IDENTIFIERS     38385000        
+                               SEPARATED BY COMMAS);                    38386000        
+         LABEL     SERIES;                                              38387000        
+         TOTALCHARS ~ WORDDIVCHARSIZE + 3; % PROVIDE FOR INFO WORD,     38388000        
+                                       %   TOTAL IDENTIFIERS, NAMES AND 38389000        
+                                       %   STOPPER                      38390000        
+         IF LOCK (NAMEQUEUE) THEN BUZZ (NAMEQUEUE);                     38391000        
+SERIES:  TOTALIDENTIFIERS ~ * + 1;                                      38392000        
+         DO   BEGIN                                                     38393000        
+                   SCANNER;                                             38394000        
+                   ONENAME ~ ONENAME & DATADESCRIPTOR                   38395000        
+                        (,1,0,,,,,, WORDCOUNT+1, GETAREA (WORDCOUNT));  38396000        
+                   ONENAME[0].COUNTF ~ COUNT;                           38397000        
+                   TOTALNAMES ~ * + 1;                                  38398000        
+                   TOTALCHARS ~ * + COUNT + (IF CALLER =DATACLS         38399000        
+                                            THEN 18 - COUNT ELSE 1);    38400000        
+                   ANAME ~ POINTER (ONENAME, CHARSIZE)+1;               38401000        
+                   MOVE (ACCUMPOINTER, ANAME, FOR COUNT);               38402000        
+                   THISNAME ~ ALLOCATE (NAMEQUEUE);                     38403000        
+                   POINTERTONAME@(THISNAME) ~ANAME - 1;                 38404000        
+                   CHARCOUNT @ (THISNAME) ~ COUNT +1 & WORDS(WORDCOUNT);38405000        
+                   NAMEQUEUE ~ THISNAME;                                38406000        
+                   IF NOT ENDOFRECORD THEN SCANNER;                     38407000        
+              END                                                       38408000        
+         UNTIL CLASS !SLASHCLS;                                         38409000        
+         IF CLASS = COMMACLS THEN GO SERIES;                            38410000        
+         ALLNAMES ~ ALLNAMES & DATADESCRIPTOR (,,0,,,,,,                38411000        
+             (WORDDIVCHARSIZE - TOTALCHARS MOD WORDDIVCHARSIZE +        38412000        
+                   TOTALCHARS) DIV WORDDIVCHARSIZE, 1);                 38413000        
+         ANAME ~ POINTER (ALLNAMES, CHARSIZE);                          38414000        
+         ANAME ~ ANAME + WORDDIVCHARSIZE + 2;                           38415000        
+WORDMON ~ WORD (ANAME); %%%%%%                                          38416000        
+         WHILE THISNAME ~ FIRSTNAME ! NULL                              38417000        
+         DO   BEGIN                                                     38418000        
+                   T ~ CHARCOUNT @ (THISNAME).CHARS;                    38419000        
+                   P ~ POINTERTONAME @(THISNAME);                       38420000        
+                   MOVEUPDATE (P, ANAME, FOR T);                        38421000        
+                   IF CALLER = DATACLS THEN ANAME ~ ANAME + (18 - T);   38422000        
+                   FORGETAREA (SIZE(NAMEQUEUE),                         38423000        
+                        WORD (THISNAME).ADDRESSF);                      38424000        
+                   FORGETAREA (CHARCOUNT @ (THISNAME).WRDCNT,           38425000        
+                        WORD (POINTERTONAME @ (THISNAME)).ADDRESSF);    38426000        
+                   DELINK (NAMEQUEUE, THISNAME);                        38427000        
+              END;                                                      38428000        
+         UNLOCK (NAMEQUEUE);                                            38429000        
+         ALLNAMES [1] ~ * & IDSANDNAMES (TOTALIDENTIFIERS, TOTALNAMES); 38430000        
+         ALLNAMES[0] ~ 0 & FIRSTPOINTERWORDL (*, ALLNAMES.LENGTHF, *, *,38431000        
+              TOTALCHARS -6);                                           38432000        
+         IF CALLER = DATACLS THEN RETURN (ALLNAMES);                    38433000        
+         RETURN( ANAME & STRINGDESCRIPTOR (,*,0,,*,*,*,TOTALCHARS,*));  38434000        
+    END   OF NAMES;                                                     38435000        
+         SAVE INTEGER PROCEDURE GETANUMBER (AGAIN);                     38436000        
+              VALUE     AGAIN;                                          38437000        
+              BOOLEAN   AGAIN;                                          38438000        
+    BEGIN                                                               38439000        
+         SCANNER;  COMMENT GET RID OF DELIMITER;                        38440000        
+         CONVERT ~ TRUE;                                                38441000        
+         IF SCANNER !CONVERTEDINTEGER                                   38442000        
+         THEN CONTROLCARDERROR (3)                                      38443000        
+         ELSE GETANUMBER ~ ACCUMULATOR [0];                             38444000        
+         IF AGAIN AND NOT ENDOFRECORD THEN SCANNER;                     38445000        
+    END  GETANUMBER;                                                    38446000        
+    SAVE PROCEDURE QUEUEPARAMETERS(SEGZERO2);                           38447000        
+         ARRAY     SEGZERO2[*];                                         38448000        
+    BEGIN     COMMENT   READ THE PARAMETER BLOCK THAT THE COMPILERS HAVE38449000        
+                        WRITTEN TO THE CODE FILE AND MAKE INDIVIDUAL    38450000        
+                        QUEUE ENTRIES FOR EACH OF THEM.  IF THE BLOCK   38451000        
+                        DOES NOT EXIST, SET UP AN EMPTY QUEUE.;         38452000        
+         ARRAY     SEGZERO = SEGZERO2 [*,*];                            38453000        
+         ARRAY     PB,  MYPB, HEADER [*];                               38454000        
+         INTEGER   L, A, I, T, PI, DA;                                  38455000        
+         REAL      X;                                                   38456000        
+         REFERENCE R, MYPBR = MYPB;                                     38457000        
+         IF L ~ (PB ~ SEGZERO [FPBDESCPLACE,*]).LENGTHF > 1             38458000        
+         THEN BEGIN     COMMENT A COMPILE TIME PARAMETER BLOCK WAS      38459000        
+                        CREATED.;                                       38460000        
+                   MYPB ~ MYPB & ARRAYDESCL(0, L, 1);                   38461000        
+                   HEADER ~ SEGZERO [CODEFILEDESCPLACE, *];             38462000        
+                   BUZZ (PARAMETERQUEUE);                               38463000        
+                   LASTPARAM     ~ FIRSTPARAM     ~ NULL;               38464000        
+                   PI ~ 1;                                              38465000        
+                   SEGZERO [FPBDESCPLACE, *].ADDRESSF ~ A ~             38466000        
+                        MYPB.ADDRESSF;                                  38467000        
+              DO   BEGIN                                                38468000        
+                        A ~ A + (X ~ MYPB[PI]).INFOINDEXF;              38469000        
+                        R ~ ALLOCATE (PARAMETERQUEUE);                  38470000        
+                        POINTERTOID @(R) ~ POINTER (MYPB[PI],8);        38471000        
+                        PARAMETERINFO@(R) ~ MYPBR& ARRAYDESCL           38472000        
+                             (3, X.INFOLENGTHF, A);                     38473000        
+                        INITIALINSERT (PARAMETERQUEUE, R);              38474000        
+                   END                                                  38475000        
+              UNTIL PI ~ PI + X.TOTALINFOWORDSF ! PI;                   38476000        
+                   COMMENT          DITTO      IS ZERO WHEN THE LAST    38477000        
+                        PARAMETER HAS BEEN PROCESSED.;                  38478000        
+              UPDATEWORDCOUNT (L,    FIRSTPARAM    );                   38479000        
+                   END                                                  38480000        
+         ELSE BEGIN                                                     38481000        
+                   BUZZ (PARAMETERQUEUE);                               38482000        
+                   FIRSTPARAM     ~ LASTPARAM     ~ NULL;               38483000        
+              END;                                                      38484000        
+         READLOCK (FIRSTPARAM    , SEGZERO[FIRSTPARAMETERPLACE, *]);    38485000        
+         READLOCK (LASTPARAM    , SEGZERO[LASTPARAMETERPLACE, *]);      38486000        
+         UNLOCK (PARAMETERQUEUE);                                       38487000        
+         EXIT;                                                          38488000        
+    END  OF QUEUEPARAMETERS;                                            38489000        
+    SAVE PROCEDURE EMPTYPARAMETERQ(SEGZERO2);                           38490000        
+         ARRAY     SEGZERO2[*];                                         38491000        
+    BEGIN     COMMENT   EMPTY THE PARAMETER QUEUE.  ALL PARAMETERS FOR  38492000        
+                   THIS RUN ARE NOW KNOWN AND THE INFORMATION FOR THEM  38493000        
+                   EXISTS AS INDIvIDUAL ENTRIES IN THE PARAMETER QUEUE. 38494000        
+                   THESE ENTRIES EXIST    EITHER IN THE AREA DESCRIBED  38495000        
+                   BY THE ORIGINAL FPB DESCRIPTOR (AS SUPPLIED BY THE   38496000        
+                   COMPILER (AS SUPPLIED BY CONTROL CARD)) OR IN INDIV- 38497000        
+                   IDUAL AREAS THAT WERE OBTAINED AS INDIVIDUAL CONTROL 38498000        
+                   CARDS WERE PROCESSED.  IT IS NOW TIME TO CONSOLIDATE 38499000        
+                   ALL ENTRIES INTO A SINGLE ENTRY AND PUT A NEW        38500000        
+                   DESCRIPTOR IN SEGMENT ZERO.  WHEN THERE ARE ABSOLUTE-38501000        
+                   LY NO PARAMETERS, THE FPB DESCRIPTOR IS AN ABSENT    38502000        
+                   DESCRIPTOR WITH A LENGTH OF 1 WHICH WILL (AUTOMATIC- 38503000        
+                   ALLY) RETURN A ZERO WHEN THE ZEROTH WORD (WORD COUNT)38504000        
+                   IS ACCESSED.;                                        38505000        
+         ARRAY SEGZERO =SEGZERO2 [*,*];                                 38506000        
+         ARRAY     PB [1], PINFO [*];                                   38507000        
+         ARRAY     PBW = PB [*];                                        38508000        
+         REFERENCE PINFOR = PINFO;                                      38509000        
+         INTEGER   PI, FWI, FWL;                                        38510000        
+         POINTER   PINFOP = PINFO;                                      38511000        
+         REFERENCE RT, RTT;                                             38512000        
+         REAL      FW;                                                  38513000        
+         IF (RT ~ REFERENCE (SEGZERO [FIRSTPARAMETERPLACE, *]))! NULL   38514000        
+         THEN BEGIN                                                     38515000        
+                   FIRSTPARAM ~ RT;                                     38516000        
+                   LASTPARAM ~ REFERENCE(SEGZERO[LASTPARAMETERPLACE,*]);38517000        
+                   PB ~ PB & ARRAYDESCL (0,                             38518000        
+                        (PI ~ REAL (POINTERTOID@(RT), 6).TOTALINFOWORDSF38519000        
+                        +1), 1);                                        38520000        
+                   PB[0] ~ PI;                                          38521000        
+                   PI ~ 1;                                              38522000        
+                   DO   BEGIN                                           38523000        
+                             FW ~ REAL (POINTERTOID@(RT), 6);           38524000        
+                             PI ~ PI + FWI + FWL;                       38525000        
+                             MOVE (PINFOP ~ POINTERTOID@(RT),           38526000        
+                                  POINTER (PB[PI], CHARSIZE),           38527000        
+                                  FOR FWI ~ FW.INFOINDEXF WORDS);       38528000        
+                             FORGETSPACE (PINFO.ADDRESSF);              38529000        
+                             PINFOR ~ PARAMETERINFO@(RT);               38530000        
+                             MOVE (POINTER(PINFO, CHARSIZE)             38531000        
+                                  ,POINTER(PB[PI+FWI], CHARSIZE),       38532000        
+                                  FOR FWL ~ FW.INFOLENGTHF WORDS);      38533000        
+                             PB[PI].TOTALINFOWORDSF ~ FWI + FWL;        38534000        
+                             FORGETSPACE (PINFO.ADDRESSF);              38535000        
+                             RTT ~ NEXTPARAM@(RT);                      38536000        
+                             DELINK (PARAMETERQUEUE, RT);               38537000        
+                             RT ~ RTT;                                  38538000        
+                        END                                             38539000        
+                   UNTIL RTT =NULL;                                     38540000        
+                   PB[PI].TOTALINFOWORDSF ~ 0;                          38541000        
+                   FIRSTPARAM ~ LASTPARAM ~NULL;                        38542000        
+                   IF SEGZERO[FPBDESCPLACE, *].LENGTHF > 1              38543000        
+                   THEN FORGETSPACE (SEGZERO [FPBDESCPLACE,*].ADDRESSF);38544000        
+         COMMENT   THIS IS THE PLACE TO WRITE PB TO MCP OLAY DISK,      38545000        
+                   FIX UP THE DESCRIPTOR ACCORDINGLY AND FORGET THE     38546000        
+                   SPACE USED BY PB.  ALSO CHECK ON EXECUTABLE STATUS   38547000        
+                   OF SEGZERO BEING PROCESSED.;                         38548000        
+              END;                                                      38549000        
+         READLOCK (PBW,SEGZERO [FPBDESCPLACE, *]);                      38550000        
+         EXIT;                                                          38551000        
+    END  EMPTYPARAMETERQ;                                               38552000        
+    SAVE PROCEDURE FILECARD (SEGZERO, ACTION);                          38553000        
+         VALUE     ACTION;                                              38554000        
+         INTEGER   ACTION;                                              38555000        
+         ARRAY SEGZERO [*];                                             38556000        
+    BEGIN     COMMENT  PROCESS AND QUEUE FILE PARAMETER CARDS.;         38557000        
+         REFERENCE THISFILE, TEMPR;                                     38558000        
+         POINTER   EXTERNALNAME, PT;                                    38559000        
+         WORD      EXTERNALNAMEW = EXTERNALNAME;                        38560000        
+         INTEGER   T;                                                   38561000        
+         SAVE ARRAY FPB [1],                                            38562000        
+                   SCRATCH [1];                                         38563000        
+         REFERENCE FPBR = FPB;                                          38564000        
+         WORD ARRAY SZ = SEGZERO[*],                                    38565000        
+                   SUCCESSOR = SUCCESSORSHEET [*,*];                    38566000        
+         DEFINE    FPPLACE = FIRSTPARAMETERPLACE #,                     38567000        
+                   LPPLACE = LASTPARAMETERPLACE#,                       38568000        
+                   REEDLOCK (LOCALP, GLOBALP, PLACE) =                  38569000        
+                   LOCALP ~ GLOBALP; GLOBALP ~ REFERENCE (SZ[PLACE]);   38570000        
+                   SZ [PLACE] ~ WORD (LOCALP) #,                        38571000        
+                   FPBSIZE (V) =                                        38572000        
+                   FPB ~ FPB & ARRAYDESCL (0, V + FIXEDFPBSIZE, 1)#,    38573000        
+                   SCRATCHSIZE (ARAY) =                                 38574000        
+                   SCRATCH ~ * & ARRAYDESCL(0,T~ARAY[0].INFOINDEXF,1)#; 38575000        
+         IF COMPILEFORSYNTAX(SEGZERO[PROCESSNATUREPLACE]) THEN EXIT;    38576000        
+         BUZZ (PARAMETERQUEUE);                                         38577000        
+                   REEDLOCK (TEMPR, FIRSTPARAM, FPPLACE);               38578000        
+                   REEDLOCK (TEMPR,  LASTPARAM, LPPLACE);               38579000        
+         THISFILE ~ ALLOCATE (PARAMETERQUEUE);                          38580000        
+         CASE ACTION OF                                                 38581000        
+         BEGIN                                                          38582000        
+         BEGIN          % STANDARD LABEL EQUATION                       38583000        
+              POINTERTOID@(THISFILE) ~ PT ~ NAMES(FILECLS);             38584000        
+              EXTERNALNAME ~ NAMES(FILECLS);                            38585000        
+              FPBSIZE (REAL (EXTERNALNAME, 6).INFOINDEXF);              38586000        
+              WHILE CLASS ! QUESTIONCLS AND NOT ENDOFRECORD DO SCANNER; 38587000        
+                   COMMENT PRECEDING STATEMENT IS IN LIEU OF FULL LABEL 38588000        
+                        EQUATION PROCESSING.;                           38589000        
+         END;                                                           38590000        
+         BEGIN          % COMPILE CARD FILE                             38591000        
+              SCRATCHSIZE (COMPILERCARDEXTERNAL);                       38592000        
+              MOVE (CURRENTTIME, POINTER(COMPILERCARDEXTERNAL[1],       38593000        
+                        CHARSIZE) +3, FOR 6);                           38594000        
+              MOVE (PT ~ POINTER(COMPILERCARDEXTERNAL, CHARSIZE),       38595000        
+                   POINTER (SCRATCH, CHARSIZE), FOR T WORDS);           38596000        
+              MOMTOVECTOR (SCRATCH, UINFOW, FILEID.UNITNOF);            38597000        
+              FPBSIZE (T);                                              38598000        
+              MOVE (PT, POINTER (FPB[FIXEDFPBSIZE],CHARSIZE),           38599000        
+                   FOR T WORDS);                                        38600000        
+              SCRATCHSIZE (COMPILERCARDFILE);                           38601000        
+              MOVE (POINTER(COMPILERCARDFILE, CHARSIZE),                38602000        
+                        POINTER (SCRATCH, CHARSIZE), FOR T WORDS);      38603000        
+              POINTERTOID@(THISFILE) ~ PT ~ POINTER(SCRATCH, CHARSIZE); 38604000        
+         END;                                                           38605000        
+         BEGIN          % COMPILER CODE FILE                            38606000        
+              SCRATCHSIZE (COMPILERCODEFILE);                           38607000        
+              MOVE (POINTER(COMPILERCODEFILE, CHARSIZE),                38608000        
+                        POINTER(SCRATCH, CHARSIZE), FOR T WORDS);       38609000        
+              POINTERTOID@(THISFILE) ~ PT ~ POINTER (SCRATCH, CHARSIZE);38610000        
+              EXTERNALNAMEW~ WORD(SUCCESSOR[CODEFILENAMEDESCPLACE,*]);  38611000        
+              FPBSIZE (REAL(EXTERNALNAME, 6).INFOINDEXF);               38612000        
+         END;                                                           38613000        
+         END  OF CASE;                                                  38614000        
+         IF ACTION ! CARDACTION                                         38615000        
+         THEN MOVE (EXTERNALNAME, POINTER(FPB[FIXEDFPBSIZE], CHARSIZE), 38616000        
+                   FOR (REAL(EXTERNALNAME, 6).INFOINDEXF) WORDS);       38617000        
+         IF ACTION = LEQACTION                                          38618000        
+         THEN FORGETSPACE (EXTERNALNAME.ADDRESSF);                      38619000        
+         MOVE (REAL(PT, 6)& FIRSTPOINTERWORDL(*,*,*,FILETYPEP), PT,     38620000        
+              FOR 1 WORDS);                                             38621000        
+         PARAMETERINFO @(THISFILE) ~ FPBR;                              38622000        
+         PARAMETERQUEUE ~ THISFILE;                                     38623000        
+         FIRSTPARAM     ~ READLOCK(FIRSTPARAM    ,SZ [FPPLACE]);        38624000        
+         LASTPARAM     ~ READLOCK (LASTPARAM    , SZ [LPPLACE]);        38625000        
+         UNLOCK (PARAMETERQUEUE);                                       38626000        
+         EXIT;                                                          38627000        
+    END  FILECARD;                                                      38628000        
+    SAVE PROCEDURE ENDGAME (SEGZERO);                                   38629000        
+         ARRAY SEGZERO [*];                                             38630000        
+    BEGIN     COMMENT   DO ALL PROCESSING NORMALLY ASSOCIATED WITH THE  38631000        
+                   END OF A SCHEDULE DECK.;                             38632000        
+         REFERENCE PSR;                                                 38633000        
+         ARRAY     PS = PSR[*];                                         38634000        
+         BOOLEAN   PRIOR;                                               38635000        
+         WORD ARRAY SEGZERW = SEGZERO [*];                              38636000        
+         REFERENCE ARRAY SZR = SEGZERO [*];                             38637000        
+         IF (PSR ~ PREVIOUSPROGRAM@(REFERENCE (SEGZERO)))! NULL         38638000        
+         THEN BEGIN PRIOR ~ TRUE; ENDGAME (PS); END;                    38639000        
+         EMPTYPARAMETERQ(SEGZERO);                                      38640000        
+         IF PRIOR THEN FIRSTPARAMETER@(PSR) ~ SZR[FPBDESCPLACE];        38641000        
+         SEGZERO [TIMEENTEREDPLACE] ~ TIMEOFDAY;                        38642000        
+         IF T ~ SEGZERO[PROCESSNATUREPLACE].PROCESSCLASSF !             38643000        
+              COMPILENSYNTAXOBJECT                                      38644000        
+         THEN BEGIN                                                     38645000        
+                   BUZZ (SHEETQ);                                       38646000        
+                   SHEETQ ~ REFERENCE(SEGZERO);                         38647000        
+                   UNLOCK (SHEETQ);                                     38648000        
+                   SHEETENTERED ~ TRUE;                                 38649000        
+                   IF PRIOR                                             38650000        
+                   THEN READLOCK (SEGZERW[LINKPLACE].SELFIDENTF,        38651000        
+                             PS [NEXTPROGRAMPLACE]);                    38652000        
+              END                                                       38653000        
+         ELSE BEGIN                                                     38654000        
+                   FORGETSPACE (SEGZERO.ADDRESSF);                      38655000        
+              END;                                                      38656000        
+         EXECUTESHEET ~ FALSE;                                          38657000        
+    END  ENDGAME;                                                       38658000        
+         SAVE PROCEDURE GETHEADER;                                      38659000        
+    BEGIN     COMMENT   GETHEADER PRESUMES NAMEPOINTER HAS BEEN INITIAL-38660000        
+                        IZED TO POINT AT A NAME STRING.  SEGMENT ZERO   38661000        
+                        WILL BE MADE PRESENT (BY PRESENCE BIT) AND      38662000        
+                        ENTRIES APPROPRIATE TO THE SHEETQ ARE MADE.     38663000        
+                        SEGZERO IS EVENTUALLY PLACED IN THE SHEETQ.;    38664000        
+         WORD ARRAY NAMEPOINTERW = NAMEPOINTER [*];                     38665000        
+         WORD ARRAY SEGZEROW = SEGZERO [*];                             38666000        
+         REAL ARRAY HEADER =HEADERW [*];                                38667000        
+         DEFINE                                                         38668000        
+                   ARGUMENT = 0#,                                       38669000        
+                   LOCKER = FALSE #;                                    38670000        
+         IF T ~ DIRECTORYSEARCH (NAMEPOINTER, ARGUMENT, LOCKER) < 0     38671000        
+         THEN CONTROLCARDERROR (4)                                      38672000        
+         ELSE HEADERW ~ DISKFILEHEADERS [T, *];                         38673000        
+         T := @440;                                                     38674000        
+         DISKWAIT(SEGZERO, -1, SIZE(SHEETQ), FIRSTROWADDRESS(HEADER),   38675000        
+              T);                                                       38676000        
+         SEGZEROW[FPBDESCPLACE].TAG ~ DATADESC;                         38677000        
+         QUEUEPARAMETERS (SEGZERO);                                     38678000        
+         PREVIOUSPROGRAM@(REFERENCE(SEGZERO)) ~ NULL;                   38679000        
+         MOMTOVECTOR (NAMEPOINTERW, SEGZERO, CODEFILENAMEDESCPLACE);    38680000        
+         MOMTOVECTOR (HEADERW, SEGZERO, CODEFILEDESCPLACE);             38681000        
+         SEGZERO.CBITF ~ 1;                                             38682000        
+         EXIT;                                                          38683000        
+    END  OF GETTING HEADER;                                             38684000        
+COMMENT  CONTROL CARD STARTS HERE;                                      38685000        
+         WORDDIVCHARSIZE ~ 48 DIV CHARSIZE;                             38686000        
+         IF 5 = IOCB.TAG                                                38687000        
+         THEN BEGIN     COMMENT   AN IOCB;                              38688000        
+                   SOURCEREFERENCE ~ AREADESC @(IOCB);                  38689000        
+                   RESULT ~ MISC @ (IOCB);                              38690000        
+                   CONTROLCARDCHECK;                                    38691000        
+                   CONTROLWORD ~ SOURCEAREA [0];                        38692000        
+                   FILEID ~ USER @(IOCB);                               38693000        
+              END                                                       38694000        
+         ELSE BEGIN     COMMENT   A UNIT NUMBER;                        38695000        
+                   CONTROLWORD ~ 30"044";                               38696000        
+                   FILEID ~ 0 & USERL (SNR, STACK[SNR, PRIORITYPLACE],  38697000        
+                        UNITNO);                                        38698000        
+                   ACTION ~ 3"1001"; % VALIDITY - WAIT FOR MPX ON CM    38698100        
+                        COMMENT * * * *                                 38698900        
+                   ACTION ~ 3"3001";   % CC OR CM AND VALIDITY          38699000        
+                   TRACE (23);                                          38700000        
+NEWLIFE:                                                                38701000        
+                   SEGZERO ~ SEGZEROWORD;                               38702000        
+                   CONTROLCARDIO;                                       38703000        
+ACTION ~ 3"3011";    % SIM KLUDGE                                       38704000        
+              END;                                                      38705000        
+         LIMIT ~ ORIGINALLIMIT ~ RESULT.RDMEMADDR|WORDDIVCHARSIZE +     38707000        
+              RESULT.RDCHRCNT - 1;                                      38708000        
+         SOURCE ~ ORIGINALSOURCE ~ POINTER(SOURCEAREA,                  38709000        
+                        CHARSIZE) + WORDDIVCHARSIZE;                    38710000        
+         RESULT ~ RESERVED [0];                                         38711000        
+         ACCUMULATOR ~ RESERVED & DATADESCRIPTOR                        38712000        
+                        (,,,,,0,,,ACCUMULATOR.LENGTHF);                 38713000        
+         ACCUMPOINTER ~ POINTER(ACCUMULATOR, CHARSIZE);                 38714000        
+         SCANNER;                                                       38715000        
+         WHILE CLASS = QUESTIONCLS                                      38716000        
+         DO   BEGIN                                                     38717000        
+                   SCANNER;                                             38718000        
+                   IF RANGE (ALGOLCLS, COBOLCLS)                        38719000        
+                   THEN BEGIN     COMMENT A COMPILER PARAMETER;         38720000        
+                             SCANNER;                                   38721000        
+                             SEGZERO ~ PREDECESSOR;                     38722000        
+                        END;                                            38723000        
+                   CASE RESERVECASE  OF                                 38724000        
+                   BEGIN                                                38725000        
+                        CONTROLCARDERROR(0);                            38726000        
+                        BEGIN                                           38727000        
+                             IF CLASS > ENDCLS THEN CONTROLCARDERROR(1);38728000        
+                             IF EXECUTESHEET THEN ENDGAME(SEGZERO);     38729000        
+                             CASE CLASS - RUNCLS OF                     38730000        
+                             BEGIN  % FIRST CARD CASE                   38731000        
+                                   BEGIN  %       RUN                  138732000        
+                                  GO EXECUTE;                           38733000        
+                                   END;   %       RUN                  138734000        
+                   EXECUTE:  BEGIN                                      38735000        
+                                  SHEETENTERED ~ FALSE;                 38736000        
+                                  NAMEPOINTER ~ NAMES(EXECUTECLS);      38737000        
+                                  GETHEADER;                            38738000        
+                                  SUCCESSOR ~ SEGZERO;                  38739000        
+                                  NATUREOFPROCESS(SEGZERO,EXECUTEJOB);  38740000        
+                                  EXECUTESHEET ~ TRUE;                  38741000        
+                                   END;   %       EXECUTE              238742000        
+                                   BEGIN  %       COMPILE              338743000        
+         COMPILER ~ TRUE;                                               38744000        
+         NAMEPOINTER ~ NAMES (COMPILECLS);                              38745000        
+         MOMTOVECTOR (WORD(NAMEPOINTER),SEGZERO,CODEFILENAMEDESCPLACE); 38746000        
+         SUCCESSORSHEET ~ REFERENCE (SEGZERO);                          38747000        
+         READLOCK(0&DATADESCRIPTOR (), SEGZERO[FPBDESCPLACE]);          38748000        
+         SEGZERO ~ SEGZEROWORD;                                         38749000        
+         WHILE NOT RANGE (ALGOLCLS, COBOLCLS) DO SCANNER;               38750000        
+         SOURCE ~ TSOURCE;                                              38751000        
+         NAMEPOINTER ~ NAMES (COMPILECLS);                              38752000        
+         GETHEADER;                                                     38753000        
+         NEXTPROGRAM@(REFERENCE(SEGZERO)) ~ SUCCESSORSHEET;             38754000        
+         PREDECESSOR ~ SEGZERO;                                         38755000        
+         PREVIOUSPROGRAM@(SUCCESSORSHEET) ~ PREDECESSORSHEET;           38756000        
+         FILECARD (SEGZERO, CARDACTION);                                38757000        
+         WHILE NOT RANGE (LIBRARYCLS, DISKCLS -1)                       38758000        
+         DO   IF CLASS ! QUESTIONCLS AND NOT ENDOFRECORD                38759000        
+              THEN SCANNER                                              38760000        
+              ELSE CLASS ~ GOCLS;                                       38761000        
+         CASE CLASS - LIBRARYCLS OF                                     38762000        
+         BEGIN                                                          38763000        
+         BEGIN          % COMPILE FOR LIBRARY                           38764000        
+              NATUREOFPROCESS (SEGZERO, COMPILETOLIBRARYJOB);           38765000        
+              DO UNTIL SCANNER = QUESTIONCLS OR ENDOFRECORD;            38766000        
+              NATUREOFPROCESS (SUCCESSOR, IF ENDOFRECORD                38767000        
+                   THEN COMPILETOLIBRARYJOB ELSE LIBRARYNGOJOB);        38768000        
+              FILECARD  (SEGZERO, CODEACTION);                          38769000        
+         END;                                                           38770000        
+         BEGIN          % COMPILE FOR SYNTAX                            38771000        
+              NATUREOFPROCESS (SEGZERO, COMPILENSYNTAXJOB);             38772000        
+              NATUREOFPROCESS (SUCCESSOR, COMPILENSYNTAXOBJECT);        38773000        
+         END;                                                           38774000        
+         BEGIN     %    COMPILE AND GO                                  38775000        
+              NATUREOFPROCESS(SEGZERO, COMPILENGOJOB);                  38776000        
+              NATUREOFPROCESS(SUCCESSOR,GOJOB);                         38777000        
+              FILECARD (SEGZERO, CODEACTION);                           38778000        
+              CLASS ~ QUESTIONCLS;                                      38779000        
+         END;                                                           38780000        
+         END;                                                           38781000        
+         FIRSTPARAMETER@(SUCCESSORSHEET)~LASTPARAMETER@(SUCCESSORSHEET)~38782000        
+                                         NULL;                          38783000        
+         EXECUTESHEET ~ TRUE;                                           38784000        
+             WHILE CLASS !QUESTIONCLS AND NOT ENDOFRECORD DO SCANNER;   38785000        
+                                   END;   %       COMPILE              338786000        
+                                   BEGIN  %       REMOVE               438787000        
+                                   END;   %       REMOVE               438788000        
+                                   BEGIN  %       LOAD                 538789000        
+         LIBMAIN(NAMES(LOADCLS)+6);                                     38789100        
+                                   END;   %       LOAD                 538790000        
+                                   BEGIN  %       DUMP                 638791000        
+                                   END;   %       DUMP                 638792000        
+                                   BEGIN  %       CHANGE               738793000        
+                                   END;   %       CHANGE               738794000        
+                                   BEGIN  %       DATA                 838795000        
+         LABELTYPE ~ 4;      %%%%%%%%%%%%%%%%                           38796000        
+DATA:    IF NOT ENDOFRECORD                                             38797000        
+         THEN  UINFOW [FILEID.UNITNOF] ~ WORD (NAMES(DATACLS));         38798000        
+         UINFOP [FILEID.UNITNOF, 0] ~ 0 & LEBCNTRL                      38799000        
+                        (1,,,,,1,LABELTYPE);                            38800000        
+                   GO SUICIDE;                                          38801000        
+                                   END;   %       DATA                 838802000        
+                                   BEGIN  %       USE                  938803000        
+                                   END;   %       USE                  938804000        
+                                   BEGIN  %       USER                1038805000        
+                                   END;   %       USER                1038806000        
+                                   BEGIN  %       RELEASE             1138807000        
+                                   END;   %       RELEASE             1138808000        
+                                   BEGIN  %       FREE                1238809000        
+                                   END;   %       FREE                1238810000        
+                                   BEGIN  %       PUBLIC              1338811000        
+                                   END;   %       PUBLIC              1338812000        
+                                   BEGIN  %       DATAB               1438813000        
+                                       LABELTYPE ~ 3;    %%%%%%%%%%%%   38814000        
+                                       GO DATA;                         38815000        
+                                   END;   %       DATAB               1438816000        
+                                   BEGIN  %       UNUSED              1538817000        
+                                   END;   %       UNUSED              1538818000        
+                                   BEGIN  %       UNUSED              1638819000        
+                                   END;   %       UNUSED              1638820000        
+                                   BEGIN  %       UNUSED              1738821000        
+                                   END;   %       UNUSED              1738822000        
+                                   BEGIN  %       UNUSED              1838823000        
+                                   END;   %       UNUSED              1838824000        
+                                   BEGIN  %       UNUSED              1938825000        
+                                   END;   %       UNUSED              1938826000        
+                                   BEGIN  %       UNUSED              2038827000        
+                                   END;   %       UNUSED              2038828000        
+                                   BEGIN  %       UNUSED              2138829000        
+                                   END;   %       UNUSED              2138830000        
+                                   BEGIN  %       UNUSED              2238831000        
+                                   END;   %       UNUSED              2238832000        
+                                   BEGIN  %       UNUSED              2338833000        
+                                   END;   %       UNUSED              2338834000        
+                                   BEGIN  %       END                 2438835000        
+                                   END;   %       END                 2438836000        
+                             END OF FIRST CARD CASE;                    38837000        
+                        END;                                            38838000        
+                        CASE CLASS - FILECLS OF                         38839000        
+                        BEGIN     % PARAMETER CARD CASE                 38840000        
+                                   BEGIN  %       FILE                3538841000        
+                                       FILECARD(SEGZERO, LEQACTION);    38842000        
+                                   END;   %       FILE                3538843000        
+                                   BEGIN  %       PROCESS             3638844000        
+                                   END;   %       PROCESS             3638845000        
+                                   BEGIN  %       IO                  3738846000        
+MYCOMMON ~                                                              38847000        
+              SEGZERO  [IOTIMEPLACE         ] ~ GETANUMBER(TRUE);       38848000        
+                                   END;   %       IO                  3738849000        
+                                   BEGIN  %       PRIORITY            3838850000        
+              SEGZERO  [PRIORITYPLACE       ] ~ GETANUMBER(TRUE);       38851000        
+                                   END;   %       PRIORITY            3838852000        
+                                   BEGIN  %       COMMON              3938853000        
+              SEGZERO  [COMMONVALUEPLACE    ] ~ GETANUMBER(TRUE);       38854000        
+                                   END;   %       COMMON              3938855000        
+                                   BEGIN  %       CORE                4038856000        
+              SEGZERO  [COREPLACE           ] ~ GETANUMBER(TRUE);       38857000        
+                                   END;   %       CORE                4038858000        
+                                   BEGIN  %       STACK               4138859000        
+              SEGZERO  [STACKSIZEPLACE      ] ~ GETANUMBER(TRUE);       38860000        
+                                   END;   %       STACK               4138861000        
+                                   BEGIN  %       UNUSED              4238862000        
+                                   END;   %       UNUSED              4238863000        
+                                   BEGIN  %       UNUSED              4338864000        
+                                   END;   %       UNUSED              4338865000        
+                                   BEGIN  %       UNUSED              4438866000        
+                                   END;   %       UNUSED              4438867000        
+                                   BEGIN  %       UNUSED              4538868000        
+                                   END;   %       UNUSED              4538869000        
+                                   BEGIN  %       UNUSED              4638870000        
+                                   END;   %       UNUSED              4638871000        
+                                   BEGIN  %       UNUSED              4738872000        
+                                   END;   %       UNUSED              4738873000        
+                                   BEGIN  %       UNUSED              4838874000        
+                                   END;   %       UNUSED              4838875000        
+                                   BEGIN  %       UNUSED              4938876000        
+                                   END;   %       UNUSED              4938877000        
+                                   BEGIN  %       UNUSED              5038878000        
+                                   END;   %       UNUSED              5038879000        
+                                   BEGIN  %       UNUSED              5138880000        
+                                   END;   %       UNUSED              5138881000        
+                                   BEGIN  %       ALGOL               5238882000        
+                                   END;   %       ALGOL               5238883000        
+                                   BEGIN  %       FORTRAN             5338884000        
+                                   END;   %       FORTRAN             5338885000        
+                                   BEGIN  %       ESPOL               5438886000        
+                                   END;   %       ESPOL               5438887000        
+                                   BEGIN  %       UNUSED              5538888000        
+                                   END;   %       UNUSED              5538889000        
+                                   BEGIN  %       UNUSED              5638890000        
+                                   END;   %       UNUSED              5638891000        
+                                   BEGIN  %       UNUSED              5738892000        
+                                   END;   %       UNUSED              5738893000        
+                                   BEGIN  %       UNUSED              5838894000        
+                                   END;   %       UNUSED              5838895000        
+                                   BEGIN  %       UNUSED              5938896000        
+                                   END;   %       UNUSED              5938897000        
+                                   BEGIN  %       UNUSED              6038898000        
+                                   END;   %       UNUSED              6038899000        
+                                   BEGIN  %       UNUSED              6138900000        
+                                   END;   %       UNUSED              6138901000        
+                                   BEGIN  %       UNUSED              6238902000        
+                                   END;   %       UNUSED              6238903000        
+                                   BEGIN  %       UNUSED              6338904000        
+                                   END;   %       UNUSED              6338905000        
+                                   BEGIN  %       UNUSED              6438906000        
+                                   END;   %       UNUSED              6438907000        
+                                   BEGIN  %       COBOL               6538908000        
+                                   END;   %       COBOL               6538909000        
+                        END;      % PARAMETER CARD CASE                 38910000        
+                   END RESERVED CASE;                                   38911000        
+                   IF ENDOFRECORD AND NOT SHEETENTERED                  38912000        
+                   THEN BEGIN                                           38913000        
+                             CONTROLCARDIO;                             38914000        
+                             SCANNER;                                   38915000        
+                        END;                                            38916000        
+                   SEGZERO ~ SUCCESSOR;                                 38917000        
+              END  OF QUESTION CLASS WHILE;                             38918000        
+NATURALDEATH:                                                           38919000        
+         IF SCANIN (0 & USTATUSWORD (UNITNO.VECTOR,,,)).WHICHUNIT = 1   38920000        
+         THEN GO NEWLIFE;                                               38921000        
+SUICIDE:                                                                38922000        
+         UNIT [FILEID.UNITNOF].UNITASSIGNED ~ 0;                        38923000        
+         EXIT;                                                          38924000        
+                                                                        38925000        
+CCERROR:                                                                38926000        
+         GLOBALSTOP;                                                    38927000        
+    END  CONTROL CARD;                                                  38928000        
+SAVE PROCEDURE INITIATEIO(AREADESC,UNITWORD,USERIDNO);                  40000000        
+                          VALUE AREADESC,UNITWORD,USERIDNO;             40001000        
+                          REAL UNITWORD;                                40002000        
+                          REFERENCE AREADESC;                           40003000        
+                          INTEGER USERIDNO;               FORWARD;      40004000        
+SAVE PROCEDURE STARTIO(U);   VALUE U;  INTEGER U;                       40005000        
+  COMMENT STARTIO FIRST CHECKS FOR CHANNEL IF THE UNIT IS IN AN USABLE  40006000        
+          STATE.IF CHANNEL IS AVAILABLE, IT CALLS INITIATEIO, OTHERWISE 40007000        
+          IT INSERTS ENTRY INTO WAITCHANNEL QUEUE.                      40008000        
+      U       -LOGICAL UNIT NO.;                                        40009000        
+    BEGIN                                                               40010000        
+         INTEGER N,     COMMENT N STORES UNIT IN PROCESS OR BUSY BITS;  40011000        
+                 MPXINDEX;  COMMENT MULTIPLEXOR NO. FOR WAITCHANNELQUE  40012000        
+                                    INDEX;                              40013000        
+         REAL    X,     COMMENT X CONTAINS UNIT TABLE ENTRY;            40014000        
+                 UNITWORD; COMMENT RESULT OF INTERROGATE I/O PATH FOR   40015000        
+                                   UNIT;                                40016000        
+         REFERENCE IOCB;  COMMENT POINTER TO ENTRY OF I/O QUEUE;        40017000        
+         X~ UNIT[U];                                                    40018000        
+         IF X.UNITSTATUS=0 THEN  COMMENT CHECKING CURRENT STATE OF UNIT;40019000        
+         IF FIRSTIO[U]!NULL THEN COMMENT MORE I/O TO BE DONE FOR UNIT;  40020000        
+      BEGIN                                                             40021000        
+         UNITWORD~SCANIN(0&IOPATHWORD(U,X.UNITMPXD,X.UNITMPXI));        40022000        
+         IF BOOLEAN(UNITWORD) THEN                                      40023000        
+           BEGIN                                                        40024000        
+             IOCB  ~FIRSTIO[U];                                         40025000        
+            INITIATEIO(AREADESC @IOCB,UNITWORD,USER @(IOCB).IDNO);      40026000        
+             N~3;  COMMENT SET UNIT IN PROCESS BITS;                    40027000        
+           END                                                 ELSE     40028000        
+           BEGIN        COMMENT ENTER IN WAITCHANNELQUE;                40029000        
+                MPXINDEX~UNITWORD.MPXDESIGNATOR  DIV  2;                40030000        
+                WAITCHANNELQUE[MPXINDEX]~WAITCHANNELQUE(UNITWORD);      40031000        
+                N~4;      COMMENT SET UNIT WAITING FOR CHANNEL BIT;     40032000        
+           END;                                                         40033000        
+         UNIT[U].UCHANWAITORBUSY~N;                                     40034000        
+      END;                                                              40035000        
+    END STARTIO;                                                        40036000        
+SAVE PROCEDURE INITIATEIO(AREADESC,UNITWORD,USERIDNO);                  40037000        
+                          VALUE AREADESC,UNITWORD,USERIDNO;             40038000        
+                          REAL UNITWORD;                                40039000        
+                          REFERENCE AREADESC;                           40040000        
+                          INTEGER USERIDNO;                             40041000        
+  COMMENT INITIATEIO INITIATES I/O AND INITIALIZES I/O TIME FOR THE USER40042000        
+          IT ALSO CHECKS FOR THE UNIT TYPE AND UPDATES THE TRANSACTION  40043000        
+          COUNTER APPROPRIATELY                                         40044000        
+      AREADESC     - DESCRIPTOR POINTING TO THE I/O CONTROL WORD WHICH  40045000        
+                     PRECEEDS I/O AREA                                  40046000        
+                     THIS AREA MUST BE NON-OVERLAYABLE AT THIS POINT.   40046100        
+                     SEE DISKWAIT OR WAITIO FOR EXAMPLES OF HOW TO      40046200        
+                     GUARENTEE THIS.                                    40046300        
+      UNITWORD     - CONTROL WORD FOR THE UNIT ON WHICH I/O IS TO BE    40047000        
+                     INITIATED.                                         40048000        
+      USERIDNO     - USER IDENTIFICATION NO. FOR BOOK-KEEPING.;         40049000        
+    BEGIN                                                               40050000        
+         REAL IOCW ;    COMMENT LOCATION FOR I/O CONTROL WORD;          40052000        
+         INTEGER U,     COMMENT CONTAINS LOGICAL UNIT NO.;              40053000        
+                 TYPE;  COMMENT CONTAINS UNIT TYPE;                     40054000        
+         WORD ARRAY IOAREA[*];                                          40055000        
+         IOAREA~WORD(AREADESC);                                         40056000        
+         IOCW ~ TAGZOT(IOAREA[0]);                                      40057000        
+         IIO(IOAREA,UNITWORD);                                          40060000        
+         TYPE~UNIT[U~UNITWORD.UNITNO].UNITTYPE;                         40062000        
+         IOTIME[U] ~ * - SCANIN(TIMEOFDAYWORD);                         40062100        
+         IF BOOLEAN(IOCW.IOTESTBIT) THEN EXIT;                          40063000        
+         IF MAGTAPE(TYPE) THEN                                          40064000        
+         IF BOOLEAN(IOCW.IOBACKWARD) THEN                               40065000        
+           BEGIN COMMENT IOMEMINHIBIT BIT IS USED TO CHECK WHETHER UNIT 40066000        
+                         IS REWINDING;                                  40067000        
+                IF NOT BOOLEAN(IOCW.IOMEMINHIBIT) THEN                  40068000        
+                       TRANSACTION[U]~*-1;                              40069000        
+                EXIT;                                                   40070000        
+           END;                                                         40071000        
+         TRANSACTION[ U ]~ * + 1;                                       40072000        
+    EXIT;                                                               40073000        
+    END INITIATEIO;                                                     40074000        
+SAVE PROCEDURE IOREQUEST(IOCB);                                         40075000        
+                        VALUE IOCB;                                     40076000        
+                        REFERENCE IOCB;                                 40077000        
+  COMMENT IOREQUEST QUEUES UP I/O IN IOQUE  IF THIS IS THE ONLY ENTRY   40078000        
+          IN QUEUE IT CALLS STARTIO                                     40079000        
+      IOCB    - DESCRIPTOR POINTING TO THE ENTRY BLOCK FOR I/O QUEUE    40080000        
+                6 WORDS IN A BLOCK;                                     40081000        
+    BEGIN                                                               40082000        
+         INTEGER U;     COMMENT U CONTAINS LOGICAL UNIT NO;             40083000        
+         U~USER @(IOCB).UNITNOF;                                        40084000        
+         IF UNIT[U].UNITTYPE=0 THEN                                     40084010        
+         BEGIN     % INVALID UNIT                                       40084020        
+              MISC @(IOCB)~REAL(NOT FALSE);                             40084030        
+              USER @(IOCB).USERIOFINISH~1;                              40084040        
+              CAUSE(EVNT @ IOCB);                                       40084050        
+         END                       ELSE                                 40084060        
+         BEGIN          % GO AHEAD                                      40084080        
+         MISC @ (IOCB).RDEXCEPTION := 0;                                40084100        
+         IOQUE[U] ~ IOCB;                                               40085000        
+         IF NEXT(IOQUE,U)=NULL THEN STARTIO(U);  COMMENT ONLY ONE       40086000        
+                                           ENTRY IN IOQUE;              40087000        
+         END;                                                           40087500        
+    END IOREQUEST;                                                      40088000        
+SAVE REAL PROCEDURE WAITIO(ARRA, USER, IOERRORMASK);                    40089000        
+    VALUE USER, IOERRORMASK;                                            40090000        
+    ARRAY ARRA[*];                                                      40091000        
+    REAL USER, IOERRORMASK;                                             40092000        
+    COMMENT:  WAITIO BUILDS AN IOCB AND CALLS IOREQUEST PASSING A LOCAL 40093000        
+              EVENT ON WHICH IT WAITS.  IF THERE ARE NO ERRORS OTHER    40094000        
+              THAN THOSE ACCOUNTED FOR BY IOERRORMASK THEN WAITIO       40095000        
+              RETURNS THE RESULT DESCRIPTOR.  OTHERWISE IT CALLS        40096000        
+              UNEXPECTEDIOERROR.                                        40097000        
+    IOERRORMASK   -ERROR MASK PROVIDED BY CALLER TO DO ITS OWN          40098000        
+                   ERROR-HANDLING                                       40099000        
+                   BUFFERLENGTH FIELD OF IOERRORMASK HAS A MASK         40100000        
+                   WHICH DETERMINES UNEXPECTED I/O ERROR.               40101000        
+    USER     -THIS IS THE USER WORD WHICH IS TO BE PUT IN THE IOCB.     40102000        
+              IT MUST CONTAIN THE UNIT NUMBER IN THE UNIT FIELD.        40103000        
+    ARRA     -THIS IS AN UNINDEXED DATA DESCRIPTOR FOR THE IO AREA.     40104000        
+              THE CALLER MUST HAVE STORED AN IOCW IN AREA[0].          ;40105000        
+    BEGIN                                                               40106000        
+         REAL RD;                                                       40107000        
+         EVENT EVE;                                                     40108000        
+         REFERENCE ADAM;                                                40109000        
+         WORD ARRAY AREA[*];                                            40110000        
+INTEGER TRACTER;% USED TO SHUT OFF TRACE -- MAR                         40112000        
+TRACTER~TRACE(0);                                                       40113000        
+         MAKEPRESENTANDSAVE(ARRA);     %MAKE TEMPORARILY SAVE FOR I/O   40114000        
+         AREA ~ ARRA & ARRAYDESCL(3, ARRA.LENGTHF - 1, *);              40116000        
+         IOERRORMASK ~ REAL(NOT BOOLEAN(IOERRORMASK));                  40117000        
+         ADAM ~ IOQUE(USER, -0, REFERENCE(AREA), EVE);                  40118000        
+         MISC@(ADAM).IOERRORMASKFIELD ~ IOERRORMASK;                    40119000        
+         IOREQUEST(ADAM);                                               40120000        
+         WAIT(EVE);                                                     40121000        
+         IF BOOLEAN(WAITIO ~ RD ~ MISC@(ADAM)) THEN                     40122000        
+           IF REAL(BOOLEAN(RD.IOERRORMASKFIELD) AND                     40123000        
+             BOOLEAN(IOERRORMASK) AND                                   40124000        
+             BOOLEAN(IOERRORMASK.BUFFERLENGTH)) !0 THEN                 40125000        
+              UNEXPIOERROR(ADAM,REAL(NOT BOOLEAN(IOERRORMASK.           40126000        
+                                                 IOERRORMASKFIELD)));   40127000        
+         FORGETAREA(6,WORD(ADAM).ADDRESSF);                             40128000        
+         TURNOVERLAYKEY(ARRA.ADDRESSF);%RETURN TO PREVIOUS OLAY STATUS  40128100        
+TRACE(TRACTER);                                                         40129000        
+    RETURN(RD);                                                         40129100        
+    END WAITIO;                                                         40130000        
+SAVE PROCEDURE NEWIO(MPXINDEX);   VALUE MPXINDEX;                       40131000        
+                                  INTEGER MPXINDEX;                     40132000        
+  COMMENT NEWIO PICKS UP THE FIRST UNIT FOR GIVEN MPX WAITCHANNELQUE,   40133000        
+          AND INTERROGATES FOR I/O PATH. IF PATH IS AVAILABLE IT PICKS  40134000        
+          UP THE FIRST I/O FROM THE SPECIFIED UNIT I/O QUEUE. IT CALLS  40135000        
+          INITIATEIO, DELINKS THE FIRST ENTRY FROM WAITCHANNELQUE AND   40136000        
+          SETS UNIT BUSY BITS.                                          40137000        
+    MPXINDEX -MULTIPLEXOR NO. FOR WAITCHANNELQUE INDEX;                 40138000        
+    BEGIN                                                               40139000        
+         INTEGER U;   COMMENT U CONTAINS LOGICAL UNIT NO.;              40140000        
+         REAL    UNITWORD;  COMMENT RESULT OF INTERROGATE I/O PATH FOR  40141000        
+                                    UNIT;                               40142000        
+         REFERENCE IOCB;    COMMENT POINTER TO ENTRY OF I/O QUEUE;      40143000        
+         UNITWORD ~ SCANIN(UNTWORD @ FIRSTUNIT[MPXINDEX]);              40144000        
+         IF BOOLEAN(UNITWORD) THEN                                      40145000        
+      BEGIN                                                             40146000        
+         IOCB ~ FIRSTIO[U ~ UNITWORD.UNITNO];                           40147000        
+         INITIATEIO(AREADESC @ IOCB ,UNITWORD,USER @(IOCB). IDNO);      40148000        
+                       COMMENT REMOVES ENTRY FROM TOP;                  40149000        
+         DELINK(WAITCHANNELQUE,FIRSTUNIT[MPXINDEX],MPXINDEX);           40150000        
+         UNIT[U].UNITSTATUS ~3;   COMMENT SETS UNIT BUSY BITS;          40151000        
+      END;                                                              40152000        
+    END NEWIO;                                                          40153000        
+SAVE PROCEDURE IOFINISH(MPXINDEX);     VALUE MPXINDEX; INTEGER MPXINDEX;40154000        
+  COMMENT IOFINISH READS A RESULT DESCRIPTOR FOR A SPECIFIED MULTIPLEXOR40155000        
+          IT DOES ALL THE ERROR CHECKING. IF NO ERROR IS FOUND IT FIRES 40156000        
+          UP NEW I/O WAITING FOR CHANNEL AND INSERTS I/O REQUEST FOR    40157000        
+          THE UNIT ON WHICH I/O WAS FINISHED INTO A WAITCHANNELQUE. IF  40158000        
+          NO UNIT IS WAITING FOR CHANNEL IT REMOVES FINISHED I/O ENTRY  40159000        
+          FROM UNIT QUEUE AND IF QUEUE IS NOT EMPTY THEN CALLS STARTIO. 40160000        
+          IF ERROR IS FOUND, IT SETS APPROPRIATE BITS IN THE UNIT TABLE.40161000        
+          IF THERE IS A DISK ERROR, IT WILL TRY 10 TIMES TO RECOVER FROM40162000        
+          THE ERROR. FOR OTHER ERRORS IT CALLS PROCESS IOERROR. IT KEEPS40163000        
+          THE ERROR. FOR OTHER ERRORS IT CALLS PROCESS IOERR. IT KEEPS  40164000        
+          TRACK OF I/O TIME AND FOR ERROR FREE OPERATION IT GIVES THE   40165000        
+          WORD COUNT FOR READ OPERATION.                                40166000        
+                                                                        40167000        
+    MPXINDEX      -MULTIPLEXOR DESIGNATOR VALUE;                        40168000        
+    BEGIN                                                               40169000        
+         LABEL OK,NOWAIT,SETERRORBITS,   RESETBUSYBITS,WRAPUP,DONEWIO,  40170000        
+               UNITTYPETEST,EXIT;                                       40171000        
+         INTEGER UNTTYPE,       COMMENT UNIT TYPE;                      40172000        
+                 U       ,      COMMENT LOGICAL UNIT NO;                40173000        
+                 WORDCOUNT;      COMMENT WORD COUNT FOR READ;           40174000        
+         REAL CURRENTERROR,     COMMENT ERROR FIELD OF CURRENT R. D.;   40175000        
+              PASTERROR,        COMMENT ERROR FIELD OF PAST R. D.;      40176000        
+              UTABLEENTRY,      COMMENT UNIT TABLE ENTRY;               40177000        
+              RECDESC,          COMMENT RECORD DESCRIPTOR SKELETON      40178000        
+                                        IF NEGATIVE IT IS FOR MCP;      40179000        
+              RD;               COMMENT RESULT DESCRIPTOR;              40180000        
+         WORD IOCW;             COMMENT I/O CONTROL WORD;               40181000        
+         REFERENCE IOCB;        COMMENT TOP IOCB IN THE UNIT QUEUE;     40182000        
+         BOOLEAN   DELINKTOGGLE;  % TRUE IF IOQUE ENTRY IS DELINKED     40183000        
+         MONITOR   RAJMONITOR(RD,IOCB);                                 40186000        
+DEFINE   LINKINTOKEYINQ =                                               40187000        
+         BEGIN                                                          40188000        
+         KEVNT @(IOCB) ~1;                                              40189000        
+         BUZZCONTROL(KEYINQ);                                           40190000        
+         KEYINQ~IOCB;                                                   40191000        
+          UNLOCK(KEYINQ);%   TEMPORARY WHILE FORK MIGHT LOSE CONTROL    40192000        
+         FORK(KEYIN,0);                                                 40194000        
+         END#,%                                                         40194100        
+    LINKINTOSPOUTQ=%                                                    40195000        
+         BEGIN%                                                         40195100        
+         BUZZCONTROL(SPOUTQ);%                                          40195200        
+         SPOUTQ~IOCB;%                                                  40195300        
+              UNLOCK(SPOUTQ);%    TEMPORARY                             40195400        
+         FORK(CONNSOUL,0);%                                             40195500        
+         END#,%                                                         40195590        
+ENDIOFDEF=0#;%                                                          40195900        
+      COMMENT READ THE RESULT DESCRIPTOR FOR A SPECIFIED MPX;           40196000        
+         RD ~SCANIN(0&SCANINWORD(2,MPXINDEX,1));                        40197000        
+         IF RD=0 THEN BEGIN                      GO EXIT;  END;         40198000        
+         MPXINDEX~FIRSTONE(MPXINDEX)-1; COMMENT TURNS MPXINDEX TO INDEX 40199000        
+                                       FOR WAITCHANNELQUE;              40200000        
+         U~ RD.RDUNITNO;                                                40201000        
+         IOCB~FIRSTIO[U];                                               40202000        
+         UTABLEENTRY ~ UNIT[U];                                         40203000        
+         RECDESC~ MISC @ IOCB;                                          40204000        
+         UNTTYPE~UTABLEENTRY.UNITTYPE;                                  40205000        
+         IOCW~M[WORD(AREADESC @ IOCB)];                                 40205200        
+         IF MAGTAPE( UNTTYPE) AND NOT BOOLEAN(IOCW.IOTESTBIT) THEN      40205400        
+         BEGIN          % GET RID OF UNDESIRABLE BITS IN RD             40205450        
+         IF RD.RDERROR=@2001 THEN % TURN OFF INCOMPLETE RECORD BIT      40205600        
+                   RD~REAL(BOOLEAN(RD) AND NOT BOOLEAN(@2001));         40205800        
+         IF BOOLEAN(RD.RDWLOOREOF) THEN                                 40205820        
+              RD~REAL(BOOLEAN(RD)AND NOT BOOLEAN(4"C80"));              40205840        
+         END;                                                           40205860        
+         IF BOOLEAN(CURRENTERROR := RD.RDERROR) OR                      40206000        
+            (PASTERROR~UTABLEENTRY.UNITERRORFIELD)!0 THEN               40207000        
+         BEGIN     COMMENT SOME KIND OF ERROR;                          40208000        
+              IF NOT BOOLEAN(USER@(IOCB).USERIOBIT) THEN COMMENT        40209000        
+                                              MCP I/O OPERATION;        40210000        
+              IF CURRENTERROR~ REAL(BOOLEAN(CURRENTERROR) AND           40211000        
+                           BOOLEAN(RECDESC .IOERRORMASKFIELD))=0 THEN   40212000        
+              IF PASTERROR=0 THEN GO OK; COMMENT NO ERROR ON UNIT;      40213000        
+              IF UTABLEENTRY.UNITTYPE !DISKFILE THEN GO SETERRORBITS;   40214000        
+                COMMENT ERROR CHECKING FOR DISK UNIT;                   40215000        
+              IF CURRENTERROR=0 THEN COMMENT NO ERROR ON CURRENT R.D.;  40216000        
+              IF NOT BOOLEAN(UTABLEENTRY.UNITRETRY)                     40217000        
+                THEN GO  SETERRORBITS    COMMENT IOERR WILL HANDLE IT;  40218000        
+                ELSE BEGIN COMMENT ERROR ON MASS STORAGE RECOVERED;     40219000        
+                          PASTERROR~0;                                  40220000        
+                          UTABLEENTRY.UNITRETRY~0;                      40220500        
+                          GO UNITTYPETEST;                              40221000        
+                     END;                                               40222000        
+                COMMENT ERROR ON CURRENT R.D.;                          40223000        
+              IF PASTERROR=0 THEN                                       40224000        
+                BEGIN   COMMENT ORIGINAL  ERROR ON MASS STORAGE;        40225000        
+                      PASTERROR~1;                                      40226000        
+            COMMENT   TOTALUNITERROR~ * + 1;                            40227000        
+                      UTABLEENTRY.UNITRETRY~1;                          40228000        
+                END          ELSE                                       40229000        
+                BEGIN   COMMENT RECURRENT ERROR ON MASS STORAGE;        40230000        
+                     IF NOT BOOLEAN(UTABLEENTRY.UNITRETRY) THEN         40231000        
+                        GO SETERRORBITS;                                40232000        
+                     IF (PASTERROR~* + 1)>10 THEN COMMENT THERE HAVE    40233000        
+                                              BEEN 10 TRIES;            40234000        
+                     BEGIN                                              40235000        
+                          PASTERROR~0;                                  40236000        
+                          UTABLEENTRY.UNITRETRY ~0;                     40237000        
+                          GO SETERRORBITS;                              40238000        
+                     END;                                               40239000        
+                END;                                                    40240000        
+              UTABLEENTRY.UNITERRORFIELD ~ PASTERROR;                   40241000        
+              UTABLEENTRY.UNITIOBUSY~0;                                 40242000        
+              UNIT[U]~UTABLEENTRY;                                      40243000        
+              STARTIO(U);                                               40244000        
+              GO EXIT;                                                  40245000        
+SETERRORBITS:                                                           40246000        
+              PASTERROR~ * + 1;                                         40247000        
+              DELINKTOGGLE~TRUE;  % PREVENTS DELINKING AT WRAPUP TIME   40248000        
+              UTABLEENTRY.UNITERROR~1;                                  40249000        
+                IF FIRSTUNIT[MPXINDEX]=NULL THEN                        40251000        
+                   GO WRAPUP                          ELSE              40252000        
+                   GO DONEWIO;                                          40253000        
+         END;                                                           40254000        
+UNITTYPETEST:                                                           40255000        
+COMMENT  ******************  NEEDS PATCH FOR BUFFERED PRINTER;          40256000        
+OK:      COMMENT CHECK WHETHER YOU CAN START NEW I/O ON SAME UNIT;      40257000        
+              UTABLEENTRY.UNITIOBUSY~0;                                 40258000        
+              UNIT[U]~UTABLEENTRY;                                      40259000        
+         IF FIRSTUNIT[MPXINDEX]=NULL THEN                               40260000        
+NOWAIT:     COMMENT NO UNIT WAITING FOR CHANNEL;                        40261000        
+         BEGIN                                                          40262000        
+              DELINK(IOQUE,FIRSTIO[U],U);                               40263000        
+              DELINKTOGGLE~TRUE;                                        40264000        
+              IF FIRSTIO[U]!NULL THEN                                   40265000        
+              STARTIO(U)         ELSE                                   40266000        
+RESETBUSYBITS:                                                          40267000        
+              UTABLEENTRY.UNITIOBUSY~0;                                 40268000        
+              GO WRAPUP;                                                40269000        
+         END;                                                           40270000        
+DONEWIO:      COMMENT DO NEW I/O FOR UNIT WAITING FOR CHANNEL;          40271000        
+         NEWIO(MPXINDEX);                                               40272000        
+         IF PASTERROR!0 THEN GO WRAPUP;                                 40273000        
+         IF NEXT(IOQUE,U)=NULL THEN GO RESETBUSYBITS;                   40274000        
+         WAITCHANNELQUE[MPXINDEX]~                                      40275000        
+           WAITCHANNELQUE(0&IOPATHWORD(U,UTABLEENTRY.UNITMPXD,          40276000        
+                                         UTABLEENTRY.UNITMPXI));        40277000        
+         UTABLEENTRY.UCHANWAIT~1;                                       40278000        
+WRAPUP:                                                                 40279000        
+      COMMENT CLOCK THE OPERATION OFF                                   40280000        
+         IOTIME[USER @ (IOCB).IDNO]~ * + SCANIN(TIMEOFDAYWORD);         40281000        
+         IF CURRENTERROR=0 AND                                          40282000        
+            (NOT DELINKTOGGLE) THEN DELINK(IOQUE,FIRSTIO[U],U);         40283000        
+         UTABLEENTRY.UNITERRORFIELD~ PASTERROR;                         40284000        
+         USER @(IOCB).USERIOFINISH~1;                                   40284500        
+         UNIT[U]~UTABLEENTRY;                                           40285000        
+         IF BOOLEAN(IOCW.IOREADBIT) THEN COMMENT READ OPERATION;        40287000        
+         BEGIN     % COMPUTING NO OF WORDS READ                         40288000        
+              WORDCOUNT ~ABS(RD.RDMEMADDR-                              40289000        
+                             ((AREADESC@(IOCB)).ADDRESSF+1));           40290000        
+              IF ( UNTTYPE=MAGTAPE1 OR UNTTYPE=MAGTAPCLUSTER1) AND      40291000        
+                 NOT BOOLEAN(IOCW.IOBACKWARD) THEN                      40292000        
+                             RD.RDCHRCNT~RD.RDCHRCNT-1;                 40293000        
+              RD.WORDCOUNTF~WORDCOUNT;                                  40299000        
+         END;                                                           40300000        
+         IF CURRENTERROR!0 AND PASTERROR=1 THEN                         40301000        
+         BEGIN     % ERROR FOR THE FIRST TIME FOR THIS I/O              40302000        
+              USER@(IOCB).IOERRORRECOVERY~1;                            40303000        
+              FORK(IOERROR,RD);                                         40304000        
+              GO EXIT;                                                  40305000        
+         END;                                                           40309000        
+                                                                        40310000        
+         MISC @ ( IOCB ) ~ RD;                                          40311000        
+         IF UNTTYPE=CONN THEN%                                          40312000        
+              IF INPUT(IOCW) THEN LINKINTOKEYINQ%                       40312100        
+         ELSE IF (SEvNT@IOCB).TAG=1 THEN CAUSE(EVNT@IOCB)%              40312200        
+         ELSE LINKINTOSPOUTQ%                                           40312300        
+    ELSE%                                                               40312400        
+         CAUSE(EVNT @ IOCB);                                            40313000        
+EXIT:                                                                   40314000        
+    END IOFINISH;                                                       40315000        
+ PROCEDURE STATUS (COUNT); INTEGER COUNT;        % *** NOTE PARAMETER   40316000        
+  COMMENT STATUS INTERROGATES ALL THE PERIPHERAL UNITS. IT COMPARES THE 40317000        
+          NEWSTATUS WITH OLDSTATUS AND NOTES STATUS CHANGE CORRESPONDING40318000        
+          TO EACH UNIT. IT CHECKS CURRENT STATE OF THE UNIT TO DETERMINE40319000        
+          WHAT SHOULD BE DONE.IF A UNIT GOES NOT READY IT SETS          40320000        
+          UNITNOTREADY IN UNIT TABLE. IF UNIT GOES READY IT RESETS      40321000        
+          UNITNOTREADY. IF A UNIT WAS A USER AND THEN WENT READY,       40322000        
+         IT CALLS STARTIO.                                              40323000        
+                                                                        40324000        
+         IF AN UNASSIGNED UNIT GOES READY, STATUS BRANCHES ON UNIT TYPE:40325000        
+          RIATE ACTION ON THE RESULT.                                   40328000        
+          FOR CARD READER IT CALLS INDEPENDENTRUNNER TO RUN CONTROLCARD 40329000        
+          PROCESS AND MARKS UINFO TABLE APPROPRIATELY.                  40330000        
+                                                                        40331000        
+          FOR TAPE, STATUS CALLS READALABEL;                            40332000        
+BEGIN                                                                   40333000        
+    REAL      BITNO,                   % BIT # IN STATUS FIELD(32:32)   40334000        
+              VECTORNO,                % STATUS VECTOR #                40335000        
+              U,                       % LOGICAL UNIT #                 40336000        
+              NRDLBLP,                 % # OF READALABEL PROCESSES      40337000        
+              TEMP,                    % TEMPORARY                      40337010        
+              UNT;                     % UNIT TABLE ENTRY FOR UNIT[U]   40337020        
+                                                                        40338000        
+    BOOLEAN   NEWSTATUS,               % RESULT OF INTERROGATE          40339000        
+              OLDSTATUS,               % OLD STATUS OF CURRENT VECTOR   40340000        
+              STATUSMASK,              % TO MASK OUT UNITS ALREADY NOTED40341000        
+              SAVESTATUS,              % USED TO CONTROL READALABEL     40342000        
+              BITWORD;                 % RELEVANT BIT # IN NEWSTATUS    40343000        
+    LAYOUT    BITSETL(BITNO:1~1);                                       40344000        
+    LABEL     FILENOTREADY,ENDOFREADY,SCRATCH,READALABEL2;              40350000        
+    LABEL     ENDOFUNIT,HR,PRG,UFU;                                     40351000        
+    INTEGER        STATEUS ;                     % *** FOR MONITOR ONLY 40352000        
+    MONITOR        JACKMONITOR(STATEUS);                                40353000        
+    MONITOR   BOBMONITOR(NEWSTATUS,OLDSTATUS);                          40353010        
+LABEL L;L:IF SIMULATING THEN BEGIN DISALLOW;SETINTERVALTIMER;PAUSE END; 40354000        
+       STATEUS~STATEUS;                          % *** FOR MONITOR ONLY 40355000        
+                                                                        40356000        
+       VECTORNO~-1;                                                     40357000        
+       WHILE VECTORNO~VECTORNO+1{MAXVECTORNO                            40358000        
+       DO                                                               40359000        
+       BEGIN                                                            40360000        
+       OLDSTATUS~OLDSTATUSWORD[VECTORNO];                               40361000        
+  % KLUDGE                                                              40362000        
+            OLDSTATUS~OLDSTATUS OR TRUE;                                40363000        
+            STATUSMASK~FALSE;                                           40364000        
+            SAVESTATUS~BOOLEAN(REAL(NOT FALSE));                        40365000        
+            WHILE REAL((NEWSTATUS~BOOLEAN(SCANIN(0&                     40366000        
+              USTATUSWORD(VECTORNO,,,)))OR STATUSMASK)AND SAVESTATUS)   40367000        
+              ! REAL(OLDSTATUS)                                         40368000        
+            DO                                                          40369000        
+            BEGIN                                                       40370000        
+                 U~VECTORNO|32+((BITNO~                                 40371000        
+                   FIRSTONE(REAL(NEWSTATUS EQV NOT OLDSTATUS))-1)-1);   40372000        
+                 IF U>MAXUNIT THEN GO TO UFU;                           40373000        
+                 WHILE BOOLEAN(UNT~READLOCK(1,UNIT[U])) DO;             40374000        
+                                                                        40375000        
+                 BITWORD~FALSE&BITSETL();                               40376000        
+                 IF REAL(NEWSTATUS)<REAL(OLDSTATUS) THEN                40377000        
+                      BEGIN     %%%%%%%%%%%%%%%%%%%%% UNIT NOT READY    40378000        
+                        OLDSTATUS~OLDSTATUS AND NOT BITWORD;            40379000        
+                           IF UNT.UNITTYPE=DISKFILE THEN                40380000        
+                           BEGIN                                        40381000        
+                                % CALL STEVE                            40382000        
+                           END;                                         40383000        
+                           IF BOOLEAN(UNT.UNITASSIGNED)THEN             40384000        
+                           BEGIN                    % USER              40385000        
+                                IF NOT BOOLEAN(UNT.UINREWIND) THEN      40386000        
+                                IF NOT BOOLEAN(UNT.UNITNOTREADY)THEN    40387000        
+                                BEGIN                                   40388000        
+                                NOTREADYMSG(UNT);%                      40389000        
+                                     UNT.UNITNOTREADY~1;                40390000        
+                                END;                                    40391000        
+                                % CLOSED NO REWIND                      40392000        
+                           END  ELSE                                    40393000        
+                           % NO USER                                    40394000        
+                           BEGIN                                        40395000        
+                                UNT.ULOCKED~0;                          40396000        
+FILENOTREADY:                                                           40397000        
+                                UNT.UERRORSTATUSBITS~0;                 40398000        
+                                UNT.UNITNOTREADY~1;                     40399000        
+                           IF UINFOW[U].TAG!0 THEN                      40400000        
+                                BEGIN                                   40401000        
+                                     FORGETSPACE(UINFOW[U].ADDRESSF);   40402000        
+                                     UINFOW[U]~0;                       40403000        
+                                END;                                    40404000        
+                           END;                                         40405000        
+                        UNIT[U]~UNT;                                    40406000        
+                        STATUSMASK~STATUSMASK AND NOT BITWORD;          40407000        
+                      END               ELSE                            40408000        
+                      BEGIN     %%%%%%%%%%%%%%%%%%%%% UNIT READY        40409000        
+                        OLDSTATUS~OLDSTATUS OR BITWORD;                 40410000        
+                        UNT.UNITNOTREADY~0;                             40411000        
+                                                                        40412000        
+                        IF BOOLEAN(UNT.UNITASSIGNED) THEN               40413000        
+                        BEGIN                       % USER              40414000        
+                          STATUSMASK~STATUSMASK OR BITWORD;             40415000        
+                                                                        40416000        
+                          UNT.UINREWIND~0;                              40417000        
+                          UNIT[U]~UNT;                                  40418000        
+                          STARTIO(U);                                   40419000        
+                          GO TO ENDOFUNIT                               40420000        
+                        END;                                            40421000        
+                      % UNIT NOT ASSIGNED                               40422000        
+                        IF BOOLEAN(UNT.UINREWIND) THEN                  40423000        
+                          IF BOOLEAN(UNT.ULOCKED) OR                    40424000        
+                            BOOLEAN(UNT.USAVED) THEN                    40425000        
+                          BEGIN                                         40426000        
+                            UNT.UINREWIND~0;                            40427000        
+HR:                                                                     40428000        
+                            IF BOOLEAN(UNT.USAVED)THEN BITWORD~FALSE;   40429000        
+                            GO TO FILENOTREADY                          40430000        
+                          END ELSE                                      40431000        
+                          IF BOOLEAN(UNT.UTOBEPURGED) THEN              40432000        
+                          BEGIN                     % PURGE THE FILE    40433000        
+                            UNT.UINREWIND~0;                            40434000        
+PRG:                                                                    40435000        
+                            UNT.UTOBEPURGED~1;                          40436000        
+                            WHILE BOOLEAN(TEMP~READLOCK(1,PRGT)) DO;    40437000        
+                            IF TEMP>0 THEN PRGT~TEMP+2 ELSE             40438000        
+                            BEGIN                                       40439000        
+                              PRGT~2;                                   40440000        
+                              FORK(PURGIT,U);                           40441000        
+                            END;                                        40442000        
+                          END ELSE                                      40443000        
+                          BEGIN                                         40443010        
+                            UNT.UINREWIND~0;                            40444000        
+                            IF BOOLEAN(UNT.ULABELLED) OR                40444010        
+                              BOOLEAN(UNT.USCRATCH)THEN GO ENDOFREADY;  40444020        
+                          END;                                          40444030        
+                        IF BOOLEAN(UNT.USAVED) THEN GO TO ENDOFREADY;   40445000        
+                        IF BOOLEAN(UNT.ULOCKED)THEN GO FILENOTREADY;    40446000        
+                        IF BOOLEAN(UNT.UTOBEPURGED)THEN GO TO PRG;      40447000        
+                        STATUSMASK~STATUSMASK OR BITWORD;               40448000        
+                        CASE UNT.UNITTYPE OF                            40449000        
+                      BEGIN     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  40450000        
+                        BEGIN                       % NO UNIT        0  40451000        
+UFU:                                                                    40452000        
+                           UFUMSG(UNT);%                                40453000        
+                          OLDSTATUS~OLDSTATUS AND NOT BITWORD;          40454000        
+                          STATUSMASK~STATUSMASK AND NOT BITWORD;        40455000        
+                          UNT.UNITNOTREADY~0;                           40456000        
+                          IF U{MAXUNIT THEN UNIT[U]~UNT;                40457000        
+                        END;                                            40458000        
+                        BEGIN                       % DISK FILE      1  40459000        
+                          % CALL STEVE                                  40460000        
+                        END;                                            40461000        
+                        BEGIN                       % SNGL LINE CNTL 2  40462000        
+                          % CALL MIKE -- UNIT WENT WRITE READY          40462100        
+                        END;                                            40468000        
+                        ;                           % UNASSIGNED     3  40469000        
+                        BEGIN                       % PAPER TAPE RDR 4  40470000        
+                          UNT.ULABELLED~1;                              40471000        
+                        END;                                            40472000        
+                                                                        40473000        
+                                                                        40474000        
+                        BEGIN                       % PAPER TAPE PCH 5  40475000        
+SCRATCH:                                                                40476000        
+                          UNT.UERRORSTATUSBITS~0;                       40477000        
+                          UNT.UNITSTATE~0;                              40478000        
+                          UNT.USCRATCH~1;                               40479000        
+                          IF UINFOW[U].TAG!0 THEN                       40480000        
+                          BEGIN                                         40481000        
+                            FORGETSPACE(UINFOW[U].ADDRESSF);            40482000        
+                            UINFOW[U]~0;                                40483000        
+                          END;                                          40484000        
+                        % CHECK FOR BACKUP MESAGE PENDING               40485000        
+                        END;                                            40486000        
+                                                                        40487000        
+                        GO TO SCRATCH;              % LINE PRINTER I 6  40488000        
+                        GO TO SCRATCH;              % LINE PRNTER II 7  40489000        
+                                                                        40490000        
+                        ;                           % UNASSIGNED     8  40491000        
+                        BEGIN                       % CARD READER    9  40492000        
+                          UNT.UNITASSIGNED~1;                           40493000        
+                          UNIT[U]~UNT;                                  40494000        
+                          STATUSMASK~STATUSMASK OR BITWORD;             40495000        
+                          FORK(CONTROLCARD,U);                          40496000        
+                                                                        40497000        
+                                                                        40498000        
+                        END;                                            40499000        
+                        GO TO SCRATCH;              % CARD PUNCH I  10  40500000        
+                        GO TO SCRATCH;              % CARD PUNCH II 11  40501000        
+                        ;                           % UNASSIGNED    12  40502000        
+                        BEGIN                       % MAG TAPE I    13  40503000        
+                          TEMP~1;                                       40504000        
+READALABEL2:                                                            40505000        
+                          WHILE BOOLEAN(NRDLBLP~READLOCK(1,RDLBLP))DO;  40506000        
+                          IF ONES(NRDLBLP)}MAXRDLBLP THEN               40507000        
+                            BEGIN                                       40508000        
+                              OLDSTATUS~OLDSTATUS AND NOT BITWORD;      40509000        
+                              SAVESTATUS~SAVESTATUS&BITSETL(0);         40510000        
+                            END ELSE                                    40511000        
+                            BEGIN                                       40512000        
+                              UNT.UERRORSTATUSBITS~0;                   40513000        
+                              UNT.UNITSTATE~0;                          40514000        
+                              UNT.UNITASSIGNED~1;                       40515000        
+                              FORK(READALABEL,0&RDLBL(BITNO~FIRSTONE(   40516000        
+                                REAL(NOT BOOLEAN(NRDLBLP)).RF),         40517000        
+                                TEMP,U));                               40518000        
+                              NRDLBLP~*&BITSETL();                      40519000        
+                            END;                                        40520000        
