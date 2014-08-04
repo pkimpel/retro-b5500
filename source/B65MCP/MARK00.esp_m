@@ -195,8 +195,8 @@ WORD PROCEDURE SOFTWAREINTERRUPTDEC = (0,14) (THEEVENT,EVENTWORD1,      02067000
               WORD THEEVENT,EVENTWORD1,EVENTWORD2,PCWPOINTER,KLUDGE;    02070000        
                                                            FORWARD;     02071000        
 DEFINE INTERLOCK = EVENT #                                              02071100        
-    ,  PROCURE(LOCK) = GAOLER(LOCK, FALSE) #                            02071200        
-    ,  LIBERATE(LOCK) = GAOLER(LOCK, TRUE) #                            02071300        
+    ,  PROCURE(L0CK) = GAOLER(L0CK, FALSE) #                            02071200        
+    ,  LIBERATE(L0CK) = GAOLER(L0CK, TRUE) #                            02071300        
     ;                                                                   02071400        
 PROCEDURE GAOLER = (0,18) (E,U); VALUE U; EVENT E; BOOLEAN U; FORWARD;  02071500        
 SAVE WORD PROCEDURE DOPEVECTOR(MOM);                                    02072000        
@@ -1505,7 +1505,7 @@ FIELD    ADDRESS        =19:20,                                         13247000
                                   FROM 0 TO 255;                        13256000        
          BUFFERLENGTH   =39:20,  COMMENT BUFFER LENGTH IN AREA DESC.;   13257000        
          SIGNBITF=46:1,                                                 13260000        
-         DIV4E = 47:46,%                                                13260100        
+         DIV4F = 47:46,%                                                13260100        
          MOD4F = 1:2,%                                                  13260200        
          DIV2F = 47:47,%                                                13260300        
          MOD2F =  0:1,%                                                 13260400        
@@ -1671,8 +1671,8 @@ DEFINE%       FOR KEYIN AND ASSOCIATED PROCEDURES                       13355000
          RUSER(U)      = 0&USERL(,,U,)#,                                13391000        
          RIOCW         = 0&IOCWL(@440)#,%                               13392000        
          RERRMSK       = @116001#,                                      13393000        
-         WIOCW         = 0%IOCWL(#40)#,%                                13394000        
-         WUSER(U)      = 0%USERL(*,*,U,*)#,                             13395000        
+         WIOCW         = 0&IOCWL(@40)#,%                                13394000        
+         WUSER(U)      = 0&USERL(*,*,U,*)#,                             13395000        
          WERRMSK       = @110001#,                                      13396000        
          RDTIMEOUT     = RDBLANKTAPE#,                                  13397000        
          DATEIS        = 8"DATE IS "#,%                                 13398100        
@@ -1692,7 +1692,7 @@ DEFINE%       FOR KEYIN AND ASSOCIATED PROCEDURES                       13355000
          INTEVNTARY(S,D,L) =                                            13408000        
               REPLACE POINTER(D) BY POINTER(S) FOR 2|(L-1) OVERWRITE#,  13409000        
          USINGSTACK(S) = NOT STACKVECTOR[S] IS 0&DATADESCRIPTOR()#,%    13410000        
-         MCPNOTUSINGSTACK(S)=STACK[S,FIRSTMSCWPLACE].STKMRF!0#,%        13410100        
+         MCPNOTUSINGSTACK(S)=STACK[S,FIRSTMSCWPLACE].STKNRF!0#,%        13410100        
          D2STACKIS(S)  = STACK[S,PROCESSNATUREPLACE].PROCESSHISTORYF!0#,13410200        
          HAVENTSUSPENDED(S)=WORDSTACK[S,REPLYEVENTPLACE].TAG=0 OR%      13410300        
                             BOOLEAN(M[STACK[S,REPLYEVENTPLACE]])#,      13410302        
@@ -2215,7 +2215,7 @@ PROCEDURE CHANLREPLACE(E); VALUE E; REFERENCE E; FORWARD;%              17101100
 DEFINE%  FOR TUNING CHANNELS                                            17102000        
          MAXPSUEDOCHANNELS=10#,%                                        17102100        
          PICQSZ= 6#,%                                                   17102110        
-         MIXPIC        = 0%,%                                           17102200        
+         MIXPIC        = 0#,%                                           17102200        
          PERPIC        = 1#,%                                           17102210        
          SCHPIC        = 2#,%                                           17102220        
          DIRPIC        = 3#,%                                           17102230        
@@ -3345,8 +3345,8 @@ DEFINE                                                                  24255000
               LBLEQTN        = FIBW[8]#,    % LABEL EQUATION BLOCK      24265000        
     %%%%% REGULAR I/O                                                   24266000        
               BUFDESC        = FIBW[9]#,    % BUFFER DESCRIPTOR         24267000        
-      UNITSLEFT      = FIB[10]#,    % WORDS OR CHARACTERS LEFT          24268000        
-      BLOCKCOUNT     = FIB[11]#,    % BLOCK COUNT OR PAGE COUNT         24269000        
+              UNITSLEFT      = FIB[10]#,    % WORDS OR CHARACTERS LEFT  24268000        
+              BLOCKCOUNT     = FIB[11]#,    % BLOCK COUNT OR PAGE COUNT 24269000        
               RECORDCOUNT    = FIB[12]#,    % RECORD COUNT OR LINE COUNT24270000        
               LABELATT       = FIB[13]#;    % LABEL ATTRIBUTES          24272000        
 LAYOUT                                                                  24273000        
@@ -3704,7 +3704,7 @@ DEFINE                                                                  24571000
          % NO HDR2                                                      24610000        
     % B5500 LABELS                                                      24611000        
          % B5500 LABEL                                                  24612000        
-              LMFIO     = PVOL1+9#,                                     24613000        
+              LMFID     = PVOL1+9#,                                     24613000        
               LFID      = PVOL1+17#,                                    24614000        
               LREEL     = PVOL1+24#,                                    24615000        
               LCDT      = PVOL1+27#,                                    24616000        
@@ -7672,169 +7672,1848 @@ BEGIN                                                                   40333000
     MONITOR        JACKMONITOR(STATEUS);                                40353000        
     MONITOR   BOBMONITOR(NEWSTATUS,OLDSTATUS);                          40353010        
 LABEL L;L:IF SIMULATING THEN BEGIN DISALLOW;SETINTERVALTIMER;PAUSE END; 40354000        
-       STATEUS~STATEUS;                          % *** FOR MONITOR ONLY 40355000        
+         STATEUS~STATEUS;                        % *** FOR MONITOR ONLY 40355000        
                                                                         40356000        
-       VECTORNO~-1;                                                     40357000        
-       WHILE VECTORNO~VECTORNO+1{MAXVECTORNO                            40358000        
-       DO                                                               40359000        
-       BEGIN                                                            40360000        
-       OLDSTATUS~OLDSTATUSWORD[VECTORNO];                               40361000        
-  % KLUDGE                                                              40362000        
-            OLDSTATUS~OLDSTATUS OR TRUE;                                40363000        
-            STATUSMASK~FALSE;                                           40364000        
-            SAVESTATUS~BOOLEAN(REAL(NOT FALSE));                        40365000        
-            WHILE REAL((NEWSTATUS~BOOLEAN(SCANIN(0&                     40366000        
-              USTATUSWORD(VECTORNO,,,)))OR STATUSMASK)AND SAVESTATUS)   40367000        
-              ! REAL(OLDSTATUS)                                         40368000        
-            DO                                                          40369000        
-            BEGIN                                                       40370000        
-                 U~VECTORNO|32+((BITNO~                                 40371000        
-                   FIRSTONE(REAL(NEWSTATUS EQV NOT OLDSTATUS))-1)-1);   40372000        
-                 IF U>MAXUNIT THEN GO TO UFU;                           40373000        
-                 WHILE BOOLEAN(UNT~READLOCK(1,UNIT[U])) DO;             40374000        
+         VECTORNO~-1;                                                   40357000        
+         WHILE VECTORNO~VECTORNO+1{MAXVECTORNO                          40358000        
+         DO                                                             40359000        
+         BEGIN                                                          40360000        
+         OLDSTATUS~OLDSTATUSWORD[VECTORNO];                             40361000        
+    % KLUDGE                                                            40362000        
+              OLDSTATUS~OLDSTATUS OR TRUE;                              40363000        
+              STATUSMASK~FALSE;                                         40364000        
+              SAVESTATUS~BOOLEAN(REAL(NOT FALSE));                      40365000        
+              WHILE REAL((NEWSTATUS~BOOLEAN(SCANIN(0&                   40366000        
+                USTATUSWORD(VECTORNO,,,)))OR STATUSMASK)AND SAVESTATUS) 40367000        
+                ! REAL(OLDSTATUS)                                       40368000        
+              DO                                                        40369000        
+              BEGIN                                                     40370000        
+                   U~VECTORNO|32+((BITNO~                               40371000        
+                     FIRSTONE(REAL(NEWSTATUS EQV NOT OLDSTATUS))-1)-1); 40372000        
+                   IF U>MAXUNIT THEN GO TO UFU;                         40373000        
+                   WHILE BOOLEAN(UNT~READLOCK(1,UNIT[U])) DO;           40374000        
                                                                         40375000        
-                 BITWORD~FALSE&BITSETL();                               40376000        
-                 IF REAL(NEWSTATUS)<REAL(OLDSTATUS) THEN                40377000        
-                      BEGIN     %%%%%%%%%%%%%%%%%%%%% UNIT NOT READY    40378000        
-                        OLDSTATUS~OLDSTATUS AND NOT BITWORD;            40379000        
-                           IF UNT.UNITTYPE=DISKFILE THEN                40380000        
-                           BEGIN                                        40381000        
-                                % CALL STEVE                            40382000        
-                           END;                                         40383000        
-                           IF BOOLEAN(UNT.UNITASSIGNED)THEN             40384000        
-                           BEGIN                    % USER              40385000        
-                                IF NOT BOOLEAN(UNT.UINREWIND) THEN      40386000        
-                                IF NOT BOOLEAN(UNT.UNITNOTREADY)THEN    40387000        
-                                BEGIN                                   40388000        
-                                NOTREADYMSG(UNT);%                      40389000        
-                                     UNT.UNITNOTREADY~1;                40390000        
-                                END;                                    40391000        
-                                % CLOSED NO REWIND                      40392000        
-                           END  ELSE                                    40393000        
-                           % NO USER                                    40394000        
-                           BEGIN                                        40395000        
-                                UNT.ULOCKED~0;                          40396000        
+                   BITWORD~FALSE&BITSETL();                             40376000        
+                   IF REAL(NEWSTATUS)<REAL(OLDSTATUS) THEN              40377000        
+                        BEGIN     %%%%%%%%%%%%%%%%%%%%% UNIT NOT READY  40378000        
+                          OLDSTATUS~OLDSTATUS AND NOT BITWORD;          40379000        
+                             IF UNT.UNITTYPE=DISKFILE THEN              40380000        
+                             BEGIN                                      40381000        
+                                  % CALL STEVE                          40382000        
+                             END;                                       40383000        
+                             IF BOOLEAN(UNT.UNITASSIGNED)THEN           40384000        
+                             BEGIN                    % USER            40385000        
+                                  IF NOT BOOLEAN(UNT.UINREWIND) THEN    40386000        
+                                  IF NOT BOOLEAN(UNT.UNITNOTREADY)THEN  40387000        
+                                  BEGIN                                 40388000        
+                                  NOTREADYMSG(UNT);%                    40389000        
+                                       UNT.UNITNOTREADY~1;              40390000        
+                                  END;                                  40391000        
+                                  % CLOSED NO REWIND                    40392000        
+                             END  ELSE                                  40393000        
+                             % NO USER                                  40394000        
+                             BEGIN                                      40395000        
+                                  UNT.ULOCKED~0;                        40396000        
 FILENOTREADY:                                                           40397000        
-                                UNT.UERRORSTATUSBITS~0;                 40398000        
-                                UNT.UNITNOTREADY~1;                     40399000        
-                           IF UINFOW[U].TAG!0 THEN                      40400000        
-                                BEGIN                                   40401000        
-                                     FORGETSPACE(UINFOW[U].ADDRESSF);   40402000        
-                                     UINFOW[U]~0;                       40403000        
-                                END;                                    40404000        
-                           END;                                         40405000        
-                        UNIT[U]~UNT;                                    40406000        
-                        STATUSMASK~STATUSMASK AND NOT BITWORD;          40407000        
-                      END               ELSE                            40408000        
-                      BEGIN     %%%%%%%%%%%%%%%%%%%%% UNIT READY        40409000        
-                        OLDSTATUS~OLDSTATUS OR BITWORD;                 40410000        
-                        UNT.UNITNOTREADY~0;                             40411000        
+                                  UNT.UERRORSTATUSBITS~0;               40398000        
+                                  UNT.UNITNOTREADY~1;                   40399000        
+                             IF UINFOW[U].TAG!0 THEN                    40400000        
+                                  BEGIN                                 40401000        
+                                       FORGETSPACE(UINFOW[U].ADDRESSF); 40402000        
+                                       UINFOW[U]~0;                     40403000        
+                                  END;                                  40404000        
+                             END;                                       40405000        
+                          UNIT[U]~UNT;                                  40406000        
+                          STATUSMASK~STATUSMASK AND NOT BITWORD;        40407000        
+                        END               ELSE                          40408000        
+                        BEGIN     %%%%%%%%%%%%%%%%%%%%% UNIT READY      40409000        
+                          OLDSTATUS~OLDSTATUS OR BITWORD;               40410000        
+                          UNT.UNITNOTREADY~0;                           40411000        
                                                                         40412000        
-                        IF BOOLEAN(UNT.UNITASSIGNED) THEN               40413000        
-                        BEGIN                       % USER              40414000        
-                          STATUSMASK~STATUSMASK OR BITWORD;             40415000        
+                          IF BOOLEAN(UNT.UNITASSIGNED) THEN             40413000        
+                          BEGIN                       % USER            40414000        
+                            STATUSMASK~STATUSMASK OR BITWORD;           40415000        
                                                                         40416000        
-                          UNT.UINREWIND~0;                              40417000        
-                          UNIT[U]~UNT;                                  40418000        
-                          STARTIO(U);                                   40419000        
-                          GO TO ENDOFUNIT                               40420000        
-                        END;                                            40421000        
-                      % UNIT NOT ASSIGNED                               40422000        
-                        IF BOOLEAN(UNT.UINREWIND) THEN                  40423000        
-                          IF BOOLEAN(UNT.ULOCKED) OR                    40424000        
-                            BOOLEAN(UNT.USAVED) THEN                    40425000        
-                          BEGIN                                         40426000        
-                            UNT.UINREWIND~0;                            40427000        
+                            UNT.UINREWIND~0;                            40417000        
+                            UNIT[U]~UNT;                                40418000        
+                            STARTIO(U);                                 40419000        
+                            GO TO ENDOFUNIT                             40420000        
+                          END;                                          40421000        
+                        % UNIT NOT ASSIGNED                             40422000        
+                          IF BOOLEAN(UNT.UINREWIND) THEN                40423000        
+                            IF BOOLEAN(UNT.ULOCKED) OR                  40424000        
+                              BOOLEAN(UNT.USAVED) THEN                  40425000        
+                            BEGIN                                       40426000        
+                              UNT.UINREWIND~0;                          40427000        
 HR:                                                                     40428000        
-                            IF BOOLEAN(UNT.USAVED)THEN BITWORD~FALSE;   40429000        
-                            GO TO FILENOTREADY                          40430000        
-                          END ELSE                                      40431000        
-                          IF BOOLEAN(UNT.UTOBEPURGED) THEN              40432000        
-                          BEGIN                     % PURGE THE FILE    40433000        
-                            UNT.UINREWIND~0;                            40434000        
+                              IF BOOLEAN(UNT.USAVED)THEN BITWORD~FALSE; 40429000        
+                              GO TO FILENOTREADY                        40430000        
+                            END ELSE                                    40431000        
+                            IF BOOLEAN(UNT.UTOBEPURGED) THEN            40432000        
+                            BEGIN                     % PURGE THE FILE  40433000        
+                              UNT.UINREWIND~0;                          40434000        
 PRG:                                                                    40435000        
-                            UNT.UTOBEPURGED~1;                          40436000        
-                            WHILE BOOLEAN(TEMP~READLOCK(1,PRGT)) DO;    40437000        
-                            IF TEMP>0 THEN PRGT~TEMP+2 ELSE             40438000        
-                            BEGIN                                       40439000        
-                              PRGT~2;                                   40440000        
-                              FORK(PURGIT,U);                           40441000        
-                            END;                                        40442000        
-                          END ELSE                                      40443000        
-                          BEGIN                                         40443010        
-                            UNT.UINREWIND~0;                            40444000        
-                            IF BOOLEAN(UNT.ULABELLED) OR                40444010        
-                              BOOLEAN(UNT.USCRATCH)THEN GO ENDOFREADY;  40444020        
-                          END;                                          40444030        
-                        IF BOOLEAN(UNT.USAVED) THEN GO TO ENDOFREADY;   40445000        
-                        IF BOOLEAN(UNT.ULOCKED)THEN GO FILENOTREADY;    40446000        
-                        IF BOOLEAN(UNT.UTOBEPURGED)THEN GO TO PRG;      40447000        
-                        STATUSMASK~STATUSMASK OR BITWORD;               40448000        
-                        CASE UNT.UNITTYPE OF                            40449000        
-                      BEGIN     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  40450000        
-                        BEGIN                       % NO UNIT        0  40451000        
+                              UNT.UTOBEPURGED~1;                        40436000        
+                              WHILE BOOLEAN(TEMP~READLOCK(1,PRGT)) DO;  40437000        
+                              IF TEMP>0 THEN PRGT~TEMP+2 ELSE           40438000        
+                              BEGIN                                     40439000        
+                                PRGT~2;                                 40440000        
+                                FORK(PURGIT,U);                         40441000        
+                              END;                                      40442000        
+                            END ELSE                                    40443000        
+                            BEGIN                                       40443010        
+                              UNT.UINREWIND~0;                          40444000        
+                              IF BOOLEAN(UNT.ULABELLED) OR              40444010        
+                                BOOLEAN(UNT.USCRATCH)THEN GO ENDOFREADY;40444020        
+                            END;                                        40444030        
+                          IF BOOLEAN(UNT.USAVED) THEN GO TO ENDOFREADY; 40445000        
+                          IF BOOLEAN(UNT.ULOCKED)THEN GO FILENOTREADY;  40446000        
+                          IF BOOLEAN(UNT.UTOBEPURGED)THEN GO TO PRG;    40447000        
+                          STATUSMASK~STATUSMASK OR BITWORD;             40448000        
+                          CASE UNT.UNITTYPE OF                          40449000        
+                        BEGIN     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%40450000        
+                          BEGIN                       % NO UNIT        040451000        
 UFU:                                                                    40452000        
-                           UFUMSG(UNT);%                                40453000        
-                          OLDSTATUS~OLDSTATUS AND NOT BITWORD;          40454000        
-                          STATUSMASK~STATUSMASK AND NOT BITWORD;        40455000        
-                          UNT.UNITNOTREADY~0;                           40456000        
-                          IF U{MAXUNIT THEN UNIT[U]~UNT;                40457000        
-                        END;                                            40458000        
-                        BEGIN                       % DISK FILE      1  40459000        
-                          % CALL STEVE                                  40460000        
-                        END;                                            40461000        
-                        BEGIN                       % SNGL LINE CNTL 2  40462000        
-                          % CALL MIKE -- UNIT WENT WRITE READY          40462100        
-                        END;                                            40468000        
-                        ;                           % UNASSIGNED     3  40469000        
-                        BEGIN                       % PAPER TAPE RDR 4  40470000        
-                          UNT.ULABELLED~1;                              40471000        
-                        END;                                            40472000        
+                             UFUMSG(UNT);%                              40453000        
+                            OLDSTATUS~OLDSTATUS AND NOT BITWORD;        40454000        
+                            STATUSMASK~STATUSMASK AND NOT BITWORD;      40455000        
+                            UNT.UNITNOTREADY~0;                         40456000        
+                            IF U{MAXUNIT THEN UNIT[U]~UNT;              40457000        
+                          END;                                          40458000        
+                          BEGIN                       % DISK FILE      140459000        
+                            % CALL STEVE                                40460000        
+                          END;                                          40461000        
+                          BEGIN                       % SNGL LINE CNTL 240462000        
+                            % CALL MIKE -- UNIT WENT WRITE READY        40462100        
+                          END;                                          40468000        
+                          ;                           % UNASSIGNED     340469000        
+                          BEGIN                       % PAPER TAPE RDR 440470000        
+                            UNT.ULABELLED~1;                            40471000        
+                          END;                                          40472000        
                                                                         40473000        
                                                                         40474000        
-                        BEGIN                       % PAPER TAPE PCH 5  40475000        
+                          BEGIN                       % PAPER TAPE PCH 540475000        
 SCRATCH:                                                                40476000        
-                          UNT.UERRORSTATUSBITS~0;                       40477000        
-                          UNT.UNITSTATE~0;                              40478000        
-                          UNT.USCRATCH~1;                               40479000        
-                          IF UINFOW[U].TAG!0 THEN                       40480000        
-                          BEGIN                                         40481000        
-                            FORGETSPACE(UINFOW[U].ADDRESSF);            40482000        
-                            UINFOW[U]~0;                                40483000        
-                          END;                                          40484000        
-                        % CHECK FOR BACKUP MESAGE PENDING               40485000        
-                        END;                                            40486000        
+                            UNT.UERRORSTATUSBITS~0;                     40477000        
+                            UNT.UNITSTATE~0;                            40478000        
+                            UNT.USCRATCH~1;                             40479000        
+                            IF UINFOW[U].TAG!0 THEN                     40480000        
+                            BEGIN                                       40481000        
+                              FORGETSPACE(UINFOW[U].ADDRESSF);          40482000        
+                              UINFOW[U]~0;                              40483000        
+                            END;                                        40484000        
+                          % CHECK FOR BACKUP MESAGE PENDING             40485000        
+                          END;                                          40486000        
                                                                         40487000        
-                        GO TO SCRATCH;              % LINE PRINTER I 6  40488000        
-                        GO TO SCRATCH;              % LINE PRNTER II 7  40489000        
+                          GO TO SCRATCH;              % LINE PRINTER I 640488000        
+                          GO TO SCRATCH;              % LINE PRNTER II 740489000        
                                                                         40490000        
-                        ;                           % UNASSIGNED     8  40491000        
-                        BEGIN                       % CARD READER    9  40492000        
-                          UNT.UNITASSIGNED~1;                           40493000        
-                          UNIT[U]~UNT;                                  40494000        
-                          STATUSMASK~STATUSMASK OR BITWORD;             40495000        
-                          FORK(CONTROLCARD,U);                          40496000        
+                          ;                           % UNASSIGNED     840491000        
+                          BEGIN                       % CARD READER    940492000        
+                            UNT.UNITASSIGNED~1;                         40493000        
+                            UNIT[U]~UNT;                                40494000        
+                            STATUSMASK~STATUSMASK OR BITWORD;           40495000        
+                            FORK(CONTROLCARD,U);                        40496000        
                                                                         40497000        
                                                                         40498000        
-                        END;                                            40499000        
-                        GO TO SCRATCH;              % CARD PUNCH I  10  40500000        
-                        GO TO SCRATCH;              % CARD PUNCH II 11  40501000        
-                        ;                           % UNASSIGNED    12  40502000        
-                        BEGIN                       % MAG TAPE I    13  40503000        
-                          TEMP~1;                                       40504000        
+                          END;                                          40499000        
+                          GO TO SCRATCH;              % CARD PUNCH I  1040500000        
+                          GO TO SCRATCH;              % CARD PUNCH II 1140501000        
+                          ;                           % UNASSIGNED    1240502000        
+                          BEGIN                       % MAG TAPE I    1340503000        
+                            TEMP~1;                                     40504000        
 READALABEL2:                                                            40505000        
-                          WHILE BOOLEAN(NRDLBLP~READLOCK(1,RDLBLP))DO;  40506000        
-                          IF ONES(NRDLBLP)}MAXRDLBLP THEN               40507000        
-                            BEGIN                                       40508000        
-                              OLDSTATUS~OLDSTATUS AND NOT BITWORD;      40509000        
-                              SAVESTATUS~SAVESTATUS&BITSETL(0);         40510000        
-                            END ELSE                                    40511000        
-                            BEGIN                                       40512000        
-                              UNT.UERRORSTATUSBITS~0;                   40513000        
-                              UNT.UNITSTATE~0;                          40514000        
-                              UNT.UNITASSIGNED~1;                       40515000        
-                              FORK(READALABEL,0&RDLBL(BITNO~FIRSTONE(   40516000        
-                                REAL(NOT BOOLEAN(NRDLBLP)).RF),         40517000        
-                                TEMP,U));                               40518000        
-                              NRDLBLP~*&BITSETL();                      40519000        
-                            END;                                        40520000        
+                            WHILE BOOLEAN(NRDLBLP~READLOCK(1,RDLBLP))DO;40506000        
+                            IF ONES(NRDLBLP)}MAXRDLBLP THEN             40507000        
+                              BEGIN                                     40508000        
+                                OLDSTATUS~OLDSTATUS AND NOT BITWORD;    40509000        
+                                SAVESTATUS~SAVESTATUS&BITSETL(0);       40510000        
+                              END ELSE                                  40511000        
+                              BEGIN                                     40512000        
+                                UNT.UERRORSTATUSBITS~0;                 40513000        
+                                UNT.UNITSTATE~0;                        40514000        
+                                UNT.UNITASSIGNED~1;                     40515000        
+                                FORK(READALABEL,0&RDLBL(BITNO~FIRSTONE( 40516000        
+                                  REAL(NOT BOOLEAN(NRDLBLP)).RF),       40517000        
+                                  TEMP,U));                             40518000        
+                                NRDLBLP~*&BITSETL();                    40519000        
+                              END;                                      40520000        
+                            RDLBLP~NRDLBLP;                             40521000        
+                            STATUSMASK~STATUSMASK OR BITWORD;           40522000        
+                          END;                                          40523000        
+                          BEGIN                       % MAG TAPE II   1440524000        
+                            TEMP~2;                                     40525000        
+                            GO TO READALABEL2                           40526000        
+                          END;                                          40527000        
+                          BEGIN                       % MAG TAPE III  1540528000        
+                            TEMP~3;                                     40529000        
+                            GO TO READALABEL2                           40530000        
+                          END;                                          40531000        
+                          ;;;;; ;;;;; ;;;             % UNASSIGNED 16-2840532000        
+                          BEGIN                       % CLUSTER I     2940533000        
+                            TEMP~1;                                     40534000        
+                            GO TO READALABEL2                           40535000        
+                          END;                                          40536000        
+                          BEGIN                       % CLUSTER II    3040537000        
+                            TEMP~2;                                     40538000        
+                            GO TO READALABEL2                           40539000        
+                          END;                                          40540000        
+                          BEGIN                       % CLUSTER III   3140541000        
+                            TEMP~3;                                     40542000        
+                            GO TO READALABEL2                           40543000        
+                          END;                                          40544000        
+                        END;      %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%40545000        
+                                                                        40546000        
+ENDOFREADY:                                                             40547000        
+                        END; %%%%%% READY                               40548000        
+                        UNIT[U]~UNT;                                    40549000        
+    ENDOFUNIT:                                                          40549100        
+                   END;        COMMENT END OF SINGLE UNIT HANDLING;     40550000        
+                                                                        40551000        
+              OLDSTATUSWORD[VECTORNO]~OLDSTATUS AND NOT TRUE;           40552000        
+         END;       COMMENT END OF VECTORNO LOOP;                       40553000        
+                                                                        40554000        
+IF SIMULATING THEN      BEGIN GO TO L;                                  40555000        
+         STACKINUSE[NAME(STATUS).ADRCPLF-IRPCWSTARTPLACE]~0 ; HOLD;     40556000        
+                        END;                                            40556500        
+    END STATUS;                                                         40557000        
+                                                                        40558000        
+SAVE REFERENCE PROCEDURE DISKIO(CORE,INDEX,SIZE,DISK,MASK,DISKIOEVENT); 40559000        
+                        VALUE INDEX,SIZE,DISK,MASK;                     40560000        
+                        INTEGER INDEX,SIZE,DISK,MASK;                   40561000        
+                        ARRAY  CORE[*];                                 40562000        
+                        EVENT DISKIOEVENT;                              40563000        
+  COMMENT DISKIO       CONVERTS SOFTWARE DISK ADDRESS INTO HARDWARE     40564000        
+          DISK ADDRESS AND MAKES UP IOCW.      IT MAKES UP AREADESC     40565000        
+          AND INSERTS INTO IOCB. IT THEN CALLS IOREQUEST.               40566000        
+    CORE     -ARRAY DESCRIPTOR FOR CORE AREA.                           40567000        
+              THIS AREA MUST BE NON-OVERLAYABLE.  SEE DISKWAIT FOR      40568000        
+              AN EXAMPLE OF HOW TO GUARENTEE THIS.                      40569000        
+    INDEX    -STARTING INDEX FOR CORE AREA DESCRIPTOR.                  40570000        
+    SIZE      NO. OF WORDS TO TRANSFER.                                 40571000        
+                   NOTE: AREA MUST BE AT LEAST SIZE+1 WORDS LONG.       40572000        
+    DISK     -SOFTWARE DISK ADDRESS.                                    40573000        
+    MASK      MASK OF STANDARD I/O CONTROL WORD                         40574000        
+              (E.G. @440 READ , NO PROTECT, SINGLE TAG                  40575000        
+                     @461 READ, MEMORY PROTECT, PROGRAM TAG)            40576000        
+    DISKIOEVENT   -EVENT TO BE CAUSED ON I/O COMPLETE;                  40577000        
+    BEGIN                                                               40578000        
+         WORD ARRAY AREA[*];      COMMENT WE BUILD THIS FOR IOCB;       40579000        
+         REFERENCE IOCB;          COMMENT POINTS TO IOCB;               40580000        
+         REAL      USER;          COMMENT USER ITEM OF IOCB;            40581000        
+              WORD ARRAY ARA = CORE[*]; COMMENT USED FOR PBIT;          40582000        
+         USER := 0 & USERL(SNR,STACK[SNR,PRIORITYPLACE],DISK.EUNOF);    40583000        
+         AREA~AREA &                                                    40584000        
+              ARRAYDESCL(3, SIZE, CORE.ADDRESS + INDEX);                40585000        
+         AREA[0] ~ * & IOCWL(MASK,  COMMENT PRESERVE THE TAG OF AREA[0];40586000        
+                        DECIMAL(DISK.ADDRESSF));                        40587000        
+         IOREQUEST(IOCB~IOQUE(USER,-0,REFERENCE(AREA),DISKIOEVENT));    40588000        
+    RETURN(WORD(IOCB));                                                 40589000        
+    END DISKIO;                                                         40590000        
+SAVE PROCEDURE DISKWAIT(CORE,INDEX,SIZE,DISK,MASK);                     40591000        
+                        VALUE INDEX,SIZE,DISK,MASK;                     40592000        
+                        INTEGER INDEX,SIZE,DISK,MASK;                   40593000        
+                        ARRAY  CORE[*];                                 40594000        
+  COMMENT DISKWAIT CALLS PROCEDURE DISKIO WITH PASSED PARAMETERS AND    40595000        
+          A LOCAL EVENT AND WAITS ON THE EVENT.                         40596000        
+          WAITS ON IT.                                                  40597000        
+    CORE     -ARRAY DESCRIPTOR FOR CORE AREA.                           40598000        
+    INDEX    -STARTING INDEX FOR CORE AREA DESCRIPTOR.                  40599000        
+    SIZE      NO. OF WORDS TRANFER.                                     40600000        
+                   NOTE: AREA MUST BE AT LEAST SIZE+1 WORDS LONG.       40601000        
+    DISK     -SOFTWARE DISK ADDRESS                                     40602000        
+    MASK      MASK OF STANDARD I/O CONTROL WORD                         40603000        
+                     @461 READ, MEMORY PROTECT, PROGRAM TAG) ;          40604000        
+    BEGIN                                                               40605000        
+         REFERENCE IOCB;                                                40606000        
+         EVENT DISKIOEVENT;                                             40607000        
+         MAKEPRESENTANDSAVE(CORE);     %MAKE TEMPORARILY SAVE FOR I/O   40608000        
+         IOCB~ DISKIO(CORE,INDEX,SIZE,DISK,MASK,DISKIOEVENT);           40609000        
+         WAIT(DISKIOEVENT);                                             40610000        
+         TURNOVERLAYKEY(CORE.ADDRESSF);%RETURN TO PREVIOUS OLAY STATUS  40611000        
+    END DISKWAIT;                                                       40612000        
+PROCEDURE READALABEL(LINFO);VALUE LINFO;REAL LINFO;                     40613000        
+BEGIN    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%40614000        
+         % READALABEL READS VARIOUS MAGNETIC TAPE LABELS AND STUFFS    %40615000        
+         % THE INFORMATION THEY CONTAIN INTO THE LABEL TABLE.          %40616000        
+         %                                                             %40617000        
+         % ALL RETRY ACTION IS ACCOMPLISHED THROUGH IOERROR.           %40618000        
+         % UNEXPECTED IOERROR IS ONLY CALLED FOR MEMORY ERRORS.        %40619000        
+         % A PARITY CONDITION CAUSES THE UNIT TO BE MARKED AS          %40620000        
+         % NOT-READY AND SAVED.                                        %40621000        
+         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%40622000        
+    REAL      T,                       % TEMP                           40623000        
+              TAPETYPE~LINFO.PTP,      % TAPE TYPE: 1,2,3               40624000        
+              U~LINFO.UNO,             % UNIT #                         40625000        
+              DNSTY,                   % DENSITY                        40626000        
+              RSLT,                    % RESULT                         40627000        
+              UNT,                     % UNIT TABLE ENTRY               40628000        
+              VECTORNO~U.DIV32F,       % VECTOR #                       40629000        
+              BITNO~U.MOD32F+1,        % BIT NUMBER IN STATUS VECTOR    40630000        
+              DNSTYW~IF TAPETYPE=1     % DENSITY WORD                   40631000        
+                        THEN 7 ELSE IF TAPETYPE=2 THEN 5 ELSE 8,        40632000        
+              BITWORD,                 % UNIT POSITION IN STATUS WORD   40633000        
+              N1,                      % NAME 1                         40634000        
+              N2,                      % NAME 2                         40635000        
+              PTPN,                    % PHYSICAL TAPE #                40636000        
+              WRTRNG,                  % WRITE RING                     40644000        
+              LBLTP,                   % LABELTYPE                      40645000        
+              PRTY~1;                  % PARITY                         40646000        
+    BOOLEAN   TPMRK,                   % TAPEMARK                       40647000        
+              OLDSTATUS;               % OLD STATUS WORD                40648000        
+    ARRAY     LABELAREA[IF TAPETYPE=1 THEN 11 ELSE 15],                 40649000        
+              LABLOCK[*],                                               40649010        
+              NAMES[6];                                                 40650000        
+    LABEL     WRAPUP,NOTREADY,RTRY,PARITYL,SCRATCH,READALABL,SCRATCHL,  40651000        
+              ASCRATCH,BUSASI,USASIQ,CMN,RETRY,BCKSPC;                  40652000        
+    LAYOUT    BITSETL(BITNO:1~1);                                       40653000        
+    DEFINE    NNL(S,E)  = (IF TAPETYPE=1  THEN S ELSE E)#;              40653010        
+    POINTER   PVOL1,PNMS,PNMU;                                          40654000        
+    MONITOR   BOBMONITOR(RSLT,T);                                       40654010        
+         BITWORD~0&BITSETL();                                           40655000        
+         LABELAREA[0].IOSTANDARDFIELD~TAPETEST;                         40656000        
+         IF REAL(BOOLEAN(RSLT~WAITIO(LABELAREA,USAH,ERAH(UNEXP,4"4F01") 40657000        
+              ).RDERROR)AND BOOLEAN(4"1B0FE"))!0 THEN GO TO NOTREADY;   40658000        
+                   % MASK, REWINDING, DENSITY, WLO, BOT                 40658100        
+         GETUNT;                                                        40659000        
+         UNT.UWRITERING~WRTRNG~RSLT.RDWLOOREOF+1;                       40660000        
+         UNIT[U]~UNT;                                                   40661000        
+         BITNO~DNSTY~(IF ONES(T~RSLT.RDDENSITY)!1THEN T ELSE REAL(T=2));40662000        
+    % KLUDGE                                                            40662010        
+    RETRY:                                                              40663000        
+         LABELAREA[0]~0&IOCWL(TAPEREWIND,0);                            40664000        
+         PUTUNT(0,0,2,1);                                               40665000        
+         GETOLDS;                                                       40666000        
+         IF REAL(BOOLEAN(RSLT~WAITIO(LABELAREA,USAH,ERAH(UNEXP,4"4101") 40667000        
+              ).RDERROR)AND BOOLEAN(4"1BEFE"))!0 THEN GO TO NOTREADY;   40668000        
+    READALABL:                                                          40669000        
+         LABELAREA[0]~0&TAPEIOCWL(1,REAL(TAPETYPE=1AND BOOLEAN(PRTY+1)),40670000        
+              REAL(TAPETYPE!1),DNSTY+4,PRTY);                           40671000        
+         DNSTYW~*&BITSETL(0);                                           40672000        
+         IF BOOLEAN(RSLT~WAITIO(LABELAREA,USAH,ERAH(UNEXP,0))) THEN     40673000        
+              % ACCEPT ALL ERRORS EXCEPT MEMORY                         40674000        
+         IF RSLT.RD432!0 THEN                                           40675000        
+    BEGIN                                                               40676000        
+    NOTREADY:                                                           40677000        
+         PUTUNT(1,1,0,0);                                               40678000        
+         GETOLDS;                                                       40679000        
+         % UNIT FAILURE                                                 40680000        
+         % WRITE TROUBLE LOG                                            40681000        
+         GO TO WRAPUP                                                   40682000        
+    END  ELSE                                                           40683000        
+         IF TAPEPARITY THEN                                             40684000        
+    BEGIN                                                               40685000        
+         IF TAPETYPE=3 THEN GO TO PARITYL;                              40686000        
+         IF NOT(BOOLEAN(PRTY~PRTY+1))THEN GO TO RETRY;                  40687000        
+         IF DNSTY!0 THEN                                                40688000        
+    BEGIN                                                               40689000        
+         DNSTY~BITNO~FIRSTONE(DNSTYW)-1;                                40690000        
+         GO TO RETRY;                                                   40691000        
+    END;                                                                40692000        
+    PARITYL:                                                            40693000        
+         PARITYRWLMSG(U);%                                              40694000        
+         PUTUNT(1,1,0,0);                                               40695000        
+         GETOLDS;                                                       40696000        
+    END  ELSE                                                           40697000        
+         IF REAL(BOOLEAN(RSLT.RDERROR)AND WERRORS)!0 THEN GO NOTREADY   40698000        
+         ELSE                                                           40699000        
+         IF BOOLEAN(RSLT.RDBLANKTAPE) THEN                              40700000        
+    BEGIN                                             % PROBLEMS AT     40701000        
+         IF DNSTY=2 AND DNSTYW!0 THEN                 % 200 BPI         40702000        
+    BEGIN                                                               40703000        
+         PRTY~1;                                                        40704000        
+         DNSTY~BITNO~FIRSTONE(DNSTYW)-1;                                40705000        
+         GO TO RETRY                                                    40706000        
+    END;                                                                40707000        
+         % IT IS A BLANK TAPE                                           40708000        
+         % GET SERIAL NUMBER AND STICK IT IN PTPN                       40709000        
+    SCRATCH:                                                            40710000        
+         LABELAREA[0].IOSTANDARDFIELD~TAPEREWIND;                       40711000        
+         PUTUNT(0,0,2,1);                                               40712000        
+         IF REAL(BOOLEAN(RSLT~WAITIO(LABELAREA,USAH,ERAH(UNEXP,4"4101") 40713000        
+              ).RDERROR)AND BOOLEAN(4"1BEFE"))!0 THEN GO TO NOTREADY;   40714000        
+         IF TAPETYPE=1 THEN REPLACE POINTER(LABELAREA[1],6) BY          40715000        
+              6"VOL1",PTPN FOR 6 DIGITS,6"0X0X0X0X"FOR 18,6"650",       40716000        
+    % TRANSLATION NEEDED                                                40716010        
+              6" "FOR 48,6"0"                                           40717000        
+         ELSE REPLACE POINTER(LABELAREA[1],8) BY                        40718000        
+              8"VOL1",PTPN FOR 6,8"0X0X0X" FOR 18,8"650",               40719000        
+              8" "FOR 48,8"0";                                          40720000        
+         LABELAREA[0]~0&IOCWDETAILL(,,REAL(TAPETYPE!1),                 40721000        
+              0&IOCWTAPEL(,1,,1,,));                                    40722000        
+         IF BOOLEAN(RSLT~WAITIO(LABELAREA,USAH,ERAH(UNEXP,0)))THEN      40723000        
+              GO TO NOTREADY;                                           40724000        
+         LABELAREA[0]~0&IOCWTAPEL(REAL(SIMULATING)-2,,,1); % TAPE MARK  40725000        
+         IF BOOLEAN(RSLT~WAITIO(LABELAREA,USAH,ERAH(UNEXP,0))) THEN     40726000        
+              GO TO NOTREADY;                                           40727000        
+    SCRATCHL:                                                           40728000        
+         UINFOW[U]~PTPN;                                                40729000        
+         LABELAREA[0].IOSTANDARDFIELD~TAPEREWIND;                       40730000        
+         PUTUNT(0,0,4,1);                                               40731000        
+         GETOLDS;                                                       40731010        
+         IF REAL(BOOLEAN(RSLT~WAITIO(LABELAREA,USAH,ERAH(UNEXP,4"4101") 40732000        
+              ).RDERROR)AND BOOLEAN(4"1BEFE"))!0 THEN GO TO NOTREADY;   40733000        
+         GO TO WRAPUP                                                   40734000        
+    END  ELSE                                                           40735000        
+         IF TPMRK AND TPMRK~BOOLEAN(RSLT.RDWLOOREOF) THEN GO TO PARITYL 40736000        
+         ELSE GO TO READALABL;                                          40737000        
+         IF BOOLEAN(RSLT.RDINCREC)THEN                                  40737010        
+         IF RSLT.RDMEMADDR-LABELAREA.ADDRESSF>LABELAREA.LENGTHF THEN    40737020        
+         T~(RSLT.RDMEMADDR-LABELAREA.ADDRESSF)+(IF RSLT.RDCHRCNT=0 THEN 40737030        
+              0 ELSE 1);                                                40737040        
+         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%40738000        
+         % IF GET TO HERE HAVE READ FIRST RECORD (IT MAY BE WRONG      %40739000        
+         %    SIZE HOWEVER)                                            %40740000        
+         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%40741000        
+         IF TAPETYPE!1 THEN                                             40742000        
+         IF PVOL1~POINTER(LABELAREA[1],8)=8"VOL1"THEN % USASI LABEL     40743000        
+    BUSASI:                                                             40744000        
+         IF REAL(USYSN,2)=(IF TAPETYPE=1 THEN 6"65" ELSE 8"65") THEN    40745000        
+         IF REAL(ULSL,1)=(IF TAPETYPE=1 THEN 6"0"ELSE 8"0")THEN         40746000        
+         IF REAL(USYST,1)=0 AND REAL(UMFID,6)IS(IF TAPETYPE=1 THEN      40747000        
+              6"0X0X0X" ELSE 8"0X0X0X") THEN          % SCRATCH         40747010        
+    ASCRATCH:                                                           40748000        
+         IF BOOLEAN(WRTRNG)THEN GO TO SCRATCHL ELSE   % WRITE RING      40749000        
+    BEGIN                                                               40750000        
+         % SCRATCH TAPE, NO WRITE RING                                  40751000        
+         PUTUNT(1,1,4,0);                                               40752000        
+         GETOLDS;                                                       40753000        
+         GO TO WRAPUP;                                                  40754000        
+    END                                                                 40755000        
+         ELSE GO TO USASIQ                                              40756000        
+         ELSE                                         % STANDARD        40757000        
+         IF REAL(ULSL,1)!(IF TAPETYPE=1 THEN 6"1"ELSE 8"1") THEN        40757010        
+              GO TO USASIQ ELSE                       % STANDARD        40757020        
+         IF REAL(USYST,1)=0 THEN GO TO USASIQ ELSE    % SCRATCH         40758000        
+         IF REAL(USYST,1)=1 THEN                                        40759000        
+    BEGIN                                             % "USER" TAPE     40760000        
+         IF TAPETYPE=1 THEN                                             40761000        
+    BEGIN                                                               40762000        
+         REPLACE (PNMS~POINTER(NAMES,8))+1 BY UMFID FOR 17              40763000        
+              WITH BCLTOEBC[*];                                         40764000        
+         SCAN PNMU:PNMS+1 FOR N1:17 WHILE!8" "                          40765000        
+    END  ELSE                                                           40766000        
+         REPLACE PNMU:(PNMS~POINTER(NAMES,8))+1 BY UMFID FOR N1:17      40767000        
+              WHILE!8" ";                                               40768000        
+         REPLACE PNMS BY N1~17-N1 FOR 1 CORRECTLY;                      40769000        
+         IF REAL(UMFID,1)=(IF TAPETYPE=1 THEN 6"0"ELSE 4"00") THEN      40769010        
+              BEGIN N1~0;PNMU~PNMS END;                                 40769020        
+         PTPN~REAL(UVSN,6);                                             40770000        
+         %%%%% READ HDR1                                                40771000        
+         IF REAL(BOOLEAN(RSLT~WAITIO(LABELAREA,USAH,ERAH(UNEXP,0)       40772000        
+              ).RDERROR)AND BOOLEAN(3"376776"))!0 THEN                  40773000        
+              IF RSLT.RD432!0 THEN GO TO NOTREADY ELSE                  40774000        
+              IF TAPEPARITY THEN GO TO PARITYL ELSE GO TO NOTREADY;     40775000        
+         IF BOOLEAN(RSLT.RDWLOOREOF) THEN                               40776000        
+    BEGIN                                             % TAPE MARK       40777000        
+    BCKSPC:                                                             40778000        
+         LABELAREA[0]~0&IOCWSPACEL(,1,1);                               40779000        
+         IF BOOLEAN(RSLT~WAITIO(LABELAREA,USAH,ERAH(UNEXP,0))) THEN     40780000        
+              GO TO NOTREADY;                                           40781000        
+         GO TO USASIQ;                                                  40782000        
+    END;                                                                40783000        
+         IF REAL(PHDR1,4)!(IF TAPETYPE=1 THEN 6"HDR1" ELSE 8"HDR1") OR  40784000        
+              NOT(REAL(USYSL,6)IS(IF TAPETYPE=1 THEN 6" B6500" ELSE     40784010        
+              8" B6500")) THEN GO TO BCKSPC;                            40784020        
+         IF TAPETYPE=1 THEN                                             40785000        
+    BEGIN                                                               40786000        
+         REPLACE PNMU+1 BY UFID FOR 17 WITH BCLTOEBC[*];                40787000        
+         SCAN PNMU+1 FOR N2:17 WHILE!8" ";                              40788000        
+    END  ELSE                                                           40789000        
+         REPLACE PNMU+1 BY UFID FOR N2:17 WHILE!8" ";                   40790000        
+         REPLACE PNMU BY N2~17-N2 FOR 1 CORRECTLY;                      40791000        
+         IF BOOLEAN(WRTRNG) THEN                                        40792000        
+         IF INTEGER(UEDT,5){TODAYSDATE THEN GO TO SCRATCH ELSE%         40793000        
+         IF RETTOG AND LBLTP!0 THEN%                                    40794000        
+    BEGIN                                                               40795000        
+         RETMSG(UNT);%                                                  40795990        
+         RETMSG(UNT);%                                                  40796000        
+    END;                                                                40797000        
+         LABLOCK~*&ARRAYDESCL(0,7+(N1+N2+9)DIV 6,0);                    40800000        
+         REPLACE PNMU~POINTER(LABLOCK[7],8) BY 1 FOR 1 CORRECTLY,       40802000        
+              REAL(N1!0)+1 FOR 1 CORRECTLY,PNMS FOR N1+N2+2;            40803000        
+         UINFOP[U,*]~WORD(LABLOCK);                                     40803010        
+         LCNTRL~0&LEBCNTRL(5,3"30000",,1,,1,LBLTP,,UNT.UNITTYPE);       40804000        
+         LGEN1~0&GENEALOGY1(INTEGER(UGNRTN,4),INTEGER(UVRSN,2),         40805000        
+              1,INTEGER(URLNMBR,4));                                    40806000        
+         LGEN2~0&GENEALOGY2(,INTEGER(UCDT,5));                          40807000        
+         LMISC~0&LMISCL(INTEGER(UBCNT,6),INTEGER(URCNT,7));             40808000        
+         %%%%% HDR2                                                     40809000        
+         IF REAL(BOOLEAN(RSLT~WAITIO(LABELAREA,USAH,ERAH(UNEXP,0)       40810000        
+              ).RDERROR)AND BOOLEAN(3"376776"))!0 THEN                  40810050        
+    BEGIN                                                               40811000        
+    CMN:                                                                40812000        
+         FORGETSPACE(UINFOW[U].ADDRESSF);                               40813000        
+         IF RSLT.RD432!0 THEN GO TO NOTREADY ELSE                       40815000        
+              IF TAPEPARITY THEN GO TO PARITYL ELSE GO TO NOTREADY;     40816000        
+         GO TO BCKSPC;                                % PREMATURE TPMRK 40816010        
+    END;                                                                40817000        
+         IF REAL(PHDR2,4)!(IF TAPETYPE=1 THEN 6"HDR2" ELSE 8"HDR2")     40818000        
+              THEN GO TO CMN;                                           40818010        
+         LBLK1~0&BLOCKING1(RCRDFRMT,,,INTEGER(URL,5),INTEGER(UBL,5));   40819000        
+         LCNTRL.DENSITYL~DNSTY~REAL(UDNSTY,1)+4;                        40820000        
+         LCNTRL.LPARITY~PRTY~REAL(UPRTY,1);                             40821000        
+         LCNTRL.EXTFORML~REAL(UFORM,1);                                 40822000        
+         LBLK2.MINRECSZL~INTEGER(UMRL,5);                               40823000        
+         LCNTRL.FPRTCTD~REAL(INTEGER(UOFS,2)!0);                        40824000        
+         PUTUNT(0,0,1,0);                                               40825000        
+    END  ELSE                                                           40826000        
+         IF REAL(USYST,1)=2 THEN                      % SYSTEM TAPE     40827000        
+    BEGIN                                                               40828000        
+         IF NOT(REAL(UMFID,6)IS(IF TAPETYPE=1 THEN 6"SYSTEM" ELSE       40829000        
+              8"SYSTEM")) THEN GO TO USASIQ;                            40829010        
+         LBLTP~7;                                                       40830000        
+         GO TO BUSASI                                                   40831000        
+    END  ELSE                                                           40832000        
+         IF REAL(USYST,1)=3 THEN                      % BACKUP          40833000        
+    BEGIN                                                               40834000        
+         IF NOT(REAL(UMFID,6)IS(IF TAPETYPE=1 THEN 6"BACKUP" ELSE       40835000        
+              8"BACKUP")) THEN GO TO USASIQ;                            40835010        
+         LBLTP~6;                                                       40836000        
+                   PBTONMSG(UNT);%                                      40837000        
+         GO TO BUSASI                                                   40838000        
+    END  ELSE                                                           40839000        
+         % LIBRARY TAPE                                                 40839050        
+         ELSE                                         % NON B6500       40840000        
+         IF REAL(ULSL,1)=(IF TAPETYPE=1 THEN 6"1" ELSE 8"1") THEN       40840100        
+    BEGIN                                                               40840120        
+         PTPN~REAL(UVSN,6);                                             40840130        
+         IF REAL(BOOLEAN(RSLT~WAITIO(LABELAREA,USAH,ERAH(UNEXP,0)       40840140        
+              ).RDERROR)AND BOOLEAN(3"376776"))!0 THEN                  40840150        
+              IF RSLT.RD432!0 THEN GO TO NOTREADY ELSE                  40840160        
+              IF TAPEPARITY THEN GO TO PARITYL ELSE GO TO NOTREADY;     40840170        
+         IF BOOLEAN(RSLT.RDWLOOREOF)THEN GO TO BCKSPC;                  40840180        
+         IF REAL(PHDR1,4)!(IF TAPETYPE=1 THEN 6"HDR1"ELSE 8"HDR1") OR   40840190        
+              NOT(REAL(USYSL,6)IS(IF TAPETYPE=1 THEN 6"BUR   " ELSE     40840200        
+              8"BUR   ")) THEN GO TO BCKSPC;                            40840210        
+         %%%%% B3500 USASI LABEL                                        40840220        
+         IF TAPETYPE=1 THEN                                             40840230        
+    BEGIN                                                               40840240        
+         REPLACE (PNMS~POINTER(NAMES,8))+1 BY B35MFID FOR 6             40840250        
+              WITH BCLTOEBC[*];                                         40840260        
+         SCAN PNMU:PNMS+1 FOR N1:6 WHILE!8" ";                          40840270        
+         IF REAL(PNMS+1,1)=8"0"THEN BEGIN N1~6;PNMU~PNMS END;           40840280        
+         REPLACE PNMU+1 BY B35FID FOR 8 WITH BCLTOEBC[*];               40840290        
+         SCAN PNMU+1 FOR N2:8 WHILE!8" ";                               40840300        
+    END  ELSE                                                           40840310        
+    BEGIN                                                               40840320        
+         REPLACE PNMU:(PNMS~POINTER(NAMES,8))+1 BY B35MFID FOR N1:6     40840330        
+              WHILE ! 8" ";                                             40840340        
+         IF REAL(PNMS+1,1)=8"0"THEN BEGIN N1~6;PNMU~PNMS END;           40840350        
+         REPLACE PNMU+1 BY B35FID FOR N2:8 WHILE!8" ";                  40840360        
+    END;;                                                               40840370        
+         REPLACE PNMS BY N1~6-N1 FOR 1 CORRECTLY;                       40840380        
+         REPLACE PNMU BY N2~8-N2 FOR 1 CORRECTLY;                       40840390        
+         IF BOOLEAN(WRTRNG)THEN                                         40840400        
+         IF INTEGER(UEDT,5){TODAYSDATE THEN GO TO SCRATCH ELSE          40840410        
+         IF RETTOG THEN%                                                40840420        
+    BEGIN                                                               40840430        
+         RETMSG(UNT);%                                                  40840440        
+    END;                                                                40840450        
+         LABLOCK~*&ARRAYDESCL(0,5+(N1+N2+9)DIV 6,0);                    40840460        
+         REPLACE PNMU~POINTER(LABLOCK[5],8) BY 1 FOR 1 CORRECTLY,       40840470        
+              REAL(N1!0)+1 FOR 1 CORRECTLY,PNMS FOR N1+N2+2;            40840480        
+         UINFOP[U,*]~WORD(LABLOCK);                                     40840490        
+         LCNTRL~0&LEBCNTRL(5,,,1,DNSTY+4,1,4,,UNT.UNITTYPE);            40840500        
+    % RECHECK                                                           40840505        
+         LGEN1~0&GENEALOGY1(INTEGER(UGNRTN,4),INTEGER(UVRSN,2),         40840510        
+              1,INTEGER(URLNMBR,4));                                    40840520        
+         LGEN2~0&GENEALOGY2(,INTEGER(UCDT,5));                          40840530        
+         LMISC~0&LMISCL(INTEGER(UBCNT,6),INTEGER(URCNT,7));             40840540        
+    END  ELSE                                                           40840550        
+         ELSE                                                           40841000        
+    BEGIN                                             % NON-USASI       40842000        
+    USASIQ:                                                             40843000        
+         T~REAL(PVOL1,8);                                               40843010        
+         PUTUNT(0,1,0,1);                                               40844000        
+         GETOLDS;                                                       40845000        
+         LABELAREA[0]~0&IOCWL(TAPEREWIND,0);                            40846000        
+         IF REAL(BOOLEAN(RSLT~WAITIO(LABELAREA,USAH,ERAH(UNEXP,4"4101") 40847000        
+              ).RDERROR)AND BOOLEAN(4"1BEFE"))!0 THEN GO TO NOTREADY;   40848000        
+    END                                                                 40849000        
+         ELSE                                         % TAPETYPE 1      40850000        
+         IF PVOL1~POINTER(LABELAREA[1],6)=6"VOL1"THEN % USASI           40851000        
+              GO TO BUSASI                                              40852000        
+         ELSE                                         % NON USASI       40853000        
+         IF PVOL1=6" LABEL " THEN                     % B5500 LABEL     40854000        
+    BEGIN                                                               40855000        
+         PTPN~REAL(LVSN,5);                                             40855010        
+         IF LFID=6"FILE000"THEN LBLTP~11 ELSE                           40856000        
+         IF LMFID=6"X0X0X0X" OR LFID=6"      X"THEN GO TO ASCRATCH ELSE 40856010        
+         IF LMFID=6"PBTMCP "AND LFID=6"BACK-UP"THEN LBLTP~10;           40857000        
+         IF BOOLEAN(WRTRNG) THEN                                        40858000        
+         IF INTEGER(LEDT,5){TODAYSDATE AND LBLTP=0 THEN GO SCRATCH ELSE 40859000        
+         IF RETTOG OR LBLTP!0 THEN%                                     40860000        
+    BEGIN                                                               40861000        
+         RETMSG(UNT);%                                                  40862000        
+    END;                                                                40863000        
+         REPLACE (PNMS~POINTER(NAMES,8))+1 BY LMFID FOR 7               40864000        
+              WITH BCLTOEBC[*];                                         40865000        
+         SCAN PNMU:PNMS+1 FOR N1:7 WHILE!8" ";                          40866000        
+         REPLACE PNMS BY N1~7-N1 FOR 1 CORRECTLY;                       40867000        
+         IF REAL(LMFID,7)=0 THEN BEGIN PNMU~PNMS;N1~0 END;              40867010        
+         REPLACE PNMU+1 BY LFID FOR 7 WITH BCLTOEBC[*];                 40868000        
+         SCAN PNMU+1 FOR N2:7 WHILE!8" ";                               40869000        
+         REPLACE PNMU BY N2~7-N2 FOR 1 CORRECTLY;                       40870000        
+         LABLOCK~*&ARRAYDESCL(0,5+(N1+N2+9)DIV 6,0);                    40871000        
+         REPLACE PNMU~POINTER(LABLOCK[5],8) BY 1 FOR 1 CORRECTLY,       40873000        
+              REAL(N1!0)+1 FOR 1 CORRECTLY,PNMS FOR N1+N2+2;            40874000        
+         UINFOP[U,*]~WORD(LABLOCK);                                     40874010        
+         LCNTRL~0&LEBCNTRL(5,,PRTY,1,DNSTY+4,1,2,2,UNT.UNITTYPE);       40875000        
+    % RECHECK                                                           40875010        
+         LGEN1~0&GENEALOGY1(INTEGER(LCYCLE,2),,1,INTEGER(LREEL,3));     40876000        
+         LGEN2~0&GENEALOGY2(,INTEGER(LCDT,5));                          40877000        
+         LMISC~0&LMISCL(INTEGER(LBCNT,5),INTEGER(LRCNT,7));             40878000        
+         IF T!0 THEN                                                    40878010        
+    BEGIN                                             % USERS PORTION   40878020        
+         LMISC~SET(LMISC,46);                                           40878030        
+         LMISC.BCNTL~T;                                                 40878040        
+    END;                                                                40878050        
+         PUTUNT(0,0,1,0);                                               40879000        
+    END                                                                 40880000        
+         ELSE GO TO USASIQ;                                             40881000        
+    WRAPUP:                                                             40882000        
+         DIVORCEMOM(LABLOCK);                                           40882010        
+         CAUSE(FINDINPUTEVENT);                                         40882015        
+         WHILE BOOLEAN(T~READLOCK(1,RDLBLP)) DO;                        40883000        
+         BITNO~LINFO.PNO;                                               40884000        
+         RDLBLP~T&BITSETL(0);                                           40885000        
+END READALABEL;                                                         40886000        
+PROCEDURE PURGIT(U);VALUE U;REAL U;                                     40887000        
+BEGIN    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%40888000        
+         % PURGIT PURGES TAPES.  IT IS CALLED FROM KEYIN OR STATUS.    %40889000        
+         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%40890000        
+    REAL      UNT,                                                      40891000        
+              T,                                                        40892000        
+              RSLT,                                                     40893000        
+              BITNO,                                                    40894000        
+              BITWORD,                                                  40895000        
+              VECTORNO,                                                 40896000        
+              PTPN;                                                     40897000        
+    LABEL     STRT,NOTREADY,PARITYL,WRAPUP;                             40898000        
+    ARRAY     LABELAREA[IF SCHANNEL THEN 11 ELSE 15];                   40899000        
+    BOOLEAN   OLDSTATUS;                                                40900000        
+    LAYOUT    BITSETL(BITNO:1~1);                                       40901000        
+    STRT:                                                               40902000        
+         VECTORNO~U.DIV32F;                                             40903000        
+         BITNO~U.MOD32F+1;                                              40904000        
+         BITWORD~0&BITSETL();                                           40905000        
+         GETUNT;                                                        40906000        
+         UNT.UNITASSIGNED~1;                                            40907000        
+         UNIT[U]~UNT;                                                   40908000        
+         IF PTPN~(IF BOOLEAN(UNT.ULABELLED)THEN LGEN2.SERIALN ELSE      40909000        
+              UINFO[U])=0 THEN;                                         40910000        
+         % MESSAGE FOR SERIAL NUMBER                                    40911000        
+         LABELAREA[0]~0&IOCWL(TAPEREWIND,0);                            40912000        
+         PUTUNT(1,0,2,1);                                               40913000        
+         IF BOOLEAN(RSLT~WAITIO(LABELAREA,USAH,ERAH(UNEXP,0))) THEN     40914000        
+    BEGIN                                                               40915000        
+    NOTREADY:                                                           40916000        
+         PUTUNT(1,1,0,0);                                               40917000        
+         GETOLDS;                                                       40918000        
+         % UNIT FAILURE                                                 40919000        
+         % WRITE TROUBLE LOG                                            40920000        
+         GO TO WRAPUP                                                   40921000        
+    END  ELSE                                                           40922000        
+         IF SCHANNEL THEN REPLACE POINTER(LABELAREA[1],6) BY            40923000        
+              6"VOL1",PTPN FOR 6 DIGITS,6"0X0X0X0X"FOR 18,6"650",       40924000        
+              6" "FOR 48,6"0"                                           40925000        
+         ELSE REPLACE POINTER(LABELAREA[1],8) BY                        40926000        
+              8"VOL1",PTPN FOR 6 DIGITS,8"0X0X0X"FOR 18,8"650",         40927000        
+              8" "FOR 48,8"0";                                          40928000        
+         LABELAREA[0]~0&TAPEIOCWL(,,REAL(NCHANNEL),,1);                 40929000        
+         IF BOOLEAN(RSLT~WAITIO(LABELAREA,USAH,ERAH(UNEXP,0))) THEN     40931000        
+         IF RSLT.RD432!0 THEN GO TO NOTREADY ELSE                       40932000        
+         IF TAPEPARITY THEN                                             40933000        
+    BEGIN                                                               40934000        
+    PARITYL:                                                            40935000        
+         PARITYRWLMSG(UNT);%                                            40936000        
+         PUTUNT(1,1,0,0);                                               40937000        
+         GETOLDS;                                                       40938000        
+         GO TO WRAPUP;                                                  40939000        
+    END ELSE                                                            40940000        
+         GO TO NOTREADY;                                                40941000        
+         LABELAREA[0]~0&IOCWTAPEL(REAL(SIMULATING)-2,,,1); % TAPE MARK  40942000        
+         IF BOOLEAN(RSLT~WAITIO(LABELAREA,USAH,ERAH(UNEXP,0))) THEN     40943000        
+              GO TO NOTREADY;                                           40944000        
+         LABELAREA[0]~0&IOCWL(TAPEREWIND,0);                            40945000        
+         PUTUNT(1,0,4,1);                                               40946000        
+         IF UINFOW[U].TAG!0 THEN FORGETSPACE(UINFOW[U].ADDRESSF);       40947000        
+         UINFOW[U]~PTPN;                                                40948000        
+         IF BOOLEAN(RSLT~WAITIO(LABELAREA,USAH,ERAH(UNEXP,0))) THEN     40949000        
+              GO TO NOTREADY;                                           40950000        
+    WRAPUP:                                                             40951000        
+         WHILE BOOLEAN(T~READLOCK(1,PRGT)) DO;                          40952000        
+         IF PRGT~T-2>0 THEN                                             40953000        
+         IF U~MASKSEARCH(@1400,@207067400,UNIT)}0 THEN GO TO STRT;      40954000        
+         WHILE BOOLEAN(T~READLOCK(1,PRGT)) DO;                          40955000        
+         PRGT~0;                                                        40956000        
+END PURGIT;                                                             40957000        
+                                                                        40958000        
+REAL PROCEDURE SPACEOF(IOCW);VALUE IOCW;REAL IOCW;                      40959000        
+BEGIN                                                                   40960000        
+    ARRAY     LABELAREA[5];                                             40961000        
+    REAL      RSLT,                                                     40962000        
+              U~IOCW.UNITNUM;                                           40963000        
+         LABELAREA[0]~IOCW&IOCWL(TAPESPACE);                            40964000        
+         WHILE REAL(BOOLEAN(RSLT~WAITIO(LABELAREA,USAH,                 40965000        
+              ERAH(UNEXP,4"E81")).RDERROR)AND BOOLEAN(3"377776"))=0 DO; 40966000        
+         SPACEOF~IF RSLT IS 4"E81"OR RSLT IS 4"201"THEN 0 ELSE RSLT;    40967000        
+END SPACEOF;                                                            40968000        
+PROCEDURE CLOSERR(RSLT,U);VALUE RSLT,U;REAL RSLT,U;                     40969000        
+BEGIN                                                                   40970000        
+    BOOLEAN   OLDSTATUS;                                                40971000        
+    REAL                                                                40972000        
+              CLOSERROR,                                                40973000        
+              VECTORNO~U.DIV32F,                                        40974000        
+              BITWORD,                                                  40975000        
+              BITNO~U.MOD32F+1,                                         40976000        
+              UNT;                                                      40977000        
+    LAYOUT    BITSETL(BITNO:1~1);                                       40978000        
+    MONITOR   BOBMONITOR(CLOSERROR,U);                                  40979000        
+         CLOSERROR~*;                                                   40980000        
+         U~*;                                                           40981000        
+         BITWORD~0&BITSETL();                                           40982000        
+         PUTUNT(1,1,0,0);                                               40983000        
+         GETOLDS;                                                       40984000        
+         PARITYRWLMSG(U);                                               40985000        
+END CLOSERR;                                                            40986000        
+PROCEDURE LIBMAIN(MFID);VALUE MFID;POINTER MFID;                        40987000        
+BEGIN                                                                   40988000        
+    ARRAY     DHEADER[31],                                              40989000        
+              TAPEBLOCK[905],                                           40990000        
+              LEB[9];                                                   40991000        
+    LABEL     XIT;                                                      40992000        
+    REAL                                                                40993000        
+              UNT,                                                      40994000        
+              RSLT,                                                     40995000        
+              DISKADDRESS~DISKFILEHEADERS[0,10],                        40996000        
+              FRSLT,                                                    40997000        
+              FINDWORD,                                                 40998000        
+              IOCW,                                                     40999000        
+              U;                                                        41000000        
+    MONITOR   BOBMONITOR(U,RSLT,DISKADDRESS);                           41001000        
+         LEBC.FXD~1;                                                    41002000        
+         REPLACE POINTER(LEB[5],8) BY                                   41003000        
+              1 FOR 1 CORRECTLY,                                        41005000        
+              2 FOR 1 CORRECTLY,                                        41006000        
+              MFID+2 FOR REAL(MFID+2,1)+1,                              41007000        
+              7 FOR 1 CORRECTLY,                                        41008000        
+              8"FILE000";                                               41008100        
+         U~17;                                                          41009000        
+% KLUDGE                                                                41009100        
+         IF FRSLT~FINDWORD.REPVALF=OFV THEN GO TO XIT;                  41010000        
+         GETUNT;                                                        41011000        
+         UNIT[U]~UNT&UNITL(0,0,3,0);                                    41011100        
+         IF NOT MAGTAPE(UNT.UNITTYPE)THEN IOTERMINATE;                  41012000        
+         IOCW~0&TAPEIOCWL(1,0,0,5,1);                                   41013000        
+         IOCW.UNITNUM~U;                                                41013100        
+         THRU 3 DO IF BOOLEAN(RSLT~SPACEOF(IOCW))THEN                   41014000        
+              BEGIN CLOSERR(RSLT,U); GO TO XIT END;                     41015000        
+         DHEADER[0]~IOCW;                                               41016000        
+         IF BOOLEAN(RSLT~WAITIO(DHEADER,USAH,ERAH(UNEXP,4"401")))THEN   41017000        
+         IF NOT(RSLT.RDERROR IS 4"401")THEN                             41017010        
+              BEGIN CLOSERR(RSLT,U);GO TO XIT END;                      41018000        
+         WHILE TRUE DO                                                  41021000        
+    BEGIN                                                               41022000        
+         TAPEBLOCK[0]~IOCW;                                             41023000        
+         IF REAL(BOOLEAN((RSLT~WAITIO(TAPEBLOCK,USAH,ERAH(UNEXP,3"3001")41024000        
+              )).RDERROR) AND BOOLEAN(3"374776"))!0 THEN                41025000        
+              BEGIN CLOSERR(RSLT,U);GO XIT END;                         41026000        
+         IF BOOLEAN(RSLT.RDWLOOREOF)THEN GO TO XIT;                     41027000        
+         DISKWAIT(                                                      41028000        
+              TAPEBLOCK                                                 41029000        
+              ,0                                                        41030000        
+              ,FRSLT~IF BOOLEAN(RSLT.RDINCREC)THEN RSLT.WORDCOUNTF ELSE 41031000        
+                   900                                                  41032000        
+              , DISKADDRESS                                             41033000        
+              ,DISKWRITE                                                41034000        
+              );                                                        41035000        
+         DISKADDRESS~*+FRSLT DIV 30;                                    41036000        
+    END;                                                                41037000        
+    XIT:                                                                41038000        
+         GETUNT;                                                        41038050        
+         UNT.UNITASSIGNED~0;                                            41038100        
+         UNIT[U]~UNT;                                                   41038200        
+         STOP;                                                          41039000        
+END LIBMAIN;                                                            41040000        
+%             START OF KEYIN AND ASSOCIATED PROCEDURES                  44000000        
+SAVE REAL PROCEDURE DELTA(P1,P2); VALUE P1,P2; WORD P1,P2;              44000100        
+    BEGIN                                                               44000110        
+    REAL S;                                                             44000120        
+DEFINE DEFAULT =8#;                                                     44000125        
+    IF S~P1.SZF=P2.SZF THEN                                             44000130        
+         DELTA~(S~(IF S=0 THEN DEFAULT ELSE 48/(S|2)))                  44000140        
+                 | (P2.INDEXSTF-P1.INDEXSTF)+P2.BYTEF-P1.BYTEF;         44000150        
+    END DELTA;                                                          44000160        
+SAVE     PROCEDURE BILDCDEFID(FIDREF,P);VALUE FIDREF; REFERENCE FIDREF; 44000200        
+                                        POINTER P;%                     44000210        
+    BEGIN                                                               44000220        
+    ARRAY     CDEFIDAREA = FIDREF[*];%                                  44000230        
+    INTEGER   I~3, FIDS;%                                               44000240        
+    POINTER   T~P;%                                                     44000250        
+    DEFINE%                                                             44000300        
+         BILDCDEFIDPOINTER= FIDREF~*&STRINGDESCRIPTOR(*,,,*,,,EBCDIC,   44000310        
+                                  ,FIDREF.ADDRESSF+KFPSCRATCHWORDSZ)#,  44000312        
+         NUMBEROFIDS  = REAL(POINTER(CDEFIDAREA[1],*),1)#,%             44000320        
+         NUMBEROFNAMES= REAL(POINTER(CDEFIDAREA[2],*),1)#,%             44000330        
+         NUMBEROFCHRS = REAL(POINTER(CDEFIDAREA[I],*),1)#,%             44000340        
+         ANAME=POINTER(CDEFIDAREA[I+1],*)FOR NUMBEROFCHRS, SLASH#,      44000350        
+    ENDBCFDEF=0#;%                                                      44000390        
+         BILDCDEFIDPOINTER;%                                            44000400        
+         IF FIDS~NUMBEROFIDS=1 THEN%                                    44000410        
+              THRU NUMBEROFNAMES DO%                                    44000420        
+                   BEGIN%                                               44000430        
+                   REPLACE T:T BY ANAME;%                               44000440        
+                   I~*+NUMBEROFCHRS+1;%                                 44000450        
+                   END ELSE%                                            44000460        
+              REPLACE T:T BY FIDS FOR 3 DIGITS,8" FILE IDENTIFIERS. ";  44000470        
+         P~T-1;%                                                        44000480        
+    END BILDCDEFID;%                                                    44000490        
+         PROCEDURE JOBMESSER(STKNO,POINTTOBUF); VALUE STKNO;%           44000500        
+                             INTEGER STKNO; POINTER POINTTOBUF;%        44000510        
+    BEGIN%                                                              44000520        
+    POINTER P~POINTTOBUF;%                                              44000535        
+    REFERENCE FIDREF;%                                                  44000550        
+    REAL X,   Y;%                                                       44000560        
+    DEFINE%                                                             44000600        
+         COMPILER = 8"CMPLR "#,%                                        44000630        
+         CORE= COLON, PERCENTAGE(X)#,%                                  44000640        
+         PROCTIME= COLON, PERCENTAGE(Y)#,%                              44000650        
+         GETCORE= X~(STACK[STKNO,COREPLACE]/MEMMAX)|1000#,%             44000660        
+         GETPROCTIME= Y~STACK[STKNO,PROCTIMEPLACE]/(TIMECORRFACT|60)#,  44000670        
+         CFND= MYCODEFILENAME(STKNO)#,%                                 44000680        
+         PRIORITY = AT, STACK[STKNO,PRIORITYPLACE] FOR 2 DIGITS#,       44000710        
+         JOBIDENT = STKNO FOR 4 DIGITS, BLANK#,%                        44000720        
+         STATUS = BLANK FOR STATUSSZ#,%                                 44000730        
+     ENDJOBMESSDEF=0#;%                                                 44000790        
+         FIDREF~CFND;%                                                  44000800        
+         REPLACE P:P BY HOME, JOBIDENT, COMPILER;%                      44000850        
+         BILDCDEFID(FIDREF,P);%                                         44000860        
+                   GETCORE;%                                            44000930        
+                   GETPROCTIME;%                                        44000940        
+         REPLACE P:P BY PRIORITY, CORE, PROCTIME, STATUS, ETX;%         44000950        
+         POINTTOBUF~P;%                                                 44000980        
+     END JOBMESSER;%                                                    44000990        
+REAL     PROCEDURE GETUNITNUM(UNITMNEM,UNITNUM);VALUE UNITMNEM,UNITNUM; 44001000        
+         REAL UNITMNEM, UNITNUM;                                        44002000        
+    BEGIN                                                               44003000        
+    REAL I;                                                             44004000        
+    LABEL XIT                                                          ;44005000        
+    REAL Q;                                                             44006000        
+    Q ~ MNEMLIM | MNEMSZ;                                               44007000        
+         IF ABS(UNITNUM)>MAXUNIT THEN ELSE                              44008000        
+         FOR I ~ 0 STEP MNEMSZ UNTIL Q DO                               44009000        
+         IF REAL(POINTER(MNEMONIC[I],*),MNEMSZ)=UNITMNEM THEN           44010000        
+         IF UNIT[I~UNITBL[TI(I/MNEMSZ),UNITNUM]].UNITTYPECNTRF=         44011000        
+                                                           UNITNUM THEN 44012000        
+              BEGIN                                                     44013000        
+              GETUNITNUM~I;                                             44014000        
+              GO TO XIT;                                                44015000        
+              END ELSE                                                  44016000        
+              I~Q;                                                      44017000        
+         GETUNITNUM~-UNITNUM;                                           44018000        
+XIT:                                                                    44019000        
+    END GETUNITNUM;                                                     44020000        
+         PROCEDURE MIXUPDATE;%                                          44021000        
+    BEGIN%                                                              44022000        
+    ARRAY     TMPBUF[*];%                                               44023000        
+    REFERENCE PREVLASTITEM,%                                            44023200        
+              TMPENTRY~NULL;%                                           44023300        
+    BOOLEAN   BLANKPIC~MIXQHD=NULL;%                                    44023400        
+    POINTER   LINE;%                                                    44023500        
+    INTEGER   I,%                                                       44023700        
+              LINENO;%                                                  44023800        
+    DEFINE%                                                             44024000        
+                                                                        44024001        
+    ENDMIXUPDEF=0#;%                                                    44024990        
+         FOR I~0 STEP 1 UNTIL MAXSTACKS DO%                             44026000        
+              IF USINGSTACK(I) THEN%                                    44026100        
+                   IF D2STACKIS(I) THEN%                                44026200        
+                        IF MCPNOTUSINGSTACK(I) THEN%                    44026300        
+                             BEGIN%                                     44026400        
+                             TMPENTRY~JOBREF(I);%                       44026500        
+                             LINE~POINTER((TMPBUF~LNBUF@TMPENTRY)[1],8);44026600        
+                             IF HAVENTSUSPENDED(I) THEN%                44026700        
+                                  BEGIN%                                44026800        
+                                  JOBMESSER(LNID@TMPENTRY,LINE);%       44026900        
+                                  END;%                                 44027000        
+                             LINENO~LINENO+1;%                          44027100        
+                             LNDESC@(TMPENTRY)~CURRENTIMAGE(%           44027200        
+                                  LINENO MOD MAXLNS,LINENO DIV MAXLNS); 44027300        
+                             INSERT(MIXQ(TMPENTRY));%                   44027400        
+                             END%                                       44027800        
+                        ELSE%                                           44027900        
+                   ELSE BEGIN%                                          44028000        
+                        END;%                                           44028200        
+         IF BLANKPIC THEN    ELSE REARRANGE(MIXQ(PREVLASTITEM));%       44032000        
+    END  MIXUPDATE;%                                                    44034000        
+         PROCEDURE FILEMESS(IOCB,UNITNO);VALUE UNITNO;REAL UNITNO;      44035000        
+                                         REFERENCE IOCB;                44036000        
+    BEGIN                                                               44037000        
+    REAL      U, UE,  I;%                                               44038000        
+    ARRAY     UI[*]; WORD UINFOREF=UI;%                                 44038100        
+    WORD      FIDREF;%                                                  44038200        
+    ARRAY     MSGAREA[*];REFERENCE MSGAREAREF=MSGAREA;%                 44039000        
+    POINTER   SPAM;%                                                    44040000        
+    DEFINE%                                                             44041000        
+         LSTB= 44#,%         LEAST SIGNIFICANT TEST BIT                 44042000        
+         UNOTREADY= U.UNITNOTREADY#,%                                   44043000        
+         NOTREADY=  8" NOT READY"#,%                                    44044000        
+         UINUSE= BOOLEAN(U.UNITASSIGNED)#,%                             44045000        
+         INUSE= 8"I"#,%                                                 44046000        
+         REELNO= UI[GENEALOGY1].REEL FOR 3 DIGITS#,%                    44048000        
+         GENEALOGY1= 1#,%                                               44048100        
+         UNITLABELED= U.ULABELLED#,%                                    44049000        
+         LABELED=     8" "#,%                                           44050000        
+         UNITSCRATCH= U.USCRATCH#,%                                     44051000        
+         SCRATCH=     8" SCRATCH"#,%                                    44052000        
+         URWORLOCK= REAL(BOOLEAN(U.UINREWIND) OR BOOLEAN(U.ULOCKED))#,  44053000        
+         RWORLOCK=  8"RW/L"#,%                                          44054000        
+         MIX= SNR FOR 4 DIGITS#,%                                       44055000        
+    ENDFILMESDEF=0#;%                                                   44060000        
+         MSGAREAREF~ KBUF @ IOCB;                                       44061000        
+    U~UNIT[UNITNO];                                                     44062000        
+         UINFOREF~UINFO[UNITNO];%                                       44065000        
+         FIDREF~0&ARRAYDESCL(3,UINFOREF.LENGTHF-(I~((I~UI[0].FXD)       44065100        
+              -ONES(I.OPTMASK)+KFPSCRATCHWORDSZ)),UINFOREF.ADDRESSF+1); 44065102        
+    REPLACE SPAM:POINTTOMSGAREA BY HOME,                                44066000        
+         POINTER(MNEMONIC[(U.UNITTYPE)|MNEMSZ],*) FOR MNEMSZ,           44067000        
+         UE.UNITTYPECNTRF FOR 3 DIGITS;                                 44068000        
+         I~0&BITL(%                                                     44069000        
+                   UNOTREADY,                                           44070000        
+                   URWORLOCK,                                           44071000        
+                   UNITSCRATCH,                                         44072000        
+                   UNITLABELED,                                         44073000        
+         );%  THIS TAKES UP SLACK FROM LSTB TO ZERO                     44074000        
+    CASE (IF I~FIRSTONE(I)-LSTB>0 THEN I ELSE 0) OF                     44076000        
+         BEGIN% CASES                                                   44077000        
+         ;% TEST RESULTED IN ALL ZERO -- SHOULD NEVER HAPPEN            44078000        
+                                                                        44079000        
+              BEGIN% UNITLABELED                                        44085000        
+              BILDCDEFID(FIDREF,SPAM);%                                 44086000        
+              REPLACE SPAM:SPAM BY REELNO;%                             44086100        
+              IF UINUSE THEN REPLACE SPAM:SPAM BY MIX;%                 44087000        
+              END;                                                      44088000        
+              REPLACE SPAM:SPAM BY SCRATCH;                             44089000        
+              REPLACE SPAM:SPAM BY RWORLOCK;                            44090000        
+              REPLACE SPAM:SPAM BY NOTREADY;                            44091000        
+    END CASE;                                                           44092000        
+    REPLACE SPAM:SPAM BY ETX;                                           44093000        
+    SPOUT(IOCB,DISPLAYONPER);                                           44094000        
+    END FILEMESS;                                                       44095000        
+          PROCEDURE KEYIN(COUNT); REAL COUNT;                           44096000        
+    BEGIN                                                               44097000        
+    REFERENCE IOCB;                                                     44098000        
+    POINTER P;                                                          44099000        
+    INTEGER I,J,K,N;                                                    44100000        
+INTEGER   MSGSZ,                                                        44101000        
+         POPIN,    DEATHS,%                                             44101100        
+          ALIM,     BLIM,                                               44102000        
+          PRESZ,    SUFSZ;                                              44103000        
+INTEGER  PREFIX,   SUFFIX;                                              44104000        
+    ARRAY MSGAREA[*];                                                   44105000        
+WORD ARRAY BUFFO[*];                                                    44106000        
+    EVENT     REPEVNT;  WORD      REPEVNTWRD = REPEVNT;                 44106100        
+    REAL RSDS;                                                          44107000        
+    REAL CONNO;                                                         44108000        
+    INTEGER    BITWORD,  REPWRD;                                        44109000        
+    BOOLEAN   SPOED;%                                                   44109100        
+    REAL TMPTRAC;                                                       44110000        
+REFERENCE     MSGAREAREF=MSGAREA;                                       44111000        
+    LAYOUT    SCANL(TYPF=47:2,SYZF=39:FIRSTONE(LINESZ),CHRF=7:8);       44112000        
+LABEL    IL,FM,UL,OU,FR,OHF,RM,TI,DS,ST,PR,XS,OK,ES,US,AX;              44113000        
+LABEL    OL,RY,PG,PB,SV,RW,CL                                          ;44114000        
+LABEL    TF,LD,RN,RD,SF,SO,RO,TOH,TR,DR,WT,WD,WM,PI,EI,LE,TC           ;44115000        
+LABEL QTOP, CAUZIT, CHECKB, ENDOFMSG, SPOUTIT, ANSREPLY;%               44115100        
+    DEFINE                                                              44116000        
+         PIMSG=HOME,8"PI=",POINTER(PIE,8) FOR MAXMSGSZ,LINEERASE,ETX#,  44117000        
+         EIMSG= BACKSPACE,BACKSPACE,8" EIO",LINEERASE,ETX#,%            44118000        
+         CHECKUMNEM= I~GETUNITNUM(REAL(P,MNEMSZ),                       44119000        
+                                  INTEGER(P+MNEMSZ,SUFSZ-MNEMSZ))<0#,   44120000        
+         CHCKANS= IF CHECKUMNEM THEN BEGIN INVKBD; GO TO ENDOFMSG;END;  44120100        
+                   REPWRD.REPINFOF~I;GO TO ANSREPLY#,%                  44120102        
+         SHIFTBUF=BUFFO~BUFFO&ARRAYDESCL(3,IOCB.LENGTHF-IOCBSIZE,       44121000        
+                                           IOCB.ADDRESSF+IOCBSIZE);     44122000        
+                  KBUF @(IOCB)~REFERENCE(BUFFO)#,                       44123000        
+         POINTTOBUFFO= POINTER(BUFFO[1],BYTESZ)#,                       44124000        
+         PNSSZ=    7#,%                  NUMBER OF PREFIX NO SUFFIX     44125000        
+         PSSZ=     9#,%                            PREFIX AND SUFFIX    44125010        
+         NPSSZ=   17#,%                            SUFFIX NO PREFIX     44125020        
+         NPNSSZ=  10#,%                            NO PREFIX NO SUFFIX  44125030        
+         NPSORNSSZ= 2#,%                           SUFFIX OR NO SUFFIX  44125040        
+         TPNS=     0#,%                     TOP OF PREFIX NO SUFFIX     44126000        
+         TPS=  BPNS+DICBSZ#,%                      PREFIX AND SUFFIX    44126010        
+         TNPS= BPS+DICBSZ#,%                       SUFFIX NO PREFIX     44126020        
+         TNPNS= BNPS-DICBSZ|NPSORNSSZ#,%           NO PREFIX NO SUFFIX  44126030        
+         BPNS= DICBSZ|(PNSSZ-1)#,%       BOTTOM OF PREFIX NO SUFFIX     44127000        
+         BPS=  TPS+DICBSZ|(PSSZ-1)#,%              PREFIX AND SUFFIX    44127010        
+         BNPS= TNPS+DICBSZ|(NPSSZ-1)#,%            SUFFIX NO PREFIX     44127020        
+         BNPNS= TNPNS+DICBSZ|(NPNSSZ-1)#,%         NO PREFIX NO SUFFIX  44127030        
+         MINREPCDE= 6#,                                                 44132100        
+         MAXREPCDE= 16#,%                                               44132110        
+         STKNUM= PREFIX#,                                               44132200        
+         SETTIME=                                                       44132300        
+COMMENT       PREFIX~TIMEOFDAY-TIMEBASE     WAIT FOR TOM                44132320        
+              TIMEBASE~-1;%                                             44132330        
+              SCANOUT(I~(K+J|60+I|3600)|TIMECORRFACT,TIMEOFDAYWORD);    44132340        
+COMMENT       TIMEBASE~I-PREFIX        **** WAIT FOR TOM ALSO; #,       44132360        
+         SCNUNTEQ(DELIM,LIM)= SCAN P FOR N:LIM UNTIL = DELIM#,          44133000        
+         NORPLYREQD= HAPPENED(REPEVNT) OR%                              44133100        
+                        NOT BOOLEAN(REPLY[STKNUM].[I:1])#,%             44133110        
+         ALF= 2#,%                                                      44133300        
+         SPC= 1#,%                                                      44133310        
+         NUM= 0#,%                                                      44133320        
+    ENDKEYINDEFINES=0#;                                                 44134000        
+    SAVE PROCEDURE INVKBD;                                              44135000        
+    BEGIN                                                               44136000        
+DEFINE                                                                  44137000        
+         INVKBDM=8"INV KBD "#,%                                         44138000        
+D=0#;                                                                   44139000        
+         SHIFTBUF;                                                      44140000        
+         REPLACE POINTTOBUFFO BY INVKBDM,                               44141000        
+                      POINTTOMSGAREA FOR MSGSZ,                         44142000        
+                      ETX;                                              44143000        
+         SPOUT(IOCB,DISPLAYONKEYER);                                    44144000        
+         SPOED~TRUE;%                                                   44144100        
+       EXIT;%                                                           44144900        
+    END INVKBD;%                                                        44144990        
+SAVE REAL PROCEDURE SCANKY(PP,C); INTEGER C; POINTER PP;%               44145000        
+         BEGIN%                                                         44145010        
+         REAL      I;%                                                  44145020        
+         DOUBLE    D;%                                                  44145030        
+         POINTER P~PP;%      KLUDGE UNTIL POINTER UPDATE FIXED          44145040        
+         DEFINE                                                         44145050        
+              ERROR= 0&SCANL(3)#,%                                      44145060        
+              TYPEANDSIZE=   0&SCANL(ALF,C-I)#,%                        44145070        
+              TYPESIZEAND1CHR= REAL(P-I,1)&SCANL(SPC,I)#,%              44145080        
+         SCNDEFEND=0#;%                                                 44145090        
+    IF C=0 THEN RETURN(0&SCANL(SPC,1,ETX));%                            44145092        
+    SCAN P:P FOR C:C WHILE=BLANK;%                                      44145095        
+    SCAN P FOR I:C WHILE IN EBCDICNUMERIC;%                             44145100        
+    IF I<C THEN%                                                        44145200        
+         BEGIN%                                                         44145210        
+         SCAN P:P FOR I:C-(C~I)-1 WHILE = ZERO;%                        44145220        
+         IF I<12 THEN%                                                  44145230        
+         IF D~DOUBLE(P,I~I+1){MAXNO THEN%                               44145240        
+              BEGIN%                                                    44145250        
+              P~P+I;    PP~P;%                                          44145260        
+              RETURN(D);%                                               44145270        
+              END;%                                                     44145280        
+         END%                                                           44145290        
+    ELSE BEGIN%                                                         44145300        
+         SCAN P FOR I:C WHILE IN EBCDICALPHABETIC;%                     44145310        
+         IF I<C THEN%                                                   44145320        
+              BEGIN%                                                    44145330        
+              PP~P;%                                                    44145340        
+              RETURN(TYPEANDSIZE);%                                     44145350        
+              END%                                                      44145390        
+         ELSE BEGIN%                                                    44145400        
+              SCAN P FOR I:C WHILE IN EBCDICSPECIALS;%                  44145410        
+              IF I<C THEN%                                              44145420        
+                   BEGIN%                                               44145430        
+                   P~P+I~(C-(C~I));%                                    44145440        
+                   PP~P;%                                               44145450        
+                   RETURN(TYPESIZEAND1CHR);%                            44145480        
+                   END;%                                                44145490        
+              END;%                                                     44145590        
+         END;%                                                          44145690        
+    RETURN(ERROR);%                                                     44145900        
+         END SCANKY;%                                                   44145950        
+MONITOR MIKEMONITOR(KEYINLK);KEYINLK~*+1;                               44145990        
+TMPTRAC~TRACE(TMPTRAC);                                                 44146000        
+BUZZCONTROL(KEYINQ);                                                    44147000        
+POPIN~POPULATION(KEYINQ);%                                              44147100        
+QTOP:                                                                   44148000        
+IOCB~NEXTINP~FIRSTINP;%                                                 44148100        
+WHILE COUNT>DEATHS DO                                                   44149000        
+    IF IOCB=NULL THEN%                                                  44149100        
+         BEGIN%                                                         44149200        
+         IF POPIN-DEATHS=POPULATION(KEYINQ) THEN%     MAYBE ***         44149300        
+              BEGIN%                                                    44149400        
+              COUNT~DEATHS~0;%                                          44149500        
+              END                                                       44149600        
+         ELSE GO TO QTOP%                                               44149800        
+         END ELSE%                                                      44150000        
+    BEGIN                                                               44151000        
+CAUZIT:                                                                 44152000        
+    DEATHS~*+1;%                                                        44153200        
+    IF BOOLEAN(RSDS~ MISC @           IOCB ) THEN                       44154000        
+         IF BOOLEAN(RSDS.RDTIMEOUT) THEN% HANDLE TIME-OUT               44155000        
+         ELSE IF BOOLEAN(RSDS.RDCNTRLCARD) THEN%                        44156000        
+                   BEGIN%                                               44156100        
+                   UNLOCK(KEYINQ);%                                     44156200        
+                   FORK(CONTROLCARD,IOCB);%                             44156300        
+                   SPOED~TRUE;%                                         44156400        
+                   GO TO ENDOFMSG;%                                     44156500        
+                   END%                                                 44156900        
+         ELSE IF BOOLEAN(RSDS.RDOVERFLOW) THEN%                         44157000        
+                   BEGIN%                                               44157100        
+                   END;%                                                44157900        
+    DISPLAYONKEYER~RSDS.UNITNOF;%                                       44160000        
+    UNLOCK(KEYINQ);                                                     44161000        
+    MSGAREAREF~KBUF @ IOCB;                                             44162000        
+    P~POINTTOMSGAREA;                                                   44163000        
+    SCAN P:P FOR J:(BUFFS-1)|CHRS WHILE = 8" ";%                        44164000        
+    SCAN P FOR N:J UNTIL = ETX;%                                        44165000        
+     IF MSGSZ~J-N=DICBSZ THEN%    NO PREFIX AND NO SUFFIX               44166000        
+          BEGIN                                                         44167000        
+          I~TNPNS;                                                      44168000        
+          BLIM~BNPNS;                                                   44169000        
+          PRESZ~SUFSZ~0;                                                44170000        
+          GO TO CHECKB;                                                 44171000        
+          END                                                           44172000        
+    ELSE IF MSGSZ<DICBSZ THEN                                           44173000        
+              BEGIN                                                     44174000        
+              INVKBD;                                                   44175000        
+              GO TO ENDOFMSG;                                           44176000        
+              END;                                                      44177000        
+ALIM~MAXDICA;%     KLUDGE UNTIL WE SYNTAX CHECK DICA REQUESTS           44177900        
+     FOR I~I STEP DICASZ UNTIL ALIM DO                                  44178000        
+          IF P=POINTER(DICA[I],*) FOR DICASZ THEN                       44179000        
+              BEGIN                                                     44180000        
+              P~P+DICASZ;                                               44181000        
+              CASE I/DICASZ OF                                          44182000        
+                   BEGIN% CASE                                          44183000        
+                        BEGIN                                           44184000        
+  FOR I~0 STEP 1 UNTIL 9 DO CHANNELGUIDE[1]~SET(0,18);% KLUDGE ******   44184100        
+                        MIXPRINT(MSGAREA);%                             44185000        
+                        END;                                            44186000        
+                   ;% SCH                                               44187000        
+                   ;% JOB                                               44188000        
+              ;%   FOR EXPANSION                                        44189000        
+                        BEGIN                                           44190000        
+                       %LABELPRINT                                      44191000        
+                        END;                                            44192000        
+                   ;% PCD                                               44193000        
+              ;%   ;%   FOR EXPANSION                                   44194000        
+                   ;% DIR                                               44195000        
+                   ;% EXP                                               44196000        
+                   END CASE;                                            44197000        
+              GO TO ENDOFMSG;%                                          44198000        
+              END ;                                                     44199000        
+SCAN P   FOR J:MSGSZ WHILE IN EBCDICNUMERIC;                            44200000        
+     IF J=MSGSZ THEN%    NO PREFIX, BUT MUST HAVE SUFFIX                44201000        
+          BEGIN%    MIGHT ALSO CHECK WHETHER SUFFIX IS ALPHA OR NUMERIC 44202000        
+          PRESZ~0;                                                      44203000        
+         SUFSZ~MSGSZ-DICBSZ;                                            44204000        
+          I~TNPS;                                                       44205000        
+          BLIM~BNPS;                                                    44206000        
+          END                                                           44207000        
+ELSE IF J=0 THEN%   A NUMBER ONLY                                       44208000        
+          BEGIN                                                         44209000        
+          INVKBD;                                                       44210000        
+          GO TO ENDOFMSG;                                               44211000        
+          END                                                           44212000        
+ELSE BEGIN%    HAS PREFIX, MAY OR MAY NOT HAVE SUFFIX                   44213000        
+    PREFIX~INTEGER(P,PRESZ~MSGSZ-J);                                    44214000        
+    P~P+PRESZ;                                                          44215000        
+     IF I~ J-DICBSZ<0 THEN                                              44216000        
+          BEGIN%    A NUMBER FOLLOWED BY ANY ONE NON-NUMERIC CHARACTER  44217000        
+          INVKBD;                                                       44218000        
+          GO TO ENDOFMSG;                                               44219000        
+          END                                                           44220000        
+ELSE IF I=0 THEN%   PREFIX, BUT NO SUFFIX                               44221000        
+          BEGIN                                                         44222000        
+          I~TPNS;                                                       44223000        
+          BLIM~BPNS;                                                    44224000        
+          SUFSZ~0;                                                      44225000        
+          END                                                           44226000        
+     ELSE BEGIN%    PREFIX AND SUFFIX -- MIGHT CHECK SUFFIX TYPE        44227000        
+          SUFSZ~I;                                                      44234000        
+          I~TPS;                                                        44235000        
+          BLIM~BPS;                                                     44236000        
+          END;                                                          44237000        
+END;                                                                    44238000        
+CHECKB:                                                                 44239000        
+     FOR I~I STEP DICBSZ UNTIL BLIM DO                                  44240000        
+          IF P=POINTER(DICB[I],*) FOR DICBSZ THEN                       44241000        
+              BEGIN                                                     44242000        
+              IF (I~I/DICBSZ)}MINREPCDE AND I{MAXREPCDE THEN            44242100        
+BEGIN REPEVNTWRD~WORDSTACK[STKNUM,REPLYEVENTPLACE];% TIL COMPILER FIXED 44242105        
+                   IF NORPLYREQD  THEN                                  44242190        
+                        BEGIN                                           44242200        
+                        INVKBD;                                         44242210        
+                        GO TO ENDOFMSG;                                 44242220        
+                        END %                                           44242290        
+                   ELSE%                                                44242300        
+                   REPWRD~I;%                                           44242400        
+END;%                                            UNTIL COMPILER FIXED   44242500        
+              P~P+DICBSZ;                                               44243000        
+              CASE I OF                                                 44244000        
+                   BEGIN% CASE                                          44245000        
+ TI:          ;                                                         44246000        
+ST:           ;                                                         44247000        
+XS:           ;                                                         44248000        
+ES:           ;                                                         44249000        
+DS:           ;                                                         44251000        
+RM:           ;                                                         44252000        
+OK:           ;                                                         44253000        
+IL:                     BEGIN%                                          44254000        
+                        CHCKANS;%                                       44254100        
+                        END;%                                           44254990        
+FM:                     BEGIN%                                          44255000        
+                        CHCKANS;%                                       44255100        
+                        END;%                                           44255990        
+UL:                     BEGIN%                                          44256000        
+                        CHCKANS;%                                       44256100        
+                        END;                                            44256990        
+OU:                     BEGIN%                                          44257000        
+                        I~MNEMLIM|MNEMSZ;%                              44257100        
+                        FOR J~0 STEP MNEMSZ UNTIL I DO%                 44257200        
+                        IF POINTER(MNEMONIC[J], *)= P FOR MNEMSZ THEN   44257300        
+                        BEGIN  REPWRD.REPINFOF~J/MNEMSZ;GO ANSREPLY;END;44257400        
+                        INVKBD;%                                        44257500        
+                        GO TO ENDOFMSG;%                                44257600        
+                        END;%                                           44257990        
+FR:           ;                                                         44258000        
+OHF:          ;                                                         44259000        
+US:                BEGIN%                                               44259100        
+                   IF (I~SCANKY(P,SUFSZ)).TYPF=NUM THEN%                44259200        
+                   IF SUFSZ=0 OR I>MAXGENNO THEN%                       44259300        
+              ELSE IF (J~SCANKY(P,SUFSZ)).TYPF=SPC AND J.SZF=1          44259400        
+                        AND J.CHRF=COLON THEN%                          44259410        
+                   IF (J~SCANKY(P,SUFSZ)).TYPF=NUM THEN%                44259500        
+                   IF J>MAXVERNO THEN%                                  44259600        
+              ELSE      BEGIN%                                          44259610        
+                        REPWRD~REPWRD&GENEALOGY1(I,J);%                 44259620        
+                        GO TO ANSREPLY;%                                44259630        
+                        END%                                            44259690        
+              ELSE ELSE ELSE%                                           44259700        
+                   IF P=8"LATEST" FOR SUFSZ THEN GO TO ANSREPLY;        44259710        
+                   INVKBD;%                                             44259800        
+                   END;%                                                44259900        
+AX:           ;                                                         44260000        
+PR:           ;                                                         44261000        
+OL:                     BEGIN                                           44263000        
+                        IF CHECKUMNEM THEN INVKBD                       44264000        
+                   ELSE FILEMESS(IOCB,I);                               44265000        
+                        GO TO ENDOFMSG;                                 44266000        
+                        END;                                            44267000        
+RY:                     BEGIN                                           44268000        
+                        IF CHECKUMNEM THEN                              44269000        
+                             BEGIN INVKBD; GO TO ENDOFMSG; END          44270000        
+                   ELSE UPDATEUNITBITSTABLE(OLDSTATUSWORD,I);           44271000        
+                        END;                                            44272000        
+PG:                     BEGIN%                                          44273000        
+                        IF CHECKUMNEM THEN BEGIN INVKBD;GO ENDOFMSG;END;44273100        
+                        PURGIT(I);%                                     44273200        
+                        END;%                                           44273900        
+PB:           ;                                                         44274000        
+SV:                     BEGIN%                                          44275000        
+                        IF CHECKUMNEM THEN BEGIN INVKBD;GO ENDOFMSG;END;44275100        
+                        UNIT[I].USAVED~1;%                              44275200        
+                        END;%                                           44275990        
+RW:           ;                                                         44276000        
+CL:           ;                                                         44277000        
+TR:                BEGIN%                                               44279000        
+                   K~SUFSZ;%                                            44279100        
+                   IF (I~SCANKY(P,SUFSZ)).TYPF=NUM THEN%                44279200        
+                   IF K=6 THEN%                                         44279300        
+                        BEGIN%                                          44279310        
+                        K~I MOD 100;%                                   44279320        
+                        I~I DIV 100;%                                   44279330        
+                        END;%                                           44279390        
+                   IF J~I MOD 100<60 AND I~I DIV 100<24 AND K<60 THEN   44279400        
+                        BEGIN%                                          44279410        
+                        SETTIME;%                                       44279420        
+                        GO TO WT;%                                      44279480        
+                        END;%                                           44279490        
+                   INVKBD;%                                             44279500        
+                   END;%                                                44279900        
+DR:                     BEGIN%                                          44280000        
+                        REPLACE P+SUFSZ BY P:P FOR SUFSZ;%              44280010        
+                        IF JULIT(P) THEN%                               44280100        
+                        BEGIN%                                          44280200        
+                        DATIT(P);%                                      44280300        
+                             REPLACE POINTER(DATE[*],8) BY%             44280310        
+                                       P UNTIL = ETX,NUL;%              44280320        
+                             TODAYSDATE~INTEGER(P+2,5);%                44280330        
+                             GO TO WD;%                                 44280390        
+                             END;%                                      44280400        
+                        INVKBD;%                                        44280490        
+                        END;%                                           44280500        
+RD:           ;                                                         44281000        
+SF:           ;                                                         44282000        
+SO:           ;                                                         44283000        
+RO:           ;                                                         44284000        
+TC:                BEGIN                                                44285000        
+                   IF (I~SCANKY(P,SUFSZ)).TYPF=NUM THEN%                44286000        
+                   IF SUFSZ=0 THEN%                                     44286100        
+                        BEGIN%                                          44286200        
+                        TMPTRAC~I;%                                     44286300        
+                        GO TO ENDOFMSG;%                                44286500        
+                        END ELSE%                                       44286900        
+                   IF (J~SCANKY(P,SUFSZ)).TYPF=SPC AND J.SYZF=1%        44287000        
+                        AND J.CHRF=COLON THEN%                          44288000        
+                   IF (J~SCANKY(P,SUFSZ)).TYPF=NUM THEN%                44289000        
+                   IF (K~SCANKY(P,SUFSZ)).TYPF=SPC AND K.SYZF=1%        44290000        
+                        AND K.CHRF=EQUAAL THEN%                         44291000        
+                   IF (K~SCANKY(P,SUFSZ)).TYPF=NUM THEN%                44292000        
+                        BEGIN%                                          44293000        
+                        SEGTRACE(I&SEGTRACEL(K,J));%                    44294000        
+                        GO TO ENDOFMSG;%                                44295000        
+                        END;%                                           44296000        
+                   INVKBD;%                                             44297000        
+                   END;                                                 44306000        
+LD:           ;                                                         44308000        
+RN:           ;                                                         44309000        
+TOH:          ;                                                         44310000        
+TF:           ;                                                         44312000        
+WT:                     BEGIN%                                          44313000        
+                        CURRENTTIME;%                                   44313100        
+                        REPLACE POINTTOMSGAREA BY HOME,TIMEIS,          44313200        
+                             P:POINTER(TIME[*],8) FOR 2,COLON,%         44313300        
+                             P:P FOR 2,COLON,P FOR 2,LINEERASE,ETX;     44313400        
+                        GO TO SPOUTIT;%                                 44313500        
+                        END;%                                           44313900        
+WD:                     BEGIN%                                          44314000        
+                        REPLACE POINTTOMSGAREA BY HOME, DATEIS,%        44314100        
+                        POINTER(DATE,8)+JULDATESZ UNTIL = NUL,%         44314200        
+                        LINEERASE, ETX;%                                44314300        
+                        GO TO SPOUTIT;%                                 44314400        
+                        END;%                                           44314990        
+WM:                BEGIN                                                44315000        
+                   REPLACE P~POINTTOMSGAREA BY HOME,                    44316000        
+                   POINTER(OUTPUTMESS[BEGMCPID],BYTESZ) UNTIL=NUL,ETX;  44317000        
+                   GO TO SPOUTIT;                                       44318000        
+                   END;                                                 44319000        
+PI:                BEGIN                                                44320000        
+                   SHIFTBUF;                                            44321000        
+                   REPLACE P~POINTTOBUFFO   BY PIMSG;                   44322000        
+                   GO TO SPOUTIT;                                       44323000        
+                   END;                                                 44324000        
+EI:                BEGIN                                                44325000        
+                   REPLACE P~POINTTOMSGAREA BY EIMSG;                   44326000        
+                   GO TO SPOUTIT;                                       44327000        
+                   END;                                                 44328000        
+LE:           ;                                                         44329000        
+                   END CASE;                                            44331000        
+              GO TO ENDOFMSG;%                                          44331500        
+              END;%                                                     44332000        
+         INVKBD;%                                                       44332100        
+         GO TO ENDOFMSG;%                                               44333000        
+SPOUTIT:%                                                               44334000        
+    SPOED~TRUE;%                                                        44334100        
+    SPOUT(IOCB,DISPLAYONKEYER);%                                        44334200        
+    GO TO ENDOFMSG;%                                                    44334300        
+ANSREPLY:                                                               44335000        
+    REPLY[STKNUM]~REPWRD;%                                              44335100        
+    CAUSE(REPEVNT);%                                                    44335200        
+ENDOFMSG:%                                                              44336000        
+    BUZZCONTROL(KEYINQ);%                                               44337000        
+    NEXT(KEYINQ);%                                                      44338000        
+    DELINK(KEYINQ,IOCB);%                                               44339000        
+    IF SPOED THEN SPOED~FALSE                                           44341000        
+    ELSE BEGIN%                                                         44341100        
+         FORGETSPACE(WORD(IOCB).ADDRESSF);%                             44343000        
+         END;%                                                          44344000        
+ END;%                                                                  44345000        
+    IF POPIN-DEATHS=POPULATION(KEYINQ) THEN                             44346000        
+         COUNT~0%                                                       44346100        
+    ELSE;%    SOME THINGS WRONG                                         44347000        
+UNLOCK(KEYINQ);%                                                        44347100        
+TRACE(TMPTRAC);                                                         44348000        
+EXIT;%                                                                  44348990        
+         END KEYIN;                                                     44349000        
+SAVE                                                                    44350000        
+         PROCEDURE SPOUT(IOCB,U);VALUE IOCB,U;REAL U;REFERENCE IOCB;    44351000        
+    BEGIN                                                               44352000        
+    ARRAY MSGAREA[*];REFERENCE MSGAREAREF=MSGAREA;                      44353000        
+    REAL RSDS;                                                          44354000        
+    DEFINE                                                              44357000        
+         IMSPOSEDTOWAIT= BOOLEAN(U.SIGNBITF)#,%                         44357100        
+    ENDSPOUTDEFINES=0#;                                                 44358000        
+         IF IMSPOSEDTOWAIT THEN%                                        44359000        
+         BEGIN                                                          44360000        
+         MSGAREAREF~IOCB;                                               44361000        
+         MSGAREA[0]~WIOCW;%                                             44362000        
+         RSDS~WAITIO(MSGAREA,WUSER(U),WERRMSK);                         44363000        
+         END                                                            44364000        
+    ELSE BEGIN                                                          44365000        
+         MSGAREAREF~ KBUF @ IOCB;                                       44366000        
+         MSGAREA[0]~WIOCW;%                                             44367000        
+         MISC @(IOCB)~0&MISCL(, REAL(NOT BOOLEAN(WERRMSK)));            44368000        
+         USER@(IOCB)~WUSER(U);%                                         44369000        
+         SEVNT@(IOCB)~1;%                                               44370000        
+         IOREQUEST(IOCB);                                               44371000        
+         EXIT;%                                                         44373000        
+         END;                                                           44374000        
+         IF BOOLEAN(RSDS) THEN                                          44375000        
+              IF BOOLEAN(RSDS.RDTIMEOUT) THEN% HANDLE TIME-OUT          44376000        
+         ELSE                                                           44377000        
+              IF BOOLEAN(RSDS.RDOVERFLOW) THEN% HANDLE OVERFLOW         44378000        
+         ELSE                                                           44379000        
+             ;%  DO SOMETHING                                           44380000        
+    FORGETSPACE(WORD(IOCB).ADDRESSF);                                   44382000        
+       EXIT;%                                                           44382990        
+    END SPOUT;                                                          44383000        
+SAVE     PROCEDURE   CONNQUEST(UNIT); VALUE UNIT; REAL UNIT;            44384000        
+    BEGIN                                                               44385000        
+    WORD ARRAY MSGAREA[*];                                              44386000        
+    WORD ARRAY IOCB[*];                                                 44387000        
+    REAL TMP;                                                           44389000        
+         IOCB~IOCB&ARRAYDESCL(3,TMP~MAXMSGSZ DIV CHRS+IOCBSIZE+JFACTOR, 44390000        
+                                       GETSPACE(TMP,MCP,4,0));          44391000        
+         INITIALIZETOZERO(IOCB.ADDRESSF,TMP);                           44392000        
+         MSGAREA~MSGAREA&ARRAYDESCL(3,IOCB.LENGTHF-IOCBSIZE-INVKBDSZ,   44393000        
+                                      IOCB.ADDRESSF+IOCBSIZE+INVKBDSZ); 44394000        
+         IOCB[0]~RUSER(UNIT);                                           44395000        
+         IOCB[1]~0&MISCL( ,REAL(NOT BOOLEAN(RERRMSK)));                 44396000        
+         IOCB[2]~MSGAREA;                                               44397000        
+         IOCB[3]~0;                                                     44398000        
+         MSGAREA[0]~RIOCW;%                                             44399000        
+         IOREQUEST(REFERENCE(IOCB));                                    44400000        
+    END  CONNREQUEST;                                                   44401000        
+SAVE                                                                    44419999        
+         PROCEDURE MESSER(WHOWHICH,INFO); VALUE WHOWHICH, INFO;%        44420000        
+                                         REAL WHOWHICH;WORD INFO;       44420100        
+    BEGIN%                                                              44420200        
+    INTEGER   W~WHOWHICH.WHOF,%                                         44420300        
+              Z~WHOWHICH.WHATF,                                         44420305        
+              X~WHOWHICH.WHICHF;%                                       44420310        
+    POINTER   P,   Q;%                                                  44420400        
+    ARRAY     MSGAREA[*];%                                              44420500        
+    REFERENCE MSGAREAREF;                                               44420510        
+    REAL      RINFO=INFO;%                                              44420600        
+    POINTER   PINFO=INFO;%                                              44420700        
+    INTEGER   I;%                                                       44420800        
+    DEFINE%                                                             44421000        
+         MSG= Q UNTIL=NUL#,%                                            44421100        
+         INVLD= 8"INVLD "#,%                                            44422000        
+         ARG= 8" ARG"#,%                                                44422010        
+              ERRR      = 8" ERROR # "#,                                44422020        
+    ENDMESDEF=0#;%                                                      44422900        
+         Q~POINTER(OUTPUTMESS[OPMINDXR(W)],8);%                         44423000        
+         MSGAREA~*&ARRAYDESCL(3,I~LINESZ DIV CHRS+JFACTOR,GETAREA(I));  44423010        
+         P~POINTTOMSGAREA;%                                             44423050        
+         THRU X DO BEGIN SCAN Q:Q UNTIL=NUL;Q~Q+1;END;%                 44423100        
+         CASE W OF%                                                     44424000        
+              BEGIN% CASES                                              44424010        
+                   BEGIN%    FINDINPUT ACTION                           44424100        
+                   CASE X OF%                                           44424200        
+                        BEGIN%                                          44424300        
+                   ;%   NO FIL USES POINTER TO LEB                      44424400        
+                   ;%   NO FIL ON DISK SAME AS NO FIL                   44424500        
+                   ;%   DUP FIL USES POINTER TO UNITS AND FIDS          44424600        
+                   ;%   ACCEPT USES BUFF WITH DATA-NAME                 44424700        
+                        END;% FIND-INPUT CASES;%                        44424800        
+                   END;%                                                44424900        
+                   BEGIN%    FINDOUTPUT ACTION                          44425000        
+                   END;%                                                44425500        
+                   BEGIN%    MATH INTRINSIC ERRORS                      44426000        
+                   REPLACE P:P BY INVLD,Q UNTIL=NUL,ARG,ETX;%           44426100        
+                   END;%                                                44426900        
+                   BEGIN%    STATUS ACTION                              44427000        
+                   CASE X OF%                                           44427100        
+                        BEGIN%                                          44427200        
+                        REPLACE P:P BY%                                 44427300        
+                             POINTER(MNEMONIC[RINFO.UNITTYPE|MNEMSZ],*) 44427320        
+                                       FOR MNEMSZ,%                     44427322        
+                             RINFO.UNITTYPECNTRF FOR 3 DIGITS,%         44427330        
+                             BLANK, MSG, ETX;%                          44427350        
+                   ;%   UNIDENTIFIED FLYING UNIT                        44427400        
+                   ;%   PARITY RW/L                                     44427500        
+                   ;%   UNIT RET FIDS USES POINTER TO UNIT AND FIDS     44427600        
+                   ;%   BACKUP ON UNIT USES UNIT NUMB.                  44427700        
+                        END   STATUS CASES;                             44427800        
+                   END;                                                 44427900        
+                   BEGIN                              % MCP ID          44428010        
+                   END;                                                 44428110        
+                   BEGIN                              % I/O ERRORS      44428210        
+                        REPLACE P:P BY Q UNTIL=NUL,ERRR,Z FOR 2 DIGITS, 44428310        
+                             8" ";                                      44428410        
+                        W~REAL(PINFO+1,1);                              44428510        
+                        PINFO~PINFO+2;                                  44428610        
+                        THRU W DO REPLACE P:P BY PINFO:PINFO+1 FOR      44428710        
+                             REAL(PINFO,1), 8"/";                       44428810        
+                        REPLACE P-1 BY ETX;                             44428910        
+                   END;                                                 44429110        
+    BEGIN%    STDIOERR     --  BETTER CHECK RAJ RE SEQUENCE NOS.        44429200        
+    END;%     STDIOERR                                                  44429900        
+                   BEGIN%                   MISC. MESS                  44430000        
+                   CASE X OF%                                           44430100        
+                        BEGIN%                                          44430110        
+                             BEGIN%         BOJ MESS                    44430200        
+                             MSGAREAREF~*&ARRAYDESCL(3,PICQSZ,%         44430350        
+                                                  GETAREA(PICQSZ));     44430352        
+                             LNID@(MSGAREAREF)~RINFO;%                  44430400        
+                             LNBUF@(MSGAREAREF)~MSGAREA;%               44430500        
+                             INSERTINTO(MIXQ(MSGAREAREF));%             44430600        
+                             JOBMESSER(RINFO,P);%                       44430700        
+                             REPLACE POINTTOMSGAREA+STATUSPOSIT BY MSG; 44430750        
+                             JOBREF(RINFO)~MSGAREAREF;%                 44430800        
+                             PRINTMIXPIC(MSGAREA);%                     44430850        
+                             WHOWHICH~NABS(WHOWHICH);%                  44430900        
+                             END;%                                      44430990        
+                             BEGIN%         EOJ MESS                    44431000        
+                             MSGAREAREF~JOBREF(RINFO);%                 44431100        
+                             P~POINTER((LNBUF@MSGAREAREF)[1],8);%       44431200        
+                             REPLACE P+STATUSPOSIT BY MSG;%             44431300        
+                             LNDESC@(MSGAREAREF)~*&LNDESCL(0);%         44431400        
+                             PRINTMIXPIC(MSGAREA);%                     44431500        
+                             WHOWHICH~NABS(WHOWHICH);%                  44431600        
+                             END;%                                      44431900        
+                        END;%               MISC CASE                   44432500        
+                   END;%                    MISC HANDLING               44432900        
+              END CASES;%                                               44435000        
+    IF WHOWHICH}0 THEN%                                                 44436000        
+         SPOUT(REFERENCE(MSGAREA),-DISPLAYONMIX);%                      44436100        
+ EXIT;%       UNTIL DISKIO AND BILDAHDR ARE COMPLETE                    44436190        
+    BUZZCONTROL(LOGLOCK);%                                              44436200        
+    LOGBUF[1+I~(LOGRECSZ|(REAL(BOOLEAN(LOGRECCNT~*+1) AND TRUE)))]      44436300        
+              ~WHOWHICH;%                                               44436310        
+    REPLACE POINTER(LOGBUF[2+I],8) BY%                                  44436600        
+         POINTTOMSGAREA FOR LOGRECSZ-1 WORDS;%                          44436610        
+    IF BOOLEAN(I) THEN%                                                 44436700        
+         BEGIN%                                                         44436710        
+         DISKWAIT  (LOGBUF,%                                            44436730        
+                    0,%                                                 44436740        
+                    SEGMENTSZ,%                                         44436750        
+                    ROWADDRESS(LOGBUF,(I~LOGRECCNT.DIV2F) DIV LOGROWSZ) 44436760        
+                        +I MOD LOGROWSZ,%                               44436762        
+                    @40);%                                              44436770        
+         END;%                                                          44436800        
+    UNLOCK(LOGLOCK);%                                                   44436900        
+    END MESSER;%                                                        44439000        
+BOOLEAN PROCEDURE JULIT(P);POINTER P;                                   44451300        
+    BEGIN                                                               44451400        
+    INTEGER   I, J,%                                                    44451500        
+              M~INTEGER(P,2),%                                          44451600        
+              D~INTEGER(P+3,2),%                                        44451700        
+              Y~INTEGER(P+6,4),%                                        44451800        
+              S~D;%                                                     44451810        
+    FOR I~1 STEP 1 UNTIL M DO%                                          44451900        
+         BEGIN%                                                         44451910        
+         J~(IF I=1 THEN 31 ELSE IF I=2 THEN 28+REAL(LEAP(Y)) ELSE       44451920        
+            30+REAL((BOOLEAN(I) AND I<8) OR (I>7 AND NOT BOOLEAN(I)))); 44451930        
+         IF I<M THEN S~S+J%                                             44451940        
+    ELSE IF D{J THEN%                                                   44452000        
+              BEGIN%                                                    44452010        
+              JULIT~TRUE;%                                              44452020        
+              REPLACE P BY Y FOR 4 DIGITS, S FOR 3 DIGITS;%             44452030        
+              END;%                                                     44452090        
+         END;%                                                          44452100        
+    END JULIT;%                                                         44452190        
+PROCEDURE DATIT(P); POINTER P;%                                         44452200        
+BEGIN                                                                   44452300        
+    INTEGER Y~INTEGER(P+STARTYEARPLACE,YEARSZ),%                        44452400        
+            DY~ABS(Y-BASEYEAR)-1,%                                      44452410        
+            D~INTEGER(P+STARTDAYPLACE,DAYSZ),%                          44452420        
+            M,   I,   J;%                                               44452430        
+    POINTER Q~P+JULDATESZ;%                                             44452500        
+DEFINE%                                                                 44452510        
+    ALGOR= (I~(D+CORR+SHIFT)MOD 7)#,%                                   44452570        
+    DYCORR= DY+(DY.DIV4F+DY DIV 400-DY DIV 100-DY DIV 4000)#,           44452575        
+    CORR= 1+DYCORR#,                                                    44452580        
+     SHIFT= 4#,                                                         44452585        
+DATDEFEND=0#;%                                                          44452595        
+    WHILE J<D DO%                                                       44452600        
+         BEGIN%                                                         44452700        
+         M~M+1;%                                                        44452800        
+         J~J+I~(IF M=1 THEN 31 ELSE IF M=2 THEN 28+REAL(LEAP(Y)) ELSE   44452900        
+                30+REAL((BOOLEAN(M)AND M<8)OR(M>7 AND NOT BOOLEAN(M))));44452910        
+         END;%                                                          44453000        
+    J~D-J+I;%                                                           44453100        
+    REPLACE Q BY%                                                       44454600        
+              CASE ALGOR OF (8"SUN   ",8"MON   ",8"TUES  ",8"WEDNES",   44454610        
+                             8"THURS ",8"FRI   ",8"SATUR ") FOR 6;      44454700        
+    SCAN Q:Q WHILE IN EBCDICALPHABETIC;%                                44454710        
+    REPLACE Q:Q BY DAY,COMMA,BLANK,%                                    44454790        
+              POINTER(MONTHS[(M-1)|2],8) UNTIL=NUL,BLANK,%              44454800        
+         J FOR 2 DIGITS,COMMA,BLANK,Y FOR 4 DIGITS, ETX;%               44454810        
+    END DATIT;%                                                         44454900        
+     REAL PROCEDURE CURRENTTIME;                                        44455000        
+         BEGIN%                                                         44455100        
+         REAL H, M, S;%                                                 44455200        
+         DEFINE SECONDS= TIMEOFDAY/TIMECORRFACT#;%                      44455300        
+S~ABS((M~(S~ABS((H~(S~SECONDS)DIV 3600)|3600-S))DIV 60)|60-S);          44455400        
+         REPLACE POINTER(TIME[*],8) BY H FOR 2 DIGITS, M FOR 2 DIGITS,  44455500        
+                                       S FOR 2 DIGITS;%                 44455600        
+         CURRENTTIME~S&TIMEL(H,M);%                                     44455700        
+    END CURRENTTIME;%                                                   44455900        
+PROCEDURE     CONNSOUL(COUNT); REAL COUNT;%                             44500000        
+    BEGIN%                                                              44500100        
+    ARRAY     CHNLCNTR[MAXPSUEDOCHANNELS];%                             44500200        
+    REFERENCE IOCB;%                                                    44500300        
+    REAL      I,%                                                       44500400        
+              RSDS;%                                                    44500500        
+    BOOLEAN   GOBACK;%                                                  44500600        
+    LABEL     QTOP;%                                                    44500700        
+    DEFINE%                                                             44501000        
+         SATISFIEDCUSTOMERS= CHNLCNTR[I].SERF#,%                        44501100        
+         CUSTOMERSENTERED= CHNLCNTR[I].CUSTF#,%                         44501200        
+         ADDRESSOFCHNLBUFFER=CHNLCNTR[I].RATINGSAMPLEF%                 44501300        
+                                  -IOCBSIZE|CUSTOMERSENTERED#,%         44501302        
+         CHNLID= 0#,%                                                   44501400        
+         CHNLLOCK= CHANNELLOCKS[I]#,%                                   44501500        
+    ENDCSDEF=0#;%                                                       44501990        
+QTOP:    BUZZCONTROL(SPOUTQ);                                           44502000        
+         IOCB~NEXTOUTP~FIRSTOUTP;%                                      44503000        
+         WHILE IOCB!NULL DO%                                            44504000        
+              BEGIN%                                                    44505000        
+              IF BOOLEAN(RSDS~MISC@IOCB) THEN%                          44506000        
+                   BEGIN%                                               44507000        
+                   IF TIMEDOUT THEN%                                    44508000        
+                        BEGIN%                                          44509000        
+                        DELINK(SPOUTQ,IOCB);%                           44510000        
+                        MISC@(IOCB)~WERRMSK;%                           44511000        
+                        IOREQUEST(IOCB);%                               44512000        
+                        END ELSE%      UNEXPECTED I/O ERROR             44513000        
+                   END ELSE%                                            44514000        
+                   BEGIN%                                               44515000        
+                   IF CHNLCNTR[CHNLID]=0 THEN%                          44516000        
+                        CHNLCNTR[CHNLID]~SEVNT@IOCB;%                   44517000        
+                   CHNLCNTR[CHNLID].SERF~CHNLCNTR[CHNLID].SERF+1;%      44518000        
+                   END;%                                                44519000        
+              GOBACK~FALSE;%                                            44520000        
+              IOCB~NEXT(SPOUTQ);%                                       44521000        
+              END;%                                                     44522000        
+         UNLOCK(SPOUTQ);%                                               44523000        
+         IF GOBACK THEN%                                                44524000        
+              BEGIN%                                                    44525000        
+              GOBACK~FALSE;%                                            44526000        
+              PAUSE;%                                                   44527000        
+              GO TO QTOP;%                                              44528000        
+              END;%                                                     44529000        
+         FOR I~0 STEP 1 UNTIL MAXPSUEDOCHANNELS DO%                     44530000        
+              IF SATISFIEDCUSTOMERS=CUSTOMERSENTERED THEN%              44531000        
+                   IF CUSTOMERSENTERED=0 THEN%                          44532000        
+              ELSE BEGIN%                                               44533000        
+                   FORGETSPACE(ADDRESSOFCHNLBUFFER);%                   44535000        
+                   CHNLCNTR[I]~0;%                                      44535100        
+                   LIBERATE(CHNLLOCK);%                                 44536000        
+                   END%                                                 44537000        
+         ELSE GOBACK~TRUE;%                                             44538000        
+         IF GOBACK THEN GO TO QTOP;%                                    44539000        
+    END  CONNSOUL;%                                                     44540000        
+         PROCEDURE CHANLOUT(CHNNO,MSGAREA);VALUE CHNNO;%                44550000        
+                        REAL CHNNO;    ARRAY MSGAREA[*];%               44550100        
+    BEGIN%                                                              44550200        
+    DEFINE%                                                             44551000        
+         CHNLDESC= CHANNELGUIDE[CHNNO]#,%                               44551100        
+         MODELNO = UNITBL[TI(CONN),J~VIEWER]#,%                         44551200        
+         SAMPLESHEET= CHNLDESC.RATINGSAMPLEF#,%                         44551300        
+         RATINGS=      ONES(SURVEYSHEET)#,%                             44551400        
+         TURNOFFSET= RESET(SURVEYSHEET,J)#,%                            44551500        
+         VIEWER= FIRSTONE(SURVEYSHEET)#,%                               44551600        
+    ENDCHANTDEF=0#;%                                                    44551990        
+    WORD ARRAY IOCBS[*];%                                               44552000        
+    REFERENCE IOCB;%                                                    44552100        
+    REAL      SURVEYSHEET~SAMPLESHEET;%                                 44552200        
+    INTEGER   I,J,%                                                     44552300        
+              N~RATINGS;%                                               44552400        
+         IOCBS~*&ARRAYDESCL(3,I~N|IOCBSIZE,I~GETSPACE(I,MCP,4,0));%     44553000        
+         IOCBS[0]~0;%                                                   44553010        
+         IOCBS[1]~0&MISCL(,REAL(NOT BOOLEAN(WERRMSK)));%                44553100        
+         IOCBS[3]~CHNLDESC&GYDEFORM((IOCBS[2]~MSGAREA).ADDRESSF,*,*,);  44553200        
+         MSGAREA[0]~WIOCW;%                                             44553300        
+         IOCB~*&ARRAYDESCL(3,IOCBSIZE,I-IOCBSIZE);%                     44553400        
+         IF N~N-1>0 THEN%                                               44553450        
+         REPLACE POINTER(IOCBS[IOCBSIZE],8) BY POINTER(IOCBS,8)         44553500        
+                        FOR IOCBSIZE|N OVERWRITE;%                      44553600        
+         FOR  I~0 STEP 1 UNTIL N DO%                                    44554000        
+              BEGIN%                                                    44554100        
+              USER@(IOCB~*&ARRAYDESCL(,,IOCB.ADDRESSF+IOCBSIZE))%       44554200        
+                                       ~WUSER(MODELNO);%                44554210        
+              IOREQUEST(IOCB);%                                         44554300        
+              TURNOFFSET;%                                              44554400        
+              END;%                                                     44554900        
+         EXIT;%                                                         44559000        
+    END  CHANLOUT;%                                                     44559900        
+         PROCEDURE MIXPRINT(MSGAREA); ARRAY MSGAREA[*];%                44600000        
+    BEGIN%                                                              44601000        
+    REFERENCE TMPEN;%                                                   44602000        
+    POINTER   P~POINTTOMSGAREA,%                                        44603000        
+              Q;%                                                       44604000        
+    REAL      LD,%                                                      44605000        
+              LINENO;%                                                  44606000        
+    BOOLEAN   SCREENFILLED;%                                            44607000        
+    DEFINE%                                                             44608000        
+         NULLMIX= MIXQHD=NULL#,%                                        44609000        
+         NULMIXMSG= 8"NULL MIX",LINEERASE#,%                            44610000        
+         SCREENABOUTTOOVERFLOW= SCREENFILLED~LINENO}MAXLNS#,%           44611000        
+         FIRSTTIME= (LD~LNDESC@TMPEN).LNSTATF=2#,%                      44612000        
+         LASTTIME = LD.LNSTATF=1#,%                                     44613000        
+         BOTTOMLINE= HOME,REVERSELF,8"MIX 1 OF ",MAXPGS FOR 2 DIGITS#,  44614000        
+    ENDMXPTDEF=0#;%                                                     44615000        
+         REPLACE P:P BY HOME;%                                          44616000        
+         PROCURE(MIXCHNLLK);%                                           44617000        
+         IF NULLMIX THEN REPLACE P:P BY NULMIXMSG%                      44618000        
+         ELSE BEGIN%                                                    44619000        
+              DO%                                                       44620000        
+                   BEGIN%                                               44621000        
+                   REPLACE P:P BY%                                      44622000        
+                        (Q~POINTER((LNBUF@TMPEN)[1],8))+1 UNTIL = ETX,  44622100        
+                        CARRETURN;%                                     44623000        
+                   IF FIRSTTIME THEN%                                   44624000        
+                        BEGIN%                                          44625000        
+                        REPLACE Q+STATUSPOSIT BY BLANK FOR STATUSSZ;    44626000        
+                        LNDESC@(TMPEN)~LD&LNDESCL(1,1);%                44627000        
+                        END%                                            44628000        
+                   ELSE IF LASTTIME THEN%                               44629000        
+                        BEGIN%                                          44630000        
+                        REPLACE Q BY ETX FOR 2;%                        44631000        
+                        LNDESC@(TMPEN)~LD&LNDESCL(0,0);%                44632000        
+                        END;%                                           44633000        
+                   LINENO~LINENO+1;%                                    44634000        
+                   IF SCREENFILLED THEN%                                44635000        
+                   ELSE IF SCREENABOUTTOOVERFLOW THEN%                  44636000        
+                        BEGIN%                                          44637000        
+                        REPLACE P:P BY BOTTOMLINE;%                     44638000        
+                        TMPEN~PRELN@MIXQHD;%                            44639000        
+                        END;%                                           44640000        
+                   END UNTIL TMPEN~NEXLN@(TMPEN)=MIXQHD;%               44641000        
+              END;%                                                     44642000        
+         REPLACE P BY ETX;%                                             44643000        
+         PRINTMIXPIC(MSGAREA);%                                         44644000        
+    END MIXPRINT;%                                                      44645000        
+SAVE PROCEDURE IOERROR(RD);       REAL RD;                              50000000        
+    BEGIN                                                               50001000        
+         INTEGER U,     COMMENT LOGICAL UNIT NO.;                       50002000        
+                 UTYPE, COMMENT UNIT TYPE;                              50003000        
+                 BITNO,      COMMENT REMAINDER OF(U MOD 32);            50004000        
+                 VECTORNO; COMMENT VECTOR FOR UNIT;                     50005000        
+         REAL UTABLEENTRY,   COMMENT CONTENTS OF UNIT TABLE ENTRY;      50006000        
+              UERRORMASK ,   COMMENT ERROR MASK FOR I/O ERROR;          50007000        
+              UERROR     ,   COMMENT UNIT ERROR;                        50008000        
+              IOCW       ,   COMMENT I/O CONTROL WORD;                  50009000        
+              ERRORSET   ,   COMMENT RESULT DESCPIPTOR ERROR BIT NO;    50010000        
+              INIOERROR  ,   COMMENT FOR MONITORING;                    50011000        
+              UNITMASK   ;   COMMENT TO SET UP MASK FOR UNIT;           50012000        
+         WORD ARRAY IOCBAREA[*];                                        50012200        
+         WORD      OEVENTIRW;          % FOR STORING ORIGINAL EVENT IRW 50012400        
+         EVENT     IOERROREVENT;  % FOR DOING I/O IN IOERROR            50012600        
+         REFERENCE  IOCB=IOCBAREA;     % POINTER TO FIRST I/O FOR UNIT  50013000        
+         BOOLEAN SKIPTOG,  COMMENT TOGGLE FOR IDENTIFYING DIFF. SOURCES 50014000        
+                                   OF ENTRIES TO A LABEL;               50015000        
+              MEMACCESSERRORTOG,  % ON MEMORY ACCESS ERROR              50015500        
+                 BITWORD;  COMMENT FOR SETTING BIT CORRESPONDING TO     50016000        
+                                   UNIT NO.;                            50017000        
+         LABEL   DISPLAYMSG,NOTREADY,KILLIT,MEMPARITY,SETERROR,FIXIOQUE,50018000        
+                 SETMEMPARITY,DISPLAYMSGANDTRY,TRYAGAIN,WRITELOCK,START,50019000        
+                 CARDREAD,ENDOFFILE,CLEARERROR,MSGWITHERRCOUNT,PRINTER, 50020000        
+                 INCOMPLETE,MPXMEMACCESS,CARDPUNCH,INVALIDADDR,LEAVE;   50021000        
+         LABEL     REWINDING,COMMONCODE,SETMEMPARITYERR,CHECKUSER;      50021500        
+         LAYOUT BITSETL(BITNO:1~1);  COMMENT LAYOUT FOR DYNAMIC         50022000        
+                                             BIT SETTING;               50023000        
+         DEFINE READCHECK=RDENDOFTAPE#,                                 50024000        
+                EUBUSY=RDENDOFTAPE#,                                    50025000        
+                OPUNOTREADY=RDOVERFLOW#,                                50026000        
+                UTIMEOUT=RDBLANKTAPE#,                                  50027000        
+                READPARITY=RDWLOOREOF#,                                 50028000        
+                INCOMPLETERECORD=RDCNTRLCARD#,                          50029000        
+                ENDOFPAGE=RDCRCCORRECT#,                                50030000        
+                PRINTCHECK=RDCNTRLCARD#,                                50031000        
+                PUNCHCHECK=RDCNTRLCARD#,                                50032000        
+                PRINTERBITTRANSFER=RDENDOFTAPE#;                        50033000        
+         MONITOR   RAJMONITOR(IOCB,ERRORSET,INIOERROR,UERROR);          50033500        
+         INIOERROR~1;                                                   50033700        
+         U~RD.RDUNITNO;                                                 50034000        
+         IOCB~FIRSTIO[U];                                               50035000        
+         UTABLEENTRY~UNIT[U];                                           50036000        
+         VECTORNO~U DIV 32;                                             50037000        
+         BITNO~U-VECTORNO | 32;                                         50038000        
+         BITWORD~FALSE & BITSETL( );                                    50038500        
+         UERRORMASK~IF BOOLEAN(USER@(IOCB).USERIOBIT) THEN @377777      50038600        
+                        ELSE MISC @(IOCB).IOERRORMASKFIELD;             50038700        
+         UTYPE~UTABLEENTRY.UNITTYPE;                                    50038800        
+         UERROR~REAL(BOOLEAN(RD.RDERROR) AND BOOLEAN(UERRORMASK));      50038900        
+START:                                                                  50039000        
+         IOCW~M[WORD(AREADESC @ IOCB)];                                 50040000        
+         UTABLEENTRY.UNITNOTREADY~0;                                    50041000        
+         UTABLEENTRY.UNITERROR~0;                                       50042000        
+         TRANSACTION[U]~*-1;                                            50043000        
+         MEMACCESSERRORTOG~BOOLEAN(UERROR.RDMEMACCESS);                 50053000        
+         IF BOOLEAN(UERROR.RDBUSY) THEN                                 50054000        
+         BEGIN     COMMENT UNIT BUSY;                                   50055000        
+              UNITMASK~ 4;                                              50056000        
+              IF UTYPE!SPO THEN                                         50062000        
+              BEGIN                                                     50063000        
+COMMENT            BUILD MESSAGE "UNIT BUSY";                           50064000        
+                   ERRORSET~2;                                          50064500        
+DISPLAYMSGANDTRY:                                                       50065000        
+%SPOUT(MSGAREA,DISPLAYONPER);% MAR                                      50066000        
+              END;                                                      50067000        
+TRYAGAIN:                                                               50068000        
+              DO BEGIN                                                  50069000        
+                      WAIT(TIMERINTERRUPTEVENT);                        50070000        
+                      UNIT[U]~UTABLEENTRY;                              50071000        
+                      OEVENTIRW~IOCBAREA[EVENTINDEX];                   50071500        
+                      STOREITEM(EVNT @ IOCB.IOERROREVENT);              50071700        
+                      STARTIO(U);                                       50072000        
+                      WAIT(IOERROREVENT);                               50073000        
+                      RESET(IOERROREVENT);                              50073500        
+                      MISC @(IOCB)~UERRORMASK;                          50073600        
+                      IOCBAREA[EVENTINDEX]~OEVENTIRW;                   50073700        
+                      IF UTABLEENTRY.UNITERRORFIELD }20 THEN            50074000        
+                             GO SETERROR;                               50074500        
+                 END UNTIL REAL(BOOLEAN(RD~MISC @(IOCB)) AND            50075000        
+                                BOOLEAN(UNITMASK)) =0;                  50076000        
+              TRANSACTION[U]~ *+1;                                      50077000        
+              IF (UERROR ~ REAL(BOOLEAN(RD.RDERROR) AND                 50078000        
+                           BOOLEAN(UERRORMASK))) =0 THEN GO CLEARERROR; 50079000        
+              GO START;                                                 50080000        
+         END;                                                           50081000        
+         IF BOOLEAN(UERROR.RDNOTREADY) THEN                             50082000        
+         BEGIN     COMMENT UNIT NOT READY;                              50083000        
+              IF UTYPE=CARDREADER AND BOOLEAN(UERROR.READCHECK) THEN    50084000        
+                 GO CARDREAD;                                           50085000        
+              IF UTYPE!SPO THEN                                         50086000        
+              BEGIN                                                     50087000        
+COMMENT            BUILD MESSAGE "UNIT NOT READY";                      50088000        
+                   IF NOT BOOLEAN(UNIT[U].UNITNOTREADY) THEN            50088100        
+                        MESSER(0 & WHOCALLSL(STATMSGSEC,0),U);          50088200        
+                   ERRORSET~3;                                          50088500        
+              END;                                                      50089000        
+NOTREADY:                                                               50090000        
+COMMENT       MAKE OLDSTATUS OF THE UNIT NOT READY;                     50091000        
+              OLDSTATUSWORD[VECTORNO]~OLDSTATUSWORD[VEcTORNO] AND       50093000        
+                                      NOT BITWORD;                      50094000        
+%SPOUT(MSGAREA,DISPLAYONPER);% MAR                                      50097000        
+              UTABLEENTRY.UNITERRORFIELD~0;                             50098000        
+              UTABLEENTRY.UNITNOTREADY~1;                               50099000        
+              UNIT[U]~UTABLEENTRY;                                      50101000        
+              GO TO KILLIT;                                             50104000        
+         END;                                                           50105000        
+         IF REAL(BOOLEAN(UERROR) AND BOOLEAN(@157))=0 THEN              50106000        
+COMMENT       DESCRIPTOR ERROR BIT ALSO GETS TURNED ON IF CONTROL BUSY  50106200        
+              ,MEM. ADDRESS OR MEM. PARITY ERROR OCCUR AT I/O INITIATE  50106400        
+              TIME(BEFORE ACTUAL DATA TRANSFER OCCUR).HENCE ABOVE CHECK;50106600        
+         BEGIN    % DESCRIPTOR ERROR ONLY. EITHER WORD COUNT=0 FOR DATA 50106800        
+                  % TRANSFER REQUEST OR BAD IOCW RECEIVED BY CONTROL    50107000        
+COMMENT       BUILD MESSAGE "DESCRIPTOR ERROR";                         50108000        
+              MESSER(0 & WHOCALLSL(STDIOERRSEC,0),U);                   50108100        
+              ERRORSET~4;                                               50108500        
+SETERROR:                                                               50109000        
+%SPOUT(MSGAREA,DISPLAYONPER);% MAR                                      50110000        
+              GO COMMONCODE;                                            50112000        
+         END;                                                           50113000        
+         IF BOOLEAN(UERROR.RDMEMADDRBIT) THEN                           50114000        
+INVALIDADDR:                                                            50115000        
+         BEGIN     COMMENT INVALID ADDRESS;                             50116000        
+COMMENT       BUILD MESSAGE "I/O INVALID ADDRESS";                      50117000        
+              MESSER(0 & WHOCALLSL(STDIOERRSEC,1),U);                   50117200        
+COMMENT       ADD CODE TO CHECK WHETHER ERROR IS DUE TO MPX TROUBLE;    50117300        
+              ERRORSET~5;                                               50117500        
+              GO SETERROR;                                              50118000        
+         END;                                                           50119000        
+MEMPARITY:                                                              50120000        
+         IF BOOLEAN(UERROR.RDMEMPARITY) THEN                            50121000        
+         BEGIN                                                          50122000        
+COMMENT       BUILD MESSAGE "I/O MEMORY PARITY";                        50123000        
+              MESSER(0 & WHOCALLSL(STDIOERRSEC,2),U);                   50123100        
+              ERRORSET~6;                                               50123500        
+              GO SETERROR;                                              50124000        
+         END;                                                           50125000        
+         IF BOOLEAN(UERROR.RDMEMPROTECT) THEN                           50125100        
+         BEGIN                                                          50125200        
+COMMENT       MEMORY PROTECT ERROR;                                     50125300        
+              MESSER(0 & WHOCALLSL(STDIOERRSEC,3),U);                   50125330        
+              ERRORSET~16;                                              50125350        
+              GO SETERROR;                                              50125400        
+         END;                                                           50125500        
+         CASE UTYPE OF                                                  50126000        
+         BEGIN                                                          50127000        
+              ;    COMMENT NO UNIT;                                     50128000        
+              BEGIN     COMMENT DISK FILE;                              50129000        
