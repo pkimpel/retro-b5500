@@ -26,7 +26,7 @@ function B5500CardPunch(mnemonic, unitIndex, designate, statusChange, signal) {
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (not used here)
 
-    this.timer = 0;                     // setCallback() token
+    this.timer = null;                  // setTimeout() token
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
 
     this.clear();
@@ -41,15 +41,15 @@ function B5500CardPunch(mnemonic, unitIndex, designate, statusChange, signal) {
     this.endOfStacker1 = null;
     this.stacker2 = null;
     this.endOfStacker2 = null;
-    this.window = window.open("../webUI/B5500CardPunch.html", mnemonic,
-            "scrollbars=no,resizable,width=560,height=204,left=0,top=220");
-    this.window.addEventListener("load", function windowLoad() {
+    this.window = window.open("/B5500/webUI/B5500CardPunch.html", mnemonic,
+            "scrollbars=no,resizable,width=700,height=500");
+    this.window.addEventListener("load", function() {
         that.punchOnload();
     }, false);
 }
 
 B5500CardPunch.prototype.cardsPerMinute = 300;  // Punch speed
-B5500CardPunch.prototype.maxScrollLines = 850;  // Maximum punch stacker scrollback (stacker capacity)
+B5500CardPunch.prototype.maxScrollLines = 800;  // Maximum punch stacker scrollback (stacker capacity)
 
 /**************************************/
 B5500CardPunch.prototype.$$ = function $$(e) {
@@ -62,6 +62,7 @@ B5500CardPunch.prototype.clear = function clear() {
 
     this.ready = false;                 // ready status
     this.busy = false;                  // busy status
+    this.activeIOUnit = 0;              // I/O unit currently using this device
 
     this.errorMask = 0;                 // error mask for finish()
     this.finish = null;                 // external function to call for I/O completion
@@ -108,7 +109,6 @@ B5500CardPunch.prototype.setPunchReady = function setPunchReady(ready) {
 
     if (ready && !this.ready) {
         this.statusChange(1);
-        this.addClass(this.$$("CPStartBtn"), "greenLit")
         this.removeClass(this.$$("CPNotReadyLight"), "redLit");
         this.ready = true;
         if (this.runoutArmed) {
@@ -129,7 +129,6 @@ B5500CardPunch.prototype.setPunchReady = function setPunchReady(ready) {
         }
     } else if (!ready && this.ready) {
         this.statusChange(0);
-        this.removeClass(this.$$("CPStartBtn"), "greenLit")
         this.addClass(this.$$("CPNotReadyLight"), "redLit");
         this.ready = false;
     }
@@ -200,8 +199,8 @@ B5500CardPunch.prototype.punchOnload = function punchOnload() {
 
     this.stacker1Frame = this.$$("CPStacker1Frame");
     this.stacker1Frame.contentDocument.head.innerHTML += "<style>" +
-            "BODY {background-color: white; margin: 2px} " +
-            "PRE {margin: 0; font-size: 8pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
+            "BODY {background-color: #FFE; margin: 2px} " +
+            "PRE {margin: 0; font-size: 9pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
             "</style>";
     this.stacker1 = this.doc.createElement("pre");
     this.stacker1Frame.contentDocument.body.appendChild(this.stacker1);
@@ -210,28 +209,32 @@ B5500CardPunch.prototype.punchOnload = function punchOnload() {
 
     this.stacker2Frame = this.$$("CPStacker2Frame");
     this.stacker2Frame.contentDocument.head.innerHTML += "<style>" +
-            "BODY {background-color: white; margin: 2px} " +
-            "PRE {margin: 0; font-size: 8pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
+            "BODY {background-color: #FFE; margin: 2px} " +
+            "PRE {margin: 0; font-size: 9pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
             "</style>";
     this.stacker2 = this.doc.createElement("pre");
     this.stacker2Frame.contentDocument.body.appendChild(this.stacker2);
     this.endOfStacker2 = this.doc.createElement("div");
     this.stacker2Frame.contentDocument.body.appendChild(this.endOfStacker2);
 
+    this.window.moveTo(0, 180);
+    this.window.resizeTo(this.window.outerWidth+this.$$("CPDiv").scrollWidth-this.window.innerWidth+12,
+                         this.window.outerHeight+this.$$("CPDiv").scrollHeight-this.window.innerHeight+12);
+
     this.window.addEventListener("beforeunload", this.beforeUnload, false);
 
     this.armRunout(false);
     this.setPunchReady(true);
 
-    this.$$("CPStartBtn").addEventListener("click", function startClick(ev) {
+    this.$$("CPStartBtn").addEventListener("click", function(ev) {
         that.CPStartBtn_onclick(ev);
     }, false);
 
-    this.$$("CPStopBtn").addEventListener("click", function stopClick(ev) {
+    this.$$("CPStopBtn").addEventListener("click", function(ev) {
         that.CPStopBtn_onclick(ev);
     }, false);
 
-    this.$$("CPRunoutBtn").addEventListener("click", function runoutClick(ev) {
+    this.$$("CPRunoutBtn").addEventListener("click", function(ev) {
         that.CPRunoutBtn_onclick(ev);
     }, false);
 
@@ -270,6 +273,7 @@ B5500CardPunch.prototype.space = function space(finish, length, control) {
 B5500CardPunch.prototype.write = function write(finish, buffer, length, mode, control) {
     /* Initiates a write operation on the unit */
     var text;
+    var that = this;
 
     this.errorMask = 0;
     this.busy = true;
@@ -291,12 +295,10 @@ B5500CardPunch.prototype.write = function write(finish, buffer, length, mode, co
         }
     }
 
-    this.timer = setCallback(this.mnemonic, this,
-        60000/this.cardsPerMinute + this.initiateStamp - performance.now(),
-        function writeDelay() {
-            this.busy = false;
-            finish(this.errorMask, length);
-    });
+    this.timer = setTimeout(function() {
+        that.busy = false;
+        finish(that.errorMask, length);
+    }, 60000/this.cardsPerMinute + this.initiateStamp - new Date().getTime());
 };
 
 /**************************************/
@@ -339,7 +341,7 @@ B5500CardPunch.prototype.shutDown = function shutDown() {
     /* Shuts down the device */
 
     if (this.timer) {
-        clearCallback(this.timer);
+        clearTimeout(this.timer);
     }
     this.window.removeEventListener("beforeunload", this.beforeUnload, false);
     this.window.close();

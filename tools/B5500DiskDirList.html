@@ -29,7 +29,7 @@ if (!window.indexedDB) {                // for Safari, mostly
     window.indexedDB = window.webkitIndexedDB || window.mozIndexedDB;
 }
 
-window.addEventListener("load", function() {
+window.onload = function() {
     var configName = "CONFIG";          // database configuration store name
     var dbName = "B5500DiskUnit";       // IDB database name
     var dbVersion = 1;                  // current IDB database version
@@ -119,7 +119,7 @@ window.addEventListener("load", function() {
     }
 
     /**************************************/
-    function bitTest(word, bit) {
+    function bit(word, bit) {
         /* Extracts and returns the specified bit from the word */
         var e = 47-bit;                     // word lower power exponent
         var p;                              // bottom portion of word power of 2
@@ -129,7 +129,7 @@ window.addEventListener("load", function() {
         } else {
             return word % 2;
         }
-    }
+    };
 
     /**************************************/
     function fieldIsolate(word, start, width) {
@@ -138,7 +138,7 @@ window.addEventListener("load", function() {
         var p;                              // bottom portion of word power of 2
 
         return (le == 0 ? word : (word - word % (p = pow2[le]))/p) % pow2[width];
-    }
+    };
 
     /**************************************/
     function spout(text) {
@@ -165,19 +165,6 @@ window.addEventListener("load", function() {
         var m = s.match(/^(.*?) *$/);
 
         return m[1];
-    }
-
-    /***************************************/
-    function padOctal(value, octades) {
-        /* Formats "value" as an octal number of "octades" length, left-padding with
-        zeroes as necessary */
-        var text = value.toString(8);
-        var len = text.length;
-
-        while (len++ < octades) {
-            text = "0" + text;
-        }
-        return text;
     }
 
     /**************************************/
@@ -397,9 +384,8 @@ window.addEventListener("load", function() {
     }
 
     /**************************************/
-    function formatDirectoryEntry(body, mfid, fid, headerBlock) {
+    function formatDirectoryEntry(body, mfid, fid, header) {
         /* Formats the disk header for a file */
-        var header = readDiskHeader(headerBlock);
         var row = document.createElement("tr");
         var rx;
         var text = "";
@@ -433,13 +419,7 @@ window.addEventListener("load", function() {
         for (rx=0; rx<header.maxRows; rx++) {
             text += header.rowAddress[rx].toFixed(0) + " ";
         }
-        appendCell(row, text);
-        body.appendChild(row);
 
-        text = "";
-        for (rx=0; rx<10; rx++) {
-            text += padOctal(headerBlock[rx], 16) + " ";
-        }
         appendCell(row, text);
         body.appendChild(row);
     }
@@ -457,7 +437,6 @@ window.addEventListener("load", function() {
             var atEnd = false;
             var bx;
             var fid;
-            var headerBlock;
             var mfid;
             var namex;
 
@@ -472,7 +451,7 @@ window.addEventListener("load", function() {
                     mfid = wordsToString(block, bx, 1, true);
                     fid =  wordsToString(block, bx+1, 1, true);
                     bx = namex*30;
-                    formatDirectoryEntry(body, mfid, fid, block.slice(bx, bx+30));
+                    formatDirectoryEntry(body, mfid, fid, readDiskHeader(block.slice(bx, bx+30)));
                 }
             }
             if (atEnd) {
@@ -569,7 +548,7 @@ window.addEventListener("load", function() {
             directoryList(function() {});
         });
     }
-}, false);
+}
 </script>
 
 <style>
@@ -580,8 +559,6 @@ TABLE {
     border-collapse:    collapse}
 TH {
     vertical-align:     bottom}
-TD {
-    white-space:        nowrap}
 .center {
     text-align:         center}
 .rj {
@@ -619,7 +596,6 @@ TD {
     <th>SPR
     <th>MXR
     <th>Row Addresses
-    <th>Raw Header Words 0-9
 <tbody id=DirListBody>
 </table>
 
