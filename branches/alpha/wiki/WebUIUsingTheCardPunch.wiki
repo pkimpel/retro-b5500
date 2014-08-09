@@ -1,0 +1,64 @@
+#summary Instructions for using the card punch with the retro-B5500 emulator in a web browser.
+#labels Burroughs,B5500,emulator,retro-b5500,operator,card,punch,B304
+
+= WebUI Using the Card Punch =
+<wiki:toc max_depth="2"/>
+
+
+The B5500 supported a couple of card punch models, with speeds ranging from 100 to 300 cards per minute. A B5500 system could support one card punch, identified as `CPA`.
+
+
+= Background =
+
+The card punch interface we have developed for the web-based emulator is modeled after the 300 card-per-minute B304. This interface opens in a separate window when the <b>Power On</b> button is activated on the emulator console:
+
+    https://googledrive.com/host/0BxqKm7v4xBswRjNYQnpqM0ItbkU/B5500-CardPunch.png
+
+The B304 had additional buttons and lights related to the mechanical issues of punching cards (e.g., feed and punch check indicators), but these controls are not relevant to operation under the emulator.
+
+The unit had three output stackers, primary (Stacker 1), auxiliary (Stacker 2) and error. The error stacker was used for cards detected to be in error after punching, cards left in the punch area too long and ejected automatically by the unit, and "runout" cards that were manually cleared from the feed path. This stacker is not modeled by the emulator.
+
+Stackers 1 and 2 each have an output capacity of 850 cards. When either stacker becomes "full" (i.e., the number of cards reaches that limit), the unit goes into a not-ready state.
+
+The last few cards punched to each stacker are shown in text areas on the window for the card punch user interface. The B5500 character codes are translated to ASCII lines of text before being displayed in these text areas. Each line of text represents one card. You can virtually remove "cards" from the "stacker" by selecting and copying lines of text from these areas and then pasting them into another application (such as a text editor) from which they can be saved to permanent storage. This copy/paste technique is the only reasonably convenient way to remove data from the browser-based emulator.
+
+Cards can only be punched in alpha mode, i.e., ordinary alphanumeric keypunch hole patterns. Binary punching is not supported. Lines are composed using the emulator's version of the B5500 64-character set:
+
+    {{{
+    0 1 2 3 4 5 6 7
+    8 9 # @ ? : > {
+    + A B C D E F G
+    H I . [ & ( < ~
+    | J K L M N O P
+    Q R $ * - 0 ; {
+      / S T U V W X
+    Y Z , % ! = } "
+    }}}
+
+The B5500 used five special Algol characters that do not have ASCII equivalents. The emulator uses the following ASCII substitutions for them:
+
+    * `~` for left-arrow
+    * `|` for "&times;" (the multiplication sign)
+    * `{` for less-than-or-equal
+    * `}` for greater-than-or-equal
+    * `!` for not-equal
+
+
+= Card Punch Control Panel =
+
+The user interface for the emulated card punch consists of the following controls and indicators:
+
+    * *NOT READY* -- this red indicator lights when the punch is in a not-ready status. The punch becomes ready when either output stacker is not full and the *START* button is pressed. It becomes not-ready when either output stacker becomes full or when the *STOP* button is pressed.
+    * *RUNOUT* -- This red button/indicator is used to "empty" the output stackers of the punch. This is a different use than the button had on the B304 punch unit. The button only responds to clicks when the punch is in a not-ready status. Clicking the button in a not-ready status toggles the state of the button. When this button is activated (the indicator is lit), pressing the *START* button will display a confirmation box asking if it is okay to empty both stackers of the punch. If you reply OK, the lines of text in both stackers will be erased. If you want to retain the data for the cards in either of the stackers, you much select and copy their lines of text before emptying the stacker.
+    * *STOP* -- pressing this red button will stop the punch and place it in a not-ready status. The *NOT READY* button will light.
+    * *START* -- pressing this green button when both output stackers are not full will place the punch in a ready status. The *NOT READY* light will go out. The MCP should sense the status change within a second or two and begin (or resume) punching cards if any I/Os to the punch are currently queued.
+
+
+Below the buttons are text areas and progress bars for each stacker. These show the relative number of cards currently in each output stacker. Each time you empty the stackers, this bar resets all the way to the left. As cards are punched, the length of the bar will increase towards to right in proportion to the number of cards in the output stacker.
+
+Below each progress bar, the punch shows the last card images that were punched.
+
+= Operating the Card Punch =
+
+As mentioned above, you can stop the punch at any time and make it not-ready by pressing the *STOP* button. Restart it by pressing the *START* button. Whenever the punch is stopped and in a not-ready status, you can copy/paste the lines of text in each stacker and/or clear the stackers using the *RUNOUT* button.
+*STOP* between each file selection.
