@@ -103,7 +103,7 @@ B5500DiskUnit.prototype.clear = function clear() {
     this.startStamp = null;             // I/O starting timestamp
 
     this.config = null;                 // copy of CONFIG store contents
-    this.disk = null;                   // the IDB database object
+    this.db = null;                     // the IDB database object
 
     this.openDatabase();                // attempt to open the IDB database
 };
@@ -111,10 +111,9 @@ B5500DiskUnit.prototype.clear = function clear() {
 /**************************************/
 B5500DiskUnit.genericDBError = function genericDBError(ev) {
     /* Formats a generic alert when otherwise-unhandled database errors occur */
-    var disk = ev.currentTarget.result;
 
     this.errorMask |= 0x20;             // set a generic disk-parity error
-    alert("Database for \"" + this.mnemonic + "\" error: " + ev.target.result.error);
+    alert("Disk \"" + this.mnemonic + "\" database error: " + ev.target.result.error);
     this.finish(this.errorMask, 0);
     this.errorMask = 0;
 };
@@ -139,7 +138,7 @@ B5500DiskUnit.prototype.copySegment = function copySegment(seg, buffer, offset) 
 /**************************************/
 B5500DiskUnit.prototype.openDatabase = function openDataBase() {
     /* Attempts to open the disk subsystem database specified by this.dbName and
-    this.dbVersion. If successful, sets this.disk to the IDB object and sets the
+    this.dbVersion. If successful, sets this.db to the IDB object and sets the
     DFCU to ready status */
     var req;
     var db = null;
@@ -149,31 +148,42 @@ B5500DiskUnit.prototype.openDatabase = function openDataBase() {
     req = indexedDB.open(this.dbName, this.dbVersion);
 
     req.onerror = function idbOpenOnerror(ev) {
-        alert("Cannot open " + that.mnemonic + " database: " + ev.target.error);
+        alert("Cannot open " + that.mnemonic + " Disk Subsystem database:\n" + ev.target.error);
     };
 
     req.onblocked = function idbOpenOnblocked(ev) {
-        alert("Database.open is blocked -- cannot continue");
+        alert(that.mnemonic + " Disk Subsystem open is blocked -- cannot continue");
     };
 
     req.onupgradeneeded = function idbOpenOnupgradeneeded(ev) {
-        alert("Database requires version upgrade -- cannot continue");
+        req.transaction.abort();
+        ev.target.result.close();
+        alert(that.mnemonic + " Disk Subsystem missing or requires version upgrade -- cannot continue");
     };
 
     req.onsuccess = function idbOpenOnsuccess(ev) {
-        that.disk = ev.target.result;    // save the object reference globally for later use
-        that.disk.onerror = function idbCONFIGGetOnerror(ev) {
-            alert("Database for \"" + that.mnemonic + "\" CONFIG get error: " + ev.target.result.error);
+        var txn;
+
+        that.db = ev.target.result;     // save the object reference globally for later use
+        that.db.onerror = function idbCONFIGGetOnerror(ev) {
+            alert("Disk \"" + that.mnemonic + "\" CONFIG get error: " + ev.target.result.error);
         };
 
-        that.disk.transaction("CONFIG").objectStore("CONFIG").get(0).onsuccess = function idbCONFIGGetOnsuccess(ev) {
-            that.config = ev.target.result;
-            that.statusChange(1);       // report the DFCU as ready to Central Control
-            // Set up the generic error handler
-            that.disk.onerror = function idbGenericOnError(ev) {
-                that.genericIDBError(ev);
+        if (!that.db.objectStoreNames.contains(that.configName)) {
+            that.config = {eus:0};              // indicate there are no EUs
+            that.config[that.euPrefix+"0"] = 0; // indicate EU 0 has no sectors
+            alert(that.mnemonic + " CONFIG structure does not exist -- must delete & recreate DB");
+        } else {
+            txn = that.db.transaction(that.configName);
+            txn.objectStore(that.configName).get(0).onsuccess = function idbCONFIGGetOnsuccess(ev) {
+                that.config = ev.target.result;
+                that.statusChange(1);       // report the DFCU as ready to Central Control
+                // Set up the generic error handler
+                that.db.onerror = function idbGenericOnError(ev) {
+                    that.genericIDBError(ev);
+                };
             };
-        };
+        }
     };
 };
 
@@ -217,7 +227,7 @@ B5500DiskUnit.prototype.read = function read(finish, buffer, length, mode, contr
             finish(this.errorMask, 0);
             this.errorMask = 0;
         } else if (segs < 2) {          // A single-segment read
-            req = this.disk.transaction(euName).objectStore(euName).get(segAddr);
+            req = this.db.transaction(euName).objectStore(euName).get(segAddr);
             req.onsuccess = function singleReadOnsuccess(ev) {
                 that.copySegment(ev.target.result, buffer, 0);
                 this.timer = setCallback(this.mnemonic, this, finishTime - performance.now(),
@@ -228,7 +238,7 @@ B5500DiskUnit.prototype.read = function read(finish, buffer, length, mode, contr
             }
         } else {                        // A multi-segment read
             range = IDBKeyRange.bound(segAddr, endAddr);
-            txn = this.disk.transaction(euName);
+            txn = this.db.transaction(euName);
 
             req = txn.objectStore(euName).openCursor(range);
             req.onsuccess = function rangeReadOnsuccess(ev) {
@@ -313,7 +323,7 @@ B5500DiskUnit.prototype.write = function write(finish, buffer, length, mode, con
 
         // Do the write
         } else {
-            txn = this.disk.transaction(euName, "readwrite")
+            txn = this.db.transaction(euName, "readwrite")
             txn.oncomplete = function writeComplete(ev) {
                 this.timer = setCallback(this.mnemonic, this, finishTime - performance.now(),
                     function writeTimeout() {
@@ -389,7 +399,7 @@ B5500DiskUnit.prototype.readCheck = function readCheck(finish, length, control) 
             // DO NOT clear the error mask -- will return it on the next interrogate
         } else {                        // A multi-segment read
             range = IDBKeyRange.bound(segAddr, endAddr);
-            txn = this.disk.transaction(euName);
+            txn = this.db.transaction(euName);
             finish(this.errorMask, length);     // post I/O complete now -- DFCU will signal when check finished
 
             req = txn.objectStore(euName).openCursor(range);

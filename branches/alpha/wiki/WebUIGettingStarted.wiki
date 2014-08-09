@@ -43,9 +43,10 @@ The retro-B5500 emulator pushes the limits in several areas of current web-brows
     * `ArrayBuffer`, `DataView`, and `Blob` APIs
     * `File`, `FileList`, and `FileReader` APIs
     * Window `postMessage` API
+    * `performance.now()' API
     * HTML `<progress>` element
 
-As of this writing, the emulator has been tested with and works with Mozilla Firefox (version 21 and above) and Google Chrome (version 27 and above). Somewhat earlier versions of these browsers may also work. Apple Safari will not support the emulator, because it does not as yet support the IndexedDB API (the emulator runs fine under Firefox on a Macintosh, however). Microsoft Internet Explorer (at least through IE10) will not support the emulator. We have not yet tried Opera.
+As of this writing, the emulator has been tested with and works with Mozilla Firefox (version 21 and above) and Google Chrome (version 35 and above).^1^ Somewhat earlier versions of these browsers may also work. Apple Safari will not support the emulator, because it does not as yet support the IndexedDB API. The emulator runs fine on a Macintosh, however, under Firefox or Chrome. Microsoft Internet Explorer (at least through IE10) will not support the emulator. We have not yet tried Opera.
 
 == The Web Server ==
 
@@ -216,10 +217,10 @@ Library/Maintenance is the portion of the MCP that manages disk files and mainta
 Files can be loaded from Library/Maintenance volumes such as the `SYSTEM`, `SYMBOL1`, and `SYMBOL2` tape images using the `LOAD` and `ADD` control card commands, e.g.,
 
     {{{
-    ?LOAD FROM SYSTEM ESPOL/DISK, COBOL/DISK, DUMP/ANALYZE
+    ?LOAD FROM SYSTEM ESPOL/DISK, COBOL/DISK, DUMP/ANALYZE; END
     }}}
 
-A control card command can be continued across multiple card images by terminating a card with a hyphen (`-`) wherever a word or other punctuation character might appear. The continuation card(s) that follow must not have an invalid character in column 1.
+A control card command can be continued across multiple card images by terminating a card with a hyphen (`-`) wherever a word or other punctuation character might appear. The continuation card(s) that follow must not have an invalid character in column 1. The command must be terminated either by appending `;END` on the last line or by a final line with `?END` beginning in column 1.
 
 All files having the same first or last identifier in their file name may be loaded by specifying `MFID/=` or `=/FID`. All files from a tape can be loaded by specifying `=/=`. Library/Maintenance will not overwrite certain critical system files, such as the currently running MCP and Intrinsics.
 
@@ -237,3 +238,9 @@ The emulator is initiated from the `B5500Console.html` page in the `webUI/` dire
     http://www.phkimpel.us/B5500/webUI/B5500Console.html
 
 See [WebUIRunningTheEmulator WebUI Running the Emulator] for detailed instructions on how to start the emulator and run the emulated B5500 system.
+
+
+
+`____________`
+
+^1^ Earlier versions of the emulator ran fine on Chrome 27 (the earliest version we tested), but somewhere around Chrome 30 the browser started crashing ("Aw, Snap!") while running the emulator. This appears to have been a problem with garbage collection, resulting in the browser running out of memory. The problem was resolved in mid-2014 with Chrome 35.

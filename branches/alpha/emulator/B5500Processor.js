@@ -55,7 +55,7 @@ function B5500Processor(procID, cc) {
 /**************************************/
 
 B5500Processor.cyclesPerMilli = 1000;   // clock cycles per millisecond (1000 => 1.0 MHz)
-B5500Processor.timeSlice = 4000;        // this.run() timeslice, clocks
+B5500Processor.timeSlice = 1000;        // this.run() time-slice, clocks
 B5500Processor.delayAlpha = 0.999;      // decay factor for exponential weighted average delay
 B5500Processor.slackAlpha = 0.9999;     // decay factor for exponential weighted average slack
 

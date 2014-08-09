@@ -434,7 +434,7 @@ B5500DatacomUnit.prototype.keyPress = function keyPress(ev) {
             case 0x21:                  // ! EOT, disconnect
                 this.buffer[this.bufIndex++] = 0x7D;    // } greater-or-equal code
                 this.interrupt = true;
-                this.abnomal = true;
+                this.abnormal = true;
                 this.setState(this.bufReadReady);
                 setCallback(this.mnemonic, this, delay, this.signal);
                 this.inTimer = setCallback(this.mnemonic, this, delay, this.printChar, c);

@@ -38,7 +38,7 @@
 * The blob is assumed to be in the so-called ".bcd" format. Each 7-bit frame
 * from the tape is represented as one 8-bit unsigned byte. The low-order six
 * bits (mask 0x3F) contain the character value. The next bit (mask 0x40) is
-* the parity bit, and the high-order bit (mask 0x80) indicates the byte is
+* the odd parity bit, and the high-order bit (mask 0x80) indicates the byte is
 * at the start of a physical tape block. Tape marks (EOF) are indicated by a
 * block containing a single 0x8F byte.
 *
@@ -77,7 +77,7 @@ window.addEventListener("load", function() {
 
     var availDisk = null;               // available disk space map
     var config = null;                  // copy of CONFIG store contents
-    var disk = null;                    // the IDB database object
+    var db = null;                      // the IDB database object
     var panel = document.getElementById("TextPanel");
     var tapeBlob = null;                // blob read from .bcd file
     var tapeData = null;                // tape blob as a DataView
@@ -377,36 +377,44 @@ window.addEventListener("load", function() {
         var found = false;
         var mx;
 
-        for (mx=availDisk.length-1; mx>=0; mx--) {
-            avAddr = availDisk[mx].addr;
-            avEnd = availDisk[mx].size + avAddr - 1;
-            if (avAddr <= addr && avEnd >= endAddr) {
-                found = true;
-                if (avAddr == addr) {           // remove space from the front of this entry
-                    availDisk[mx].addr += size;
-                    availDisk[mx].size -= size;
-                } else if (avEnd == endAddr) {  // remove space from the end
-                    availDisk[mx].size -= size;
-                } else {                        // remove space from the middle
-                    // See if we can find a zero-length entry to reuse for the second area
-                    for (ex=availDisk.length-1; ex>=0; ex--) {
-                        if (availDisk[ex].size == 0) {
-                            break;
-                        }
-                    }
-                    if (ex <= 0) {
-                        ex = availDisk.length;
-                        availDisk.push({});
-                    }
-                    availDisk[mx].size = addr-avAddr;
-                    availDisk[ex].addr = endAddr+1;
-                    availDisk[ex].size = avEnd-endAddr;
-                }
-                break;
+        if (endAddr >= directoryEnd+4) {
+            if (addr < directoryEnd+4) {
+                addr = directoryEnd+4;
+                size = endAddr - addr + 1;
             }
-        }
-        if (!found) {
-            alert("removeAvailable: No map entry covers address " + addr + " for " + size + " segments");
+
+            for (mx=availDisk.length-1; mx>=0; mx--) {
+                avAddr = availDisk[mx].addr;
+                avEnd = availDisk[mx].size + avAddr - 1;
+                if (avAddr <= addr && avEnd >= endAddr) {
+                    found = true;
+                    if (avAddr == addr) {           // remove space from the front of this entry
+                        availDisk[mx].addr += size;
+                        availDisk[mx].size -= size;
+                    } else if (avEnd == endAddr) {  // remove space from the end
+                        availDisk[mx].size -= size;
+                    } else {                        // remove space from the middle
+                        // See if we can find a zero-length entry to reuse for the second area
+                        for (ex=availDisk.length-1; ex>=0; ex--) {
+                            if (availDisk[ex].size == 0) {
+                                break;
+                            }
+                        }
+                        if (ex <= 0) {
+                            ex = availDisk.length;
+                            availDisk.push({});
+                        }
+                        availDisk[mx].size = addr-avAddr;
+                        availDisk[ex].addr = endAddr+1;
+                        availDisk[ex].size = avEnd-endAddr;
+                    }
+                    break;
+                }
+            }
+
+            if (!found) {
+                alert("removeAvailable: No map entry covers address " + addr + " for " + size + " segments");
+            }
         }
     }
 
@@ -988,7 +996,7 @@ window.addEventListener("load", function() {
         var names = [0, 0];
         var buf = new Uint8Array(16);
         var euName = euPrefix + "0";
-        var txn = disk.transaction(euName, "readwrite");
+        var txn = db.transaction(euName, "readwrite");
         var eu = txn.objectStore(euName);
         var fid;
         var mfid;
@@ -1177,7 +1185,7 @@ window.addEventListener("load", function() {
             alert("No EU0 in disk configuration -- cannot load");
         } else {
             availDisk = [{addr: directoryEnd+4, size: config.EU0-directoryEnd-4}];
-            txn = disk.transaction(euName);
+            txn = db.transaction(euName);
             eu = txn.objectStore(euName);
             readDiskBlock(eu, directoryTop+4, 16, block, complementDirBlock);
         }
@@ -1321,7 +1329,7 @@ window.addEventListener("load", function() {
             // Debug dump of avail table
             spout("Disk Available-Space Table:");
             for (x=0; x<availDisk.length; x++) {
-                spout(x.toFixed(0) + ": " + availDisk[x].addr + ":" + availDisk[x].size);
+                spout(x.toFixed(0) + " = " + availDisk[x].addr + ":" + availDisk[x].size);
             }
         });
     }
@@ -1865,16 +1873,16 @@ window.addEventListener("load", function() {
         wordsToANSI(shar, 0, 30, fileLabels, 0);        // initialize the file name label block
 
         // Start a transaction
-        txn = disk.transaction([euName, "CONFIG"], "readwrite");
+        txn = db.transaction([euName, configName], "readwrite");
         txn.oncomplete = function(ev) {
             alert("Cold Start completed successfully");
         };
 
         eu = txn.objectStore(euName);
-        txn.objectStore("CONFIG").get(0).onsuccess = function(ev) {
+        txn.objectStore(configName).get(0).onsuccess = function(ev) {
             config = ev.target.result;                  // global assignment
             if (!config) {
-                alert("No CONFIG object in database");
+                alert("No CONFIG object in Disk Subsystem database");
                 txn.abort();
             } else {
                 // If we're going to cold start, may as well start with an empty EU store
@@ -1886,11 +1894,13 @@ window.addEventListener("load", function() {
     }
 
     /**************************************/
-    function configureDatabase(ev) {
-        /* Handles the onupgradeneeded event for the database */
+    function configureDatabase(ev, req) {
+        /* Handles the onupgradeneeded event for the database. "ev" is the
+        event, "req" is the DB open request object */
         var configStore = null;
-        var disk = ev.target.result;
-        var stores = disk.objectStoreNames;
+        var db = ev.target.result;
+        var stores = db.objectStoreNames;
+        var txn = req.transaction;
 
         function configureEUs(configStore, config) {
             var euName;
@@ -1899,7 +1909,7 @@ window.addEventListener("load", function() {
             // are in conflict with the contents of euSet.
 
             for (euName in euSet) {
-                if (euName.indexOf("EU") == 0) {
+                if (euName.indexOf(euPrefix) == 0) {
                     if (!config[euName]) {
                         config[euName] = euSet[euName];
                     }
@@ -1910,38 +1920,44 @@ window.addEventListener("load", function() {
                     } else {
                         config[euName] = euSet[euName];
                         config.eus++;
-                        disk.createObjectStore(euName);
+                        db.createObjectStore(euName);
                     }
                 }
             }
             configStore.put(config, 0);
         }
 
-        if (stores.contains(configName)) {
-            configStore = disk.transaction(configName).objectStore(configName);
-            configStore.get(0).onsuccess = function(ev) {
-                config = ev.target.result || {eus:0};
+        switch (true) {
+        case ev.oldVersion < 1:
+            if (!confirm("retro-B5500 Disk Subsystem does not exist.\nDo you want to create it?")) {
+                txn.abort();
+                db.close();
+                db = null;
+                alert("No Disk Subsystem created -- please close this page");
+            } else {
+                config = {eus:0};
+                configStore = db.createObjectStore(configName);
                 configureEUs(configStore, config);
-            };
-        } else {
-            config = {eus:0};
-            configStore = disk.createObjectStore(configName);
-            configureEUs(configStore, config);
-        }
+            }
+            break;
+
+        default:
+            alert("Disk Subsystem is higher version than Loader -- aborting");
+        } // switch
     }
 
     /**************************************/
     function genericDBError(ev) {
         /* Formats a generic alert when otherwise-unhandled database errors occur */
-        var disk = ev.currentTarget.result;
+        var db = ev.currentTarget.result;
 
-        alert("Database \"" + disk.name + "\" error: " + ev.target.result.error);
+        alert("Disk Subsystem \"" + db.name + "\" error: " + ev.target.result.error);
     }
 
     /**************************************/
     function dumpDisk() {
         /* Dumps the initial and directory portions of the disk */
-        var txn = disk.transaction("EU0");
+        var txn = db.transaction("EU0");
         var endKey = directoryTop+100;
         var eu = txn.objectStore("EU0");
         var range = IDBKeyRange.upperBound(endKey);
@@ -1971,65 +1987,77 @@ window.addEventListener("load", function() {
     /**************************************/
     function openDatabase(name, version) {
         /* Attempts to open the disk subsystem database for the specified "name"
-        and "version". Stores the IDB database object in "disk" if successful, or
+        and "version". Stores the IDB database object in "db" if successful, or
         stores null if unsuccessful */
-        var db = null;
         var req;
 
         req = window.indexedDB.open(name, version);
 
         req.onerror = function(ev) {
-            alert("Cannot open disk database: " + ev.target.error);
+            alert("Cannot open retro-B5500 Disk Subsystem database:\n" + ev.target.error);
         };
 
         req.onblocked = function(ev) {
-            alert("Database.open is blocked -- cannot continue");
+            alert("Disk Subsystem open is blocked -- cannot continue");
         };
 
-        req.onupgradeneeded = configureDatabase;
+        req.onupgradeneeded = function(ev) {
+            configureDatabase(ev, req);
+        };
 
         req.onsuccess = function(ev) {
-            disk = ev.target.result;    // save the object reference globally for later use
-            disk.onerror = genericDBError;
-            alert("Disk database opened: " + name + " #" + disk.version);
-            $$("ColdstartBtn").disabled = false;
-            $$("FileSelector").disabled = false;
+            var txn;
+
+            db = ev.target.result;    // save the object reference globally for later use
+            db.onerror = genericDBError;
+            alert("Disk Subsystem opened: " + name + " #" + db.version);
             $$("DeleteDBBtn").disabled = false;
 
             //  dumpDisk();             // <<<<<<<<<<<<<< DEBUG <<<<<<<<<<<<<<<<<
 
-            disk.transaction("CONFIG").objectStore("CONFIG").get(0).onsuccess = function(ev) {
-                config = ev.target.result;
-            };
+            if (!db.objectStoreNames.contains(configName)) {
+                config = null;
+                alert("No CONFIG structure exists -- must delete & recreate DB");
+            } else {
+                txn = db.transaction(configName);
+                txn.objectStore(configName).get(0).onsuccess = function(ev) {
+                    config = ev.target.result;
+                    $$("ColdstartBtn").disabled = false;
+                    $$("FileSelector").disabled = false;
+                };
+            }
         };
-
     }
 
     /**************************************/
-    function deleteDiskDatabase(name, version) {
+    function deleteDiskDatabase(name) {
         /* Attempts to permanently delete the disk subsystem database for the
         specified "name". Clears the browser window if successful */
         var req;
 
-        if (confirm("This will PERMANENTLY DELETE the emulator's entire disk subsystem.\n" +
-                    "Are you sure you want to do this?")) {
-            if (confirm("Deletion of the disk subsystem CANNOT BE UNDONE.\n\nAre you really sure?")) {
-                disk = null;            // invalidate the IDB handle
-                req = window.indexedDB.deleteDatabase(dbName);
+        if (confirm("This will PERMANENTLY DELETE the retro-B5500 emulator's\nentire Disk Subsystem." +
+                    "\n\nAre you sure you want to do this?")) {
+            if (confirm("Deletion of the Disk Subsystem CANNOT BE UNDONE.\n\nAre you really sure?")) {
+                if (db) {
+                    db.close();
+                    db = null;          // invalidate the IDB handle
+                }
+                req = window.indexedDB.deleteDatabase(name);
 
                 req.onerror = function(ev) {
-                    alert("Cannot delete the disk database: " + ev.target.error);
+                    alert("Cannot delete the Disk Subsystem database:\n" + ev.target.error);
                 };
 
                 req.onblocked = function(ev) {
-                    alert("Database.deleteDatabase is blocked -- cannot continue");
+                    alert("Disk Subsystem delete is blocked -- cannot continue");
                 };
 
                 req.onsuccess = function(ev) {
-                    alert("retro-B5500 disk subsystem database deleted successfully");
                     document.open();
                     document.write("B5500ColdLoader terminated.");
                     document.close();
+                    alert("retro-B5500 Disk Subsystem database deleted successfully." +
+                          "\nPlease close this page.");
                 };
             }
         }
@@ -2063,11 +2091,13 @@ window.addEventListener("load", function() {
         $$("FileSelector").addEventListener("change", fileSelector_onChange, false);
         $$("ColdstartBtn").addEventListener("click", function(ev) {
             if (confirm("Are you sure you want to do a COLD START?\n" +
-                        "This will PERMANENTLY DELETE all files in the B5500 disk subsystem.")) {
+                        "This will PERMANENTLY DELETE all MCP files in the B5500 Disk Subsystem.")) {
                 initializeDisk();
             }
         }, false);
-        $$("DeleteDBBtn").addEventListener("click", deleteDiskDatabase)
+        $$("DeleteDBBtn").addEventListener("click", function(ev) {
+            deleteDiskDatabase(dbName);
+        });
         $$("LoadBtn").addEventListener("click", loadFromTape);
         openDatabase(dbName, dbVersion);
     }
