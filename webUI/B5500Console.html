@@ -7,7 +7,7 @@
 <meta http-equiv="Content-Style-Type" content="text/css">
 <link id=defaultStyleSheet rel=stylesheet type="text/css" href="B5500Console.css">
 
-<script src="./B5500SetCallback.js"></script>   <!-- must be first -->
+<script src="./setImmediate.js"></script>
 
 <script src="./B5500DummyUnit.js"></script>
 <script src="./B5500SPOUnit.js"></script>
@@ -15,8 +15,6 @@
 <script src="./B5500CardReader.js"></script>
 <script src="./B5500CardPunch.js"></script>
 <script src="./B5500DummyPrinter.js"></script>
-<script src="./B5500DatacomUnit.js"></script>
-<script src="./B5500MagTapeDrive.js"></script>
 
 <script src="../emulator/B5500SystemConfiguration.js"></script>
 <script src="../emulator/B5500CentralControl.js"></script>
@@ -26,33 +24,30 @@
 <script>
 "use strict";
 
+if (!window.indexedDB) {                // for Safari, mostly
+    window.indexedDB = window.webkitIndexedDB || window.mozIndexedDB;
+}
+
 window.addEventListener("load", function() {
     var aControl;
     var aNormal;
     var bControl;
     var bNormal;
-    var cc = new B5500CentralControl(window);
-    var ccLatches = [0, 0, 0];
-    var ccLightsMap = new Array(6);
-    var elapsedAverage = 0;
-    var elapsedLast = 0;
+    var boundBlinkenlicht;
+    var cc = new B5500CentralControl();
     var intLightsMap = new Array(48);
+    var iouLightsMap = new Array(4);
     var lastInterruptMask = 0;
-    var lastCCMask = 0;
+    var lastIOUMask = 0;
     var lastUnitBusyMask = 0;
     var lastPANormalRate = -1;
     var lastPAControlRate = -1;
     var lastPBNormalRate = -1;
     var lastPBControlRate = -1;
-    var perf = performance;             // it's faster if locally cached
     var perLightsMap = new Array(48);
     var procDelay;
     var procSlack;
-    var showAnnunciators = true;
-    var slackAlpha = 0.990;             // decay factor for exponential weighted avg.
-    var slackAverage = 0;               // average P1 slack time
-    var slackLast = 0;                  // last P1 total slack time
-    var timer = 0;                      // timing cookie
+    var timer;
     var timerInterval = 50;             // milliseconds
 
     function $$(id) {
@@ -63,79 +58,50 @@ window.addEventListener("load", function() {
         return function() {f.apply(context, arguments)};
     }
 
-    function BurroughsLogo_Click(ev) {
-        showAnnunciators = !showAnnunciators;
-        $$("CentralControl").style.visibility = (showAnnunciators ? "visible" : "hidden");
-        $$("RetroVersion").style.visibility = (showAnnunciators ? "visible" : "hidden");
-        $$("RetroLogoImage").style.display = (showAnnunciators ? "inline" : "none");
-        $$("B5500LogoImage").style.display = (showAnnunciators ? "none" : "inline");
-    }
-
     function PowerOnBtn_Click(ev) {
-        $$("PowerOnBtn").className = "greenButton greenLit";
-        $$("HaltBtn").className = "redButton redLit";
+        $$("PowerOnBtn").className = "whiteButton whiteLit";
+        $$("AControlBtn").className = "yellowButton yellowLit";
         cc.powerOn();
         $$("PowerOnBtn").disabled = true;
         $$("PowerOffBtn").disabled = false;
-        $$("LoadSelectBtn").disabled = false;
         $$("LoadBtn").disabled = false;
         $$("HaltBtn").disabled = true;
-        $$("MemoryCheckBtn").disabled = false;
-        if (showAnnunciators) {
-            $$("CentralControl").style.visibility = "visible";
-        }
+        boundBlinkenlicht();
+        window.focus();
         return true;
     }
 
     function PowerOffBtn_Click(ev) {
-        $$("PowerOnBtn").className = "greenButton";
+        $$("PowerOnBtn").className = "whiteButton";
         $$("ANormalBtn").className = "yellowButton";
         $$("AControlBtn").className = "yellowButton";
         $$("BNormalBtn").className = "yellowButton";
-        $$("BControlBtn").className = "yellowButton";
-        $$("LoadSelectBtn").className = "yellowButton";
-        $$("MemoryCheckBtn").className = "redButton";
-        $$("NotReadyBtn").className = "whiteButton";
-        $$("HaltBtn").className = "redButton";
-        $$("CentralControl").style.visibility = "hidden";
         cc.powerOff();
         $$("PowerOnBtn").disabled = false;
         $$("PowerOffBtn").disabled = true;
-        $$("LoadSelectBtn").disabled = true;
-        $$("LoadBtn").disabled = true;
         $$("HaltBtn").disabled = true;
-        $$("MemoryCheckBtn").disabled = true;
+        $$("LoadBtn").disabled = true;
         if (timer) {
-            clearInterval(timer);
-            timer = 0;
+            clearTimeout(timer);
+            timer = null;
         }
         return true;
     }
 
     function HaltBtn_Click(ev) {
-        $$("HaltBtn").className = "redButton redLit";
         cc.halt();
         $$("HaltBtn").disabled = true;
         $$("LoadBtn").disabled = false;
-        if (timer) {
-            clearInterval(timer);
-            timer = 0;
-        }
     }
 
     function LoadBtn_Click(ev) {
         var result;
 
-        window.open("", "SPO").focus(); // re-focus the SPO window
         result = cc.load(false);
         switch (result) {
         case 0:                         // load initiated successfully
-            $$("HaltBtn").className = "redButton";
             $$("HaltBtn").disabled = false;
             $$("LoadBtn").disabled = true;
-            elapsedLast = 0;
-            slackLast = slackAverage = 0;
-            timer = setInterval(dasBlinkenlicht, timerInterval);
             break;
         case 1:
             alert("P1 busy or not available");
@@ -155,161 +121,41 @@ window.addEventListener("load", function() {
     function LoadSelectBtn_Click(ev) {
         if (cc.cardLoadSelect) {
             cc.cardLoadSelect = 0;
-            $$("LoadSelectBtn").className = "yellowButton";
+            $$("LoadSelectBtn").className = "blackButton blackLit silverBorder";
         } else {
             cc.cardLoadSelect = 1;
-            $$("LoadSelectBtn").className = "yellowButton yellowLit";
+            $$("LoadSelectBtn").className = "blackButton blackLit yellowBorder";
         }
-    }
-
-    function dumpState(caption) {
-        /* Generates a dump of the processor states and all of memory */
-        var doc;
-        var lastPhase = -2;
-        var win = window.open("", "", "resizable,scrollbars,status");
-        var x;
-
-        var htmlMatch = /[<>&"]/g;          // regular expression for escaping HTML text
-
-        function htmlFilter(c) {
-            /* Used to escape HTML-sensitive characters in a string */
-            switch (c) {
-            case "&":
-                return "&amp;";
-            case "<":
-                return "&lt;";
-            case ">":
-                return "&gt;";
-            case "\"":
-                return "&quot;";
-            default:
-                return c;
-            }
-        }
-
-        function escapeHTML(text) {
-            /* Returns "text" as escaped HTML */
-
-            return text.replace(htmlMatch, htmlFilter);
-        }
-
-        function writer(phase, text) {
-            /* Call-back function for cc.dumpSystemState */
-
-            switch (phase) {
-            case 0:
-                lastPhase = phase;
-                doc.writeln(escapeHTML(text));
-                doc.writeln("User Agent: " + navigator.userAgent);
-                break;
-
-            case 1:
-            case 2:
-                if (phase == lastPhase) {
-                    doc.writeln(escapeHTML(text));
-                } else {
-                    lastPhase = phase;
-                    doc.writeln();
-                    doc.writeln(escapeHTML(text));
-                    doc.writeln();
-                }
-                break;
-
-            case 32:
-                if (phase != lastPhase) {
-                    lastPhase = phase;
-                    doc.writeln();
-                }
-                doc.writeln();
-                doc.writeln(escapeHTML(text));
-                break;
-
-            case -1:
-                break;
-            } // switch
-        }
-
-        doc = win.document;
-        doc.open();
-        doc.writeln("<html><head><title>B5500 Console State Dump</title>");
-        doc.writeln("</head><body>");
-        doc.write("<pre>");
-
-        cc.dumpSystemState(caption, writer);
-
-        doc.writeln("</pre></body></html>")
-        doc.close();
-        win.focus();
-    }
-
-    function displayCallbacks() {
-        /* Builds a table of outstanding callbacks */
-        var cb;
-        var cbs = clearCallback(0);
-        var cookie;
-        var e;
-        var body = document.createElement("tbody");
-        var oldBody = $$("CallbackBody");
-        var row;
-
-        for (cookie in cbs) {
-            cb = cbs[cookie];
-            row = document.createElement("tr");
-
-            e = document.createElement("td");
-            e.appendChild(document.createTextNode(cookie.toString()));
-            row.appendChild(e);
-
-            e = document.createElement("td");
-            e.appendChild(document.createTextNode(cb.delay.toFixed(2)));
-            row.appendChild(e);
-
-            e = document.createElement("td");
-            e.appendChild(document.createTextNode(cb.context.mnemonic || "??"));
-            row.appendChild(e);
-
-            e = document.createElement("td");
-            e.appendChild(document.createTextNode((cb.args ? cb.args.length : 0).toString()));
-            row.appendChild(e);
-            body.appendChild(row);
-        }
-
-        body.id = oldBody.id;
-        oldBody.parentNode.replaceChild(body, oldBody);
     }
 
     function displayCentralControl() {
-        /* Displays the I/O and interrupt status in CentralControl */
+        /* Displays the I/O and interrupt status in Central Control */
         var cells;
         var s;
-        var interruptMask;
-        var interruptChange;
-        var ccMask;
-        var ccChange;
-        var unitBusyMask;
-        var unitBusyChange;
+        var interruptMask = cc.fetchInterruptLatch() % 0x4000;
+        var interruptChange = lastInterruptMask ^ interruptMask;
+        var iouMask = cc.fetchIOUnitLatch();
+        var iouChange = lastIOUMask ^ iouMask;
+        var unitBusyMask = cc.fetchUnitBusyLatch();
+        var unitBusyChange = lastUnitBusyMask ^ unitBusyMask;
         var x;
 
-        cc.fetchCCLatches(ccLatches);
-        ccMask = ccLatches[0];
-        ccChange = lastCCMask ^ ccMask;
-        lastCCMask = ccMask;
-
-        interruptMask = ccLatches[1] % 0x4000;
-        interruptChange = lastInterruptMask ^ interruptMask;
         lastInterruptMask = interruptMask;
-
-        unitBusyMask = ccLatches[2];
-        unitBusyChange = lastUnitBusyMask ^ unitBusyMask;
+        lastIOUMask = iouMask;
         lastUnitBusyMask = unitBusyMask;
 
+        $$("AD1F").className = (cc.AD1F ? "busy" : "");
+        $$("AD2F").className = (cc.AD2F ? "busy" : "");
+        $$("AD3F").className = (cc.AD3F ? "busy" : "");
+        $$("AD4F").className = (cc.AD4F ? "busy" : "");
+
         x = 0;
-        while (ccChange) {
-            if (ccChange & 0x01) {
-                ccLightsMap[x].className = (ccMask & 0x01 ? "busy" : "");
+        while (iouChange) {
+            if (iouChange & 0x01) {
+                iouLightsMap[x].className = (iouMask & 0x01 ? "busy" : "");
             }
-            ccMask >>>= 1;
-            ccChange >>>= 1;
+            iouMask >>>= 1;
+            iouChange >>>= 1;
             x++;
         }
 
@@ -335,23 +181,21 @@ window.addEventListener("load", function() {
     }
 
     function dasBlinkenlicht() {
-        var cycles;
+        var et;
         var pa = cc.PA;
         var pb = cc.PB;
-        var p1 = cc.P1;
+        var stamp = new Date().getTime();
         var stateRate;
 
-        cycles = p1.normalCycles+p1.controlCycles;
-
         if (pa) {
-            if (pa.normalCycles+pa.controlCycles <= 0) {
+            if (!pa.busy) {
                 if (lastPAControlRate != -1) {
                     lastPAControlRate = -1;
                     aControl.className = "yellowButton";
                     aNormal.className = "yellowButton";
                 }
             } else {
-                stateRate = Math.round(pa.normalCycles/cycles*6 + 0.25);
+                stateRate = Math.round(pa.normalCycles/(pa.normalCycles+pa.controlCycles)*6);
                 if (stateRate != lastPANormalRate) {
                     lastPANormalRate = stateRate;
                     switch (stateRate) {
@@ -379,7 +223,7 @@ window.addEventListener("load", function() {
                     }
                 }
 
-                stateRate = Math.round(pa.controlCycles/cycles*6 + 0.25);
+                stateRate = 6 - stateRate;
                 if (stateRate != lastPAControlRate) {
                     lastPAControlRate = stateRate;
                     switch (stateRate) {
@@ -408,18 +252,25 @@ window.addEventListener("load", function() {
                 }
 
                 pa.controlCycles = pa.normalCycles = 0;
+
+                et = pa.procTime;
+                while (et < 0) {
+                  et += stamp;
+                }
+                procDelay.innerHTML = pa.delayDeltaAvg.toFixed(3);
+                procSlack.innerHTML = (pa.procSlack/et*100).toFixed(1) + "%";
             }
         }
 
         if (pb) {
-            if (pb.normalCycles+pb.controlCycles <= 0) {
+            if (!pb.busy) {
                 if (lastPBControlRate != -1) {
                     bControl.className = "yellowButton";
                     bNormal.className = "yellowButton";
                     lastPBControlRate = -1;
                 }
             } else {
-                stateRate = Math.round(pb.normalCycles/cycles*6 + 0.25);
+                stateRate = Math.round(pb.normalCycles/(pb.normalCycles+pb.controlCycles)*6);
                 if (stateRate != lastPBNormalRate) {
                     lastPBNormalRate = stateRate;
                     switch (stateRate) {
@@ -447,7 +298,7 @@ window.addEventListener("load", function() {
                     }
                 }
 
-                stateRate = Math.round(pb.controlCycles/cycles*6 + 0.25);
+                stateRate = 6 - stateRate;
                 if (stateRate != lastPBControlRate) {
                     lastPBControlRate = stateRate;
                     switch (stateRate) {
@@ -479,13 +330,8 @@ window.addEventListener("load", function() {
             }
         }
 
-        procDelay.innerHTML = p1.delayDeltaAvg.toFixed(1);
-        procSlack.innerHTML = (p1.procSlackAvg/p1.procRunAvg*100).toFixed(1);
-
-        if (showAnnunciators) {
-            displayCentralControl();
-        }
-        // displayCallbacks();
+        displayCentralControl();
+        timer = setTimeout(boundBlinkenlicht, timerInterval);
     }
 
     function buildLightMaps() {
@@ -494,12 +340,10 @@ window.addEventListener("load", function() {
         var spec;
         var x;
 
-        ccLightsMap[0] = $$("AD1F");
-        ccLightsMap[1] = $$("AD2F");
-        ccLightsMap[2] = $$("AD3F");
-        ccLightsMap[3] = $$("AD4F");
-        ccLightsMap[4] = $$("P2BF");
-        ccLightsMap[5] = $$("HP2F");
+        iouLightsMap[0] = $$("AD1F");
+        iouLightsMap[1] = $$("AD2F");
+        iouLightsMap[2] = $$("AD3F");
+        iouLightsMap[3] = $$("AD4F");
 
         for (x=3; x<=16; x++) {
             intLightsMap[50-x] = $$("CCI" + (x+100).toString().substring(1) + "F");
@@ -523,7 +367,6 @@ window.addEventListener("load", function() {
         if (!window.FileReader) {missing += ", FileReader"}
         if (!window.FileList) {missing += ", FileList"}
         if (!window.postMessage) {missing += ", window.postMessage"}
-        if (!(window.performance && "now" in performance)) {missing += ", performance.now"}
 
         if (missing.length == 0) {
             return false;
@@ -538,25 +381,11 @@ window.addEventListener("load", function() {
 
     $$("RetroVersion").innerHTML = B5500CentralControl.version;
     if (!checkBrowser()) {
-        $$("BurroughsLogo").addEventListener("click", BurroughsLogo_Click, false);
-        $$("B5500Logo").addEventListener("click", function(ev) {
-            alert("Dynamic configuration management is not yet implemented");
-        });
-
-        $$("PowerOnBtn").addEventListener("click", PowerOnBtn_Click, false);
-        $$("PowerOffBtn").addEventListener("click", PowerOffBtn_Click, false);
-        $$("HaltBtn").addEventListener("click", HaltBtn_Click, false);
-        $$("LoadBtn").addEventListener("click", LoadBtn_Click, false);
-        $$("LoadSelectBtn").addEventListener("click", LoadSelectBtn_Click, false);
-
-        // A kludge, for sure
-        $$("NotReadyBtn").addEventListener("click", function(ev) {
-            B5500SystemConfiguration.PB ^= true;
-            $$("RetroVersion").style.color = (B5500SystemConfiguration.PB ? "yellow" : "white");
-        });
-        $$("MemoryCheckBtn").addEventListener("click", function(ev) {
-            dumpState("Memory-Check Button");
-        });
+        $$("PowerOnBtn").addEventListener("click", PowerOnBtn_Click);
+        $$("PowerOffBtn").addEventListener("click", PowerOffBtn_Click);
+        $$("HaltBtn").addEventListener("click", HaltBtn_Click);
+        $$("LoadBtn").addEventListener("click", LoadBtn_Click);
+        $$("LoadSelectBtn").addEventListener("click", LoadSelectBtn_Click);
 
         aControl = $$("AControlBtn");
         aNormal  = $$("ANormalBtn");
@@ -564,9 +393,8 @@ window.addEventListener("load", function() {
         bNormal  = $$("BNormalBtn");
         procDelay = $$("procDelay");
         procSlack = $$("procSlack");
+        boundBlinkenlicht = bindMethod(dasBlinkenlicht, this);
         buildLightMaps();
-
-        window.dumpState = dumpState;
     }
 }, false);
 </script>
@@ -575,37 +403,35 @@ window.addEventListener("load", function() {
 <body>
 
 <div id=consoleDiv>
-    <button id=HaltBtn class="redButton" DISABLED>HALT</button>
+    <button id=HaltBtn class="blackButton blackLit" DISABLED>HALT</button>
 
-    <button id=NotReadyBtn class=whiteButton>NOT READY</button>
-    <button id=MemoryCheckBtn class=redButton DISABLED>MEMORY CHECK</button>
+    <button id=NotReadyBtn class=yellowButton>NOT READY</button>
+    <button id=LoadSelectBtn class="blackButton blackLit silverBorder">LOAD SELECT</button>
     <button id=LoadBtn class="blackButton blackLit" DISABLED>LOAD</button>
 
-    <button id=LoadSelectBtn class="yellowButton" DISABLED>CARD LOAD SELECT</button>
+    <button id=MemoryCheckBtn class=yellowButton>MEMORY CHECK</button>
     <button id=ANormalBtn class=yellowButton>A NORMAL</button>
     <button id=AControlBtn class=yellowButton>A CONTROL</button>
     <button id=BNormalBtn class=yellowButton>B NORMAL</button>
     <button id=BControlBtn class=yellowButton>B CONTROL</button>
 
-    <button id=PowerOnBtn class=greenButton>POWER<br>ON</button>
+    <button id=PowerOnBtn class=whiteButton>POWER<br>ON</button>
     <button id=PowerOffBtn class="blackButton blackLit" DISABLED>POWER OFF</button>
 
     <div id=BurroughsLogo>
-        <img id=BurroughsLogoImage src="Burroughs-Logo-Neg.jpg" alt="Burroughs logo"
-             title="Click to toggle display of the white annunciator lights">
+        <img id=BurroughsLogoImage src="Burroughs-Logo-Neg.jpg" alt="Burroughs logo">
     </div>
-    <div id=RetroVersion title="retro-B5500 emulator version">
+    <div id=RetroVersion>
         ?.??
     </div>
     <div id=B5500Logo>
-        <img id=RetroLogoImage src="retro-B5500-Logo.png" alt="retro-B5500 logo">
-        <span id=B5500LogoImage style="display:none">&nbsp;B&nbsp;5500&nbsp;</span>
+        <img src="retro-B5500-Logo.png" alt="retro-B5500 logo"><!-- B 5500 -->
     </div>
 
-    <table id=CentralControl style="visibility:hidden">
+    <table id=CentralControl>
     <colgroup>
-        <col span=31 class=AnnunciatorCol>
-        <col span=3>
+        <col span=32 class=AnnunciatorCol>
+        <col>
     </colgroup>
     <tbody>
     <tr id=CCInterruptRow>
@@ -613,7 +439,7 @@ window.addEventListener("load", function() {
         <td id=AD2F>IOU2                <!-- I/O unit 2 busy                            -->
         <td id=AD3F>IOU3                <!-- I/O unit 3 busy                            -->
         <td id=AD4F>IOU4                <!-- I/O unit 4 busy                            -->
-        <td id=CCI03F>TIMR              <!-- Interval timer interrupt                   -->
+        <td id=CCI03F>TIMR              <!-- Time interval interrupt                    -->
         <td id=CCI04F>IOBZ              <!-- I/O busy interrupt                         -->
         <td id=CCI05F>KBD               <!-- Keyboard request interrupt                 -->
         <td id=CCI06F>PR1F              <!-- Printer 1 finished interrupt               -->
@@ -627,30 +453,25 @@ window.addEventListener("load", function() {
         <td id=CCI14F>SPEC              <!-- Special interrupt #1 (not used)            -->
         <td id=CCI15F>DK1F              <!-- Disk file #1 read check finished           -->
         <td id=CCI16F>DK2F              <!-- Disk file #2 read check finished           -->
-        <td colspan=9>
-        <td id=P2BF>P2BF                <!-- Processor 2 busy FF                        -->
-        <td id=HP2F>HP2F                <!-- Halt Processor 2 FF                        -->
-        <td id=PABZ>PABZ                <!-- Processor A busy           *** debug ***   -->
-        <td id=PBBZ>PBBZ                <!-- Processor B busy           *** debug ***   -->
+        <td colspan=13>
         <td id=procSlack>
-        <td class=busy>%
-        <td class=statLabel title="Percentage of time Processor A is throttling its performance">P1 Slack
+        <td class=busy>PA Slack
     <tr id=CCPeripheralRow>
-        <td id=DRA>DRA                  <!-- 31 -->
-        <td id=DRB>DRB                  <!-- 30 -->
-        <td id=DKA>DKA                  <!-- 29 -->
-        <td id=DKB>DKB                  <!-- 28 -->
-        <td id=SPO>SPO                  <!-- 22 -->
-        <td id=CPA>CPA                  <!-- 25 -->
-        <td id=CRA>CRA                  <!-- 24 -->
-        <td id=CRB>CRB                  <!-- 23 -->
-        <td id=LPA>LPA                  <!-- 27 -->
-        <td id=LPB>LPB                  <!-- 26 -->
         <td id=DCA>DCA                  <!-- 17 -->
-        <td id=PRA>PRA                  <!-- 20 -->
-        <td id=PRB>PRB                  <!-- 19 -->
-        <td id=PPA>PPA                  <!-- 21 -->
         <td id=PPB>PPB                  <!-- 18 -->
+        <td id=PRB>PRB                  <!-- 19 -->
+        <td id=PRA>PRA                  <!-- 20 -->
+        <td id=PPA>PPA                  <!-- 21 -->
+        <td id=SPO>SPO                  <!-- 22 -->
+        <td id=CRB>CRB                  <!-- 23 -->
+        <td id=CRA>CRA                  <!-- 24 -->
+        <td id=CPA>CPA                  <!-- 25 -->
+        <td id=LPB>LPB                  <!-- 26 -->
+        <td id=LPA>LPA                  <!-- 27 -->
+        <td id=DKB>DKB                  <!-- 28 -->
+        <td id=DKA>DKA                  <!-- 29 -->
+        <td id=DRB>DRB                  <!-- 30 -->
+        <td id=DRA>DRA                  <!-- 31 -->
         <td id=MTA>MTA                  <!-- 47 -->
         <td id=MTB>MTB                  <!-- 46 -->
         <td id=MTC>MTC                  <!-- 45 -->
@@ -668,22 +489,9 @@ window.addEventListener("load", function() {
         <td id=MTS>MTS                  <!-- 33 -->
         <td id=MTT>MTT                  <!-- 32 -->
         <td id=procDelay>
-        <td class=busy>ms
-        <td class=statLabel title="Average excess throttling delay for Processor A (ms)">P1 Delay
+        <td class=busy>PA Delay
     </table>
 </div>
-
-<table cellspacing=0 cellpadding=1 border=1 style="position:absolute; top:2in; visibility:hidden">
-<thead>
-  <tr>
-    <th>ID
-    <th>Delay
-    <th>Context
-    <th>#Args
-</thead>
-<tbody id=CallbackBody>
-</tbody>
-</table>
 
 </body>
 </html>

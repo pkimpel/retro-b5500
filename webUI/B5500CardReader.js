@@ -19,7 +19,6 @@
 function B5500CardReader(mnemonic, unitIndex, designate, statusChange, signal) {
     /* Constructor for the CardReader object */
     var that = this;
-    var x = (mnemonic == "CRA" ? 0 : 1)*110;
 
     this.mnemonic = mnemonic;           // Unit mnemonic
     this.unitIndex = unitIndex;         // Ready-mask bit number
@@ -27,7 +26,7 @@ function B5500CardReader(mnemonic, unitIndex, designate, statusChange, signal) {
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (not used here)
 
-    this.timer = 0;                     // setCallback() token
+    this.timer = null;                  // setTimeout() token
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
 
     this.clear();
@@ -38,13 +37,12 @@ function B5500CardReader(mnemonic, unitIndex, designate, statusChange, signal) {
         this.window = null;
     }
     this.doc = null;
-    this.window = window.open("../webUI/B5500CardReader.html", mnemonic,
-        "scrollbars=no,resizable,width=560,height=160,left=0,top="+x);
-    this.window.addEventListener("load", function windowLoad() {
+    this.window = window.open("/B5500/webUI/B5500CardReader.html", mnemonic,
+        "scrollbars=no,resizable,width=700,height=150");
+    this.window.addEventListener("load", function() {
         that.readerOnload();
     }, false);
 
-    this.progressBar = null;
     this.outHopperFrame = null;
     this.outHopper = null;
 }
@@ -64,11 +62,17 @@ B5500CardReader.prototype.cardFilter = [ // Filter ASCII character values to val
         0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x7B,0x7C,0x7D,0x7E,0x3F]; // 70-7F
 
 /**************************************/
+B5500CardReader.prototype.$$ = function $$(e) {
+    return this.doc.getElementById(e);
+};
+
+/**************************************/
 B5500CardReader.prototype.clear = function clear() {
     /* Initializes (and if necessary, creates) the reader unit state */
 
     this.ready = false;                 // ready status
     this.busy = false;                  // busy status
+    this.activeIOUnit = 0;              // I/O unit currently using this device
 
     this.errorMask = 0;                 // error mask for finish()
     this.finish = null;                 // external function to call for I/O completion
@@ -77,11 +81,6 @@ B5500CardReader.prototype.clear = function clear() {
     this.bufLength = 0;                 // Current input buffer length (characters)
     this.bufIndex = 0;                  // 0-relative offset to next "card" to be read
     this.eofArmed = false;              // EOF button: armed state
-};
-
-/**************************************/
-B5500CardReader.prototype.$$ = function $$(e) {
-    return this.doc.getElementById(e);
 };
 
 /**************************************/
@@ -122,11 +121,9 @@ B5500CardReader.prototype.setReaderReady = function setReaderReady(ready) {
     this.ready = ready;
     if (ready) {
         this.statusChange(1);
-        this.addClass(this.$$("CRStartBtn"), "greenLit")
         this.removeClass(this.$$("CRNotReadyLight"), "redLit");
     } else {
         this.statusChange(0);
-        this.removeClass(this.$$("CRStartBtn"), "greenLit")
         this.addClass(this.$$("CRNotReadyLight"), "redLit");
     }
 };
@@ -160,7 +157,6 @@ B5500CardReader.prototype.CRStartBtn_onclick = function CRStartBtn_onclick(ev) {
 B5500CardReader.prototype.CRStopBtn_onclick = function CRStopBtn_onclick(ev) {
     /* Handle the click event for the STOP button */
 
-    this.$$("CRFileSelector").value = null;     // reset the control so the same file can be reloaded
     if (this.ready) {
         this.setReaderReady(false);
     } else if (this.eofArmed) {
@@ -185,11 +181,7 @@ B5500CardReader.prototype.CRProgressBar_onclick = function CRProgressBar_onclick
             this.buffer = "";
             this.bufLength = 0;
             this.bufIndex = 0;
-            this.progressBar.value = 0;
-            this.$$("CRFileSelector").value = null;     // reset the control
-            while (this.outHopper.childNodes.length > 0) {
-                this.outHopper.removeChild(this.outHopper.firstChild);
-            }
+            this.$$("CRProgressBar").value = 0;
         }
     }
 };
@@ -326,15 +318,19 @@ B5500CardReader.prototype.beforeUnload = function beforeUnload(ev) {
 B5500CardReader.prototype.readerOnload = function readerOnload() {
     /* Initializes the reader window and user interface */
     var that = this;
+    var x = (this.mnemonic == "CRA" ? 0 : this.window.outerWidth + 16);
 
     this.doc = this.window.document;
     this.doc.title = "retro-B5500 " + this.mnemonic;
 
-    this.progressBar = this.$$("CRProgressBar");
+    this.window.moveTo(x, 0);
+    this.window.resizeTo(this.window.outerWidth+this.$$("CRDiv").scrollWidth-this.window.innerWidth+12,
+                         this.window.outerHeight+this.$$("CRDiv").scrollHeight-this.window.innerHeight+12);
+
     this.outHopperFrame = this.$$("CROutHopperFrame");
     this.outHopperFrame.contentDocument.head.innerHTML += "<style>" +
-            "BODY {background-color: white; margin: 2px} " +
-            "PRE {margin: 0; font-size: 8pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
+            "BODY {background-color: #FFE; margin: 2px} " +
+            "PRE {margin: 0; font-size: 9pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
             "</style>";
     this.outHopper = this.doc.createElement("pre");
     this.outHopperFrame.contentDocument.body.appendChild(this.outHopper);
@@ -344,23 +340,23 @@ B5500CardReader.prototype.readerOnload = function readerOnload() {
     this.armEOF(false);
     this.setReaderReady(false);
 
-    this.$$("CRFileSelector").addEventListener("change", function fileSelectorChange(ev) {
+    this.$$("CRFileSelector").addEventListener("change", function(ev) {
         that.fileSelector_onChange(ev);
     }, false);
 
-    this.$$("CRStartBtn").addEventListener("click", function startClick(ev) {
+    this.$$("CRStartBtn").addEventListener("click", function(ev) {
         that.CRStartBtn_onclick(ev);
     }, false);
 
-    this.$$("CRStopBtn").addEventListener("click", function stopClick(ev) {
+    this.$$("CRStopBtn").addEventListener("click", function(ev) {
         that.CRStopBtn_onclick(ev);
     }, false);
 
-    this.$$("CREOFBtn").addEventListener("click", function eofClick(ev) {
+    this.$$("CREOFBtn").addEventListener("click", function(ev) {
         that.CREOFBtn_onclick(ev);
     }, false);
 
-    this.progressBar.addEventListener("click", function progressClick(ev) {
+    this.$$("CRProgressBar").addEventListener("click", function(ev) {
         that.CRProgressBar_onclick(ev);
     }, false);
 };
@@ -371,6 +367,7 @@ B5500CardReader.prototype.read = function read(finish, buffer, length, mode, con
     buffer is empty and EOF is armed, returns EOF; otherwise if not ready,
     returns Not Ready */
     var card;
+    var that = this;
 
     this.errorMask = 0;
     if (this.busy) {
@@ -389,24 +386,20 @@ B5500CardReader.prototype.read = function read(finish, buffer, length, mode, con
         } else {
             card = this.readCardBinary(buffer, length);
         }
-
-        this.timer = setCallback(this.mnemonic, this,
-            60000/this.cardsPerMinute + this.initiateStamp - performance.now(),
-            function readDelay() {
-                this.busy = false;
-                finish(this.errorMask, length);
-        });
-
         if (this.bufIndex < this.bufLength) {
-            this.progressBar.value = this.bufLength-this.bufIndex;
+            this.$$("CRProgressBar").value = this.bufLength-this.bufIndex;
         } else {
-            this.progressBar.value = 0;
+            this.$$("CRProgressBar").value = 0;
             this.buffer = "";           // discard the input buffer
             this.bufLength = 0;
             this.bufIndex = 0;
             this.setReaderReady(false);
-            this.$$("CRFileSelector").value = null; // reset the control so the same file can be reloaded
         }
+
+        this.timer = setTimeout(function() {
+            that.busy = false;
+            finish(that.errorMask, length);
+        }, 60000/this.cardsPerMinute + this.initiateStamp - new Date().getTime());
 
         while (this.outHopper.childNodes.length > 1) {
             this.outHopper.removeChild(this.outHopper.firstChild);
@@ -470,7 +463,7 @@ B5500CardReader.prototype.shutDown = function shutDown() {
     /* Shuts down the device */
 
     if (this.timer) {
-        clearCallback(this.timer);
+        clearTimeout(this.timer);
     }
     this.window.removeEventListener("beforeunload", this.beforeUnload, false);
     this.window.close();

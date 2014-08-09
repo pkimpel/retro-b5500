@@ -20,9 +20,6 @@
 function B5500DummyPrinter(mnemonic, unitIndex, designate, statusChange, signal) {
     /* Constructor for the DummyPrinter object */
     var that = this;
-    var h = screen.availHeight*0.60;
-    var w = 900;
-    var s;
 
     this.mnemonic = mnemonic;           // Unit mnemonic
     this.unitIndex = unitIndex;         // Ready-mask bit number
@@ -30,7 +27,7 @@ function B5500DummyPrinter(mnemonic, unitIndex, designate, statusChange, signal)
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (e.g,. Printer Finished)
 
-    this.timer = 0;                     // setCallback() token
+    this.timer = null;                  // setTimeout() token
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
 
     this.clear();
@@ -43,15 +40,14 @@ function B5500DummyPrinter(mnemonic, unitIndex, designate, statusChange, signal)
     this.doc = null;
     this.paper = null;
     this.endOfPaper = null;
-    this.window = window.open("../webUI/B5500DummyPrinter.html", mnemonic,
-            s = "scrollbars,resizable,width=" + w + ",height=" + h +
-            ",left=0,top=" + (screen.availHeight - h));
-    this.window.addEventListener("load", function windowOnLoad() {
+    this.window = window.open("/B5500/webUI/B5500DummyPrinter.html", mnemonic,
+            "scrollbars,resizable,width=600,height=500");
+    this.window.addEventListener("load", function() {
         that.printerOnload();
     }, false);
 }
-B5500DummyPrinter.prototype.linesPerMinute = 1040;      // B329 line printer
-B5500DummyPrinter.prototype.maxScrollLines = 150000;    // Maximum printer scrollback (about a box of paper)
+B5500DummyPrinter.prototype.linesPerMinute = 1040; // B329 line printer
+B5500DummyPrinter.maxScrollLines = 150000;         // Maximum printer scrollback (about a box of paper)
 
 
 /**************************************/
@@ -65,6 +61,7 @@ B5500DummyPrinter.prototype.clear = function clear() {
 
     this.ready = false;                 // ready status
     this.busy = false;                  // busy status
+    this.activeIOUnit = 0;              // I/O unit currently using this device
 
     this.errorMask = 0;                 // error mask for finish()
     this.finish = null;                 // external function to call for I/O completion
@@ -116,7 +113,10 @@ B5500DummyPrinter.prototype.printerOnload = function printerOnload() {
     this.endOfPaper = this.doc.createElement("div");
     this.doc.body.appendChild(this.endOfPaper);
 
-    this.window.addEventListener("click", function windowOnClick(ev) {
+    this.window.moveTo(40, 40);
+    this.window.resizeTo(1000, screen.availHeight*0.80);
+
+    this.window.addEventListener("click", function(ev) {
         if (ev.detail == 2) { // check for left-button double-click
             that.ripPaper(ev);
         }
@@ -154,19 +154,16 @@ B5500DummyPrinter.prototype.write = function write(finish, buffer, length, mode,
     this.errorMask = 0;
     text = String.fromCharCode.apply(null, buffer.subarray(0, length));
     //console.log("WRITE:  L=" + length + ", M=" + mode + ", C=" + control + " : " + text);
-    if (length || control) {
-        this.appendLine(text + "\n");
-        if (control > 1) {
-            this.appendLine("\n");
-        } else if (control < 0) {
-            this.paper.appendChild(this.doc.createElement("hr"));
-        }
+    this.appendLine(text + "\n");
+    if (control > 1) {
+        this.appendLine("\n");
+    } else if (control < 0) {
+        this.paper.appendChild(this.doc.createElement("hr"));
     }
 
-    this.timer = setCallback(this.mnemonic, this,
-        60000/this.linesPerMinute + this.initiateStamp - performance.now(),
-        this.signal);
-    finish(this.errorMask, 0);
+    this.timer = setTimeout(this.signal,
+        60000/this.linesPerMinute + this.initiateStamp - new Date().getTime());
+    finish(0, 0);
     this.endOfPaper.scrollIntoView();
 };
 
@@ -220,7 +217,7 @@ B5500DummyPrinter.prototype.shutDown = function shutDown() {
     /* Shuts down the device */
 
     if (this.timer) {
-        clearCallback(this.timer);
+        clearTimeout(this.timer);
     }
     this.window.removeEventListener("beforeunload", this.beforeUnload, false);
     this.window.close();

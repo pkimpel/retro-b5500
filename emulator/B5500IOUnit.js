@@ -5,7 +5,7 @@
 * Licensed under the MIT License, see
 *       http://www.opensource.org/licenses/mit-license.php
 ************************************************************************
-* B5500 Emulator Input/Output Unit module.
+* B5500 Input/Output Unit module.
 *
 * Instance variables in all caps generally refer to register or flip-flop (FF)
 * entities in the processor hardware. See the Burroughs B5500 Reference Manual
@@ -28,7 +28,7 @@
 *       [22:1]  Direction bit (0=forward, 1=reverse for mag tape, 120/132 col for printers)
 *       [23:1]  Word count bit (0=ignore, 1=use word count in [8:10])
 *       [24:1]  I/O bit (0=write, 1=read)
-*       [25:1]  Group-mark detected bit (used by DCCU)
+*       [25:1]  (not used by I/O Unit)
 *       [26:7]  Control and error-reporting bits (depend on unit)
 *       [33:15] Memory address
 *
@@ -43,10 +43,9 @@ function B5500IOUnit(ioUnitID, cc) {
     /* Constructor for the I/O Unit object */
 
     this.ioUnitID = ioUnitID;           // I/O Unit ID ("1", "2", "3", or "4")
-    this.mnemonic = "IO" + ioUnitID;    // Unit mnemonic
     this.cc = cc;                       // Reference back to Central Control module
 
-    this.forkHandle = 0;                // Current setCallback token
+    this.forkHandle = null;             // Reference to current setImmediate id
     this.accessor = {                   // Memory access control block
         requestorID: ioUnitID,             // Memory requestor ID
         addr: 0,                           // Memory address
@@ -57,21 +56,17 @@ function B5500IOUnit(ioUnitID, cc) {
     };
 
     // Establish a buffer for the peripheral modules to use during their I/O.
-    // The 16384 size is sufficient for 63 disk sectors, rounded up to the next 8KB.
+    // The size is sufficient for 63 disk sectors, rounded up to the next 8KB.
     this.bufferArea = new ArrayBuffer(16384);
     this.buffer = new Uint8Array(this.bufferArea);
 
     // Establish contexts for asynchronously-called methods
-    this.boundFinishBusy = this.makeFinish(this.finishBusy);
-    this.boundFinishDatacomRead = this.makeFinish(this.finishDatacomRead);
-    this.boundFinishDatacomWrite = this.makeFinish(this.finishDatacomWrite);
-    this.boundFinishDiskRead = this.makeFinish(this.finishDiskRead);
+    this.boundForkIO = B5500CentralControl.bindMethod(this.forkIO, this);
     this.boundFinishGeneric = this.makeFinish(this.finishGeneric);
     this.boundFinishGenericRead = this.makeFinish(this.finishGenericRead);
+    this.boundFinishBusy = this.makeFinish(this.finishBusy);
+    this.boundFinishDiskRead = this.makeFinish(this.finishDiskRead);
     this.boundFinishSPORead = this.makeFinish(this.finishSPORead);
-    this.boundFinishTapeIO = this.makeFinish(this.finishTapeIO);
-    this.boundFinishTapeRead = this.makeFinish(this.finishTapeRead);
-    this.boundFinishTapeWrite = this.makeFinish(this.finishTapeWrite);
 
     this.initiateStamp = 0;             // Timestamp of last I/O initiation on this unit
 
@@ -141,6 +136,7 @@ B5500IOUnit.prototype.clear = function clear() {
     /* Initializes (and if necessary, creates) the I/O Unit state */
 
     this.W = 0;                         // Memory buffer register
+    this.D = 0;                         // I/O descriptor (control) register
     this.clearD();                      // clear the D-register exploded fields
 
     this.CC = 0;                        // Character counter (3 bits)
@@ -185,7 +181,7 @@ B5500IOUnit.prototype.clear = function clear() {
     this.ioUnitSlack = 0;               // Total I/O Unit throttling delay, milliseconds
 
     if (this.forkHandle) {
-        clearCallback(this.forkHandle);
+        clearImmediate(this.forkHandle);
     }
 };
 
@@ -194,15 +190,13 @@ B5500IOUnit.prototype.clearD = function clearD() {
     /* Clears the D-register and the exploded field variables used internally */
 
     this.D = 0;
-    this.D02F = 0;                      // Set for some Mod III IOU results
-    this.Dunit = 0;                     // Unit designate field [3:5]
-    this.DwordCount = 0;                // Word count field [8:10]
+    this.Dunit = 0;                     // Unit designate field (5 bits)
+    this.DwordCount = 0;                // Word count field (10 bits)
     this.D18F = 0;                      // Memory inhibit bit (0=transfer, 1=no transfer)
     this.D21F = 0;                      // Mode bit (0=alpha, 1=binary)
     this.D22F = 0;                      // Direction bit (0=forward), etc.
     this.D23F = 0;                      // Word counter bit (0=ignore, 1=use)
     this.D24F = 0;                      // I/O bit (0=write, 1=read)
-    this.D25F = 0;                      // Group-mark detected (0=yes, 1=buffer exhausted)
     this.D26F = 0;                      // Memory address error bit
     this.D27F = 0;                      // Device error bit 1
     this.D28F = 0;                      // Device error bit 2
@@ -276,21 +270,21 @@ B5500IOUnit.prototype.fetchBuffer = function fetchBuffer(mode, words) {
         if (words <= 0) {
             done = true;
         } else {
-            --words;
+            words--;
             if (overflow) {
                 this.AOFF = 1;          // for display only
                 this.D26F = 1;          // address overflow: set invalid address error
                 done = true;
             } else if (!this.fetch(addr)) { // fetch the next word from memory
                 w = this.W;             // fill the buffer with this word's characters
-                for (s=0; s<8; ++s) {
+                for (s=0; s<8; s++) {
                     c = (w - (w %= 0x40000000000))/0x40000000000;
                     buf[count++] = table[c];
                     w *= 64;            // shift word left 6 bits
                 } // for s
             }
             if (addr < 0x7FFF) {
-                ++addr;
+                addr++;
             } else {
                 overflow = true;
             }
@@ -327,14 +321,14 @@ B5500IOUnit.prototype.fetchBufferWithGM = function fetchBufferWithGM(mode, words
         if (words <= 0) {
             done = true;
         } else {
-            --words;
+            words--;
             if (overflow) {
                 this.AOFF = 1;          // for display only
                 this.D26F = 1;          // address overflow: set invalid address error
                 done = true;
             } else if (!this.fetch(addr)) { // fetch the next word from memory
                 w = this.W;             // fill the buffer with this word's characters
-                for (s=0; s<8; ++s) {
+                for (s=0; s<8; s++) {
                     c = (w - (w %= 0x40000000000))/0x40000000000;
                     if (c == 0x1F) {
                         done = true;    // group-mark detected
@@ -346,7 +340,7 @@ B5500IOUnit.prototype.fetchBufferWithGM = function fetchBufferWithGM(mode, words
                 } // for s
             }
             if (addr < 0x7FFF) {
-                ++addr;
+                addr++;
             } else {
                 overflow = true;
             }
@@ -386,9 +380,8 @@ B5500IOUnit.prototype.storeBuffer = function storeBuffer(chars, offset, mode, wo
         } else {
             c = table[buf[offset+(count++)]];
             w += c*power;
-            if (++s <= 7) {
-                power /= 64;
-            } else {
+            power /= 64;
+            if (++s > 7) {
                 this.W = w;
                 if (overflow) {
                     this.AOFF = 1;      // for display only
@@ -398,7 +391,7 @@ B5500IOUnit.prototype.storeBuffer = function storeBuffer(chars, offset, mode, wo
                     this.store(addr);   // store the word in memory
                 }
                 if (addr < 0x7FFF) {
-                    ++addr;
+                    addr++;
                 } else {
                     overflow = true;
                 }
@@ -420,9 +413,9 @@ B5500IOUnit.prototype.storeBuffer = function storeBuffer(chars, offset, mode, wo
         } else {
             this.store(addr);           // store the word in memory
         }
-        --words;
+        words--;
         if (addr < 0x7FFF) {
-            ++addr;
+            addr++;
         }
     }
 
@@ -435,8 +428,8 @@ B5500IOUnit.prototype.storeBuffer = function storeBuffer(chars, offset, mode, wo
 
 /**************************************/
 B5500IOUnit.prototype.storeBufferWithGM = function storeBufferWithGM(chars, offset, mode, words) {
-    /* Converts characters in this.buffer from ANSI or BCLANSI to BIC, assembles
-    them into words, and stores the words into memory starting at this.Daddress.
+    /* Converts characters in this.buffer from ANSI to BIC, assembles them into
+    words, and stores the words into memory starting at this.Daddress.
     "chars": the number of characters to store, starting at "offset" in the buffer;
     "mode": 0=BCLANSI, 1=ANSI; "words": maximum number of words to transfer.
     The final character stored from the buffer is followed in memory by a group-mark,
@@ -462,9 +455,8 @@ B5500IOUnit.prototype.storeBufferWithGM = function storeBufferWithGM(chars, offs
         } else {
             c = table[buf[offset+(count++)]];
             w += c*power;
-            if (++s <= 7) {
-                power /= 64;
-            } else {
+            power /= 64;
+            if (++s > 7) {
                 this.W = w;
                 if (overflow) {
                     this.AOFF = 1;      // for display only
@@ -474,7 +466,7 @@ B5500IOUnit.prototype.storeBufferWithGM = function storeBufferWithGM(chars, offs
                     this.store(addr);   // store the word in memory
                 }
                 if (addr < 0x7FFF) {
-                    ++addr;
+                    addr++;
                 } else {
                     overflow = true;
                 }
@@ -488,8 +480,8 @@ B5500IOUnit.prototype.storeBufferWithGM = function storeBufferWithGM(chars, offs
     } // while !done
 
     w += 0x1F*power;                // set group mark in register
-    ++s;
-    ++count;
+    s++;
+    count++;
 
     if (s > 0 && words > 0) {           // partial word left to be stored
         this.W = w;
@@ -500,9 +492,9 @@ B5500IOUnit.prototype.storeBufferWithGM = function storeBufferWithGM(chars, offs
         } else {
             this.store(addr);           // store the word in memory
         }
-        --words;
+        words--;
         if (addr < 0x7FFF) {
-            ++addr;
+            addr++;
         }
     }
 
@@ -514,171 +506,11 @@ B5500IOUnit.prototype.storeBufferWithGM = function storeBufferWithGM(chars, offs
 };
 
 /**************************************/
-B5500IOUnit.prototype.storeBufferBackward = function storeBufferBackward(chars, offset, mode, words) {
-    /* Converts characters in this.buffer from ANSI or BCLANSI to BIC, assembles
-    them into words, and stores the words into memory in reverse order, starting
-    at this.Daddress. Because this is an I/O done in the reverse direction, the
-    starting memory address is at the end (high address) in memory. The driver stores
-    characters in this.buffer in ascending sequence, however, so the first character
-    in this.buffer will be the last (highest) one in memory.
-    "chars": the number of characters to store, starting at "offset" in the buffer;
-    "mode": 0=BCLANSI, 1=ANSI; "words": maximum number of words to transfer.
-    At exit, updates this.Daddress with the final transfer address-1.
-    This routine ignores this.D23F, and does NOT update this.wordCount.
-    Returns the number of characters stored into memory from the buffer */
-    var addr = this.Daddress;           // local copy of memory address
-    var buf = this.buffer;              // local pointer to buffer
-    var c;                              // current character code
-    var count = 0;                      // number of characters fetched
-    var done = (words == 0);            // loop control
-    var overflow = false;               // memory address overflowed max
-    var power = 1;                      // factor for character shifting into a word
-    var s = 0;                          // character shift counter
-    var table = (mode ? B5500IOUnit.ANSItoBIC : B5500IOUnit.BCLANSItoBIC);
-    var w = 0;                          // local copy of this.W
-
-    while (!done) {                     // loop through the words
-        if (count >= chars) {
-            done = true;
-        } else {
-            c = table[buf[offset+(count++)]];
-            w += c*power;
-            if (++s <= 7) {
-                power *= 64;
-            } else {
-                this.W = w;
-                if (overflow) {
-                    this.AOFF = 1;      // for display only
-                    this.D26F = 1;      // address overflow: set invalid address error
-                    done = true;
-                } else {
-                    this.store(addr);   // store the word in memory
-                }
-                if (addr > 0) {
-                    --addr;
-                } else {
-                    overflow = true;
-                }
-                w = s = 0;
-                power = 1;
-                if (--words <= 0) {
-                    done = true;
-                }
-            }
-        }
-    } // while !done
-
-    if (s > 0 && words > 0) {           // partial word left to be stored
-        while (++s <= 8) {
-            w += (mode ? 0x00 : 0x0C)*power;
-            power *= 64;
-        }
-        this.W = w;
-        if (overflow) {
-            this.AOFF = 1;              // for display only
-            this.D26F = 1;              // address overflow: set invalid address error
-            done = true;
-        } else {
-            this.store(addr);           // store the word in memory
-        }
-        --words;
-        if (addr > 0) {
-            --addr;
-        }
-    }
-
-    this.Daddress = addr;
-    return count;
-};
-
-/**************************************/
-B5500IOUnit.prototype.storeBufferBackwardWithGM = function storeBufferBackwardWithGM(chars, offset, mode, words) {
-    /* Converts characters in this.buffer from ANSI or BCLANSI to BIC, assembles
-    them into words, and stores the words into memory in reverse order, starting
-    at this.Daddress. Because this is an I/O done in the reverse direction, the
-    starting memory address is at the end (high address) in memory. The driver stores
-    characters in this.buffer in ascending sequence, however, so the first character
-    in this.buffer will be the last (highest) one in memory.
-    "chars": the number of characters to store, starting at "offset" in the buffer;
-    "mode": 0=BCLANSI, 1=ANSI; "words": maximum number of words to transfer.
-    The final character stored from the buffer is followed in memory by a group-mark,
-    assuming the word count is not exhausted. At exit, updates this.Daddress with the
-    final transfer address-1.
-    This routine ignores this.D23F, and does NOT update this.wordCount.
-    Returns the number of characters stored into memory from the buffer, plus one
-    for the group-mark */
-    var addr = this.Daddress;           // local copy of memory address
-    var buf = this.buffer;              // local pointer to buffer
-    var c;                              // current character code
-    var count = 0;                      // number of characters fetched
-    var done = (words == 0);            // loop control
-    var overflow = false;               // memory address overflowed max
-    var power = 1;                      // factor for character shifting into a word
-    var s = 0;                          // character shift counter
-    var table = (mode ? B5500IOUnit.ANSItoBIC : B5500IOUnit.BCLANSItoBIC);
-    var w = 0;                          // local copy of this.W
-
-    while (!done) {                     // loop through the words
-        if (count >= chars) {
-            done = true;
-        } else {
-            c = table[buf[offset+(count++)]];
-            w += c*power;
-            if (++s <= 7) {
-                power *= 64;
-            } else {
-                this.W = w;
-                if (overflow) {
-                    this.AOFF = 1;      // for display only
-                    this.D26F = 1;      // address overflow: set invalid address error
-                    done = true;
-                } else {
-                    this.store(addr);   // store the word in memory
-                }
-                if (addr > 0) {
-                    --addr;
-                } else {
-                    overflow = true;
-                }
-                w = s = 0;
-                power = 1;
-                if (--words <= 0) {
-                    done = true;
-                }
-            }
-        }
-    } // while !done
-
-    w += 0x1F*power;                // set group mark in register
-    ++s;
-    ++count;
-
-    if (s > 0 && words > 0) {           // partial word left to be stored
-        this.W = w;
-        if (overflow) {
-            this.AOFF = 1;              // for display only
-            this.D26F = 1;              // address overflow: set invalid address error
-            done = true;
-        } else {
-            this.store(addr);           // store the word in memory
-        }
-        --words;
-        if (addr > 0) {
-            --addr;
-        }
-    }
-
-    this.Daddress = addr;
-    return count;
-};
-
-/**************************************/
 B5500IOUnit.prototype.finish = function finish() {
     /* Called to finish an I/O operation on this I/O Unit. Constructs and stores
     the result descriptor, sets the appropriate I/O Finished interrupt in CC */
 
     this.W = this.D =
-        this.D02F *   0x200000000000 +
         this.Dunit *   0x10000000000 +
         this.DwordCount * 0x40000000 +
         this.D18F *       0x20000000 +
@@ -686,7 +518,6 @@ B5500IOUnit.prototype.finish = function finish() {
         this.D22F *        0x2000000 +
         this.D23F *        0x1000000 +
         this.D24F *         0x800000 +
-        this.D25F *         0x400000 +
         this.D26F *         0x200000 +
         this.D27F *         0x100000 +
         this.D28F *          0x80000 +
@@ -725,13 +556,13 @@ B5500IOUnit.prototype.makeFinish = function makeFinish(f) {
     /* Utility function to create a closure for I/O finish handlers */
     var that = this;
 
-    return function makeFinishAnon(mask, length) {return f.call(that, mask, length)};
+    return function(mask, length) {return f.call(that, mask, length)};
 };
 
 /**************************************/
 B5500IOUnit.prototype.decodeErrorMask = function decodeErrorMask(errorMask) {
-    /* Decodes the common bits of the errorMask returned by the device drivers
-    and ORs it into the D-register error bits */
+    /* Decodes the errorMask returned by the device drivers and ORs it into
+    the D-register error bits */
 
     if (errorMask & 0x01) {this.D32F = 1}
     if (errorMask & 0x02) {this.D31F = 1}
@@ -771,80 +602,22 @@ B5500IOUnit.prototype.finishGenericRead = function finishGenericRead(errorMask, 
     /* Handles a generic I/O finish when input data transfer, and optionally,
     word-count update, is needed. Note that this turns off the busyUnit mask bit in CC */
 
-    this.storeBuffer(length, 0, 1, (this.D23F ? this.DwordCount : this.buffer.length/8));
+    this.storeBuffer(length, 0, 1, (this.D23F ? this.DwordCount : 0x7FFF));
     this.finishGeneric(errorMask, length);
 };
 
 /**************************************/
-B5500IOUnit.prototype.finishDatacomRead = function finishDatacomRead(errorMask, length) {
-    /* Handles I/O finish for a datacom read operation */
-    var bufExhausted = (errorMask & 0x080) >>> 7;
-    var tuBuf = (errorMask%0x10000000000 - errorMask%0x40000000)/0x40000000;    // get TU/buf #
+B5500IOUnit.prototype.finishSPORead = function finishSPORead(errorMask, length) {
+    /* Handles I/O finish for a SPO keyboard input operation */
 
-    if (bufExhausted || (tuBuf & 0x10)) {
-        this.storeBuffer(length, 0, 1, 56);
-    } else {
-        this.storeBufferWithGM(length, 0, 1, 56);
-    }
-    this.Daddress += (length+7) >>> 3;
-
-    // Decode the additional datacom status/error bits
-    this.D25F = bufExhausted;
-    this.D24F = (errorMask & 0x100) >>> 8;
-    this.D23F = (errorMask & 0x200) >>> 9;
-    this.DwordCount = tuBuf;
+    this.storeBufferWithGM(length, 0, 1, 0x7FFF);
     this.finishGeneric(errorMask, length);
-};
-
-/**************************************/
-B5500IOUnit.prototype.finishDatacomWrite = function finishDatacomWrite(errorMask, length) {
-    /* Handles I/O finish for a datacom write or interrogate operation */
-    var bufExhausted = (errorMask & 0x080) >>> 7;
-    var tuBuf = (errorMask%0x10000000000 - errorMask%0x40000000)/0x40000000;    // get TU/buf #
-
-    if (!(bufExhausted || (this.DwordCount & 0x10))) {
-        ++length;                       // account for the terminating Group Mark
-    }
-    this.Daddress += (length+7) >>> 3;
-
-    // Decode the additional datacom status/error bits
-    this.D25F = bufExhausted;
-    this.D24F = (errorMask & 0x100) >>> 8;
-    this.D23F = (errorMask & 0x200) >>> 9;
-    this.DwordCount = tuBuf;
-    this.finishGeneric(errorMask, length);
-};
-
-/**************************************/
-B5500IOUnit.prototype.initiateDatacomIO = function initiateDatacomIO(u) {
-    /* Initiates an I/O to the B249 Data Transmission Control Unit (DTCU) and through
-    to the B487 Data Transmission Terminal Unit (DTTU). Note that with datacom, the
-    I/O lengths should be determined by the DTTU, but in this implementation they are
-    determined by the IOUnit, so all of the requested lengths are in excess of the
-    maximum DTTU buffer of 448 chars (56 B5500 words) */
-    var chars;
-
-    this.D23F = 0;              // datacom does not use word count field as a word count
-    if (this.D24F) {            // DCA read
-        u.read(this.boundFinishDatacomRead, this.buffer, 449, this.D21F, this.DwordCount);
-    } else if (this.D18F) {     // DCA interrogate
-        u.writeInterrogate(this.boundFinishDatacomWrite, this.DwordCount);
-    } else {                    // DCA write
-        if (this.DwordCount & 0x10) {   // transparent (no GM) write
-            chars = this.fetchBuffer(1, 57);
-        } else {                        // GM-terminated write
-            chars = this.fetchBufferWithGM(1, 57);
-        }
-        // Restore the starting memory address -- will be adjusted in finishDatacomWrite
-        this.Daddress = this.D % 0x8000;
-        u.write(this.boundFinishDatacomWrite, this.buffer, chars, this.D21F, this.DwordCount);
-    }
 };
 
 /**************************************/
 B5500IOUnit.prototype.finishDiskRead = function finishDiskRead(errorMask, length) {
     /* Handles I/O finish for a DFCU data read operation */
-    var segWords = (length+7) >>> 3;
+    var segWords = Math.floor((length+7)/8);
     var memWords = (this.D23F ? this.DwordCount : segWords);
 
     if (segWords < memWords) {
@@ -877,9 +650,9 @@ B5500IOUnit.prototype.initiateDiskIO = function initiateDiskIO(u) {
     if (this.fetch(this.Daddress)) {    // fetch the segment address from first buffer word
         this.finish();
     } else {
-        ++this.Daddress;                // bump memory address past the seg address word
+        this.Daddress++;                // bump memory address past the seg address word
         w = this.W;                     // convert address word to binary
-        for (x=0; x<7; ++x) {           // 7 decimal digits: 1 for EU, 6 for EU-relative address
+        for (x=0; x<7; x++) {           // 7 decimal digits: 1 for EU, 6 for EU-relative address
             c = w % 0x40;               // get low-order six bits of word
             segAddr += (c % 0x10)*p;    // isolate the numeric portion and accumulate
             w = (w-c)/0x40;             // shift word right six bits
@@ -929,10 +702,10 @@ B5500IOUnit.prototype.initiatePrinterIO = function initiatePrinterIO(u) {
         } else {
             memWords = (this.D23F ? this.DwordCount : 0);
             if (memWords > 0) {
-                chars = (memWords %= 0x20)*8;
+                chars = memWords*8;
             } else {
-                memWords = 15;          // assume a 120-character printer
-                chars = 120;            // (i.e., a descriptor for a Mod I or II IOU)
+                memWords = 17;          // assume a 132-character printer
+                chars = 132;
             }
             this.fetchBuffer(1, memWords);
             this.Daddress = (addr-1) & 0x7FFF;      // printer accesses memory backwards, so final address is initial-1
@@ -953,114 +726,6 @@ B5500IOUnit.prototype.initiatePrinterIO = function initiatePrinterIO(u) {
 };
 
 /**************************************/
-B5500IOUnit.prototype.finishSPORead = function finishSPORead(errorMask, length) {
-    /* Handles I/O finish for a SPO keyboard input operation */
-
-    this.storeBufferWithGM(length, 0, 1, this.buffer.length/8);
-    this.finishGeneric(errorMask, length);
-};
-
-/**************************************/
-B5500IOUnit.prototype.finishTapeIO = function finishTapeIO(errorMask, count) {
-    /* For Mod III I/O Units, extra status bits can be reported in the word-count
-    field. The driver will report these in the higher-order bits of errorMask.
-       mask & 0x040000 => tape at EOT (becomes D14F)
-       mask & 0x080000 => tape at BOT (becomes D13F)
-       mask & 0x100000 => blank tape  (becomes D12F)
-       mask & 0x200000 => reserved for relocated D29F memory parity bit (becomes D11F)
-    The original memory parity bit in D29F is relocated to D11F, and both
-    D02F and D29F are set unconditionally.
-
-    In addition, the count of characters in a paritally-filled final word is
-    reported in the low-order three bits of the word count field.
-    For a forward read, this is the number of characters in the last partial word.
-    For a backward read, this is 7 minus the number of characters */
-    var partialCount = (errorMask % 0x040000) >>> 15;
-
-    if (errorMask & 0x1C0008) {
-        partialCount += ((errorMask % 0x200000) >>> 18) * 0x08 +
-            (errorMask & 0x08) * 0x08;  // relocate the memory parity bit
-        this.D02F = 1;                  // mark as a Mod III RD
-        errorMask |= 0x08;              // set the original mem parity bit (D29) unconditionally
-    }
-
-    this.DwordCount = partialCount;
-    this.finishGeneric(errorMask, count);
-
-    //console.log(this.mnemonic + " finishTapeIO: " + errorMask.toString(8) + " for " + count.toString() +
-    //            ", D=" + this.D.toString(8));
-};
-
-/**************************************/
-B5500IOUnit.prototype.finishTapeRead = function finishTapeRead(errorMask, length) {
-    /* Handles I/O finish for a tape drive read operation */
-    var count;
-    var memWords = (length+7) >>> 3;
-
-    if (this.D23F && memWords > this.DwordCount) {
-        memWords = this.DwordCount;
-    }
-
-    if (this.D22F) {
-        if (this.D21F) {
-            count = this.storeBufferBackward(length, 0, this.D21F, memWords);
-        } else {
-            count = this.storeBufferBackwardWithGM(length, 0, this.D21F, memWords);
-        }
-    } else {
-        if (this.D21F) {
-            count = this.storeBuffer(length, 0, this.D21F, memWords);
-        } else {
-            count = this.storeBufferWithGM(length, 0, this.D21F, memWords);
-        }
-    }
-
-    this.finishTapeIO(errorMask, count);
-};
-
-/**************************************/
-B5500IOUnit.prototype.initiateTapeIO = function initiateTapeIO(u) {
-    /* Initiates an I/O to a Magnetic Tape unit */
-    var addr = this.Daddress;           // initial data transfer address
-    var chars;                          // characters to print
-    var memWords;                       // words to fetch from memory
-
-    if (this.D24F) {                    // tape read operation
-        if (this.D18F) {                        // read memory inhibit => maintenance commands
-            this.D30F = 1;                      // (MAINTENANCE I/Os NOT YET IMPLEMENTED)
-            this.finish();
-        } else if (this.D23F && this.DwordCount == 0) { // forward or backward space
-            u.space(this.boundFinishTapeIO, 0, this.D22F);
-        } else {                                // some sort of actual read
-            memWords = (this.D23F ? this.DwordCount : this.buffer.length/8);
-            u.read(this.boundFinishTapeRead, this.buffer, memWords*8, this.D21F, this.D22F);
-        }
-    } else {                            // tape write operation
-        if (this.D23F && this.DwordCount == 0) {// interrogate drive status
-            u.writeInterrogate(this.boundFinishTapeIO, 0);
-        } else if (this.D22F) {                 // backward write => rewind
-            u.rewind(this.boundFinishTapeIO);
-        } else {                                // some sort of actual write
-            memWords = (this.D23F ? this.DwordCount : this.buffer.length/8);
-            if (!this.D21F) {                   // if alpha mode, fetch the characters
-                chars = this.fetchBufferWithGM(1, memWords);
-            } else {                            // otherwise, it's binary mode
-                if (this.D18F) {                // if mem inhibit, just compute the size
-                    chars = this.DwordCount*8;
-                } else {                        // otherwise, fetch the characters
-                    chars = this.fetchBuffer(1, memWords);
-                }
-            }
-            if (this.D18F) {                    // write memory inhibit => erase
-                u.erase(this.boundFinishTapeIO, chars);
-            } else {                            // write data
-                u.write(this.boundFinishTapeIO, this.buffer, chars, this.D21F, 0);
-            }
-        }
-    }
-};
-
-/**************************************/
 B5500IOUnit.prototype.forkIO = function forkIO() {
     /* Asynchronously initiates an I/O operation on this I/O Unit for a peripheral device */
     var chars;                          // I/O memory transfer length
@@ -1068,7 +733,7 @@ B5500IOUnit.prototype.forkIO = function forkIO() {
     var u;                              // peripheral unit object
     var x;                              // temp number variable
 
-    this.forkHandle = 0;                // clear the setCallback() handle
+    this.forkHandle = null;             // clear the setImmediate() handle
 
     x = this.D;                         // explode the D-register into its fields
     this.Dunit = (x%0x200000000000 - x%0x10000000000)/0x10000000000;    // [3:5]
@@ -1077,10 +742,10 @@ B5500IOUnit.prototype.forkIO = function forkIO() {
     this.D18F = (x >>> 29) & 1;         // memory inhibit
     this.D21F = (x >>> 26) & 1;         // mode
     this.D22F = (x >>> 25) & 1;         // direction (for tapes)
-    this.D23F = (x >>> 24) & 1;         // use word count
+    this.D23F = (x >>> 24) & 1;         // use word counter
     this.D24F = (x >>> 23) & 1;         // write/read
     this.LP = (x >>> 15) & 0x3F;        // save control bits for disk, drum, and printer
-    this.Daddress = x % 0x8000;         // starting memory address
+    this.Daddress = x % 0x8000;
 
     this.busyUnit = index = B5500CentralControl.unitIndex[this.D24F & 1][this.Dunit & 0x1F];
     if (this.cc.testUnitBusy(index)) {
@@ -1109,7 +774,7 @@ B5500IOUnit.prototype.forkIO = function forkIO() {
 
         // datacom designate
         case 16:
-            this.initiateDatacomIO(u);
+            this.D30F = 1; this.finish(); // >>> temp until implemented <<<
             break;
 
         // card #1 reader/punch
@@ -1138,9 +803,9 @@ B5500IOUnit.prototype.forkIO = function forkIO() {
         // SPO designate
         case 30:
             if (this.D24F) {
-                u.read(this.boundFinishSPORead, this.buffer, this.buffer.length/8, 0, 0);
+                u.read(this.boundFinishSPORead, this.buffer, 0x7FFF, 0, 0);
             } else {
-                chars = this.fetchBufferWithGM(1, this.buffer.length/8);
+                chars = this.fetchBufferWithGM(1, 0x7FFF);
                 u.write(this.boundFinishGeneric, this.buffer, chars, 0, 0);
             }
             break;
@@ -1148,7 +813,7 @@ B5500IOUnit.prototype.forkIO = function forkIO() {
         // magnetic tape designates
         case  1: case  3: case  5: case  7: case  9: case 11: case 13: case 15:
         case 17: case 19: case 21: case 23: case 25: case 27: case 29: case 31:
-            this.initiateTapeIO(u);
+            this.D30F = 1; this.finish(); // >>> temp until implemented <<<
             break;
 
         // drum designates
@@ -1181,9 +846,9 @@ B5500IOUnit.prototype.initiate = function initiate() {
     to run asynchronously. Then we exit back through CC and into P1, thus allowing the
     actual I/O operation to run asynchronously from the processor. Of course, in a browser
     environment, all of the Javascript action occurs on one thread, so this allows us to
-    multiplex what normally would be asynchronous operations on that thread */
+    multiplex what are supposed to be asynchronous operations on that thread */
 
-    this.initiateStamp = performance.now();
+    this.initiateStamp = new Date().getTime();
     this.clearD();
     this.AOFF = 0;
     this.EXNF = 0;
@@ -1198,7 +863,7 @@ B5500IOUnit.prototype.initiate = function initiate() {
         } else {
             this.D31F = 0;              // reset the IOD-fetch error condition
             this.D = this.W;
-            this.forkHandle = setCallback(this.mnemonic, this, 0, this.forkIO);
+            this.forkHandle = setImmediate(this.boundForkIO);
         }
     }
 };
@@ -1231,7 +896,7 @@ B5500IOUnit.prototype.initiateLoad = function initiateLoad(cardLoadSelect, loadC
         loadComplete();
     }
 
-    this.initiateStamp = performance.now();
+    this.initiateStamp = new Date().getTime();
     this.clearD();
     if (cardLoadSelect) {
         this.D = 0x0A0004800010;        // unit 10, read, binary mode, addr @00020
