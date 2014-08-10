@@ -325,9 +325,11 @@ B5500CardReader.prototype.beforeUnload = function beforeUnload(ev) {
 /**************************************/
 B5500CardReader.prototype.readerOnload = function readerOnload() {
     /* Initializes the reader window and user interface */
+    var de;
     var that = this;
 
     this.doc = this.window.document;
+    de = this.doc.documentElement;
     this.doc.title = "retro-B5500 " + this.mnemonic;
 
     this.progressBar = this.$$("CRProgressBar");
@@ -363,6 +365,8 @@ B5500CardReader.prototype.readerOnload = function readerOnload() {
     this.progressBar.addEventListener("click", function progressClick(ev) {
         that.CRProgressBar_onclick(ev);
     }, false);
+
+    this.window.resizeBy(de.scrollWidth-de.innerWidth, de.scrollHeight-de.innerHeight);
 };
 
 /**************************************/

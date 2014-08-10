@@ -61,7 +61,7 @@ function B5500CentralControl(global) {
 /**************************************/
 
 /* Global constants */
-B5500CentralControl.version = "0.21a1";
+B5500CentralControl.version = "0.21a2";
 
 B5500CentralControl.memReadCycles = 2;          // assume 2 탎 memory read cycle time (the other option was 3 탎)
 B5500CentralControl.memWriteCycles = 4;         // assume 4 탎 memory write cycle time (the other option was 6 탎)
@@ -151,7 +151,7 @@ B5500CentralControl.unitSpecs = {
 
 
 /**************************************/
-B5500CentralControl.bindMethod = function bindMethod(f, context) {
+B5500CentralControl.bindMethod = function bindMethod(context, f) {
     /* Returns a new function that binds the function "f" to the object "context".
     Note that this is a static constructor property function, NOT an instance
     method of the CC object */

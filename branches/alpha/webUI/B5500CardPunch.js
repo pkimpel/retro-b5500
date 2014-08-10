@@ -193,9 +193,11 @@ B5500CardPunch.prototype.beforeUnload = function beforeUnload(ev) {
 /**************************************/
 B5500CardPunch.prototype.punchOnload = function punchOnload() {
     /* Initializes the punch window and user interface */
+    var de;
     var that = this;
 
     this.doc = this.window.document;
+    de = this.doc.documentElement;
     this.doc.title = "retro-B5500 " + this.mnemonic;
 
     this.stacker1Frame = this.$$("CPStacker1Frame");
@@ -237,6 +239,8 @@ B5500CardPunch.prototype.punchOnload = function punchOnload() {
 
     this.$$("CPStacker1Bar").max = this.maxScrollLines;
     this.$$("CPStacker2Bar").max = this.maxScrollLines;
+
+    this.window.resizeBy(this.de.scrollWidth-this.de.innerWidth, this.de.scrollHeight-this.de.innerHeight);
 };
 
 /**************************************/

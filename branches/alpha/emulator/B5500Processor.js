@@ -55,7 +55,7 @@ function B5500Processor(procID, cc) {
 /**************************************/
 
 B5500Processor.cyclesPerMilli = 1000;   // clock cycles per millisecond (1000 => 1.0 MHz)
-B5500Processor.timeSlice = 1000;        // this.run() time-slice, clocks
+B5500Processor.timeSlice = 4000;        // this.run() time-slice, clocks
 B5500Processor.delayAlpha = 0.999;      // decay factor for exponential weighted average delay
 B5500Processor.slackAlpha = 0.9999;     // decay factor for exponential weighted average slack
 
@@ -2813,7 +2813,6 @@ B5500Processor.prototype.doublePrecisionMultiply = function doublePrecisionMulti
                         this.I = (this.I & 0x0F) | 0xB0;    // set I05/6/8: exponent-overflow
                         this.cc.signalInterrupt();
                     }
-                    /********** dumpState("Exponent Overflow in DLM"); ************************************/
                 } else if (eb < 0) {
                     if (eb >= -63) {
                         eb = (-eb) | 0x40;                  // set the exponent sign bit
@@ -3507,6 +3506,7 @@ B5500Processor.prototype.operandCall = function operandCall() {
                     // Flag bit is set
                     this.I = (this.I & 0x0F) | 0x80;        // set I08: flag-bit interrupt
                     this.cc.signalInterrupt();
+                    dumpState("Flag Bit: OPDC");        // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< DEBUG >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
                 }
             }
             break;

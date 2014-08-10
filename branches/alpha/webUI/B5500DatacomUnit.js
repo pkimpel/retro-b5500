@@ -55,7 +55,7 @@ function B5500DatacomUnit(mnemonic, unitIndex, designate, statusChange, signal) 
     this.window = window.open("../webUI/B5500DatacomUnit.html", mnemonic,
             "scrollbars,resizable,width=580,height=540");
     this.window.moveTo((screen.availWidth-this.window.outerWidth)/2, (screen.availHeight-this.window.outerHeight)/2);
-    this.window.addEventListener("load", B5500CentralControl.bindMethod(B5500DatacomUnit.prototype.datacomOnload, this), false);
+    this.window.addEventListener("load", B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.datacomOnload), false);
 }
 
 // this.bufState enumerations
@@ -90,6 +90,7 @@ B5500DatacomUnit.prototype.clear = function clear() {
 
     this.abnormal = false;              // buffer in abnormal state
     this.bufIndex = 0;                  // current offset into buffer
+    this.bufCheckPoint = 0;             // last bufIndex when input overflowed a line
     this.bufLength = 0;                 // current buffer length
     this.connected = false;             // buffer/adapter is currently connected
     this.errorMask = 0;                 // error mask for finish()
@@ -100,36 +101,8 @@ B5500DatacomUnit.prototype.clear = function clear() {
     this.printCol = 0;                  // current printer column
 
     this.bufState = this.bufNotReady;   // Current state of datacom buffer
-};
-
-/**************************************/
-B5500DatacomUnit.prototype.hasClass = function hasClass(e, name) {
-    /* returns true if element "e" has class "name" in its class list */
-    var classes = e.className;
-
-    if (!e) {
-        return false;
-    } else if (classes == name) {
-        return true;
-    } else {
-        return (classes.search("\\b" + name + "\\b") >= 0);
-    }
-};
-
-/**************************************/
-B5500DatacomUnit.prototype.addClass = function addClass(e, name) {
-    /* Adds a class "name" to the element "e"s class list */
-
-    if (!this.hasClass(e, name)) {
-        e.className += (" " + name);
-    }
-};
-
-/**************************************/
-B5500DatacomUnit.prototype.removeClass = function removeClass(e, name) {
-    /* Removes the class "name" from the element "e"s class list */
-
-    e.className = e.className.replace(new RegExp("\\b" + name + "\\b\\s*", "g"), "");
+    this.lastTermOutHeight = 0;         // last height of TermOut element
+    this.lastWindowHeight = 0;          // last innerHeight of terminal window
 };
 
 /**************************************/
@@ -148,63 +121,63 @@ B5500DatacomUnit.prototype.setState = function setState(newState) {
     this.showBufferIndex();
 
     if (this.abnormal) {
-        this.addClass(this.$$("Abnormal"), "textLit")
+        B5500Util.addClass(this.$$("Abnormal"), "textLit")
     } else {
-        this.removeClass(this.$$("Abnormal"), "textLit");
+        B5500Util.removeClass(this.$$("Abnormal"), "textLit");
     }
 
     if (this.interrupt) {
-        this.addClass(this.$$("Interrupt"), "textLit")
+        B5500Util.addClass(this.$$("Interrupt"), "textLit")
     } else {
-        this.removeClass(this.$$("Interrupt"), "textLit");
+        B5500Util.removeClass(this.$$("Interrupt"), "textLit");
     }
 
     if (this.fullBuffer) {
-        this.addClass(this.$$("FullBuffer"), "textLit")
+        B5500Util.addClass(this.$$("FullBuffer"), "textLit")
     } else {
-        this.removeClass(this.$$("FullBuffer"), "textLit");
+        B5500Util.removeClass(this.$$("FullBuffer"), "textLit");
     }
 
     if (this.bufState != newState) {
         switch (this.bufState) {
         case this.bufNotReady:
-            this.removeClass(this.$$("NotReadyState"), "textLit");
+            B5500Util.removeClass(this.$$("NotReadyState"), "textLit");
             break;
         case this.bufIdle:
-            this.removeClass(this.$$("IdleState"), "textLit");
+            B5500Util.removeClass(this.$$("IdleState"), "textLit");
             break;
         case this.bufInputBusy:
-            this.removeClass(this.$$("InputBusyState"), "textLit");
+            B5500Util.removeClass(this.$$("InputBusyState"), "textLit");
             break;
         case this.bufReadReady:
-            this.removeClass(this.$$("ReadReadyState"), "textLit");
+            B5500Util.removeClass(this.$$("ReadReadyState"), "textLit");
             break;
         case this.bufOutputBusy:
-            this.removeClass(this.$$("OutputBusyState"), "textLit");
+            B5500Util.removeClass(this.$$("OutputBusyState"), "textLit");
             break;
         case this.bufWriteReady:
-            this.removeClass(this.$$("WriteReadyState"), "textLit");
+            B5500Util.removeClass(this.$$("WriteReadyState"), "textLit");
             break;
         }
 
         switch (newState) {
         case this.bufNotReady:
-            this.addClass(this.$$("NotReadyState"), "textLit");
+            B5500Util.addClass(this.$$("NotReadyState"), "textLit");
             break;
         case this.bufIdle:
-            this.addClass(this.$$("IdleState"), "textLit");
+            B5500Util.addClass(this.$$("IdleState"), "textLit");
             break;
         case this.bufInputBusy:
-            this.addClass(this.$$("InputBusyState"), "textLit");
+            B5500Util.addClass(this.$$("InputBusyState"), "textLit");
             break;
         case this.bufReadReady:
-            this.addClass(this.$$("ReadReadyState"), "textLit");
+            B5500Util.addClass(this.$$("ReadReadyState"), "textLit");
             break;
         case this.bufOutputBusy:
-            this.addClass(this.$$("OutputBusyState"), "textLit");
+            B5500Util.addClass(this.$$("OutputBusyState"), "textLit");
             break;
         case this.bufWriteReady:
-            this.addClass(this.$$("WriteReadyState"), "textLit");
+            B5500Util.addClass(this.$$("WriteReadyState"), "textLit");
             break;
         }
 
@@ -219,7 +192,7 @@ B5500DatacomUnit.prototype.termDisconnect = function termDisconnect() {
     if (this.connected) {
         this.bufLength = 0;
         this.bufIndex = 0;
-        this.removeClass(this.$$("TermConnectBtn"), "greenLit");
+        B5500Util.removeClass(this.$$("TermConnectBtn"), "greenLit");
         this.interrupt = true;
         this.abnormal = true;
         this.setState(this.bufIdle);
@@ -233,7 +206,7 @@ B5500DatacomUnit.prototype.termConnect = function termConnect() {
     /* Sets the status of the datacom unit to connected */
 
     if (!this.connected) {
-        this.addClass(this.$$("TermConnectBtn"), "greenLit");
+        B5500Util.addClass(this.$$("TermConnectBtn"), "greenLit");
         this.interrupt = true;
         this.abnormal = true;
         this.setState(this.bufWriteReady);
@@ -248,10 +221,10 @@ B5500DatacomUnit.prototype.appendEmptyLine = function appendEmptyLine() {
     to the <iframe>, creating an empty text node inside the new element */
     var count = this.paper.childNodes.length;
 
+    this.paper.lastChild.nodeValue += "\n";     // newline
     while (count-- > this.maxScrollLines) {
         this.paper.removeChild(this.paper.firstChild);
     }
-    this.paper.lastChild.nodeValue += String.fromCharCode(0x0A);        // newline
     this.endOfPaper.scrollIntoView();
     this.paper.appendChild(this.doc.createTextNode(""));
 };
@@ -351,12 +324,12 @@ B5500DatacomUnit.prototype.terminateInput = function terminateInput() {
 };
 
 /**************************************/
-B5500DatacomUnit.prototype.keyPress = function keyPress(ev) {
-    /* Handles keyboard character events. Depending on the state of the buffer,
-    either buffers the character for transmission to the I/O Unit, echos
-    it to the printer, or ignores it altogether */
+B5500DatacomUnit.prototype.keyAction = function keyAction(ev, c) {
+    /* Implements the semantics of keyboard events from keyPress or keyDown.
+    Depending on the state of the buffer, either buffers the character for
+    transmission to the I/O Unit, echos it to the printer, or ignores it
+    altogether */
     var b;                              // translated character
-    var c = ev.charCode;                // input character, ASCII
     var delay;                          // inter-character delay, ms
     var nextTime;                       // next character output time, ms
     var stamp;                          // current timestamp, ms
@@ -372,39 +345,6 @@ B5500DatacomUnit.prototype.keyPress = function keyPress(ev) {
 
         nextTime = this.nextCharTime + this.charPeriod;
         delay = nextTime - stamp;
-
-        if (c == 0) {
-            switch(ev.keyCode) {
-            case 0x08:
-                c = 0x3C;               // BS: force Backspace key
-                break;
-            case 0x0D:
-                c = 0x7E;               // Enter: force ~ (GM) for end-of-message
-                break;
-            }
-        } else if (ev.ctrlKey) {
-            switch(c) {
-            case 0x42:
-            case 0x62:
-                c = 0x02;               // Ctrl-B: force STX, break
-                break;
-            case 0x45:
-            case 0x65:
-                c = 0x05;               // Ctrl-E:force ENQ, WRU
-                break;
-            case 0x4C:
-            case 0x6C:
-                c = 0x0C;               // Ctrl-L: force FF, clear input buffer
-                break;
-            case 0x51:
-            case 0x71:
-                c = 0x7E;               // Ctrl-Q: DC1, X-ON to ~ (GM) for end-of-message
-                break;
-            default:
-                c = 0;                  // not something we want
-                break;
-            }
-        }
 
         if (this.bufState == this.bufReadReady && this.fullBuffer) {
             this.interrupt = true;
@@ -505,6 +445,55 @@ B5500DatacomUnit.prototype.keyPress = function keyPress(ev) {
 };
 
 /**************************************/
+B5500DatacomUnit.prototype.keyPress = function keyPress(ev) {
+    /* Handles the onkeypress event by simply passing the event and character
+    on to this.keyAction */
+    var c = ev.charCode;
+
+    if (ev.ctrlKey) {
+        switch(c) {
+        case 0x42:
+        case 0x62:
+            c = 0x02;               // Ctrl-B: force STX, break
+            break;
+        case 0x45:
+        case 0x65:
+            c = 0x05;               // Ctrl-E:force ENQ, WRU
+            break;
+        case 0x4C:
+        case 0x6C:
+            c = 0x0C;               // Ctrl-L: force FF, clear input buffer
+            break;
+        case 0x51:
+        case 0x71:
+            c = 0x7E;               // Ctrl-Q: DC1, X-ON to ~ (GM) for end-of-message
+            break;
+        default:
+            c = 0;                  // not something we want
+            break;
+        }
+    }
+
+    this.keyAction(ev, c);
+};
+
+/**************************************/
+B5500DatacomUnit.prototype.keyDown = function keyDown(ev) {
+    /* Handles the onkeydown event. Translates non-character keystrokes
+    to their character equivalents, then passes the substitute character
+    on to this.keyAction */
+
+    switch(ev.keyCode) {
+    case 0x08:                          // BS: force Backspace key
+        this.keyAction(ev, 0x3C);
+        break;
+    case 0x0D:                          // Enter: force ~ (GM) for end-of-message
+        this.keyAction(ev, 0x7E);
+        break;
+    }
+};
+
+/**************************************/
 B5500DatacomUnit.prototype.termConnectBtnClick = function termConnectBtnClick(ev) {
 
     if (this.connected) {
@@ -514,6 +503,18 @@ B5500DatacomUnit.prototype.termConnectBtnClick = function termConnectBtnClick(ev
     }
     ev.target.blur();                   // move focus off the Connect btn
     this.paper.focus();
+};
+
+/**************************************/
+B5500DatacomUnit.prototype.resizeWindow = function resizeWindow(ev) {
+    /* Handles the window onresize event. Alters the height of the paper by
+    the same amount the height of the window was altered */
+    var delta = this.window.innerHeight - this.lastWindowHeight;
+
+    this.lastTermOutHeight += delta;
+    this.lastWindowHeight += delta;
+    this.$$("TermOut").style.height = this.lastTermOutHeight.toString() + "px";
+    this.endOfPaper.scrollIntoView();
 };
 
 /**************************************/
@@ -529,35 +530,34 @@ B5500DatacomUnit.prototype.beforeUnload = function beforeUnload(ev) {
 /**************************************/
 B5500DatacomUnit.prototype.datacomOnload = function datacomOnload() {
     /* Initializes the datacom unit and terminal window user interface */
+    var de;
     var x;
 
     this.doc = this.window.document;
+    de = this.doc.documentElement;
     this.doc.title = "retro-B5500 " + this.mnemonic + ": TU/BUF=01/00";
-    this.paper = this.doc.createElement("pre");
-    this.paper.appendChild(this.doc.createTextNode(""));
-    this.$$("TermOut").contentDocument.body.appendChild(this.paper);
-    this.endOfPaper = this.doc.createElement("div");
-    this.endOfPaper.appendChild(this.doc.createTextNode("\xA0"));
-    this.$$("TermOut").contentDocument.body.appendChild(this.endOfPaper);
-    this.$$("TermOut").contentDocument.head.innerHTML += "<style>" +
-            "BODY {background-color: white} " +
-            "PRE {margin: 0; font-size: 8pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
-            "</style>";
+    this.paper = this.$$("TermOut").contentDocument.getElementById("Paper");
+    this.endOfPaper = this.$$("TermOut").contentDocument.getElementById("EndOfPaper");
 
     this.window.focus();
     this.nextCharTime = performance.now();
 
     this.window.addEventListener("beforeunload", this.beforeUnload, false);
+    this.window.addEventListener("resize", B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.resizeWindow), false);
 
-    this.window.addEventListener("keypress", B5500CentralControl.bindMethod(B5500DatacomUnit.prototype.keyPress, this), false);
-    this.$$("TermOut").contentDocument.body.addEventListener("keypress", B5500CentralControl.bindMethod(B5500DatacomUnit.prototype.keyPress, this), false);
+    this.window.addEventListener("keypress", B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.keyPress), false);
+    this.window.addEventListener("keydown", B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.keyDown), false);
+    this.$$("TermOut").contentDocument.body.addEventListener("keypress", B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.keyPress), false);
 
-    this.$$("TermConnectBtn").addEventListener("click", B5500CentralControl.bindMethod(B5500DatacomUnit.prototype.termConnectBtnClick, this), false);
+    this.$$("TermConnectBtn").addEventListener("click", B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.termConnectBtnClick), false);
 
-    for (x=0; x<32; x++) {
-        this.appendEmptyLine();
-    }
     this.statusChange(1);               // make DCA ready
+
+    // Size the window to the DOM content
+    this.lastWindowHeight = this.window.innerHeight;
+    this.lastTermOutHeight = this.$$("TermOut").offsetHeight;
+    this.window.resizeBy(de.scrollWidth-de.innerWidth, screen.availHeight/2 - this.window.outerHeight);
+    this.window.moveTo((screen.availWidth-this.window.outerWidth)/2, (screen.availHeight-this.window.outerHeight)/2);
 };
 
 /**************************************/

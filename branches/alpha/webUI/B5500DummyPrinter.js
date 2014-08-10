@@ -74,9 +74,11 @@ B5500DummyPrinter.prototype.clear = function clear() {
 B5500DummyPrinter.prototype.ripPaper = function ripPaper(ev) {
     /* Handles an event to clear the "paper" from the printer */
 
-    if (this.window.confirm("Do you want to clear the \"paper\" from the printer?")) {
-        while (this.paper.firstChild) {
-            this.paper.removeChild(this.paper.firstChild);
+    if (ev.detail == 2) { // check for left-button double-click
+        if (this.window.confirm("Do you want to clear the \"paper\" from the printer?")) {
+            while (this.paper.firstChild) {
+                this.paper.removeChild(this.paper.firstChild);
+            }
         }
     }
 };
@@ -107,24 +109,22 @@ B5500DummyPrinter.prototype.beforeUnload = function beforeUnload(ev) {
 /**************************************/
 B5500DummyPrinter.prototype.printerOnload = function printerOnload() {
     /* Initializes the line printer window and user interface */
-    var that = this;
+    var de;
 
     this.doc = this.window.document;
+    de = this.doc.documentElement;
     this.doc.title = "retro-B5500 " + this.mnemonic;
     this.paper = this.doc.createElement("pre");
     this.doc.body.appendChild(this.paper);
     this.endOfPaper = this.doc.createElement("div");
     this.doc.body.appendChild(this.endOfPaper);
 
-    this.window.addEventListener("click", function windowOnClick(ev) {
-        if (ev.detail == 2) { // check for left-button double-click
-            that.ripPaper(ev);
-        }
-    }, false);
-
+    this.window.addEventListener("click", B5500CentralControl.bindMethod(this, B5500DummyPrinter.prototype.ripPaper), false);
     this.window.addEventListener("beforeunload", this.beforeUnload, false);
 
     this.statusChange(1);
+
+    this.window.resizeBy(de.scrollWidth-de.innerWidth, de.scrollHeight-de.innerHeight);
 };
 
 /**************************************/
