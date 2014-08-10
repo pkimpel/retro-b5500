@@ -211,15 +211,18 @@ B5500CardPunch.prototype.punchOnload = function punchOnload() {
     this.armRunout(false);
     this.setPunchReady(true);
 
-    this.window.addEventListener("beforeunload", this.beforeUnload, false);
-    this.$$("CPStartBtn").addEventListener("click", B5500CentralControl.bindMethod(this, this.CPStartBtn_onclick), false);
-    this.$$("CPStopBtn").addEventListener("click", B5500CentralControl.bindMethod(this, this.CPStopBtn_onclick), false);
-    this.$$("CPRunoutBtn").addEventListener("click", B5500CentralControl.bindMethod(this, this.CPRunoutBtn_onclick), false);
+    this.window.addEventListener("beforeunload", B5500CardPunch.prototype.beforeUnload, false);
+    this.$$("CPStartBtn").addEventListener("click",
+        B5500CentralControl.bindMethod(this, B5500CardPunch.prototype.CPStartBtn_onclick), false);
+    this.$$("CPStopBtn").addEventListener("click",
+        B5500CentralControl.bindMethod(this, B5500CardPunch.prototype.CPStopBtn_onclick), false);
+    this.$$("CPRunoutBtn").addEventListener("click",
+        B5500CentralControl.bindMethod(this, B5500CardPunch.prototype.CPRunoutBtn_onclick), false);
     this.$$("CPStacker1Bar").max = this.maxScrollLines;
     this.$$("CPStacker2Bar").max = this.maxScrollLines;
 
-    this.window.resizeBy(this.doc.body.scrollWidth-this.doc.body.offsetWidth,
-                         this.doc.body.scrollHeight-this.doc.body.offsetHeight);
+    this.window.resizeBy(de.scrollWidth - this.window.innerWidth + 4, // kludge for right-padding/margin
+                         de.scrollHeight - this.window.innerHeight);
 };
 
 /**************************************/

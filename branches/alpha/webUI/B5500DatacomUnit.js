@@ -556,7 +556,8 @@ B5500DatacomUnit.prototype.datacomOnload = function datacomOnload() {
     // Size the window to the DOM content
     this.lastWindowHeight = this.window.innerHeight;
     this.lastTermOutHeight = this.$$("TermOut").offsetHeight;
-    this.window.resizeBy(de.scrollWidth-de.innerWidth, screen.availHeight/2 - this.window.outerHeight);
+    this.window.resizeBy(de.scrollWidth-this.window.innerWidth,
+                         screen.availHeight/2 - this.window.outerHeight);
     this.window.moveTo((screen.availWidth-this.window.outerWidth)/2, (screen.availHeight-this.window.outerHeight)/2);
 };
 

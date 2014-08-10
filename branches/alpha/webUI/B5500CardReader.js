@@ -338,14 +338,21 @@ B5500CardReader.prototype.readerOnload = function readerOnload() {
     this.armEOF(false);
     this.setReaderReady(false);
 
-    this.window.addEventListener("beforeunload", B5500CardReader.prototype.beforeUnload, false);
-    this.$$("CRFileSelector").addEventListener("change", B5500CentralControl.bindMethod(this, this.fileSelector_onChange), false);
-    this.$$("CRStartBtn").addEventListener("click", B5500CentralControl.bindMethod(this, this.CRStartBtn_onclick), false);
-    this.$$("CRStopBtn").addEventListener("click", B5500CentralControl.bindMethod(this, this.CRStopBtn_onclick), false);
-    this.$$("CREOFBtn").addEventListener("click", B5500CentralControl.bindMethod(this, this.CREOFBtn_onclick), false);
-    this.progressBar.addEventListener("click", B5500CentralControl.bindMethod(this, this.CRProgressBar_onclick), false);
+    this.window.addEventListener("beforeunload",
+        B5500CardReader.prototype.beforeUnload, false);
+    this.$$("CRFileSelector").addEventListener("change",
+        B5500CentralControl.bindMethod(this, B5500CardReader.prototype.fileSelector_onChange), false);
+    this.$$("CRStartBtn").addEventListener("click",
+        B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRStartBtn_onclick), false);
+    this.$$("CRStopBtn").addEventListener("click",
+        B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRStopBtn_onclick), false);
+    this.$$("CREOFBtn").addEventListener("click",
+        B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CREOFBtn_onclick), false);
+    this.progressBar.addEventListener("click",
+        B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRProgressBar_onclick), false);
 
-    this.window.resizeBy(de.scrollWidth-de.offsetWidth, de.scrollHeight-de.offsetHeight);
+    this.window.resizeBy(de.scrollWidth - this.window.innerWidth + 4, // kludge for right-padding/margin
+                         de.scrollHeight - this.window.innerHeight);
 };
 
 /**************************************/

@@ -278,12 +278,12 @@ B5500MagTapeDrive.prototype.setAtBOT = function setAtBOT(atBOT) {
         if (atBOT) {
             this.imgIndex = 0;
             this.tapeInches = 0;
-            this.addClass(this.$$("MTAtBOTLight"), "whiteLit");
+            this.addClass(this.$$("MTAtBOTLight"), "annunciator");
             this.progressBar.value = this.imgMaxInches;
             this.reelIcon.style.transform = "rotate(0deg)";
             this.reelIcon.style["-webkit-transform"] = "rotate(0deg)";  // temp for Chrome
         } else {
-            this.removeClass(this.$$("MTAtBOTLight"), "whiteLit");
+            this.removeClass(this.$$("MTAtBOTLight"), "annunciatorLit");
         }
     }
 };
@@ -295,10 +295,10 @@ B5500MagTapeDrive.prototype.setAtEOT = function setAtEOT(atEOT) {
     if (atEOT ^ this.atEOT) {
         this.atEOT = atEOT;
         if (atEOT) {
-            this.addClass(this.$$("MTAtEOTLight"), "whiteLit");
+            this.addClass(this.$$("MTAtEOTLight"), "annunciatorLit");
             this.progressBar.value = 0;
         } else {
-            this.removeClass(this.$$("MTAtEOTLight"), "whiteLit");
+            this.removeClass(this.$$("MTAtEOTLight"), "annunciatorLit");
         }
     }
 };
@@ -324,7 +324,7 @@ B5500MagTapeDrive.prototype.setTapeUnloaded = function setTapeUnloaded() {
         this.removeClass(this.$$("MTRemoteBtn"), "yellowLit");
         this.addClass(this.$$("MTLocalBtn"), "yellowLit");
         this.removeClass(this.$$("MTWriteRingBtn"), "redLit");
-        this.addClass(this.$$("MTUnloadedLight"), "whiteLit");
+        this.addClass(this.$$("MTUnloadedLight"), "annunciatorLit");
         this.setAtBOT(false);
         this.setAtEOT(false);
         this.progressBar.value = 0;
@@ -440,7 +440,7 @@ B5500MagTapeDrive.prototype.loadTape = function loadTape() {
         mt.imgMaxInches = tapeInches;
         mt.progressBar.max = mt.imgMaxInches;
         mt.progressBar.value = mt.imgMaxInches;
-        mt.removeClass(mt.$$("MTUnloadedLight"), "whiteLit");
+        mt.removeClass(mt.$$("MTUnloadedLight"), "annunciatorLit");
         mt.setAtEOT(false);
         mt.setAtBOT(true);
         mt.tapeState = mt.tapeLocal;    // setTapeRemote() requires it not be unloaded
@@ -619,8 +619,6 @@ B5500MagTapeDrive.prototype.loadTape = function loadTape() {
 
         doc = win.document;
         de = doc.documentElement;
-        win.resizeBy(de.scrollWidth-de.innerWidth, de.scrollHeight-de.innerHeight);
-        win.moveTo((screen.availWidth-win.outerWidth)/2, (screen.availHeight-win.outerHeight)/2);
         win.focus();
         $$$ = function $$$(id) {
             return doc.getElementById(id);
@@ -655,6 +653,10 @@ B5500MagTapeDrive.prototype.loadTape = function loadTape() {
             mt.$$("MTFileName").value = "";
             win.close();
         }, false);
+
+        win.resizeBy(de.scrollWidth - win.innerWidth + 4,       // kludge for right-padding/margin
+                         de.scrollHeight - win.innerHeight);
+        win.moveTo((screen.availWidth-win.outerWidth)/2, (screen.availHeight-win.outerHeight)/2);
     }
 
     // Outer block of loadTape
@@ -673,7 +675,7 @@ B5500MagTapeDrive.prototype.unloadTape = function unloadTape() {
     window so the user can save or copy/paste it elsewhere */
     var doc = null;                     // loader window.document
     var mt = this;                      // tape drive object
-    var win = this.window.open("./B5500BlankPaper.html", this.mnemonic + "Unload",
+    var win = this.window.open("./B5500FramePaper.html", this.mnemonic + "Unload",
         "scrollbars=yes,resizable,width=800,height=600");
 
     function unloadDriver() {
@@ -686,18 +688,14 @@ B5500MagTapeDrive.prototype.unloadTape = function unloadTape() {
         var image = mt.image;           // tape image data
         var imgLength = mt.imgTopIndex; // tape image active length
         var table;                      // even/odd parity translate table
-        var text;                       // <pre> element to receive tape data
+        var tape;                       // <pre> element to receive tape data
         var x = 0;                      // image data index
 
         doc = win.document;
         doc.title = "B5500 " + mt.mnemonic + " Unload Tape";
-        text = doc.getElementById("Spacer");    // delete the spacer used by SPO, DCA, etc.
-        text.parentNode.removeChild(text);
-        text = doc.getElementById("EndOfPaper");// ditto
-        text.parentNode.removeChild(text);
-        text = doc.getElementById("Paper");
-        while (text.firstChild) {               // delete any existing <pre> content
-            text.removeChild(text.firstChild);
+        tape = doc.getElementById("Paper");
+        while (tape.firstChild) {               // delete any existing <pre> content
+            tape.removeChild(tape.firstChild);
         }
 
         c = image[x];
@@ -707,7 +705,7 @@ B5500MagTapeDrive.prototype.unloadTape = function unloadTape() {
             bufIndex = 0;
             do {
                 if (bufIndex >= bufLength) { // ASCII block size exceeded
-                    text.appendChild(doc.createTextNode(String.fromCharCode.apply(null, buf.subarray(0, bufIndex))));
+                    tape.appendChild(doc.createTextNode(String.fromCharCode.apply(null, buf.subarray(0, bufIndex))));
                     bufIndex = 0;
                 }
                 if (c > 0) {            // drop any unrecorded tape frames
@@ -720,7 +718,7 @@ B5500MagTapeDrive.prototype.unloadTape = function unloadTape() {
                 }
             } while (c < 0x80);
             buf[bufIndex++] = 0x0A;
-            text.appendChild(doc.createTextNode(String.fromCharCode.apply(null, buf.subarray(0, bufIndex))));
+            tape.appendChild(doc.createTextNode(String.fromCharCode.apply(null, buf.subarray(0, bufIndex))));
         } while (x < imgLength);
 
         mt.setTapeUnloaded();
@@ -743,7 +741,7 @@ B5500MagTapeDrive.prototype.tapeRewind = function tapeRewind(makeReady) {
     function rewindFinish() {
         this.timer = 0;
         this.busy = false;
-        this.removeClass(this.$$("MTRewindingLight"), "whiteLit");
+        this.removeClass(this.$$("MTRewindingLight"), "annunciatorLit");
         if (makeReady && this.tapeState == this.tapeRemote) {
             this.ready = true;
             this.statusChange(1);
@@ -779,7 +777,7 @@ B5500MagTapeDrive.prototype.tapeRewind = function tapeRewind(makeReady) {
         this.ready = false;
         this.statusChange(0);
         this.setAtEOT(false);
-        this.addClass(this.$$("MTRewindingLight"), "whiteLit");
+        this.addClass(this.$$("MTRewindingLight"), "annunciatorLit");
         this.timer = setCallback(this.mnemonic, this, 1000, rewindDelay);
     }
 };
@@ -1162,21 +1160,29 @@ B5500MagTapeDrive.prototype.tapeDriveOnLoad = function tapeDriveOnLoad() {
     this.progressBar = this.$$("MTProgressBar");
     this.reelIcon = this.$$("MTReel");
 
-    this.window.addEventListener("beforeunload", this.tapeDriveBeforeUnload, false);
-
     this.tapeState = this.tapeLocal;    // setTapeUnloaded() requires it to be in local
     this.atBOT = true;                  // and also at BOT
     this.setTapeUnloaded();
 
-    this.$$("MTUnloadBtn").addEventListener("click", B5500CentralControl.bindMethod(this, B5500MagTapeDrive.prototype.MTUnloadBtn_onclick), false);
-    this.$$("MTLoadBtn").addEventListener("click", B5500CentralControl.bindMethod(this, B5500MagTapeDrive.prototype.MTLoadBtn_onclick), false);
-    this.$$("MTRemoteBtn").addEventListener("click", B5500CentralControl.bindMethod(this, B5500MagTapeDrive.prototype.MTRemoteBtn_onclick), false);
-    this.$$("MTLocalBtn").addEventListener("click", B5500CentralControl.bindMethod(this, B5500MagTapeDrive.prototype.MTLocalBtn_onclick), false);
-    this.$$("MTWriteRingBtn").addEventListener("click", B5500CentralControl.bindMethod(this, B5500MagTapeDrive.prototype.MTWriteRingBtn_onclick), false);
-    this.$$("MTRewindBtn").addEventListener("click", B5500CentralControl.bindMethod(this, B5500MagTapeDrive.prototype.MTRewindBtn_onclick), false);
-    this.progressBar.addEventListener("click", B5500CentralControl.bindMethod(this, B5500MagTapeDrive.prototype.MTProgressBar_onclick), false);
+    this.window.addEventListener("beforeunload",
+        B5500MagTapeDrive.prototype.tapeDriveBeforeUnload, false);
+    this.$$("MTUnloadBtn").addEventListener("click",
+        B5500CentralControl.bindMethod(this, B5500MagTapeDrive.prototype.MTUnloadBtn_onclick), false);
+    this.$$("MTLoadBtn").addEventListener("click",
+        B5500CentralControl.bindMethod(this, B5500MagTapeDrive.prototype.MTLoadBtn_onclick), false);
+    this.$$("MTRemoteBtn").addEventListener("click",
+        B5500CentralControl.bindMethod(this, B5500MagTapeDrive.prototype.MTRemoteBtn_onclick), false);
+    this.$$("MTLocalBtn").addEventListener("click",
+        B5500CentralControl.bindMethod(this, B5500MagTapeDrive.prototype.MTLocalBtn_onclick), false);
+    this.$$("MTWriteRingBtn").addEventListener("click",
+        B5500CentralControl.bindMethod(this, B5500MagTapeDrive.prototype.MTWriteRingBtn_onclick), false);
+    this.$$("MTRewindBtn").addEventListener("click",
+        B5500CentralControl.bindMethod(this, B5500MagTapeDrive.prototype.MTRewindBtn_onclick), false);
+    this.progressBar.addEventListener("click",
+        B5500CentralControl.bindMethod(this, B5500MagTapeDrive.prototype.MTProgressBar_onclick), false);
 
-    this.window.resizeBy(de.scrollWidth-de.innerWidth, de.scrollHeight-de.innerHeight);
+    this.window.resizeBy(de.scrollWidth - this.window.innerWidth + 4, // kludge for right-padding/margin
+                         de.scrollHeight - this.window.innerHeight);
     this.window.moveTo(280, y);
 };
 

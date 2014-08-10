@@ -292,7 +292,7 @@ window.addEventListener("load", function() {
         x = 0;
         while (ccChange) {
             if (ccChange & 0x01) {
-                ccLightsMap[x].className = (ccMask & 0x01 ? "busy" : "");
+                ccLightsMap[x].style.visibility = (ccMask & 0x01 ? "visible" : "hidden");
             }
             ccMask >>>= 1;
             ccChange >>>= 1;
@@ -302,7 +302,7 @@ window.addEventListener("load", function() {
         x = 47;
         while (interruptChange) {
             if (interruptChange & 0x01) {
-                intLightsMap[x].className = (interruptMask & 0x01 ? "busy" : "");
+                intLightsMap[x].style.visibility = (interruptMask & 0x01 ? "visible" : "hidden");
             }
             interruptMask >>>= 1;
             interruptChange >>>= 1;
@@ -312,7 +312,7 @@ window.addEventListener("load", function() {
         x = 47;
         while (unitBusyChange) {
             if (unitBusyChange & 0x01) {
-                perLightsMap[x].className = (unitBusyMask & 0x01 ? "busy" : "");
+                perLightsMap[x].style.visibility = (unitBusyMask & 0x01 ? "visible" : "hidden");
             }
             unitBusyMask >>>= 1;
             unitBusyChange >>>= 1;
