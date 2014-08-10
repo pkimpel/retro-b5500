@@ -3058,8 +3058,10 @@ B5500Processor.prototype.computeRelativeAddr = function computeRelativeAddr(offs
     Manual. "cEnable" determines whether C-relative addressing is permitted.
     This offset must be in (0..1023) */
 
-    if (this.SALF) {
-        this.cycleCount += 2;           // approximate the timing
+    this.cycleCount += 2;               // approximate the timing
+    if (!this.SALF) {
+        this.M = this.R*64 + (offset % 0x400);
+    } else {
         switch ((offset % 0x400) >>> 7) {
         case 0:
         case 1:
@@ -3094,8 +3096,6 @@ B5500Processor.prototype.computeRelativeAddr = function computeRelativeAddr(offs
             }
             break;
         } // switch
-    } else {
-        this.M = this.R*64 + (offset % 0x400);
     }
 
     // Reset variant-mode R-relative addressing, if enabled
@@ -3127,7 +3127,7 @@ B5500Processor.prototype.indexDescriptor = function indexDescriptor() {
     /* Indexes a descriptor and, if successful leaves the indexed value in
     the A register. Returns 1 if an interrupt is set and the syllable is
     to be exited */
-    var aw = this.A;                    // local copy of A reg
+    var aw;                             // local copy of A reg
     var bw;                             // local copy of B reg
     var interrupted = 0;                // fatal error, interrupt set
     var xe;                             // index exponent
@@ -3136,7 +3136,8 @@ B5500Processor.prototype.indexDescriptor = function indexDescriptor() {
     var xs;                             // index mantissa sign
     var xt;                             // index exponent sign
 
-    this.adjustBFull();
+    this.adjustABFull();
+    aw = this.A;                    
     bw = this.B;
     xm = (bw % 0x8000000000);
     xe = (bw - xm)/0x8000000000;
@@ -3172,21 +3173,24 @@ B5500Processor.prototype.indexDescriptor = function indexDescriptor() {
 
     // Now we have an integerized index value in xm
     if (!interrupted) {
-        if (xs && xm) {                 // oops... negative index
+        if (xs && xm) {
+            // Oops... index is negative
             interrupted = 1;
             if (this.NCSF) {
                 this.I = (this.I & 0x0F) | 0x90;                // set I05/8: invalid-index
                 this.cc.signalInterrupt();
             }
-        } else if (xm % 0x0400 >= (aw % 0x10000000000 - aw % 0x40000000)/0x40000000) {
-            interrupted = 1;            // oops... index out of bounds
+        } else if (xm % 0x0400 < (aw % 0x10000000000 - aw % 0x40000000)/0x40000000) {
+            // We finally have a valid index
+            this.A = aw - aw % 0x8000 + (xm % 0x400 + aw)%0x8000;
+            this.BROF = 0;
+        } else {
+            // Oops... index not less than size
+            interrupted = 1;
             if (this.NCSF) {
                 this.I = (this.I & 0x0F) | 0x90;                // set I05/8: invalid-index
                 this.cc.signalInterrupt();
             }
-        } else {                        // we finally have a valid index
-            this.A = this.cc.fieldInsert(aw, 33, 15, aw % 0x8000 + xm % 0x400);
-            this.BROF = 0;
         }
     }
 
@@ -3489,12 +3493,13 @@ B5500Processor.prototype.operandCall = function operandCall() {
     var aw = this.A;                    // local copy of A reg value
     var interrupted = 0;                // interrupt occurred
 
+    // If A contains a simple operand, just leave it there, otherwise...
     if (aw >= 0x800000000000) {
         // It's not a simple operand
         switch ((aw % 0x800000000000 - aw % 0x100000000000)/0x100000000000) {     // aw.[1:3]
         case 2:
         case 3:
-            // Present data descriptor
+            // Present data descriptor: see if it must be indexed
             if ((aw % 0x10000000000 - aw % 0x40000000)/0x40000000) {              // aw.[8:10]
                 interrupted = this.indexDescriptor();
             // else descriptor is already indexed (word count 0)
@@ -3502,8 +3507,7 @@ B5500Processor.prototype.operandCall = function operandCall() {
             if (!interrupted) {
                 this.M = this.A % 0x8000;
                 this.loadAviaM();       // A = [M]
-                if (this.A >= 0x800000000000 && this.NCSF) {
-                    // Flag bit is set
+                if (this.A >= 0x800000000000 && this.NCSF) {// Flag bit is set
                     this.I = (this.I & 0x0F) | 0x80;        // set I08: flag-bit interrupt
                     this.cc.signalInterrupt();
                     dumpState("Flag Bit: OPDC");        // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< DEBUG >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -3527,7 +3531,7 @@ B5500Processor.prototype.operandCall = function operandCall() {
             }
             break;
 
-        default:
+        default: // cases 4, 6
             // Miscellaneous control word -- leave as is
             break;
         }
@@ -3551,10 +3555,12 @@ B5500Processor.prototype.descriptorCall = function descriptorCall() {
         switch ((aw % 0x800000000000 - aw % 0x100000000000)/0x100000000000) {     // aw.[1:3]
         case 2:
         case 3:
-            // Present data descriptor
+            // Present data descriptor: see if it must be indexed
             if ((aw % 0x10000000000 - aw % 0x40000000)/0x40000000) {              // aw.[8:10]
                 interrupted = this.indexDescriptor();
-                this.A = this.cc.fieldInsert(this.A, 8, 10, 0);  // set word count to zero
+                if (!interrupted) {
+                    this.A = this.cc.fieldInsert(this.A, 8, 10, 0); // set word count to zero
+                }
             // else descriptor is already indexed (word count 0)
             }
             break;
@@ -3575,7 +3581,7 @@ B5500Processor.prototype.descriptorCall = function descriptorCall() {
             }
             break;
 
-        default:
+        default: // cases 4, 6
             // Miscellaneous control word
             this.A = this.M + 0xA00000000000;
             break;
@@ -4278,7 +4284,7 @@ B5500Processor.prototype.run = function run() {
                 this.adjustAEmpty();
                 this.computeRelativeAddr(opcode >>> 2, 1);
                 this.loadAviaM();
-                if (this.A >= 0x800000000000) {                 // if it's a control word,
+                if (this.A >= 0x800000000000) {                 // optimization: if it's a control word,
                     this.operandCall();                         // evaluate it
                 }                                               // otherwise, just leave it in A
                 break;
