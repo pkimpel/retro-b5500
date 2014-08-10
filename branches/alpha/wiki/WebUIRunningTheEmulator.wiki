@@ -4,9 +4,9 @@
 = WebUI Running the Emulator =
 <wiki:toc max_depth="2"/>
 
-This page describes how to operate the retro-B5500 emulator in a web browser. In order to use the emulator, it must first have been set up as described in [WebUIGettingStarted WebUI Getting Started].
+This page describes operation of the the retro-B5500 emulator in a web browser. In order to use the emulator, it must first have been set up as described in [WebUIGettingStarted WebUI Getting Started].
 
-Note that some web browsers, particularly Firefox, may slow the execution of their web pages when those pages are running in a non-active tab of a window. The emulator runs continuously, and has a performance throttling mechanism that attempts to run the emulated processor at its real B5500 speed. To keep this mechanism synchronized with real time, do not open the B5500 Console in a window where one of the other tabs is active. It is best to open the Console in its own window, or at least keep it as the active tab in its window. If you need to use the browser to access other sites at the same time the emulator is running, it is best to open separate browser windows to do so.
+Note that some web browsers, particularly Firefox, may slow the execution of their web pages when those pages are running in a non-active tab of a window. The emulator runs continuously, and has a performance throttling mechanism that attempts to run the emulated processors at their real B5500 speed. To keep this mechanism synchronized with real time, do not open the B5500 Console in a window where one of the other tabs is active. It is best to open the Console in its own window, or at least keep it as the active tab in its window. If you need to use the browser to access other sites at the same time the emulator is running, it is best to open separate browser windows to do so.
 
 
 = "Powering Up" the Emulator =
@@ -30,9 +30,9 @@ The SPO (Supervisory Printer) window is the one you will typically use the most.
 
 The process of loading an operating system into a computer and initiating it is commonly referred to as "booting" the system. On the B5500 (and all Burroughs/Unisys systems that followed it), the process is termed a "halt/load," after the two eponymous buttons on the console. *HALT* stops the system. *LOAD* clears the registers and reads a bootstrap program into memory. The bootstrap for the MCP is known as the KERNEL. For the web-based emulator, the KERNEL is placed on disk by the Cold Loader utility script.
 
-The B5500 supported two types of load. The primary one is from disk and the alternate is from cards, as controlled by the *LOAD SELECT* push button. In its normal position, *LOAD SELECT* causes the system to load 63 segments starting at segment 1 of Electronics Unit (EU) 0. When *LOAD SELECT* is activated (indicated on a real B5500 by being in a depressed position, but on this console by a yellow border) the system loads one binary card from the primary card reader, CRA.
+The B5500 supported two types of load. The primary one is from disk and the alternate is from cards, as controlled by the *LOAD SELECT* push button. In its normal position, *LOAD SELECT* causes the system to load 63 segments starting at segment 1 of Electronics Unit (EU) 0. When *LOAD SELECT* is activated (indicated on a real B5500 by being in a depressed position, but on this console by being illuminated) the system loads one binary card from the primary card reader, CRA.
 
-When the SPO window opens, it will print a short message indicating the emulator version. Please wait for this message to finish printing before attempting to load any program, including the MCP.
+When the SPO window opens, it will print a short message indicating the emulator version. Please wait for this message to finish printing before attempting to load any program, including the MCP. The *LOAD* button will not function until the SPO is on line and goes to *REMOTE* status.
 
 To load the MCP, make sure the *LOAD SELECT* button is not activated (no yellow border), then click the *LOAD* button. Several white annunciator lights on the lower portion of the console should blink. These annunciators are unique to the emulated console and were not present on a real B5500.
 
@@ -60,6 +60,8 @@ Depending on the state of two MCP options (`USE DATE` and `USE TIME`) stored in 
 
 The B5500 did not have a persistent clock, just an interval timer. As a result, it was necessary to set the time, and perhaps the date, each time the system was halt/loaded. The two MCP options mentioned above could be set to require the operator to set the time and/or date before the MCP would exit its initialization mode and be ready to run user programs. The messages above indicate which of those options was set. Regardless of those option settings, it is always a good idea to set at least the time immediately after halt/loading the system.
 
+To help enforce that practice, we recommend that you require the time to be set (`SO USE TIME`), but not the date (`RO USE DATE`) at each halt/load. These option settings are established by the project's default cold-start configuration, but you may change them after booting the MCP. With those option settings, the system will require you to set the time, but use it's prior date unless you change it. Until the time is set, the MCP will not recognize ready status on any of the peripherals except the SPO, and will not run any user programs.
+
 The time is set with the `TR` command. To enter a command, click the *INPUT REQUEST* button on the SPO window. The button will illuminate. When that light goes out and the *REMOTE* button lights (which may take a second or so -- the MCP must first initiate an I/O to the SPO) enter the following, substituting your current time in 24-hour format.
 
     {{{
@@ -68,7 +70,7 @@ The time is set with the `TR` command. To enter a command, click the *INPUT REQU
 
 The SPO will translate lower-case characters to upper case as you enter them -- you do not need to type commands in upper case. When you have finished entering the command, click the *END OF MESSAGE* button on the SPO window to terminate it. The system will respond by printing the new time on the SPO.
 
-The date is set using the `DT` command. The B5500 was not Year-2000 compliant -- almost no one was looking that far ahead in the 1960s. You can, of course, set a date using the last two digits of the current year (e.g., `13` for 2013), but the system will interpret that as 1913, and the Mark XIII files on disk have dates in the 1970s, so they would appear to have been created some 60 years in the future.
+The date is set using the `DT` command. The B5500 was not Year-2000 compliant -- almost no one was looking that far ahead in the 1960s. You can, of course, set a date using the last two digits of the current year (e.g., `13` for 2013), but the system will interpret that as 1913, and the Mark XIII system files have dates in the 1970s, so they would appear to have been created some 60 years in the future.
 
 We recommend that you subtract 30 or 40 years from the current date (yielding one in the 1970s or '80s) and use that, but the day of week will be incorrect. It turns out that if you subtract 50 years from the current date, the day of week will be correct, but the system files will still appear to have been created in the future. To set the date, enter a `DT` command with the date in month/day/year format:
 
@@ -76,12 +78,12 @@ We recommend that you subtract 30 or 40 years from the current date (yielding on
     DT 7/13/83
     }}}
 
-You can also use hyphens (`-`) instead of slashes (`/`) to separate the fields of the dates. The MCP stores the date on disk and will remember the date across halt/loads.
+You can also use hyphens (`-`) instead of slashes (`/`) to separate the fields of the dates. The MCP stores the date on disk, will remember the date across halt/loads, and will automatically change the date when its time-of-day clock crosses midnight.
 
 
 = Exploring the B5500 Environment =
 
-Once the date and time are properly set, you can begin to use the system. A number of documents on bitsavers.org have useful information:
+Once the date and time are properly set, you can begin to use the system. A number of documents on [http://www.bitsavers.org/pdf/burroughs/B5000_5500_5700/ bitsavers.org] have useful information:
 
     * The [http://www.bitsavers.org/pdf/burroughs/B5000_5500_5700/1031986_B5500_Handbook_Aug70.pdf B5500 Handbook (April 1970)] describes:
         * SPO output messages starting on page 4-1.
@@ -91,7 +93,7 @@ Once the date and time are properly set, you can begin to use the system. A numb
         * Control card syntax starting on page 4-1.
         * Compiler option card ("$-cards") starting on page 4-26.
         * SPO output messages starting on page C-1.
-        * SPO commands starting on page C-40.
+        * SPO input commands starting on page C-40.
     * The [http://bitsavers.org/pdf/burroughs/B5000_5500_5700/1023579_Narrative_Description_Of_B5500_MCP_Oct66.pdf Narrative Description of the B5500 MCP] gives a good overview of the MCP and how it works.
     * The [http://www.bitsavers.org/pdf/burroughs/B5000_5500_5700/ bitsavers index page for the B5000/B5500/B5700] lists a number of other documents, including reference manuals for the hardware and the compilers.
 
@@ -113,12 +115,12 @@ You can prepare "card decks" as ordinary text files on your workstation and read
 The B5500 used five special Algol characters that do not have ASCII equivalents, so we have chosen the following ASCII substitutions for them:
 
     * `~` for left-arrow
-    * `|` for "&times;" (the multiplication sign)
+    * `|` for "×" (the multiplication sign)
     * `{` for less-than-or-equal
     * `}` for greater-than-or-equal
     * `!` for not-equal
 
-Lower-case letters will be translated to upper case by the card reader. All other ASCII or Unicode characters will be considered to be "invalid punches" in a card. A "`?`" in the first position in a line of text will be considered to be an "invalid punch" (for the purpose of identifying the line as a control card) but will be allowed as a valid character in any other position. Lines of text longer than 80 characters will be truncated to a length of 80; lines of text shorter than 80 characters will be padded with spaces to a length of 80.
+Lower-case letters will be translated to upper case by the card reader. All other ASCII or Unicode characters will be considered to be "invalid punches" in a card. An ASCII "`?`" in the first position in a line of text will be considered to be an "invalid punch" (for the purpose of identifying the line as a control card) but will be allowed as a valid character in any other position. Lines of text longer than 80 characters will be truncated to a length of 80; lines of text shorter than 80 characters will be padded with spaces to a length of 80.
 
 Your "card deck" text files should have the necessary control cards on the front (with a "`?`" or other invalid character in the first column) and a `?END` control card at the end. Here is a sample deck to compile and run a very simple Algol program. The program's output will go to the line printer:
 
@@ -144,10 +146,10 @@ To use the card reader:
     * Click the *START* button to make the reader ready. The *NOT READY* light will go out.
     * The MCP should sense the change in status within a second or two and start reading cards. The progress bar below the file selector indicates the relative number of cards remaining in the "input hopper." The last two cards that were read are shown in the box at the bottom of the card reader window.
     * After the last card is read from the "input hopper" the reader will go not-ready and the *NOT READY* light will again illuminate.
-    * You can add more "decks" to the "input hopper" of the reader at any time. If the reader is currently reading cards, simply click the *STOP* button to make it not-ready, add more files to the input hopper, and then click *START* to make it ready again.
+    * You can add more "decks" to the "input hopper" of the reader at any time. If the reader is currently reading cards, simply click the *STOP* button to make it not-ready, add more files to the input hopper as described above, and then click *START* to make it ready again.
     * If a deck has control card errors, the MCP will stop reading cards and issue a message on the SPO. You have two choices:
         * Enter "`RY CRA`" (ready the reader) or "`CL CRA`" (clear the reader) on the SPO to abort the current "deck." The MCP will read cards without processing them until the next control card and then resume processing the cards normally.
-        * Click *STOP* to make the reader not ready, then click the progress bar below the file selector. The reader will ask if you want to "empty the input hopper." If you click *OK*, the entire contents of the "input hopper" will be discarded.
+        * Click *STOP* to make the reader not ready, then click the progress bar below the file selector. The reader will ask if you want to "empty the input hopper." If you click *OK*, the entire contents of the "input hopper" will be discarded. You can then fix the deck and reload it into the reader.
 
 
 = Shutting Down the Emulator =

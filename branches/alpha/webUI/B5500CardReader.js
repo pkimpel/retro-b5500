@@ -44,7 +44,7 @@ function B5500CardReader(mnemonic, unitIndex, designate, statusChange, signal) {
         that.readerOnload();
     }, false);
 
-    this.progressBar = null;
+    this.hopperBar = null;
     this.outHopperFrame = null;
     this.outHopper = null;
 }
@@ -176,8 +176,8 @@ B5500CardReader.prototype.CREOFBtn_onclick = function CREOFBtn_onclick(ev) {
 };
 
 /**************************************/
-B5500CardReader.prototype.CRProgressBar_onclick = function CRProgressBar_onclick(ev) {
-    /* Handle the click event for the "input hopper" progress bar */
+B5500CardReader.prototype.CRHopperBar_onclick = function CRHopperBar_onclick(ev) {
+    /* Handle the click event for the "input hopper" meter bar */
 
     if (this.bufIndex < this.bufLength && !this.ready) {
         if (this.window.confirm((this.bufLength-this.bufIndex).toString() + " of " + this.bufLength.toString() +
@@ -185,7 +185,7 @@ B5500CardReader.prototype.CRProgressBar_onclick = function CRProgressBar_onclick
             this.buffer = "";
             this.bufLength = 0;
             this.bufIndex = 0;
-            this.progressBar.value = 0;
+            this.hopperBar.value = 0;
             this.$$("CRFileSelector").value = null;     // reset the control
             while (this.outHopper.childNodes.length > 0) {
                 this.outHopper.removeChild(this.outHopper.firstChild);
@@ -223,8 +223,8 @@ B5500CardReader.prototype.fileSelector_onChange = function fileSelector_onChange
 
         that.bufIndex = 0;
         that.bufLength = that.buffer.length;
-        that.$$("CRProgressBar").value = that.bufLength;
-        that.$$("CRProgressBar").max = that.bufLength;
+        that.$$("CRHopperBar").value = that.bufLength;
+        that.$$("CRHopperBar").max = that.bufLength;
     }
 
     for (x=f.length-1; x>=0; x--) {
@@ -331,7 +331,7 @@ B5500CardReader.prototype.readerOnload = function readerOnload() {
     de = this.doc.documentElement;
     this.doc.title = "retro-B5500 " + this.mnemonic;
 
-    this.progressBar = this.$$("CRProgressBar");
+    this.hopperBar = this.$$("CRHopperBar");
     this.outHopperFrame = this.$$("CROutHopperFrame");
     this.outHopper = this.outHopperFrame.contentDocument.getElementById("Paper");
 
@@ -348,8 +348,8 @@ B5500CardReader.prototype.readerOnload = function readerOnload() {
         B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRStopBtn_onclick), false);
     this.$$("CREOFBtn").addEventListener("click",
         B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CREOFBtn_onclick), false);
-    this.progressBar.addEventListener("click",
-        B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRProgressBar_onclick), false);
+    this.hopperBar.addEventListener("click",
+        B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRHopperBar_onclick), false);
 
     this.window.resizeBy(de.scrollWidth - this.window.innerWidth + 4, // kludge for right-padding/margin
                          de.scrollHeight - this.window.innerHeight);
@@ -388,9 +388,9 @@ B5500CardReader.prototype.read = function read(finish, buffer, length, mode, con
         });
 
         if (this.bufIndex < this.bufLength) {
-            this.progressBar.value = this.bufLength-this.bufIndex;
+            this.hopperBar.value = this.bufLength-this.bufIndex;
         } else {
-            this.progressBar.value = 0;
+            this.hopperBar.value = 0;
             this.buffer = "";           // discard the input buffer
             this.bufLength = 0;
             this.bufIndex = 0;

@@ -7,14 +7,14 @@
 
 Virtually all operational control of a B5500 system was done through the supervisory keyboard/printer, or SPO.
 
-The term "SPO" (pronounced "spoh") apparently comes from the Burroughs 220, a mid-1950s vacuum-tube computer system that preceded the B5500. The 220 had a Supervisory Print Out instruction, the assembly-language mnemonic for which was SPO. This instruction would cause a specified number of words to be printed from memory to the system's console keyboard/printer.
+The term "SPO" (pronounced "spoh") apparently comes from the Burroughs 220, a late-1950s vacuum-tube computer system that preceded the B5500. The 220 had a Supervisory Print Out instruction, the assembly-language mnemonic for which was SPO. This instruction would cause a specified number of words to be printed from memory to the system's console keyboard/printer.
 
-Use of the term SPO persisted with Burroughs systems long after mechanical keyboard/printers were no longer used on the console and the operator interface transitioned to a video terminal. Modern Unisys MCP systems now refer to the SPO as the Operator Display Terminal, or ODT.
+Use of the term SPO persisted with Burroughs systems long after mechanical keyboard/printers were no longer used on the console and the operator interface transitioned to a video terminal. Modern Unisys MCP systems have for some time referred to the SPO as the Operator Display Terminal, or ODT.
 
 
 = Background =
 
-Initially on the B5000 and early B5500s, the SPO was a Smith-Corona electric typewriter, modified to interface with the system's I/O Control Units. Later, Burroughs started using a standard Teletype Model 33 KSR device, with a panel of control buttons installed where a modem would normally be. This was termed the B495 Supervisory Printer. The best picture we have of the B495 comes from the B100/200/300 Reference Manual:
+Initially on the B5000 and early B5500s, the SPO was a Smith-Corona electric typewriter, modified to interface with the system's I/O Control Units. Later, Burroughs switched to a standard Teletype Model 33 KSR device, with a panel of control buttons installed where a modem would normally be. This was termed the B495 Supervisory Printer. The best picture we have of the B495 comes from the B100/200/300 Reference Manual:
 
     https://googledrive.com/host/0BxqKm7v4xBswRjNYQnpqM0ItbkU/B495-SPO-Image.png
 
@@ -22,7 +22,7 @@ The printer and control buttons looked very similar to the interface we have dev
 
     https://googledrive.com/host/0BxqKm7v4xBswRjNYQnpqM0ItbkU/B5500-SPO.png
 
-The SPO was intended solely as an operational control device and not as a timesharing terminal. Programs could communicate with the SPO, but since the system typically ran multiple jobs at once, access to the SPO had to be shared on a non-conflicting basis. While it was possible to compile and run programs from the SPO (assuming the source or object code was already on disk), one did not sit at the SPO to, say, edit source code.
+The SPO was intended solely as an operational control device and not as a timesharing terminal. User programs could communicate with the SPO, but since the system typically ran multiple jobs at once, access to the SPO had to be shared on a non-conflicting basis. While it was possible to compile and run programs from the SPO (assuming the source or object code was already on disk), one did not sit at the SPO to, say, edit source code.
 
 The SPO was a peripheral device, and interfaced both physically and electronically to the rest of the system the same way that a tape drive or card reader would. It sat on the short end of the L-shaped operator console desk. Below it was a logic rack that adapted the Teletype interface signals to those of the system's I/O Units.
 
@@ -41,27 +41,37 @@ The Model 33 had a space on the right side of its case where interface equipment
     * *READY* -- this yellow light illuminates when the system initiates a read operation in response to the *INPUT REQUEST* button being pressed.
     * *REMOTE* -- this yellow button/light indicates the device is on-line to the rest of the system. If the device is off-line, pressing the button makes it on-line.
     * *LOCAL* -- this yellow button/light indicates the device is off-line to the rest of the system. If the device is on-line, pressing the button makes it off-line. When the device is off-line, you can type comments onto the paper, which will not be transmitted to the system.
-    * *INPUT REQUEST* this yellow button/light is used to set the Keyboard Request interrupt. That interrupt in turn requests attention from the MCP so that it will initiate a read operation for the keyboard. When pressed, the button lights, and remains lit until the system initiates the read operation, at which point the light goes out, the *READY* light comes on, and the keyboard is enabled for input.
+    * *INPUT REQUEST* this yellow button/light is used to raise the Keyboard Request interrupt. That interrupt in turn requests attention from the MCP so that it will initiate a read operation for the keyboard. When pressed, the button lights, and remains lit until the system initiates the read operation, at which point the light goes out, the *READY* light comes on, and the keyboard is enabled for input.
     * *END OF MESSAGE* -- after entering a command on the keyboard, press this yellow button to terminate the input and signal the system that the command is complete. This also extinguishes the *READY* light.
     * *ERROR* -- if you made a mistake while entering a command, press this yellow button to cancel what had been entered. The MCP will discard your input to that point and reinitiate a read operation to the device. To cancel a partially-entered command and not reenter it, press *ERROR*, and then when *READY* comes back on, press *END OF MESSAGE*.
 
 The emulated SPO supports a few user-interface features that the Teletype Model 33 device did not:
 
-    # When the SPO window has the focus, you can press the ESC key instead of the *INPUT REQUEST* button to request input to the system. The *INPUT REQUEST* button will light as if it had been pressed.
-    # You can press the Enter key on your keyboard instead of the *END OF MESSAGE* button to end a message.
-    # When the *READY* light is on and the SPO window has the focus, you can press the ESC key to cancel your input instead of the *ERROR* button. In either case, the carriage will start a new line and the *READY* light will eventually come on again to allow you to reenter your command.
+    # When the SPO window has the focus, you can press the *ESC* key instead of the *INPUT REQUEST* button to request input to the system. The *INPUT REQUEST* button will light as if it had been pressed.
+    # You can press the *Enter* key on your keyboard instead of the *END OF MESSAGE* button to end a message.
+    # When the *READY* light is on and the SPO window has the focus, you can press the *ESC* key to cancel your input instead of the *ERROR* button. In either case, the carriage will start a new line and the *READY* light will eventually come on again to allow you to reenter your command.
     # Lower-case letters will be translated to upper case as you type them. Neither the B5500 nor the Model 33 supported lower case.
-    # When entering a command, you can press the Backspace key to correct errors. The Model 33 could not backspace.
-    # You can type faster than 10 characters/second, which was physically impossible with a Model 33. The SPO echoes your keystrokes at only 10 cps, but it will eventually catch up to what you have entered.
+    # When entering a command, you can press the *Backspace* key to correct errors. The Model 33 could not backspace. The arrow keys on your keyboard are ignored by the SPO.
+    # You can type faster than 10 characters/second, which was physically impossible with a Model 33.
+
+The original implementation of the emulated SPO simply captured keystrokes from the SPO window, echoing them to the "paper" or activating control functions as necessary. This worked fine on workstations that have a keyboard, but it does not work on tablets that emulate a keyboard on their touch screen. Most tablet-based browsers only display the on-screen keyboard when the focus is in a text area or other control that accepts keyboard input. Without text area, you can't get a keyboard, and without a keyboard, you can't send keystrokes to the SPO window, so input on a touch screen was not possible. Tablets with a physical keyboard would still work, however.
+
+In order to support the touch interface of tablets, the SPO interface was changed in emulator version 0.21 to capture input using a standard text control instead of waiting for keystrokes to be directed to its window. When the system initiates a read to the SPO and the *READY* light illuminates, the SPO now enables a one-line text box at the bottom of the "paper" area. This text box is borderless, but does have a light-yellow background. As a bonus, the SPO now shows a cursor when you are entering text. Once you signal end-of-message, the text box disappears and its contents are transferred to the "paper" underneath it.
+
+If you are using a keyboard, you can still use the *ESC* *Enter*, and *Backspace* keys as described above. If you are using a touch interface, you must activate the *INPUT REQUEST* and *END OF MESSAGE* buttons to control SPO input.
+
+A similar mechanism is now used when you press the *LOCAL* key to take the SPO off line. The same borderless text box will appear at the bottom of the "paper" area to accept your input. When you press *REMOTE*, the text box will disappear and its contents will be transferred to the "paper." If you attempt to type more than 72 characters in the text box, the 72 characters in the text box will be transferred to the "paper" and the text box cleared to accept the 73rd character as the first for the next line. When transitioning from *LOCAL* to *REMOTE* and the text box is non-empty, the text transferred to the "paper" will always be followed by a new-line.
 
 
 = Tips for Using the SPO =
 
-When the system is powered on and the SPO window opens, the SPO will print a short message indicating the emulator version. Please wait for this message to finish printing before attempting to press the *LOAD* button on the operator console.
+When the system is powered on and the SPO window opens, the SPO will print a short message indicating the emulator version. Please wait for this message to finish printing before attempting to press the *LOAD* button on the operator console. The *LOAD* button will not function until the SPO *REMOTE* light illuminates.
 
 You may move and resize the SPO window, and minimize it, but _do not close the window_. The system will warn you if you attempt to do this. Closing the window will render the SPO inoperable until the emulator is reinitialized with the *POWER ON* button.
 
-The frame representing the "paper" for the SPO has a 1500-line scrollback. It is implemented as an HTML `<iframe>` element, so most browsers will allow you to save or print the contents of the window. You can also select text within the window and copy/paste it into another application on your workstation.
+When you resize the SPO window, the "paper" area will change size accordingly. If the window becomes too narrow for the current output, the output lines will be clipped on the right, although the output itself is unaffected and will reappear if the window is made larger. Below a certain minimum (and essentially usable) window size, the window contents will no longer resize and will be clipped.
+
+The area representing the "paper" for the SPO has a 1500-line scrollback. You can copy portions of this text using  ordinary click-and-drag functions of your pointing device. If you double-click anywhere in the text, however, the emulator will open a temporary window and copy the entire contents of the "paper" into it. From there, you can save the text in a file or copy/paste it into another application. When you have finished with the temporary window, simply close it.
 
 
 = An Overview of MCP SPO Commands =
@@ -79,7 +89,7 @@ The basic commands you will need to operate the B5500 emulator in a batch enviro
 
 The B5500 MCP used a terse set of operator commands based on two-letter mnemonic codes. Some commands consisted only of their mnemonic code; other commands required operands after the mnemonic.
 
-In the discussion below, the term _program_ refers to a executable file, i.e., a codefile. The term _job_ refers to an instance of a program executing (or having been scheduled for execution) in "the mix" -- the collection of jobs currently executing in the system. One program could be associated with multiple jobs in the mix and/or the schedule at the same time.
+In the discussion below, the term _program_ refers to a codefile, i.e., an executable file. The term _job_ refers to an instance of a program executing (or having been scheduled for execution) in "the mix" -- the collection of jobs currently executing in the system. One program could be associated with multiple jobs in the mix and/or the schedule at the same time.
 
 Commands that affected a specific job in the system must be prefixed by that job's "mix number," a one- or two-digit integer assigned to the job by the MCP when the job initiates. This number is identified as "<mix>" in the descriptions below.
 

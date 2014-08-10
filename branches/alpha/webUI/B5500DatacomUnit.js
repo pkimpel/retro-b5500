@@ -53,9 +53,9 @@ function B5500DatacomUnit(mnemonic, unitIndex, designate, statusChange, signal) 
     this.paper = null;
     this.endOfPaper = null;
     this.window = window.open("../webUI/B5500DatacomUnit.html", mnemonic,
-            "scrollbars,resizable,width=580,height=540");
-    this.window.moveTo((screen.availWidth-this.window.outerWidth)/2, (screen.availHeight-this.window.outerHeight)/2);
-    this.window.addEventListener("load", B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.datacomOnload), false);
+            "scrollbars,resizable,width=520,height=540");
+    this.window.addEventListener("load", B5500CentralControl.bindMethod(this,
+            B5500DatacomUnit.prototype.datacomOnload), false);
 }
 
 // this.bufState enumerations
@@ -101,8 +101,6 @@ B5500DatacomUnit.prototype.clear = function clear() {
     this.printCol = 0;                  // current printer column
 
     this.bufState = this.bufNotReady;   // Current state of datacom buffer
-    this.lastTermOutHeight = 0;         // last height of TermOut element
-    this.lastWindowHeight = 0;          // last innerHeight of terminal window
 };
 
 /**************************************/
@@ -216,17 +214,17 @@ B5500DatacomUnit.prototype.termConnect = function termConnect() {
 };
 
 /**************************************/
-B5500DatacomUnit.prototype.appendEmptyLine = function appendEmptyLine() {
+B5500DatacomUnit.prototype.appendEmptyLine = function appendEmptyLine(text) {
     /* Removes excess lines already printed, then appends a new <pre> element
     to the <iframe>, creating an empty text node inside the new element */
     var count = this.paper.childNodes.length;
+    var line = text || "";
 
-    this.paper.lastChild.nodeValue += "\n";     // newline
-    while (count-- > this.maxScrollLines) {
+    while (--count > this.maxScrollLines) {
         this.paper.removeChild(this.paper.firstChild);
     }
-    this.endOfPaper.scrollIntoView();
-    this.paper.appendChild(this.doc.createTextNode(""));
+    this.paper.lastChild.nodeValue += "\n";     // newline
+    this.paper.appendChild(this.doc.createTextNode(line));
 };
 
 /**************************************/
@@ -250,14 +248,14 @@ B5500DatacomUnit.prototype.printChar = function printChar(c) {
     if (col < 72) {
         while (len < col) {
             line += " ";
-            len++;
+            ++len;
         }
         if (len > col) {
             line = line.substring(0, col) + String.fromCharCode(c) + line.substring(col+1);
         } else {
             line += String.fromCharCode(c);
         }
-        this.printCol++;
+        ++this.printCol;
     } else {
          line = line.substring(0, 71) + String.fromCharCode(c);
     }
@@ -284,6 +282,7 @@ B5500DatacomUnit.prototype.outputChar = function outputChar() {
         c = this.buffer[this.bufIndex++];
         switch (c) {
         case 0x21:      // ! not-equal, output LF
+            this.endOfPaper.scrollIntoView();
             this.appendEmptyLine();
             this.outTimer = setCallback(this.mnemonic, this, delay, this.outputChar);
             break;
@@ -364,7 +363,7 @@ B5500DatacomUnit.prototype.keyAction = function keyAction(ev, c) {
                 break;
             case 0x3C:                  // <, backspace
                 if (this.bufIndex > 0) {
-                    this.bufIndex--;
+                    --this.bufIndex;
                 }
                 this.inTimer = setCallback(this.mnemonic, this, delay, this.printChar, c);
                 this.nextCharTime = nextTime;
@@ -506,14 +505,33 @@ B5500DatacomUnit.prototype.termConnectBtnClick = function termConnectBtnClick(ev
 };
 
 /**************************************/
-B5500DatacomUnit.prototype.resizeWindow = function resizeWindow(ev) {
-    /* Handles the window onresize event. Alters the height of the paper by
-    the same amount the height of the window was altered */
-    var delta = this.window.innerHeight - this.lastWindowHeight;
+B5500SPOUnit.prototype.copyPaper = function copyPaper(ev) {
+    /* Copies the text contents of the "paper" area of the SPO, opens a new
+    temporary window, and pastes that text into the window so it can be copied
+    or saved */
+    var text = ev.target.textContent;
+    var title = "B5500 " + this.mnemonic + " Text Snapshot";
+    var win = window.open("./B5500FramePaper.html", this.mnemonic + "-Snapshot",
+            "scrollbars,resizable,width=500,height=500");
 
-    this.lastTermOutHeight += delta;
-    this.lastWindowHeight += delta;
-    this.$$("TermOut").style.height = this.lastTermOutHeight.toString() + "px";
+    win.moveTo((screen.availWidth-win.outerWidth)/2, (screen.availHeight-win.outerHeight)/2);
+    win.addEventListener("load", function() {
+        var doc;
+
+        doc = win.document;
+        doc.title = title;
+        doc.getElementById("Paper").textContent = text;
+    });
+
+    ev.preventDefault();
+    ev.stopPropagation();
+};
+
+/**************************************/
+B5500DatacomUnit.prototype.resizeWindow = function resizeWindow(ev) {
+    /* Handles the window onresize event by scrolling the "paper" so that it
+    remains at the end */
+
     this.endOfPaper.scrollIntoView();
 };
 
@@ -530,35 +548,33 @@ B5500DatacomUnit.prototype.beforeUnload = function beforeUnload(ev) {
 /**************************************/
 B5500DatacomUnit.prototype.datacomOnload = function datacomOnload() {
     /* Initializes the datacom unit and terminal window user interface */
-    var de;
     var x;
 
     this.doc = this.window.document;
-    de = this.doc.documentElement;
     this.doc.title = "retro-B5500 " + this.mnemonic + ": TU/BUF=01/00";
-    this.paper = this.$$("TermOut").contentDocument.getElementById("Paper");
-    this.endOfPaper = this.$$("TermOut").contentDocument.getElementById("EndOfPaper");
+    this.paper = this.$$("Paper");
+    this.endOfPaper = this.$$("EndOfPaper");
 
-    this.window.focus();
-    this.nextCharTime = performance.now();
-
-    this.window.addEventListener("beforeunload", this.beforeUnload, false);
-    this.window.addEventListener("resize", B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.resizeWindow), false);
-
-    this.window.addEventListener("keypress", B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.keyPress), false);
-    this.window.addEventListener("keydown", B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.keyDown), false);
-    this.$$("TermOut").contentDocument.body.addEventListener("keypress", B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.keyPress), false);
-
-    this.$$("TermConnectBtn").addEventListener("click", B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.termConnectBtnClick), false);
+    this.window.addEventListener("beforeunload",
+            B5500DatacomUnit.prototype.beforeUnload, false);
+    this.window.addEventListener("resize", 
+            B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.resizeWindow), false);
+    this.window.addEventListener("keydown",
+            B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.keyDown), false);
+    this.window.addEventListener("keypress",
+            B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.keyPress), false);
+    this.$$("TermOut").addEventListener("keypress",
+            B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.keyPress), false);
+    this.paper.addEventListener("dblclick",
+            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.copyPaper), false);
+    this.$$("TermConnectBtn").addEventListener("click",
+            B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.termConnectBtnClick), false);
 
     this.statusChange(1);               // make DCA ready
-
-    // Size the window to the DOM content
-    this.lastWindowHeight = this.window.innerHeight;
-    this.lastTermOutHeight = this.$$("TermOut").offsetHeight;
-    this.window.resizeBy(de.scrollWidth-this.window.innerWidth,
-                         screen.availHeight/2 - this.window.outerHeight);
-    this.window.moveTo((screen.availWidth-this.window.outerWidth)/2, (screen.availHeight-this.window.outerHeight)/2);
+    this.window.moveTo((screen.availWidth-this.window.outerWidth)/2,
+                       (screen.availHeight-this.window.outerHeight)/2);
+    this.window.focus();
+    this.nextCharTime = performance.now();
 };
 
 /**************************************/
@@ -586,7 +602,7 @@ B5500DatacomUnit.prototype.read = function read(finish, buffer, length, mode, co
     case this.bufState == this.bufReadReady:
         // Copy the adapter buffer to the IOUnit buffer
         actualLength = (transparent ? this.bufferSize : this.bufIndex);
-        for (x=0; x<actualLength; x++) {
+        for (x=0; x<actualLength; ++x) {
             buffer[x] = this.buffer[x];
         }
 
@@ -665,7 +681,7 @@ B5500DatacomUnit.prototype.write = function write(finish, buffer, length, mode, 
             actualLength = this.bufferSize;
             this.fullBuffer = true;
         }
-        for (x=0; x<actualLength; x++) {
+        for (x=0; x<actualLength; ++x) {
             this.buffer[x] = buffer[x];
         }
 

@@ -45,8 +45,9 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal) {
     this.inputBox = null;
     this.endOfPaper = null;
     this.window = window.open("../webUI/B5500SPOUnit.html", mnemonic,
-            "scrollbars=no,resizable,width=400,height=408");
-    this.window.addEventListener("load", B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.spoOnload), false);
+            "scrollbars=no,resizable,width=688,height=508");
+    this.window.addEventListener("load", B5500CentralControl.bindMethod(this,
+            B5500SPOUnit.prototype.spoOnload), false);
 }
 
 // this.spoState enumerations
@@ -87,9 +88,6 @@ B5500SPOUnit.prototype.clear = function clear() {
 
     this.spoState = this.spoLocal;      // Current state of SPO interface
     this.spoLocalRequested = false;     // LOCAL button pressed while active
-    this.lastSPOUTHeight = 0;           // last height of the SPOUT element
-    this.lastSPODivHeight = 0;          // last height of the SPODiv element
-    this.lastWindowHeight = 0;          // last innerHeight of the SPO window
 };
 
 /**************************************/
@@ -127,28 +125,28 @@ B5500SPOUnit.prototype.setRemote = function setRemote() {
         this.window.focus();
         text = this.inputBox.value;
         if (text.length > 0) {
-            this.paper.lastChild.nodeValue = text.substring(0, 72);
-            this.appendEmptyLine();
+            this.appendEmptyLine(text.substring(0, 72));
             this.inputBox.value = "";
         }
+        this.endOfPaper.scrollIntoView();
         this.nextCharTime = performance.now();
         this.statusChange(1);
     }
 };
 
 /**************************************/
-B5500SPOUnit.prototype.appendEmptyLine = function appendEmptyLine() {
+B5500SPOUnit.prototype.appendEmptyLine = function appendEmptyLine(text) {
     /* Removes excess lines already printed, then appends a new text node
     to the <pre> element within the <iframe> */
     var count = this.paper.childNodes.length;
+    var line = text || "";
 
-    this.paper.lastChild.nodeValue += "\n";     // newline
-    while (count-- > this.maxScrollLines) {
+    while (--count > this.maxScrollLines) {
         this.paper.removeChild(this.paper.firstChild);
     }
-    this.paper.appendChild(this.doc.createTextNode(""));
-    this.endOfPaper.scrollIntoView();
-    this.printCol = 0;
+    this.paper.lastChild.nodeValue += "\n";     // newline
+    this.paper.appendChild(this.doc.createTextNode(line));
+    this.printCol = line.length;
 };
 
 /**************************************/
@@ -159,17 +157,14 @@ B5500SPOUnit.prototype.printChar = function printChar(c) {
 
     if (len < 1) {
         line = String.fromCharCode(c);
-        this.printCol++;
+        ++this.printCol;
     } else if (len < 72) {
         line += String.fromCharCode(c);
-        this.printCol++;
+        ++this.printCol;
     } else {
          line = line.substring(0, 71) + String.fromCharCode(c);
     }
     this.paper.lastChild.nodeValue = line;
-    if (len < 1) {
-        this.endOfPaper.scrollIntoView();
-    }
 };
 
 /**************************************/
@@ -184,18 +179,18 @@ B5500SPOUnit.prototype.outputChar = function outputChar() {
     this.nextCharTime = nextTime;
     if (this.printCol < 72) {           // print the character
         if (this.bufIndex < this.bufLength) {
-            this.printChar(this.buffer[this.bufIndex]);
-            this.bufIndex++;
+            this.printChar(this.buffer[this.bufIndex++]);
             this.outTimer = setCallback(this.mnemonic, this, delay, this.outputChar);
         } else {                        // set up for the final CR/LF
             this.printCol = 72;
             this.outTimer = setCallback(this.mnemonic, this, delay, this.outputChar);
         }
     } else if (this.printCol == 72) {   // delay to fake the output of a carriage-return
-        this.printCol++;
+        ++this.printCol;
         this.outTimer = setCallback(this.mnemonic, this, delay+this.charPeriod, this.outputChar);
     } else {                            // actually output the CR/LF
-        this.appendEmptyLine();
+        this.printCol = 0;
+        this.endOfPaper.scrollIntoView();
         if (this.bufIndex < this.bufLength) {
             this.outTimer = setCallback(this.mnemonic, this, delay, this.outputChar);
         } else {                        // message text is exhausted
@@ -234,7 +229,7 @@ B5500SPOUnit.prototype.terminateInput = function terminateInput() {
         B5500Util.removeClass(this.$$("SPOReadyBtn"), "yellowLit");
         B5500Util.removeClass(this.inputBox, "visible");
         this.window.focus();
-        this.paper.lastChild.nodeValue = text.substring(0, 72);
+        this.appendEmptyLine(text.substring(0, 72));
         for (x=0; x<len; ++x) {
             this.buffer[this.bufIndex++] = text.charCodeAt(x);
         }
@@ -265,39 +260,44 @@ B5500SPOUnit.prototype.keyPress = function keyPress(ev) {
     var len = ev.target.value.length;
     var x;
 
-    if (this.spoState == this.spoInput) {
+    switch (this.spoState) {
+    case this.spoInput:
         if (c >= 0x20 && c < 0x7E) {
+            ev.preventDefault();
+            ev.stopPropagation();
             c = this.keyFilter[c];
             if (len < 72) {
                 ev.target.value += String.fromCharCode(c);
             } else {
-                this.paper.lastChild.nodeValue = ev.target.value;
-                this.appendEmptyLine();
+                this.appendEmptyLine(ev.target.value);
+                this.endOfPaper.scrollIntoView();
                 for (x=0; x<len; ++x) {
                     this.buffer[this.bufIndex++] = ev.target.value.charCodeAt(x);
                 }
                 ev.target.value = String.fromCharCode(c);
             }
-            ev.preventDefault();
         } else if (c == 0x7E) {          // "~" (B5500 group-mark)
+            ev.preventDefault();
+            ev.stopPropagation();
             c = this.keyFilter[c];
             this.terminateInput();
-            ev.preventDefault();
         }
-    } else if (this.spoState == this.spoLocal) {
+        break;
+
+    case this.spoLocal:
         if (c >= 0x20 && c <= 0x7E) {
+            ev.preventDefault();
+            ev.stopPropagation();
             c = this.keyFilter[c];
             if (len < 72) {
                 ev.target.value += String.fromCharCode(c);
             } else {
-                this.paper.lastChild.nodeValue = ev.target.value;
-                this.appendEmptyLine();
+                this.appendEmptyLine(ev.target.value);
+                this.endOfPaper.scrollIntoView();
                 ev.target.value = String.fromCharCode(c);
             }
-            ev.preventDefault();
         }
-    } else {
-        ev.preventDefault();
+        break;
     }
 };
 
@@ -313,43 +313,57 @@ B5500SPOUnit.prototype.keyDown = function keyDown(ev) {
         case this.spoRemote:
         case this.spoOutput:
             this.requestInput();
-            ev.preventDefault();
             break;
         case this.spoInput:
             this.cancelInput();
-            ev.preventDefault();
             break;
         }
+        ev.preventDefault();
+        ev.stopPropagation();
         break;
     case 0x0D:                  // Enter
         switch (this.spoState) {
         case this.spoInput:
             this.terminateInput();
-            ev.preventDefault();
             break;
         case this.spoLocal:
-            this.paper.lastChild.nodeValue = this.inputBox.value.substring(0, 72);
-            this.appendEmptyLine();
+            this.appendEmptyLine(this.inputBox.value.substring(0, 72));
             this.inputBox.value = "";
-            ev.preventDefault();
             break;
         }
+        ev.preventDefault();
+        ev.stopPropagation();
         break;
     }
 };
 
 /**************************************/
-B5500SPOUnit.prototype.resizeWindow = function resizeWindow(ev) {
-    /* Handles the window onresize event. Alters the height of the paper by
-    the same amount the height of the window was altered */
-    var delta = this.window.innerHeight - this.lastWindowHeight;
+B5500SPOUnit.prototype.copyPaper = function copyPaper(ev) {
+    /* Copies the text contents of the "paper" area of the SPO, opens a new
+    temporary window, and pastes that text into the window so it can be copied
+    or saved */
+    var text = ev.target.textContent;
+    var title = "B5500 " + this.mnemonic + " Text Snapshot";
+    var win = window.open("./B5500FramePaper.html", this.mnemonic + "-Snapshot",
+            "scrollbars,resizable,width=500,height=500");
 
-    this.lastSPOUTHeight += delta;
-    this.lastSPODivHeight += delta;
-    this.lastWindowHeight += delta;
-    this.$$("SPODiv").style.height = this.lastSPODivHeight.toString() + "px";
-    this.$$("SPOUT").style.height = this.lastSPOUTHeight.toString() + "px";
-    this.$$("SPOControlsDiv").style.height = this.lastSPOUTHeight.toString() + "px";
+    win.moveTo((screen.availWidth-win.outerWidth)/2, (screen.availHeight-win.outerHeight)/2);
+    win.addEventListener("load", function() {
+        var doc;
+
+        doc = win.document;
+        doc.title = title;
+        doc.getElementById("Paper").textContent = text;
+    });
+
+    ev.preventDefault();
+    ev.stopPropagation();
+};
+
+/**************************************/
+B5500SPOUnit.prototype.resizeWindow = function resizeWindow(ev) {
+    /* Handles the window onresize event by scrolling the "paper" so it remains at the end */
+
     this.endOfPaper.scrollIntoView();
 };
 
@@ -382,64 +396,63 @@ B5500SPOUnit.prototype.printText = function printText(msg, finish) {
     this.nextCharTime = performance.now();
     this.finish = finish;
     this.appendEmptyLine();
+    this.endOfPaper.scrollIntoView();
     this.outputChar();                  // start the printing process
 };
 
 /**************************************/
 B5500SPOUnit.prototype.spoOnload = function spoOnload() {
     /* Initializes the SPO window and user interface */
-    var de;
     var x;
 
     this.doc = this.window.document;
-    de = this.doc.documentElement;
     this.doc.title = "retro-B5500 " + this.mnemonic;
-    this.paper = this.$$("SPOUT").contentDocument.getElementById("Paper");
-    this.inputBox = this.$$("SPOUT").contentDocument.getElementById("InputBox");
-    this.endOfPaper = this.$$("SPOUT").contentDocument.getElementById("EndOfPaper");
-
-    this.window.focus();
+    this.paper = this.$$("Paper");
+    this.inputBox = this.$$("InputBox");
+    this.endOfPaper = this.$$("EndOfPaper");
 
     this.window.addEventListener("beforeunload",
-        B5500SPOUnit.prototype.beforeUnload, false);
-    this.inputBox.addEventListener("keypress",
-        B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.keyPress), false);
-    this.window.addEventListener("keydown",
-        B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.keyDown), false);
-    this.$$("SPOUT").contentDocument.body.addEventListener("keydown",
-        B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.keyDown), false);
-    this.$$("SPORemoteBtn").addEventListener("click",
-        B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.setRemote), false);
-    this.$$("SPOLocalBtn").addEventListener("click",
-        B5500CentralControl.bindMethod(this, function localClick() {
-        if (this.spoState == this.spoRemote) {
-            this.setLocal();
-        } else {
-            this.spoLocalRequested = true;
-        }
-    }), false);
+            B5500SPOUnit.prototype.beforeUnload, false);
+    this.window.addEventListener("resize", B5500CentralControl.bindMethod(this,
+            B5500SPOUnit.prototype.resizeWindow), false);
 
+    this.window.addEventListener("keydown",
+            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.keyDown), false);
+    this.$$("SPOUT").addEventListener("keydown",
+            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.keyDown), false);
+    this.inputBox.addEventListener("keydown",
+            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.keyDown), false);
+    this.inputBox.addEventListener("keypress",
+            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.keyPress), false);
+    this.paper.addEventListener("dblclick",
+            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.copyPaper), false);
+    this.$$("SPORemoteBtn").addEventListener("click",
+            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.setRemote), false);
+    this.$$("SPOLocalBtn").addEventListener("click",
+            B5500CentralControl.bindMethod(this, function localClick() {
+                if (this.spoState == this.spoRemote) {
+                    this.setLocal();
+                } else {
+                    this.spoLocalRequested = true;
+                }
+            }), false);
     this.$$("SPOInputRequestBtn").addEventListener("click",
-        B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.requestInput), false);
+            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.requestInput), false);
     this.$$("SPOErrorBtn").addEventListener("click",
-        B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.cancelInput), false);
+            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.cancelInput), false);
     this.$$("SPOEndOfMessageBtn").addEventListener("click",
-        B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.terminateInput), false);
+            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.terminateInput), false);
 
     this.printText("retro-B5500 Emulator Version " + B5500CentralControl.version, B5500CentralControl.bindMethod(this, function initComplete() {
         this.window.focus();
         this.setRemote();
+        this.endOfPaper.scrollIntoView();
         this.appendEmptyLine();
     }));
 
-    // Size the window to the DOM content
-    this.window.resizeBy(de.scrollWidth - this.window.innerWidth + 4, // kludge for right-padding/margin
-                         de.scrollHeight - this.window.innerHeight);
-    this.lastWindowHeight = this.window.innerHeight;
-    this.lastSPOUTHeight = this.$$("SPOUT").scrollHeight;
-    this.lastSPODivHeight = this.$$("SPODiv").scrollHeight;
-    this.window.moveTo(screen.availWidth-this.window.outerWidth, screen.availHeight-this.window.outerHeight);
-    this.window.addEventListener("resize", B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.resizeWindow), false);
+    this.window.moveTo(screen.availWidth-this.window.outerWidth,
+                       screen.availHeight-this.window.outerHeight);
+    this.window.focus();
 };
 
 /**************************************/
@@ -452,6 +465,7 @@ B5500SPOUnit.prototype.read = function read(finish, buffer, length, mode, contro
         this.spoState = this.spoInput;
         B5500Util.addClass(this.$$("SPOReadyBtn"), "yellowLit");
         B5500Util.removeClass(this.$$("SPOInputRequestBtn"), "yellowLit");
+        this.endOfPaper.scrollIntoView();
         B5500Util.addClass(this.inputBox, "visible");
         this.inputBox.focus();
         this.buffer = buffer;
@@ -491,6 +505,8 @@ B5500SPOUnit.prototype.write = function write(finish, buffer, length, mode, cont
         this.nextCharTime = this.initiateStamp;
         this.finish = finish;
         //this.window.focus();          // interferes with datacom terminal window
+        this.endOfPaper.scrollIntoView();
+        this.appendEmptyLine();
         this.outputChar();              // start the printing process
         break;
     case this.spoOutput:
