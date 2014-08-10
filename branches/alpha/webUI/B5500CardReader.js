@@ -326,7 +326,6 @@ B5500CardReader.prototype.beforeUnload = function beforeUnload(ev) {
 B5500CardReader.prototype.readerOnload = function readerOnload() {
     /* Initializes the reader window and user interface */
     var de;
-    var that = this;
 
     this.doc = this.window.document;
     de = this.doc.documentElement;
@@ -334,39 +333,19 @@ B5500CardReader.prototype.readerOnload = function readerOnload() {
 
     this.progressBar = this.$$("CRProgressBar");
     this.outHopperFrame = this.$$("CROutHopperFrame");
-    this.outHopperFrame.contentDocument.head.innerHTML += "<style>" +
-            "BODY {background-color: white; margin: 2px} " +
-            "PRE {margin: 0; font-size: 8pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
-            "</style>";
-    this.outHopper = this.doc.createElement("pre");
-    this.outHopperFrame.contentDocument.body.appendChild(this.outHopper);
-
-    this.window.addEventListener("beforeunload", this.beforeUnload, false);
+    this.outHopper = this.outHopperFrame.contentDocument.getElementById("Paper");
 
     this.armEOF(false);
     this.setReaderReady(false);
 
-    this.$$("CRFileSelector").addEventListener("change", function fileSelectorChange(ev) {
-        that.fileSelector_onChange(ev);
-    }, false);
+    this.window.addEventListener("beforeunload", B5500CardReader.prototype.beforeUnload, false);
+    this.$$("CRFileSelector").addEventListener("change", B5500CentralControl.bindMethod(this, this.fileSelector_onChange), false);
+    this.$$("CRStartBtn").addEventListener("click", B5500CentralControl.bindMethod(this, this.CRStartBtn_onclick), false);
+    this.$$("CRStopBtn").addEventListener("click", B5500CentralControl.bindMethod(this, this.CRStopBtn_onclick), false);
+    this.$$("CREOFBtn").addEventListener("click", B5500CentralControl.bindMethod(this, this.CREOFBtn_onclick), false);
+    this.progressBar.addEventListener("click", B5500CentralControl.bindMethod(this, this.CRProgressBar_onclick), false);
 
-    this.$$("CRStartBtn").addEventListener("click", function startClick(ev) {
-        that.CRStartBtn_onclick(ev);
-    }, false);
-
-    this.$$("CRStopBtn").addEventListener("click", function stopClick(ev) {
-        that.CRStopBtn_onclick(ev);
-    }, false);
-
-    this.$$("CREOFBtn").addEventListener("click", function eofClick(ev) {
-        that.CREOFBtn_onclick(ev);
-    }, false);
-
-    this.progressBar.addEventListener("click", function progressClick(ev) {
-        that.CRProgressBar_onclick(ev);
-    }, false);
-
-    this.window.resizeBy(de.scrollWidth-de.innerWidth, de.scrollHeight-de.innerHeight);
+    this.window.resizeBy(de.scrollWidth-de.offsetWidth, de.scrollHeight-de.offsetHeight);
 };
 
 /**************************************/

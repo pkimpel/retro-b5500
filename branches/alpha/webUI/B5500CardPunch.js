@@ -201,46 +201,25 @@ B5500CardPunch.prototype.punchOnload = function punchOnload() {
     this.doc.title = "retro-B5500 " + this.mnemonic;
 
     this.stacker1Frame = this.$$("CPStacker1Frame");
-    this.stacker1Frame.contentDocument.head.innerHTML += "<style>" +
-            "BODY {background-color: white; margin: 2px} " +
-            "PRE {margin: 0; font-size: 8pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
-            "</style>";
-    this.stacker1 = this.doc.createElement("pre");
-    this.stacker1Frame.contentDocument.body.appendChild(this.stacker1);
-    this.endOfStacker1 = this.doc.createElement("div");
-    this.stacker1Frame.contentDocument.body.appendChild(this.endOfStacker1);
+    this.stacker1 = this.stacker1Frame.contentDocument.getElementById("Paper");
+    this.endOfStacker1 = this.stacker1Frame.contentDocument.getElementById("EndOfPaper");
 
     this.stacker2Frame = this.$$("CPStacker2Frame");
-    this.stacker2Frame.contentDocument.head.innerHTML += "<style>" +
-            "BODY {background-color: white; margin: 2px} " +
-            "PRE {margin: 0; font-size: 8pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
-            "</style>";
-    this.stacker2 = this.doc.createElement("pre");
-    this.stacker2Frame.contentDocument.body.appendChild(this.stacker2);
-    this.endOfStacker2 = this.doc.createElement("div");
-    this.stacker2Frame.contentDocument.body.appendChild(this.endOfStacker2);
-
-    this.window.addEventListener("beforeunload", this.beforeUnload, false);
+    this.stacker2 = this.stacker2Frame.contentDocument.getElementById("Paper");
+    this.endOfStacker2 = this.stacker2Frame.contentDocument.getElementById("EndOfPaper");
 
     this.armRunout(false);
     this.setPunchReady(true);
 
-    this.$$("CPStartBtn").addEventListener("click", function startClick(ev) {
-        that.CPStartBtn_onclick(ev);
-    }, false);
-
-    this.$$("CPStopBtn").addEventListener("click", function stopClick(ev) {
-        that.CPStopBtn_onclick(ev);
-    }, false);
-
-    this.$$("CPRunoutBtn").addEventListener("click", function runoutClick(ev) {
-        that.CPRunoutBtn_onclick(ev);
-    }, false);
-
+    this.window.addEventListener("beforeunload", this.beforeUnload, false);
+    this.$$("CPStartBtn").addEventListener("click", B5500CentralControl.bindMethod(this, this.CPStartBtn_onclick), false);
+    this.$$("CPStopBtn").addEventListener("click", B5500CentralControl.bindMethod(this, this.CPStopBtn_onclick), false);
+    this.$$("CPRunoutBtn").addEventListener("click", B5500CentralControl.bindMethod(this, this.CPRunoutBtn_onclick), false);
     this.$$("CPStacker1Bar").max = this.maxScrollLines;
     this.$$("CPStacker2Bar").max = this.maxScrollLines;
 
-    this.window.resizeBy(this.de.scrollWidth-this.de.innerWidth, this.de.scrollHeight-this.de.innerHeight);
+    this.window.resizeBy(this.doc.body.scrollWidth-this.doc.body.offsetWidth,
+                         this.doc.body.scrollHeight-this.doc.body.offsetHeight);
 };
 
 /**************************************/

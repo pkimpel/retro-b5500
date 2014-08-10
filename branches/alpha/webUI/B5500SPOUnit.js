@@ -44,7 +44,7 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal) {
     this.paper = null;
     this.endOfPaper = null;
     this.window = window.open("../webUI/B5500SPOUnit.html", mnemonic,
-            "scrollbars,resizable,width=688,height=508");
+            "scrollbars=no,resizable,width=400,height=408");
     this.window.addEventListener("load", B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.spoOnload), false);
 }
 
@@ -351,6 +351,16 @@ B5500SPOUnit.prototype.resizeWindow = function resizeWindow(ev) {
 };
 
 /**************************************/
+B5500SPOUnit.prototype.beforeUnload = function beforeUnload(ev) {
+    var msg = "Closing this window will make the device unusable.\n" +
+              "Suggest you stay on the page and minimize this window instead";
+
+    ev.preventDefault();
+    ev.returnValue = msg;
+    return msg;
+};
+
+/**************************************/
 B5500SPOUnit.prototype.printText = function printText(msg, finish) {
     /* Utility function to convert a string to a Typed Array buffer and queue
     it for printing. This is intended only for printing an initialization message
@@ -373,16 +383,6 @@ B5500SPOUnit.prototype.printText = function printText(msg, finish) {
 };
 
 /**************************************/
-B5500SPOUnit.prototype.beforeUnload = function beforeUnload(ev) {
-    var msg = "Closing this window will make the device unusable.\n" +
-              "Suggest you stay on the page and minimize this window instead";
-
-    ev.preventDefault();
-    ev.returnValue = msg;
-    return msg;
-};
-
-/**************************************/
 B5500SPOUnit.prototype.spoOnload = function spoOnload() {
     /* Initializes the SPO window and user interface */
     var de;
@@ -397,7 +397,6 @@ B5500SPOUnit.prototype.spoOnload = function spoOnload() {
     this.window.focus();
 
     this.window.addEventListener("beforeunload", B5500SPOUnit.prototype.beforeUnload, false);
-    this.window.addEventListener("resize", B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.resizeWindow), false);
 
     this.$$("SPIN").addEventListener("keypress", B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.keyPress), false);
 
@@ -427,11 +426,15 @@ B5500SPOUnit.prototype.spoOnload = function spoOnload() {
     }));
 
     // Size the window to the DOM content
-    this.lastWindowHeight = this.window.innerHeight;
-    this.lastSPOUTHeight = this.$$("SPOUT").offsetHeight;
-    this.lastSPODivHeight = this.$$("SPODiv").offsetHeight;
-    this.window.resizeBy(de.scrollWidth-de.innerWidth, screen.availHeight/2 - this.window.outerHeight);
+    this.window.resizeBy(de.scrollWidth - this.window.innerWidth + 4, // kludge for right-padding/margin
+                         de.scrollHeight - this.window.innerHeight);
     this.window.moveTo(screen.availWidth-this.window.outerWidth, screen.availHeight-this.window.outerHeight);
+    this.lastWindowHeight = this.window.innerHeight;
+    this.lastSPOUTHeight = this.$$("SPOUT").scrollHeight;
+    this.lastSPODivHeight = this.$$("SPODiv").scrollHeight;
+    setCallback(this.mnemonic, this, 1000, function() {
+        this.window.addEventListener("resize", B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.resizeWindow), false);
+    });
 };
 
 /**************************************/

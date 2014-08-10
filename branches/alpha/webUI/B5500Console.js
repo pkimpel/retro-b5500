@@ -1,29 +1,19 @@
-<!DOCTYPE html>
-<head>
-<title>retro-B5500 Emulator Operator Console</title>
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
-<meta name="Author" content="Nigel Williams & Paul Kimpel">
-<meta http-equiv="Content-Script-Type" content="text/javascript">
-<meta http-equiv="Content-Style-Type" content="text/css">
-<link id=defaultStyleSheet rel=stylesheet type="text/css" href="B5500Console.css">
-
-<script src="./B5500SetCallback.js"></script>   <!-- must be first -->
-
-<script src="./B5500DummyUnit.js"></script>
-<script src="./B5500SPOUnit.js"></script>
-<script src="./B5500DiskUnit.js"></script>
-<script src="./B5500CardReader.js"></script>
-<script src="./B5500CardPunch.js"></script>
-<script src="./B5500DummyPrinter.js"></script>
-<script src="./B5500DatacomUnit.js"></script>
-<script src="./B5500MagTapeDrive.js"></script>
-
-<script src="../emulator/B5500SystemConfiguration.js"></script>
-<script src="../emulator/B5500CentralControl.js"></script>
-<script src="../emulator/B5500Processor.js"></script>
-<script src="../emulator/B5500IOUnit.js"></script>
-
-<script>
+/***********************************************************************
+* retro-b5500/emulator B5500Console.js
+************************************************************************
+* Copyright (c) 2012,2014, Nigel Williams and Paul Kimpel.
+* Licensed under the MIT License, see
+*       http://www.opensource.org/licenses/mit-license.php
+************************************************************************
+* B5500 Operations Console Javascript module.
+*
+* Implements event handlers and control functions for the B5500 emulator
+* operations console.
+*
+************************************************************************
+* 2014-07-20  P.Kimpel
+*   Original version, extracted from B5500Console.html.
+***********************************************************************/
 "use strict";
 
 window.addEventListener("load", function() {
@@ -56,11 +46,7 @@ window.addEventListener("load", function() {
     var timerInterval = 50;             // milliseconds
 
     function $$(id) {
-        return document.getElementById(id)
-    }
-
-    function bindMethod(f, context) {
-        return function() {f.apply(context, arguments)};
+        return document.getElementById(id);
     }
 
     function BurroughsLogo_Click(ev) {
@@ -569,121 +555,3 @@ window.addEventListener("load", function() {
         window.dumpState = dumpState;
     }
 }, false);
-</script>
-</head>
-
-<body>
-
-<div id=consoleDiv>
-    <button id=HaltBtn class="redButton" DISABLED>HALT</button>
-
-    <button id=NotReadyBtn class=whiteButton>NOT READY</button>
-    <button id=MemoryCheckBtn class=redButton DISABLED>MEMORY CHECK</button>
-    <button id=LoadBtn class="blackButton blackLit" DISABLED>LOAD</button>
-
-    <button id=LoadSelectBtn class="yellowButton" DISABLED>CARD LOAD SELECT</button>
-    <button id=ANormalBtn class=yellowButton>A NORMAL</button>
-    <button id=AControlBtn class=yellowButton>A CONTROL</button>
-    <button id=BNormalBtn class=yellowButton>B NORMAL</button>
-    <button id=BControlBtn class=yellowButton>B CONTROL</button>
-
-    <button id=PowerOnBtn class=greenButton>POWER<br>ON</button>
-    <button id=PowerOffBtn class="blackButton blackLit" DISABLED>POWER OFF</button>
-
-    <div id=BurroughsLogo>
-        <img id=BurroughsLogoImage src="Burroughs-Logo-Neg.jpg" alt="Burroughs logo"
-             title="Click to toggle display of the white annunciator lights">
-    </div>
-    <div id=RetroVersion title="retro-B5500 emulator version">
-        ?.??
-    </div>
-    <div id=B5500Logo>
-        <img id=RetroLogoImage src="retro-B5500-Logo.png" alt="retro-B5500 logo">
-        <span id=B5500LogoImage style="display:none">&nbsp;B&nbsp;5500&nbsp;</span>
-    </div>
-
-    <table id=CentralControl style="visibility:hidden">
-    <colgroup>
-        <col span=31 class=AnnunciatorCol>
-        <col span=3>
-    </colgroup>
-    <tbody>
-    <tr id=CCInterruptRow>
-        <td id=AD1F>IOU1                <!-- I/O unit 1 busy                            -->
-        <td id=AD2F>IOU2                <!-- I/O unit 2 busy                            -->
-        <td id=AD3F>IOU3                <!-- I/O unit 3 busy                            -->
-        <td id=AD4F>IOU4                <!-- I/O unit 4 busy                            -->
-        <td id=CCI03F>TIMR              <!-- Interval timer interrupt                   -->
-        <td id=CCI04F>IOBZ              <!-- I/O busy interrupt                         -->
-        <td id=CCI05F>KBD               <!-- Keyboard request interrupt                 -->
-        <td id=CCI06F>PR1F              <!-- Printer 1 finished interrupt               -->
-        <td id=CCI07F>PR2F              <!-- Printer 2 finished interrupt               -->
-        <td id=CCI08F>IO1F              <!-- I/O unit 1 finished interrupt (RD in @14)  -->
-        <td id=CCI09F>IO2F              <!-- I/O unit 2 finished interrupt (RD in @15)  -->
-        <td id=CCI10F>IO3F              <!-- I/O unit 3 finished interrupt (RD in @16)  -->
-        <td id=CCI11F>IO4F              <!-- I/O unit 4 finished interrupt (RD in @17)  -->
-        <td id=CCI12F>P2BZ              <!-- P2 busy interrupt                          -->
-        <td id=CCI13F>INQ               <!-- Remote inquiry request interrupt           -->
-        <td id=CCI14F>SPEC              <!-- Special interrupt #1 (not used)            -->
-        <td id=CCI15F>DK1F              <!-- Disk file #1 read check finished           -->
-        <td id=CCI16F>DK2F              <!-- Disk file #2 read check finished           -->
-        <td colspan=9>
-        <td id=P2BF>P2BF                <!-- Processor 2 busy FF                        -->
-        <td id=HP2F>HP2F                <!-- Halt Processor 2 FF                        -->
-        <td id=PABZ>PABZ                <!-- Processor A busy           *** debug ***   -->
-        <td id=PBBZ>PBBZ                <!-- Processor B busy           *** debug ***   -->
-        <td id=procSlack>
-        <td class=busy>%
-        <td class=statLabel title="Percentage of time Processor A is throttling its performance">P1 Slack
-    <tr id=CCPeripheralRow>
-        <td id=DRA>DRA                  <!-- 31 -->
-        <td id=DRB>DRB                  <!-- 30 -->
-        <td id=DKA>DKA                  <!-- 29 -->
-        <td id=DKB>DKB                  <!-- 28 -->
-        <td id=SPO>SPO                  <!-- 22 -->
-        <td id=CPA>CPA                  <!-- 25 -->
-        <td id=CRA>CRA                  <!-- 24 -->
-        <td id=CRB>CRB                  <!-- 23 -->
-        <td id=LPA>LPA                  <!-- 27 -->
-        <td id=LPB>LPB                  <!-- 26 -->
-        <td id=DCA>DCA                  <!-- 17 -->
-        <td id=PRA>PRA                  <!-- 20 -->
-        <td id=PRB>PRB                  <!-- 19 -->
-        <td id=PPA>PPA                  <!-- 21 -->
-        <td id=PPB>PPB                  <!-- 18 -->
-        <td id=MTA>MTA                  <!-- 47 -->
-        <td id=MTB>MTB                  <!-- 46 -->
-        <td id=MTC>MTC                  <!-- 45 -->
-        <td id=MTD>MTD                  <!-- 44 -->
-        <td id=MTE>MTE                  <!-- 43 -->
-        <td id=MTF>MTF                  <!-- 42 -->
-        <td id=MTH>MTH                  <!-- 41 -->
-        <td id=MTJ>MTJ                  <!-- 40 -->
-        <td id=MTK>MTK                  <!-- 39 -->
-        <td id=MTL>MTL                  <!-- 38 -->
-        <td id=MTM>MTM                  <!-- 37 -->
-        <td id=MTN>MTN                  <!-- 36 -->
-        <td id=MTP>MTP                  <!-- 35 -->
-        <td id=MTR>MTR                  <!-- 34 -->
-        <td id=MTS>MTS                  <!-- 33 -->
-        <td id=MTT>MTT                  <!-- 32 -->
-        <td id=procDelay>
-        <td class=busy>ms
-        <td class=statLabel title="Average excess throttling delay for Processor A (ms)">P1 Delay
-    </table>
-</div>
-
-<table cellspacing=0 cellpadding=1 border=1 style="position:absolute; top:2in; visibility:hidden">
-<thead>
-  <tr>
-    <th>ID
-    <th>Delay
-    <th>Context
-    <th>#Args
-</thead>
-<tbody id=CallbackBody>
-</tbody>
-</table>
-
-</body>
-</html>
