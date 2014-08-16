@@ -18,6 +18,7 @@ function B5500CentralControl(global) {
 
     this.mnemonic = "CC";               // Unit mnemonic
     this.global = global;               // Javascript global object (e.g., "window" for browsers)
+    this.sysConfig = null;              // System configuration object
 
     /* Global system modules */
     this.DD = null;                     // Distribution & Display unit
@@ -113,7 +114,7 @@ B5500CentralControl.unitIndex = [
     [null,  47,null,  46,  31,  45,  29,  44,  30,  43,  24,  42,  28,  41,  23,  40,
        17,  39,  20,  38,  19,  37,null,  36,null,  35,null,  34,null,  33,  22,  32]];
 
-// The following object maps the unit mnemonics from B5500SystemConfiguration.units
+// The following object maps the unit mnemonics from this.sysConfig.units
 // to the attributes needed to configure the CC unit[] array.
 
 B5500CentralControl.unitSpecs = {
@@ -987,7 +988,7 @@ B5500CentralControl.prototype.dumpSystemState = function dumpSystemState(caption
         writer(nr, "B=" + padOctal(px.B, 16) + " BROF=" + px.BROF);
     }
 
-    writer(0, "B5500 State Dump by " + (caption || "(unknown)") + " : " + new Date().toString());
+    writer(0, "retro-B5500 State Dump by \"" + (caption || "(unknown)") + "\" : " + new Date().toString());
 
     // Dump the processor states
     dumpProcessorState(this.P1, 1);
@@ -1033,10 +1034,9 @@ B5500CentralControl.prototype.dumpSystemState = function dumpSystemState(caption
 };
 
 /**************************************/
-B5500CentralControl.prototype.configureSystem = function configureSystem() {
-    /* Establishes the hardware module configuration from the
-    B5500SystemConfiguration module */
-    var cfg = B5500SystemConfiguration;
+B5500CentralControl.prototype.configureSystem = function configureSystem(cfg) {
+    /* Establishes the hardware module configuration from the system configuration
+    object "cfg" */
     var mnem;
     var signal = null;
     var specs;
@@ -1097,8 +1097,6 @@ B5500CentralControl.prototype.configureSystem = function configureSystem() {
         }
     }
 
-    // ***** !! inhibit for now ***** // this.DD = new B5500DistributionAndDisplay(this);
-
     // Configure the processors
     if (cfg.PA) {this.PA = new B5500Processor("A", this)}
     if (cfg.PB) {this.PB = new B5500Processor("B", this)}
@@ -1139,12 +1137,13 @@ B5500CentralControl.prototype.configureSystem = function configureSystem() {
 };
 
 /**************************************/
-B5500CentralControl.prototype.powerOn = function powerOn() {
+B5500CentralControl.prototype.powerOn = function powerOn(config) {
     /* Powers up the system and establishes the hardware module configuration.
-    Redundant power-ons are ignored. */
+    "config" is the system configuration object. Redundant power-ons are ignored. */
 
     if (!this.poweredUp) {
-        this.configureSystem();
+        this.sysConfig = config;
+        this.configureSystem(config);
         this.poweredUp = 1;
     }
 };

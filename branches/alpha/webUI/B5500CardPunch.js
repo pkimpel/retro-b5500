@@ -73,43 +73,13 @@ B5500CardPunch.prototype.clear = function clear() {
 };
 
 /**************************************/
-B5500CardPunch.prototype.hasClass = function hasClass(e, name) {
-    /* returns true if element "e" has class "name" in its class list */
-    var classes = e.className;
-
-    if (!e) {
-        return false;
-    } else if (classes == name) {
-        return true;
-    } else {
-        return (classes.search("\\b" + name + "\\b") >= 0);
-    }
-};
-
-/**************************************/
-B5500CardPunch.prototype.addClass = function addClass(e, name) {
-    /* Adds a class "name" to the element "e"s class list */
-
-    if (!this.hasClass(e, name)) {
-        e.className += (" " + name);
-    }
-};
-
-/**************************************/
-B5500CardPunch.prototype.removeClass = function removeClass(e, name) {
-    /* Removes the class "name" from the element "e"s class list */
-
-    e.className = e.className.replace(new RegExp("\\b" + name + "\\b\\s*", "g"), "");
-};
-
-/**************************************/
 B5500CardPunch.prototype.setPunchReady = function setPunchReady(ready) {
     /* Controls the ready-state of the card punch */
 
     if (ready && !this.ready) {
         this.statusChange(1);
-        this.addClass(this.$$("CPStartBtn"), "greenLit")
-        this.removeClass(this.$$("CPNotReadyLight"), "redLit");
+        B5500Util.addClass(this.$$("CPStartBtn"), "greenLit")
+        B5500Util.removeClass(this.$$("CPNotReadyLight"), "redLit");
         this.ready = true;
         if (this.runoutArmed) {
             if (this.stacker1Count || this.stacker2Count) {
@@ -129,8 +99,8 @@ B5500CardPunch.prototype.setPunchReady = function setPunchReady(ready) {
         }
     } else if (!ready && this.ready) {
         this.statusChange(0);
-        this.removeClass(this.$$("CPStartBtn"), "greenLit")
-        this.addClass(this.$$("CPNotReadyLight"), "redLit");
+        B5500Util.removeClass(this.$$("CPStartBtn"), "greenLit")
+        B5500Util.addClass(this.$$("CPNotReadyLight"), "redLit");
         this.ready = false;
     }
 };
@@ -141,10 +111,10 @@ B5500CardPunch.prototype.armRunout = function armRunout(armed) {
     an empty input stacker */
 
     if (armed && !this.ready) {
-        this.addClass(this.$$("CPRunoutBtn"), "redLit");
+        B5500Util.addClass(this.$$("CPRunoutBtn"), "redLit");
         this.runoutArmed = true;
     } else {
-        this.removeClass(this.$$("CPRunoutBtn"), "redLit");
+        B5500Util.removeClass(this.$$("CPRunoutBtn"), "redLit");
         this.runoutArmed = false;
     }
 };

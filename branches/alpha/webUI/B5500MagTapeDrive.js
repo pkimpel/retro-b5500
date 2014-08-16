@@ -43,9 +43,13 @@ function B5500MagTapeDrive(mnemonic, unitIndex, designate, statusChange, signal)
 
     this.clear();
 
+    this.loadWindow = null;             // handle for the tape loader window
+    this.reelBar = null;                // handle for tape-full meter
+    this.reelIcon = null;               // handle for the reel spinner
+
     this.window = window.open("", mnemonic);
     if (this.window) {
-        this.shutDown();                // destroy the previously-existing window
+        this.shutDown();                // destroy any previously-existing window
         this.window = null;
     }
     this.doc = null;
@@ -54,9 +58,6 @@ function B5500MagTapeDrive(mnemonic, unitIndex, designate, statusChange, signal)
     this.window.addEventListener("load", function windowLoad() {
         that.tapeDriveOnLoad();
     }, false);
-
-    this.reelBar = null;
-    this.reelIcon = null;
 }
 
 // this.tapeState enumerations
@@ -168,36 +169,6 @@ B5500MagTapeDrive.prototype.clear = function clear() {
 };
 
 /**************************************/
-B5500MagTapeDrive.prototype.hasClass = function hasClass(e, name) {
-    /* returns true if element "e" has class "name" in its class list */
-    var classes = e.className;
-
-    if (!e) {
-        return false;
-    } else if (classes == name) {
-        return true;
-    } else {
-        return (classes.search("\\b" + name + "\\b") >= 0);
-    }
-};
-
-/**************************************/
-B5500MagTapeDrive.prototype.addClass = function addClass(e, name) {
-    /* Adds a class "name" to the element "e"s class list */
-
-    if (!this.hasClass(e, name)) {
-        e.className += (" " + name);
-    }
-};
-
-/**************************************/
-B5500MagTapeDrive.prototype.removeClass = function removeClass(e, name) {
-    /* Removes the class "name" from the element "e"s class list */
-
-    e.className = e.className.replace(new RegExp("\\b" + name + "\\b\\s*", "g"), "");
-};
-
-/**************************************/
 B5500MagTapeDrive.prototype.spinReel = function spinReel(inches) {
     /* Rotates the reel image icon an appropriate amount based on the "inches"
     of tape to be moved. The rotation is limited to this.maxSpinAngle degrees
@@ -278,12 +249,12 @@ B5500MagTapeDrive.prototype.setAtBOT = function setAtBOT(atBOT) {
         if (atBOT) {
             this.imgIndex = 0;
             this.tapeInches = 0;
-            this.addClass(this.$$("MTAtBOTLight"), "annunciator");
+            B5500Util.addClass(this.$$("MTAtBOTLight"), "annunciator");
             this.reelBar.value = this.imgMaxInches;
             this.reelIcon.style.transform = "rotate(0deg)";
             this.reelIcon.style["-webkit-transform"] = "rotate(0deg)";  // temp for Chrome
         } else {
-            this.removeClass(this.$$("MTAtBOTLight"), "annunciatorLit");
+            B5500Util.removeClass(this.$$("MTAtBOTLight"), "annunciatorLit");
         }
     }
 };
@@ -295,10 +266,10 @@ B5500MagTapeDrive.prototype.setAtEOT = function setAtEOT(atEOT) {
     if (atEOT ^ this.atEOT) {
         this.atEOT = atEOT;
         if (atEOT) {
-            this.addClass(this.$$("MTAtEOTLight"), "annunciatorLit");
+            B5500Util.addClass(this.$$("MTAtEOTLight"), "annunciatorLit");
             this.reelBar.value = 0;
         } else {
-            this.removeClass(this.$$("MTAtEOTLight"), "annunciatorLit");
+            B5500Util.removeClass(this.$$("MTAtEOTLight"), "annunciatorLit");
         }
     }
 };
@@ -321,10 +292,10 @@ B5500MagTapeDrive.prototype.setTapeUnloaded = function setTapeUnloaded() {
         this.$$("MTRewindBtn").disabled = true;
         this.$$("MTWriteRingBtn").disabled = true;
         this.$$("MTFileName").value = "";
-        this.removeClass(this.$$("MTRemoteBtn"), "yellowLit");
-        this.addClass(this.$$("MTLocalBtn"), "yellowLit");
-        this.removeClass(this.$$("MTWriteRingBtn"), "redLit");
-        this.addClass(this.$$("MTUnloadedLight"), "annunciatorLit");
+        B5500Util.removeClass(this.$$("MTRemoteBtn"), "yellowLit");
+        B5500Util.addClass(this.$$("MTLocalBtn"), "yellowLit");
+        B5500Util.removeClass(this.$$("MTWriteRingBtn"), "redLit");
+        B5500Util.addClass(this.$$("MTUnloadedLight"), "annunciatorLit");
         this.setAtBOT(false);
         this.setAtEOT(false);
         this.reelBar.value = 0;
@@ -351,13 +322,13 @@ B5500MagTapeDrive.prototype.setTapeRemote = function setTapeRemote(ready) {
         if (ready) {
             this.tapeState = this.tapeRemote;
             this.statusChange(1);
-            this.removeClass(this.$$("MTLocalBtn"), "yellowLit");
-            this.addClass(this.$$("MTRemoteBtn"), "yellowLit");
+            B5500Util.removeClass(this.$$("MTLocalBtn"), "yellowLit");
+            B5500Util.addClass(this.$$("MTRemoteBtn"), "yellowLit");
         } else {
             this.tapeState = this.tapeLocal;
             this.statusChange(0);
-            this.removeClass(this.$$("MTRemoteBtn"), "yellowLit");
-            this.addClass(this.$$("MTLocalBtn"), "yellowLit");
+            B5500Util.removeClass(this.$$("MTRemoteBtn"), "yellowLit");
+            B5500Util.addClass(this.$$("MTLocalBtn"), "yellowLit");
         }
     }
 };
@@ -372,7 +343,7 @@ B5500MagTapeDrive.prototype.setWriteRing = function setWriteRing(writeRing) {
     case this.tapeRemote:
         if (this.writeRing && !writeRing) {
             this.writeRing = false;
-            this.removeClass(this.$$("MTWriteRingBtn"), "redLit");
+            B5500Util.removeClass(this.$$("MTWriteRingBtn"), "redLit");
         }
         break;
     }
@@ -393,7 +364,8 @@ B5500MagTapeDrive.prototype.loadTape = function loadTape() {
     var tapeInches = 0;                 // selected tape length in inches
     var tapeLengthSelect = null;        // tape length list element
     var win = this.window.open("B5500MagTapeLoadPanel.html", this.mnemonic + "Load",
-        "scrollbars=no,resizable,width=508,height=112,left=" + this.screenX +",top=" + this.screenY);
+            "scrollbars=no,resizable,width=508,height=112,left=" +
+            (this.window.screenX+16) +",top=" + (this.window.screenY+16));
     var writeRing = false;              // true if write-enabled
     var writeRingCheck = null;          // tape write ring checkbox element
 
@@ -440,19 +412,19 @@ B5500MagTapeDrive.prototype.loadTape = function loadTape() {
         mt.imgMaxInches = tapeInches;
         mt.reelBar.max = mt.imgMaxInches;
         mt.reelBar.value = mt.imgMaxInches;
-        mt.removeClass(mt.$$("MTUnloadedLight"), "annunciatorLit");
         mt.setAtEOT(false);
         mt.setAtBOT(true);
         mt.tapeState = mt.tapeLocal;    // setTapeRemote() requires it not be unloaded
         mt.setTapeRemote(false);
         mt.reelIcon.style.visibility = "visible";
+        B5500Util.removeClass(mt.$$("MTUnloadedLight"), "annunciatorLit");
 
         mt.imgWritten = false;
         mt.writeRing = writeRing;
         if (writeRing) {
-            mt.addClass(mt.$$("MTWriteRingBtn"), "redLit");
+            B5500Util.addClass(mt.$$("MTWriteRingBtn"), "redLit");
         } else {
-            mt.removeClass(mt.$$("MTWriteRingBtn"), "redLit");
+            B5500Util.removeClass(mt.$$("MTWriteRingBtn"), "redLit");
         }
 
         win.close();
@@ -654,15 +626,19 @@ B5500MagTapeDrive.prototype.loadTape = function loadTape() {
             win.close();
         }, false);
 
-        win.resizeBy(de.scrollWidth - win.innerWidth + 4,       // kludge for right-padding/margin
-                         de.scrollHeight - win.innerHeight);
-        win.moveTo((screen.availWidth-win.outerWidth)/2, (screen.availHeight-win.outerHeight)/2);
+        win.resizeBy(de.scrollWidth - win.innerWidth,
+                     de.scrollHeight - win.innerHeight);
     }
 
     // Outer block of loadTape
+    if (this.loadWindow && !this.loadWindow.closed) {
+        this.loadWindow.close();
+    }
+    this.loadWindow = win;
     mt.$$("MTLoadBtn").disabled = true;
     win.addEventListener("load", tapeLoadOnLoad, false);
     win.addEventListener("unload", function tapeLoadUnload(ev) {
+        this.loadWindow = null;
         if (win.closed) {
             mt.$$("MTLoadBtn").disabled = (mt.tapeState != mt.tapeUnloaded);
         }
@@ -726,10 +702,19 @@ B5500MagTapeDrive.prototype.unloadTape = function unloadTape() {
         mt.setTapeUnloaded();
     }
 
+    function unloadSetup() {
+        /* Loads a status message into the "paper" rendering area, then calls
+        unloadDriver after a short wait to allow the message to appear */
+
+        win.document.getElementById("Paper").appendChild(
+                win.document.createTextNode("Rendering tape image... please wait..."));
+        setTimeout(unloadDriver, 50);
+    }
+
     // Outer block of unloadTape
     win.moveTo((screen.availWidth-win.outerWidth)/2, (screen.availHeight-win.outerHeight)/2);
     win.focus();
-    win.addEventListener("load", unloadDriver, false);
+    win.addEventListener("load", unloadSetup, false);
 };
 
 /**************************************/
@@ -743,7 +728,7 @@ B5500MagTapeDrive.prototype.tapeRewind = function tapeRewind(makeReady) {
     function rewindFinish() {
         this.timer = 0;
         this.busy = false;
-        this.removeClass(this.$$("MTRewindingLight"), "annunciatorLit");
+        B5500Util.removeClass(this.$$("MTRewindingLight"), "annunciatorLit");
         if (makeReady && this.tapeState == this.tapeRemote) {
             this.ready = true;
             this.statusChange(1);
@@ -779,7 +764,7 @@ B5500MagTapeDrive.prototype.tapeRewind = function tapeRewind(makeReady) {
         this.ready = false;
         this.statusChange(0);
         this.setAtEOT(false);
-        this.addClass(this.$$("MTRewindingLight"), "annunciatorLit");
+        B5500Util.addClass(this.$$("MTRewindingLight"), "annunciatorLit");
         this.timer = setCallback(this.mnemonic, this, 1000, rewindDelay);
     }
 };
@@ -1447,4 +1432,7 @@ B5500MagTapeDrive.prototype.shutDown = function shutDown() {
     }
     this.window.removeEventListener("beforeunload", this.tapeDriveBeforeUnload, false);
     this.window.close();
+    if (this.loadWindow && !this.loadWindow.closed) {
+        this.loadWindow.close();
+    }
 };

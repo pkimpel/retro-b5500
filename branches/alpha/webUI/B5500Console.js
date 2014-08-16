@@ -17,33 +17,28 @@
 "use strict";
 
 window.addEventListener("load", function() {
-    var aControl;
-    var aNormal;
-    var bControl;
-    var bNormal;
-    var cc = new B5500CentralControl(window);
-    var ccLatches = [0, 0, 0];
-    var ccLightsMap = new Array(6);
-    var elapsedAverage = 0;
-    var elapsedLast = 0;
-    var intLightsMap = new Array(48);
-    var lastInterruptMask = 0;
-    var lastCCMask = 0;
-    var lastUnitBusyMask = 0;
-    var lastPANormalRate = -1;
-    var lastPAControlRate = -1;
-    var lastPBNormalRate = -1;
-    var lastPBControlRate = -1;
-    var perf = performance;             // it's faster if locally cached
-    var perLightsMap = new Array(48);
-    var procDelay;
-    var procSlack;
-    var showAnnunciators = true;
-    var slackAlpha = 0.990;             // decay factor for exponential weighted avg.
-    var slackAverage = 0;               // average P1 slack time
-    var slackLast = 0;                  // last P1 total slack time
-    var timer = 0;                      // timing cookie
-    var timerInterval = 50;             // milliseconds
+    var aControl;                       // A-Control button/light
+    var aNormal;                        // A-Normal button/light
+    var bControl;                       // B-Control button/light
+    var bNormal;                        // B-Normal button/light
+    var cc;                             // B5500CentralControl object
+    var ccLatches = [0, 0, 0];          // I/O- & interrupt-reporting latches
+    var ccLightsMap = new Array(6);     // Misc annunciator DOM objects
+    var intLightsMap = new Array(48);   // Interrupt annunciator DOM objects
+    var lastInterruptMask = 0;          // Prior mask of interrupt annunciator lights
+    var lastCCMask = 0;                 // Prior mask of misc annunciator lights
+    var lastUnitBusyMask = 0;           // Prior mask of unit-busy annunciator lights
+    var lastPANormalRate = -1;          // Prior PA normal-state busy rate
+    var lastPAControlRate = -1;         // Prior PA control-state busy rate
+    var lastPBNormalRate = -1;          // Prior PB normal-state busy rate
+    var lastPBControlRate = -1;         // Prior PB normal-state busy rate
+    var perf = performance;             // (it's faster if locally cached)
+    var perLightsMap = new Array(48);   // Peripheral I/O annunciator DOM objects
+    var procDelay;                      // Current average P1 delay [ms]
+    var procSlack;                      // Current average P1 slack time [%]
+    var showAnnunciators = true;        // Display non-purist console mode (annunciators)
+    var timer = 0;                      // Console display update timer control cookie
+    var timerInterval = 50;             // Console display update interval [ms]
 
     function $$(id) {
         return document.getElementById(id);
@@ -58,9 +53,18 @@ window.addEventListener("load", function() {
     }
 
     function PowerOnBtn_Click(ev) {
+        var sysConfig = new B5500SystemConfiguration();
+
+        function youMayPowerOnWhenReady_Gridley(config) {
+            /* Called by sysConfig.getSystemConfig with the requested configuration */
+
+            lampTest(function lampFinish() {
+                $$("HaltBtn").className = "redButton redLit";
+                cc.powerOn(config);
+            });
+        }
+
         $$("PowerOnBtn").className = "greenButton greenLit";
-        $$("HaltBtn").className = "redButton redLit";
-        cc.powerOn();
         $$("PowerOnBtn").disabled = true;
         $$("PowerOffBtn").disabled = false;
         $$("LoadSelectBtn").disabled = false;
@@ -70,6 +74,7 @@ window.addEventListener("load", function() {
         if (showAnnunciators) {
             $$("CentralControl").style.visibility = "visible";
         }
+        sysConfig.getSystemConfig(null, youMayPowerOnWhenReady_Gridley); // get current system config
         return true;
     }
 
@@ -119,8 +124,6 @@ window.addEventListener("load", function() {
             $$("HaltBtn").className = "redButton";
             $$("HaltBtn").disabled = false;
             $$("LoadBtn").disabled = true;
-            elapsedLast = 0;
-            slackLast = slackAverage = 0;
             timer = setInterval(dasBlinkenlicht, timerInterval);
             break;
         case 1:
@@ -217,7 +220,7 @@ window.addEventListener("load", function() {
 
         doc = win.document;
         doc.open();
-        doc.writeln("<html><head><title>B5500 Console State Dump</title>");
+        doc.writeln("<html><head><title>retro-B5500 Console State Dump</title>");
         doc.writeln("</head><body>");
         doc.write("<pre>");
 
@@ -292,7 +295,9 @@ window.addEventListener("load", function() {
         x = 0;
         while (ccChange) {
             if (ccChange & 0x01) {
-                ccLightsMap[x].style.visibility = (ccMask & 0x01 ? "visible" : "hidden");
+                if (ccLightsMap[x]) {
+                    ccLightsMap[x].style.visibility = (ccMask & 0x01 ? "visible" : "hidden");
+                }
             }
             ccMask >>>= 1;
             ccChange >>>= 1;
@@ -302,7 +307,9 @@ window.addEventListener("load", function() {
         x = 47;
         while (interruptChange) {
             if (interruptChange & 0x01) {
-                intLightsMap[x].style.visibility = (interruptMask & 0x01 ? "visible" : "hidden");
+                if (intLightsMap[x]) {
+                    intLightsMap[x].style.visibility = (interruptMask & 0x01 ? "visible" : "hidden");
+                }
             }
             interruptMask >>>= 1;
             interruptChange >>>= 1;
@@ -312,7 +319,9 @@ window.addEventListener("load", function() {
         x = 47;
         while (unitBusyChange) {
             if (unitBusyChange & 0x01) {
-                perLightsMap[x].style.visibility = (unitBusyMask & 0x01 ? "visible" : "hidden");
+                if (perLightsMap[x]) {
+                    perLightsMap[x].style.visibility = (unitBusyMask & 0x01 ? "visible" : "hidden");
+                }
             }
             unitBusyMask >>>= 1;
             unitBusyChange >>>= 1;
@@ -345,20 +354,20 @@ window.addEventListener("load", function() {
                         aNormal.className = "yellowButton";
                         break;
                     case 1:
-                        aNormal.className = "yellowButton yellowLit1";
-                        break;
+                        //aNormal.className = "yellowButton yellowLit1";
+                        //break;
                     case 2:
                         aNormal.className = "yellowButton yellowLit2";
                         break;
                     case 3:
-                        aNormal.className = "yellowButton yellowLit3";
-                        break;
+                        //aNormal.className = "yellowButton yellowLit3";
+                        //break;
                     case 4:
                         aNormal.className = "yellowButton yellowLit4";
                         break;
                     case 5:
-                        aNormal.className = "yellowButton yellowLit5";
-                        break;
+                        //aNormal.className = "yellowButton yellowLit5";
+                        //break;
                     default:
                         aNormal.className = "yellowButton yellowLit";
                         break;
@@ -373,20 +382,20 @@ window.addEventListener("load", function() {
                         aControl.className = "yellowButton";
                         break;
                     case 1:
-                        aControl.className = "yellowButton yellowLit1";
-                        break;
+                        //aControl.className = "yellowButton yellowLit1";
+                        //break;
                     case 2:
                         aControl.className = "yellowButton yellowLit2";
                         break;
                     case 3:
-                        aControl.className = "yellowButton yellowLit3";
-                        break;
+                        //aControl.className = "yellowButton yellowLit3";
+                        //break;
                     case 4:
                         aControl.className = "yellowButton yellowLit4";
                         break;
                     case 5:
-                        aControl.className = "yellowButton yellowLit5";
-                        break;
+                        //aControl.className = "yellowButton yellowLit5";
+                        //break;
                     default:
                         aControl.className = "yellowButton yellowLit";
                         break;
@@ -413,20 +422,20 @@ window.addEventListener("load", function() {
                         bNormal.className = "yellowButton";
                         break;
                     case 1:
-                        bNormal.className = "yellowButton yellowLit1";
-                        break;
+                        //bNormal.className = "yellowButton yellowLit1";
+                        //break;
                     case 2:
                         bNormal.className = "yellowButton yellowLit2";
                         break;
                     case 3:
-                        bNormal.className = "yellowButton yellowLit3";
-                        break;
+                        //bNormal.className = "yellowButton yellowLit3";
+                        //break;
                     case 4:
                         bNormal.className = "yellowButton yellowLit4";
                         break;
                     case 5:
-                        bNormal.className = "yellowButton yellowLit5";
-                        break;
+                        //bNormal.className = "yellowButton yellowLit5";
+                        //break;
                     default:
                         bNormal.className = "yellowButton yellowLit";
                         break;
@@ -441,20 +450,20 @@ window.addEventListener("load", function() {
                         bControl.className = "yellowButton";
                         break;
                     case 1:
-                        bControl.className = "yellowButton yellowLit1";
-                        break;
+                        //bControl.className = "yellowButton yellowLit1";
+                        //break;
                     case 2:
                         bControl.className = "yellowButton yellowLit2";
                         break;
                     case 3:
-                        bControl.className = "yellowButton yellowLit3";
-                        break;
+                        //bControl.className = "yellowButton yellowLit3";
+                        //break;
                     case 4:
                         bControl.className = "yellowButton yellowLit4";
                         break;
                     case 5:
-                        bControl.className = "yellowButton yellowLit5";
-                        break;
+                        //bControl.className = "yellowButton yellowLit5";
+                        //break;
                     default:
                         bControl.className = "yellowButton yellowLit";
                         break;
@@ -497,6 +506,50 @@ window.addEventListener("load", function() {
         }
     }
 
+    function lampTest(callback) {
+        /* Lights up the operator console, waits a bit, then turns everything
+        off and calls the "callback" function. The Power On lamp is not affected */
+
+        function switchEm(mode) {
+            var visibility = (mode ? "visible" : "hidden");
+            var x;
+
+            $$("ANormalBtn").className = "yellowButton" + (mode ? " yellowLit" : "");
+            $$("AControlBtn").className = "yellowButton" + (mode ? " yellowLit" : "");
+            $$("BNormalBtn").className = "yellowButton" + (mode ? " yellowLit" : "");
+            $$("BControlBtn").className = "yellowButton" + (mode ? " yellowLit" : "");
+            $$("LoadSelectBtn").className = "yellowButton" + (mode ? " yellowLit" : "");
+            $$("MemoryCheckBtn").className = "redButton" + (mode ? " redLit" : "");
+            $$("NotReadyBtn").className = "whiteButton" + (mode ? " whiteLit" : "");
+            $$("HaltBtn").className = "redButton" + (mode ? " redLit" : "");
+
+            for (x in ccLightsMap) {
+                if (ccLightsMap[x]) {
+                    ccLightsMap[x].style.visibility = visibility;
+                }
+            }
+
+            for (x in intLightsMap) {
+                if (intLightsMap[x]) {
+                    intLightsMap[x].style.visibility = visibility;
+                }
+            }
+
+            for (x in perLightsMap) {
+                if (perLightsMap[x]) {
+                    perLightsMap[x].style.visibility = visibility;
+                }
+            }
+
+            if (!mode) {
+                setTimeout(callback, 1000);
+            }
+        }
+
+        switchEm(1);
+        setTimeout(switchEm, 2000, 0);
+    }
+
     function checkBrowser() {
         /* Checks whether this browser can support the necessary stuff */
         var missing = "";
@@ -526,7 +579,17 @@ window.addEventListener("load", function() {
     if (!checkBrowser()) {
         $$("BurroughsLogo").addEventListener("click", BurroughsLogo_Click, false);
         $$("B5500Logo").addEventListener("click", function(ev) {
-            alert("Dynamic configuration management is not yet implemented");
+            var win;
+
+            if (cc.poweredUp) {
+                alert("You can't change the system configuration\nwith the power on. Get real.");
+            } else {
+                win = window.open("./B5500SystemConfiguration.html", "B5500Config",
+                                  "scrollbars,width=600,height=640");
+                win.moveTo(screen.availWidth-win.outerWidth-40,
+                           (screen.availHeight-win.outerHeight)/2);
+                win.focus();
+            }
         });
 
         $$("PowerOnBtn").addEventListener("click", PowerOnBtn_Click, false);
@@ -552,6 +615,7 @@ window.addEventListener("load", function() {
         procSlack = $$("procSlack");
         buildLightMaps();
 
+        cc = new B5500CentralControl(window);
         window.dumpState = dumpState;
     }
 }, false);

@@ -396,8 +396,8 @@ B5500SPOUnit.prototype.printText = function printText(msg, finish) {
     this.nextCharTime = performance.now();
     this.finish = finish;
     this.appendEmptyLine();
-    this.endOfPaper.scrollIntoView();
     this.outputChar();                  // start the printing process
+    this.endOfPaper.scrollIntoView();
 };
 
 /**************************************/
@@ -443,11 +443,12 @@ B5500SPOUnit.prototype.spoOnload = function spoOnload() {
     this.$$("SPOEndOfMessageBtn").addEventListener("click",
             B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.terminateInput), false);
 
-    this.printText("retro-B5500 Emulator Version " + B5500CentralControl.version, B5500CentralControl.bindMethod(this, function initComplete() {
+    this.printText("retro-B5500 Emulator Version " + B5500CentralControl.version,
+            B5500CentralControl.bindMethod(this, function initFinish() {
         this.window.focus();
         this.setRemote();
+        this.appendEmptyLine("\xA0");
         this.endOfPaper.scrollIntoView();
-        this.appendEmptyLine();
     }));
 
     this.window.moveTo(screen.availWidth-this.window.outerWidth,

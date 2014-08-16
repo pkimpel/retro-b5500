@@ -85,36 +85,6 @@ B5500CardReader.prototype.$$ = function $$(e) {
 };
 
 /**************************************/
-B5500CardReader.prototype.hasClass = function hasClass(e, name) {
-    /* returns true if element "e" has class "name" in its class list */
-    var classes = e.className;
-
-    if (!e) {
-        return false;
-    } else if (classes == name) {
-        return true;
-    } else {
-        return (classes.search("\\b" + name + "\\b") >= 0);
-    }
-};
-
-/**************************************/
-B5500CardReader.prototype.addClass = function addClass(e, name) {
-    /* Adds a class "name" to the element "e"s class list */
-
-    if (!this.hasClass(e, name)) {
-        e.className += (" " + name);
-    }
-};
-
-/**************************************/
-B5500CardReader.prototype.removeClass = function removeClass(e, name) {
-    /* Removes the class "name" from the element "e"s class list */
-
-    e.className = e.className.replace(new RegExp("\\b" + name + "\\b\\s*", "g"), "");
-};
-
-/**************************************/
 B5500CardReader.prototype.setReaderReady = function setReaderReady(ready) {
     /* Controls the ready-state of the card reader */
 
@@ -122,12 +92,12 @@ B5500CardReader.prototype.setReaderReady = function setReaderReady(ready) {
     this.ready = ready;
     if (ready) {
         this.statusChange(1);
-        this.addClass(this.$$("CRStartBtn"), "greenLit")
-        this.removeClass(this.$$("CRNotReadyLight"), "redLit");
+        B5500Util.addClass(this.$$("CRStartBtn"), "greenLit")
+        B5500Util.removeClass(this.$$("CRNotReadyLight"), "redLit");
     } else {
         this.statusChange(0);
-        this.removeClass(this.$$("CRStartBtn"), "greenLit")
-        this.addClass(this.$$("CRNotReadyLight"), "redLit");
+        B5500Util.removeClass(this.$$("CRStartBtn"), "greenLit")
+        B5500Util.addClass(this.$$("CRNotReadyLight"), "redLit");
     }
 };
 
@@ -138,9 +108,9 @@ B5500CardReader.prototype.armEOF = function armEOF(armed) {
 
     this.eofArmed = armed;
     if (armed) {
-        this.addClass(this.$$("CREOFBtn"), "redLit");
+        B5500Util.addClass(this.$$("CREOFBtn"), "redLit");
     } else {
-        this.removeClass(this.$$("CREOFBtn"), "redLit");
+        B5500Util.removeClass(this.$$("CREOFBtn"), "redLit");
     }
 };
 

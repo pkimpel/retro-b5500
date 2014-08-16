@@ -7,8 +7,7 @@
 ************************************************************************
 * B5500 (DUMMY) Line Printer Peripheral Unit module.
 *
-* Defines a Line Printer peripheral unit type. Journals all output to
-* console.log() as well as the pritner window.
+* Defines a very basic Line Printer peripheral unit type.
 *
 ************************************************************************
 * 2013-06-11  P.Kimpel
@@ -53,6 +52,13 @@ function B5500DummyPrinter(mnemonic, unitIndex, designate, statusChange, signal)
 B5500DummyPrinter.prototype.linesPerMinute = 1040;      // B329 line printer
 B5500DummyPrinter.prototype.maxScrollLines = 150000;    // Maximum printer scrollback (about a box of paper)
 
+B5500DummyPrinter.xlateRex = /[!{|}~]/g;                // For translation of BIC to Unicode glyphs
+B5500DummyPrinter.xlateUnicode = {                      // (ditto)
+        "!": "\u2260",
+        "{": "\u2264",
+        "|": "\u00D7",
+        "}": "\u2265",
+        "~": "\u2190"};
 
 /**************************************/
 B5500DummyPrinter.prototype.$$ = function $$(e) {
@@ -81,6 +87,20 @@ B5500DummyPrinter.prototype.ripPaper = function ripPaper(ev) {
             }
         }
     }
+};
+
+/**************************************/
+B5500DummyPrinter.prototype.xlateChar = function xlateChar(c) {
+    /* Translates one character to pretty Unicode */
+
+    return B5500DummyPrinter.xlateUnicode[c] || c;
+};
+
+/**************************************/
+B5500DummyPrinter.prototype.xlateToUnicode = function xlateToUnicode(text) {
+    /* Translates the BIC-to-ANSI characters in "text" to pretty Unicode glyphs */
+
+    return text.replace(B5500DummyPrinter.xlateRex, this.xlateChar);
 };
 
 /**************************************/
@@ -152,7 +172,7 @@ B5500DummyPrinter.prototype.write = function write(finish, buffer, length, mode,
     var that = this;
 
     this.errorMask = 0;
-    text = String.fromCharCode.apply(null, buffer.subarray(0, length));
+    text = this.xlateToUnicode(String.fromCharCode.apply(null, buffer.subarray(0, length)));
     //console.log("WRITE:  L=" + length + ", M=" + mode + ", C=" + control + " : " + text);
     if (length || control) {
         this.appendLine(text + "\n");

@@ -136,7 +136,7 @@ B5500DiskUnit.prototype.copySegment = function copySegment(seg, buffer, offset) 
 };
 
 /**************************************/
-B5500DiskUnit.prototype.openDatabase = function openDataBase() {
+B5500DiskUnit.prototype.openDatabase = function openDatabase() {
     /* Attempts to open the disk subsystem database specified by this.dbName and
     this.dbVersion. If successful, sets this.db to the IDB object and sets the
     DFCU to ready status */

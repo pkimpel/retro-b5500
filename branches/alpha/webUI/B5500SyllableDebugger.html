@@ -1,4 +1,23 @@
 <!DOCTYPE html>
+<html>
+<!--
+/***********************************************************************
+* retro-b5500/emulator B5500SyllableDebugger.html
+************************************************************************
+* Copyright (c) 2012, Nigel Williams and Paul Kimpel.
+* Licensed under the MIT License, see
+*       http://www.opensource.org/licenses/mit-license.php
+************************************************************************
+* B5500 emulator Syllable Debugger page.
+*
+* The Syllable Debugger is a basic execution testbed and opcode debugging
+* tool for the retro-B5500 emulator.
+*
+************************************************************************
+* 2012-11-25  P.Kimpel
+*   Original version, from B5500TestArithmetics.html.
+***********************************************************************/
+-->
 <head>
 <title>B5500 Processor Syllable Debugger</title>
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -9,6 +28,8 @@
 
 <script src="./B5500SetCallback.js"></script>   <!-- must be first -->
 <script src="./B5500Util.js"></script>          <!-- must be second -->
+
+<script src="./B5500SystemConfiguration.js"></script>
 
 <script src="./B5500DummyUnit.js"></script>     <!-- must be present -->
 
@@ -25,7 +46,6 @@
 <script src="./B5500MagTapeDrive.js"></script>
 -->
 
-<script src="../emulator/B5500SystemConfiguration.js"></script>
 <script src="../emulator/B5500CentralControl.js"></script>
 <script src="../emulator/B5500Processor.js"></script>
 <script src="../emulator/B5500IOUnit.js"></script>
@@ -37,7 +57,7 @@ var runningCycles = 1000;               // Number of instructions per run-mode i
 
 var cc;
 var injected = false;                   // true if syllable manually injected into T
-var memAddr = 0x40;                     // @100
+var memAddr = 0x40;                     // @100: default address for memory peephole display
 var px;                                 // reference to currently-displayed processor
 var running = false;                    // true if in run mode
 var runSilently = false;                // true if system state is not to be refreshed after each step
@@ -227,32 +247,20 @@ function $$(id) {
 
 function hasClass(id, name) {
     /* returns true if element "e" has class "name" in its class list */
-    var e = $$(id);
-    var classes = e.className;
 
-    if (!e) {
-        return false;
-    } else if (classes == name) {
-        return true;
-    } else {
-        return (classes.search("\\b" + name + "\\b") >= 0);
-    }
+    return B5500Util.hasClass($$(id), name);
 }
 
 function addClass(id, name) {
     /* Adds a class "name" to the element "e"s class list */
-    var e = $$(id);
 
-    if (!hasClass(id, name)) {
-        e.className += (" " + name);
-    }
+    B5500Util.addClass($$(id), name);
 }
 
 function removeClass(id, name) {
     /* Removes the class "name" from the element "e"s class list */
-    var e = $$(id);
 
-    e.className = e.className.replace(new RegExp("\\b" + name + "\\b\\s*", "g"), "");
+    B5500Util.removeClass($$(id), name);
 }
 
 function setText(id, text) {
@@ -1200,6 +1208,7 @@ function checkBrowser() {
 }
 
 function initialize() {
+    var sysConfig = new B5500SystemConfiguration();
 
     document.body.addEventListener("error", function(ev) {
         console.log(ev);
@@ -1364,24 +1373,24 @@ function initialize() {
     $$("RunSilently").addEventListener("click", runSilently_onClick, false);
 
     cc = new B5500CentralControl(window);
-    cc.powerOn();
-    px = cc.P1;                         // set current processor reference
+    sysConfig.getSystemConfig(null, function(config) {  // get current system config
+        cc.powerOn(config);
 
-    px.S = 0x40;                        // stack at @100
-    px.R = 0x005;                       // PRT at @500 (R has addr div 64)
+        px = cc.P1;                     // set current processor reference
+        px.S = 0x40;                    // stack at @100
+        px.R = 0x005;                   // PRT at @500 (R has addr div 64)
+        px.C = 0x10;                    // execute from address @20
+        px.loadPviaC();
+        px.T = cc.fieldIsolate(px.P, 0, 12);
+        px.TROF = 1;
+        px.L = 1;                       // point to the next syllable
+        px.NCSF = 0;                    // initiate test in control state
 
-    px.C = 0x10;                        // execute from address @20
-    px.loadPviaC();
-    px.T = cc.fieldIsolate(px.P, 0, 12);
-    px.TROF = 1;
-    px.L = 1;                           // point to the next syllable
-
-    px.NCSF = 0;                        // initiate test in control state
-
-    displaySystemState();
-    displayOctal("StopAddr", stopAddress, 5);
-    establishSilence(runSilently);
-    $$("StepBtn").disabled = false;
+        displaySystemState();
+        displayOctal("StopAddr", stopAddress, 5);
+        establishSilence(runSilently);
+        $$("StepBtn").disabled = false;
+    });
 }
 
 window.onload = function() {
