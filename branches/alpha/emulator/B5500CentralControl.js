@@ -47,7 +47,7 @@ function B5500CentralControl(global) {
     // Instance variables and flags
     this.poweredUp = 0;                 // System power indicator
 
-    this.unitStatusMask = 0;            // Peripheral unit ready-status bitmask
+    this.unitStatusMask = 0;            // Peripheral unit ready-status bitmask [must not be in clear()]
 
     this.PB1L = 0;                      // 0=> PA is P1, 1=> PB is P1
     this.inhCCI03F = 0;                 // 0=> allow timer interrupts; 1=> inhibit 'em
@@ -62,7 +62,7 @@ function B5500CentralControl(global) {
 /**************************************/
 
 /* Global constants */
-B5500CentralControl.version = "0.21a3";
+B5500CentralControl.version = "0.21a4";
 
 B5500CentralControl.memReadCycles = 2;          // assume 2 탎 memory read cycle time (the other option was 3 탎)
 B5500CentralControl.memWriteCycles = 4;         // assume 4 탎 memory write cycle time (the other option was 6 탎)
@@ -1153,7 +1153,7 @@ B5500CentralControl.prototype.powerOff = function powerOff() {
     /* Powers down the system and deallocates the hardware modules.
     Redundant power-offs are ignored. */
 
-    function shutDown() {
+    function systemShutDown() {
         var x;
 
         if (this.timer) {
@@ -1181,12 +1181,13 @@ B5500CentralControl.prototype.powerOff = function powerOff() {
             this.addressSpace[x] = null;
         }
 
+        this.clear();
         this.poweredUp = 0;
     }
 
     if (this.poweredUp) {
         this.halt();
         // Wait a little while for I/Os, etc., to finish
-        setCallback(this.mnemonic, this, 500, shutDown);
+        setCallback(this.mnemonic, this, 500, systemShutDown);
     }
 };

@@ -181,13 +181,14 @@ B5500CardPunch.prototype.punchOnload = function punchOnload() {
     this.armRunout(false);
     this.setPunchReady(true);
 
-    this.window.addEventListener("beforeunload", B5500CardPunch.prototype.beforeUnload, false);
+    this.window.addEventListener("beforeunload",
+            B5500CardPunch.prototype.beforeUnload, false);
     this.$$("CPStartBtn").addEventListener("click",
-        B5500CentralControl.bindMethod(this, B5500CardPunch.prototype.CPStartBtn_onclick), false);
+            B5500CentralControl.bindMethod(this, B5500CardPunch.prototype.CPStartBtn_onclick), false);
     this.$$("CPStopBtn").addEventListener("click",
-        B5500CentralControl.bindMethod(this, B5500CardPunch.prototype.CPStopBtn_onclick), false);
+            B5500CentralControl.bindMethod(this, B5500CardPunch.prototype.CPStopBtn_onclick), false);
     this.$$("CPRunoutBtn").addEventListener("click",
-        B5500CentralControl.bindMethod(this, B5500CardPunch.prototype.CPRunoutBtn_onclick), false);
+            B5500CentralControl.bindMethod(this, B5500CardPunch.prototype.CPRunoutBtn_onclick), false);
     this.$$("CPStacker1Bar").max = this.maxScrollLines;
     this.$$("CPStacker2Bar").max = this.maxScrollLines;
 
@@ -297,6 +298,6 @@ B5500CardPunch.prototype.shutDown = function shutDown() {
     if (this.timer) {
         clearCallback(this.timer);
     }
-    this.window.removeEventListener("beforeunload", this.beforeUnload, false);
+    this.window.removeEventListener("beforeunload", B5500CardPunch.prototype.beforeUnload, false);
     this.window.close();
 };

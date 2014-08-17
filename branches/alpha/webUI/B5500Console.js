@@ -46,7 +46,7 @@ window.addEventListener("load", function() {
 
     function BurroughsLogo_Click(ev) {
         showAnnunciators = !showAnnunciators;
-        $$("CentralControl").style.visibility = (showAnnunciators ? "visible" : "hidden");
+        $$("CentralControl").style.display = (showAnnunciators && cc.poweredUp ? "block" : "none");
         $$("RetroVersion").style.visibility = (showAnnunciators ? "visible" : "hidden");
         $$("RetroLogoImage").style.display = (showAnnunciators ? "inline" : "none");
         $$("B5500LogoImage").style.display = (showAnnunciators ? "none" : "inline");
@@ -56,7 +56,7 @@ window.addEventListener("load", function() {
         var sysConfig = new B5500SystemConfiguration();
 
         function youMayPowerOnWhenReady_Gridley(config) {
-            /* Called by sysConfig.getSystemConfig with the requested configuration */
+            /* Called-back by sysConfig.getSystemConfig with the requested configuration */
 
             lampTest(function lampFinish() {
                 $$("HaltBtn").className = "redButton redLit";
@@ -72,7 +72,7 @@ window.addEventListener("load", function() {
         $$("HaltBtn").disabled = true;
         $$("MemoryCheckBtn").disabled = false;
         if (showAnnunciators) {
-            $$("CentralControl").style.visibility = "visible";
+            $$("CentralControl").style.display = "block";
         }
         sysConfig.getSystemConfig(null, youMayPowerOnWhenReady_Gridley); // get current system config
         return true;
@@ -88,8 +88,8 @@ window.addEventListener("load", function() {
         $$("MemoryCheckBtn").className = "redButton";
         $$("NotReadyBtn").className = "whiteButton";
         $$("HaltBtn").className = "redButton";
-        $$("CentralControl").style.visibility = "hidden";
         cc.powerOff();
+        $$("CentralControl").style.display = "none";
         $$("PowerOnBtn").disabled = false;
         $$("PowerOffBtn").disabled = true;
         $$("LoadSelectBtn").disabled = true;
@@ -108,6 +108,7 @@ window.addEventListener("load", function() {
         cc.halt();
         $$("HaltBtn").disabled = true;
         $$("LoadBtn").disabled = false;
+        dasBlinkenlicht();
         if (timer) {
             clearInterval(timer);
             timer = 0;

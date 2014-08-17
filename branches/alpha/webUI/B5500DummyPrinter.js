@@ -18,7 +18,6 @@
 /**************************************/
 function B5500DummyPrinter(mnemonic, unitIndex, designate, statusChange, signal) {
     /* Constructor for the DummyPrinter object */
-    var that = this;
     var h = screen.availHeight*0.60;
     var w = 900;
     var s;
@@ -45,9 +44,8 @@ function B5500DummyPrinter(mnemonic, unitIndex, designate, statusChange, signal)
     this.window = window.open("../webUI/B5500DummyPrinter.html", mnemonic,
             s = "scrollbars,resizable,width=" + w + ",height=" + h +
             ",left=0,top=" + (screen.availHeight - h));
-    this.window.addEventListener("load", function windowOnLoad() {
-        that.printerOnload();
-    }, false);
+    this.window.addEventListener("load",
+        B5500CentralControl.bindMethod(this, B5500DummyPrinter.prototype.printerOnload), false);
 }
 B5500DummyPrinter.prototype.linesPerMinute = 1040;      // B329 line printer
 B5500DummyPrinter.prototype.maxScrollLines = 150000;    // Maximum printer scrollback (about a box of paper)
@@ -129,22 +127,21 @@ B5500DummyPrinter.prototype.beforeUnload = function beforeUnload(ev) {
 /**************************************/
 B5500DummyPrinter.prototype.printerOnload = function printerOnload() {
     /* Initializes the line printer window and user interface */
-    var de;
 
     this.doc = this.window.document;
-    de = this.doc.documentElement;
     this.doc.title = "retro-B5500 " + this.mnemonic;
+
     this.paper = this.doc.createElement("pre");
     this.doc.body.appendChild(this.paper);
     this.endOfPaper = this.doc.createElement("div");
     this.doc.body.appendChild(this.endOfPaper);
 
-    this.window.addEventListener("click", B5500CentralControl.bindMethod(this, B5500DummyPrinter.prototype.ripPaper), false);
-    this.window.addEventListener("beforeunload", this.beforeUnload, false);
+    this.window.addEventListener("beforeunload",
+            B5500DummyPrinter.prototype.beforeUnload, false);
+    this.window.addEventListener("click",
+            B5500CentralControl.bindMethod(this, B5500DummyPrinter.prototype.ripPaper), false);
 
     this.statusChange(1);
-
-    this.window.resizeBy(de.scrollWidth-de.innerWidth, de.scrollHeight-de.innerHeight);
 };
 
 /**************************************/
@@ -169,7 +166,6 @@ B5500DummyPrinter.prototype.space = function space(finish, length, control) {
 B5500DummyPrinter.prototype.write = function write(finish, buffer, length, mode, control) {
     /* Initiates a write operation on the unit */
     var text;
-    var that = this;
 
     this.errorMask = 0;
     text = this.xlateToUnicode(String.fromCharCode.apply(null, buffer.subarray(0, length)));
@@ -242,6 +238,6 @@ B5500DummyPrinter.prototype.shutDown = function shutDown() {
     if (this.timer) {
         clearCallback(this.timer);
     }
-    this.window.removeEventListener("beforeunload", this.beforeUnload, false);
+    this.window.removeEventListener("beforeunload", B5500DummyPrinter.prototype.beforeUnload, false);
     this.window.close();
 };

@@ -309,17 +309,17 @@ B5500CardReader.prototype.readerOnload = function readerOnload() {
     this.setReaderReady(false);
 
     this.window.addEventListener("beforeunload",
-        B5500CardReader.prototype.beforeUnload, false);
+            B5500CardReader.prototype.beforeUnload, false);
     this.$$("CRFileSelector").addEventListener("change",
-        B5500CentralControl.bindMethod(this, B5500CardReader.prototype.fileSelector_onChange), false);
+            B5500CentralControl.bindMethod(this, B5500CardReader.prototype.fileSelector_onChange), false);
     this.$$("CRStartBtn").addEventListener("click",
-        B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRStartBtn_onclick), false);
+            B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRStartBtn_onclick), false);
     this.$$("CRStopBtn").addEventListener("click",
-        B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRStopBtn_onclick), false);
+            B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRStopBtn_onclick), false);
     this.$$("CREOFBtn").addEventListener("click",
-        B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CREOFBtn_onclick), false);
+            B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CREOFBtn_onclick), false);
     this.hopperBar.addEventListener("click",
-        B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRHopperBar_onclick), false);
+            B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRHopperBar_onclick), false);
 
     this.window.resizeBy(de.scrollWidth - this.window.innerWidth + 4, // kludge for right-padding/margin
                          de.scrollHeight - this.window.innerHeight);
@@ -432,6 +432,6 @@ B5500CardReader.prototype.shutDown = function shutDown() {
     if (this.timer) {
         clearCallback(this.timer);
     }
-    this.window.removeEventListener("beforeunload", this.beforeUnload, false);
+    this.window.removeEventListener("beforeunload", B5500CardReader.prototype.beforeUnload, false);
     this.window.close();
 };

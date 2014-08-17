@@ -557,7 +557,7 @@ B5500DatacomUnit.prototype.datacomOnload = function datacomOnload() {
 
     this.window.addEventListener("beforeunload",
             B5500DatacomUnit.prototype.beforeUnload, false);
-    this.window.addEventListener("resize", 
+    this.window.addEventListener("resize",
             B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.resizeWindow), false);
     this.window.addEventListener("keydown",
             B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.keyDown), false);
@@ -813,6 +813,6 @@ B5500DatacomUnit.prototype.shutDown = function shutDown() {
     if (this.outTimer) {
         clearCallback(this.outTimer);
     }
-    this.window.removeEventListener("beforeunload", this.beforeUnload, false);
+    this.window.removeEventListener("beforeunload", B5500DatacomUnit.prototype.beforeUnload, false);
     this.window.close();
 };
