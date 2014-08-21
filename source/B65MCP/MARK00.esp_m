@@ -1,4 +1,4 @@
-BEGIN                                                                   00000100        
+BEGIN                                                                   00000000        
 COMMENT                 MCP    LISTING   DIRECTORY                      00001000        
     010000000           INDEPENDENT RUNNER FORWARD DECLARATION          00002000        
     020000000           FORWARD PROCEDURE DECLARATION                   00003000        
@@ -244,7 +244,7 @@ SAVE PROCEDURE MOMTOVECTOR (MOM, VECTOR, INDEX);                        02098000
     WORD ARRAY MOM[*],                                                  02100200        
                VECTOR[*];                                               02100300        
     INTEGER   INDEX;                   FORWARD;                         02100400        
-SAVE REFERENCE PROCEDURE ALLOCATEMAMEQ;          FORWARD;               02101000        
+SAVE REFERENCE PROCEDURE ALLOCATENAMEQ;          FORWARD;               02101000        
 SAVE BOOLEAN PROCEDURE TURNOVERLAYKEY (ADDRESSOFMOM);                   02102000        
     VALUE     ADDRESSOFMOM;                                             02103000        
     INTEGER   ADDRESSOFMOM;                                FORWARD;     02104000        
@@ -1284,7 +1284,7 @@ DEFINE%       FOR OUTPUTMESS AMD MESSER                                 13057000
                          BEGMCPID,%                                     13059030        
                          BEGIOERR,%                                     13059040        
                          BEGSTDIOERR,%                                  13059050        
-                                                                        13059055        
+                                                                        1305905513059050
                          BEGMISCMSG,%                                   13059060        
                          0)#,%                                          13059090        
          IOERRMESSL(A,B,C)=MESSER(0&WHOCALLSL(5,A,B),C)#,               13059800        
@@ -2060,7 +2060,6 @@ PROCEDURE STANDARDDELINK (FIRSTENTRY, LASTENTRY, ENTRY);                16016000
                              PREVIOUSSTANDARD @ ENTRY;                  16037000        
                    END  OF DELINKING STANDARD QUEUE;                    16038000        
 REFERENCE     LASTNAME;                                                 17000000        
-SAVE REFERENCE PROCEDURE allocatenameq; FORWARD;                        17000100        
 QUEUE NAMEQUEUE:FIRSTNAME(PREVNAME,NEXTNAME,POINTERTONAME,CHARCOUNT);   17001000        
     VALUE POINTERTONAME, CHARCOUNT, PREVNAME, NEXTNAME;                 17002000        
     REFERENCE PREVNAME, NEXTNAME;                                       17003000        
@@ -2442,7 +2441,7 @@ ARRAY         REPLY[*];      COMMENT FOR STORING REPLYCODE FOR CHECKING 19002000
          OFREP       =    256#,%       NOTHING                          19007080        
          USREP       =    512#,%       GEN AND VER NOS.                 19007090        
          AXREP       =   1024#,%       DONT KNOW YET                    19007100        
-DEFINEREPEND=O#;                                                        19014000        
+DEFINEREPEND=0#;                                                        19014000        
 COMMENT  DEFINES FOR BIT NO VALUE IN REPLY MASK;                        19014010        
 DEFINE   DSV  =0#                                                       19014020        
         ,RMV  =1#                                                       19014030        
@@ -3074,7 +3073,7 @@ USING                                                                   21338000
               ;                                                         21394500        
     REFERENCE      DUMMYREF;                                            21395000        
     REAL           NEXTINREADYVECTOR                                    21395100        
-              ,    NEXUNSHEETVECTOR                                     21395200        
+              ,    NEXTINSHEETVECTOR                                    21395200        
               ;                                                         21395300        
     SAVE EVENT ARRAY HOLEINVECTOR[2]                                    21395400        
               ;                                                         21395500        
@@ -8126,7 +8125,7 @@ BEGIN    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%40614000
          IF INTEGER(UEDT,5){TODAYSDATE THEN GO TO SCRATCH ELSE%         40793000        
          IF RETTOG AND LBLTP!0 THEN%                                    40794000        
     BEGIN                                                               40795000        
-         RETMSG(UNT);%                                                  40795990        
+         RETMSG(UNT);%                                                  407959904079600?
          RETMSG(UNT);%                                                  40796000        
     END;                                                                40797000        
          LABLOCK~*&ARRAYDESCL(0,7+(N1+N2+9)DIV 6,0);                    40800000        
@@ -12180,3 +12179,2155 @@ BEGIN    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%71055000
               ELSE 0;                                                   71095000        
     END;                                                                71096000        
          DIVORCEMOM(DUMMYA);                                            71097000        
+END CALCRECSZ;                                                          71098000        
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%71099000        
+PROCEDURE SETUPRECPTR(LENGTH,ADDRESS,RECPTR,FIB);                       71100000        
+    VALUE     LENGTH,ADDRESS;                                           71101000        
+    REAL      LENGTH,ADDRESS;                                           71102000        
+    ARRAY     RECPTR[*];                                                71103000        
+    ARRAY     FIB[*];                                                   71104000        
+BEGIN    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%71105000        
+         %    SEVERAL IMPORTANT FUNCTIONS:                             %71106000        
+         %         1 - FIXES BUFDESC                                   %71107000        
+         %         2 - RETURNS POINTER TO BUFFER                       %71108000        
+         %         3 - MAINTAINS WORDSLEFT                             %71109000        
+         %         4 - MAINTAINS BUFFEREXHAUSTED                       %71110000        
+         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%71111000        
+    ARRAY     DUMMYA[*];                                                71112000        
+    POINTER   BUFDESCP=ADDRESS;                                         71113000        
+    POINTER   RCPTR=RECPTR;                                             71114000        
+    REAL      FIB0;                                                     71115000        
+    WORD ARRAY     FIBW=FIB[*];                                         71116000        
+         FIB0~FIBSIZE;                                                  71117000        
+         IF OPENINPUT THEN                                              71118000        
+    BEGIN                                                               71119000        
+         IF WORDORIENTED THEN                                           71120000        
+              BUFDESC~                                                  71121000        
+                   DUMMYA&ARRAYDESCL(                                   71122000        
+                       ,LENGTH                                          71123000        
+                       ,IF REVERSED THEN ADDRESS-LENGTH ELSE            71124000        
+                         ADDRESS+REAL(FLINKED)                          71125000        
+                       )                                                71126000        
+         ELSE                                                           71127000        
+              BUFDESCP~                                                 71128000        
+                   BUFDESCP+(IF REVERSED THEN -LENGTH ELSE REAL(FLINKED)71129000        
+                        |WORDSTO)                                       71130000        
+              ;                                                         71131000        
+         IF BLOCKEDFUNNY THEN                                           71132000        
+              IF WORDORIENTED THEN                                      71133000        
+                   REPLACE POINTER(ALTDESC,*)BY BUFDESCP                71134000        
+                        FOR LENGTH WORDS                                71135000        
+              ELSE                                                      71136000        
+                   REPLACE POINTER(ALTDESC,*)BY BUFDESCP                71137000        
+                        FOR LENGTH;                                     71138000        
+         IF WORDORIENTED THEN                                           71139000        
+              IF POINTEREQD THEN                                        71140000        
+                   RCPTR~                                               71141000        
+                        IF BLOCKEDFUNNY THEN                            71142000        
+                          POINTER(ALTDESC,*)                            71143000        
+                        ELSE POINTER(BUFDESC,*)                         71144000        
+              ELSE                                                      71145000        
+                   RECPTR~*&ARRAYDESCL(                                 71146000        
+                           3                                            71147000        
+                          ,LENGTH|WORDSTO                               71148000        
+                          ,IF BLOCKEDFUNNY THEN ALTDESC.ADDRESSF        71149000        
+                            ELSE ADDRESS                                71150000        
+                          )                                             71151000        
+         ELSE                                                           71152000        
+              IF POINTEREQD THEN                                        71153000        
+                   RCPTR~BUFDESCP                                       71154000        
+              ELSE                                                      71155000        
+                   RECPTR~*&ARRAYDESCL(                                 71156000        
+                           3                                            71157000        
+                          ,LENGTH|WORDSTO                               71158000        
+                          ,ADDRESS                                      71159000        
+                        );                                              71160000        
+         BFFRXHSTD~REAL(UNITSLEFT~*-LENGTH{REAL(FLINKED));              71161000        
+    END  ELSE                                                           71162000        
+    BEGIN                                                               71163000        
+         IF BLOCKEDFUNNY THEN                                           71164000        
+              IF WORDORIENTED THEN                                      71165000        
+                   REPLACE BUFDESCP BY POINTER(ALTDESC,*)               71166000        
+                        FOR LENGTH WORDS                                71167000        
+              ELSE                                                      71168000        
+                   REPLACE BUFDESCP BY POINTER(ALTDESC,*)               71169000        
+                        FOR LENGTH;                                     71170000        
+         IF WORDORIENTED THEN                                           71171000        
+              BUFDESC~                                                  71172000        
+                   DUMMYA&ARRAYDESCL(                                   71173000        
+                        ,LENGTH                                         71174000        
+                        ,ADDRESS                                        71175000        
+                        )                                               71176000        
+         ELSE                                                           71177000        
+              BUFDESCP~                                                 71178000        
+                   BUFDESCP+LENGTH                                      71179000        
+              ;                                                         71180000        
+         IF FIXEDL THEN BFFRXHSTD~REAL(UNITSLEFT~*-LENGTH{0);           71181000        
+         IF WORDORIENTED THEN                                           71182000        
+              IF POINTEREQD THEN                                        71183000        
+                   RCPTR~                                               71184000        
+                        IF BLOCKEDFUNNY THEN                            71185000        
+                          POINTER(ALTDESC,*)                            71186000        
+                        ELSE POINTER(BUFDESC,*)                         71187000        
+              ELSE                                                      71188000        
+                   RECPTR~*&ARRAYDESCL(                                 71189000        
+                           3                                            71190000        
+                          ,LENGTH|WORDSTO                               71191000        
+                          ,ADDRESS                                      71192000        
+                          )                                             71193000        
+         ELSE                                                           71194000        
+              IF POINTEREQD THEN                                        71195000        
+                   RCPTR~BUFDESCP                                       71196000        
+              ELSE                                                      71197000        
+                   RECPTR~*&ARRAYDESCL(                                 71198000        
+                           3                                            71199000        
+                          ,LENGTH|WORDSTO                               71200000        
+                          ,ADDRESS                                      71201000        
+                        );                                              71202000        
+    END;                                                                71203000        
+         DIVORCEMOM(DUMMYA);                                            71204000        
+END SETUPRECPTR;                                                        71205000        
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%71206000        
+PROCEDURE RELEASE(FIB,UNITFEATURE,RECPTR,TYPE);                         71207000        
+    VALUE     TYPE;                                                     71208000        
+    REAL      UNITFEATURE,TYPE;                                         71209000        
+    ARRAY     FIB[*];                                                   71210000        
+    WORD      RECPTR;                                                   71211000        
+BEGIN    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%71212000        
+         %    RELEASE HANDLES PHYSICAL I/O.  IT CALLS IOREQUEST,       %71213000        
+         %    ROTATES BUFFERS ...                                      %71214000        
+         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%71215000        
+    ARRAY     DUMMYA,IOAREA[*];                                         71216000        
+    BOOLEAN   LARGESPACE;                                               71217000        
+    DEFINE                                                              71218000        
+              MAYBEWAIT = IF NOT BOOLEAN(TYPE)THEN WAITON(IOCB)#,       71219000        
+              CARCON=UNITFEATURE#;                                      71220000        
+    FIELD     STACKERF=32:1;                                            71221000        
+    LABEL     CMN,CMNR,EOFL,HR,OUTL,PARL,THR,WHR,XIT;                   71222000        
+    POINTER   PALT, DUMMYAP=DUMMYA;                                     71223000        
+    REAL                                                                71224000        
+              NUMLINES,                                                 71225000        
+              TEMPBLOCKSZ,                                              71226000        
+              T;                                                        71227000        
+    REFERENCE      IOCB;                                                71228000        
+    WORD      IOCBW=IOCB;                                               71229000        
+    WORD      TW=T;                                                     71230000        
+    WORD ARRAY     FIBW=FIB[*],IOAREAWA=IOAREA[*];                      71231000        
+              %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%71232000        
+              % NOTE: CARD PUNCH I IS NOT INTENDED FOR USE WITH THE    %71233000        
+              %    B6500 AND WILL GET THE SAME ERROR RECOVERY ACTION   %71234000        
+              %    AS CARD PUNCH                                       %71235000        
+              %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%71236000        
+         IOCB~REFERENCE(IOAREA~IOADESC);                                71237000        
+         IF DISC THEN                                                   71238000        
+    BEGIN     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% DISK FILE       71239000        
+    END ELSE                                                            71240000        
+         IF PNCH(UNITYP)THEN IOAREA[IOCWP].STACKERF~UNITFEATURE ELSE    71241000        
+         IF PRNTR(UNITYP)THEN                                           71242000        
+    BEGIN     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% PRINTER         71243000        
+         IF BUFFERED THEN IOCB~REFERENCE(LASTBUFFER);                   71244000        
+         IF BEFORE AND BUFFERED THEN                                    71245000        
+    BEGIN                                                               71246000        
+         IF NOT BEFOREACTION THEN                                       71247000        
+    BEGIN                                             % LAST WAS AFTER  71248000        
+         IOAREA[IOCWP]~0&IOCWL(SKLTNSTNDRD,0);                          71249000        
+         IOREQUEST(IOCB);                                               71250000        
+    END;                                                                71251000        
+         IOCB~REFERENCE(IOAREA~IOADESC);                                71252000        
+         BFRACTN~0;                                                     71253000        
+    END;                                                                71254000        
+         IF CHANNELSKIP THEN                                            71255000        
+    BEGIN                                                               71256000        
+    HR:                                                                 71257000        
+         IOAREA[IOCWP]~0&IOCWL(                                         71258000        
+              IF BUFFERED THEN                                          71259000        
+                   IF BEFOREACTION THEN PRINTSPACE ELSE SKLTNSTNDRD     71260000        
+              ELSE IF BEFORE THEN SKLTNSTNDRD ELSE PRINTSPACE,          71261000        
+              0&IOCWPRINTERL(                                           71262000        
+                   IF CHANNELSKIP AND BEFORE THEN CHANNELNO ELSE 0,     71263000        
+                   IF NOT CHANNELSKIP THEN                              71264000        
+                        IF LARGESPACE THEN NOLINES MOD 2 ELSE NOLINES   71265000        
+                   ELSE 0));                                            71266000        
+         IF BEFORE AND BUFFERED THEN BFRACTN~1;                         71267000        
+         DUMMYA~IOAREAWA[2];                                            71268000        
+         IOAREAWA[2]~REFERENCE(DUMMYA&                                  71269000        
+              ARRAYDESCL(,DUMMYA.LENGTHF-UNITSLEFT,*));                 71270000        
+% WORRY ABOUT WRAP-AROUND                                               71271000        
+         IOREQUEST(IOCB);                                               71272000        
+         IF BEFORE AND NOT CHANNELSKIP THEN GO TO WHR;                  71273000        
+    THR:                                                                71274000        
+         IF AFTER THEN                                                  71275000        
+         IF BUFFERED THEN                                               71276000        
+    BEGIN                                                               71277000        
+         NEXTBUFFER;                                                    71278000        
+         BFRACTN~0;                                                     71279000        
+         ROTATEBUFFERS;                                                 71280000        
+    END  ELSE                                                           71281000        
+    BEGIN                                                               71282000        
+         WAITON(IOCB);                                                  71283000        
+         IOAREA[IOCWP]~0&IOCWL(SKLTNSTNDRD,0);                          71284000        
+         IOREQUEST(IOCB);                                               71285000        
+    END  ELSE                                                           71286000        
+         ROTATEBUFFERS;                                                 71287000        
+         GO TO OUTL;                                                    71288000        
+    END  ELSE                                                           71289000        
+    BEGIN                                             % SOME TYPE SPACE 71290000        
+         IF LARGESPACE~NOLINES>2 THEN NUMLINES~NOLINES DIV 2;           71291000        
+         IF AFTER THEN                                                  71292000        
+    BEGIN                                                               71293000        
+    WHR:                                                                71294000        
+         IF LARGESPACE THEN                                             71295000        
+         WHILE NUMLINES~NUMLINES-1}0 DO                                 71296000        
+    BEGIN                                                               71297000        
+         WAITON(IOCB);                                                  71298000        
+         IOAREA[IOCWP]~0&IOCWL(PRINTSPACE,0&IOCWPRINTERL(0,2));         71299000        
+         IOREQUEST(IOCB);                                               71300000        
+         ROTATEBUFFERS;                                                 71301000        
+    END;                                                                71302000        
+         IF BEFORE THEN GO TO THR ELSE WAITON(IOCB);                    71303000        
+    END;                                                                71304000        
+         GO TO HR                                                       71305000        
+    END                                                                 71306000        
+    END  ELSE                                                           71307000        
+    BEGIN     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TAPE-LIKE       71308000        
+         IF OPENINPUT THEN                                              71309000        
+    BEGIN                                                               71310000        
+         IOREQUEST(IOCB);                                               71311000        
+         ROTATEBUFFERS;                                                 71312000        
+         IF BOOLEAN(TYPE)THEN GO TO XIT ELSE WAITON(IOCB);              71313000        
+    CMN:                                                                71314000        
+         IF NOMORE THEN GO TO EOFL;                                     71315000        
+         UNITSLEFT~IF UNITYP=CARDREADER THEN BLOCKSZ ELSE               71316000        
+              MISC@(IOCB).WORDCOUNTF|WORDSTO+MISC@(IOCB).RDCHRCNT;      71317000        
+    CMNR:                                                               71318000        
+         IF NOT FORMATU THEN                                            71319000        
+    BEGIN                                                               71320000        
+         IF WORDORIENTED THEN                                           71321000        
+              DUMMYA~*&ARRAYDESCL(                                      71322000        
+                   ,MAXRECSZ                                            71323000        
+                   ,REAL(WORD(AREADESC@IOCB)).ADDRESSF+                 71324000        
+                          (IF REVERSED THEN BLOCKSZ+REAL(NOT FLINKED)   71325000        
+                          ELSE 1)                                       71326000        
+                   )                                                    71327000        
+         ELSE                                                           71328000        
+              DUMMYA~*&                                                 71329000        
+                   INDEXEDSTRINGDESCRIPTOR(,1,1,,,,INTERNALMODE,,1,     71330000        
+                        REAL(WORD(AREADESC@IOCB)).ADDRESSF);            71331000        
+         % PROTECTED                                                    71332000        
+         IF WORDORIENTED THEN T~DUMMYA.ADDRESSF ELSE TW~DUMMYAP;        71333000        
+         SETUPRECPTR    (                                               71334000        
+                   RCRDSZ(DUMMYA,DUMMYAP)                               71335000        
+              ,    T                                                    71336000        
+              ,    RECPTR                                               71337000        
+              ,    FIB                                                  71338000        
+                        );                                              71339000        
+    % FIXUP LATER FOR REVERSE                                           71340000        
+    END;                                                                71341000        
+    END                                                                 71342000        
+         ELSE      %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% OUTPUT          71343000        
+% ASSUMES SIZE HAS BEEN CHECKED ...                                     71344000        
+    BEGIN                                                               71345000        
+         DUMMYA~IOAREAWA[2];                                            71346000        
+         STOREITEM(AREADESC@IOCB,                                       71347000        
+              REFERENCE(DUMMYA&ARRAYDESCL(,                             71348000        
+                   DUMMYA.LENGTHF-UNITSLEFT DIV WORDSTO,*)));           71349000        
+% WORRY ABOUT WRAP-AROUND ...                                           71350000        
+%%%%%    FIX AREA DESCRIPTOR                                            71351000        
+         IOREQUEST(IOCB);                                               71352000        
+         ROTATEBUFFERS;                                                 71353000        
+    OUTL:                                                               71354000        
+%%%%%    FIX AREA DESCRIPTOR                                            71355000        
+         IOAREAWA[2]~DUMMYA~*&                                          71356000        
+              ARRAYDESCL(,BLOCKSZ,IOAREA.ADDRESSF+IOTANKSZ-1);          71357000        
+         IF BOOLEAN(TYPE)THEN GO TO XIT ELSE WAITON(IOCB);              71358000        
+         IF PARITYERROR THEN GO TO PARL;                                71359000        
+         IF NOMORE THEN GO TO EOFL;                                     71360000        
+         % BLOCKSZ IN WORDS                                             71361000        
+         UNITSLEFT~BLOCKSZ|WORDSTO;                                     71362000        
+         IF CHARECORD THEN DUMMYA~*&                                    71363000        
+              INDEXEDSTRINGDESCRIPTOR(,1,1,,,,INTERNALMODE,,1);         71364000        
+         IF WORDORIENTED THEN T~DUMMYA.ADDRESSF+1 ELSE TW~DUMMYAP;      71365000        
+         SETUPRECPTR    (                                               71366000        
+                   MAXRECSZ                                             71367000        
+              ,    T                                                    71368000        
+              ,    RECPTR                                               71369000        
+              ,    FIB                                                  71370000        
+                        );                                              71371000        
+    END;                                                                71372000        
+    END;                                                                71373000        
+         GO TO XIT;                                                     71374000        
+    PARL:                                                               71375000        
+         % CHECK FOR DESCRIPTOR ERROR                                   71376000        
+         PARITYERR~1;                                                   71377000        
+         RECORDSTATUS.EXCEPTION~1;                                      71378000        
+         GO TO XIT;                                                     71379000        
+    EOFL:                                                               71380000        
+         ENDOV~1;                                                       71381000        
+         RECORDSTATUS.EXCEPTION~1;                                      71382000        
+         GO TO XIT;                                                     71383000        
+    XIT:                                                                71384000        
+         IOCBW~0;                                                       71385000        
+         DIVORCEMOM(DUMMYA);                                            71386000        
+         DIVORCEMOM(IOAREA);                                            71387000        
+END RELEASE;                                                            71388000        
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%71389000        
+PROCEDURE LOGICALRECORD=(0,30)(FIB,UNITFEATURE,RECSIZE,RECPTR,          71390000        
+              EOFL,PARL,DATAL,PFOC);                                    71391000        
+    VALUE     PFOC;                                                     71392000        
+    ARRAY     FIB[*];                                                   71393000        
+    REAL      PFOC,UNITFEATURE,RECSIZE;                                 71394000        
+    WORD      RECPTR,EOFL,PARL,DATAL;                                   71395000        
+BEGIN    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%71396000        
+         %    LOGICALRECORD IS THE GUTS OF THE I/O INTRINSICS.  IT     %71397000        
+         %    CONTROLS THE VARIOUS ACTIVITIES.                         %71398000        
+         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%71399000        
+    ARRAY     DUMMYA,IOAREA[*];                                         71400000        
+    ARRAY     ARRAYD=RECPTR[*];                                         71401000        
+    BOOLEAN   BOOT,DOARETN;                                             71402000        
+    LABEL     HR,CMN,XIT,OWT;                                           71403000        
+    LABEL     ARRAYROWL,LEOF,LPAR;                                      71404000        
+    LAYOUT    PFCL(ORF=3:4,EQVF=5:2);                                   71405000        
+    POINTER   BUFDESCP,DUMMYAP=DUMMYA;                                  71406000        
+    REAL                                                                71407000        
+              PFC,                                                      71408000        
+              FIB0,                                                     71409000        
+              EOFR=EOFL,                                                71410000        
+              PARR=PARL,                                                71411000        
+              T;                                                        71412000        
+    REFERENCE      IOCB;                                                71413000        
+    WORD      TW=T;                                                     71414000        
+    WORD      IOCBW=IOCB;                                               71415000        
+    WORD ARRAY     FIBW=FIB[*],IOAREAWA=IOAREA[*];                      71416000        
+PROCEDURE     CHECKRECORDSIZE;                                          71417000        
+BEGIN    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%71418000        
+         %    HANDLES CERTAIN TYPES OF VARIABLE LENGTH RECORDS         %71419000        
+         %         INPUT: TYPE U                                       %71420000        
+         %         OUTPUT: TYPES D, V, I, U, L                         %71421000        
+         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%71422000        
+    ARRAY     DUMMYA[*];                                                71423000        
+    BOOLEAN   SCND;                                                     71424000        
+    LABEL     HR;                                                       71425000        
+    POINTER   BUFDESCP,DUMMYAP=DUMMYA;                                  71426000        
+    REAL      I,T,P;                                                    71427000        
+    WORD      IW=I;                                                     71428000        
+         DUMMYA~BUFDESC;                                                71429000        
+         BUFDESCP~POINTER(DUMMYA,*);                                    71430000        
+         IF BUFFEREXHAUSTED THEN RELEASE(FIB,UNITFEATURE,RECPTR,0);     71431000        
+    % RECHECK                                                           71432000        
+         DUMMYA~IF BLOCKEDFUNNY THEN ALTDESC ELSE BUFDESC;              71433000        
+         T~IF FORMATD OR FORMATV OR FORMATI THEN CALCRECSZ(DUMMYA,FIB)  71434000        
+              ELSE RECSIZE;                                             71435000        
+         IF T>MAXRECSZ OR T<MINRECSZ AND MINRECSZ!0 OR T=0 THEN         71436000        
+              BEGIN TRACE(18);TRACE(21) END;                            71437000        
+         IF OPENOUTPUT THEN                                             71438000        
+    BEGIN                                                               71439000        
+         IF T>UNITSLEFT THEN                                            71440000        
+    BEGIN                                                               71441000        
+    HR:                                                                 71442000        
+         IF FLINKED THEN                                                71443000        
+    BEGIN                                             % MAKE LINKS      71444000        
+         M[I~REAL(WORD(AREADESC@REFERENCE(IOADESC))).ADDRESSF+1]~       71445000        
+              REAL(M[I])+ADD1TOBIT32;                                   71446000        
+         IF WORDORIENTED THEN                                           71447000        
+              M[BUFDESC.ADDRESSF+BUFDESC.LENGTHF]~                      71448000        
+                   0&IOLINKL(M[I].NUMRECSLNK,BUFDESC.LENGTHF)           71449000        
+         ELSE                                                           71450000        
+              REPLACE BUFDESCP+(P~REAL(BUFDESCP,WORDSTO).FRWRDLNK)BY    71451000        
+                   0&IOLINKL(M[I].NUMRECSLNK,P);                        71452000        
+    END;                                                                71453000        
+         RELEASE(FIB,UNITFEATURE,RECPTR,0);                             71454000        
+         IF NOT BLOCKEDFUNNY AND NOT SCND THEN                          71455000        
+              IF WORDORIENTED THEN                                      71456000        
+                   REPLACE BUFDESCP BY POINTER(DUMMYA,*)                71457000        
+                        FOR T WORDS                                     71458000        
+              ELSE                                                      71459000        
+              REPLACE BUFDESCP:BUFDESCP BY DUMMYAP FOR T;               71460000        
+    END;                                                                71461000        
+         IF SCND~(WORDSLEFT~*-T<MINRECSZ AND MINRECSZ!0 OR WORDSLEFT{0) 71462000        
+              THEN GO TO HR;                                            71463000        
+         IF FLINKED THEN                                                71464000        
+         IF WORDORIENTED THEN                                           71465000        
+    BEGIN                                             % FIX LINKS       71466000        
+         M[BUFDESC.ADDRESSF-1]~T&IOLINKL(0,*);                          71467000        
+         M[BUFDESC.ADDRESSF+T].BCKWRDLNK~T;                             71468000        
+         M[I~REAL(WORD(AREADESC@REFERENCE(IOADESC))).ADDRESSF+1]~       71469000        
+              REAL(M[I])+ADD1TOBIT32;                                   71470000        
+    END  ELSE                                                           71471000        
+    BEGIN                                                               71472000        
+         REPLACE BUFDESCP-WORDSTO BY T&IOLINKL(0,*);                    71473000        
+         REPLACE BUFDESCP+T BY 0&IOLINKL(0,T);                          71474000        
+         M[I~REAL(WORD(AREADESC@REFERENCE(IOADESC))).ADDRESSF+1]~       71475000        
+              REAL(M[I])+ADD1TOBIT32;                                   71476000        
+    END;                                                                71477000        
+    END                                                                 71478000        
+         ELSE                                                           71479000        
+         IF T>WORDSLEFT THEN BEGIN TRACE(18);TRACE(21) END              71480000        
+         ELSE                                                           71481000        
+         BFFRXHSTD~REAL(WORDSLEFT~*-T{0);                               71482000        
+         IF WORDORIENTED THEN                                           71483000        
+              I~BUFDESC.ADDRESSF+(IF OPENINPUT THEN IF REVERSED THEN -T 71484000        
+                   ELSE BUFDESC.LENGTHF ELSE T)                         71485000        
+         ELSE                                                           71486000        
+              IW~BUFDESCP+(IF OPENINPUT THEN IF REVERSED THEN -T        71487000        
+                   ELSE LASTLENGTH ELSE T);                             71488000        
+         SETUPRECPTR    (                                               71489000        
+                   IF OPENOUTPUT THEN MAXRECSZ ELSE T                   71490000        
+              ,    I                                                    71491000        
+              ,    RECPTR                                               71492000        
+              ,    FIB                                                  71493000        
+                        );                                              71494000        
+         LASTLENGTH~T;                                                  71495000        
+         DIVORCEMOM(DUMMYA);                                            71496000        
+END CHECKRECORDSIZE;                                                    71497000        
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%71498000        
+         IOAREA~IOADESC;                                                71499000        
+         FIB0~FIBSIZE;                                                  71500000        
+         FIBUZZ;                                                        71501000        
+         PFC~0&PFCL(REAL(BOOLEAN(RECORDSTATUS)OR BOOLEAN(PFOC)).ORF,    71502000        
+              REAL(BOOLEAN(RECORDSTATUS)EQV NOT BOOLEAN(PFOC)).EQVF);   71503000        
+         WHILE TRUE DO                                                  71504000        
+         CASE FIRSTONE(PFC) OF                                          71505000        
+    BEGIN     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%71506000        
+         GO TO HR;                                    % OBTAIN         071507000        
+         BEGIN     %**********************************% I/O REQUIRED   171508000        
+              IF FILEMTBUF THEN                                         71509000        
+                   IF PFOCMTBUF THEN                                    71510000        
+                        IF ARRAYROW THEN                                71511000        
+                          IF FORMATTER THEN                             71512000        
+                          BEGIN                       % PRE-RELEASE     71513000        
+                            RELEASE(FIB,UNITFEATURE,RECPTR,1);          71514000        
+                            BLOCKCOUNT~*+1;                             71515000        
+                            GO TO XIT                                   71516000        
+                          END ELSE                                      71517000        
+                          BEGIN                                         71518000        
+                            IOCB~REFERENCE(IOAREA);                     71519000        
+                            WAITON(IOCB);                               71520000        
+                            IF NOMORE THEN GO TO LEOF;                  71521000        
+                            IF PARITYERROR THEN GO TO LPAR;             71522000        
+                            UNITSLEFT~                                  71523000        
+                              IF OPENINPUT THEN                         71524000        
+                                IF UNITYP=CARDREADER THEN BLOCKSZ       71525000        
+                                ELSE MISC@(IOCB).WORDCOUNTF             71526000        
+                              ELSE BLOCKSZ;                             71527000        
+                            BUFDESC~DUMMYA&ARRAYDESCL(                  71528000        
+                              ,MAXRECSZ                                 71529000        
+                              ,REAL(WORD(AREADESC@IOCB)).ADDRESSF+      71530000        
+                                (IF REVERSED THEN BLOCKSZ +             71531000        
+                                  REAL(NOT FLINKED) ELSE 1));           71532000        
+                            IF CHARECORD THEN                           71533000        
+                            BEGIN                                       71534000        
+                              DUMMYA~BUFDESC;                           71535000        
+                              BUFDESC~DUMMYA~*&INDEXEDSTRINGDESCRIPTOR( 71536000        
+                                ,1,1,1,,,INTERNALMODE,0);               71537000        
+                            END;                                        71538000        
+    ARRAYROWL:                                                          71539000        
+                            T~MIN(RECSIZE,ARRAYD.LENGTHF);              71540000        
+                            IF CHARECORD THEN T~T|WORDSTO;              71541000        
+                            T~MIN(T,WORDSLEFT);                         71542000        
+                            T~MIN(T,MAXRECSZ);                          71543000        
+                            DUMMYA~BUFDESC;                             71544000        
+                            BUFDESCP~POINTER(DUMMYA,*);                 71545000        
+                            IF OPENINPUT THEN                           71546000        
+                              IF WORDORIENTED THEN                      71547000        
+                                REPLACE POINTER(ARRAYD,*) BY            71548000        
+                                  BUFDESCP FOR T WORDS                  71549000        
+                              ELSE                                      71550000        
+                                REPLACE POINTER(ARRAYD,*) BY            71551000        
+                                  BUFDESCP FOR T                        71552000        
+                            ELSE                                        71553000        
+                              IF WORDORIENTED THEN                      71554000        
+                                REPLACE BUFDESCP BY                     71555000        
+                                  POINTER(ARRAYD,*) FOR T WORDS         71556000        
+                              ELSE                                      71557000        
+                                REPLACE BUFDESCP BY                     71558000        
+                                  POINTER(ARRAYD,*) FOR T;              71559000        
+                            RECORDCOUNT~*+1;                            71560000        
+                            BFFRXHSTD~REAL(WORDSLEFT~*-MAXRECSZ{0);     71561000        
+                            IF BUFFEREXHAUSTED THEN                     71562000        
+                            BEGIN                                       71563000        
+                              RELEASE(FIB,UNITFEATURE,RECPTR,1);        71564000        
+                              BLOCKCOUNT~*+1;                           71565000        
+                            END ELSE                                    71566000        
+                            BEGIN                                       71567000        
+                              IF WORDORIENTED THEN                      71568000        
+                                DUMMYA~*&ARRAYDESCL(                    71569000        
+                                  ,RCRDSZ(BUFDESC,DUMMYAP)              71570000        
+                                  ,BUFDESC.ADDRESSF+(IF REVERSED THEN   71571000        
+                                    -REAL(FLINKED)ELSE BUFDESC.LENGTHF) 71572000        
+                                  )                                     71573000        
+                              ELSE                                      71574000        
+                              BEGIN                                     71575000        
+                                DUMMYA~BUFDESC;                         71576000        
+                                DUMMYAP~DUMMYAP+RCRDSZ(DUMMYA,DUMMYAP)  71577000        
+                              END;                                      71578000        
+                              IF WORDORIENTED THEN T~DUMMYA.ADDRESSF    71579000        
+                                ELSE TW~DUMMYAP;                        71580000        
+                              SETUPRECPTR(                              71581000        
+                                RCRDSZ(DUMMYA,DUMMYAP)                  71582000        
+                                ,T                                      71583000        
+                                ,DUMMYA                                 71584000        
+                             % KLUDGE                                   71585000        
+                                ,FIB                                    71586000        
+                                );                                      71587000        
+                            END;                                        71588000        
+                            GO TO XIT                                   71589000        
+                          END                                           71590000        
+                        ELSE                                            71591000        
+                        BEGIN                                           71592000        
+                          IF OPENOUTPUT AND BLOCKED THEN                71593000        
+                            BEGIN                                       71594000        
+    CMN:                                                                71595000        
+                              IF RECORDTYPE=0 THEN WORDSLEFT~*+MAXRECSZ;71596000        
+                              RELEASE(FIB,UNITFEATURE,RECPTR,0);        71597000        
+                              GO TO XIT                                 71598000        
+                            END ELSE                                    71599000        
+                              TRACE(21);                                71600000        
+                        END                                             71601000        
+                   ELSE                                                 71602000        
+                   BEGIN                                                71603000        
+                        RELEASE(FIB,UNITFEATURE,RECPTR,0);              71604000        
+                        GO TO XIT                                       71605000        
+                   END                                                  71606000        
+              ELSE                                                      71607000        
+              IF FORMATTER THEN GO TO XIT                               71608000        
+              ELSE                                                      71609000        
+              IF ARRAYROW THEN GO TO ARRAYROWL                          71610000        
+              ELSE                                                      71611000        
+              IF OPENOUTPUT AND BLOCKED THEN GO TO CMN ELSE TRACE(21)   71612000        
+         END;                                                           71613000        
+         BEGIN     %**********************************% UNIT FEATURE   271614000        
+              CASE UNITYP OF                                            71615000        
+         BEGIN                                                          71616000        
+              IOTERMINATE;                       % 0 BACKUP (Q)         71617000        
+              IOTERMINATE;                       % 1 DISK               71618000        
+              IOTERMINATE;                       % 2 DISPLAY            71619000        
+              IOTERMINATE;                       % 3 REMOTE             71620000        
+              ;                                  % 4 PTR                71621000        
+              ;                                  % 5 PTP                71622000        
+              BEGIN                              % 6 PRINTER            71623000        
+    PRINTERL:                                                           71624000        
+                   IF BOOLEAN(PFOC.UFEAT) THEN                          71625000        
+                   BEGIN                                                71626000        
+                        % CHECK DISK CASE                               71627000        
+                        % CHECK [NO] CASE                               71628000        
+                   END  ELSE                                            71629000        
+                        UNITFEATURE~1;                                  71630000        
+              END;                                                      71631000        
+              GO TO PRINTERL;                    % 7 PRINTER            71632000        
+              ;                                  % 8                    71633000        
+              ;                                  % 9 READER             71634000        
+              ;                                  % 10                   71635000        
+              BEGIN                              % 11 PUNCH             71636000        
+                   % CHECK DISK CASE                                    71637000        
+              END;                                                      71638000        
+              ;                                  % 12                   71639000        
+              ;                                  % 13                   71640000        
+              ;                                  % 14                   71641000        
+              ;                                  % 15                   71642000        
+              ;;;;;;;;;;;;;;;;;                  % 16-31                71643000        
+         END;                                                           71644000        
+              PFC.UFEAT~0;                                              71645000        
+         END;                                                           71646000        
+         BEGIN     %**********************************% RECORD SZ REQD 371647000        
+              IF PFOCRCSZ THEN                        % FORMATTER       71648000        
+                   IF PFOCMTBUF THEN                  % PRE-RELEASE     71649000        
+                        PFC.DRCDSIZE~0                                  71650000        
+                   ELSE                                                 71651000        
+                   IF FILEMTBUF THEN                                    71652000        
+                   BEGIN                         % LAST WAS PRE-RELEASE 71653000        
+                        IOCB~REFERENCE(IOAREA);                         71654000        
+                        WAITON(IOCB);                                   71655000        
+                        IF NOMORE THEN GO TO LEOF;                      71656000        
+                        IF PARITYERROR THEN GO TO LPAR;                 71657000        
+                        UNITSLEFT~                                      71658000        
+                          IF OPENINPUT THEN                             71659000        
+                            IF UNITYP=CARDREADER THEN BLOCKSZ ELSE      71660000        
+                              MISC@(IOCB).WORDCOUNTF|WORDSTO+           71661000        
+                              MISC@(IOCB).RDCHRCNT                      71662000        
+                          ELSE BLOCKSZ;                                 71663000        
+                        BUFDESC~DUMMYA&ARRAYDESCL(                      71664000        
+                          ,MAXRECSZ                                     71665000        
+                          ,REAL(WORD(AREADESC@IOCB)).ADDRESSF+1         71666000        
+                          );                                            71667000        
+                        IF WORDORIENTED THEN T~BUFDESC.ADDRESSF ELSE    71668000        
+                        BEGIN                                           71669000        
+                          DUMMYA~BUFDESC;                               71670000        
+                          TW~DUMMYA~*&INDEXEDSTRINGDESCRIPTOR(,1,1,1,,, 71671000        
+                            INTERNALMODE,,0);                           71672000        
+                        END;                                            71673000        
+                        SETUPRECPTR(                                    71674000        
+                          RECSIZE~RCRDSZ(BUFDESC,DUMMYAP)               71675000        
+                          ,T                                            71676000        
+                          ,RECPTR                                       71677000        
+                          ,FIB                                          71678000        
+                         );                                             71679000        
+                   END  ELSE                                            71680000        
+                   BEGIN                              % NORMAL          71681000        
+                        IF WORDORIENTED THEN                            71682000        
+                          DUMMYA~*&ARRAYDESCL(                          71683000        
+                            ,RCRDSZ(BUFDESC,DUMMYAP)                    71684000        
+                            ,BUFDESC.ADDRESSF+(IF REVERSED THEN         71685000        
+                              -REAL(FLINKED)ELSE BUFDESC.LENGTHF)       71686000        
+                            )                                           71687000        
+                        ELSE                                            71688000        
+                        BEGIN                                           71689000        
+                          DUMMYA~BUFDESC;                               71690000        
+                          DUMMYAP~DUMMYAP+RCRDSZ(DUMMYA,DUMMYAP)        71691000        
+                       END;                                             71692000        
+                        IF WORDORIENTED THEN T~DUMMYA.ADDRESSF ELSE     71693000        
+                          TW~DUMMYAP;                                   71694000        
+                        SETUPRECPTR(                                    71695000        
+                          RECSIZE~RCRDSZ(DUMMYA,DUMMYAP)                71696000        
+                          ,T                                            71697000        
+                          ,RECPTR                                       71698000        
+                          ,FIB                                          71699000        
+                          );                                            71700000        
+                        PFC.DRCDSIZE~0                                  71701000        
+                   END                                                  71702000        
+              ELSE                                                      71703000        
+              IF FILEDRCDSIZE THEN                                      71704000        
+              BEGIN                                                     71705000        
+                   CHECKRECORDSIZE;                                     71706000        
+                   PFC.DRCDSIZE~0                                       71707000        
+              END  ELSE                                                 71708000        
+              BEGIN TRACE(18);TRACE(21); END;                           71709000        
+         END;                                                           71710000        
+         BEGIN     %**********************************% EXCEPTION      471711000        
+              IF ENDOF THEN                                             71712000        
+              BEGIN                                                     71713000        
+    LEOF:                                                               71714000        
+                   IF ENDOFTAKEN THEN IOTERMINATE;                      71715000        
+                   ATAKEN~1;                                            71716000        
+                   IF OPENINPUT THEN                                    71717000        
+                        IF ENDOFACTION=0 THEN                           71718000        
+                          IF EOFR!0 THEN GOTOSOLVER(EOFL) ELSE          71719000        
+                        ELSE                                            71720000        
+                        IF DOARETN~ENDOFACTION=2 THEN                   71721000        
+                        ELSE                                            71722000        
+                        IOTERMINATE                                     71723000        
+                   ELSE                                                 71724000        
+              % CLOSE ACTION                                            71725000        
+                   IOTERMINATE                                          71726000        
+              END  ELSE                                                 71727000        
+              IF BOOLEAN(PARITYERR) THEN                                71728000        
+              BEGIN                                                     71729000        
+    LPAR:                                                               71730000        
+                   IF PARITYACTION=0 AND NOT ACTIONTAKEN THEN           71731000        
+                        IF PARR!0 THEN GOTOSOLVER(PARL);                71732000        
+                   IOTERMINATE;                                         71733000        
+              END  ELSE                                                 71734000        
+                   IOTERMINATE;                                         71735000        
+              PFC.EXCEPTION~0;                                          71736000        
+      END;                                                              71737000        
+         BEGIN     %**********************************% OPEN OUTPUT    571738000        
+              IF IMPLICITOPEN AND                                       71739000        
+                   (NOTOPEN OR OPENINPUT AND NOT REVERSED) THEN         71740000        
+                   BEGIN                                                71741000        
+%                       IF BOOT~OPENINPUT THEN CLOSE(FIB,HERE);         71742000        
+                        OPEN(FIB,0);                                    71743000        
+                        IOAREA~IOADESC;                                 71744000        
+%                       SEEK(FIB,IF BOOT THEN RECORDCOUNT ELSE          71745000        
+%                            IF REVERSED THEN MAXNO ELSE 0);            71746000        
+                        PFC.OPNOUT~0                                    71747000        
+                   END                                                  71748000        
+              ELSE                                                      71749000        
+              TRACE(21)                                                 71750000        
+         END;                                                           71751000        
+         BEGIN     %**********************************% OPEN INPUT     671752000        
+              IF IMPLICITOPEN AND NOTOPEN AND NOT BOOLEAN(PFC.OPNOUT)   71753000        
+              THEN BEGIN                                                71754000        
+                        OPEN(FIB,0);                                    71755000        
+                        IOAREA~IOADESC;                                 71756000        
+%                       SEEK(FIB,IF REVERSED THEN MAXNO ELSE 0);        71757000        
+                        PFC.OPNIN~0                                     71758000        
+                   END                                                  71759000        
+              ELSE                                                      71760000        
+              TRACE(21)                                                 71761000        
+         END;                                                           71762000        
+    END; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%71763000        
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%71764000        
+%   BY THE TIME REACH HERE HAVE DISPOSED OF ALL THE MESSY STUFF        %71765000        
+%   AND ARE LEFT WITH ONLY                                             %71766000        
+%        INPUT:    TYPES F,D,V,L                                       %71767000        
+%        OUTPUT:   TYPE F                                              %71768000        
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%71769000        
+    HR:                                                                 71770000        
+         IF WORDORIENTED THEN                                           71771000        
+              DUMMYA~*&ARRAYDESCL(                                      71772000        
+                   ,RCRDSZ(BUFDESC,DUMMYAP)                             71773000        
+                   ,BUFDESC.ADDRESSF+(IF REVERSED THEN -REAL(FLINKED)   71774000        
+                        ELSE BUFDESC.LENGTHF)                           71775000        
+                   )                                                    71776000        
+         ELSE                                                           71777000        
+         BEGIN                                                          71778000        
+              DUMMYA~BUFDESC;                                           71779000        
+              DUMMYAP~DUMMYAP+RCRDSZ(DUMMYA,DUMMYAP)                    71780000        
+         END;                                                           71781000        
+         % FORMAT U                                                     71782000        
+         IF WORDORIENTED THEN T~DUMMYA.ADDRESSF ELSE TW~DUMMYAP;        71783000        
+         SETUPRECPTR    (                                               71784000        
+                   RCRDSZ(DUMMYA,DUMMYAP)                               71785000        
+              ,    T                                                    71786000        
+              ,    RECPTR                                               71787000        
+              ,    FIB                                                  71788000        
+                   );                                                   71789000        
+    XIT:                                                                71790000        
+         DIVORCEMOM(DUMMYA);                                            71791000        
+         DIVORCEMOM(IOAREA);                                            71792000        
+         IOCBW~0;                                                       71793000        
+         IF ENDOFACTION=2 THEN RETURN(REAL(DOARETN));                   71794000        
+         UNLOCKFIB;                                                     71795000        
+END OBTAIN;                                                             71796000        
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%71797000        
+ SAVE                                                                   80000000        
+ INTEGER PROCEDURE VECTORINSERT(PATH,ENTRY);                            80001000        
+                   VALUE PATH                                           80002000        
+                        ,    ENTRY                                      80003000        
+                        ;                                               80004000        
+                   REAL      PATH                                       80005000        
+                        ;                                               80006000        
+                   WORD      ENTRY                                      80007000        
+                        ;                                               80008000        
+COMMENT  THE INSERT ALGORITHS OF THE READYQ AND SHEET CONSIST OF CALLS  80009000        
+         UPON THIS PROCEDURE (AND NOTHING ELSE) OTHER PARTS OF THE      80010000        
+         MCP-E.G. INDEPENDENTRUNNER-CALL THIS PROCEDURE TO  LINK        80011000        
+         STACKS INTO STACKVECTOR                                        80012000        
+              PATH = REDY              CALL FROM READYQ                 80013000        
+                   =SHEETI             CALL FROM SHEETQ                 80014000        
+                   = GETIRS            GETINDEPENDENTRUNNERSTACK        80015000        
+                   = OTHER             CALL FROM ELSEWWERE              80016000        
+              ENTRY          ENTRY PARAMETER OF THE INSERT ALGORITHM    80017000        
+         THE APPROPRIATE (SHEET OR READY) LOCK IS BUZZED AND THEN THE   80018000        
+         VECTOR IS SEARCHED FOR AN EMPTY ELEMENT                        80019000        
+         VECTOR SIZE     (EXCEPT WHERE ,IN THE CASE OF THE STACK VECTOR,80021000        
+         THE NUMBER OF ENTRIES EXCEEDS 1024  IN WHICH CASE A RUN-TIME   80022000        
+         ERROR IS NOTED). THIS IS DONE BY GETTING EXTRA SPACE AND MOVING80023000        
+         THE VECTOR OVER. VECTOR SIZE MAY THUS BE INCREASED IN MODULES  80024000        
+         OF SIZE "VECTORMODULE" CORE LOCATIONS                          80025000        
+              [NOTE : THE NOTHING TO DO LOOPS IN THE WAIT AND HOLD      80026000        
+         PROCEDURES CHECK THAT (SIZE OF VECTOR)-(INDEX OF HIGHEST IN-USE80027000        
+         ELEMENT) { "ALLOWABLE SLACK". IF THIS IS NOT THE CASE, SPACE   80028000        
+         IS GOTTEN EQUAL TO "SIZE OF VECTOR" -"VECTOR MODULE" AND THE   80029000        
+         VECTOR IS MOVED ACCROSS . THIS INFORMATION HAS NOTHING TO DO   80030000        
+         WITH THIS PROCEDURE BUT IT SEEMS APPROPRIATE TO PUT IT IN HERE]80031000        
+              THE ENTRY DESCRIPTOR IS MOVED INTO THE ACQUIRED VECTOR    80032000        
+         ELEMENT, THE VECTOR IS UNLOCKED THE (READY OR SHEET) QUEUE IS  80033000        
+         BUZZED AND THE PROCEDURE - "INSERTINQUEUE" , WHICH INSERTS THE 80034000        
+         NEWLY ACQUIRED ELEMENT INTO THE QUEUE, IS CALLED.              80035000        
+         ;                                                              80036000        
+    BEGIN                                                               80037000        
+    REAL           INDEX                                                80038000        
+              ,    VECTORSIZE                                           80039000        
+              , MYSNR                                                   80040000        
+              ,    NEXTINVECTOR                                         80043100        
+              ,    LASTINVECTOR                                         80043200        
+              ;                                                         80044000        
+    WORD ARRAY     OLDVECTORDESCRIPTOR[*]                               80045000        
+              ;                                                         80046000        
+    BOOLEAN        READYINDICATOR                                       80047000        
+              ,    COMPLETESEARCH                                       80048000        
+              ;                                                         80049000        
+    REFERENCE      NEWENTRY=ENTRY                                       80050000        
+              ;                                                         80051000        
+    FIELD          FULLWORD = 47:48                                     80052000        
+              ;                                                         80053000        
+    LABEL          OUT                                                  80054000        
+              ,    SCAN0                                                80054100        
+              ,    SCAN1                                                80054200        
+              ;                                                         80055000        
+    INTEGER        VI=PATH;                 % ***FOR MONITOR ONLY       80056000        
+    MONITOR        JACKMONITOR(VI);                                     80057000        
+         VI~VI;                             %*** FOR MONITOR ONLY       80058000        
+         MYSNR~SNR;                                                     80059000        
+         READYINDICATOR ~ PATH ! SHEETI;                                80060000        
+                                                                        80061000        
+         OLDVECTORDESCRIPTOR ~ IF READYINDICATOR                        80062000        
+              THEN STACKVECTOR                                          80063000        
+              ELSE SHEETVECTOR;                                         80064000        
+         NEXTINVECTOR~IF READYINDICATOR                                 80064100        
+              THEN NEXTINREADYVECTOR ELSE NEXTINSHEETVECTOR;            80064200        
+SCAN1:   LASTINVECTOR~VECTORSIZE~OLDVECTORDESCRIPTOR.LENGTHF-1;         80064300        
+         BUZZCONTROL(VECTORLOK[REAL(READYINDICATOR)]);                  80064400        
+SCAN0:   NEXTINVECTOR~IF (COMPLETESEARCH~NEXTINVECTOR=0)                80065000        
+              THEN IF PATH=GETIRS OR PATH = SHEETI                      80066000        
+                   THEN 1                                               80066200        
+                   ELSE FIRSTAVAILABLEINVECTOR                          80067000        
+              ELSE NEXTINVECTOR;                                        80068000        
+         FOR INDEX~NEXTINVECTOR STEP 1 UNTIL LASTINVECTOR DO            80069000        
+              IF OLDVECTORDESCRIPTOR[INDEX].FULLWORD=0 THEN GO OUT ;    80070000        
+COMMENT  WE CAN NOT FIND STACK OR PSEUDO STACK IN THIS PASS;            80071000        
+         IF INDEX=VECTORSIZE                                            80072000        
+              THEN IF NOT COMPLETESEARCH                                80073000        
+                   THEN BEGIN                              %%%MCS000010080074000        
+                             LASTINVECTOR~NEXTINVECTOR-1;               80075000        
+                             NEXTINVECTOR~0;                            80076000        
+                             GO SCAN0;                                  80077000        
+                        END;                              %%%MCS0000010080078000        
+COMMENT WE CAN NOT GET A STACK OR A PSEUDO STACK SO WE HAVE TO SLEEP;   80079000        
+         UNLOCK(VECTORLOK[REAL(READYINDICATOR)]);                       80079100        
+         WAIT (HOLEINVECTOR[REAL(READYINDICATOR)]) ;                    80080000        
+         NEXTINVECTOR~0;                                                80081000        
+         GO SCAN1;                                                      80082000        
+OUT:          MOMTOVECTOR(WORD(NEWENTRY),OLDVECTORDESCRIPTOR,           80095000        
+                        VECTORINSERT ~ INDEX);                          80096000        
+              NEXTINVECTOR~IF INDEX=VECTORSIZE THEN 0 ELSE INDEX+1;     80097000        
+         IF PATH!GETIRS THEN                                            80097200        
+              IF READYINDICATOR                                         80098000        
+                   THEN NEXTINREADYVECTOR~NEXTINVECTOR                  80098200        
+                   ELSE NEXTINSHEETVECTOR~NEXTINVECTOR;                 80098400        
+              IF(PATH!OTHER AND PATH!GETIRS)                            80099000        
+                   THEN INSERTINQUEUE(PATH,INDEX);                      80100000        
+              IF PATH !GETIRS THEN UNLOCK(VECTORLOK[REAL(READYINDICATOR 80101000        
+                                                                )]);    80101200        
+              VI~INDEX;                                                 80102000        
+         RETURN(INDEX);                                                 80102100        
+    END  VECTORINSERT;                                                  80103000        
+ SAVE                                                                   80104000        
+ PROCEDURE INSERTINQUEUE (PATH,STACKINDICATOR);                         80105000        
+              VALUE     PATH                                            80106000        
+                   ,    STACKINDICATOR                                  80107000        
+                   ;                                                    80108000        
+              REAL      PATH                                            80109000        
+                   ,    STACKINDICATOR                                  80110000        
+                   ;                                                    80111000        
+COMMENT  THE ACTION TAKEN BY THIS PROCEDURE DEPENDS UPON THE VALUE OF   80112000        
+         PATH:                                                          80113000        
+         =REDY,SHEET    INSERT THE STACK(REDY )   OR PSEUDO-STACK       80114000        
+                        (SHEET ) INTO THE READYQ OR SHEETQ              80115000        
+                      A.INSERTION IN THE READYQ IS AT THE LOW PRIORITY  80116000        
+                        END                                             80117000        
+                      B.INSERTION IN THE SHEETQ IS ACCORDING TO DECLARED80118000        
+                        PRIORITY.                                       80119000        
+              WAITI     MOVE THE STACKS IN THE WAITQ ASSOCIATED WITH    80120000        
+                        THE EVENT PARAMETER INTO THE LOW PRIORITY END   80121000        
+                        OF THE READYQ                                   80122000        
+              OTHERREDY INSERTION INTO THE READYQ AT THE HIGH PRIORITY  80123000        
+                        END                                             80124000        
+             TERMINATEI INSERTION INTO THE TERMINATEQ AT LOW PRIORITY   80124100        
+                        END                                             80124200        
+              ;                                                         80125000        
+    BEGIN                                                               80126000        
+    REAL           PRIORITY                                             80127000        
+              ,    NEXTENTRY                                            80128000        
+              ,    HEAD = NEXTENTRY                                     80128100        
+              ,    TI1                                                  80129000        
+              ,    COUNT                                                80130000        
+              ,    CORESIZE                                             80131000        
+              ;                                                         80132000        
+    DEFINE         LINK =    LINKPLACE #                                80133000        
+              ;                                                         80134000        
+    INTEGER        IQ=PATH;                 % ***FOR MONITOR ONLY       80135000        
+         IF PATH ! SHEET                                                80139000        
+         THEN                                                           80140000        
+BEGIN                                                      %%%MCS000000580141000        
+    IF (HEAD~(IF PATH=TERMINATEI THEN TERMINATEQHEAD ELSE READYQHEAD))=080142000        
+         THEN IF PATH = WAITI                                           80143000        
+                   THEN HEAD.DYNAMICLINKSF~STACKINDICATOR               80144000        
+              ELSE BEGIN                                   %%%MCS000001080145000        
+                        HEAD.FIRSTREADYF~STACKINDICATOR;                80146000        
+                        HEAD.LASTREADYF~STACKINDICATOR;                 80147000        
+                   END                                     %%%MCS000001080148000        
+         ELSE IF PATH = OTHERREDY                                       80149000        
+              THEN BEGIN                                   %%%MCS000002080150000        
+                        WORDSTACK[HEAD.FIRSTREADYF,LINKPLACE]           80151000        
+                             .BACKWARDLINKF ~ STACKINDICATOR;           80152000        
+                       WORDSTACK[STACKINDICATOR,LINKPLACE ].FORWARDLINKF80153000        
+                                       ~    HEAD.FIRSTREADYF;           80154000        
+                        HEAD.FIRSTREADYF~STACKINDICATOR;                80155000        
+                   END                                     %%%MCS000002080156000        
+              ELSE BEGIN                                   %%%MCS000003080157000        
+                        WORDSTACK[HEAD.LASTREADYF,LINKPLACE]            80158000        
+                             .FORWARDLINKF                              80159000        
+                                  ~IF PATH = WAITI                      80160000        
+                                      THEN STACKINDICATOR.WAITQHEADF    80161000        
+                                      ELSE STACKINDICATOR;              80162000        
+                        WORDSTACK[IF PATH=WAITI THEN STACKINDICATOR     80163000        
+                                                           .WAITQHEADF  80164000        
+                                              ELSE STACKINDICATOR       80165000        
+                             ,LINKPLACE].BACKWARDLINKF~ HEAD            80166000        
+                                                           .LASTREADYF; 80167000        
+                        HEAD.LASTREADYF~IF PATH=WAITI                   80168000        
+                                 THEN STACKINDICATOR.WAITQTAILF         80169000        
+                                 ELSE STACKINDICATOR;                   80170000        
+                   END;                                    %%%MCS000003080171000        
+    IF PATH=TERMINATEI THEN TERMINATEQHEAD~HEAD ELSE READYQHEAD~HEAD;   80171100        
+END                                                        %%%MCS000000580172000        
+    ELSE                                                                80173000        
+    BEGIN                                                  %%%MCS000004080174000        
+         IF PRIORITYLEVEL[PRIORITY~SHEETREALS[STACKINDICATOR,           80175000        
+              PRIORITYPLACE]] = 0                                       80176000        
+              THEN BEGIN                                   %%%MCS000005080177000        
+COMMENT            NO PREVIOUS ENTRIES AT THIS PRIORITY LEVEL;          80178000        
+                        PRIORITYLEVEL[PRIORITY].FIRSTATLEVEL            80179000        
+                             ~ STACKINDICATOR;                          80180000        
+                        PRIORITYLEVEL[PRIORITY].LASTATLEVEL             80181000        
+                             ~ STACKINDICATOR    ;                      80182000        
+                        SHEETARRAY[STACKINDICATOR,LINKPLACE].           80183000        
+                            DYNAMICLINKSF ~ 0;                          80184000        
+                                                                        80184100        
+                   END                                     %%%MCS000005080185000        
+              ELSE                                                      80186000        
+                   IF (CORESIZE~SHEETREALS[STACKINDICATOR,COREPLACE])   80187000        
+                        < SHEETREALS[PRIORITYLEVEL[PRIORITY]            80188000        
+                        .FIRSTATLEVEL,COREPLACE]                        80189000        
+                        THEN                                            80190000        
+                             BEGIN                         %%%MCS000006080191000        
+COMMENT                      CORESIZE LESS THAN FOR FIRST ENTRY;        80192000        
+                                 SHEETARRAY[PRIORITYLEVEL[PRIORITY]     80193000        
+                                  .FIRSTATLEVEL   ,LINK].BACKWARDLINKSF 80194000        
+                                       ~STACKINDICATOR;                 80195000        
+                                 SHEETARRAY[STACKINDICATOR,LINK]        80196000        
+                                       .FORWARDLINKSF~PRIORITYLEVEL     80197000        
+                                       [PRIORITY].FIRSTATLEVEL ;        80198000        
+                                 PRIORITYLEVEL[PRIORITY].FIRSTATLEVEL   80199000        
+                                                      ~STACKINDICATOR;  80200000        
+                             END                           %%%MCS000006080201000        
+                        ELSE                                            80202000        
+IF CORESIZE>SHEETREALS[PRIORITYLEVEL[PRIORITY].LASTATLEVEL,COREPLACE]   80203000        
+    THEN BEGIN                                             %%%MCS000007080204000        
+COMMENT  IT MUST GO AT END;                                             80205000        
+         SHEETARRAY[PRIORITYLEVEL[PRIORITY].LASTATLEVEL,LINK].          80206000        
+              FORWARDLINKSF~STACKINDICATOR;                             80207000        
+         SHEETARRAY[STACKINDICATOR,LINK].BACKWARDLINKSF~PRIORITYLEVEL   80208000        
+              [PRIORITY].LASTATLEVEL;                                   80209000        
+         PRIORITYLEVEL[PRIORITY].LASTATLEVEL ~ STACKINDICATOR;          80210000        
+         END                                               %%%MCS000007080211000        
+    ELSE                                                                80212000        
+         BEGIN                                             %%%MCS000008080213000        
+              COUNT ~ PRIORITYLEVEL[PRIORITY].COUNTATLEVEL;             80214000        
+              NEXTENTRY~SHEETARRAY[PRIORITYLEVEL[PRIORITY].FIRSTATLEVEL 80215000        
+                   ,LINK].FORWARDLINKSF;                                80216000        
+              DO                                                        80217000        
+                        IF CORESIZE<SHEETREALS[NEXTENTRY,COREPLACE]     80218000        
+                             THEN BEGIN                    %%%MCS000009080219000        
+SHEETARRAY[STACKINDICATOR,LINK] ~ * & LINKWORD(NEXTENTRY,*,TI1 ~        80220000        
+    SHEETARRAY[NEXTENTRY,LINK].BACKWARDLINKSF);                         80221000        
+SHEETARRAY[TI1,LINK].FORWARDLINKSF ~ STACKINDICATOR;                    80222000        
+SHEETARRAY[NEXTENTRY,LINK].BACKWARDLINKSF ~ STACKINDICATOR;             80223000        
+                                  END                      %%%MCS000009080224000        
+                             ELSE NEXTENTRY ~ SHEETREALS [NEXTENTRY,    80225000        
+                                  LINK].FORWARDLINKSF                   80226000        
+              UNTIL(COUNT ~ COUNT -1) = 0 ;                             80227000        
+         END;                                              %%%MCS000008080228000        
+         SHEETARRAY[STACKINDICATOR,LINK]~*&MARKSTACKCW(,*,*,            80229000        
+              STACKINDICATOR,*,*,*);                                    80229100        
+         PRIORITYLEVEL[PRIORITY].COUNTATLEVEL~PRIORITYLEVEL[PRIORITY]   80229200        
+                                                      .COUNTATLEVEL+1;  80229400        
+         IF PRIORITY ! 0 THEN SHEETQHEAD ~ SHEETQHEAD + 1;              80229500        
+    END ;                                                  %%%MCS000004080230000        
+    END  INSERTINQUEUE ;                                                80231000        
+ SAVE                                                                   80232000        
+ PROCEDURE STACKQREARRANGE(READYINDICATOR);                             80233000        
+    VALUE READYINDICATOR ;                                              80234000        
+    BOOLEAN READYINDICATOR;                                             80235000        
+COMMENT  THIS PROCEDURE IS CALLED TO REARRANGE EITHER THE READYQ        80236000        
+         (READYINDICATOR IS TRUE) OR THE SHEETQ AS FOLLOWS :            80237000        
+           A  THE READYQ IS REARRANGED ACCORDING TO THE PRIORITY        80238000        
+              FUNCTION DESCRIBED IN "DYNAMIC PRIORITY EVALUATION IN THE 80239000        
+              SELECTION OF PROCESSES" BY J.G. CLEARY                    80240000        
+           B  THE SHEETQ IS REARRANGED ACCORDING TO THE TIME THAT THE   80241000        
+              VARIOUS ENTRIES HAVE BEEN IN THE OUEUE AND ACCORDING TO   80242000        
+              THE TARGET TIME (IF ANY). HOWEVER, WITHIN ANY GIVEN       80243000        
+              PRIORITY LEVEL, THE ENTRIES REMAIN ORDERED STRICTLY       80244000        
+              ACCORDING TO CORE REQUIREMENTS                            80245000        
+              ;                                                         80246000        
+    BEGIN                                                               80247000        
+    INTEGER   SR;                           % *** FOR MONITOR ONLY      80248000        
+    MONITOR   JACKMONITOR(SR);                                          80249000        
+IF SIMULATING THEN                                                      80249500        
+         SR~SR;                             % *** FOR MONITOR ONLY      80250000        
+    END  STACKQREARRANGE ;                                              80251000        
+ SAVE                        % *** FOR PRESENCE BIT                     80252000        
+ PROCEDURE NEXTPROCESS;                                                 80253000        
+COMMENT THIS PROCEDURE IS CALLED BY THE MOVETONEXTINREADYQ ALGORITHM .IT80254000        
+        RE-ARRANGES THE READYQ AND/OR BRINGS IN ENTRIES FROM THE SHEETQ 80255000        
+       (IF REQUIRED) AND THEN INITIATES (MOVES STACK TO) THE HIGHEST    80256000        
+        PRIORITY PROCESS IN THE QUEUE                                   80257000        
+         ;                                                              80258000        
+    BEGIN                                                               80259000        
+    OWN REAL       PREVIOUSCLOCK                                        80260000        
+              ,    STACKNO                                              80261000        
+              ;                                                         80262000        
+    INTEGER        NP;                      % ***FOR MONITOR ONLY       80263000        
+    MONITOR        JACKMONITOR(NP);                                     80264000        
+         BUZZCONTROL(SHEETQ);                                           80269000        
+         IF NOT EMPTY(SHEETQ)                                           80269500        
+              THEN SELECTION                                            80270000        
+              ELSE UNLOCK(SHEETQ);                                      80270100        
+         IF -PREVIOUSCLOCK+(PREVIOUSCLOCK~SCANIN(TIMEOFDAYWORD))        80271000        
+              > REARRANGETIME OR MUSTREARRANGE                          80272000        
+                   THEN STACKQREARRANGE(READYINDICATOR);                80273000        
+         STACKQREMOVE(REDY,STACKNO~READYQHED.FIRSTREADYF);              80275000        
+         UNLOCK(READYQ);                                                80276000        
+         NP ~ STACKNO;                                                  80276500        
+SETINTERVALTIMER;       % *** KLUDGE TO GIVR ME SOME TIME               80277000        
+         MOVESTACK(STACKNO);                                            80278000        
+                                                                        80279000        
+    END NEXTPROCESS;                                                    80280000        
+ SAVE                                                                   80281000        
+ PROCEDURE STACKQREMOVE (PATH,STACKINDICATOR);                          80282000        
+    VALUE          PATH                                                 80283000        
+              ,    STACKINDICATOR                                       80284000        
+              ;                                                         80285000        
+         REAL              PATH                                         80286000        
+              ;                                                         80287000        
+    INTEGER        STACKINDICATOR                                       80288000        
+              ;                                                         80289000        
+COMMENT  USED FOR REMOVING ENTRIES FROM READYQ,SHEETQ AND TERMINATEQ    80290000        
+         ;                                                              80291000        
+    BEGIN                                                               80292000        
+    REAL           FORWARDLINK                                          80293000        
+              ,    BACKWARDLINK                                         80294000        
+              ,    HEAD                                                 80295000        
+              ,    PRIORITY                                             80295100        
+              ;                                                         80296000        
+    REAL           LINK                                                 80297000        
+              ;                                                         80298000        
+    WORD ARRAY     VECTORDESCRIPTOR[*,* ]                               80299000        
+              ;                                                         80300000        
+    INTEGER        SR=PATH;                      % *** FOR MONITOR ONLY 80301000        
+COMMENT PULL IF SIMULATING                                              80301500        
+    MONITOR        JACKMONITOR(LINK,FORWARDLINK,BACKWARDLINK,READYQHED);80302000        
+COMMENT PULL IF SIMULATING                                              80302500        
+    MONITOR   JACKMONITOR(SR);                                          80303000        
+         SR~SR;                             %*** FOR MONITOR ONLY       80304000        
+         VECTORDESCRIPTOR~IF PATH=SHEETI THEN SHEETARRAY ELSE           80305000        
+                                                          STACKVECTOR;  80306000        
+         FORWARDLINK~(LINK~VECTORDESCRIPTOR[STACKINDICATOR,LINKPLACE]   80307000        
+              .FULLWORD).FORWARDLINKF;                                  80308000        
+         BACKWARDLINK~LINK.BACKWARDLINKF;                               80309000        
+         HEAD~IF PATH=REDY                                              80310000        
+           THEN READYQHEAD                                              80310500        
+           ELSE IF PATH=TERMINATEI                                      80311000        
+              THEN TERMINATEQHEAD                                       80311500        
+              ELSE PRIORITYLEVEL[SHEETARRAY[STACKINDICATOR ,            80312000        
+                                                      PRIORITYPLACE]];  80313000        
+         IF BACKWARDLINK = 0                                            80314000        
+              THEN HEAD.FIRSTREADYF~FORWARDLINK;                        80315000        
+         IF FORWARDLINK=0                                               80316000        
+              THEN HEAD.LASTREADYF~BACKWARDLINK;                        80317000        
+         IF PATH = REDY                                                 80318000        
+           THEN READYQHED~ HEAD                                         80319000        
+           ELSE IF PATH=TERMINATEI                                      80319200        
+              THEN TERMINATEQHEAD ~ HEAD                                80319400        
+              ELSE BEGIN                                                80320000        
+                       PRIORITYLEVEL[PRIORITY~SHEETARRAY[STACKINDICATOR,80320100        
+                             PRIORITYPLACE]]~HEAD&LEVELFORMAT(*,*,      80321000        
+                                            HEAD.COUNTATLEVEL-1);       80321010        
+                        IF PRIORITY!0 THEN SHEETQHEAD~SHEETQHEAD-1;     80321100        
+                   END  ;                                               80321200        
+         IF BACKWARDLINK!0                                              80322000        
+              THEN VECTORDESCRIPTOR[BACKWARDLINK,LINKPLACE]             80323000        
+                                            .FORWARDLINKF~FORWARDLINK;  80324000        
+         IF FORWARDLINK!0                                               80325000        
+              THEN VECTORDESCRIPTOR[FORWARDLINK,LINKPLACE]              80326000        
+                                            .BACKWARDLINKF~BACKWARDLINK;80327000        
+         VECTORDESCRIPTOR[LINK.SELFIDENTF,LINKPLACE].STATUSINDICATORF~0;80328000        
+              EXIT;                                                     80328100        
+    END  STACKQREMOVE;                                                  80329000        
+ SAVE                                                                   80330000        
+ INTEGER PROCEDURE NEXTINSCHEDULE;                                      80331000        
+COMMENT  THE SHEETQ ALGORITHM NEXTINDEX CONSISTS OF A CALL ON THIS      80332000        
+         PROCEDURE (AND NOTHING ELSE).                                  80333000        
+              WITHIN THE SHEETQ THEHE ARE A NUMBER OF LEVELS OF PRIORITY80334000        
+         (THE PRIORITIES RANGING FROM 0 TO "PRIORITYRANGE"- A SYSTEM    80335000        
+         PARAMETER). AT EACH LEVEL, THE ENTRIES ARE ARRANGED ACCORDING  80336000        
+         TO CORE SPACE REQUIREMENT. THUS IT IS SUFFICIENT TO LOOK ONLY  80337000        
+         AT THE ENTRIES AT THE HEAD OF EACH PRIORITY LEVEL              80338000        
+         ;                                                              80339000        
+    BEGIN                                                               80340000        
+    INTEGER        TI1                                                  80341000        
+              ,    INDEX                                                80342000        
+              ;                                                         80343000        
+    DEFINE    ENOUGHCORE = SHEETREALS[INDEX,COREPLACE]}AVAILABLECORE #  80344000        
+              ;                                                         80345000        
+    LABEL          OUT                                                  80346000        
+              ;                                                         80347000        
+    INTEGER        NS;                      % ***FOR MONITOR ONLY       80348000        
+    MONITOR        JACKMONITOR(NS);                                     80349000        
+         NS~NS;                             %*** FOR MONITOR ONLY       80350000        
+         FOR TI1~PRIORITYRANGE STEP - 1 UNTIL 1 DO                      80351000        
+              IF (INDEX~PRIORITYLEVEL[TI1].FIRSTATLEVEL) ! 0            80352000        
+                                                                        80353000        
+                        THEN BEGIN                         %%%MCS000010080354000        
+                                  NEXTINSCHEDULE ~ INDEX ;              80355000        
+                                  GO OUT ;                              80356000        
+                             END;                          %%%MCS000010080357000        
+         NEXTINSCHEDULE ~ -1;                                           80358000        
+OUT:END  NEXTINSCHEDULE ;                                               80359000        
+ SAVE                                                                   80360000        
+ PROCEDURE INITIATE (DUMMY);                                            80361000        
+    REAL           DUMMY                                                80362000        
+              ;                                                         80363000        
+COMMENT  WHEN A JOB IS MOVED FROM THE SHEETQ,IT IS FIRST REPRESENTED IN 80364000        
+         THE READYQ BY AN INDEPENDENT RUNNER STACK WITH INITIATE AS THE 80365000        
+         PROCEDURE PARAMETER TO RUN. THE PARAMETER DUMMY IS NOT USED.   80366000        
+         INITIATE DOES THE FOLLOWING:                                   80367000        
+         A.   CHECKS FOR A NEW D1 STACK. IF THE DISTACKNO IN THE FILE   80368000        
+              HEADER(POINTED AT BY THE CODEFILEDESCRIPTOR) IS NON ZERO  80369000        
+              THEN THE ASSOCIATED D1 STACK IS TO BE LINKED TO THIS      80370000        
+              PROCESS(I.E. WE HAVE THE RE-ENTRANT PROGRAM CASE).        80371000        
+              OTHERWISE A NEW D1 STACK IS CREATED.                      80372000        
+         B.   CREATES THE D2 STACK AND LINKS IT IN TO THE D1 STACK      80373000        
+         C.   LINKS THE INITIATE STACK INTO THE TERMINATEQ              80374000        
+         D.   MOVES STACK TO THE NEWLY CREATED D2 STACK                 80375000        
+         ;                                                              80376000        
+    BEGIN                                                               80377000        
+    REAL           D1STACK                                              80378000        
+              ,    D2STACK                                              80379000        
+              ,    TI1                                                  80380000        
+              ,    TI2                                                  80381000        
+              ,    ADDRESS                                              80382000        
+              ,    D1STACKSIZE = TI1                                    80383000        
+              ,    MYSNR                                                80384000        
+              ,    D2STACKSIZE = TI1                                    80385000        
+              ;                                                         80386000        
+    ARRAY          FILEHEADER [*]                                       80387000        
+              ;                                                         80388000        
+    DEFINE         D1SPECIFIERPLACE = D1DESCRIPTORPLACE # ;             80389000        
+    DEFINE         TOPMSCWPLACE   =   SECNDMSCWPLACE #                  80389100        
+              ,    TOPRCWPLACE    =   RETURNCONTROLWORDPLACE #          80389200        
+              ,    PCWPLACE       =   IRPCWPLACE #                      80389220        
+              ;                                                         80389300        
+    WORD ARRAY     MYSTACKDESCRIPTOR[*]                                 80390000        
+              ,    D1STACKDESCRIPTOR[*]                                 80391000        
+              ,    D2STACKDESCRIPTOR = D1STACKDESCRIPTOR[*]             80392000        
+              ;                                                         80393000        
+    DEFINE    FIXEDD1   =    D1MSCWPLACE #                              80394000        
+              ,    D1FIXED   =    D1INFO #                              80395000        
+              ,    PROCESSD1 =    STACK[MYSNR,D1SPECIFIERPLACE].LENGTHF#80396000        
+              ,    PLACED1INFO =  DISKWAIT  (STACKVECTOR[D1STACK]       80397000        
+                                            ,D1RCWPLACE                 80398000        
+                                            ,PROCESSD1                  80399000        
+                                            ,                           80400000        
+FIRSTROWADDRESS(FILEHEADER)+STACK[MYSNR,D1SPECIFIERPLACE].ADDRESSF      80401000        
+                                            ,    4 "122"                80402000        
+                                            ) #                         80403000        
+              ,    FIXEDD2   =    150 #                                 80404000        
+              ,    PROCESSD2 =    STACK[MYSNR,D2DESCRIPTORPLACE ] #     80405000        
+                                                                        80406000        
+                                                                        80407000        
+                                                                        80408000        
+              ,    MOVEINSHEETENTRIES=REPLACE POINTER(D2STACKDESCRIPTOR)80409000        
+                        BY POINTER(MYSTACKDESCRIPTOR) FOR               80410000        
+                             SHEETENTRYSIZE+2  OVERWRITE #              80411000        
+                                                                        80412000        
+                                                                        80413000        
+              ,    PUTIND2ZEROES =                                      80414000        
+                        D2STACKDESCRIPTOR[TRPLACE] ~ 0;                 80415000        
+                        D2STACKDESCRIPTOR[TWPLACE] ~ 0;                 80416000        
+                        D2STACKDESCRIPTOR[TPPLACE] ~ 0;                 80417000        
+                        REPLACE POINTER(D2STACKDESCRIPTOR               80418000        
+[D2DESCRIPTORPLACE]) BY 0 FOR (RETURNCONTROLWORDPLACE+1                 80419000        
+                             -D2DESCRIPTORPLACE) OVERWRITE              80419010        
+                                                     #                  80420000        
+              ,    FIXTOPOFD2=                                          80421000        
+                        D2STACKDESCRIPTOR[FIRSTMSCWPLACE]~D2MSCW1;      80422000        
+                                                                        80423000        
+                        D2STACKDESCRIPTOR[FIRSTRCWPLACE]~ D2RCW1;       80424000        
+COMMENT                 THE FOLLOWING TWO STATEMEMTS PUT THE D2 MSCW AND80425000        
+                        RCW IN THE STACK.                               80426000        
+                             THE RCW AT THE TOP OF THE STACK IS THE PCW 80427000        
+                        FOR THE OUTER BLOCK CODE. WHEN THE PROCESS (I.E.80428000        
+                        D2 STACK) WAKES UP, IT WILL IMMEDIATELY EXIT AND80429000        
+                        THUS,VIA THE RCW, WILL START EXECUTING OUTER    80430000        
+                        BLOCK CODE. FROM THIS POINT ON,COMPILER GENERAT-80431000        
+                        ED CODE IS EXECUTED ;                           80432000        
+                        D2STACKDESCRIPTOR[PCWPLACE]~WORDSTACK[D1STACK,  80432200        
+                                                      FIRSTPCWPLACE];   80432400        
+                        D2STACKDESCRIPTOR[TOPMSCWPLACE]~D2MSCW2&        80433000        
+                            MARKSTACKCW(*,*,*,D2STACK,*,*,*);           80434000        
+                        D2STACKDESCRIPTOR[TOPRCWPLACE]                  80435000        
+                             ~ RUNRETURNCONTROLWORD                     80436000        
+                                                                        80437000        
+                                  #                                     80438000        
+              ,    TERMINATEMYSELF =                                    80439000        
+                        FORK(TERMINATE,0);                              80440000        
+                                                                     #  80441000        
+              ,    STARTUPJOB=    MOVESTACK(D2STACK) #                  80442000        
+              ;                                                         80443000        
+    LABEL          D1L,D2L;                                             80443100        
+    DEFINE         FINDSTACKSLOT(X,Y)  =                                80444000        
+         Y:   TI2~LASTNOTAVAILABLEINVECTOR;                             80445000        
+              BUZZCONTROL(VECTORLOK[1]);                                80445200        
+              DO UNTIL (TI2~TI2+1)=MAXSTACKS+1 OR STACKVECTOR[X~TI2]    80446000        
+                                                           .FULLWORD=0; 80447000        
+              IF X=MAXSTACKS+1 THEN                                     80448000        
+                   BEGIN UNLOCK(VECTORLOK[1]);                          80448200        
+                        WAIT(HOLEINVECTOR[1]);                          80448400        
+              GO TO Y;                                                  80448600        
+                   END                                                  80448800        
+              #                                                         80449000        
+              ;                                                         80450000        
+    BOOLEAN        FIRSTD1STACK                                         80450100        
+              ;                                                         80450200        
+    INTEGER        II;                      % ***FOR MONITOR ONLY       80451000        
+    MONITOR        JACKMONITOR(II);                                     80452000        
+         II~II;                             %*** FOR MONITOR ONLY       80453000        
+         BUZZ(PROCESSCHANGELOCK);                                       80454000        
+         DISABLEOVERLAY;                                                80455000        
+         MYSTACKDESCRIPTOR ~ STACKVECTOR[MYSNR~SNR];                    80456000        
+         FILEHEADER ~ MYSTACKDESCRIPTOR[CODEFILEDESCPLACE];             80457000        
+         IF(FIRSTD1STACK~(D1STACK~D1STACKNUMBER(FILEHEADER))=0)         80458000        
+              THEN                                                      80459000        
+COMMENT       WE HAVE TO BUILD A NEW D1 STACK;                          80460000        
+              BEGIN                                        %%%MCS000010080461000        
+         FINDSTACKSLOT(D1STACK,D1L);                                    80462000        
+                   ADDRESS~  GETSPACE  (D1STACKSIZE~FIXEDD1+PROCESSD1   80463000        
+                                       ,0                               80464000        
+                                       ,0&SPACETYPE(1,1,1,0)            80465000        
+                                       ,STACKVECTOR.ADDRESSF+D1STACK    80466000        
+                                       )    ;                           80467000        
+                   D1STACKDESCRIPTOR~STACKVECTOR[D1STACK]               80468000        
+                        ~*&DATADESCRIPTOR(*,1,0,0,0,0,0,0,D1STACKSIZE,  80469000        
+                                                           ADDRESS);    80470000        
+                   UNLOCK (VECTORLOK[1]);                               80470200        
+                   D1STACKDESCRIPTOR[FIRSTPLACE] ~ D1TOSCW;             80471000        
+                   D1STACKDESCRIPTOR[LINKPLACE]                         80472000        
+                        ~0&MARKSTACKWD(,*,*,D1STACK,*,*,*,*);           80473000        
+                   D1STACKDESCRIPTOR[SEGDICTIDENTPLACE] ~               80474000        
+                        MYSTACKDESCRIPTOR[PROCESSNATUREPLACE];          80475000        
+                   D1STACKDESCRIPTOR[PROCESSNATUREPLACE].PROCESSHISTORYF80476000        
+                                                           ~AD1STACK;   80477000        
+                   D1STACKDESCRIPTOR[D1CODEFILEDESCPLACE] ~ FILEHEADER; 80478000        
+                   D1STACKDESCRIPTOR[D1CODEFILENAMEDESCPLACE] ~         80479000        
+                        MYSTACKDESCRIPTOR[CODEFILENAMEDESCPLACE];       80480000        
+                   D1STACKDESCRIPTOR[USERCOUNTNLINKAGEPLACE]            80481000        
+                                                                     ~0;80482000        
+                                                                        80483000        
+                   DISKWAIT(STACKVECTOR[D1STACK]                        80483100        
+                         ,   D1MSCWPLACE-1                              80483200        
+                             ,PROCESSD1                                 80483300        
+                             ,                                          80483400        
+FIRSTROWADDRESS(FILEHEADER)+STACK[MYSNR,D1SPECIFIERPLACE].ADDRESSF      80483500        
+                             ,    @442                                  80483600        
+                             );                                         80483700        
+                   D1STACKDESCRIPTOR[D1MSCWPLACE]~D1MSCW;               80483800        
+                   D1STACKDESCRIPTOR[D1RCWPLACE] ~ D1RCW;               80484000        
+                   D1STACKDESCRIPTOR[FIRSTPCWPLACE]~MYSTACKDESCRIPTOR   80485000        
+                        [FIRSTXPLACE]&STUFFEDIRW(,,D1STACK,D1MSCWPLACE);80485100        
+                                                                        80485200        
+COMMENT            THE D1 STACK HAS BEEN SET UP. WE MUST NOW MODIFY THE 80486000        
+                   FILE HEADER TO TAKE NOTE OF THE NEW D1 STACK.        80487000        
+                   ;                                                    80488000        
+                   D1STACKNUMBER(FILEHEADER) := D1STACK;                80489000        
+              END ;                                %%%MCS0000100        80490000        
+COMMENT  WE NOW HAVE TO GET A D2STACK;                                  80491000        
+         FINDSTACKSLOT(D2STACK,D2L);                                    80492000        
+         ADDRESS ~ GETSPACE  (D2STACKSIZE~MYSTACKDESCRIPTOR             80493000        
+                                                      [STACKSIZEPLACE]  80493200        
+                             ,D1STACK                                   80494000        
+                             ,0&SPACETYPE(1,1,1,0)                      80495000        
+                             ,STACKVECTOR.ADDRESSF + D2STACK            80496000        
+                             ) ;                                        80497000        
+         D2STACKDESCRIPTOR~STACKVECTOR[D2STACK]                         80498000        
+              ~*&DATADESCRIPTOR(*,1,0,0,0,0,0,0,D2STACKSIZE,ADDRESS);   80499000        
+         UNLOCK(VECTORLOK[1]);                                          80499200        
+         MOVEINSHEETENTRIES;                                            80500000        
+         D2STACKDESCRIPTOR[FIRSTPLACE] ~ D2TOSCW;                       80501000        
+         D2STACKDESCRIPTOR[LINKPLACE].SELFIDENTF~D2STACK;               80501100        
+         D2STACKDESCRIPTOR[PROCESSNATUREPLACE].INITIATESTACKF~0;        80501200        
+COMMENT*** MUST PUT IN REST OF PROCESS STACK HERE . MUST THEN LINK      80502000        
+         INTO D1 STACK, PUT IN MSCW AND RCW, PUT INDEPENDENTRUNNER IN   80503000        
+         TERMINATE QUEUE AND MOVE STACK                                 80504000        
+         ;                                                              80505000        
+         PUTINJOBIDANDTIME(D2STACKDESCRIPTOR,D2STACK);                  80506000        
+         PUTIND2ZEROES;                                                 80507000        
+         D2STACKDESCRIPTOR[CURRENTPRIORITYPLACE]~D2STACKDESCRIPTOR      80508000        
+              [PRIORITYPLACE];                                          80509000        
+         D2STACKDESCRIPTOR[PROCESSFAMILYLINKPLACE].FATHERF~D1STACK;     80509100        
+COMMENT *** HOW DOES OLAYFILEDESC GET SET UP                            80510000        
+         D2STACKDESCRIPTOR[OLAYFILEDESCRIPTORPLACE] ~ OLAYFILEDESC;     80511000        
+         FIXTOPOFD2;                                                    80512000        
+         TERMINATEMYSELF;                                               80513000        
+         TI2~STACK[D1STACK,USERCOUNTNLINKAGEPLACE];                     80513100        
+         STACK[D1STACK,USERCOUNTNLINKAGEPLACE]~TI2&USERLINK(*,TI2.      80513200        
+              ACTIVEUSERSF+1,IF FIRSTD1STACK THEN D2STACK ELSE TI2.     80513300        
+                                                      FIRSTD2VALUE);    80513500        
+COMMENT  *** AT PRESENT LATENTUSERSF IS NOT USED FOR ANYTHING;          80513600        
+         UNLOCK(PROCESSCHANGELOCK);                                     80514000        
+         STARTUPJOB;                                                    80515000        
+                                                                        80515100        
+         ENABLEOVERLAY;                                                 80516000        
+         EXIT;                                                          80516100        
+    END  INITIATE;                                                      80517000        
+ SAVE                                                                   80518000        
+ PROCEDURE SELECTION;                                                   80519000        
+COMMENT  THIS ALGORITHM (ALSO CALLED SELECTION) IS INVOKED BY A SEARCH  80520000        
+         OF THE READYQ WHEN A NEW JOB IS REQUIRED.THE FOLLOWING OCCURS: 80521000        
+         A.   THE  SHEETQ IS SEARCHED UNTIL THE HIGHEST PRIORITY ENTRY  80522000        
+              HAVING A SUITABLE CORE REQUIREMENT IS ENCOUNTERED.        80523000        
+         B.   THE SPACE FOR THE ENTRY IS MADE NON-OVERLAYABLE           80524000        
+         C.   THE PSEUDO STACK IS MODIFIED SO THAT WHEN IT RUNS,AS A    80525000        
+              TRUE STACK, IT WILL EXIT TO RUN WHICH WILL CALL ON        80526000        
+              INITIATE TO SET UP THE NEW JOB                            80527000        
+         D.   VECTORINSERT IS CALLED TO CHANGE THE PSEUDO-STACK INTO A  80528000        
+              REAL STACK BY LINKING IT INTO THE STACK VECTOR            80529000        
+         E.   IF APPROPRIATE, STEPS A TO D ARE REPEATED, THUS MORE THAN 80530000        
+              ONE ENTRY MAY BE MOVED FROM THE SHEETQ TO THE READYQ      80531000        
+         ;                                                              80532000        
+    BEGIN                                                               80533000        
+         LABEL          AGAIN                                           80534000        
+                   ;                                                    80535000        
+         REFERENCE      SHEETENTRY                                      80545000        
+                   ;                                                    80546000        
+         INTEGER        INDEX                                           80547000        
+                   ,    TI1                                             80548000        
+                   ;                                                    80549000        
+         WORD ARRAY     STACKDESCRIPTOR=SHEETENTRY [*]                  80550000        
+                   ;                                                    80551000        
+         SAVE WORD ARRAY STACKENTRY [INDEPENDENTRUNNERCORE];            80551100        
+    INTEGER        SL;                      % ***FOR MONITOR ONLY       80552000        
+    MONITOR        JACKMONITOR(SL);                                     80553000        
+         SL~SL;                             %*** FOR MONITOR ONLY       80554000        
+AGAIN:                                                                  80555000        
+                                                                        80555200        
+              IF (INDEX~NEXTINDEX(SHEETQ))<0 THEN GO FINI;              80555300        
+              SHEETENTRY ~ SHEETVECTOR [INDEX];                         80556000        
+                                                                        80556100        
+                                                                        80556200        
+              STACKQREMOVE(SHEET,INDEX);                                80560000        
+              SHEETVECTOR[INDEX].FULLWORD~0;                            80560200        
+              CAUSE(HOLEINVECTOR[SHEET]);                               80560300        
+              RESET(HOLEINVECTOR[SHEET]);                               80560320        
+              UNLOCK(SHEETQ);                                           80560400        
+              STACKENTRY [0] ~ *;                                       80560500        
+              INDEX ~ VECTORINSERT (REDY, STACKENTRY);                  80561000        
+              REPLACE POINTER (STACKENTRY)                              80561100        
+                   BY POINTER (STACKDESCRIPTOR)                         80561200        
+                        FOR STACKDESCRIPTOR.LENGTHF OVERWRITE;          80561300        
+              LOADFIXEDIRSTACK (INDEX);                                 80561400        
+              FORGETSPACE (STACKDESCRIPTOR.ADDRESSF);                   80561450        
+              WORDSTACK[INDEX,IRPCWPLACE]~ NAME(INITIATE);              80561500        
+              WORDSTACK[INDEX,PROCESSNATUREPLACE].INITIATESTACKF~1;     80561600        
+              WORDSTACK[INDEX,SECNDMSCWPLACE]~IRMSCW2&                  80563000        
+              MARKSTACKWD(*,*,*,INDEX,*,*,*,*);                         80563100        
+              WORDSTACK[INDEX,RETURNCONTROLWORDPLACE]~                  80563200        
+                                                 RUNRETURNCONTROLWORD;  80563300        
+              IF COREFACTOR THEN GO AGAIN;                              80564000        
+                                                                        80565000        
+FINI:                                                                   80566000        
+              EXIT;                                                     80566100        
+                                                                        80566200        
+              END SELECTION;                                            80567000        
+ SAVE PROCEDURE TERMINATE (PARAMETER);                                  80600000        
+    REAL           PARAMETER                                            80601000        
+              ;                                                         80602000        
+COMMENT  ALL PROGRAMS AND INDEPENDENT RUNNERS EXIT OR RETURN TO RUN     80603000        
+         WHERE THEIR STACKS ARE LINKED INTO THE TERMINATEQ. RUN THEN    80604000        
+         FORKS TO TERMINATE AND GOES INTO HOLD                          80605000        
+         TERMINATE RETURNS STACK SPACE AND STACK NUMBERS. DEDICATED     80606000        
+         STACKS ARE RECOGNISED AND THE BIT ARRAY "IRSTACKS" IS MODIFIED 80607000        
+         AS REQUIRED.FOR INDEPENDENT RUNNERS THE ARRAY "STACKINUSE" IS  80608000        
+         MODIFIED WHEN NECESSARY.                                       80609000        
+            NOTE THAT RUN ATTEMPTS TO TERMINATE TERMINATE BY FORKING    80610000        
+         TO TERMINATE. HOWEVER INDEPENDENTRUNNER RECOGNISES THIS        80611000        
+         INFINITELY RECURSIVE SITUATION AND TAKES SPECIAL ACTION        80612000        
+         NOTE ***  MARCH 20. EVENTUALLY WE WILL HAVE TO FORGET SPACE FOR80612100        
+                   THINGS LIKE AIT AND OAT DESCRIPTORS IN D2 STACKS AND 80612200        
+                   FILE HEADERS AND NAME DESCRIPTORS IN D1 STACKS       80612300        
+         NOTE ***  MARCH 20 .WHEN FORGETTING SPACE,NO ALLOWANCE IS MADE 80612400        
+                   FOR ABSENT DESCRIPTORS                               80612500        
+         ;                                                              80613000        
+    BEGIN                                                               80614000        
+    LABEL          AGAIN                                                80615000        
+              ,    FINI                                                 80616000        
+              ;                                                         80617000        
+    ARRAY          FINISHEDSTACK  [*]                                   80618000        
+              ;                                                         80619000        
+    WORD ARRAY     FINISHEDWORDSTACK = FINISHEDSTACK[*]                 80619200        
+              ,    D1STACK = FINISHEDSTACK[*]                           80619300        
+              ;                                                         80619400        
+    REAL           STACKNO                                              80620000        
+              ,    TEMPORARY                                            80620200        
+              ,COUNT                                                    80620400        
+              ;                                                         80621000        
+    WORD           WORDTEMPORARY                                        80621100        
+              ;                                                         80621200        
+    BOOLEAN        DEDICATEDSTACK                                       80622000        
+              ,    IRFINISH                                             80622100        
+              ;                                                         80623000        
+    DEFINE         INSERTINLOGQ(X) =   FORGETSPACE (FINISHEDSTACK       80624000        
+                                                           .ADDRESSF) # 80625000        
+              ,    MAKEENTRYINLOG(X) = ; #                              80626000        
+              ;                                                         80627000        
+    INTEGER        TR;                           % *** FOR MONITOR ONLY 80627100        
+    MONITOR        JACKMONITOR(TR);              % *** FOR MONITOR ONLY 80627200        
+         TR~TR;                                  % *** FOR MONITOR ONLY 80627300        
+AGAIN:   BUZZCONTROL(IRPARAMETERLOK[TERMINATEINDICATOR]);               80628000        
+         IF EMPTY(TERMINATEQ)                                           80629000        
+              THEN BEGIN                                   %%%MCS000050080629100        
+                        UNLOCK(IRPARAMETERLOK[TERMINATEINDICATOR]);     80629200        
+                        GO FINI;                                        80629300        
+                   END ;                                   %%%MCS000050080629400        
+         FINISHEDSTACK~  STACKVECTOR[STACKNO~NEXTINTERMINATEQ];         80630000        
+         REMOVE(TERMINATEQ         ,STACKNO);                           80631000        
+REPEAT:  IF FINISHEDWORDSTACK[FIRSTPLACE].TAG!TOS THEN GO REPEAT;% ***  80631200        
+         UNLOCK(IRPARAMETERLOK[TERMINATEINDICATOR]);                    80631400        
+        IF(IRFINISH~((TEMPORARY~FINISHEDSTACK[PROCESSNATUREPLACE]).     80632000        
+              PROCESSHISTORYF=INDEPENDENT OR  BOOLEAN(TEMPORARY.        80633000        
+                                                      INITIATESTACKF))) 80634000        
+              THEN BEGIN                                   %%%MCS000100080636000        
+COMMENT            WE ARE TERMINATING AN INDEPENDENT RUNNER;            80637000        
+COMMENT  ***  MAYBE SOME OF THIS CODE SHOULD BE IN RUN.MARCH 1969;      80637100        
+                        BUZZCONTROL(INDEPENDENTRUNNERLOK);              80638000        
+                        IF NOT BOOLEAN(TEMPORARY.INITIATESTACKF) THEN   80638100        
+                        IF(TEMPORARY~TEMPORARY.PROCESSCLASSF)}          80639000        
+                             ONEONLYINDEX THEN STACKINUSE[TEMPORARY]~0; 80640000        
+                        IF (DEDICATEDSTACK~BOOLEAN(FINISHEDWORDSTACK[   80641000        
+                                            LINKPLACE].DEDICATEDSTACKF))80642000        
+                             THEN IRSTACKS~RESET(IRSTACKS,              80643000        
+                                                      STACKNO);         80644000        
+                        UNLOCK(INDEPENDENTRUNNERLOK);                   80645000        
+                   END ;                                   %%%MCS000100080646000        
+         IF NOT DEDICATEDSTACK                                          80647000        
+              THEN BEGIN                                   %%%MCS000200080648000        
+                        BUZZCONTROL(VECTORLOK [REDY]);                  80649000        
+                        INSERTINLOGQ(FINISHEDSTACK);                    80650000        
+                        STACKVECTOR[STACKNO].FULLWORD ~ 0;              80651000        
+                        IF NOT IRFINISH                                 80651010        
+    THEN BEGIN                                             %%%MCS000220080651020        
+                        BUZZCONTROL(PROCESSCHANGELOCK);                 80651100        
+                        D1STACK~STACKVECTOR                             80651150        
+                             [STACKNO~FINISHEDSTACK                     80651200        
+                                  [PROCESSFAMILYLINKPLACE].FATHERF];    80651250        
+                        IF(TEMPORARY~D1STACK[USERCOUNTNLINKAGEPLACE]    80651300        
+                             .ACTIVEUSERSF-1)=0                         80651350        
+                   THEN                                                 80651400        
+                        BEGIN                              %%%MCS000250080651450        
+COMMENT                 WE HAVE TO GET RID OF AD1 STACK;                80651500        
+                             FOR COUNT~D1RCWPLACE+1 STEP 1 UNTIL        80651550        
+                                                 D1STACK.LENGTHF-1 DO   80651600        
+                               BEGIN                       %%%MCS002800080651610        
+                                  WORDTEMPORARY~D1STACK[COUNT];         80651620        
+                                  IF WORDTEMPORARY.TAG                  80651650        
+                                            =SEGDESC OR WORDTEMPORARY   80651700        
+                                                           .TAG=DATADESC80651720        
+                                       THEN FORGETSPACE(WORDTEMPORARY   80651740        
+                                                           .ADDRESSF);  80651760        
+                               END     ;                   %%%MCS002800080651765        
+COMMENT *** MAYBE WE SHOULD USE MASKED SEARCH FOR EQUAL;                80651770        
+                             FORGETSPACE(D1STACK.ADDRESSF);             80651775        
+                             STACKVECTOR[STACKNO].FULLWORD~0;           80651780        
+                        END                                %%%MCS000250080651800        
+                   ELSE      D1STACK[USERCOUNTNLINKAGEPLACE].           80651820        
+                                                 ACTIVEUSERSF~TEMPORARY;80651840        
+                        UNLOCK(PROCESSCHANGELOCK);                      80651860        
+         END;                                              %%%MCS000220080651880        
+COMMENT *** 9 MAY INDEXING DOUBLE DOES NOT WORK ON MACHINE              80651990        
+                        CAUSE(HOLEINVECTOR[REDY]);                      80652000        
+COMMENT *** INDEXING DOUBLE DOES NOT WORK ON MACHINE                    80652010        
+                        RESET(HOLEINVECTOR[REDY]);                      80652100        
+                        UNLOCK (VECTORLOK[REDY]);                       80653000        
+                   END                                     %%%MCS000200080654000        
+              ELSE MAKEENTRYINLOG(STACKNO);                             80655000        
+         GO AGAIN ;                                                     80656000        
+FINI:                                                                   80656500        
+         EXIT;                                                          80656600        
+    END  TERMINATE;                                                     80657000        
+REAL PROCEDURE FINDINPUT(LEB,CODE);    VALUE CODE;    INTEGER CODE;     81000000        
+                                       ARRAY LEB[*];                    81001000        
+    BEGIN                                                               81002000        
+         REAL                                                           81003000        
+                   STKNO,         % STACK NO                            81004000        
+                   U,             % UNIT NO OR FILE HEADER INDEX        81005000        
+                   I,        % INDEX                                    81006000        
+                   UTYPE,         % UNIT TYPE                           81007000        
+                   UTYPECODE,     % QUALIFERS FOR UNIT TYPE             81008000        
+                   FILEGENNO,     % FILE GENERATION NUMBER              81009000        
+                   FILEVERNO,     % FILE VERSION NO                     81010000        
+                   COUNT,         % NO OF UNITS FOUND WITH MATCHING FILE81011000        
+                   BITNOPOS,      % FOR SPECIFYING BIT NO POSITION      81012000        
+                   UTYPEMAXUNIT,  % MAX UNIT NO FOR A GIVEN UNIT TYPE   81013000        
+                   MULTITYPECOUNTER,   % COUNT FOR SIMILAR UNIT TYPE    81014000        
+                   UTYPESEQ,      % THE SEQUENCE OF UNIT TYPES TO BE    81015000        
+                                  % SEARCHED                            81016000        
+                   UTABLEENTRY,   % UNIT TABLE ENTRY                    81017000        
+                   FILELEBZERO,   % LEB[0]                              81018000        
+                   FILELEBONE,    % LEB[1]                              81019000        
+                   UFILELEBZERO,  % UINFOP[U,0]                         81020000        
+                   FILENAME,      % FIRST 5 CHRS OF FILENAMEPOINTER     81021000        
+                   UFILENAME,     % FIRST 5 CHRS OF UFILENAMEPOINTER    81022000        
+                   FILECHRS,      % NO OF CHRS IN FILE NAME STRING      81023000        
+                   UFILECHRS,     % NO OF CHRS IN UNIT FILE NAME STRING 81024000        
+                   T1,            % USED FOR SCRATCH                    81025000        
+                   T2=FILELEBONE,      % USED FOR SCRATCH               81026000        
+                   USAVE,         % SAVED UNIT NO OF LATEST VERSION IF  81027000        
+                                  % MATCH IS FOUND FOR FILE NAMES       81028000        
+                   UFILEGENNO,    % LATEST GEN NO OF USAVE              81029000        
+                   UFILEVERNO;    % LATEST VER NO OF USAVE              81030000        
+         LAYOUT    UTYPESEQL(47:6,41:6,35:6,29:6,23:6,17:6,11:6,5:6);   81032000        
+         BOOLEAN   ANYTYPETOG,    % ANY UNIT TYPE                       81033000        
+                   MULTIFILETOG,  % IF ON ,SEARCH FOR MULTI FILE TAPES  81034000        
+                   SEARCHTOG;     % ON IF SEARCH IS SUCCESSFUL          81035000        
+         EVENT     MYEVENT,                                             81035500        
+                   SOFTWARETIMEREVENT;                                  81036000        
+         WORD ARRAY DUPFILEUNITS[*];   % TABLE CONTAINING SET BIT       81037000        
+                                       % POSITION FOR UNIT HAVING FILE  81038000        
+         FIELD     UTYPEF=BITNOPOS:6;                                   81039000        
+         LABEL                                                          81040000        
+                   SPINDONOTHINGPROCESS,                                81041000        
+                   NOFILE,FILEFOUND,START,TRYAGAIN,QUIT;                81042000        
+         POINTER   FILENAMEPOINTER,    % POINTS TO FIRST CHR OF FILE    81043000        
+                                       % NAME STRING IN LEB             81044000        
+                   UFILENAMEPOINTER;   % POINTS TO FIRST CHR OF FILE    81045000        
+                                       % NAME STRING IN UINFO           81046000        
+         BOOLEAN PROCEDURE SEARCH;                                      81047000        
+              COMMENT SEARCHES FILE ON A GIVEN UNIT TYPE(IF SPECIFIED)  81048000        
+              OR SEARCHES ALL POSSIBLE UNIT TYPES;                      81049000        
+              BEGIN                                                     81050000        
+         LABEL     STARTUTYPESEQAGAIN,FINDAGAIN,SIMILARTYPE,ENDOFLOOP,  81051000        
+                   QUITSEARCH,SINGLENAMEMATCH,SKIPDO,                   81051500        
+                   UPDATECOUNT;                                         81052000        
+STARTUTYPESEQAGAIN:                                                     81053000        
+                   IF UTYPESEQ!0 THEN                                   81054000        
+                   BEGIN     % UNIT TYPE NOT SPECIFIED                  81055000        
+                        BITNOPOS ~53;                                   81056000        
+                        ANYTYPETOG ~ TRUE;                              81057000        
+FINDAGAIN:                                                              81058000        
+                        BITNOPOS ~ * -6;                                81059000        
+                        IF (UTYPE ~ UTYPESEQ.UTYPEF) =0 THEN            81060000        
+                                GO ENDOFLOOP;                           81061000        
+                        UTYPECODE~UTYPE;                                81062000        
+                   END;                                                 81063000        
+                   IF UTYPE=DISKFILE THEN                               81064000        
+                   BEGIN     % DISK FILE                                81065000        
+                        IF FILENAME.BYTE2F=1 THEN USAVE~-1 ELSE         81066000        
+                        USAVE~DIRECTORYSEARCH(FILENAMEPOINTER,LEBONE &  81068000        
+                                       GENEALOGY1(,,,CODE),FALSE);      81069000        
+                        IF USAVE>0 THEN                                 81070000        
+                        BEGIN                                           81071000        
+                             T1~USAVE;                                  81071400        
+                             IF CODE=SEARCHONLY THEN GO QUIT;           81071700        
+                             COUNT~* + 1;                               81072000        
+                             USAVE.REPINFOF~MCPDISKUNITNO;              81073000        
+                        END       ELSE                                  81074000        
+                        IF USAVE.DCODE3=FILEWITHWRONGGENEALOGY THEN     81074200        
+                        BEGIN                                           81074400        
+                             UFILEGENNO~USAVE.DCODE1;                   81074600        
+                             UFILEVERNO~USAVE.DCODE2;                   81074800        
+                        END;                                            81074900        
+                        IF ANYTYPETOG THEN                              81075000        
+                        IF USAVE>0 THEN                                 81076000        
+                        PUTINBITSTABLE(DUPFILEUNITS,MCPDISKUNITNO)      81077000        
+                             ELSE GO FINDAGAIN ELSE GO QUITSEARCH;      81078000        
+                   END;                                                 81081000        
+                   IF MAGTAPE(UTYPE)   THEN                             81082000        
+                   IF UTYPE=MAGTAPE2 THEN MULTITYPECOUNTER ~ 4          81083000        
+                                     ELSE MULTITYPECOUNTER ~ 2 ;        81084000        
+COMMENT       NOW  FIND MAXIMUM UNIT NO FOR A GIVEN UNIT TYPE;          81085000        
+SIMILARTYPE:                                                            81086000        
+                   UTYPEMAXUNIT ~UNITBL(TI(UTYPE + 1) -1, 1);           81089000        
+                   IF UNIT[UNITBL((I~TI(UTYPE)),1)].UNITTYPE!UTYPE THEN 81090000        
+                             GO SKIPDO ELSE I~*-1;                      81090500        
+                   DO                                                   81091000        
+                   BEGIN                                                81092000        
+                        U ~ UNITBL(  (I~I+1),1);                        81093000        
+                        IF (NOT BOOLEAN((UTABLEENTRY~UNIT[U]).USAVED)   81094000        
+                               AND BOOLEAN(UTABLEENTRY.ULABELLED)) THEN 81095000        
+                        BEGIN     % MATCH FILE NAME WITH ONES ON EACH U 81096000        
+                             UFILELEBZERO ~ LCNTRL;   % UINFOP[U,0]     81097000        
+                             UFILENAMEPOINTER ~POINTER(UINFOP[U,        81098000        
+                                (UFILELEBZERO.FXD + ONES(               81099000        
+                                 UFILELEBZERO.OPTMASK))],8)+1;          81100000        
+                             UFILENAME ~REAL(UFILENAMEPOINTER,5);       81101000        
+                             UFILECHRS ~ UFILENAME.BYTE3F+2;            81102000        
+                             IF NOT (BOOLEAN(UTABLEENTRY.UNITASSIGNED)  81103000        
+                                     AND MULTIFILETOG) THEN             81104000        
+                          BEGIN        % SINGLE FILE ON UNIT            81105000        
+                             IF FILENAME.BYTE2F=1 THEN                  81105200        
+                             IF FILECHRS=UFILECHRS THEN                 81105400        
+                             IF FILENAMEPOINTER=UFILENAMEPOINTER FOR    81105600        
+                                  FILECHRS THEN GO SINGLENAMEMATCH;     81105800        
+                             IF FILENAME IS UFILENAME THEN              81106000        
+                             IF FILECHRS=UFILECHRS THEN                 81107000        
+                             IF (FILECHRS~FILECHRS + REAL(              81108000        
+                                  FILENAMEPOINTER+FILECHRS,1)+1)=       81109000        
+                                (UFILECHRS~UFILECHRS + REAL(            81110000        
+                                  UFILENAMEPOINTER+UFILECHRS,1)+1) THEN 81111000        
+                             IF FILENAMEPOINTER=UFILENAMEPOINTER FOR    81112000        
+                                        FILECHRS THEN                   81113000        
+                             BEGIN     % FILE NAMES MATCH               81114000        
+SINGLENAMEMATCH:                                                        81114500        
+                                  T1 ~(T2 ~LGEN1).CYCLE;                81115000        
+                                  T2 ~ T2.GENVERSN;                     81116000        
+                                  IF FILEGENNO=0 OR FILEGENNO=T1 THEN   81117000        
+                                  IF FILEVERNO=0 OR FILEVERNO=T2 THEN   81118000        
+                                  BEGIN     % PERFECT MATCH             81119000        
+UPDATECOUNT:                                                            81120000        
+                                       IF COUNT=0 THEN USAVE.REPINFOF~U;81120300        
+                                       IF CODE=SEARCHONLY THEN GO QUIT; 81120700        
+                                       COUNT ~ * +1;                    81121000        
+                                       PUTINBITSTABLE(DUPFILEUNITS,U);  81122000        
+                                  END                            ELSE   81123000        
+                                  IF T1>UFILEGENNO THEN                 81124000        
+                                  BEGIN     % LATEST GENERATION         81125000        
+                                       USAVE ~U;                        81126000        
+                                       UFILEGENNO ~T1;                  81127000        
+                                       UFILEVERNO ~T2;                  81128000        
+                                  END              ELSE                 81129000        
+                                  IF T1=UFILEGENNO AND                  81130000        
+                                     T2>UFILEVERNO THEN                 81131000        
+                                  BEGIN    % LATEST VERSION OF A GEN    81132000        
+                                       USAVE ~U;                        81133000        
+                                       UFILEVERNO ~T2;                  81134000        
+                                  END;                                  81135000        
+                             END;                                       81136000        
+                          END          ELSE                             81136500        
+                             IF MULTIFILETOG AND MAGTAPE(UTYPE) THEN    81137000        
+                             BEGIN     % CHECK MULTIPLE FILES ON TAPE   81138000        
+                                  IF FILENAME.BYTE2F}2 THEN             81139000        
+                                       FILECHRS~FILENAME.BYTE3F;        81140000        
+                                  IF (FILENAMEPOINTER +  2) =           81141000        
+                                     (UFILENAMEPOINTER +2) FOR FILECHRS 81142000        
+                                       THEN GO UPDATECOUNT;             81143000        
+                             END;                                       81144000        
+                        END;                                            81145000        
+                   END UNTIL U=UTYPEMAXUNIT;                            81146000        
+SKIPDO:                                                                 81147000        
+                       IF COUNT=0 THEN GO ENDOFLOOP; %KLUDGE FOR STEEVE 81147500        
+                   IF MULTITYPECOUNTER>1 THEN                           81148000        
+                   BEGIN                                                81149000        
+                        MULTITYPECOUNTER ~ * - 1;                       81150000        
+                        IF (MULTITYPECOUNTER MOD 2)=0 THEN              81151000        
+                        UTYPE~UTYPECODE+1+REAL(MULTITYPECOUNTER>2) ELSE 81152000        
+                          UTYPE~UTYPECODE + 16+REAL(MULTITYPECOUNTER>2);81153000        
+                        GO SIMILARTYPE;                                 81154000        
+                   END                     ELSE                         81155000        
+                   IF ANYTYPETOG THEN GO FINDAGAIN;                     81156000        
+ENDOFLOOP:                                                              81157000        
+                   UTYPE ~UTYPECODE;                                    81158000        
+                   IF COUNT=0 AND (ANYTYPETOG OR MAGTAPE(UTYPE))        81159000        
+                              AND NOT MULTIFILETOG   THEN               81160000        
+                   BEGIN     % CHECK FOR MULTI FILE REEL                81161000        
+                        MULTIFILETOG ~TRUE;                             81162000        
+                        GO STARTUTYPESEQAGAIN;                          81163000        
+                   END;                                                 81164000        
+                   IF COUNT=1 THEN U~(T1~USAVE).REPINFOF;               81165000        
+QUITSEARCH:                                                             81165500        
+                   SEARCH ~SEARCHTOG ~(COUNT>0);                        81166000        
+              END  SEARCH;                                              81167000        
+         BOOLEAN PROCEDURE RESEARCH;                                    81168000        
+           COMMENT CALLS SEARCH AND RETURNS TRUE VALUE IF SEARCH IS     81169000        
+                   SUCCESSFUL. IT RESETS DUPFILEUNITS TABLE;            81170000        
+              BEGIN                                                     81171000        
+                   SEARCH;                                              81172000        
+                   REPLACE POINTER(DUPFILEUNITS) BY 0                   81173000        
+                                FOR UBITSTABLESIZE  OVERWRITE;          81174000        
+                   COUNT ~ 0;                                           81175000        
+                   RESEARCH ~ SEARCHTOG;                                81176000        
+              END RESEARCH;                                             81177000        
+         INTERRUPT I1:  ON SOFTWARETIMEREVENT,                          81178000        
+                        IF RESEARCH THEN                                81179000        
+                        BEGIN                                           81180000        
+                             DISABLE (I1);                              81181000        
+                             GO FILEFOUND;                              81182000        
+                        END          ELSE                               81183000        
+                        GO TRYAGAIN;                                    81184000        
+         INTERRUPT I2:  ON MYEVENT,                                     81186000        
+                        BEGIN                                           81187000        
+                             DISABLE(I1,I2);                            81188000        
+                             IF (T2~(T1~REPLY[STKNO]).REPVALF)=DSV THEN 81189000        
+                             IF STACK[STKNO,PROCESSIDPLACE]="LIBMAIN"   81190000        
+                                                 THEN                   81191000        
+                             BEGIN                                      81192000        
+                                  T1.SIGNBITF~1;                        81193000        
+                                  GO QUIT;                              81194000        
+                             END           ELSE GO SPINDONOTHINGPROCESS;81195000        
+                             RESET(MYEVENT);                            81195300        
+                             REPLY[STKNO]~0;                            81195500        
+                             IF T2=OKV THEN GO START;                   81195700        
+                        END;                                            81196000        
+         T1~UBITSTABLESIZE + 1;                                         81197000        
+         DUPFILEUNITS ~DUPFILEUNITS & ARRAYDESCL(,GETAREA(T1));         81198000        
+         FILELEBZERO~LEBZERO;                                           81199000        
+         FILELEBONE~LEBONE;                                             81200000        
+         FILEGENNO~ FILELEBONE.CYCLE;                                   81201000        
+         FILEVERNO~FILELEBONE.GENVERSN;                                 81202000        
+         FILENAMEPOINTER~POINTER(LEB[FILELEBZERO.FXD +                  81203000        
+                                       ONES(FILELEBZERO.OPTMASK)],8) +1;81204000        
+         DUPFILEUNITS[UBITSTABLESIZE]~FILENAMEPOINTER-1;%               81204500        
+         FILENAME~REAL(FILENAMEPOINTER,5);  % 5 IS USED TO SAVE MEM ACC 81205000        
+         FILECHRS~FILENAME.BYTE3F+2;                                    81206000        
+         STKNO~SNR;                                                     81207000        
+         STOREITEM(REPLYEVENT @ REFERENCE(STACKVECTOR[STKNO]),MYEVENT); 81207500        
+         UTYPECODE~FILELEBZERO.PTYPEL;                                  81208000        
+         IF (UTYPE~UTYPECODE.PTYPEF)=0 THEN                             81209000        
+         IF (UTYPECODE~UTYPECODE.PTYPECODEF)=3        THEN              81210000        
+         UTYPESEQ~0 & UTYPESEQL(MAGTAPE1,MAGTAPE2)    ELSE              81211000        
+         IF UTYPECODE=0 THEN                                            81212000        
+              UTYPESEQ~0 & UTYPESEQL(DISKFILE,MAGTAPE1,MAGTAPE2,        81213000        
+                                                      CARDREADER) ELSE  81214000        
+              UTYPESEQ~0 & UTYPESEQL(MAGTAPE1,MAGTAPE2,                 81215000        
+                                                      CARDREADER) ELSE  81216000        
+         UTYPECODE~UTYPE;    % SAVES ORIGINAL UNIT TYPE                 81217000        
+START:                                                                  81218000        
+         IF NOT SEARCH THEN                                             81219000        
+         IF UFILEGENNO=0 THEN                                           81219500        
+       BEGIN                                                            81220000        
+COMMENT       FILEMESS("#NO FIL" FIB);                                  81221000        
+         REPLY[STKNO]~ILREP + ULREP + DSREP + OKREP                     81222000        
+                        +FRREP | REAL(FILELEBZERO.LABELTYPEL=1)         81223000        
+                        + OFREP | REAL(BOOLEAN(FILELEBZERO.OPTIONALF)); 81224000        
+         MESSER(0,DUPFILEUNITS);                                        81225000        
+         ENABLE(I1,I2);                                                 81226000        
+TRYAGAIN:                                                               81229000        
+COMMENT                                                                 81230000        
+         SLEEP(SEC1    ,SOFTWARETIMEREVENT);                            81231000        
+         ENABLE(I1);                                                    81232000        
+         HOLD;                                                          81233000        
+FILEFOUND:                                                              81234000        
+         IF SEARCHTOG THEN SEARCHTOG~SEARCH   ELSE                      81235000        
+         IF T2=ILV OR T2=ULV THEN U~T1.REPINFOF;                        81236000        
+       END              ELSE                                            81237000        
+       BEGIN       % GENEALOGY DONOT MATCH                              81237200        
+         REPLY[STKNO]~DSREP + OKREP + USREP;                            81237400        
+         DUPFILEUNITS[0]~0 & GENEALOGY1(UFILEGENNO,UFILEVERNO,,);       81238000        
+         MESSER(1,DUPFILEUNITS);                                        81238300        
+         ENABLE(I2);                                                    81238700        
+         HOLD;                                                          81238800        
+         IF T2=USV THEN                                                 81239000        
+         BEGIN                                                          81239500        
+              T1~DUPFILEUNITS[0];                                       81240000        
+              IF T1.CYCLE!UFILEGENNO THEN UFILEGENNO~T1.CYCLE  ELSE     81240500        
+              IF T1.GENVERSN!UFILEVERNO THEN UFILEVERNO~T1.GENVERSN;    81241000        
+              FILELEBONE~LEBONE & GENEALOGY1(UFILEGENNO,UFILEVERNO,,);  81241500        
+              FILEGENNO~UFILEGENNO;                                     81241550        
+              FILEVERNO~UFILEVERNO;                                     81242000        
+              UFILEGENNO~UFILEVERNO~0;                                  81243000        
+              GO START;                                                 81244000        
+         END;                                                           81245000        
+       END;                                                             81246000        
+         IF COUNT>1 THEN                                                81247000        
+       BEGIN       % DUP FILE                                           81248000        
+         REPLY[STKNO]~DSREP + OKREP +ILREP;                             81249000        
+         MESSER(2,DUPFILEUNITS);                                        81250000        
+         ENABLE(I2);                                                    81251000        
+         HOLD;                                                          81252000        
+         IF T2=ILV THEN                                                 81253000        
+         BEGIN                                                          81254000        
+              U~T1.REPINFOF;                                            81255000        
+              IF UNIT[U].UNITTYPE=DISKFILE THEN T1~USAVE;               81256000        
+         END;                                                           81263000        
+       END;        % END OF DUP FILE                                    81264000        
+         UNIT[U].UNITASSIGNED~1;                                        81265000        
+QUIT:                                                                   81266000        
+SPINDONOTHINGPROCESS:                                                   81267000        
+         FINDINPUT~T1;                                                  81268000        
+    END FINDINPUT;                                                      81269000        
+REAL PROCEDURE FINDOUTPUT(LEB,CODE);        VALUE CODE;  INTEGER CODE;  81270000        
+                                            ARRAY LEB[*];               81271000        
+    BEGIN                                                               81272000        
+         REAL                                                           81273000        
+                   STKNO,         % STACK NO                            81274000        
+                   I,                                                   81275000        
+                   UTYPEMAXUNIT,                                        81276000        
+                   SAVETYPE,                                            81277000        
+                   U,                                                   81278000        
+                   UTABLEENTRY,                                         81279000        
+                   UTYPE,                                               81280000        
+                   UTYPECODE,                                           81281000        
+                   MULTITYPECOUNTER,                                    81282000        
+                   FILECHRS,                                            81283000        
+                   FILENAME,                                            81284000        
+                   UFILENAME,                                           81285000        
+                   FILELEBZERO,   % LEB[0]                              81286000        
+                   UFILELEBZERO,                                        81287000        
+                   T;                                                   81288000        
+         EVENT     MYEVENT,       % LOCAL EVENT                         81289000        
+                   SOFTWARETIMEREVENT;                                  81290000        
+         DEFINE    TYFILE =0 #,                                         81291000        
+                   TYBDFILE=1#,                                         81292000        
+                   TYBTFILE=2#,                                         81293000        
+                   TYBDBTFILE=3#,                                       81294000        
+                   BDFILE=4 #,                                          81295000        
+                   BTFILE=5 #,                                          81296000        
+                   BDBTFILE=6 #;                                        81297000        
+         BOOLEAN   BTOPTIONTOG,                                         81298000        
+                   UTYPETOG,                                            81299000        
+                   MAGTAPETOG,                                          81300000        
+                   BACKUPTOG,                                           81301000        
+                   BTTOG;                                               81302000        
+         POINTER   FILENAMEPOINTER,                                     81303000        
+                   UFILENAMEPOINTER;                                    81304000        
+         LABEL     START,TRYAGAIN,UNITFOUND,PROCEND,                    81305000        
+                   SPINDONOTHINGPROCESS,                                81306000        
+                   CLAIMMT,CHECKFORMS;                                  81307000        
+         BOOLEAN PROCEDURE SEARCHUTYPE(TYPE,OPCODE);                    81308000        
+                                  VALUE TYPE,OPCODE;                    81309000        
+                                  REAL  TYPE,OPCODE;                    81310000        
+         BEGIN                                                          81311000        
+              LABEL     SIMILARTYPE,SKIPDO,QUIT;                        81312000        
+              IF MAGTAPE(TYPE) THEN                                     81313000        
+              BEGIN                                                     81314000        
+              SAVETYPE~TYPE;                                            81315000        
+              MAGTAPETOG~TRUE;                                          81316000        
+              IF TYPE=MAGTAPE2 THEN MULTITYPECOUNTER ~4                 81317000        
+                               ELSE MULTITYPECOUNTER~ 2;                81318000        
+              END;                                                      81319000        
+              IF OPCODE=1 THEN                                          81320000        
+              BEGIN     % MAKE UP NAME POINTER FOR A GIVEN TYPE BACK-UP 81321000        
+                   FILENAME ~REAL(FILENAMEPOINTER,5);                   81322000        
+                   FILECHRS ~ FILENAME.BYTE3F +2;                       81323000        
+                   BTOPTIONTOG ~ TRUE;                                  81324000        
+              END;                                                      81325000        
+SIMILARTYPE:                                                            81326000        
+              UTYPEMAXUNIT ~UNITBL(TI(TYPE +1) -1,1);                   81327000        
+              IF UNIT[UNITBL((I~ TI( TYPE)),1)].UNITTYPE! TYPE THEN     81328000        
+                   GO SKIPDO    ELSE I ~ * - 1;                         81329000        
+              DO                                                        81330000        
+              BEGIN                                                     81331000        
+                   U~UNITBL((I ~I+1),1);                                81332000        
+                   IF NOT BOOLEAN((UTABLEENTRY ~ UNIT[U]).USAVED) THEN  81333000        
+                   IF NOT MAGTAPETOG THEN                               81334000        
+                   IF NOT BOOLEAN(UTABLEENTRY.UNITASSIGNED) THEN        81335000        
+                        UTYPETOG ~ TRUE                     ELSE        81336000        
+                                     ELSE                               81337000        
+                   IF     BOOLEAN(UTABLEENTRY.UWRITERING) THEN          81338000        
+                   IF BTOPTIONTOG THEN                                  81339000        
+                   BEGIN                                                81340000        
+                        IF NOT(BOOLEAN(UTABLEENTRY.ULABELLED) AND       81341000        
+                               BOOLEAN(UTABLEENTRY.UNITASSIGNED)) THEN  81342000        
+                        BEGIN     % CHECK FOR MULTIPLE BACK-UP FILES    81343000        
+                             UFILELEBZERO ~LCNTRL;    % UINFOP[U,0]     81344000        
+                             UFILENAMEPOINTER ~POINTER(UINFOP[U,        81345000        
+                               (UFILELEBZERO.FXD + ONES(                81346000        
+                                UFILELEBZERO.OPTMASK))],8) + 1;         81347000        
+                             UFILENAME ~REAL(UFILENAMEPOINTER,5);       81348000        
+                             IF FILENAME=UFILENAME THEN                 81349000        
+                             IF (FILENAMEPOINTER +2) =                  81350000        
+                                (UFILENAMEPOINTER+2) FOR FILECHRS THEN  81351000        
+                             BEGIN                                      81352000        
+                                  % BACK-UP TAPE MATCH FOR A GIVEN TYPE 81353000        
+                             END;                                       81354000        
+                        END;                                            81355000        
+                   END            ELSE                                  81356000        
+                   IF NOT BOOLEAN(UTABLEENTRY.USCRATCH) THEN            81357000        
+                        UTYPETOG ~TRUE;                                 81358000        
+              END  UNTIL  U=UTYPEMAXUNIT OR UTYPETOG;                   81359000        
+SKIPDO:                                                                 81360000        
+              IF NOT UTYPETOG AND MULTITYPECOUNTER > 1  THEN            81361000        
+              BEGIN                                                     81362000        
+                   MULTITYPECOUNTER ~ * -1;                             81363000        
+                   IF (MULTITYPECOUNTER MOD 2) = 0 THEN                 81364000        
+                        TYPE ~SAVETYPE+1+REAL(MULTITYPECOUNTER>2)  ELSE 81365000        
+                        TYPE ~SAVETYPE +16+REAL(MULTITYPECOUNTER>2);    81366000        
+                   GO SIMILARTYPE;                                      81367000        
+              END;                                                      81368000        
+              IF NOT UTYPETOG AND BTOPTIONTOG THEN                      81369000        
+              BEGIN     % GO BACK TO FIND A SCRATCH UNIT                81370000        
+                   TYPE ~ SAVETYPE;                                     81371000        
+                   BTOPTIONTOG ~FALSE;                                  81372000        
+                   GO SIMILARTYPE;                                      81373000        
+              END;                                                      81374000        
+              IF UTYPETOG THEN                                          81375000        
+              BEGIN                                                     81376000        
+                   T.REPINFOF ~U;                                       81377000        
+                   IF OPCODE !0 THEN                                    81378000        
+                   BEGIN                                                81379000        
+                        UTYPETOG ~FALSE;                                81380000        
+                        BTTOG ~TRUE;                                    81381000        
+                   END;                                                 81382000        
+                   OPCODE ~NABS(OPCODE)                                 81383000        
+                   END;                                                 81384000        
+QUIT:                                                                   81385000        
+                   SEARCHUTYPE ~BOOLEAN(OPCODE.SIGNBITF);               81386000        
+              END  SEARCHUTYPE;                                         81387000        
+         INTERRUPT I1:  ON SOFTWARETIMEREVENT,                          81388000        
+                        BEGIN                                           81389000        
+                             DISABLE(I1);                               81390000        
+                             IF UTYPECODE{TYBDBTFILE THEN               81391000        
+                             IF SEARCHUTYPE(UTYPE,0)THEN GO  UNITFOUND; 81392000        
+                             IF BACKUPTOG   THEN                        81393000        
+                             IF SEARCHUTYPE(MAGTAPE1,1) THEN            81394000        
+                                  GO UNITFOUND ELSE GO TRYAGAIN;        81395000        
+                        END;                                            81396000        
+         INTERRUPT I2:  ON MYEVENT,                                     81397000        
+                        BEGIN                                           81398000        
+                             DISABLE(I1,I2);                            81399000        
+                             IF (I~REPLY[STKNO]).REPVALF=DSV THEN       81400000        
+                             IF STACK[STKNO,PROCESSIDPLACE]="LIBMAIN"   81401000        
+                                   THEN                                 81402000        
+                             BEGIN                                      81403000        
+                                  T.SIGNBITF~1;                         81404000        
+                                  GO PROCEND;                           81405000        
+                             END   ELSE GO SPINDONOTHINGPROCESS;        81406000        
+                             RESET(MYEVENT);                            81407000        
+                             REPLY[STKNO]~0;                            81408000        
+                             UTYPE ~(UTYPECODE ~T.REPINFOF).PTYPEF;     81409000        
+                             UTYPECODE ~UTYPECODE.PTYPECODEF;           81410000        
+                        END;                                            81411000        
+         FILELEBZERO ~ LEBZERO;                                         81412000        
+         STKNO ~ SNR;                                                   81413000        
+         UTYPECODE ~ FILELEBZERO.PTYPEL;                                81414000        
+         UTYPE ~ UTYPECODE.PTYPEF;                                      81415000        
+         UTYPECODE ~ UTYPECODE.PTYPECODEF;                              81416000        
+         STOREITEM(REPLYEVENT @ REFERENCE(STACKVECTOR[STKNO]),MYEVENT); 81417000        
+START:                                                                  81418000        
+         IF UTYPE!0 THEN                                                81419000        
+         BEGIN                                                          81420000        
+              IF UTYPE>DISKFILE THEN                                    81421000        
+              BEGIN     % DISK FILE                                     81422000        
+              END               ELSE                                    81423000        
+              IF UTYPECODE { TYBDBTFILE THEN                            81424000        
+              BEGIN     % ONE OF THE OPTIONS IS AN ACTUAL UNIT TYPE     81425000        
+                   IF SEARCHUTYPE(UTYPE,0)  THEN                        81426000        
+                   IF UTYPE=BUFFPRINTER THEN GO CHECKFORMS              81427000        
+                                        ELSE                            81428000        
+                   IF MAGTAPE(UTYPE) THEN GO CLAIMMT;                   81429000        
+              END                       ELSE                            81430000        
+              IF UTYPECODE=TYBTFILE OR UTYPECODE=TYBDBTFILE OR          81431000        
+                 UTYPECODE=BTFILE OR UTYPECODE=BDBTFILE  THEN           81432000        
+              BEGIN     % BACK-UP TAPE IS ONE OF THE OPTIONS            81433000        
+                   BACKUPTOG~TRUE;                                      81434000        
+                   IF SEARCHUTYPE(UTYPE,1) THEN                         81435000        
+                   IF NOT BOOLEAN(UTABLEENTRY.USCRATCH) THEN            81436000        
+CLAIMMT:                                                                81437000        
+                   BEGIN                                                81438000        
+                   % CLAIM UNIT AND WRITE LABEL                         81439000        
+                   % GIVE MESSAGE "NEW PBT ON"                          81440000        
+                        GO PROCEND;                                     81441000        
+                   END;                                                 81442000        
+              END;                                                      81443000        
+              IF UTYPECODE=TYBDFILE OR UTYPECODE=TYBDBTFILE OR          81444000        
+                 UTYPECODE=BDFILE OR UTYPECODE=BDBTFILE THEN            81445000        
+              BEGIN     % BACK-UP DISK IS ONE OF THE OPTIONS            81446000        
+                   % GET NEXT FILE FOR BACK-UP DISK                     81447000        
+                   % BUILD A DISK HEADER                                81448000        
+              END;                                                      81449000        
+              IF NOT(UTYPETOG OR BTTOG) THEN                            81450000        
+              BEGIN     % FILE REQUIRED MESSAGE                         81451000        
+                   REPLY[STKNO] ~ DSREP + OUREP;                        81452000        
+                   ENABLE(I2);                                          81453000        
+TRYAGAIN:                                                               81454000        
+                   % TIMER SLEEP MECHANISM                              81455000        
+                   ENABLE(I1);                                          81456000        
+                   HOLD;                                                81457000        
+UNITFOUND:                                                              81458000        
+                   IF NOT(UTYPETOG OR BTTOG) THEN GO START;             81459000        
+                   IF BTTOG AND NOT BOOLEAN(UTABLEENTRY.USCRATCH) THEN  81460000        
+                             GO CLAIMMT;                                81461000        
+CHECKFORMS:                                                             81462000        
+              % IF PRINTER CHECK FORMS HERE                             81463000        
+              END;                                                      81464000        
+         END        ELSE                                                81465000        
+         IF UTYPECODE=2 THEN                                            81466000        
+         BEGIN     % DESIGNATED FILE                                    81467000        
+         END            ELSE T.SIGNBITF ~ 1;                            81468000        
+SPINDONOTHINGPROCESS:                                                   81469000        
+PROCEND:                                                                81470000        
+         FINDOUTPUT ~T;                                                 81471000        
+    END  FINDOUTPUT;                                                    81472000        
+SAVE WORD PROCEDURE MON1TOR(A,V);  VALUE A,V;  REAL A;  WORD V;         99000000        
+    BEGIN                                                               99003000        
+    LAYOUT    FIRSTCHR(47:6),          SIGNATURE(46:1);                 99004000        
+    OWN PICTURE FILL(6P M*E(3)R9);                                      99004100        
+    POINTER MPTR, FPTR;                                                 99005000        
+    REAL C, FREG, BOS;                                                  99006000        
+    WORD RCWD;                                                          99006800        
+    IF LOCK(MONITORLOCK) THEN STOP;                                     99007000        
+    REPLACE MPTR ~ POINTER(MONITER[2],6) BY 6" " FOR 14 WORDS;          99008000        
+    MONITER[1] ~ A & FIRSTCHR(6" ");                                    99009000        
+    REPLACE MPTR:MPTR BY 6" ", V.TAG FOR 1 CORRECTLY, 6" ";             99010000        
+    MONITER[0] := TAGZOT(V);                                            99011000        
+    REPLACE MPTR:MPTR BY POINTER(MONITER,4) FOR 12 WITH HEXTOBCL,6"   ";99012000        
+    FREG ~ F;                                                           99013000        
+    BOS ~ BOSR + 2;                                                     99014000        
+    C ~ 7;                                                              99015000        
+    WHILE C ~ * - 1 } 0 AND FREG ~ * - M[FREG].DFF > BOS DO             99016000        
+         IF BOOLEAN(M[FREG]).EBITF THEN                                 99016100        
+         BEGIN                                                          99016200        
+         REPLACE MPTR:FPTR:=MPTR BY (RCWD:=M[FREG+1]).REALSDIF FOR 5    99017000        
+           DIGITS, 6":", RCWD.PIRF FOR 4 DIGITS, 6"   ";                99018000        
+         XSIGN(0 & SIGNATURE(RCWD.D0D1SEGBIT));                         99018100        
+         REPLACE FPTR BY FPTR+1 WITH FILL;                              99018150        
+         END;                                                           99018200        
+    MONITER[0] := DIAGNOSTICIOCW;                                       99019000        
+    RESET(MONITORFINISH);                                               99020000        
+    IOREQUEST(REFERENCE(DIAGNOSTICARRAY));                              99020100        
+    WAIT(MONITORFINISH);                                                99020200        
+    UNLOCK(MONITORLOCK);                                                99021000        
+RETURN(V);                                                              99022000        
+    END MONITOR;                                                        99023000        
+DEFINE   CHECKMASK (WHOSE) =                                            99054000        
+         NOT BOOLEAN (MONITORLOCK) AND ((REAL(BOOLEAN(MONITORVALUE) AND 99055000        
+              BOOLEAN (WHOSE) AND BOOLEAN (MONITORMASK))! 0) OR         99055500        
+              BOOLEAN (MONITORVALUE))                                   99056000        
+         #;                                                             99057000        
+SAVE                                                                    99057900        
+WORD PROCEDURE DONMONITOR(A, V); VALUE A, V; REAL A; WORD V;            99058000        
+         DONMONITOR ~ IF CHECKMASK(DONBIT) THEN MON1TOR(A, V) ELSE V;   99059000        
+SAVE                                                                    99060000        
+WORD PROCEDURE JACKMONITOR (A, V); VALUE A, V; REAL A; WORD V;          99061000        
+        JACKMONITOR ~ IF CHECKMASK(JACKBIT) THEN MON1TOR(A, V) ELSE V;  99062000        
+SAVE                                                                    99062900        
+WORD PROCEDURE  RAJMONITOR (A, V); VALUE A, V; REAL A; WORD V;          99063000        
+         RAJMONITOR ~ IF CHECKMASK( RAJBIT) THEN MON1TOR(A, V) ELSE V;  99064000        
+SAVE                                                                    99064900        
+WORD PROCEDURE  BOBMONITOR (A, V); VALUE A, V; REAL A; WORD V;          99065000        
+         BOBMONITOR ~ IF CHECKMASK( BOBBIT) THEN MON1TOR(A, V) ELSE V;  99066000        
+SAVE                                                                    99066900        
+WORD PROCEDURE STEVEMONITOR(A,V); VALUE A,V;  REAL A; WORD V;           99067000        
+         STEVEMONITOR ~ IF CHECKMASK(STEVEBIT) THEN MON1TOR(A,V) ELSE V;99068000        
+SAVE                                                                    99069000        
+WORD PROCEDURE MIKEMONITOR(A,V); VALUE A,V; REAL A; WORD V;             99070000        
+         MIKEMONITOR~IF CHECKMASK(MIKEBIT) THEN MON1TOR(A,V) ELSE V;    99071000        
+    SAVE PROCEDURE MEMDUMP(I,J); VALUE I,J; REAL I,J; %ZEROES OK        99100000        
+    BEGIN                                                               99101000        
+         REAL                                                           99102000        
+              UNIT=(0,2), ADRS=(0,6), IOAD=(0,7);                       99103000        
+    ARRAY BFR = (0,5) [*];                                              99104000        
+         BOOLEAN MISSING = (0,8);                                       99105000        
+         FIELD ADRF    =19:20, SEVEN48 =7:8,SEVEN44 =7:4, RDUNITF =24:8,99106000        
+               BIT46   =46: 1, FIVE46  =5:6,BIT20  =20:1, MOD32=4:5,    99107000        
+               PSRF    =35: 3, PIRF  =32:13,SDIF   =13:14,              99108000        
+               FORTY7444=47:44, THREE44 =3:4, FORTY746 = 47:6,          99109000        
+               ROT24 = 23:48, ROT42 = 5:48;                             99110000        
+         LAYOUT LOW14(13:14),    INDXL (39:20),   TAGL (TAG),           99111000        
+              SIXTEEN48L(16:8),  THIRTY1416(31:16),LL (18:5);           99112000        
+         DEFINE DIDIT = BOOLEAN(UNIT.BIT46)#,                           99113000        
+                NT = TAGS.FIVE46#,   B6T = TAGS.FORTY746#,              99114000        
+                DONE = BOOLEAN(ADRS.BIT20)#,                            99115000        
+                ACTR = CTRS.FORTY7444#,                                 99116000        
+                FCTR = CTRS.THREE44#,    B=BFR#,                        99117000        
+                PATH(U)= SCANIN(0 & SIXTEEN48L(U ~ U.SEVEN48))#,        99118000        
+                KIND(U)= SCANIN(192 & SIXTEEN48L(U))#,                  99119000        
+           TILT = STOP(4"93C838E049E4", 4"038038E491C0") #,             99120000        
+           FIVE      = 3#,                                              99121000        
+           STATUS(I) = BOOLEAN(SCANIN(32 &(I)[11:7:FIVE])) #,           99122000        
+                DUMMY = REAL#,                                          99123000        
+                INITIATE = SCANOUT #;                                   99124000        
+         SAVE PROCEDURE DUMPIT(U,IPCW,SD,BF); VALUE U,IPCW,SD,BF;       99125000        
+                                               REAL U;                  99126000        
+                                               WORD   IPCW,SD,BF;       99127000        
+         BEGIN                                                          99128000        
+              REAL NEXT = (0,9), TAGS =(0,10), CTRS = (0,11),LAD=(0,12);99129000        
+              POINTER P4 = (0,13), P6 = (0,14);                         99130000        
+              DUMMY ADR , ADESC ~ BFR.ADRF & INDXL(15),                 99131000        
+                   MISSNG~-0, NEXXT, TGS, CNTRS, LASTADRS;              99132000        
+              POINTER PTR4 ~ POINTER(BFR[16],4),                        99133000        
+                      PTR6 ~ POINTER(BFR[1],6);                         99134000        
+         REAL SR := 2 + REGISTERS[52], SREG = (0,15);                   99135000        
+         WORD SVDESCR := M[NAME(BFR[1])], WUNIT = UNIT, SVDESC = (0,16);99135100        
+              LABEL START, GETAWORD, PAST, ENDADRS, PRINT, FIRST,       99136000        
+                    LOOP, ADDRESS, MISS, AROUND;                        99137000        
+              COMMENT RECORD THE S-REGISTER FOR POSTERITY.  CALLER HAS  99138000        
+                        PUT IT IN BFR[16], WHERE P4 POINTS;             99139000        
+              REPLACE P6:P6 BY (6"*** S = ") FOR 1 OVERWRITE;           99140000        
+              REPLACE P6 BY (6"        ")FOR 14 OVERWRITE;              99141000        
+              GO TO ADDRESS;                                            99142000        
+    START:         % START A LINE                                       99143000        
+              IF MISSING.BIT46 THEN BEGIN MISSING~FALSE; GO PRINT END;  99144000        
+              BFR[16] ~ ADRS;                                           99145000        
+    AROUND:        % CLEAR THE BUFFER, ETC.                             99146000        
+              REPLACE P6 ~ POINTER(BFR[1],6) BY 6" " FOR 15 WORDS;      99147000        
+              CTRS ~ 0;                                                 99148000        
+              REPLACE P6:P6 BY P4 + 7 FOR 5 WITH BFR[17];               99149000        
+    GETAWORD:      % GET ANOTHER WORD--IF IT IS THERE.                  99150000        
+              LAD ~ ADRS;                                               99151000        
+              IF MISSING THEN GO TO MISS;                               99152000        
+              IF NOT MISSING ~ DONE THEN                                99153000        
+              BEGIN                                                     99154000        
+                   NEXT ~ M[ADRS] & TAGL(0); REGISTERS[52] ~ SREG;      99155000        
+                   NT ~ M[ADRS].TAG;                                    99156000        
+              END;                                                      99157000        
+              IF CTRS ~ CTRS + 16 } 32 THEN  % ACTR ~ ACTR + 1 > 1      99158000        
+              IF MISSING THEN GO PAST ELSE                              99159000        
+              BEGIN                                                     99160000        
+                   IF B[16] IS NEXT THEN                                99161000        
+                   IF B6T = NT THEN GO TO LOOP;                         99162000        
+    PAST:                                                               99163000        
+                   IF CTRS } 111 THEN GO TO ENDADRS; % ACTR > 7         99164000        
+                   REPLACE P6:P6 BY P6-16 FOR CTRS - 33;%(ACTR-2)|16    99165000        
+                   CTRS ~ACTR;         % FCTR ~ ACTR; ACTR ~ 0          99166000        
+                   IF MISSING THEN GO PRINT;                            99167000        
+                   GO TO FIRST;                                         99168000        
+              END;                                                      99169000        
+              IF CTRS = 16 THEN % FIRST WORD OF LINE                    99170000        
+              IF NOT MISSING THEN GO TO FIRST ELSE                      99171000        
+              BEGIN                                                     99172000        
+                   LAD := ADRS;                                         99172100        
+    MISS:          MISSING ~ FALSE;                                     99173000        
+                   REPLACE P6 + 12 BY 6"MISSING." FOR 8;                99174000        
+    ENDADRS:                                                            99175000        
+                   B[16] ~ LAD  - 1;                                    99176000        
+                   REPLACE P6:P6 BY 6" THRU .." FOR 6;                  99177000        
+    ADDRESS:                                                            99178000        
+                   REPLACE P6 BY P4 + 7 FOR 5 WITH BFR[17];             99179000        
+    PRINT:                                                              99180000        
+                   WHILE NOT BOOLEAN(TAGS ~ PATH(UNIT)) DO ALLOW;       99181000        
+                   DISALLOW;                                            99182000        
+                   INITIATE(IOAD,TAGS); DO PAUSE UNTIL DIDIT;           99183000        
+                   IF MISSING THEN BEGIN B[16] ~ LAD; GO AROUND END;    99184000        
+                   IF DONE THEN BEGIN WUNIT := SVDESC; EXIT END;        99185000        
+                   GO START;                                            99186000        
+              END;                                                      99187000        
+              IF MISSING THEN GO PRINT;                                 99188000        
+              CTRS ~ FCTR;  % ACTR ~ 0                                  99189000        
+    FIRST:                                                              99190000        
+              BFR[16] ~ NEXT;                                           99191000        
+              REPLACE P6 + 1 BY TAGS ~ TAGS.ROT42 FOR 1;                99192000        
+              REPLACE P6 + 3 BY P4 FOR 6 WITH B[17];                    99193000        
+              REPLACE P6:P6+10 BY P4+6 FOR 6 WITH B[17];                99194000        
+              CTRS ~ CTRS + 1;                                          99195000        
+    LOOP:     ADRS ~ ADRS + 1;                                          99196000        
+              IF FCTR { 7 THEN GO GETAWORD;                             99197000        
+              GO PRINT;                                                 99198000        
+         END DUMPIT;                                                    99199000        
+         SAVE PROCEDURE SPACEATER; % THIS BECOMES THE BUFFER:21 WORDS.  99200000        
+         BEGIN DOUBLE I; I ~ 1@@20 * I * 13END;                         99201000        
+         SAVE PROCEDURE DUMPINT; % THE INTERRUPT PROCEDURE.             99202000        
+         BEGIN                                                          99203000        
+              REAL P1=(1,2), P2=(1,3), PW=(0,10), S1~FIRSTONE(P1),      99204000        
+                   I =(1,4);       WORD WP2 = P2;                       99205000        
+              LABEL STOPP, DID, INIT;                                   99206000        
+              WORD RCW = (1,1);                                         99207000        
+              LAYOUT PIRL(32:13), PSRL(PSRF);                           99208000        
+              FIELD NOTREADY = 3:1;                                     99209000        
+              BOOLEAN RD = I;                                           99210000        
+              IF I = 26 THEN % ALARUM                                   99211000        
+              IF FIRSTONE(P1.ADRF) ! 4 THEN GO STOPP ELSE % INV ADDR    99212000        
+              BEGIN                                                     99213000        
+                   MISSING ~ TRUE;                                      99214000        
+                   WP2 ~ SET(SET(REGISTERS[38]-1,47),45) & TAGL(5);     99215000        
+                   P2 ~ ADRS ~ ADRS & LOW14(0) + 16384;                 99216000        
+                   RCW ~ IF I ~ RCW.PSRF < 2 THEN                       99217000        
+                        SET(RCW & PIRL(RCW.PIRF - 1), 35) ELSE          99218000        
+                        RCW & PSRL(I - 2);                              99219000        
+              END INV ADDR ELSE                                         99220000        
+              IF I ! 23 THEN                                            99221000        
+              IF I ! 21 THEN BEGIN STOPP: TILT; GO STOPP END ELSE       99222000        
+              IF (I ~ SCANIN(P2 - 4"1A0")).RDUNITF = UNIT THEN          99223000        
+              IF RD THEN                                                99224000        
+              IF RD.NOTREADY THEN GO INIT ELSE                          99225000        
+              IF BOOLEAN (BFR[0] ~ M[IOAD].ROT24) THEN                  99226000        
+INIT:         INITIATE(IOAD, PW) ELSE                                   99227000        
+              GO DID ELSE                                               99228000        
+DID:                                                                    99229000        
+              UNIT ~ -UNIT;  % DIDIT ~ TRUE                             99230000        
+         END;                                                           99231000        
+         WORD SPCW = SPACEATER, IPCW = DUMPINT, DPCW= DUMPIT,           99232000        
+              SVDESC = (0,2),                                           99232100        
+              SD ~ M[SPCW.SDIF& TAGL(1)],                               99233000        
+              STUFF ~ SET(SPCW.PIRF + 1 + SD.ADRF,47) & TAGL(5)         99234000        
+                                                      & INDXL(24);      99235000        
+         WORD ARRAY A = STUFF [*];                                      99236000        
+         LABEL BACK;                                                    99237000        
+    BACK:                                                               99238000        
+         I ~(I + 1).SEVEN48;                                            99239000        
+         IF SET(KIND(I),0) ! 7 THEN GO BACK;                            99240000        
+         IF NOT STATUS[ I     ].[I.MOD32 + 1:1] THEN GO BACK;           99241000        
+        A[0]~SET(SET(SET(SET(129,18),32),43),45);                       99242000        
+         A[1] := SVDESC;                                                99242100        
+         A[16] ~ SET(SET(SET(SET(A[17] ~ SET(4"203",16),26),18),10),2); 99243000        
+         A[19] ~ 4"1112" & THIRTY1416(4"0809");                         99244000        
+         A[20] ~ 4"1516" & THIRTY1416(4"1314");                         99245000        
+         A[16] ~ REGISTERS[38] - 1;                                     99246000        
+         DPCW := DPCW & LL(0) & LOW14(4);                               99247000        
+         DUMPIT(I,IPCW& LL(1) & LOW14(4),SD,STUFF);                     99248000        
+         EXIT;% IN ORDER NOT TO CALL BLOCKEXIT                          99249000        
+    END MEMDUMP;                                                        99250000        
+D03 := INITIALIZEPCW;                                                   99970000        
+INITIALIZE(@4000011,PROCSTACKSTARTW);                                   99980000        
+END.                                                                    99999998        
+                                                                        99999999140821PK
