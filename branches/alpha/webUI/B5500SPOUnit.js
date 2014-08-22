@@ -96,6 +96,7 @@ B5500SPOUnit.prototype.setLocal = function setLocal() {
 
     this.spoLocalRequested = false;
     this.spoState = this.spoLocal;
+    this.endOfPaper.scrollIntoView();
     B5500Util.addClass(this.$$("SPOLocalBtn"), "yellowLit");
     B5500Util.addClass(this.inputBox, "visible");
     this.inputBox.focus();
@@ -228,15 +229,16 @@ B5500SPOUnit.prototype.terminateInput = function terminateInput() {
     if (this.spoState == this.spoInput) {
         B5500Util.removeClass(this.$$("SPOReadyBtn"), "yellowLit");
         B5500Util.removeClass(this.inputBox, "visible");
-        this.window.focus();
         this.appendEmptyLine(text.substring(0, 72));
         for (x=0; x<len; ++x) {
             this.buffer[this.bufIndex++] = text.charCodeAt(x);
         }
+        this.endOfPaper.scrollIntoView();
         this.inputBox.value = "";
         this.bufLength = this.bufIndex;
         this.nextCharTime = performance.now();
         this.outputChar();
+        this.window.focus();
     }
 };
 
@@ -327,6 +329,7 @@ B5500SPOUnit.prototype.keyDown = function keyDown(ev) {
             this.terminateInput();
             break;
         case this.spoLocal:
+            this.endOfPaper.scrollIntoView();
             this.appendEmptyLine(this.inputBox.value.substring(0, 72));
             this.inputBox.value = "";
             break;

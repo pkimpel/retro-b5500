@@ -44,24 +44,45 @@ window.addEventListener("load", function() {
         return document.getElementById(id);
     }
 
+    function setAnnunciators(showEm) {
+        $$("CentralControl").style.display = (showEm && cc.poweredUp ? "block" : "none");
+        $$("RetroVersion").style.visibility = (showEm ? "visible" : "hidden");
+        $$("RetroLogoImage").style.display = (showEm ? "inline" : "none");
+        $$("B5500LogoImage").style.display = (showEm ? "none" : "inline");
+    }
+
     function BurroughsLogo_Click(ev) {
         showAnnunciators = !showAnnunciators;
-        $$("CentralControl").style.display = (showAnnunciators && cc.poweredUp ? "block" : "none");
-        $$("RetroVersion").style.visibility = (showAnnunciators ? "visible" : "hidden");
-        $$("RetroLogoImage").style.display = (showAnnunciators ? "inline" : "none");
-        $$("B5500LogoImage").style.display = (showAnnunciators ? "none" : "inline");
+        setAnnunciators(showAnnunciators);
+    }
+
+    function B5500Logo_Click(ev) {
+        var sysConfig = new B5500SystemConfig();
+
+        if (cc.poweredUp) {
+            alert("System configuration changes are\nnot allowed while power is on.");
+        } else {
+            sysConfig.openConfigUI();
+        }
     }
 
     function PowerOnBtn_Click(ev) {
-        var sysConfig = new B5500SystemConfiguration();
+        var sysConfig = new B5500SystemConfig();
+
+        function applyPower(config) {
+            cc.powerOn(config);
+            $$("HaltBtn").className = "redButton redLit";
+            setAnnunciators(showAnnunciators);
+        }
 
         function youMayPowerOnWhenReady_Gridley(config) {
             /* Called-back by sysConfig.getSystemConfig with the requested configuration */
 
-            lampTest(function lampFinish() {
-                $$("HaltBtn").className = "redButton redLit";
-                cc.powerOn(config);
-            });
+            if (showAnnunciators) {
+                lampTest(applyPower, config);
+            } else {
+                applyPower(config);
+            }
         }
 
         $$("PowerOnBtn").className = "greenButton greenLit";
@@ -71,9 +92,6 @@ window.addEventListener("load", function() {
         $$("LoadBtn").disabled = false;
         $$("HaltBtn").disabled = true;
         $$("MemoryCheckBtn").disabled = false;
-        if (showAnnunciators) {
-            $$("CentralControl").style.display = "block";
-        }
         sysConfig.getSystemConfig(null, youMayPowerOnWhenReady_Gridley); // get current system config
         return true;
     }
@@ -135,6 +153,12 @@ window.addEventListener("load", function() {
             break;
         case 3:
             alert("SPO is busy");
+            break;
+        case 4:
+            alert("DKA is not ready");
+            break;
+        case 5:
+            alert("DKA is busy");
             break;
         default:
             alert("cc.load() result = " + result);
@@ -507,9 +531,10 @@ window.addEventListener("load", function() {
         }
     }
 
-    function lampTest(callback) {
+    function lampTest(callback, callbackParam) {
         /* Lights up the operator console, waits a bit, then turns everything
-        off and calls the "callback" function. The Power On lamp is not affected */
+        off and calls the "callback" function, passing "callbackParam".
+        The Power On lamp is not affected */
 
         function switchEm(mode) {
             var visibility = (mode ? "visible" : "hidden");
@@ -543,10 +568,13 @@ window.addEventListener("load", function() {
             }
 
             if (!mode) {
-                setTimeout(callback, 1000);
+                setAnnunciators(showAnnunciators);
+                setTimeout(callback, 1000, callbackParam);
             }
         }
 
+        setAnnunciators(true);
+        $$("CentralControl").style.display = "block";   // overrides if !cc.poweredUp
         switchEm(1);
         setTimeout(switchEm, 2000, 0);
     }
@@ -579,31 +607,12 @@ window.addEventListener("load", function() {
     $$("RetroVersion").innerHTML = B5500CentralControl.version;
     if (!checkBrowser()) {
         $$("BurroughsLogo").addEventListener("click", BurroughsLogo_Click, false);
-        $$("B5500Logo").addEventListener("click", function(ev) {
-            var win;
-
-            if (cc.poweredUp) {
-                alert("You can't change the system configuration\nwith the power on. Get real.");
-            } else {
-                win = window.open("./B5500SystemConfiguration.html", "B5500Config",
-                                  "scrollbars,width=600,height=640");
-                win.moveTo(screen.availWidth-win.outerWidth-40,
-                           (screen.availHeight-win.outerHeight)/2);
-                win.focus();
-            }
-        });
-
+        $$("B5500Logo").addEventListener("click", B5500Logo_Click, false);
         $$("PowerOnBtn").addEventListener("click", PowerOnBtn_Click, false);
         $$("PowerOffBtn").addEventListener("click", PowerOffBtn_Click, false);
         $$("HaltBtn").addEventListener("click", HaltBtn_Click, false);
         $$("LoadBtn").addEventListener("click", LoadBtn_Click, false);
         $$("LoadSelectBtn").addEventListener("click", LoadSelectBtn_Click, false);
-
-        // A kludge, for sure
-        $$("NotReadyBtn").addEventListener("click", function(ev) {
-            B5500SystemConfiguration.PB ^= true;
-            $$("RetroVersion").style.color = (B5500SystemConfiguration.PB ? "yellow" : "white");
-        });
         $$("MemoryCheckBtn").addEventListener("click", function(ev) {
             dumpState("Memory-Check Button");
         });
@@ -617,6 +626,7 @@ window.addEventListener("load", function() {
         buildLightMaps();
 
         cc = new B5500CentralControl(window);
+        setAnnunciators(showAnnunciators);
         window.dumpState = dumpState;
     }
 }, false);

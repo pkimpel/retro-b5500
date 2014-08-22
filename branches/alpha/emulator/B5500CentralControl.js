@@ -786,10 +786,14 @@ B5500CentralControl.prototype.load = function load(dontStart) {
     this.clear();                       // initialize P1/P2 configuration
     if (!this.P1 || this.P1.busy) {     // P1 is busy or not available
         result = 1;
-    } else if (!this.testUnitReady(22)) { // SPO not ready
-        result = 2;
-    } else if (this.testUnitBusy(22)) { // SPO is busy
-        result = 3;
+    } else if (!this.testUnitReady(22)) {
+        result = 2;                     // SPO not ready
+    } else if (this.testUnitBusy(22)) {
+        result = 3;                     // SPO is busy
+    } else if (!(this.cardLoadSelect || this.testUnitReady(29))) {
+        result = 4;                     // DKA not ready
+    } else if (!this.cardLoadSelect && this.testUnitBusy(29)) {
+        result = 5;                     // DKA is busy
     } else {                            // ready to rock 'n roll
         this.nextTimeStamp = performance.now();
         this.tock();
@@ -1098,35 +1102,36 @@ B5500CentralControl.prototype.configureSystem = function configureSystem(cfg) {
     }
 
     // Configure the processors
-    if (cfg.PA) {this.PA = new B5500Processor("A", this)}
-    if (cfg.PB) {this.PB = new B5500Processor("B", this)}
+    if (cfg.PA.enabled) {this.PA = new B5500Processor("A", this)}
+    if (cfg.PB.enabled) {this.PB = new B5500Processor("B", this)}
 
     // Determine P1/P2
     this.PB1L = (cfg.PB1L ? 1 : 0);
 
     // Configure the I/O Units
-    if (cfg.IO1) {this.IO1 = new B5500IOUnit("1", this)}
-    if (cfg.IO2) {this.IO2 = new B5500IOUnit("2", this)}
-    if (cfg.IO3) {this.IO3 = new B5500IOUnit("3", this)}
-    if (cfg.IO4) {this.IO4 = new B5500IOUnit("4", this)}
+    if (cfg.IO1.enabled) {this.IO1 = new B5500IOUnit("1", this)}
+    if (cfg.IO2.enabled) {this.IO2 = new B5500IOUnit("2", this)}
+    if (cfg.IO3.enabled) {this.IO3 = new B5500IOUnit("3", this)}
+    if (cfg.IO4.enabled) {this.IO4 = new B5500IOUnit("4", this)}
 
     // Configure memory
     for (x=0; x<8; ++x) {
-        if (cfg.memMod[x]) {
-            this.addressSpace[x] = new ArrayBuffer(32768);  // 4K B5500 words @ 8 bytes each
+        if (cfg.memMod[x].enabled) {
+            this.addressSpace[x] = new ArrayBuffer(4096*8);     // 4K B5500 words @ 8 bytes each
             this.memMod[x] = new Float64Array(this.addressSpace[x]);
         }
     }
 
     // Configure the peripheral units
     for (mnem in cfg.units) {
-        if (cfg.units[mnem]) {
+        if (cfg.units[mnem].enabled) {
             specs = B5500CentralControl.unitSpecs[mnem];
             if (specs) {
                 unitClass = this.global[specs.unitClass || "B5500DummyUnit"];
                 if (unitClass) {
                     u = new unitClass(mnem, specs.unitIndex, specs.designate,
-                        makeChange(this, specs.unitIndex), makeSignal(this, mnem));
+                            makeChange(this, specs.unitIndex), makeSignal(this, mnem),
+                            cfg.units[mnem]);
                     this.unit[specs.unitIndex] = u;
                 }
             }
