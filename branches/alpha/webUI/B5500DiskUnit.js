@@ -7,33 +7,60 @@
 ************************************************************************
 * B5500 Disk File Control Unit module.
 *
-* Defines a peripheral unit type for the Disk File Control Unit used with
-* Burroughs Model I and Model IB Head-per-Track disk units. The DFCU is the
-* addressable unit to the B5500. This module manages the Electronic Units (EU)
-* and Storage Units (SU) that make up the physical disk storage facility.
+* Defines a peripheral unit type for the Disk File Control Unit (DFCU) used
+* with Burroughs Model-I and Model-IB Head-per-Track disk units. The DFCU is
+* the addressable unit to the B5500. This module manages the Electronic Units
+* (EU) and Storage Units (SU) that make up the physical disk storage facility.
 *
 * Physical storage in this implementation is provided by a W3C IndexedDB
-* database local to the browser in which the emulator is running. This database
-* must have been previously initialized; see tools/B5500ColdLoader.html.
+* database local to the browser in which the emulator is running. There may
+* be multiple of these databases, but only one may be selected for use by an
+* instance of the emulator at a time. The database will be initialized to a
+* default configuration the first time the emulator is used, and may be
+* modified using the system configuration UI in the B5500 Console, but see
+* below for considerations when using an existing database from emulator
+* versions 0.20 and earlier.
 *
-* The database consists of a CONFIG object store and some number of EUn object
-* stores, where n is in 0..9. The CONFIG store contains an "eus" member that
-* specifies the total number of EU objects, plus an "EUn" member that specifies
-* the size of that EU in 240-character segments. There may be gaps in the EU
-* numbering, but the EU sizes should be specified in increments of 40,000 up to
-* a maximum of 200,000 (for Model I) or 400,000 (for Model IB "slow" disks).
+* The database consists of a CONFIG object store and some number of "EUn"
+* object stores, where n is in 0..19. The CONFIG store contains an "EUn" member
+* for each such object store that specifies the characteristics of that EU:
+*
+*       size:           is the capacity of the EU in segments:
+*                           40000-200000 for Model-I disk
+*                           80000-400000 for Model-IB (slow) disk.
+*       slow:           indicates Model-I (false) or Model-IB (true) disk,
+*       lockoutMask:    is a binary integer, the low-order 20 bits of which
+*                       represent the 20 disk lockout switches. A bit in this
+*                       mask will be 1 if the associated switch is on. If
+*                       this integer is negative, that indicates the master
+*                       lockout switch is on. [not presently implemented]
+*
+* There may be gaps in the EU numbering, but the EU sizes should be specified
+* in increments of 40,000 up to a maximum of 200,000 (for Model-I) or 400,000
+* (for Model-IB "slow" disks). The configuration UI enforces this automatically.
+*
+* The Model-I SU was the original Head-per-Track disk module. Model-IB disk
+* offered twice the storage capacity, but rotated at half the speed, allowing
+* a higher bit density on the disk surface, but maintaining the same effective
+* character transfer rate (96,000 characters/second) through the DFCU.
+*
+* For emulator versions 0.20 and earlier, the CONFIG structure had a simpler
+* structure. Each EU member was a number indicating the size of the EU in
+* segments. In order to allow backward compatibility with older emulator
+* versions, the configuration UI will attempt to preserve this older format,
+* and this device driver will accept that format, assuming Model-I disk and
+* a lockoutMask of 0. This will allow older versions of the emulator to
+* continue to use the IndexedDB database. Once the configuration of such a
+* database is changed, however, it will no longer be compatible with the
+* older version of the emulator, as the older emulator requires the IndexedDB
+* database version to be 1.
 *
 * Within an EU, segments are represented in the database as 240-byte Uint8Array
 * objects, each with a database key corresponding to its numeric segment address.
 * The segments in an EU are not pre-allocated, but are created as they are
-* written to by IDB put() methods. When reading, any unallocated segments are
+* written by IDB put() methods. When reading, any unallocated segments are
 * returned with their bytes set to 0x23 (#), which will be translated by the
 * IOU to BIC "0" for alpha mode and BIC "#" for binary mode.
-*
-* At present, disk write lockout is not supported. When there are two DFCUs in
-* the system, the presence of a Disk File Exchange is assumed, allowing either
-* DFCU to access any EU. Thus this implementation is currently limited to a
-* maximum of 10 EUs (480 million characters).
 *
 * Note that all disk I/O is done in units of 240-character segments. The
 * interface with the I/O Unit uses lengths in terms of characters, however.
@@ -60,16 +87,40 @@
 *
 * This module attempts to simulate actual disk activity times by delaying the
 * finish() call by an amount of time computed from the numbers of sectors
-* requested and the Model I SU's average 96KC transfer rate, plus a random
-* distribution across its 40ms max rotational latency time.
+* requested and the 96KC average transfer rate produced by the DFCU, plus a
+* random distribution across an SU's 40ms max rotational latency time.
+*
+* When there are two DFCUs in the system, the way that they address the EUs
+* depends on the presence of a Disk File Exchange (DFX). When a DFX is present,
+* either DFCU may access any EU in the range 0-9. EUs 10-19 are not accessible.
+* This limits storage to a maximum of 10 EUs (480 million characters). When a DFX
+* is not present, DKA will address EU 0-9 and DKB will address EU 10-19,
+* providing for a maximum of 20 EUs (960 million characters).
+*
+* This implementation supports configurations with or without a DFX. Note,
+* however, that software support for a DFX is enabled by an MCP compile-time
+* option ("$SET DFX=TRUE"). The setting of the MCP's DFX option *MUST MATCH*
+* the DFX setting in the system configuration.
+*
+*                            W A R N I N G !
+*                            ---------------
+*       Attempting to run a DFX-enabled MCP on a non-DFX hardware
+*       configuration, or vice versa, will likely corrupt the data
+*       in the disk subsystem and require a Cold Start to resolve.
+*
+* The File Protect Memory (FPM), used with shared-disk systems is not supported
+* at present. Disk write lockout is also not supported.
+*
 ************************************************************************
 * 2013-01-19  P.Kimpel
 *   Original version, cloned from B5500DummyUnit.js.
+* 2014-08-25  P.Kimpel
+*   Adapt to new EU configuration object format and selectable databases.
 ***********************************************************************/
 "use strict";
 
 /**************************************/
-function B5500DiskUnit(mnemonic, index, designate, statusChange, signal) {
+function B5500DiskUnit(mnemonic, index, designate, statusChange, signal, options) {
     /* Constructor for the DiskUnit object */
 
     this.mnemonic = mnemonic;           // Unit mnemonic
@@ -77,19 +128,25 @@ function B5500DiskUnit(mnemonic, index, designate, statusChange, signal) {
     this.designate = designate;         // IOD unit designate number
     this.statusChange = statusChange;   // external function to call for ready-status change
     this.signal = signal;               // external function to call for special signals (e.g,. SPO input request)
+    this.options = options;             // device options from system configuration
 
     this.timer = 0;                     // setCallback() token
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
+    this.config = null;                 // copy of CONFIG store contents
+    this.db = null;                     // the IDB database object
+    this.euBase =                       // base EU number for this DFCU
+            (mnemonic=="DKB" && !options.DFX ? 10 : 0);
 
     this.clear();
+    this.openDatabase();                // attempt to open the IDB database
 }
 
-B5500DiskUnit.prototype.dbName = "B5500DiskUnit";    // IndexedDB database name
-B5500DiskUnit.prototype.dbVersion = 1;               // current IDB database version
-B5500DiskUnit.prototype.configName = "CONFIG";       // database configuration store name
-B5500DiskUnit.prototype.euPrefix = "EU";             // prefix for EU object store names
-B5500DiskUnit.prototype.charXferRate = 96000;        // avg. transfer rate, characters/sec (Model I SU)
-B5500DiskUnit.prototype.maxLatency = 0.040;          // max rotational latency, sec (Model I SU)
+B5500DiskUnit.prototype.configName = B5500DiskStorageConfig.prototype.storageConfigName;
+                                                // database configuration store name
+B5500DiskUnit.prototype.euPrefix = "EU";        // prefix for EU object store names
+B5500DiskUnit.prototype.charXferRate = 96;      // avg. transfer rate, characters/ms or KC/sec
+B5500DiskUnit.prototype.modelILatency = 40;     // Model-I disk max rotational latency [ms]
+B5500DiskUnit.prototype.modelIBLatency = 80;    // Model-IB disk max rotational latency [ms]
 
 /**************************************/
 B5500DiskUnit.prototype.clear = function clear() {
@@ -101,15 +158,10 @@ B5500DiskUnit.prototype.clear = function clear() {
     this.errorMask = 0;                 // error mask for finish()
     this.finish = null;                 // external function to call for I/O completion
     this.startStamp = null;             // I/O starting timestamp
-
-    this.config = null;                 // copy of CONFIG store contents
-    this.db = null;                     // the IDB database object
-
-    this.openDatabase();                // attempt to open the IDB database
 };
 
 /**************************************/
-B5500DiskUnit.genericDBError = function genericDBError(ev) {
+B5500DiskUnit.genericIDBError = function genericIDBError(ev) {
     /* Formats a generic alert when otherwise-unhandled database errors occur */
 
     this.errorMask |= 0x20;             // set a generic disk-parity error
@@ -136,16 +188,39 @@ B5500DiskUnit.prototype.copySegment = function copySegment(seg, buffer, offset) 
 };
 
 /**************************************/
+B5500DiskUnit.prototype.loadStorageConfig = function loadStorageConfig(storageConfig) {
+    /* Loads the storage configuration object from the storage database and
+    sets up the internal representation of that object for use by the driver */
+    var config = B5500Util.deepCopy(storageConfig);
+    var eu;
+    var euRex = /^EU\d{1,2}$/;
+    var name;
+
+    for (name in config) {              // for each property in the config
+        if (name.search(euRex) == 0) {  // filter name for "EUn" or "EUnn"
+            eu = config[name];
+            if (eu.constructor === Number) {
+                // Convert old EU characteristics format
+                config[name] = eu = {size: eu, slow: false, lockoutMask: 0};
+            }
+            eu.maxLatency = (eu.slow ? this.modelIBLatency : this.modelILatency);
+            eu.charXferRate = this.charXferRate;
+        }
+    }
+    this.config = config;
+};
+
+/**************************************/
 B5500DiskUnit.prototype.openDatabase = function openDatabase() {
-    /* Attempts to open the disk subsystem database specified by this.dbName and
-    this.dbVersion. If successful, sets this.db to the IDB object and sets the
-    DFCU to ready status */
+    /* Attempts to open the disk subsystem database specified by
+    this.options.storageName. If successful, loads the EU configuration,
+    sets this.db to the IDB object, and sets the DFCU to ready status */
     var req;
     var db = null;
     var that = this;
 
     this.statusChange(0);               // initially force DFCU status to not ready
-    req = indexedDB.open(this.dbName, this.dbVersion);
+    req = indexedDB.open(this.options.storageName);     // accept any database version
 
     req.onerror = function idbOpenOnerror(ev) {
         alert("Cannot open " + that.mnemonic + " Disk Subsystem database:\n" + ev.target.error);
@@ -164,19 +239,18 @@ B5500DiskUnit.prototype.openDatabase = function openDatabase() {
     req.onsuccess = function idbOpenOnsuccess(ev) {
         var txn;
 
-        that.db = ev.target.result;     // save the object reference globally for later use
+        that.db = ev.target.result;     // save the DB object reference globally for later use
         that.db.onerror = function idbCONFIGGetOnerror(ev) {
             alert("Disk \"" + that.mnemonic + "\" CONFIG get error: " + ev.target.result.error);
         };
 
         if (!that.db.objectStoreNames.contains(that.configName)) {
-            that.config = {eus:0};              // indicate there are no EUs
-            that.config[that.euPrefix+"0"] = 0; // indicate EU 0 has no sectors
-            alert(that.mnemonic + " CONFIG structure does not exist -- must delete & recreate DB");
+            that.config = null;
+            alert(that.mnemonic + " CONFIG structure does not exist -- must recreate storage DB");
         } else {
             txn = that.db.transaction(that.configName);
             txn.objectStore(that.configName).get(0).onsuccess = function idbCONFIGGetOnsuccess(ev) {
-                that.config = ev.target.result;
+                that.loadStorageConfig(ev.target.result);
                 that.statusChange(1);       // report the DFCU as ready to Central Control
                 // Set up the generic error handler
                 that.db.onerror = function idbGenericOnError(ev) {
@@ -192,7 +266,7 @@ B5500DiskUnit.prototype.read = function read(finish, buffer, length, mode, contr
     /* Initiates a read operation on the unit. "length" is in characters; segment address
     is in "control". "mode" is ignored (any translation would have been done by IOU) */
     var bx = 0;                         // current buffer offset
-    var euSize;                         // max seg size for EU
+    var eu;                             // EU characteristics object
     var finishTime;                     // predicted time of I/O completion, ms
     var range;                          // key range for multi-segment read
     var req;                            // IDB request object
@@ -202,26 +276,26 @@ B5500DiskUnit.prototype.read = function read(finish, buffer, length, mode, contr
     this.finish = finish;               // for global error handler
     var segs = Math.floor((length+239)/240);
     var segAddr = control % 1000000;    // starting seg address
-    var euNumber = (control % 10000000 - segAddr)/1000000;
+    var euNumber = (control % 10000000 - segAddr)/1000000 + this.euBase;
     var euName = this.euPrefix + euNumber;
     var endAddr = segAddr+segs-1;       // ending seg address
 
-    euSize = this.config[euName];
-    if (!euSize) {                      // EU does not exist
+    eu = this.config[euName];
+    if (!eu) {                          // EU does not exist
         finish(this.errorMask | 0x20, 0);       // set D27F for EU not ready/not present
         this.errorMask = 0;
     } else if (segAddr < 0) {
         finish(this.errorMask | 0x20, 0);       // set D27F for invalid starting seg address
         this.errorMask = 0;
     } else {
-        if (endAddr >= euSize) {        // if read is past end of disk
+        if (endAddr >= eu.size) {       // if read is past end of disk
             this.errorMask |= 0x20;     // set D27F for invalid seg address
-            segs = euSize-segAddr;      // compute number of segs possible to read
+            segs = eu.size-segAddr;     // compute number of segs possible to read
             length = segs*240;          // recompute length and ending seg address
-            endAddr = euSize-1;
+            endAddr = eu.size-1;
         }
         finishTime = this.initiateStamp +
-                (Math.random()*this.maxLatency + segs*240/this.charXferRate)*1000;
+                Math.random()*eu.maxLatency + segs*240/eu.charXferRate;
 
         if (segs < 1) {                 // No length specified, so just finish the I/O
             finish(this.errorMask, 0);
@@ -286,8 +360,7 @@ B5500DiskUnit.prototype.write = function write(finish, buffer, length, mode, con
     /* Initiates a write operation on the unit. "length" is in characters; segment address
     is in "control". "mode" is ignored (any translation will done by the IOU) */
     var bx = 0;                         // current buffer offset
-    var eu;                             // IDB object store for EU
-    var euSize;                         // max seg size for EU
+    var eu;                             // EU characteristics object
     var finishTime;                     // predicted time of I/O completion, ms
     var req;                            // IDB request object
     var txn;                            // IDB transaction object
@@ -295,26 +368,26 @@ B5500DiskUnit.prototype.write = function write(finish, buffer, length, mode, con
     this.finish = finish;               // for global error handler
     var segs = Math.floor((length+239)/240);
     var segAddr = control % 1000000;    // starting seg address
-    var euNumber = (control % 10000000 - segAddr)/1000000;
+    var euNumber = (control % 10000000 - segAddr)/1000000 + this.euBase;
     var euName = this.euPrefix + euNumber;
     var endAddr = segAddr+segs-1;       // ending seg address
 
-    euSize = this.config[euName];
-    if (!euSize) {                      // EU does not exist
+    eu = this.config[euName];
+    if (!eu) {                          // EU does not exist
         finish(this.errorMask | 0x20, 0);       // set D27F for EU not ready
         this.errorMask = 0;
     } else if (segAddr < 0) {
         finish(this.errorMask | 0x20, 0);       // set D27F for invalid starting seg address
         this.errorMask = 0;
     } else {
-        if (endAddr >= euSize) {        // if read is past end of disk
+        if (endAddr >= eu.size) {       // if read is past end of disk
             this.errorMask |= 0x20;     // set D27F for invalid seg address
-            segs = euSize-segAddr;      // compute number of segs possible to read
+            segs = eu.size-segAddr;     // compute number of segs possible to read
             length = segs*240;          // recompute length and ending seg address
-            endAddr = euSize-1;
+            endAddr = eu.size-1;
         }
         finishTime = this.initiateStamp +
-                (Math.random()*this.maxLatency + segs*240/this.charXferRate)*1000;
+                Math.random()*eu.maxLatency + segs*240/eu.charXferRate;
 
         // No length specified, so just finish the I/O
         if (segs < 1) {
@@ -360,7 +433,7 @@ B5500DiskUnit.prototype.readCheck = function readCheck(finish, length, control) 
     segment address is in "control". "mode" is ignored. This is essentially a
     read without any data transfer to memory. Note that the errorMask is NOT
     zeroed at the end of the I/O -- it will be reported with the next I/O */
-    var euSize;                         // max seg size for EU
+    var eu;                             // EU characteristics object
     var finishTime;                     // predicted time of I/O completion, ms
     var range;                          // key range for multi-segment read
     var req;                            // IDB request object
@@ -369,13 +442,13 @@ B5500DiskUnit.prototype.readCheck = function readCheck(finish, length, control) 
     this.finish = finish;               // for global error handler
     var segs = Math.floor((length+239)/240);
     var segAddr = control % 1000000;    // starting seg address
-    var euNumber = (control % 10000000 - segAddr)/1000000;
+    var euNumber = (control % 10000000 - segAddr)/1000000 + this.euBase;
     var euName = this.euPrefix + euNumber;
     var endAddr = segAddr+segs-1;       // ending seg address
 
     this.errorMask = 0;                 // clear any prior error mask
-    euSize = this.config[euName];
-    if (!euSize) {                      // EU does not exist
+    eu = this.config[euName];
+    if (!eu) {                          // EU does not exist
         finish(this.errorMask | 0x20, 0);       // set D27F for EU not ready
         this.signal();
         // DO NOT clear the error mask
@@ -384,14 +457,14 @@ B5500DiskUnit.prototype.readCheck = function readCheck(finish, length, control) 
         this.signal();
         // DO NOT clear the error mask
     } else {
-        if (endAddr >= euSize) {        // if read is past end of disk
+        if (endAddr >= eu.size) {       // if read is past end of disk
             this.errorMask |= 0x20;     // set D27F for invalid seg address
-            segs = euSize-segAddr;      // compute number of segs possible to read
+            segs = eu.size-segAddr;     // compute number of segs possible to read
             length = segs*240;          // recompute length and ending seg address
-            endAddr = euSize-1;
+            endAddr = eu.size-1;
         }
         finishTime = this.initiateStamp +
-                (Math.random()*this.maxLatency + segs*240/this.charXferRate)*1000;
+                Math.random()*eu.maxLatency + segs*240/eu.charXferRate;
 
         if (segs < 1) {                 // No length specified, so just finish the I/O
             finish(this.errorMask, 0);
@@ -427,22 +500,22 @@ B5500DiskUnit.prototype.readInterrogate = function readInterrogate(finish, contr
     read check operation. This implementation assumes completion will be delayed
     by a random amount of time based on rotational latency for the EU to search for
     the address */
-    var euSize;                         // max seg size for EU
+    var eu;                             // EU characteristics object
     var segAddr = control % 1000000;    // starting seg address
-    var euNumber = (control % 10000000 - segAddr)/1000000;
+    var euNumber = (control % 10000000 - segAddr)/1000000 + this.euBase;
     var euName = this.euPrefix + euNumber;
 
     this.finish = finish;               // for global error handler
-    euSize = this.config[euName];
-    if (!euSize) {                      // EU does not exist
+    eu = this.config[euName];
+    if (!eu) {                          // EU does not exist
         finish(this.errorMask | 0x20, 0);       // set D27F for EU not ready
         this.errorMask = 0;
     } else {
-        if (segAddr < 0 || segAddr >= euSize) { // if read is past end of disk
+        if (segAddr < 0 || segAddr >= eu.size) { // if read is past end of disk
             this.errorMask |= 0x20;     // set D27F for invalid seg address
         }
         this.timer = setCallback(this.mnemonic, this,
-            Math.random()*this.maxLatency*1000 + this.initiateStamp - performance.now(),
+            Math.random()*eu.maxLatency + this.initiateStamp - performance.now(),
             function readInterrogateTimeout() {
                 finish(this.errorMask, length);
                 this.errorMask = 0;
@@ -461,22 +534,22 @@ B5500DiskUnit.prototype.writeInterrogate = function writeInterrogate(finish, con
     /* Note: until disk write lockout is implemented, this operation is identical
     to readInterrogate() */
 
-    var euSize;                         // max seg size for EU
+    var eu;                             // EU characteristics object
     var segAddr = control % 1000000;    // starting seg address
-    var euNumber = (control % 10000000 - segAddr)/1000000;
+    var euNumber = (control % 10000000 - segAddr)/1000000 + this.euBase;
     var euName = this.euPrefix + euNumber;
 
     this.finish = finish;               // for global error handler
-    euSize = this.config[euName];
-    if (!euSize) {                      // EU does not exist
+    eu = this.config[euName];
+    if (!eu) {                          // EU does not exist
         finish(this.errorMask | 0x20, 0);       // set D27F for EU not ready
         this.errorMask = 0;
     } else {
-        if (segAddr < 0 || segAddr >= euSize) { // if read is past end of disk
+        if (segAddr < 0 || segAddr >= eu.size) { // if read is past end of disk
             this.errorMask |= 0x20;     // set D27F for invalid seg address
         }
         this.timer = setCallback(this.mnemonic, this,
-            Math.random()*this.maxLatency*1000 + this.initiateStamp - performance.now(),
+            Math.random()*eu.maxLatency + this.initiateStamp - performance.now(),
             function writeInterrogateTimeout() {
                 finish(this.errorMask, length);
                 this.errorMask = 0;
@@ -490,6 +563,12 @@ B5500DiskUnit.prototype.shutDown = function shutDown() {
 
     if (this.timer) {
         clearCallback(this.timer);
+    }
+    if (this.db) {
+        if (!this.db.closed) {
+            this.db.close();
+            this.db = null;
+        }
     }
     // this device has no window to close
 };

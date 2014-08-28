@@ -70,28 +70,32 @@ window.addEventListener("load", function() {
         var sysConfig = new B5500SystemConfig();
 
         function applyPower(config) {
-            cc.powerOn(config);
+            $$("PowerOnBtn").className = "greenButton greenLit";
             $$("HaltBtn").className = "redButton redLit";
+            $$("PowerOnBtn").disabled = true;
+            $$("PowerOffBtn").disabled = false;
+            $$("LoadSelectBtn").disabled = false;
+            $$("LoadBtn").disabled = false;
+            $$("HaltBtn").disabled = true;
+            $$("MemoryCheckBtn").disabled = false;
+            cc.powerOn(config);
             setAnnunciators(showAnnunciators);
         }
 
         function youMayPowerOnWhenReady_Gridley(config) {
             /* Called-back by sysConfig.getSystemConfig with the requested configuration */
 
-            if (showAnnunciators) {
-                lampTest(applyPower, config);
+            if (!config) {
+                alert("No System Configuration found\nCannot power on.");
             } else {
-                applyPower(config);
+                if (showAnnunciators) {
+                    lampTest(applyPower, config);
+                } else {
+                    applyPower(config);
+                }
             }
         }
 
-        $$("PowerOnBtn").className = "greenButton greenLit";
-        $$("PowerOnBtn").disabled = true;
-        $$("PowerOffBtn").disabled = false;
-        $$("LoadSelectBtn").disabled = false;
-        $$("LoadBtn").disabled = false;
-        $$("HaltBtn").disabled = true;
-        $$("MemoryCheckBtn").disabled = false;
         sysConfig.getSystemConfig(null, youMayPowerOnWhenReady_Gridley); // get current system config
         return true;
     }

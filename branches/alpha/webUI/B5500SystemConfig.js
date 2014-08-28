@@ -11,9 +11,10 @@
 * methods used to manage that configuration data.
 *
 * The configuration data consists of two parts, (a) the processors, I/O
-* units, and peripheral devices that make up the system, and (b) a disk
-* storage configuration that defines the EUs and sizes and types of each
-* of the EUs. This module addresses the first part.
+* units, memory modules, and peripheral devices that make up the system,
+* and (b) a disk storage configuration that defines the disk Electronics
+* Units (EU) and sizes and types of each of the EUs. This module addresses
+* the first part.
 *
 * Each system configuration is identified by a unique "configName" property.
 * Each system configuration specifies the components in item (a) above,
@@ -86,7 +87,6 @@ B5500SystemConfig.prototype.globalConfig = {
 B5500SystemConfig.prototype.systemConfig = {
     configLevel:    B5500SystemConfig.prototype.configLevel,
     configName:     B5500SystemConfig.prototype.sysConfigNameDefault,
-    storageName:    "B5500DiskUnit", //**TEMP** B5500DiskStorageConfig.prototype.sysDefaultStorageName,
 
     PA: {enabled: true},                // Processor A available
     PB: {enabled: false},               // Processor B available
@@ -112,9 +112,11 @@ B5500SystemConfig.prototype.systemConfig = {
                  algolGlyphs: true},
 
         DKA:    {enabled: true,         // Disk File Control A
-                 DFX: true, FPM: false},
+                 DFX: true, FPM: false,
+                 storageName:    B5500DiskStorageConfig.prototype.sysDefaultStorageName},
         DKB:    {enabled: true,         // Disk File Control B
-                 DFX: true, FPM: false},
+                 DFX: true, FPM: false,
+                 storageName:    B5500DiskStorageConfig.prototype.sysDefaultStorageName},
 
         CRA:    {enabled: true},        // Card Reader A
         CRB:    {enabled: false},       // Card Reader B
@@ -131,7 +133,14 @@ B5500SystemConfig.prototype.systemConfig = {
         PPA:    {enabled: false},       // Paper Tape Punch A
         PPB:    {enabled: false},       // Paper Tape Punch A
 
-        DCA:    {enabled: true},        // Data Communications Control A
+        DCA:    {enabled: true,         // Data Communications Control A
+                 terminalUnits: {
+                    // adapters: number of terminal adapters
+                    // buffers:  number of 28-char buffers per adapter
+                    // pingPong: use ping-pong buffer mechanism
+                    TU1: {enabled: true,
+                          adapters:  1, buffers: 2, pingPong: false}
+                }},
 
         DRA:    {enabled: false},       // Drum/Auxmem A
         DRB:    {enabled: false},       // Drum/Auxmem B
@@ -152,14 +161,6 @@ B5500SystemConfig.prototype.systemConfig = {
         MTR:    {enabled: false},       // Magnetic Tape Unit R
         MTS:    {enabled: false},       // Magnetic Tape Unit S
         MTT:    {enabled: false}        // Magnetic Tape Unit T
-    },
-
-    terminalUnits: {
-        // adapters: number of terminal adapters
-        // buffers:  number of 28-char buffers per adapter
-        // pingPong: use ping-pong buffer mechanism
-        TU1: {enabled: true,
-              adapters:  1, buffers: 2, pingPong: false}
     }
 };
 
@@ -178,16 +179,16 @@ B5500SystemConfig.prototype.genericDBError = function genericDBError(ev) {
 };
 
 /**************************************/
-B5500SystemConfig.prototype.updateConfigSchema = function updateConfigSchema(ev, req) {
+B5500SystemConfig.prototype.upgradeConfigSchema = function upgradeConfigSchema(ev) {
     /* Handles the onupgradeneeded event for the System Configuration database.
-    Update the schema to the current version. For a new database, creates the
-    default configuration and stores it in the database.
-    "ev" is the upgradeneeded event, "req" is the DB open request object.
-    Must be called in the context of the SystemConfiguration object */
+    Upgrade the schema to the current version. For a new database, creates the
+    default configuration and stores it in the database. "ev" is the upgradeneeded
+    event. Must be called in the context of the SystemConfiguration object */
     var configStore = null;
     var db = ev.target.result;
     var globalStore = null;
     var namesStore = null;
+    var req = ev.target;
     var txn = req.transaction;
 
     switch (true) {
@@ -258,7 +259,7 @@ B5500SystemConfig.prototype.deleteConfigDB = function deleteConfigDB(onsuccess, 
 B5500SystemConfig.prototype.openConfigDB = function openConfigDB(onsuccess, onfailure) {
     /* Attempts to open the System Configuration database. Handles, if necessary,
     a change in database version. If successful, calls the "onsuccess" function
-    passing the success event. If not successfl, calls the "onfailure" function
+    passing the success event. If not successful, calls the "onfailure" function
     passing the error event */
     var req;                            // IndexedDB open request
     var that = this;
@@ -271,7 +272,7 @@ B5500SystemConfig.prototype.openConfigDB = function openConfigDB(onsuccess, onfa
     };
 
     req.onupgradeneeded = function(ev) {
-        that.updateConfigSchema(ev, req);
+        that.upgradeConfigSchema(ev);
     };
 
     req.onerror = function(ev) {
@@ -280,7 +281,7 @@ B5500SystemConfig.prototype.openConfigDB = function openConfigDB(onsuccess, onfa
     };
 
     req.onsuccess = function(ev) {
-        that.db = ev.target.result
+        that.db = ev.target.result;
         that.db.onerror = that.genericDBError;  // set up global error handler
         delete that.globalConfig;
         delete that.systemConfig;
@@ -312,9 +313,14 @@ B5500SystemConfig.prototype.getSystemConfig = function getSystemConfig(configNam
         then calls the successor function with the configuration object */
         var txn = that.db.transaction(that.sysConfigName);
 
-        txn.objectStore(that.sysConfigName).get(configName).onsuccess = function(ev) {
+        txn.onerror = function(ev) {
+            successor(null);
+            that.alertWin.alert("getSystemConfig cannot get config data:\n" +
+                                ev.target.error);
+        }
+        txn.objectStore(that.sysConfigName).get(configName || "").onsuccess = function(ev) {
             that.systemConfig = ev.target.result;
-            successor(ev.target.result);
+            successor(that.systemConfig);
         };
     }
 
@@ -326,12 +332,17 @@ B5500SystemConfig.prototype.getSystemConfig = function getSystemConfig(configNam
         named by "configName" */
         var txn;
 
-        txn = that.db.transaction(that.sysGlobalName);
-        txn.objectStore(that.sysGlobalName).get(0).onsuccess = function(ev) {
-            that.globalConfig = ev.target.result;
-            if (configName) {
-                readConfig(configName);
-            } else {
+        if (configName) {
+            readConfig(configName);
+        } else {
+            txn = that.db.transaction(that.sysGlobalName);
+            txn.onerror = function(ev) {
+                that.alertWin.alert("getSystemConfig cannot get default config name:\n" +
+                                    ev.target.error);
+                successor(null);
+            }
+            txn.objectStore(that.sysGlobalName).get(0).onsuccess = function(ev) {
+                that.globalConfig = ev.target.result;
                 readConfig(that.globalConfig.currentConfigName);
             }
         };
@@ -343,7 +354,8 @@ B5500SystemConfig.prototype.getSystemConfig = function getSystemConfig(configNam
 
     function onOpenFailure(ev) {
         that.systemConfig = null;
-        that.alertWin.alert("Cannot open \"" + that.configDBName +
+        successor(null);
+        that.alertWin.alert("getSystemConfig cannot open \"" + that.configDBName +
                             "\" database:\n" + ev.target.error);
     }
 
@@ -383,7 +395,7 @@ B5500SystemConfig.prototype.putSystemConfig = function putSystemConfig(
 
     function onOpenFailure(ev) {
         that.systemConfig = null;
-        that.alertWin.alert("Cannot open \"" + that.configDBName +
+        that.alertWin.alert("putSystemConfig cannot open \"" + that.configDBName +
                             "\" database:\n" + ev.target.error);
     }
 
@@ -425,7 +437,7 @@ B5500SystemConfig.prototype.deleteSystemConfig = function deleteSystemConfig(
 
     function onOpenFailure(ev) {
         that.systemConfig = null;
-        that.alertWin.alert("Cannot open \"" + that.configDBName +
+        that.alertWin.alert("deleteSystemConfig cannot open \"" + that.configDBName +
                             "\" database:\n" + ev.target.error);
     }
 
@@ -450,7 +462,7 @@ B5500SystemConfig.prototype.addStorageName = function addStorageName(
             successor.call(that, ev);
         };
 
-        txn.objectStore(that.sysStoragenamesName).put(storageName);
+        txn.objectStore(that.sysStorageNamesName).put(storageName);
     }
 
     function onOpenSuccess(ev) {
@@ -459,7 +471,7 @@ B5500SystemConfig.prototype.addStorageName = function addStorageName(
 
     function onOpenFailure(ev) {
         that.systemConfig = null;
-        that.alertWin.alert("Cannot open \"" + that.configDBName +
+        that.alertWin.alert("addStorageName cannot open \"" + that.configDBName +
                             "\" database:\n" + ev.target.error);
     }
 
@@ -484,7 +496,7 @@ B5500SystemConfig.prototype.removeStorageName = function removeStorageName(
             successor.call(that, ev);
         };
 
-        txn.objectStore(that.sysStoragenamesName).delete(storageName);
+        txn.objectStore(that.sysStorageNamesName).delete(storageName);
     }
 
     function onOpenSuccess(ev) {
@@ -493,7 +505,7 @@ B5500SystemConfig.prototype.removeStorageName = function removeStorageName(
 
     function onOpenFailure(ev) {
         that.systemConfig = null;
-        that.alertWin.alert("Cannot open \"" + that.configDBName +
+        that.alertWin.alert("removeStorageName cannot open \"" + that.configDBName +
                             "\" database:\n" + ev.target.error);
     }
 
@@ -537,7 +549,7 @@ B5500SystemConfig.prototype.enumerateStorageNames = function enumerateStorageNam
 
     function onOpenFailure(ev) {
         that.systemConfig = null;
-        that.alertWin.alert("Cannot open \"" + that.configDBName +
+        that.alertWin.alert("enumerateStoragesNames cannot open \"" + that.configDBName +
                             "\" database:\n" + ev.target.error);
     }
 
@@ -558,9 +570,9 @@ B5500SystemConfig.prototype.loadConfigDialog = function loadConfigDialog(config)
     /* Loads the configuration UI window with the settings from "config" */
 
     function loadNameList(listID, storeName, keyName) {
-        /* Loads a list of names from the specified object store.
-            "listID" is the DOM id of the <select> list to be loaded;
-            "storeName" is the name of the object store;
+        /* Loads a list of names from the specified object store to a <select>.
+            "listID" is the DOM id of the <select> list to be loaded.
+            "storeName" is the name of the object store.
             "keyName is the name to be selected in the list.
         If "keyName" does not exist in the list obtained from the store, it
         is unconditionally appended to the list and selected */
@@ -578,7 +590,7 @@ B5500SystemConfig.prototype.loadConfigDialog = function loadConfigDialog(config)
             var name;
 
             if (!cursor) {
-                if (!selected) {
+                if (keyName && !selected) {
                     list.add(new Option(keyName, keyName, true, true));
                 }
             } else {
@@ -586,7 +598,7 @@ B5500SystemConfig.prototype.loadConfigDialog = function loadConfigDialog(config)
                 matched = (name == keyName);
                 list.add(new Option(name, name, matched, matched));
                 cursor.continue();
-                if (matched || name == keyName) {
+                if (matched) {
                     selected = true;
                 }
             }
@@ -595,7 +607,8 @@ B5500SystemConfig.prototype.loadConfigDialog = function loadConfigDialog(config)
     }
 
     loadNameList.call(this, "ConfigNameList", this.sysConfigName, config.configName);
-    loadNameList.call(this, "DiskStorageList", this.sysStorageNamesName, config.storageName);
+    loadNameList.call(this, "DiskStorageList", this.sysStorageNamesName,
+                      config.units.DKA.storageName || config.units.DKB.storageName);
 
     this.$$("PA").checked = config.PA.enabled;
     this.$$("PB").checked = config.PB.enabled;
@@ -663,11 +676,17 @@ B5500SystemConfig.prototype.loadConfigDialog = function loadConfigDialog(config)
             (config.units.DKA.enabled && config.units.DKA.FPM) ||
             (config.units.DKB.enabled && config.units.DKB.FPM);
 
+    /***** TEMP to fix configuration structure change *****/
+    if (config.terminalUnits) {
+        config.units.DCA.terminalUnits = config.terminalUnits;
+        delete config.terminalUnits;
+    }
+
     this.$$("DCA").checked = config.units.DCA.enabled;
-    this.$$("TU1").checked = config.terminalUnits.TU1.enabled;
-    this.$$("TUAdapters1").value = config.terminalUnits.TU1.adapters;
-    this.$$("TUBuffers1").value = config.terminalUnits.TU1.buffers;
-    this.$$("TUPingPong1").checked = config.terminalUnits.TU1.pingPong;
+    this.$$("TU1").checked = config.units.DCA.terminalUnits.TU1.enabled;
+    this.$$("TUAdapters1").value = config.units.DCA.terminalUnits.TU1.adapters;
+    this.$$("TUBuffers1").value = config.units.DCA.terminalUnits.TU1.buffers;
+    this.$$("TUPingPong1").checked = config.units.DCA.terminalUnits.TU1.pingPong;
 
     this.$$("MessageArea").textContent = "Configuration \"" + config.configName + "\" loaded.";
     this.window.focus();
@@ -682,14 +701,13 @@ B5500SystemConfig.prototype.saveConfigDialog = function saveConfigDialog() {
     var that = this;
 
     if (configList.length < 1 || configList.selectedIndex < 0) {
-        this.alertWin.alert("A System Configuration name must be selected");
+        this.alertWin.alert("ERROR: A System Configuration name must be selected");
     } else if (storageList.length < 1 || storageList.selectedIndex < 0) {
-        this.alertWin.alert("A Disk Subsystem name must be selected");
+        this.alertWin.alert("ERROR: A Disk Storage name must be selected");
     } else {
         config = B5500Util.deepCopy(B5500SystemConfig.prototype.systemConfig);
 
         config.configName = configList.options[configList.selectedIndex].value;
-        config.storageName = storageList.options[storageList.selectedIndex].value;
 
         config.PA.enabled = this.$$("PA").checked;
         config.PB.enabled = this.$$("PB").checked;
@@ -750,22 +768,44 @@ B5500SystemConfig.prototype.saveConfigDialog = function saveConfigDialog() {
         config.units.DKA.DFX = this.$$("DFX").checked;
         config.units.DKA.enabled = this.$$("DKA").checked;
         config.units.DKA.FPM = this.$$("FPM").checked;
+        config.units.DKA.storageName = storageList.options[storageList.selectedIndex].value;
         config.units.DKB.DFX = this.$$("DFX").checked;
         config.units.DKB.enabled = this.$$("DKB").checked;
         config.units.DKB.FPM = this.$$("FPM").checked;
+        config.units.DKB.storageName = storageList.options[storageList.selectedIndex].value;
 
         config.units.DCA.enabled = this.$$("DCA").checked;
-        config.terminalUnits.TU1.enabled = this.$$("TU1").checked;
-        config.terminalUnits.TU1.adapters = this.$$("TUAdapters1").value;
-        config.terminalUnits.TU1.buffers = this.$$("TUBuffers1").value;
-        config.terminalUnits.TU1.pingPong = this.$$("TUPingPong1").checked;
+        config.units.DCA.terminalUnits.TU1.enabled = this.$$("TU1").checked;
+        config.units.DCA.terminalUnits.TU1.adapters = this.$$("TUAdapters1").value;
+        config.units.DCA.terminalUnits.TU1.buffers = this.$$("TUBuffers1").value;
+        config.units.DCA.terminalUnits.TU1.pingPong = this.$$("TUPingPong1").checked;
 
-        this.$$("MessageArea").textContent = "Saving configuration \"" + config.configName + "\".";
-        this.putSystemConfig(config, function(ev) {
-            that.alertWin.alert("System configuration \"" + config.configName +
-                    "\" saved and\nselected as current.");
-            that.window.close();
-        });
+        if (!(config.PA.enabled || config.PB.enabled)) {
+            this.alertWin.alert("ERROR: At least one Processor must be selected");
+        } else if (config.PB1L ? !config.PB.enabled : !config.PA.enabled) {
+            this.alertWin.alert("ERROR: No P1 Processor selected");
+        } else if (!(config.IO1.enabled || config.IO2.enabled ||
+                     config.IO3.enabled || config.IO4.enabled)) {
+            this.alertWin.alert("ERROR: No I/O Units selected");
+        } else if (!config.memMod[0].enabled) {
+            this.alertWin.alert("ERROR: At a minimum, Memory[0] must be selected");
+        } else {
+            if (!config.units.DKA.enabled) {
+                this.alertWin.alert("WARNING: DKA is required to load from disk");
+            }
+            if (!config.units.CRA.enabled) {
+                this.alertWin.alert("WARNING: CRA is required to load from cards");
+            }
+            if (!config.units.SPO.enabled) {
+                this.alertWin.alert("WARNING: SPO is required for MCP operation");
+            }
+            this.$$("MessageArea").textContent = "Saving configuration \"" + config.configName + "\".";
+            this.putSystemConfig(config, function(ev) {
+                that.alertWin.alert("System configuration \"" + config.configName +
+                        "\" saved and\nselected as current.");
+                that.window.close();
+            });
+        }
     }
 };
 
@@ -827,8 +867,7 @@ B5500SystemConfig.prototype.selectConfigDialog = function selectConfigDialog(ev)
 
 /**************************************/
 B5500SystemConfig.prototype.closeConfigUI = function closeConfigUI() {
-    /* Opens the system configuration update dialog and displays the current
-    default system configuration */
+    /* Closes the system configuration update dialog */
 
     this.alertWin = window;             // revert alerts to the global window
     if (this.window) {
@@ -840,20 +879,38 @@ B5500SystemConfig.prototype.closeConfigUI = function closeConfigUI() {
 }
 
 /**************************************/
+B5500SystemConfig.prototype.newStorageDialog = function newStorageDialog(ev) {
+    /* Prompts the user for a new configuration name, clones the currently-
+    selected configuration, and displays the clone properties in the window */
+    var newName;
+    var storage;
+    var storageList = this.$$("DiskStorageList");
+
+    newName = this.alertWin.prompt("Enter the name of the new Disk Storage subsystem");
+    if (!newName) {
+        this.alertWin.alert("The new Disk Storage subsystem must have a name.");
+    } else {
+        storage = new B5500DiskStorageConfig();
+        storage.openStorageUI(newName);
+        storageList.add(new Option(newName, newName, true, true));
+    }
+};
+
+/**************************************/
 B5500SystemConfig.prototype.openStorageUI = function openStorageUI() {
     /* Opens the Disk Storage configuration UI, passing the name of the
     currently-selected storage name */
     var storageName;
-    var storage = new B5500DiskStorageConfig();
-    var storageList = this.$$("StorageNameList");
+    var storage;
+    var storageList = this.$$("DiskStorageList");
     var selection = storageList.selectedIndex;
 
     if (selection < 0) {
         this.alertWin.alert("No storage name selected");
     } else {
         storageName = storageList.options[selection].value;
-        storage.openStorageUI(storageName,
-                B5500CentralControl.bindMethod(this, this.loadConfigDialog));
+        storage = new B5500DiskStorageConfig();
+        storage.openStorageUI(storageName);
     }
 };
 
@@ -874,7 +931,7 @@ B5500SystemConfig.prototype.openConfigUI = function openConfigUI() {
         this.$$("DiskEditBtn").addEventListener("click",
                 B5500CentralControl.bindMethod(this, this.openStorageUI));
         this.$$("DiskNewBtn").addEventListener("click",
-                B5500CentralControl.bindMethod(this, function() {this.alertWin.alert("Not implemented")}));
+                B5500CentralControl.bindMethod(this, this.newStorageDialog));
         this.$$("SaveBtn").addEventListener("click",
                 B5500CentralControl.bindMethod(this, this.saveConfigDialog));
         this.$$("CancelBtn").addEventListener("click",
