@@ -137,14 +137,14 @@ function B5500DiskUnit(mnemonic, index, designate, statusChange, signal, options
     this.euBase =                       // base EU number for this DFCU
             (mnemonic=="DKB" && !options.DFX ? 10 : 0);
 
+    this.stdFinish = B5500CentralControl.bindMethod(this, B5500DiskUnit.prototype.stdFinish);
+
     this.clear();
     this.openDatabase();                // attempt to open the IDB database
 }
 
-B5500DiskUnit.prototype.configName = B5500DiskStorageConfig.prototype.storageConfigName;
-                                                // database configuration store name
 B5500DiskUnit.prototype.euPrefix = "EU";        // prefix for EU object store names
-B5500DiskUnit.prototype.charXferRate = 96;      // avg. transfer rate, characters/ms or KC/sec
+B5500DiskUnit.prototype.charXferRate = 96;      // avg. transfer rate [characters/ms = KC/sec]
 B5500DiskUnit.prototype.modelILatency = 40;     // Model-I disk max rotational latency [ms]
 B5500DiskUnit.prototype.modelIBLatency = 80;    // Model-IB disk max rotational latency [ms]
 
@@ -161,13 +161,19 @@ B5500DiskUnit.prototype.clear = function clear() {
 };
 
 /**************************************/
+B5500DiskUnit.prototype.stdFinish = function stdFinish(errorMask, length) {
+    /* Standard error reporting and I/O finish routine for the disk unit */
+
+    this.finish(this.errorMask | (errorMask || 0), length);
+    this.errorMask = 0;
+};
+
+/**************************************/
 B5500DiskUnit.genericIDBError = function genericIDBError(ev) {
     /* Formats a generic alert when otherwise-unhandled database errors occur */
 
-    this.errorMask |= 0x20;             // set a generic disk-parity error
+    this.stdFinish(0x20, 0);            // set a generic disk-parity error
     alert("Disk \"" + this.mnemonic + "\" database error: " + ev.target.result.error);
-    this.finish(this.errorMask, 0);
-    this.errorMask = 0;
 };
 
 /**************************************/
@@ -199,10 +205,6 @@ B5500DiskUnit.prototype.loadStorageConfig = function loadStorageConfig(storageCo
     for (name in config) {              // for each property in the config
         if (name.search(euRex) == 0) {  // filter name for "EUn" or "EUnn"
             eu = config[name];
-            if (eu.constructor === Number) {
-                // Convert old EU characteristics format
-                config[name] = eu = {size: eu, slow: false, lockoutMask: 0};
-            }
             eu.maxLatency = (eu.slow ? this.modelIBLatency : this.modelILatency);
             eu.charXferRate = this.charXferRate;
         }
@@ -215,50 +217,50 @@ B5500DiskUnit.prototype.openDatabase = function openDatabase() {
     /* Attempts to open the disk subsystem database specified by
     this.options.storageName. If successful, loads the EU configuration,
     sets this.db to the IDB object, and sets the DFCU to ready status */
-    var req;
-    var db = null;
+    var dsc = new B5500DiskStorageConfig();
     var that = this;
 
-    this.statusChange(0);               // initially force DFCU status to not ready
-    req = indexedDB.open(this.options.storageName);     // accept any database version
+    function openStorageDB(config) {
+        var req;
 
-    req.onerror = function idbOpenOnerror(ev) {
-        alert("Cannot open " + that.mnemonic + " Disk Subsystem database:\n" + ev.target.error);
-    };
-
-    req.onblocked = function idbOpenOnblocked(ev) {
-        alert(that.mnemonic + " Disk Subsystem open is blocked -- cannot continue");
-    };
-
-    req.onupgradeneeded = function idbOpenOnupgradeneeded(ev) {
-        req.transaction.abort();
-        ev.target.result.close();
-        alert(that.mnemonic + " Disk Subsystem missing or requires version upgrade -- cannot continue");
-    };
-
-    req.onsuccess = function idbOpenOnsuccess(ev) {
-        var txn;
-
-        that.db = ev.target.result;     // save the DB object reference globally for later use
-        that.db.onerror = function idbCONFIGGetOnerror(ev) {
-            alert("Disk \"" + that.mnemonic + "\" CONFIG get error: " + ev.target.result.error);
-        };
-
-        if (!that.db.objectStoreNames.contains(that.configName)) {
+        if (!config) {
             that.config = null;
-            alert(that.mnemonic + " CONFIG structure does not exist -- must recreate storage DB");
+            alert(that.mnemonic + ": CONFIG structure does not exist in\ndatabase \"" +
+                  that.options.storageName + "\" -- must recreate storage DB");
         } else {
-            txn = that.db.transaction(that.configName);
-            txn.objectStore(that.configName).get(0).onsuccess = function idbCONFIGGetOnsuccess(ev) {
-                that.loadStorageConfig(ev.target.result);
-                that.statusChange(1);       // report the DFCU as ready to Central Control
+            req = indexedDB.open(that.options.storageName);     // accept any database version
+
+            req.onerror = function idbOpenOnerror(ev) {
+                alert("Cannot open " + that.mnemonic + " Disk Subsystem\ndatabase \"" +
+                      that.options.storageName + "\":\n" + ev.target.error);
+            };
+
+            req.onblocked = function idbOpenOnblocked(ev) {
+                alert(that.mnemonic + " Disk Subsystem open is blocked -- CANNOT CONTINUE");
+            };
+
+            req.onupgradeneeded = function idbOpenOnupgradeneeded(ev) {
+                req.transaction.abort();
+                ev.target.result.close();
+                alert(that.mnemonic + " Disk Subsystem missing or requires version upgrade -- CANNOT CONTINUE");
+            };
+
+            req.onsuccess = function idbOpenOnsuccess(ev) {
+                // Save the DB object reference globally for later use
+                that.db = ev.target.result;
                 // Set up the generic error handler
-                that.db.onerror = function idbGenericOnError(ev) {
-                    that.genericIDBError(ev);
-                };
+                that.db.onerror = B5500CentralControl.bindMethod(that, that.genericIDBError);
+                that.loadStorageConfig(config);
+                that.statusChange(1);   // now report the DFCU as ready to Central Control
+                dsc.closeStorageDB();
+                dsc = null;
             };
         }
-    };
+    }
+
+    this.statusChange(0);               // initially force DFCU status to not ready
+    dsc.getStorageConfig(this.options.storageName,
+                B5500CentralControl.bindMethod(this, openStorageDB));
 };
 
 /**************************************/
@@ -282,11 +284,9 @@ B5500DiskUnit.prototype.read = function read(finish, buffer, length, mode, contr
 
     eu = this.config[euName];
     if (!eu) {                          // EU does not exist
-        finish(this.errorMask | 0x20, 0);       // set D27F for EU not ready/not present
-        this.errorMask = 0;
+        this.stdFinish(0x20, 0);        // set D27F for EU not ready/not present
     } else if (segAddr < 0) {
-        finish(this.errorMask | 0x20, 0);       // set D27F for invalid starting seg address
-        this.errorMask = 0;
+        this.stdFinish(0x20, 0);        // set D27F for invalid starting seg address
     } else {
         if (endAddr >= eu.size) {       // if read is past end of disk
             this.errorMask |= 0x20;     // set D27F for invalid seg address
@@ -298,16 +298,14 @@ B5500DiskUnit.prototype.read = function read(finish, buffer, length, mode, contr
                 Math.random()*eu.maxLatency + segs*240/eu.charXferRate;
 
         if (segs < 1) {                 // No length specified, so just finish the I/O
-            finish(this.errorMask, 0);
-            this.errorMask = 0;
+            this.stdFinish(0, 0);
         } else if (segs < 2) {          // A single-segment read
             req = this.db.transaction(euName).objectStore(euName).get(segAddr);
             req.onsuccess = function singleReadOnsuccess(ev) {
                 that.copySegment(ev.target.result, buffer, 0);
-                this.timer = setCallback(this.mnemonic, this, finishTime - performance.now(),
+                that.timer = setCallback(that.mnemonic, that, finishTime - performance.now(),
                     function singleReadTimeout() {
-                        finish(this.errorMask, length);
-                        this.errorMask = 0;
+                        this.stdFinish(0, length);
                 });
             }
         } else {                        // A multi-segment read
@@ -319,28 +317,27 @@ B5500DiskUnit.prototype.read = function read(finish, buffer, length, mode, contr
                 var cursor = ev.target.result;
 
                 if (cursor) {           // found a segment at some address in range
-                    // fill buffer with zeroes for any unallocated segments
+                    // Fill buffer with zeroes for any unallocated segments
                     while (cursor.key > segAddr) {
                         that.copySegment(null, buffer, bx);
                         bx += 240;
                         segAddr++;
                     }
-                    // copy the segment data to the buffer and request next seg
+                    // Copy the segment data to the buffer and request next seg
                     that.copySegment(cursor.value, buffer, bx);
                     bx += 240;
                     segAddr++;
                     cursor.continue();
                 } else {                // at end of range
-                    // fill buffer with zeroes for any remaining segments in range
+                    // Fill buffer with zeroes for any remaining segments in range
                     while (endAddr > segAddr) {
                         that.copySegment(null, buffer, bx);
                         bx += 240;
                         segAddr++;
                     }
-                    this.timer = setCallback(this.mnemonic, this, finishTime - performance.now(),
+                    that.timer = setCallback(that.mnemonic, that, finishTime - performance.now(),
                         function rangeReadTimeout() {
-                            finish(this.errorMask, length);
-                            this.errorMask = 0;
+                            this.stdFinish(0, length);
                     });
                 }
             };
@@ -352,7 +349,8 @@ B5500DiskUnit.prototype.read = function read(finish, buffer, length, mode, contr
 B5500DiskUnit.prototype.space = function space(finish, length, control) {
     /* Initiates a space operation on the unit */
 
-    finish(0x04, 0);                    // report unit not ready
+    finish(this.errorMask | 0x04, 0);   // report unit not ready
+    this.errorMask = 0;
 };
 
 /**************************************/
@@ -363,6 +361,7 @@ B5500DiskUnit.prototype.write = function write(finish, buffer, length, mode, con
     var eu;                             // EU characteristics object
     var finishTime;                     // predicted time of I/O completion, ms
     var req;                            // IDB request object
+    var that = this;                    // local object context
     var txn;                            // IDB transaction object
 
     this.finish = finish;               // for global error handler
@@ -374,11 +373,9 @@ B5500DiskUnit.prototype.write = function write(finish, buffer, length, mode, con
 
     eu = this.config[euName];
     if (!eu) {                          // EU does not exist
-        finish(this.errorMask | 0x20, 0);       // set D27F for EU not ready
-        this.errorMask = 0;
+        this.stdFinish(0x20, 0);        // set D27F for EU not ready
     } else if (segAddr < 0) {
-        finish(this.errorMask | 0x20, 0);       // set D27F for invalid starting seg address
-        this.errorMask = 0;
+        this.stdFinish(0x20, 0);        // set D27F for invalid starting seg address
     } else {
         if (endAddr >= eu.size) {       // if read is past end of disk
             this.errorMask |= 0x20;     // set D27F for invalid seg address
@@ -389,25 +386,23 @@ B5500DiskUnit.prototype.write = function write(finish, buffer, length, mode, con
         finishTime = this.initiateStamp +
                 Math.random()*eu.maxLatency + segs*240/eu.charXferRate;
 
-        // No length specified, so just finish the I/O
         if (segs < 1) {
-            finish(this.errorMask, 0);
-            this.errorMask = 0;
-
-        // Do the write
+            // No length specified, so just finish the I/O
+            this.stdFinish(0, 0);
         } else {
+            // Do the write
             txn = this.db.transaction(euName, "readwrite")
             txn.oncomplete = function writeComplete(ev) {
-                this.timer = setCallback(this.mnemonic, this, finishTime - performance.now(),
+                that.timer = setCallback(that.mnemonic, that, finishTime - performance.now(),
                     function writeTimeout() {
-                        finish(this.errorMask, length);
-                        this.errorMask = 0;
+                        this.stdFinish(0, length);
                 });
             };
             eu = txn.objectStore(euName);
-            for (; segAddr<=endAddr; segAddr++) {
+            while (segAddr<=endAddr) {
                 eu.put(buffer.subarray(bx, bx+240), segAddr);
                 bx += 240;
+                ++segAddr;
             }
         }
     }
@@ -417,14 +412,16 @@ B5500DiskUnit.prototype.write = function write(finish, buffer, length, mode, con
 B5500DiskUnit.prototype.erase = function erase(finish, length) {
     /* Initiates an erase operation on the unit */
 
-    finish(0x04, 0);                    // report unit not ready
+    finish(this.errorMask | 0x04, 0);   // report unit not ready
+    this.errorMask = 0;
 };
 
 /**************************************/
 B5500DiskUnit.prototype.rewind = function rewind(finish) {
     /* Initiates a rewind operation on the unit */
 
-    finish(0x04, 0);                    // report unit not ready
+    finish(this.errorMask | 0x04, 0);   // report unit not ready
+    this.errorMask = 0;
 };
 
 /**************************************/
@@ -437,6 +434,7 @@ B5500DiskUnit.prototype.readCheck = function readCheck(finish, length, control) 
     var finishTime;                     // predicted time of I/O completion, ms
     var range;                          // key range for multi-segment read
     var req;                            // IDB request object
+    var that = this;                    // local object context
     var txn;                            // IDB transaction object
 
     this.finish = finish;               // for global error handler
@@ -450,12 +448,12 @@ B5500DiskUnit.prototype.readCheck = function readCheck(finish, length, control) 
     eu = this.config[euName];
     if (!eu) {                          // EU does not exist
         finish(this.errorMask | 0x20, 0);       // set D27F for EU not ready
+        // DO NOT clear the error mask here
         this.signal();
-        // DO NOT clear the error mask
     } else if (segAddr < 0) {
         finish(this.errorMask | 0x20, 0);       // set D27F for invalid starting seg address
+        // DO NOT clear the error mask here
         this.signal();
-        // DO NOT clear the error mask
     } else {
         if (endAddr >= eu.size) {       // if read is past end of disk
             this.errorMask |= 0x20;     // set D27F for invalid seg address
@@ -468,13 +466,11 @@ B5500DiskUnit.prototype.readCheck = function readCheck(finish, length, control) 
 
         if (segs < 1) {                 // No length specified, so just finish the I/O
             finish(this.errorMask, 0);
-            this.signal();
             // DO NOT clear the error mask -- will return it on the next interrogate
+            this.signal();
         } else {                        // A multi-segment read
             range = IDBKeyRange.bound(segAddr, endAddr);
             txn = this.db.transaction(euName);
-            finish(this.errorMask, length);     // post I/O complete now -- DFCU will signal when check finished
-
             req = txn.objectStore(euName).openCursor(range);
             req.onsuccess = function readCheckOnsuccess(ev) {
                 var cursor = ev.target.result;
@@ -482,13 +478,16 @@ B5500DiskUnit.prototype.readCheck = function readCheck(finish, length, control) 
                 if (cursor) {           // found a segment at some address in range
                     cursor.continue();
                 } else {                // at end of range
-                    this.timer = setCallback(this.mnemonic, this, finishTime - performance.now(),
+                    that.timer = setCallback(that.mnemonic, that, finishTime - performance.now(),
                         function readCheckTimeout() {
                             this.signal();
                             // DO NOT clear the error mask
                     });
                 }
             };
+
+            // Post I/O complete now -- DFCU will signal when read check is finished
+            finish(this.errorMask, length);
         }
     }
 };
@@ -508,8 +507,7 @@ B5500DiskUnit.prototype.readInterrogate = function readInterrogate(finish, contr
     this.finish = finish;               // for global error handler
     eu = this.config[euName];
     if (!eu) {                          // EU does not exist
-        finish(this.errorMask | 0x20, 0);       // set D27F for EU not ready
-        this.errorMask = 0;
+        this.stdFinish(0x20, 0);        // set D27F for EU not ready
     } else {
         if (segAddr < 0 || segAddr >= eu.size) { // if read is past end of disk
             this.errorMask |= 0x20;     // set D27F for invalid seg address
@@ -517,8 +515,7 @@ B5500DiskUnit.prototype.readInterrogate = function readInterrogate(finish, contr
         this.timer = setCallback(this.mnemonic, this,
             Math.random()*eu.maxLatency + this.initiateStamp - performance.now(),
             function readInterrogateTimeout() {
-                finish(this.errorMask, length);
-                this.errorMask = 0;
+                this.stdFinish(0, length);
         });
     }
 };
@@ -542,8 +539,7 @@ B5500DiskUnit.prototype.writeInterrogate = function writeInterrogate(finish, con
     this.finish = finish;               // for global error handler
     eu = this.config[euName];
     if (!eu) {                          // EU does not exist
-        finish(this.errorMask | 0x20, 0);       // set D27F for EU not ready
-        this.errorMask = 0;
+        this.stdFinish(0x20, 0);        // set D27F for EU not ready
     } else {
         if (segAddr < 0 || segAddr >= eu.size) { // if read is past end of disk
             this.errorMask |= 0x20;     // set D27F for invalid seg address
@@ -551,8 +547,7 @@ B5500DiskUnit.prototype.writeInterrogate = function writeInterrogate(finish, con
         this.timer = setCallback(this.mnemonic, this,
             Math.random()*eu.maxLatency + this.initiateStamp - performance.now(),
             function writeInterrogateTimeout() {
-                finish(this.errorMask, length);
-                this.errorMask = 0;
+                this.stdFinish(0, length);
         });
     }
 };

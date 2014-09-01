@@ -61,7 +61,7 @@
 
 /**************************************/
 function B5500SystemConfig() {
-    /* Constructor for the SystemConfiguration object */
+    /* Constructor for the SystemConfig configuration management object */
 
     this.db = null;                     // the IndexedDB database connection (null if closed)
     this.systemConfig = null;           // the currently-loaded system configuration
@@ -70,99 +70,19 @@ function B5500SystemConfig() {
 }
 
 /**************************************/
-B5500SystemConfig.prototype.configLevel = 1;     // configuration object version
 B5500SystemConfig.prototype.configDBName = "retro-B5500-Config";
 B5500SystemConfig.prototype.configDBVersion = 1;
 B5500SystemConfig.prototype.sysGlobalName = "Global";
 B5500SystemConfig.prototype.sysConfigName = "SysConfig";
 B5500SystemConfig.prototype.sysStorageNamesName = "StorageNames";
-B5500SystemConfig.prototype.sysConfigNameDefault = "Default";
 
 // Template for the Global configuration store
 B5500SystemConfig.prototype.globalConfig = {
-    currentConfigName: B5500SystemConfig.prototype.sysConfigNameDefault
+    currentConfigName: B5500SystemConfiguration.prototype.sysDefaultConfigName
 };
 
 // Template for current system configuration properties
-B5500SystemConfig.prototype.systemConfig = {
-    configLevel:    B5500SystemConfig.prototype.configLevel,
-    configName:     B5500SystemConfig.prototype.sysConfigNameDefault,
-
-    PA: {enabled: true},                // Processor A available
-    PB: {enabled: false},               // Processor B available
-
-    PB1L: false,                        // PA is P1 (false) | PB is P1 (true)
-
-    IO1: {enabled: true},               // I/O Unit 1 available
-    IO2: {enabled: true},               // I/O Unit 2 available
-    IO3: {enabled: true},               // I/O Unit 3 available
-    IO4: {enabled: false},              // I/O Unit 4 available
-
-    memMod: [   {enabled: true},        // Memory module 0 available (4KW)
-                {enabled: true},        // Memory module 1 available (4KW)
-                {enabled: true},        // Memory module 2 available (4KW)
-                {enabled: true},        // Memory module 3 available (4KW)
-                {enabled: true},        // Memory module 4 available (4KW)
-                {enabled: true},        // Memory module 5 available (4KW)
-                {enabled: true},        // Memory module 6 available (4KW)
-                {enabled: true}],       // Memory module 7 available (4KW)
-
-    units: {
-        SPO:    {enabled: true,         // SPO keyboard/printer
-                 algolGlyphs: true},
-
-        DKA:    {enabled: true,         // Disk File Control A
-                 DFX: true, FPM: false,
-                 storageName:    B5500DiskStorageConfig.prototype.sysDefaultStorageName},
-        DKB:    {enabled: true,         // Disk File Control B
-                 DFX: true, FPM: false,
-                 storageName:    B5500DiskStorageConfig.prototype.sysDefaultStorageName},
-
-        CRA:    {enabled: true},        // Card Reader A
-        CRB:    {enabled: false},       // Card Reader B
-        CPA:    {enabled: true,         // Card Punch A
-                 algolGlyphs: true},
-
-        LPA:    {enabled: true,         // Line Printer A
-                 algolGlyphs: true},
-        LPB:    {enabled: false,        // Line Printer B
-                 algolGlyphs: true},
-
-        PRA:    {enabled: false},       // Paper Tape Reader A
-        PRB:    {enabled: false},       // Paper Tape Reader B
-        PPA:    {enabled: false},       // Paper Tape Punch A
-        PPB:    {enabled: false},       // Paper Tape Punch A
-
-        DCA:    {enabled: true,         // Data Communications Control A
-                 terminalUnits: {
-                    // adapters: number of terminal adapters
-                    // buffers:  number of 28-char buffers per adapter
-                    // pingPong: use ping-pong buffer mechanism
-                    TU1: {enabled: true,
-                          adapters:  1, buffers: 2, pingPong: false}
-                }},
-
-        DRA:    {enabled: false},       // Drum/Auxmem A
-        DRB:    {enabled: false},       // Drum/Auxmem B
-
-        MTA:    {enabled: true},        // Magnetic Tape Unit A
-        MTB:    {enabled: false},       // Magnetic Tape Unit B
-        MTC:    {enabled: false},       // Magnetic Tape Unit C
-        MTD:    {enabled: false},       // Magnetic Tape Unit D
-        MTE:    {enabled: false},       // Magnetic Tape Unit E
-        MTF:    {enabled: false},       // Magnetic Tape Unit F
-        MTH:    {enabled: false},       // Magnetic Tape Unit H
-        MTJ:    {enabled: false},       // Magnetic Tape Unit J
-        MTK:    {enabled: false},       // Magnetic Tape Unit K
-        MTL:    {enabled: false},       // Magnetic Tape Unit L
-        MTM:    {enabled: false},       // Magnetic Tape Unit M
-        MTN:    {enabled: false},       // Magnetic Tape Unit N
-        MTP:    {enabled: false},       // Magnetic Tape Unit P
-        MTR:    {enabled: false},       // Magnetic Tape Unit R
-        MTS:    {enabled: false},       // Magnetic Tape Unit S
-        MTT:    {enabled: false}        // Magnetic Tape Unit T
-    }
-};
+B5500SystemConfig.prototype.systemConfig = B5500SystemConfiguration.prototype.systemConfig;
 
 
 /**************************************/
@@ -210,7 +130,9 @@ B5500SystemConfig.prototype.upgradeConfigSchema = function upgradeConfigSchema(e
             // Populate a default initial configuration.
             globalStore.put(B5500SystemConfig.prototype.globalConfig, 0);
             configStore.put(B5500SystemConfig.prototype.systemConfig);
-            this.alertWin.alert("Configuration database created...\n" +
+            namesStore.put(B5500SystemConfig.prototype.systemConfig.units.DKA.storageName ||
+                           B5500SystemConfig.prototype.systemConfig.units.DKB.storageName);
+            this.alertWin.alert("System Configuration database created...\n" +
                         "An initial configuration \"" +
                         B5500SystemConfig.prototype.systemConfig.configName +
                         "\" was created and set as current.");
@@ -381,7 +303,7 @@ B5500SystemConfig.prototype.putSystemConfig = function putSystemConfig(
 
         txn.oncomplete = function(ev) {
             that.systemConfig = config;
-            successor.call(that, ev);
+            successor(ev);
         };
 
         that.globalConfig.currentConfigName = config.configName;
@@ -421,7 +343,7 @@ B5500SystemConfig.prototype.deleteSystemConfig = function deleteSystemConfig(
             if (that.systemConfig.configName == configName) {
                 delete that.systemConfig;
             }
-            successor.call(that, ev);
+            successor(ev);
         };
 
         txn.objectStore(that.sysConfigName).delete(configName);
@@ -459,7 +381,7 @@ B5500SystemConfig.prototype.addStorageName = function addStorageName(
         var txn = that.db.transaction(that.sysStorageNamesName, "readwrite");
 
         txn.oncomplete = function(ev) {
-            successor.call(that, ev);
+            successor(ev);
         };
 
         txn.objectStore(that.sysStorageNamesName).put(storageName);
@@ -493,7 +415,7 @@ B5500SystemConfig.prototype.removeStorageName = function removeStorageName(
         var txn = that.db.transaction(that.sysStorageNamesName, "readwrite");
 
         txn.oncomplete = function(ev) {
-            successor.call(that, ev);
+            successor(ev);
         };
 
         txn.objectStore(that.sysStorageNamesName).delete(storageName);
@@ -529,7 +451,7 @@ B5500SystemConfig.prototype.enumerateStorageNames = function enumerateStorageNam
         var txn = that.db.transaction(that.sysStorageNamesName);
 
         txn.oncomplete = function(ev) {
-            successor.call(that, ev, names);
+            successor(ev, names);
         };
 
         txn.objectStore(that.sysStorageNamesName).openCursor().onsuccess = function(ev) {
@@ -603,93 +525,96 @@ B5500SystemConfig.prototype.loadConfigDialog = function loadConfigDialog(config)
                 }
             }
         };
-
     }
 
-    loadNameList.call(this, "ConfigNameList", this.sysConfigName, config.configName);
-    loadNameList.call(this, "DiskStorageList", this.sysStorageNamesName,
-                      config.units.DKA.storageName || config.units.DKB.storageName);
+    if (!config) {
+        this.window.close();
+    } else {
+        loadNameList.call(this, "ConfigNameList", this.sysConfigName, config.configName);
+        loadNameList.call(this, "DiskStorageList", this.sysStorageNamesName,
+                          config.units.DKA.storageName || config.units.DKB.storageName);
 
-    this.$$("PA").checked = config.PA.enabled;
-    this.$$("PB").checked = config.PB.enabled;
-    this.$$("PB1L").checked = config.PB1L;
+        this.$$("PA").checked = config.PA.enabled;
+        this.$$("PB").checked = config.PB.enabled;
+        this.$$("PB1L").checked = config.PB1L;
 
-    this.$$("IO1").checked = config.IO1.enabled;
-    this.$$("IO2").checked = config.IO2.enabled;
-    this.$$("IO3").checked = config.IO3.enabled;
-    this.$$("IO4").checked = config.IO4.enabled;
+        this.$$("IO1").checked = config.IO1.enabled;
+        this.$$("IO2").checked = config.IO2.enabled;
+        this.$$("IO3").checked = config.IO3.enabled;
+        this.$$("IO4").checked = config.IO4.enabled;
 
-    this.$$("M0").checked = config.memMod[0].enabled;
-    this.$$("M1").checked = config.memMod[1].enabled;
-    this.$$("M2").checked = config.memMod[2].enabled;
-    this.$$("M3").checked = config.memMod[3].enabled;
-    this.$$("M4").checked = config.memMod[4].enabled;
-    this.$$("M5").checked = config.memMod[5].enabled;
-    this.$$("M6").checked = config.memMod[6].enabled;
-    this.$$("M7").checked = config.memMod[7].enabled;
+        this.$$("M0").checked = config.memMod[0].enabled;
+        this.$$("M1").checked = config.memMod[1].enabled;
+        this.$$("M2").checked = config.memMod[2].enabled;
+        this.$$("M3").checked = config.memMod[3].enabled;
+        this.$$("M4").checked = config.memMod[4].enabled;
+        this.$$("M5").checked = config.memMod[5].enabled;
+        this.$$("M6").checked = config.memMod[6].enabled;
+        this.$$("M7").checked = config.memMod[7].enabled;
 
-    this.$$("SPO").checked = config.units.SPO.enabled;
-    this.$$("SPAlgolGlyphs").checked = config.units.SPO.algolGlyphs;
+        this.$$("SPO").checked = config.units.SPO.enabled;
+        this.$$("SPAlgolGlyphs").checked = config.units.SPO.algolGlyphs;
 
-    this.$$("LPA").checked = config.units.LPA.enabled;
-    this.$$("LPB").checked = config.units.LPB.enabled;
-    this.$$("LPAlgolGlyphs").checked =
-            (config.units.LPA.enabled && config.units.LPA.algolGlyphs) ||
-            (config.units.LPB.enabled && config.units.LPB.algolGlyphs);
+        this.$$("LPA").checked = config.units.LPA.enabled;
+        this.$$("LPB").checked = config.units.LPB.enabled;
+        this.$$("LPAlgolGlyphs").checked =
+                (config.units.LPA.enabled && config.units.LPA.algolGlyphs) ||
+                (config.units.LPB.enabled && config.units.LPB.algolGlyphs);
 
-    this.$$("CRA").checked = config.units.CRA.enabled;
-    this.$$("CRB").checked = config.units.CRB.enabled;
-    this.$$("CPA").checked = config.units.CPA.enabled;
-    this.$$("CPAlgolGlyphs").checked = config.units.CPA.algolGlyphs;
+        this.$$("CRA").checked = config.units.CRA.enabled;
+        this.$$("CRB").checked = config.units.CRB.enabled;
+        this.$$("CPA").checked = config.units.CPA.enabled;
+        this.$$("CPAlgolGlyphs").checked = config.units.CPA.algolGlyphs;
 
-    this.$$("PRA").checked = config.units.PRA.enabled;
-    this.$$("PRB").checked = config.units.PRB.enabled;
-    this.$$("PPA").checked = config.units.PPA.enabled;
-    this.$$("PPB").checked = config.units.PPB.enabled;
+        this.$$("PRA").checked = config.units.PRA.enabled;
+        this.$$("PRB").checked = config.units.PRB.enabled;
+        this.$$("PPA").checked = config.units.PPA.enabled;
+        this.$$("PPB").checked = config.units.PPB.enabled;
 
-    this.$$("MTA").checked = config.units.MTA.enabled;
-    this.$$("MTB").checked = config.units.MTB.enabled;
-    this.$$("MTC").checked = config.units.MTC.enabled;
-    this.$$("MTD").checked = config.units.MTD.enabled;
-    this.$$("MTE").checked = config.units.MTE.enabled;
-    this.$$("MTF").checked = config.units.MTF.enabled;
-    this.$$("MTH").checked = config.units.MTH.enabled;
-    this.$$("MTJ").checked = config.units.MTJ.enabled;
-    this.$$("MTK").checked = config.units.MTK.enabled;
-    this.$$("MTL").checked = config.units.MTL.enabled;
-    this.$$("MTM").checked = config.units.MTM.enabled;
-    this.$$("MTN").checked = config.units.MTN.enabled;
-    this.$$("MTP").checked = config.units.MTP.enabled;
-    this.$$("MTR").checked = config.units.MTR.enabled;
-    this.$$("MTS").checked = config.units.MTS.enabled;
-    this.$$("MTT").checked = config.units.MTT.enabled;
+        this.$$("MTA").checked = config.units.MTA.enabled;
+        this.$$("MTB").checked = config.units.MTB.enabled;
+        this.$$("MTC").checked = config.units.MTC.enabled;
+        this.$$("MTD").checked = config.units.MTD.enabled;
+        this.$$("MTE").checked = config.units.MTE.enabled;
+        this.$$("MTF").checked = config.units.MTF.enabled;
+        this.$$("MTH").checked = config.units.MTH.enabled;
+        this.$$("MTJ").checked = config.units.MTJ.enabled;
+        this.$$("MTK").checked = config.units.MTK.enabled;
+        this.$$("MTL").checked = config.units.MTL.enabled;
+        this.$$("MTM").checked = config.units.MTM.enabled;
+        this.$$("MTN").checked = config.units.MTN.enabled;
+        this.$$("MTP").checked = config.units.MTP.enabled;
+        this.$$("MTR").checked = config.units.MTR.enabled;
+        this.$$("MTS").checked = config.units.MTS.enabled;
+        this.$$("MTT").checked = config.units.MTT.enabled;
 
-    this.$$("DRA").checked = config.units.DRA.enabled;
-    this.$$("DRB").checked = config.units.DRB.enabled;
+        this.$$("DRA").checked = config.units.DRA.enabled;
+        this.$$("DRB").checked = config.units.DRB.enabled;
 
-    this.$$("DKA").checked = config.units.DKA.enabled;
-    this.$$("DKB").checked = config.units.DKB.enabled;
-    this.$$("DFX").checked =
-            (config.units.DKA.enabled && config.units.DKA.DFX) ||
-            (config.units.DKB.enabled && config.units.DKB.DFX);
-    this.$$("FPM").checked =
-            (config.units.DKA.enabled && config.units.DKA.FPM) ||
-            (config.units.DKB.enabled && config.units.DKB.FPM);
+        this.$$("DKA").checked = config.units.DKA.enabled;
+        this.$$("DKB").checked = config.units.DKB.enabled;
+        this.$$("DFX").checked =
+                (config.units.DKA.enabled && config.units.DKA.DFX) ||
+                (config.units.DKB.enabled && config.units.DKB.DFX);
+        this.$$("FPM").checked =
+                (config.units.DKA.enabled && config.units.DKA.FPM) ||
+                (config.units.DKB.enabled && config.units.DKB.FPM);
 
-    /***** TEMP to fix configuration structure change *****/
-    if (config.terminalUnits) {
-        config.units.DCA.terminalUnits = config.terminalUnits;
-        delete config.terminalUnits;
+        /***** TEMP to fix configuration structure change *****/
+        if (config.terminalUnits) {
+            config.units.DCA.terminalUnits = config.terminalUnits;
+            delete config.terminalUnits;
+        }
+
+        this.$$("DCA").checked = config.units.DCA.enabled;
+        this.$$("TU1").checked = config.units.DCA.terminalUnits.TU1.enabled;
+        this.$$("TUAdapters1").value = config.units.DCA.terminalUnits.TU1.adapters;
+        this.$$("TUBuffers1").value = config.units.DCA.terminalUnits.TU1.buffers;
+        this.$$("TUPingPong1").checked = config.units.DCA.terminalUnits.TU1.pingPong;
+
+        this.$$("MessageArea").textContent = "Configuration \"" + config.configName + "\" loaded.";
+        this.window.focus();
     }
-
-    this.$$("DCA").checked = config.units.DCA.enabled;
-    this.$$("TU1").checked = config.units.DCA.terminalUnits.TU1.enabled;
-    this.$$("TUAdapters1").value = config.units.DCA.terminalUnits.TU1.adapters;
-    this.$$("TUBuffers1").value = config.units.DCA.terminalUnits.TU1.buffers;
-    this.$$("TUPingPong1").checked = config.units.DCA.terminalUnits.TU1.pingPong;
-
-    this.$$("MessageArea").textContent = "Configuration \"" + config.configName + "\" loaded.";
-    this.window.focus();
 };
 
 /**************************************/
@@ -834,6 +759,7 @@ B5500SystemConfig.prototype.deleteConfigDialog = function deleteConfigDialog(ev)
     var configName;
     var nameList = this.$$("ConfigNameList");
     var selection = nameList.selectedIndex;
+    var that = this;
 
     if (selection < 0) {
         this.alertWin.alert("No configuration selected for delete");
@@ -842,8 +768,8 @@ B5500SystemConfig.prototype.deleteConfigDialog = function deleteConfigDialog(ev)
         if (this.alertWin.confirm("Are you sure you want to delete the configuration \"" +
                     configName + "\"?")) {
             this.deleteSystemConfig(configName, function(ev) {
-                this.alertWin.alert("Configuration \"" + configName + "\" deleted.");
-                this.window.close();
+                that.alertWin.alert("Configuration \"" + configName + "\" deleted.");
+                that.window.close();
             });
         }
     }
@@ -866,37 +792,6 @@ B5500SystemConfig.prototype.selectConfigDialog = function selectConfigDialog(ev)
 };
 
 /**************************************/
-B5500SystemConfig.prototype.closeConfigUI = function closeConfigUI() {
-    /* Closes the system configuration update dialog */
-
-    this.alertWin = window;             // revert alerts to the global window
-    if (this.window) {
-        if (!this.window.closed) {
-            this.window.close();
-        }
-        this.window = null;
-    }
-}
-
-/**************************************/
-B5500SystemConfig.prototype.newStorageDialog = function newStorageDialog(ev) {
-    /* Prompts the user for a new configuration name, clones the currently-
-    selected configuration, and displays the clone properties in the window */
-    var newName;
-    var storage;
-    var storageList = this.$$("DiskStorageList");
-
-    newName = this.alertWin.prompt("Enter the name of the new Disk Storage subsystem");
-    if (!newName) {
-        this.alertWin.alert("The new Disk Storage subsystem must have a name.");
-    } else {
-        storage = new B5500DiskStorageConfig();
-        storage.openStorageUI(newName);
-        storageList.add(new Option(newName, newName, true, true));
-    }
-};
-
-/**************************************/
 B5500SystemConfig.prototype.openStorageUI = function openStorageUI() {
     /* Opens the Disk Storage configuration UI, passing the name of the
     currently-selected storage name */
@@ -913,6 +808,38 @@ B5500SystemConfig.prototype.openStorageUI = function openStorageUI() {
         storage.openStorageUI(storageName);
     }
 };
+
+/**************************************/
+B5500SystemConfig.prototype.newStorageDialog = function newStorageDialog(ev) {
+    /* Prompts the user for a new storage name and opens a window to create
+    the new disk storage subsystem */
+    var newName;
+    var storage;
+    var storageList = this.$$("DiskStorageList");
+
+    newName = this.alertWin.prompt("Enter the name of the new Disk Storage subsystem");
+    if (!newName) {
+        this.alertWin.alert("The new Disk Storage subsystem must have a name.");
+    } else {
+        storage = new B5500DiskStorageConfig();
+        storage.openStorageUI(newName);
+        storageList.add(new Option(newName, newName, true, true));
+    }
+};
+
+/**************************************/
+B5500SystemConfig.prototype.closeConfigUI = function closeConfigUI() {
+    /* Closes the system configuration update dialog */
+
+    this.closeConfigDB();
+    this.alertWin = window;             // revert alerts to the global window
+    if (this.window) {
+        if (!this.window.closed) {
+            this.window.close();
+        }
+        this.window = null;
+    }
+}
 
 /**************************************/
 B5500SystemConfig.prototype.openConfigUI = function openConfigUI() {
