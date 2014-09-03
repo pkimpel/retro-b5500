@@ -732,7 +732,7 @@ B5500DiskStorageConfig.prototype.openStorageUI = function openStorageUI(storageN
     }
     this.doc = null;
     this.window = window.open("../webUI/B5500DiskStorageConfig.html", storageName+"_Config",
-        "scrollbars,resizable,width=560,height=480");
+            "location=no,scrollbars,resizable,width=560,height=480");
     this.window.moveTo(screen.availWidth-this.window.outerWidth-80,
                (screen.availHeight-this.window.outerHeight)/2);
     this.window.focus();

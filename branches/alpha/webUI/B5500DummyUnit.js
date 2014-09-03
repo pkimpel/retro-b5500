@@ -19,7 +19,7 @@
 "use strict";
 
 /**************************************/
-function B5500DummyUnit(mnemonic, index, designate, statusChange, signal) {
+function B5500DummyUnit(mnemonic, index, designate, statusChange, signal, options) {
     /* Constructor for the DummyUnit object */
 
     this.mnemonic = mnemonic;           // Unit mnemonic

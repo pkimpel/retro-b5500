@@ -24,7 +24,7 @@
 "use strict";
 
 /**************************************/
-function B5500DatacomUnit(mnemonic, unitIndex, designate, statusChange, signal) {
+function B5500DatacomUnit(mnemonic, unitIndex, designate, statusChange, signal, options) {
     /* Constructor for the DatacomUnit object */
 
     this.maxScrollLines = 1500;         // Maximum amount of printer scrollback
@@ -53,7 +53,7 @@ function B5500DatacomUnit(mnemonic, unitIndex, designate, statusChange, signal) 
     this.paper = null;
     this.endOfPaper = null;
     this.window = window.open("../webUI/B5500DatacomUnit.html", mnemonic,
-            "scrollbars,resizable,width=520,height=540");
+            "location=no,scrollbars,resizable,width=520,height=540");
     this.window.addEventListener("load", B5500CentralControl.bindMethod(this,
             B5500DatacomUnit.prototype.datacomOnload), false);
 }
@@ -512,7 +512,7 @@ B5500SPOUnit.prototype.copyPaper = function copyPaper(ev) {
     var text = ev.target.textContent;
     var title = "B5500 " + this.mnemonic + " Text Snapshot";
     var win = window.open("./B5500FramePaper.html", this.mnemonic + "-Snapshot",
-            "scrollbars,resizable,width=500,height=500");
+            "location=no,scrollbars,resizable,width=500,height=500");
 
     win.moveTo((screen.availWidth-win.outerWidth)/2, (screen.availHeight-win.outerHeight)/2);
     win.addEventListener("load", function() {
@@ -551,7 +551,7 @@ B5500DatacomUnit.prototype.datacomOnload = function datacomOnload() {
     var x;
 
     this.doc = this.window.document;
-    this.doc.title = "retro-B5500 " + this.mnemonic + ": TU/BUF=01/00";
+    this.doc.title = "retro-B5500 Datacom Unit " + this.mnemonic + ": TU/BUF=01/00";
     this.paper = this.$$("Paper");
     this.endOfPaper = this.$$("EndOfPaper");
 

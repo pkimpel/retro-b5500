@@ -1,24 +1,29 @@
 /***********************************************************************
 * retro-b5500/emulator B5500SystemConfiguration.js
 ************************************************************************
-* Copyright (c) 2012, Nigel Williams and Paul Kimpel.
+* Copyright (c) 2012, 2014, Nigel Williams and Paul Kimpel.
 * Licensed under the MIT License,
 *       see http://www.opensource.org/licenses/mit-license.php
 ************************************************************************
-* B5500 System Configuration module.
+* B5500 System Configuration definition module.
 *
-* This is presently a static Javascript object describing the hardware
-* modules and peripherals attached to the system.
+* This class defines the system configuration properties for the B5500
+* emulator. This is not used directly by the emulator, but serves as a
+* central definition of the configuration properties and as a template
+* from which actual configuration instances can be cloned.
 ************************************************************************
 * 2012-06-30  P.Kimpel
 *   Original version, from thin air.
+* 2014-08-27  P.Kimpel
+*   Revise and implement as a constructor with prototype to support the
+*   new dynamic configuration mechanism.
 ***********************************************************************/
 "use strict";
 
 /**************************************/
 function B5500SystemConfiguration() {
     /* Constructor for the global SystemConfiguration definition object */
-
+    // ...nothing to construct at present... everything's in the prototype.
 }
 
 /**************************************/

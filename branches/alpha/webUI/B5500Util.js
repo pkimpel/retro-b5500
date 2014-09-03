@@ -13,7 +13,31 @@
 "use strict";
 
 /**************************************/
-function B5500Util() {}
+function B5500Util() {
+    /* Constructor for the B5500Util object */
+    // Nothing to construct at present...
+}
+
+/**************************************/
+B5500Util.xlateASCIIToAlgolRex =                // For translation of BIC-as-ASCII to Unicode Algol glyphs
+        /[^\r\n "#$%&()*+,\-./0-9:;<=>?@A-Z\[\]\u00D7\u2190\u2260\u2264\u2265]/g;
+B5500Util.xlateASCIIToAlgolGlyph = {
+        "!": "\u2260",  // not-equal
+        "_": "\u2190",  // Sid McHarg's left-arrow
+        "{": "\u2264",  // less-than-or-equal
+        "|": "\u00D7",  // multiply (x)
+        "}": "\u2265",  // greater-than-or-equal
+        "~": "\u2190"}; // left-arrow
+
+B5500Util.xlateAlgolToASCIIRex =                // For translation of Unicode Algol glyphs to BIC-as-ASCII
+        /[^\r\n !"#$%&()*+,\-./0-9:;<=>?@A-Z\[\]{|}~]/g;
+B5500Util.xlateAlgolToASCIIGlyph = {
+        "_":      "~",  // Sid McHarg's left-arrow
+        "\u00D7": "|",  // multiply (x)
+        "\u2190": "~",  // left-arrow
+        "\u2260": "!",  // not-equal
+        "\u2264": "{",  // less-than-or-equal
+        "\u2265": "}"}; // greater-than-or-equal
 
 /**************************************/
 B5500Util.$$ = function $$(e) {
@@ -117,4 +141,49 @@ B5500Util.deepCopy = function deepCopy(source, dest) {
         return to;
     }
     ********************************/
+};
+
+/**************************************/
+B5500Util.xlateToAlgolChar = function xlateToAlgolChar(c) {
+    /* Translates one BIC-as-ASCII Algol glyph character to Unicode */
+
+    return B5500Util.xlateASCIIToAlgolGlyph[c] || "?";
+};
+
+/**************************************/
+B5500Util.xlateASCIIToAlgol = function xlateASCIIToAlgol(text) {
+    /* Translates the BIC-as-ASCII characters in "text" to equivalent Unicode glyphs */
+
+    return text.replace(B5500Util.xlateASCIIToAlgolRex, B5500Util.xlateToAlgolChar);
+};
+
+/**************************************/
+B5500Util.xlateToASCIIChar = function xlateToASCIIChar(c) {
+    /* Translates one Unicode Algol glyph to its BIC-as-ASCII equivalent */
+
+    return B5500Util.xlateAlgolToASCIIGlyph[c] || "?";
+};
+
+/**************************************/
+B5500Util.xlateAlgolToASCII = function xlateAlgolToASCII(text) {
+    /* Translates the Unicode characters in "text" equivalent BIC-as-ASCII glyphs */
+
+    return text.replace(B5500Util.xlateAlgolToASCIIRex, B5500Util.xlateToASCIIChar);
+};
+
+/**************************************/
+B5500Util.xlateDOMTreeText = function xlateDOMTreeText(n, xlate) {
+    /* If Node "n" is a text node, translates its value using the "xlate"
+    function. For all other Node types, translates all subordinate text nodes */
+    var kid;
+
+    if (n.nodeType == Node.TEXT_NODE) {
+        n.nodeValue = xlate(n.nodeValue);
+    } else {
+        kid = n.firstChild;
+        while (kid) {
+            xlateDOMTreeText(kid, xlate);
+            kid = kid.nextSibling;
+        }
+    }
 };

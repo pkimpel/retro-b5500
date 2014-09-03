@@ -46,7 +46,6 @@ function B5500CentralControl(global) {
 
     // Instance variables and flags
     this.poweredUp = 0;                 // System power indicator
-
     this.unitStatusMask = 0;            // Peripheral unit ready-status bitmask [must not be in clear()]
 
     this.PB1L = 0;                      // 0=> PA is P1, 1=> PB is P1
@@ -62,7 +61,7 @@ function B5500CentralControl(global) {
 /**************************************/
 
 /* Global constants */
-B5500CentralControl.version = "0.21a6";
+B5500CentralControl.version = "0.21a7";
 
 B5500CentralControl.memReadCycles = 2;          // assume 2 탎 memory read cycle time (the other option was 3 탎)
 B5500CentralControl.memWriteCycles = 4;         // assume 4 탎 memory write cycle time (the other option was 6 탎)
@@ -127,8 +126,8 @@ B5500CentralControl.unitSpecs = {
     CRB: {unitIndex: 23, designate: 14, unitClass: "B5500CardReader"},
     CRA: {unitIndex: 24, designate: 10, unitClass: "B5500CardReader"},
     CPA: {unitIndex: 25, designate: 10, unitClass: "B5500CardPunch"},
-    LPB: {unitIndex: 26, designate: 26, unitClass: "B5500DummyPrinter"},
-    LPA: {unitIndex: 27, designate: 22, unitClass: "B5500DummyPrinter"},
+    LPB: {unitIndex: 26, designate: 26, unitClass: "B5500LinePrinter"},
+    LPA: {unitIndex: 27, designate: 22, unitClass: "B5500LinePrinter"},
     DKB: {unitIndex: 28, designate: 12, unitClass: "B5500DiskUnit"},
     DKA: {unitIndex: 29, designate:  6, unitClass: "B5500DiskUnit"},
     DRB: {unitIndex: 30, designate:  8, unitClass: null},

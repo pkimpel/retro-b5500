@@ -16,9 +16,8 @@
 "use strict";
 
 /**************************************/
-function B5500CardReader(mnemonic, unitIndex, designate, statusChange, signal) {
+function B5500CardReader(mnemonic, unitIndex, designate, statusChange, signal, options) {
     /* Constructor for the CardReader object */
-    var that = this;
     var x = (mnemonic == "CRA" ? 0 : 1)*110;
 
     this.mnemonic = mnemonic;           // Unit mnemonic
@@ -39,10 +38,9 @@ function B5500CardReader(mnemonic, unitIndex, designate, statusChange, signal) {
     }
     this.doc = null;
     this.window = window.open("../webUI/B5500CardReader.html", mnemonic,
-        "scrollbars=no,resizable,width=560,height=160,left=0,top="+x);
-    this.window.addEventListener("load", function windowLoad() {
-        that.readerOnload();
-    }, false);
+            "location=no,scrollbars=no,resizable,width=560,height=160,left=0,top="+x);
+    this.window.addEventListener("load",
+            B5500CentralControl.bindMethod(this, B5500CardReader.prototype.readerOnload), false);
 
     this.hopperBar = null;
     this.outHopperFrame = null;
@@ -93,11 +91,11 @@ B5500CardReader.prototype.setReaderReady = function setReaderReady(ready) {
     if (ready) {
         this.statusChange(1);
         B5500Util.addClass(this.$$("CRStartBtn"), "greenLit")
-        B5500Util.removeClass(this.$$("CRNotReadyLight"), "redLit");
+        B5500Util.removeClass(this.$$("CRNotReadyLight"), "whiteLit");
     } else {
         this.statusChange(0);
         B5500Util.removeClass(this.$$("CRStartBtn"), "greenLit")
-        B5500Util.addClass(this.$$("CRNotReadyLight"), "redLit");
+        B5500Util.addClass(this.$$("CRNotReadyLight"), "whiteLit");
     }
 };
 
@@ -108,16 +106,15 @@ B5500CardReader.prototype.armEOF = function armEOF(armed) {
 
     this.eofArmed = armed;
     if (armed) {
-        B5500Util.addClass(this.$$("CREOFBtn"), "redLit");
+        B5500Util.addClass(this.$$("CREOFBtn"), "whiteLit");
     } else {
-        B5500Util.removeClass(this.$$("CREOFBtn"), "redLit");
+        B5500Util.removeClass(this.$$("CREOFBtn"), "whiteLit");
     }
 };
 
 /**************************************/
 B5500CardReader.prototype.CRStartBtn_onclick = function CRStartBtn_onclick(ev) {
     /* Handle the click event for the START button */
-    var that = this;
 
     if (!this.ready) {
         if (this.bufIndex < this.bufLength) {
@@ -299,7 +296,7 @@ B5500CardReader.prototype.readerOnload = function readerOnload() {
 
     this.doc = this.window.document;
     de = this.doc.documentElement;
-    this.doc.title = "retro-B5500 " + this.mnemonic;
+    this.doc.title = "retro-B5500 Card Reader " + this.mnemonic;
 
     this.hopperBar = this.$$("CRHopperBar");
     this.outHopperFrame = this.$$("CROutHopperFrame");

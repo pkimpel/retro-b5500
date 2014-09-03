@@ -876,7 +876,7 @@ B5500SystemConfig.prototype.openConfigUI = function openConfigUI() {
     }
     this.doc = null;
     this.window = window.open("../webUI/B5500SystemConfig.html", this.configDBName,
-        "scrollbars,resizable,width=640,height=700");
+            "location=no,scrollbars,resizable,width=640,height=700");
     this.window.moveTo(screen.availWidth-this.window.outerWidth-40,
                (screen.availHeight-this.window.outerHeight)/2);
     this.window.focus();

@@ -28,7 +28,7 @@
 "use strict";
 
 /**************************************/
-function B5500MagTapeDrive(mnemonic, unitIndex, designate, statusChange, signal) {
+function B5500MagTapeDrive(mnemonic, unitIndex, designate, statusChange, signal, options) {
     /* Constructor for the MagTapeDrive object */
 
     this.mnemonic = mnemonic;           // Unit mnemonic
@@ -53,7 +53,7 @@ function B5500MagTapeDrive(mnemonic, unitIndex, designate, statusChange, signal)
     }
     this.doc = null;
     this.window = window.open("../webUI/B5500MagTapeDrive.html", mnemonic,
-        "scrollbars=no,resizable,width=560,height=120,left=280,top=0");
+            "location=no,scrollbars=no,resizable,width=560,height=120,left=280,top=0");
     this.window.addEventListener("load",
             B5500CentralControl.bindMethod(this, B5500MagTapeDrive.prototype.tapeDriveOnload), false);
 }
@@ -181,8 +181,8 @@ B5500MagTapeDrive.prototype.spinReel = function spinReel(inches) {
     }
 
     this.reelAngle = (this.reelAngle + degrees)%360;
-    this.reelIcon.style.transform = "rotate(" + this.reelAngle.toFixed(0) + "deg)";
     this.reelIcon.style["-webkit-transform"] = "rotate(" + this.reelAngle.toFixed(0) + "deg)";  // temp for Chrome
+    this.reelIcon.style.transform = "rotate(" + this.reelAngle.toFixed(0) + "deg)";
 
     if (this.tapeInches < this.imgMaxInches) {
         this.reelBar.value = this.imgMaxInches - this.tapeInches;
@@ -362,7 +362,7 @@ B5500MagTapeDrive.prototype.loadTape = function loadTape() {
     var tapeInches = 0;                 // selected tape length in inches
     var tapeLengthSelect = null;        // tape length list element
     var win = this.window.open("B5500MagTapeLoadPanel.html", this.mnemonic + "Load",
-            "scrollbars=no,resizable,width=508,height=112,left=" +
+            "location=no,scrollbars=no,resizable,width=508,height=112,left=" +
             (this.window.screenX+16) +",top=" + (this.window.screenY+16));
     var writeRing = false;              // true if write-enabled
     var writeRingCheck = null;          // tape write ring checkbox element
@@ -650,7 +650,7 @@ B5500MagTapeDrive.prototype.unloadTape = function unloadTape() {
     var doc = null;                     // loader window.document
     var mt = this;                      // tape drive object
     var win = this.window.open("./B5500FramePaper.html", this.mnemonic + "-Unload",
-        "scrollbars=yes,resizable,width=800,height=600");
+            "location=no,scrollbars=yes,resizable,width=800,height=600");
 
     function unloadDriver() {
         /* Converts the tape image to ASCII once the window has displayed the
@@ -1141,7 +1141,7 @@ B5500MagTapeDrive.prototype.tapeDriveOnload = function tapeDriveOnload() {
 
     this.doc = this.window.document;
     de = this.doc.documentElement;
-    this.doc.title = "retro-B5500 " + this.mnemonic;
+    this.doc.title = "retro-B5500 Tape Drive " + this.mnemonic;
 
     this.reelBar = this.$$("MTReelBar");
     this.reelIcon = this.$$("MTReel");

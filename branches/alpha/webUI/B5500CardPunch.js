@@ -16,9 +16,8 @@
 "use strict";
 
 /**************************************/
-function B5500CardPunch(mnemonic, unitIndex, designate, statusChange, signal) {
+function B5500CardPunch(mnemonic, unitIndex, designate, statusChange, signal, options) {
     /* Constructor for the CardPunch object */
-    var that = this;
 
     this.mnemonic = mnemonic;           // Unit mnemonic
     this.unitIndex = unitIndex;         // Ready-mask bit number
@@ -42,10 +41,9 @@ function B5500CardPunch(mnemonic, unitIndex, designate, statusChange, signal) {
     this.stacker2 = null;
     this.endOfStacker2 = null;
     this.window = window.open("../webUI/B5500CardPunch.html", mnemonic,
-            "scrollbars=no,resizable,width=560,height=204,left=0,top=220");
-    this.window.addEventListener("load", function windowLoad() {
-        that.punchOnload();
-    }, false);
+            "location=no,scrollbars=no,resizable,width=560,height=204,left=0,top=220");
+    this.window.addEventListener("load",
+            B5500CentralControl.bindMethod(this, B5500CardPunch.prototype.punchOnload), false);
 }
 
 B5500CardPunch.prototype.cardsPerMinute = 300;  // Punch speed
@@ -67,7 +65,6 @@ B5500CardPunch.prototype.clear = function clear() {
     this.finish = null;                 // external function to call for I/O completion
 
     this.runoutArmed = false;           // EOF button: armed state
-    this.stopCount = 0;                 // stopCount for clearing the input buffer
     this.stacker1Count = 0;             // cards in stacker #1
     this.stacker2Count = 0;             // cards in stacker #2
 };
@@ -79,7 +76,7 @@ B5500CardPunch.prototype.setPunchReady = function setPunchReady(ready) {
     if (ready && !this.ready) {
         this.statusChange(1);
         B5500Util.addClass(this.$$("CPStartBtn"), "greenLit")
-        B5500Util.removeClass(this.$$("CPNotReadyLight"), "redLit");
+        B5500Util.removeClass(this.$$("CPNotReadyLight"), "whiteLit");
         this.ready = true;
         if (this.runoutArmed) {
             if (this.stacker1Count || this.stacker2Count) {
@@ -100,7 +97,7 @@ B5500CardPunch.prototype.setPunchReady = function setPunchReady(ready) {
     } else if (!ready && this.ready) {
         this.statusChange(0);
         B5500Util.removeClass(this.$$("CPStartBtn"), "greenLit")
-        B5500Util.addClass(this.$$("CPNotReadyLight"), "redLit");
+        B5500Util.addClass(this.$$("CPNotReadyLight"), "whiteLit");
         this.ready = false;
     }
 };
@@ -122,12 +119,8 @@ B5500CardPunch.prototype.armRunout = function armRunout(armed) {
 /**************************************/
 B5500CardPunch.prototype.CPStartBtn_onclick = function CPStartBtn_onclick(ev) {
     /* Handle the click event for the START button */
-    var that = this;
 
     if (!this.ready) {
-        this.stopCount = 0;
-        if (this.bufIndex < this.bufLength) {
-        }
         this.setPunchReady(true);
     }
 };
@@ -164,11 +157,10 @@ B5500CardPunch.prototype.beforeUnload = function beforeUnload(ev) {
 B5500CardPunch.prototype.punchOnload = function punchOnload() {
     /* Initializes the punch window and user interface */
     var de;
-    var that = this;
 
     this.doc = this.window.document;
     de = this.doc.documentElement;
-    this.doc.title = "retro-B5500 " + this.mnemonic;
+    this.doc.title = "retro-B5500 Card Punch " + this.mnemonic;
 
     this.stacker1Frame = this.$$("CPStacker1Frame");
     this.stacker1 = this.stacker1Frame.contentDocument.getElementById("Paper");

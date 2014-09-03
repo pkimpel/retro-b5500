@@ -17,7 +17,7 @@
 "use strict";
 
 /**************************************/
-function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal) {
+function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal, options) {
     /* Constructor for the SPOUnit object */
 
     this.maxScrollLines = 1500;         // Maximum amount of printer scrollback
@@ -45,7 +45,7 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal) {
     this.inputBox = null;
     this.endOfPaper = null;
     this.window = window.open("../webUI/B5500SPOUnit.html", mnemonic,
-            "scrollbars=no,resizable,width=688,height=508");
+            "location=no,scrollbars=no,resizable,width=688,height=508");
     this.window.addEventListener("load", B5500CentralControl.bindMethod(this,
             B5500SPOUnit.prototype.spoOnload), false);
 }
@@ -110,6 +110,19 @@ B5500SPOUnit.prototype.setLocal = function setLocal() {
     this.bufIndex = 0;
     this.nextCharTime = performance.now();
     this.finish = null;
+};
+
+/**************************************/
+B5500SPOUnit.prototype.requestLocal = function requestLocal(ev) {
+    /* Handler for the Local button click. If the SPO is idle and in remote
+    status, sets it to local; otherwise flags it to go local once the current
+    I/O completes */
+
+    if (this.spoState == this.spoRemote) {
+        this.setLocal();
+    } else {
+        this.spoLocalRequested = true;
+    }
 };
 
 /**************************************/
@@ -431,13 +444,7 @@ B5500SPOUnit.prototype.spoOnload = function spoOnload() {
     this.$$("SPORemoteBtn").addEventListener("click",
             B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.setRemote), false);
     this.$$("SPOLocalBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, function localClick() {
-                if (this.spoState == this.spoRemote) {
-                    this.setLocal();
-                } else {
-                    this.spoLocalRequested = true;
-                }
-            }), false);
+            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.requestLocal), false);
     this.$$("SPOInputRequestBtn").addEventListener("click",
             B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.requestInput), false);
     this.$$("SPOErrorBtn").addEventListener("click",
@@ -447,6 +454,7 @@ B5500SPOUnit.prototype.spoOnload = function spoOnload() {
 
     this.printText("retro-B5500 Emulator Version " + B5500CentralControl.version,
             B5500CentralControl.bindMethod(this, function initFinish() {
+        window.open("", "B5500Console").focus();
         this.window.focus();
         this.setRemote();
         this.appendEmptyLine("\xA0");

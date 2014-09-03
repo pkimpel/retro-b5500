@@ -49,6 +49,7 @@ window.addEventListener("load", function() {
         $$("RetroVersion").style.visibility = (showEm ? "visible" : "hidden");
         $$("RetroLogoImage").style.display = (showEm ? "inline" : "none");
         $$("B5500LogoImage").style.display = (showEm ? "none" : "inline");
+        $$("ConfigLabel").style.display = (showEm ? "inline" : "none");
     }
 
     function BurroughsLogo_Click(ev) {
@@ -62,6 +63,7 @@ window.addEventListener("load", function() {
         if (cc.poweredUp) {
             alert("System configuration changes are\nnot allowed while power is on.");
         } else {
+            $$("ConfigLabel").textContent = "";
             sysConfig.openConfigUI();
         }
     }
@@ -70,7 +72,6 @@ window.addEventListener("load", function() {
         var sysConfig = new B5500SystemConfig();
 
         function applyPower(config) {
-            $$("PowerOnBtn").className = "greenButton greenLit";
             $$("HaltBtn").className = "redButton redLit";
             $$("PowerOnBtn").disabled = true;
             $$("PowerOffBtn").disabled = false;
@@ -79,6 +80,9 @@ window.addEventListener("load", function() {
             $$("HaltBtn").disabled = true;
             $$("MemoryCheckBtn").disabled = false;
             cc.powerOn(config);
+            $$("LoadSelectBtn").className = "yellowButton" + (cc.cardLoadSelect ? " yellowLit" : "");
+            $$("ConfigLabel").textContent = "Configuration: " + config.configName +
+                    ", Disk Subsystem: " + config.units.DKA.storageName;
             setAnnunciators(showAnnunciators);
         }
 
@@ -86,8 +90,9 @@ window.addEventListener("load", function() {
             /* Called-back by sysConfig.getSystemConfig with the requested configuration */
 
             if (!config) {
-                alert("No System Configuration found\nCannot power on.");
+                alert("No System Configuration found\nCANNOT POWER ON.");
             } else {
+                $$("PowerOnBtn").className = "greenButton greenLit";
                 if (showAnnunciators) {
                     lampTest(applyPower, config);
                 } else {
@@ -111,7 +116,6 @@ window.addEventListener("load", function() {
         $$("NotReadyBtn").className = "whiteButton";
         $$("HaltBtn").className = "redButton";
         cc.powerOff();
-        $$("CentralControl").style.display = "none";
         $$("PowerOnBtn").disabled = false;
         $$("PowerOffBtn").disabled = true;
         $$("LoadSelectBtn").disabled = true;
@@ -184,7 +188,7 @@ window.addEventListener("load", function() {
         /* Generates a dump of the processor states and all of memory */
         var doc;
         var lastPhase = -2;
-        var win = window.open("", "", "resizable,scrollbars,status");
+        var win = window.open("", "", "location=no,resizable,scrollbars,status");
         var x;
 
         var htmlMatch = /[<>&"]/g;          // regular expression for escaping HTML text
@@ -610,6 +614,7 @@ window.addEventListener("load", function() {
 
     $$("RetroVersion").innerHTML = B5500CentralControl.version;
     if (!checkBrowser()) {
+        window.name = "B5500Console";
         $$("BurroughsLogo").addEventListener("click", BurroughsLogo_Click, false);
         $$("B5500Logo").addEventListener("click", B5500Logo_Click, false);
         $$("PowerOnBtn").addEventListener("click", PowerOnBtn_Click, false);
