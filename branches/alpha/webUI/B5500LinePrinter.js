@@ -30,6 +30,7 @@ function B5500LinePrinter(mnemonic, unitIndex, designate, statusChange, signal, 
     this.timer = 0;                     // setCallback() token
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
     this.useAlgolGlyphs = options.algolGlyphs; // format Unicode for special Algol chars
+    this.useGreenbar = true;            // format "greenbar" shading on the paper
     this.lpi = 6;                       // lines/inch (actually, lines per greenbar group, should be even)
 
     this.clear();
@@ -41,6 +42,7 @@ function B5500LinePrinter(mnemonic, unitIndex, designate, statusChange, signal, 
     }
     this.doc = null;
     this.barGroup = null;               // current greenbar line group
+    this.paperDoc = null;               // the content document for the paper frame
     this.paper = null;                  // the "paper" we print on
     this.endOfPaper = null;             // dummy element used to control scrolling
     this.paperMeter = null;             // <meter> element showing amount of paper remaining
@@ -53,6 +55,7 @@ function B5500LinePrinter(mnemonic, unitIndex, designate, statusChange, signal, 
 B5500LinePrinter.prototype.linesPerMinute = 1040;       // B329 line printer
 B5500LinePrinter.prototype.maxPaperLines = 150000;      // maximum printer scrollback (about a box of paper)
 B5500LinePrinter.prototype.rtrimRex = /\s+$/g;          // regular expression for right-trimming lines
+B5500LinePrinter.prototype.theColorGreen = "#CFC";      // for greenbar shading
 
 /**************************************/
 B5500LinePrinter.prototype.$$ = function $$(e) {
@@ -146,14 +149,14 @@ B5500LinePrinter.prototype.printLine = function printLine(text, control) {
     group completion. For now, SPACE 0 (overprintng) is treated as single-spacing */
     var lines = 1;
 
-    this.appendLine(text || "");
+    this.appendLine(text || "\xA0");
     if (control > 1) {
         ++lines;
-        this.appendLine("");
+        this.appendLine("\xA0");
     } else if (control < 0) {
         while(this.groupLinesLeft > 0) {
             ++lines;
-            this.appendLine("");
+            this.appendLine("\xA0");
         }
         this.atTopOfForm = true;
     }
@@ -168,21 +171,48 @@ B5500LinePrinter.prototype.printLine = function printLine(text, control) {
 
 /**************************************/
 B5500LinePrinter.prototype.setAlgolGlyphs = function setAlgolGlyphs(makeItPretty) {
-    /* Controls the arming/disarming of the EOF signal when starting with
-    an empty input Paper */
+    /* Controls the display of Unicode glyphs for the special Algol characters */
 
     if (makeItPretty) {
-        B5500Util.addClass(this.$$("LPAlgolGlyphsBtn"), "whiteLit");
         if (!this.useAlgolGlyphs) {
             B5500Util.xlateDOMTreeText(this.paper, B5500Util.xlateASCIIToAlgol);
         }
     } else {
-        B5500Util.removeClass(this.$$("LPAlgolGlyphsBtn"), "whiteLit");
         if (this.useAlgolGlyphs) {
             B5500Util.xlateDOMTreeText(this.paper, B5500Util.xlateAlgolToASCII);
         }
     }
+    this.$$("LPAlgolGlyphsCheck").checked = makeItPretty;
     this.useAlgolGlyphs = makeItPretty;
+};
+
+/**************************************/
+B5500LinePrinter.prototype.setGreenbar = function setGreenbar(useGreen) {
+    /* Controls the display of "greenbar" shading on the paper */
+    var rule = null;
+    var rules = null;
+    var sheet;
+    var ss = this.paperDoc.styleSheets;
+    var x;
+
+    // First, find the embedded style sheet for the paper frame.
+    for (x=ss.length-1; x>=0; --x) {
+        sheet = ss[x];
+        if (sheet.ownerNode.id == "PaperFrameStyles") {
+            rules = sheet.cssRules;
+            // Next, search through the rules for the one that controls greenbar shading.
+            for (x=rules.length-1; x>=0; --x) {
+                rule = rules[x];
+                if (rule.selectorText == "PRE.greenBar") {
+                    // Found it: now flip the background color.
+                    rule.style.backgroundColor = (useGreen ? this.theColorGreen : "white");
+                }
+            }
+            break;      // out of for loop
+        }
+    }
+    this.$$("LPGreenbarCheck").checked = useGreen;
+    this.useGreenbar = useGreen;
 };
 
 /**************************************/
@@ -190,6 +220,7 @@ B5500LinePrinter.prototype.LPStartBtn_onclick = function LPStartBtn_onclick(ev) 
     /* Handle the click event for the START button */
 
     if (!this.ready && this.paperLeft > 0) {
+        this.formFeedCount = 0;
         this.setPrinterReady(true);
     }
 };
@@ -199,6 +230,7 @@ B5500LinePrinter.prototype.LPStopBtn_onclick = function LPStopBtn_onclick(ev) {
     /* Handle the click event for the STOP button */
 
     if (this.ready) {
+        this.formFeedCount = 0;
         this.setPrinterReady(false);
     }
 };
@@ -208,6 +240,7 @@ B5500LinePrinter.prototype.LPSpaceBtn_onclick = function LPSpaceBtn_onclick(ev) 
     /* Handle the click event for the Skip To Heading button */
 
     if (!this.ready) {
+        this.formFeedCount = 0;
         this.printLine("", 1);
         this.endOfPaper.scrollIntoView();
     }
@@ -243,10 +276,17 @@ B5500LinePrinter.prototype.LPEndOfPaperBtn_onclick = function LPEndOfPaperBtn_on
 };
 
 /**************************************/
-B5500LinePrinter.prototype.LPAlgolGlyphsBtn_onclick = function LPAlgolGlyphsBtn_onclick(ev) {
-    /* Handle the click event for the Algol Glyphs button */
+B5500LinePrinter.prototype.LPAlgolGlyphsCheck_onclick = function LPAlgolGlyphsCheck_onclick(ev) {
+    /* Handle the click event for the Algol Glyphs checkbox */
 
-    this.setAlgolGlyphs(!this.useAlgolGlyphs);
+    this.setAlgolGlyphs(ev.target.checked);
+};
+
+/**************************************/
+B5500LinePrinter.prototype.LPGreenbarCheck_onclick = function LPGreenbarCheck_onclick(ev) {
+    /* Handle the click event for the Greenbar checkbox */
+
+    this.setGreenbar(ev.target.checked);
 };
 
 /**************************************/
@@ -263,22 +303,22 @@ B5500LinePrinter.prototype.beforeUnload = function beforeUnload(ev) {
 B5500LinePrinter.prototype.printerOnload = function printerOnload() {
     /* Initializes the line printer window and user interface */
     var newChild;
-    var paperFrame;
 
     this.doc = this.window.document;
     this.doc.title = "retro-B5500 Line Printer " + this.mnemonic;
 
-    paperFrame = this.$$("LPPaperFrame");
-    this.paper = paperFrame.contentDocument.getElementById("Paper");
-    this.endOfPaper = paperFrame.contentDocument.getElementById("EndOfPaper");
+    this.paperDoc = this.$$("LPPaperFrame").contentDocument;
+    this.paper = this.paperDoc.getElementById("Paper");
+    this.endOfPaper = this.paperDoc.getElementById("EndOfPaper");
     this.paperMeter = this.$$("LPPaperMeter");
 
-    newChild = paperFrame.contentDocument.createElement("div");
+    newChild = this.paperDoc.createElement("div");
     newChild.id = this.paper.id;
     this.paper.parentNode.replaceChild(newChild, this.paper);
     this.paper = newChild;
 
     this.setAlgolGlyphs(this.useAlgolGlyphs);
+    this.setGreenbar(this.useGreenbar);
     this.paperMeter.max = this.maxPaperLines;
     this.paperMeter.low = this.maxPaperLines*0.1;
     this.paperMeter.value = this.paperLeft = this.maxPaperLines;
@@ -292,8 +332,10 @@ B5500LinePrinter.prototype.printerOnload = function printerOnload() {
             B5500CentralControl.bindMethod(this, B5500LinePrinter.prototype.LPFormFeedBtn_onclick), false);
     this.$$("LPSpaceBtn").addEventListener("click",
             B5500CentralControl.bindMethod(this, B5500LinePrinter.prototype.LPSpaceBtn_onclick), false);
-    this.$$("LPAlgolGlyphsBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500LinePrinter.prototype.LPAlgolGlyphsBtn_onclick), false);
+    this.$$("LPAlgolGlyphsCheck").addEventListener("click",
+            B5500CentralControl.bindMethod(this, B5500LinePrinter.prototype.LPAlgolGlyphsCheck_onclick), false);
+    this.$$("LPGreenbarCheck").addEventListener("click",
+            B5500CentralControl.bindMethod(this, B5500LinePrinter.prototype.LPGreenbarCheck_onclick), false);
     this.$$("LPStopBtn").addEventListener("click",
             B5500CentralControl.bindMethod(this, B5500LinePrinter.prototype.LPStopBtn_onclick), false);
     this.$$("LPStartBtn").addEventListener("click",

@@ -61,7 +61,7 @@ function B5500CentralControl(global) {
 /**************************************/
 
 /* Global constants */
-B5500CentralControl.version = "0.21a7";
+B5500CentralControl.version = "0.21a8";
 
 B5500CentralControl.memReadCycles = 2;          // assume 2 탎 memory read cycle time (the other option was 3 탎)
 B5500CentralControl.memWriteCycles = 4;         // assume 4 탎 memory write cycle time (the other option was 6 탎)
@@ -214,10 +214,6 @@ B5500CentralControl.prototype.clear = function clear() {
 
     this.P1 = (this.PB1L ? this.PB : this.PA);
     this.P2 = (this.PB1L ? this.PA : this.PB);
-    if (!this.P2) {
-        this.P2BF = 1;                  // mark non-existent P2 as busy
-        this.ccLatch |= 0x10;
-    }
     if (this.PA) {
         this.PA.clear();
     }
@@ -794,6 +790,11 @@ B5500CentralControl.prototype.load = function load(dontStart) {
     } else if (!this.cardLoadSelect && this.testUnitBusy(29)) {
         result = 5;                     // DKA is busy
     } else {                            // ready to rock 'n roll
+        if (!this.P2) {
+            this.P2BF = 1;              // mark non-existent P2 as busy
+            this.ccLatch |= 0x10;
+        }
+
         this.nextTimeStamp = performance.now();
         this.tock();
         this.LOFF = 1;                  // set the Load FF
@@ -835,7 +836,7 @@ B5500CentralControl.prototype.loadTest = function loadTest(buf, loadAddr) {
     should not be used to load ESPOL "DECK" files */
     var addr = loadAddr;            // starting B5500 memory address
     var bytes = buf.byteLength;
-    var data = new DataView(buf);   // use DataView() to avoid problems with littleendians.
+    var data = new DataView(buf);   // use DataView() to avoid problems with little-endians.
     var power = 0x10000000000;
     var word = 0;
     var x = 0;

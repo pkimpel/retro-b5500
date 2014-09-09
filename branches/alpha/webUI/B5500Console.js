@@ -52,6 +52,24 @@ window.addEventListener("load", function() {
         $$("ConfigLabel").style.display = (showEm ? "inline" : "none");
     }
 
+    function evaluateNotReady(config) {
+        /* Evaluates the system configuration to determine whether the
+        NOT READY lamp should be illuminated */
+        var lampClass = "whiteButton";
+
+        switch (false) {
+        case config.PA.enabled || config.PA.enabled:
+        case (config.PA.enabled && !config.PB1L) || (config.PB.enabled && config.PB1L):
+        case config.IO1.enabled || config.IO2.enabled || config.IO3.enabled || config.IO4.enabled:
+        case config.memMod[0].enabled:
+        case config.units.SPO.enabled:
+        case config.units.DKA.enabled:
+            lampClass += " whiteLit";
+        }
+
+        $$("NotReadyBtn").className = lampClass;
+    }
+
     function BurroughsLogo_Click(ev) {
         showAnnunciators = !showAnnunciators;
         setAnnunciators(showAnnunciators);
@@ -63,7 +81,7 @@ window.addEventListener("load", function() {
         if (cc.poweredUp) {
             alert("System configuration changes are\nnot allowed while power is on.");
         } else {
-            $$("ConfigLabel").textContent = "";
+            $$("ConfigLabel").style.display = "none";
             sysConfig.openConfigUI();
         }
     }
@@ -81,8 +99,7 @@ window.addEventListener("load", function() {
             $$("MemoryCheckBtn").disabled = false;
             cc.powerOn(config);
             $$("LoadSelectBtn").className = "yellowButton" + (cc.cardLoadSelect ? " yellowLit" : "");
-            $$("ConfigLabel").textContent = "Configuration: " + config.configName +
-                    ", Disk Subsystem: " + config.units.DKA.storageName;
+            evaluateNotReady(config);
             setAnnunciators(showAnnunciators);
         }
 
@@ -93,6 +110,8 @@ window.addEventListener("load", function() {
                 alert("No System Configuration found\nCANNOT POWER ON.");
             } else {
                 $$("PowerOnBtn").className = "greenButton greenLit";
+                $$("SysConfigName").textContent = config.configName;
+                $$("StorageName").textContent = config.units.DKA.storageName;
                 if (showAnnunciators) {
                     lampTest(applyPower, config);
                 } else {
@@ -122,6 +141,7 @@ window.addEventListener("load", function() {
         $$("LoadBtn").disabled = true;
         $$("HaltBtn").disabled = true;
         $$("MemoryCheckBtn").disabled = true;
+        dasBlinkenlicht();
         if (timer) {
             clearInterval(timer);
             timer = 0;
@@ -635,7 +655,6 @@ window.addEventListener("load", function() {
         buildLightMaps();
 
         cc = new B5500CentralControl(window);
-        setAnnunciators(showAnnunciators);
         window.dumpState = dumpState;
     }
 }, false);

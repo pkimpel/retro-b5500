@@ -19,8 +19,8 @@ function B5500Util() {
 }
 
 /**************************************/
-B5500Util.xlateASCIIToAlgolRex =                // For translation of BIC-as-ASCII to Unicode Algol glyphs
-        /[^\r\n "#$%&()*+,\-./0-9:;<=>?@A-Z\[\]\u00D7\u2190\u2260\u2264\u2265]/g;
+B5500Util.xlateASCIIToAlgolRex =        // For translation of BIC-as-ASCII to Unicode Algol glyphs
+        /[^\r\n\xA0 "#$%&()*+,\-./0-9:;<=>?@A-Z\[\]\u00D7\u2190\u2260\u2264\u2265]/g;
 B5500Util.xlateASCIIToAlgolGlyph = {
         "!": "\u2260",  // not-equal
         "_": "\u2190",  // Sid McHarg's left-arrow
@@ -29,8 +29,8 @@ B5500Util.xlateASCIIToAlgolGlyph = {
         "}": "\u2265",  // greater-than-or-equal
         "~": "\u2190"}; // left-arrow
 
-B5500Util.xlateAlgolToASCIIRex =                // For translation of Unicode Algol glyphs to BIC-as-ASCII
-        /[^\r\n !"#$%&()*+,\-./0-9:;<=>?@A-Z\[\]{|}~]/g;
+B5500Util.xlateAlgolToASCIIRex =        // For translation of Unicode Algol glyphs to BIC-as-ASCII
+        /[^\r\n\xA0 !"#$%&()*+,\-./0-9:;<=>?@A-Z\[\]{|}~]/g;
 B5500Util.xlateAlgolToASCIIGlyph = {
         "_":      "~",  // Sid McHarg's left-arrow
         "\u00D7": "|",  // multiply (x)

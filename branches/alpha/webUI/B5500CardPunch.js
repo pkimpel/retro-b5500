@@ -27,6 +27,7 @@ function B5500CardPunch(mnemonic, unitIndex, designate, statusChange, signal, op
 
     this.timer = 0;                     // setCallback() token
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
+    this.useAlgolGlyphs = options.algolGlyphs; // format Unicode for special Algol chars
 
     this.clear();
 
@@ -48,6 +49,7 @@ function B5500CardPunch(mnemonic, unitIndex, designate, statusChange, signal, op
 
 B5500CardPunch.prototype.cardsPerMinute = 300;  // Punch speed
 B5500CardPunch.prototype.maxScrollLines = 850;  // Maximum punch stacker scrollback (stacker capacity)
+B5500CardPunch.prototype.rtrimRex = /\s+$/g;    // regular expression for right-trimming card text
 
 /**************************************/
 B5500CardPunch.prototype.$$ = function $$(e) {
@@ -83,10 +85,12 @@ B5500CardPunch.prototype.setPunchReady = function setPunchReady(ready) {
                 if (this.window.confirm("Empty both " + this.mnemonic + " stackers?")) {
                     this.stacker1Count = this.stacker2Count = 0;
                     this.$$("CPStacker1Bar").value = 0;
-                    this.$$("CPStacker2Bar").value = 0;
+                    B5500Util.removeClass(this.$$("CPStacker1Full"), "annunciatorLit");
                     while (this.stacker1.firstChild) {
                         this.stacker1.removeChild(this.stacker1.firstChild);
                     }
+                    this.$$("CPStacker2Bar").value = 0;
+                    B5500Util.removeClass(this.$$("CPStacker2Full"), "annunciatorLit");
                     while (this.stacker2.firstChild) {
                         this.stacker2.removeChild(this.stacker2.firstChild);
                     }
@@ -100,6 +104,33 @@ B5500CardPunch.prototype.setPunchReady = function setPunchReady(ready) {
         B5500Util.addClass(this.$$("CPNotReadyLight"), "whiteLit");
         this.ready = false;
     }
+};
+
+/**************************************/
+B5500CardPunch.prototype.setAlgolGlyphs = function setAlgolGlyphs(makeItPretty) {
+    /* Controls the display of Unicode glyphs for the special Algol characters */
+
+    if (makeItPretty) {
+        if (!this.useAlgolGlyphs) {
+            B5500Util.xlateDOMTreeText(this.stacker1, B5500Util.xlateASCIIToAlgol);
+            B5500Util.xlateDOMTreeText(this.stacker2, B5500Util.xlateASCIIToAlgol);
+        }
+    } else {
+        if (this.useAlgolGlyphs) {
+            B5500Util.xlateDOMTreeText(this.stacker1, B5500Util.xlateAlgolToASCII);
+            B5500Util.xlateDOMTreeText(this.stacker2, B5500Util.xlateAlgolToASCII);
+        }
+    }
+    this.$$("CPAlgolGlyphsCheck").checked = makeItPretty;
+    this.useAlgolGlyphs = makeItPretty;
+};
+
+/**************************************/
+B5500CardPunch.prototype.appendLine = function appendLine(stacker, text) {
+    /* Appends a new <pre> element to the <iframe>, creating an empty text
+    node inside the new element */
+
+    stacker.appendChild(this.doc.createTextNode(text || "\xA0"));
 };
 
 /**************************************/
@@ -144,6 +175,13 @@ B5500CardPunch.prototype.CPRunoutBtn_onclick = function CPRunoutBtn_onclick(ev) 
 };
 
 /**************************************/
+B5500CardPunch.prototype.CPAlgolGlyphsCheck_onclick = function CPAlgolGlyphsCheck_onclick(ev) {
+    /* Handle the click event for the Algol Glyphs checkbox */
+
+    this.setAlgolGlyphs(ev.target.checked);
+};
+
+/**************************************/
 B5500CardPunch.prototype.beforeUnload = function beforeUnload(ev) {
     var msg = "Closing this window will make the device unusable.\n" +
               "Suggest you stay on the page and minimize this window instead";
@@ -170,6 +208,7 @@ B5500CardPunch.prototype.punchOnload = function punchOnload() {
     this.stacker2 = this.stacker2Frame.contentDocument.getElementById("Paper");
     this.endOfStacker2 = this.stacker2Frame.contentDocument.getElementById("EndOfPaper");
 
+    this.setAlgolGlyphs(this.useAlgolGlyphs);
     this.armRunout(false);
     this.setPunchReady(true);
 
@@ -181,24 +220,13 @@ B5500CardPunch.prototype.punchOnload = function punchOnload() {
             B5500CentralControl.bindMethod(this, B5500CardPunch.prototype.CPStopBtn_onclick), false);
     this.$$("CPRunoutBtn").addEventListener("click",
             B5500CentralControl.bindMethod(this, B5500CardPunch.prototype.CPRunoutBtn_onclick), false);
+    this.$$("CPAlgolGlyphsCheck").addEventListener("click",
+            B5500CentralControl.bindMethod(this, B5500CardPunch.prototype.CPAlgolGlyphsCheck_onclick), false);
     this.$$("CPStacker1Bar").max = this.maxScrollLines;
     this.$$("CPStacker2Bar").max = this.maxScrollLines;
 
     this.window.resizeBy(de.scrollWidth - this.window.innerWidth + 4, // kludge for right-padding/margin
                          de.scrollHeight - this.window.innerHeight);
-};
-
-/**************************************/
-B5500CardPunch.prototype.appendLine = function appendLine(stacker, text) {
-    /* Removes excess lines already printed, then appends a new <pre> element
-    to the <iframe>, creating an empty text node inside the new element */
-    var count = stacker.childNodes.length;
-    var line = this.doc.createTextNode(text || "");
-
-    //while (count-- > this.maxScrollLines) {
-    //    stacker.removeChild(stacker.firstChild);
-    //}
-    stacker.appendChild(line);
 };
 
 /**************************************/
@@ -222,13 +250,17 @@ B5500CardPunch.prototype.write = function write(finish, buffer, length, mode, co
 
     this.errorMask = 0;
     this.busy = true;
-    text = String.fromCharCode.apply(null, buffer.subarray(0, length));
+    text = String.fromCharCode.apply(null, buffer.subarray(0, length)).replace(this.rtrimRex, '');
+    if (this.useAlgolGlyphs) {
+        text = B5500Util.xlateASCIIToAlgol(text);
+    }
     //console.log("WRITE:  L=" + length + ", M=" + mode + ", C=" + control + " : " + text);
     if (control) {
         this.appendLine(this.stacker2, text + "\n");
         this.endOfStacker2.scrollIntoView();
         this.$$("CPStacker2Bar").value = (++this.stacker2Count);
         if (this.stacker2Count >= this.maxScrollLines) {
+            B5500Util.addClass(this.$$("CPStacker2Full"), "annunciatorLit");
             this.setPunchReady(false);
         }
     } else {
@@ -236,6 +268,7 @@ B5500CardPunch.prototype.write = function write(finish, buffer, length, mode, co
         this.endOfStacker1.scrollIntoView();
         this.$$("CPStacker1Bar").value = (++this.stacker1Count);
         if (this.stacker1Count >= this.maxScrollLines) {
+            B5500Util.addClass(this.$$("CPStacker1Full"), "annunciatorLit");
             this.setPunchReady(false);
         }
     }
