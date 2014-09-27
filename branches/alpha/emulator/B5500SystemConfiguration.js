@@ -65,7 +65,7 @@ B5500SystemConfiguration.prototype.systemConfig = {
 
     units: {
         SPO:    {enabled: true,         // SPO keyboard/printer
-                 algolGlyphs: true},
+                 algolGlyphs: false},
 
         DKA:    {enabled: true,         // Disk File Control A
                  DFX: true, FPM: false,

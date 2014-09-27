@@ -27,6 +27,12 @@
 * represented individually, as their address space was monolithic within an EU
 * (i.e., one I/O could cross SU boundaries but not EU boundaries).
 *
+* In addition to the "CONFIG" and "EUn" object stores, the database will have
+* two object stores reserved for use by the drum units, DRA and DRB. These
+* units have a fixed 32K words of storage and were word-addressible. Since
+* they have a fixed configuration, they are not represented in the "CONFIG"
+* object store.
+*
 * The "CONFIG" object store contains one object which in turn contains a set
 * of objects of the form:
 *
@@ -205,16 +211,27 @@ B5500DiskStorageConfig.prototype.upgradeStorageSchema = function upgradeStorageS
                 }
             }
         }
+
+        // Create the drum units if they do no already exist
+        if (!db.objectStoreNames.contains("DRA")) {
+            db.createObjectStore("DRA");
+        }
+        if (!db.objectStoreNames.contains("DRB")) {
+            db.createObjectStore("DRB");
+        }
         putConfig(config);
     }
 
     function createDefaultConfig() {
         /* Create an initial disk subsystem configuration for a new database,
-        containing a single EU having the default EU configuration */
+        containing a single EU having the default EU configuration, plus
+        both drum units */
         var config = B5500Util.deepCopy(B5500DiskStorageConfig.prototype.storageConfig);
         var euName = "EU0";
 
-        db.createObjectStore(euName);
+        db.createObjectStore("DRA");    // unconditionally create both drum units
+        db.createObjectStore("DRB");
+        db.createObjectStore(euName);   // unconditionally create EU0
         config[euName] = B5500Util.deepCopy(B5500DiskStorageConfig.prototype.defaultEUConfig);
         putConfig(config);
     }

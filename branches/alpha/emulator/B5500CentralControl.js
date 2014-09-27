@@ -61,7 +61,7 @@ function B5500CentralControl(global) {
 /**************************************/
 
 /* Global constants */
-B5500CentralControl.version = "0.21a8";
+B5500CentralControl.version = "1.00";
 
 B5500CentralControl.memReadCycles = 2;          // assume 2 탎 memory read cycle time (the other option was 3 탎)
 B5500CentralControl.memWriteCycles = 4;         // assume 4 탎 memory write cycle time (the other option was 6 탎)
@@ -205,7 +205,7 @@ B5500CentralControl.prototype.clear = function clear() {
     this.P2BF = 0;                      // Processor 2 busy FF
     this.HP2F = 0;                      // Halt processor 2 FF
 
-    this.ccLatch = 0x20;                // I/O Unit busy & P2 latched status (reset by console UI)
+    this.ccLatch = 0;                   // I/O Unit busy & P2 latched status (reset by console UI)
     this.interruptMask = 0;             // Interrupt status mask
     this.interruptLatch = 0;            // Interrupt latched status (reset by console UI)
     this.iouMask = 0;                   // I/O Unit busy status mask
@@ -620,23 +620,23 @@ B5500CentralControl.prototype.initiateIO = function initiateIO() {
 
     if (this.IO1 && this.IO1.REMF && !this.AD1F) {
         this.AD1F = 1;
-        this.iouMask |= 0x1;
-        this.ccLatch |= 0x1;
+        this.iouMask |= 0x01;
+        this.ccLatch |= 0x01;
         this.IO1.initiate();
     } else if (this.IO2 && this.IO2.REMF && !this.AD2F) {
         this.AD2F = 1;
-        this.iouMask |= 0x2;
-        this.ccLatch |= 0x2;
+        this.iouMask |= 0x02;
+        this.ccLatch |= 0x02;
         this.IO2.initiate();
     } else if (this.IO3 && this.IO3.REMF && !this.AD3F) {
         this.AD3F = 1;
-        this.iouMask |= 0x4;
-        this.ccLatch |= 0x4;
+        this.iouMask |= 0x04;
+        this.ccLatch |= 0x04;
         this.IO3.initiate();
     } else if (this.IO4 && this.IO4.REMF && !this.AD4F) {
         this.AD4F = 1;
-        this.iouMask |= 0x8;
-        this.ccLatch |= 0x8;
+        this.iouMask |= 0x08;
+        this.ccLatch |= 0x08;
         this.IO4.initiate();
     } else {
         this.CCI04F = 1;                // set I/O busy interrupt
@@ -800,23 +800,23 @@ B5500CentralControl.prototype.load = function load(dontStart) {
         this.LOFF = 1;                  // set the Load FF
         if (this.IO1 && this.IO1.REMF && !this.AD1F) {
             this.AD1F = 1;
-            this.iouMask |= 0x1;
-            this.ccLatch |= 0x1;
+            this.iouMask |= 0x01;
+            this.ccLatch |= 0x01;
             this.IO1.initiateLoad(this.cardLoadSelect, boundLoadComplete);
         } else if (this.IO2 && this.IO2.REMF && !this.AD2F) {
             this.AD2F = 1;
-            this.iouMask |= 0x2;
-            this.ccLatch |= 0x2;
+            this.iouMask |= 0x02;
+            this.ccLatch |= 0x02;
             this.IO2.initiateLoad(this.cardLoadSelect, boundLoadComplete);
         } else if (this.IO3 && this.IO3.REMF && !this.AD3F) {
             this.AD3F = 1;
-            this.iouMask |= 0x4;
-            this.ccLatch |= 0x4;
+            this.iouMask |= 0x04;
+            this.ccLatch |= 0x04;
             this.IO3.initiateLoad(this.cardLoadSelect, boundLoadComplete);
         } else if (this.IO4 && this.IO4.REMF && !this.AD4F) {
             this.AD4F = 1;
-            this.iouMask |= 0x8;
-            this.ccLatch |= 0x8;
+            this.iouMask |= 0x08;
+            this.ccLatch |= 0x08;
             this.IO4.initiateLoad(this.cardLoadSelect, boundLoadComplete);
         } else {
             this.CCI04F = 1;            // set I/O busy interrupt

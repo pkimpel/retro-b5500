@@ -32,6 +32,7 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal, opti
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
     this.inTimer = 0;                   // input setCallback() token
     this.outTimer = 0;                  // output setCallback() token
+    this.useAlgolGlyphs = options.algolGlyphs; // format Unicode for special Algol chars
 
     this.clear();
 
@@ -62,7 +63,7 @@ B5500SPOUnit.prototype.keyFilter = [    // Filter keyCode values to valid BIC on
         0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x3F,0x28,0x29,0x2A,0x2B,0x2C,0x2D,0x2E,0x2F,  // 20-2F
         0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x3A,0x3B,0x3C,0x3D,0x3E,0x3F,  // 30-3F
         0x40,0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,  // 40-4F
-        0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x5B,0x3F,0x5D,0x3F,0x3F,  // 50-5F
+        0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x5B,0x3F,0x5D,0x3F,0x7E,  // 50-5F
         0x3F,0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,  // 60-6F
         0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x7B,0x7C,0x7D,0x7E,0x3F]; // 70-7F
 
@@ -149,6 +150,27 @@ B5500SPOUnit.prototype.setRemote = function setRemote() {
 };
 
 /**************************************/
+B5500SPOUnit.prototype.setAlgolGlyphs = function setAlgolGlyphs(makeItPretty) {
+    /* Controls the display of Unicode glyphs for the special Algol characters */
+
+    if (makeItPretty) {
+        if (!this.useAlgolGlyphs) {
+            B5500Util.xlateDOMTreeText(this.paper, B5500Util.xlateASCIIToAlgol);
+        }
+    } else {
+        if (this.useAlgolGlyphs) {
+            B5500Util.xlateDOMTreeText(this.paper, B5500Util.xlateAlgolToASCII);
+        }
+    }
+    this.useAlgolGlyphs = makeItPretty;
+    if (makeItPretty) {
+        B5500Util.addClass(this.$$("SPOAlgolGlyphsBtn"), "yellowLit");
+    } else {
+        B5500Util.removeClass(this.$$("SPOAlgolGlyphsBtn"), "yellowLit");
+    }
+};
+
+/**************************************/
 B5500SPOUnit.prototype.appendEmptyLine = function appendEmptyLine(text) {
     /* Removes excess lines already printed, then appends a new text node
     to the <pre> element within the <iframe> */
@@ -168,15 +190,29 @@ B5500SPOUnit.prototype.printChar = function printChar(c) {
     /* Echoes the character code "c" to the SPO printer */
     var line = this.paper.lastChild.nodeValue;
     var len = line.length;
+    var s;
+
+    if (!this.useAlgolGlyphs) {
+        s = String.fromCharCode(c);
+    } else {
+        switch (c) {
+        case 0x21: s = "\u2260"; break;  // ! = not-equal
+        case 0x7B: s = "\u2264"; break;  // { = less-than-or-equal
+        case 0x7C: s = "\u00D7"; break;  // | = multiply (x)
+        case 0x7D: s = "\u2265"; break;  // } = greater-than-or-equal
+        case 0x7E: s = "\u2190"; break;  // ~ = left-arrow
+        default:   s = String.fromCharCode(c); break;
+        }
+    }
 
     if (len < 1) {
-        line = String.fromCharCode(c);
+        line = s;
         ++this.printCol;
     } else if (len < 72) {
-        line += String.fromCharCode(c);
+        line += s;
         ++this.printCol;
     } else {
-         line = line.substring(0, 71) + String.fromCharCode(c);
+         line = line.substring(0, 71) + s;
     }
     this.paper.lastChild.nodeValue = line;
 };
@@ -267,6 +303,13 @@ B5500SPOUnit.prototype.cancelInput = function cancelInput() {
 };
 
 /**************************************/
+B5500SPOUnit.prototype.SPOAlgolGlyphsBtn_onclick = function SPOAlgolGlyphsBtn_onclick(ev) {
+    /* Handle the click event for the Algol Glyphs button */
+
+    this.setAlgolGlyphs(!this.useAlgolGlyphs);
+};
+
+/**************************************/
 B5500SPOUnit.prototype.keyPress = function keyPress(ev) {
     /* Handles keyboard character events. Depending on the state of the unit,
     either buffers the character for transmission to the I/O Unit, simply echos
@@ -277,7 +320,12 @@ B5500SPOUnit.prototype.keyPress = function keyPress(ev) {
 
     switch (this.spoState) {
     case this.spoInput:
-        if (c >= 0x20 && c < 0x7E) {
+        if (c == 0x7E || c == 0x5F) {   // "~" or "_" (B5500 group-mark)
+            ev.preventDefault();
+            ev.stopPropagation();
+            c = this.keyFilter[c];
+            this.terminateInput();
+        } else if (c >= 0x20 && c < 0x7E) {
             ev.preventDefault();
             ev.stopPropagation();
             c = this.keyFilter[c];
@@ -291,11 +339,6 @@ B5500SPOUnit.prototype.keyPress = function keyPress(ev) {
                 }
                 ev.target.value = String.fromCharCode(c);
             }
-        } else if (c == 0x7E) {          // "~" (B5500 group-mark)
-            ev.preventDefault();
-            ev.stopPropagation();
-            c = this.keyFilter[c];
-            this.terminateInput();
         }
         break;
 
@@ -427,6 +470,8 @@ B5500SPOUnit.prototype.spoOnload = function spoOnload() {
     this.inputBox = this.$$("InputBox");
     this.endOfPaper = this.$$("EndOfPaper");
 
+    this.setAlgolGlyphs(this.useAlgolGlyphs);
+
     this.window.addEventListener("beforeunload",
             B5500SPOUnit.prototype.beforeUnload, false);
     this.window.addEventListener("resize",
@@ -451,10 +496,12 @@ B5500SPOUnit.prototype.spoOnload = function spoOnload() {
             B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.cancelInput), false);
     this.$$("SPOEndOfMessageBtn").addEventListener("click",
             B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.terminateInput), false);
+    this.$$("SPOAlgolGlyphsBtn").addEventListener("click",
+            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.SPOAlgolGlyphsBtn_onclick), false);
 
     this.printText("retro-B5500 Emulator Version " + B5500CentralControl.version,
             B5500CentralControl.bindMethod(this, function initFinish() {
-        window.open("", "B5500Console").focus();
+        //window.open("", "B5500Console").focus();
         this.window.focus();
         this.setRemote();
         this.appendEmptyLine("\xA0");

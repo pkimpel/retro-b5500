@@ -141,7 +141,7 @@ window.addEventListener("load", function() {
         $$("LoadBtn").disabled = true;
         $$("HaltBtn").disabled = true;
         $$("MemoryCheckBtn").disabled = true;
-        dasBlinkenlicht();
+        $$("CentralControl").style.display = "none";
         if (timer) {
             clearInterval(timer);
             timer = 0;
@@ -607,6 +607,14 @@ window.addEventListener("load", function() {
         setTimeout(switchEm, 2000, 0);
     }
 
+    function clearStatus(inSeconds) {
+        /* Delays for "inSeconds" seconds, then clears the StatusLabel element */
+
+        setTimeout(function(ev) {
+            $$("StatusLabel").textContent = "";
+        }, inSeconds*1000);
+    }
+
     function checkBrowser() {
         /* Checks whether this browser can support the necessary stuff */
         var missing = "";
@@ -644,7 +652,38 @@ window.addEventListener("load", function() {
         $$("LoadSelectBtn").addEventListener("click", LoadSelectBtn_Click, false);
         $$("MemoryCheckBtn").addEventListener("click", function(ev) {
             dumpState("Memory-Check Button");
-        });
+        }, false);
+
+        window.applicationCache.addEventListener("checking", function(ev) {
+            $$("StatusLabel").textContent = "Checking for emulator update...";
+        }, false);
+        window.applicationCache.addEventListener("noupdate", function(ev) {
+            $$("StatusLabel").textContent = "Emulator version is current.";
+            clearStatus(5);
+        }, false);
+        window.applicationCache.addEventListener("obsolete", function(ev) {
+            $$("StatusLabel").textContent = "Emulator off-line installation has been disabled.";
+            clearStatus(15);
+        }, false);
+        window.applicationCache.addEventListener("downloading", function(ev) {
+            $$("StatusLabel").textContent = "Initiating download for emulator update...";
+        }, false);
+        window.applicationCache.addEventListener("progress", function(ev) {
+            var text = (ev.loaded && ev.total ? ev.loaded.toString() + "/" + ev.total.toString() : "Unknown number of");
+            $$("StatusLabel").textContent = text + " resources downloaded thus far...";
+        }, false);
+        window.applicationCache.addEventListener("updateready", function(ev) {
+            $$("StatusLabel").textContent = "Emulator update completed. Reload this page to activate the new version.";
+            clearStatus(10);
+        }, false);
+        window.applicationCache.addEventListener("cached", function(ev) {
+            $$("StatusLabel").textContent = "Emulator is now installed for off-line use.";
+            clearStatus(10);
+        }, false);
+        window.applicationCache.addEventListener("error", function(ev) {
+            $$("StatusLabel").textContent = "Unable to check for emulator update.";
+            clearStatus(10);
+        }, false);
 
         aControl = $$("AControlBtn");
         aNormal  = $$("ANormalBtn");
