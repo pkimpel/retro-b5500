@@ -16,9 +16,8 @@
 "use strict";
 
 /**************************************/
-function B5500CardPunch(mnemonic, unitIndex, designate, statusChange, signal) {
+function B5500CardPunch(mnemonic, unitIndex, designate, statusChange, signal, options) {
     /* Constructor for the CardPunch object */
-    var that = this;
 
     this.mnemonic = mnemonic;           // Unit mnemonic
     this.unitIndex = unitIndex;         // Ready-mask bit number
@@ -28,6 +27,7 @@ function B5500CardPunch(mnemonic, unitIndex, designate, statusChange, signal) {
 
     this.timer = 0;                     // setCallback() token
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
+    this.useAlgolGlyphs = options.algolGlyphs; // format Unicode for special Algol chars
 
     this.clear();
 
@@ -42,14 +42,14 @@ function B5500CardPunch(mnemonic, unitIndex, designate, statusChange, signal) {
     this.stacker2 = null;
     this.endOfStacker2 = null;
     this.window = window.open("../webUI/B5500CardPunch.html", mnemonic,
-            "scrollbars=no,resizable,width=560,height=204,left=0,top=220");
-    this.window.addEventListener("load", function windowLoad() {
-        that.punchOnload();
-    }, false);
+            "location=no,scrollbars=no,resizable,width=560,height=204,left=0,top=220");
+    this.window.addEventListener("load",
+            B5500CentralControl.bindMethod(this, B5500CardPunch.prototype.punchOnload), false);
 }
 
 B5500CardPunch.prototype.cardsPerMinute = 300;  // Punch speed
 B5500CardPunch.prototype.maxScrollLines = 850;  // Maximum punch stacker scrollback (stacker capacity)
+B5500CardPunch.prototype.rtrimRex = /\s+$/g;    // regular expression for right-trimming card text
 
 /**************************************/
 B5500CardPunch.prototype.$$ = function $$(e) {
@@ -67,39 +67,8 @@ B5500CardPunch.prototype.clear = function clear() {
     this.finish = null;                 // external function to call for I/O completion
 
     this.runoutArmed = false;           // EOF button: armed state
-    this.stopCount = 0;                 // stopCount for clearing the input buffer
     this.stacker1Count = 0;             // cards in stacker #1
     this.stacker2Count = 0;             // cards in stacker #2
-};
-
-/**************************************/
-B5500CardPunch.prototype.hasClass = function hasClass(e, name) {
-    /* returns true if element "e" has class "name" in its class list */
-    var classes = e.className;
-
-    if (!e) {
-        return false;
-    } else if (classes == name) {
-        return true;
-    } else {
-        return (classes.search("\\b" + name + "\\b") >= 0);
-    }
-};
-
-/**************************************/
-B5500CardPunch.prototype.addClass = function addClass(e, name) {
-    /* Adds a class "name" to the element "e"s class list */
-
-    if (!this.hasClass(e, name)) {
-        e.className += (" " + name);
-    }
-};
-
-/**************************************/
-B5500CardPunch.prototype.removeClass = function removeClass(e, name) {
-    /* Removes the class "name" from the element "e"s class list */
-
-    e.className = e.className.replace(new RegExp("\\b" + name + "\\b\\s*", "g"), "");
 };
 
 /**************************************/
@@ -108,18 +77,20 @@ B5500CardPunch.prototype.setPunchReady = function setPunchReady(ready) {
 
     if (ready && !this.ready) {
         this.statusChange(1);
-        this.addClass(this.$$("CPStartBtn"), "greenLit")
-        this.removeClass(this.$$("CPNotReadyLight"), "redLit");
+        B5500Util.addClass(this.$$("CPStartBtn"), "greenLit")
+        B5500Util.removeClass(this.$$("CPNotReadyLight"), "whiteLit");
         this.ready = true;
         if (this.runoutArmed) {
             if (this.stacker1Count || this.stacker2Count) {
                 if (this.window.confirm("Empty both " + this.mnemonic + " stackers?")) {
                     this.stacker1Count = this.stacker2Count = 0;
                     this.$$("CPStacker1Bar").value = 0;
-                    this.$$("CPStacker2Bar").value = 0;
+                    B5500Util.removeClass(this.$$("CPStacker1Full"), "annunciatorLit");
                     while (this.stacker1.firstChild) {
                         this.stacker1.removeChild(this.stacker1.firstChild);
                     }
+                    this.$$("CPStacker2Bar").value = 0;
+                    B5500Util.removeClass(this.$$("CPStacker2Full"), "annunciatorLit");
                     while (this.stacker2.firstChild) {
                         this.stacker2.removeChild(this.stacker2.firstChild);
                     }
@@ -129,10 +100,37 @@ B5500CardPunch.prototype.setPunchReady = function setPunchReady(ready) {
         }
     } else if (!ready && this.ready) {
         this.statusChange(0);
-        this.removeClass(this.$$("CPStartBtn"), "greenLit")
-        this.addClass(this.$$("CPNotReadyLight"), "redLit");
+        B5500Util.removeClass(this.$$("CPStartBtn"), "greenLit")
+        B5500Util.addClass(this.$$("CPNotReadyLight"), "whiteLit");
         this.ready = false;
     }
+};
+
+/**************************************/
+B5500CardPunch.prototype.setAlgolGlyphs = function setAlgolGlyphs(makeItPretty) {
+    /* Controls the display of Unicode glyphs for the special Algol characters */
+
+    if (makeItPretty) {
+        if (!this.useAlgolGlyphs) {
+            B5500Util.xlateDOMTreeText(this.stacker1, B5500Util.xlateASCIIToAlgol);
+            B5500Util.xlateDOMTreeText(this.stacker2, B5500Util.xlateASCIIToAlgol);
+        }
+    } else {
+        if (this.useAlgolGlyphs) {
+            B5500Util.xlateDOMTreeText(this.stacker1, B5500Util.xlateAlgolToASCII);
+            B5500Util.xlateDOMTreeText(this.stacker2, B5500Util.xlateAlgolToASCII);
+        }
+    }
+    this.$$("CPAlgolGlyphsCheck").checked = makeItPretty;
+    this.useAlgolGlyphs = makeItPretty;
+};
+
+/**************************************/
+B5500CardPunch.prototype.appendLine = function appendLine(stacker, text) {
+    /* Appends a new <pre> element to the <iframe>, creating an empty text
+    node inside the new element */
+
+    stacker.appendChild(this.doc.createTextNode(text || "\xA0"));
 };
 
 /**************************************/
@@ -141,10 +139,10 @@ B5500CardPunch.prototype.armRunout = function armRunout(armed) {
     an empty input stacker */
 
     if (armed && !this.ready) {
-        this.addClass(this.$$("CPRunoutBtn"), "redLit");
+        B5500Util.addClass(this.$$("CPRunoutBtn"), "redLit");
         this.runoutArmed = true;
     } else {
-        this.removeClass(this.$$("CPRunoutBtn"), "redLit");
+        B5500Util.removeClass(this.$$("CPRunoutBtn"), "redLit");
         this.runoutArmed = false;
     }
 };
@@ -152,12 +150,8 @@ B5500CardPunch.prototype.armRunout = function armRunout(armed) {
 /**************************************/
 B5500CardPunch.prototype.CPStartBtn_onclick = function CPStartBtn_onclick(ev) {
     /* Handle the click event for the START button */
-    var that = this;
 
     if (!this.ready) {
-        this.stopCount = 0;
-        if (this.bufIndex < this.bufLength) {
-        }
         this.setPunchReady(true);
     }
 };
@@ -181,6 +175,13 @@ B5500CardPunch.prototype.CPRunoutBtn_onclick = function CPRunoutBtn_onclick(ev) 
 };
 
 /**************************************/
+B5500CardPunch.prototype.CPAlgolGlyphsCheck_onclick = function CPAlgolGlyphsCheck_onclick(ev) {
+    /* Handle the click event for the Algol Glyphs checkbox */
+
+    this.setAlgolGlyphs(ev.target.checked);
+};
+
+/**************************************/
 B5500CardPunch.prototype.beforeUnload = function beforeUnload(ev) {
     var msg = "Closing this window will make the device unusable.\n" +
               "Suggest you stay on the page and minimize this window instead";
@@ -193,63 +194,39 @@ B5500CardPunch.prototype.beforeUnload = function beforeUnload(ev) {
 /**************************************/
 B5500CardPunch.prototype.punchOnload = function punchOnload() {
     /* Initializes the punch window and user interface */
-    var that = this;
+    var de;
 
     this.doc = this.window.document;
-    this.doc.title = "retro-B5500 " + this.mnemonic;
+    de = this.doc.documentElement;
+    this.doc.title = "retro-B5500 Card Punch " + this.mnemonic;
 
     this.stacker1Frame = this.$$("CPStacker1Frame");
-    this.stacker1Frame.contentDocument.head.innerHTML += "<style>" +
-            "BODY {background-color: white; margin: 2px} " +
-            "PRE {margin: 0; font-size: 8pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
-            "</style>";
-    this.stacker1 = this.doc.createElement("pre");
-    this.stacker1Frame.contentDocument.body.appendChild(this.stacker1);
-    this.endOfStacker1 = this.doc.createElement("div");
-    this.stacker1Frame.contentDocument.body.appendChild(this.endOfStacker1);
+    this.stacker1 = this.stacker1Frame.contentDocument.getElementById("Paper");
+    this.endOfStacker1 = this.stacker1Frame.contentDocument.getElementById("EndOfPaper");
 
     this.stacker2Frame = this.$$("CPStacker2Frame");
-    this.stacker2Frame.contentDocument.head.innerHTML += "<style>" +
-            "BODY {background-color: white; margin: 2px} " +
-            "PRE {margin: 0; font-size: 8pt; font-family: Lucida Sans Typewriter, Courier New, Courier, monospace}" +
-            "</style>";
-    this.stacker2 = this.doc.createElement("pre");
-    this.stacker2Frame.contentDocument.body.appendChild(this.stacker2);
-    this.endOfStacker2 = this.doc.createElement("div");
-    this.stacker2Frame.contentDocument.body.appendChild(this.endOfStacker2);
+    this.stacker2 = this.stacker2Frame.contentDocument.getElementById("Paper");
+    this.endOfStacker2 = this.stacker2Frame.contentDocument.getElementById("EndOfPaper");
 
-    this.window.addEventListener("beforeunload", this.beforeUnload, false);
-
+    this.setAlgolGlyphs(this.useAlgolGlyphs);
     this.armRunout(false);
     this.setPunchReady(true);
 
-    this.$$("CPStartBtn").addEventListener("click", function startClick(ev) {
-        that.CPStartBtn_onclick(ev);
-    }, false);
-
-    this.$$("CPStopBtn").addEventListener("click", function stopClick(ev) {
-        that.CPStopBtn_onclick(ev);
-    }, false);
-
-    this.$$("CPRunoutBtn").addEventListener("click", function runoutClick(ev) {
-        that.CPRunoutBtn_onclick(ev);
-    }, false);
-
+    this.window.addEventListener("beforeunload",
+            B5500CardPunch.prototype.beforeUnload, false);
+    this.$$("CPStartBtn").addEventListener("click",
+            B5500CentralControl.bindMethod(this, B5500CardPunch.prototype.CPStartBtn_onclick), false);
+    this.$$("CPStopBtn").addEventListener("click",
+            B5500CentralControl.bindMethod(this, B5500CardPunch.prototype.CPStopBtn_onclick), false);
+    this.$$("CPRunoutBtn").addEventListener("click",
+            B5500CentralControl.bindMethod(this, B5500CardPunch.prototype.CPRunoutBtn_onclick), false);
+    this.$$("CPAlgolGlyphsCheck").addEventListener("click",
+            B5500CentralControl.bindMethod(this, B5500CardPunch.prototype.CPAlgolGlyphsCheck_onclick), false);
     this.$$("CPStacker1Bar").max = this.maxScrollLines;
     this.$$("CPStacker2Bar").max = this.maxScrollLines;
-};
 
-/**************************************/
-B5500CardPunch.prototype.appendLine = function appendLine(stacker, text) {
-    /* Removes excess lines already printed, then appends a new <pre> element
-    to the <iframe>, creating an empty text node inside the new element */
-    var count = stacker.childNodes.length;
-    var line = this.doc.createTextNode(text || "");
-
-    //while (count-- > this.maxScrollLines) {
-    //    stacker.removeChild(stacker.firstChild);
-    //}
-    stacker.appendChild(line);
+    this.window.resizeBy(de.scrollWidth - this.window.innerWidth + 4, // kludge for right-padding/margin
+                         de.scrollHeight - this.window.innerHeight);
 };
 
 /**************************************/
@@ -273,13 +250,17 @@ B5500CardPunch.prototype.write = function write(finish, buffer, length, mode, co
 
     this.errorMask = 0;
     this.busy = true;
-    text = String.fromCharCode.apply(null, buffer.subarray(0, length));
+    text = String.fromCharCode.apply(null, buffer.subarray(0, length)).replace(this.rtrimRex, '');
+    if (this.useAlgolGlyphs) {
+        text = B5500Util.xlateASCIIToAlgol(text);
+    }
     //console.log("WRITE:  L=" + length + ", M=" + mode + ", C=" + control + " : " + text);
     if (control) {
         this.appendLine(this.stacker2, text + "\n");
         this.endOfStacker2.scrollIntoView();
         this.$$("CPStacker2Bar").value = (++this.stacker2Count);
         if (this.stacker2Count >= this.maxScrollLines) {
+            B5500Util.addClass(this.$$("CPStacker2Full"), "annunciatorLit");
             this.setPunchReady(false);
         }
     } else {
@@ -287,6 +268,7 @@ B5500CardPunch.prototype.write = function write(finish, buffer, length, mode, co
         this.endOfStacker1.scrollIntoView();
         this.$$("CPStacker1Bar").value = (++this.stacker1Count);
         if (this.stacker1Count >= this.maxScrollLines) {
+            B5500Util.addClass(this.$$("CPStacker1Full"), "annunciatorLit");
             this.setPunchReady(false);
         }
     }
@@ -341,6 +323,6 @@ B5500CardPunch.prototype.shutDown = function shutDown() {
     if (this.timer) {
         clearCallback(this.timer);
     }
-    this.window.removeEventListener("beforeunload", this.beforeUnload, false);
+    this.window.removeEventListener("beforeunload", B5500CardPunch.prototype.beforeUnload, false);
     this.window.close();
 };

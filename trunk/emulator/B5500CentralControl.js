@@ -18,6 +18,7 @@ function B5500CentralControl(global) {
 
     this.mnemonic = "CC";               // Unit mnemonic
     this.global = global;               // Javascript global object (e.g., "window" for browsers)
+    this.sysConfig = null;              // System configuration object
 
     /* Global system modules */
     this.DD = null;                     // Distribution & Display unit
@@ -45,8 +46,7 @@ function B5500CentralControl(global) {
 
     // Instance variables and flags
     this.poweredUp = 0;                 // System power indicator
-
-    this.unitStatusMask = 0;            // Peripheral unit ready-status bitmask
+    this.unitStatusMask = 0;            // Peripheral unit ready-status bitmask [must not be in clear()]
 
     this.PB1L = 0;                      // 0=> PA is P1, 1=> PB is P1
     this.inhCCI03F = 0;                 // 0=> allow timer interrupts; 1=> inhibit 'em
@@ -61,7 +61,7 @@ function B5500CentralControl(global) {
 /**************************************/
 
 /* Global constants */
-B5500CentralControl.version = "0.20";
+B5500CentralControl.version = "1.00";
 
 B5500CentralControl.memReadCycles = 2;          // assume 2 탎 memory read cycle time (the other option was 3 탎)
 B5500CentralControl.memWriteCycles = 4;         // assume 4 탎 memory write cycle time (the other option was 6 탎)
@@ -113,7 +113,7 @@ B5500CentralControl.unitIndex = [
     [null,  47,null,  46,  31,  45,  29,  44,  30,  43,  24,  42,  28,  41,  23,  40,
        17,  39,  20,  38,  19,  37,null,  36,null,  35,null,  34,null,  33,  22,  32]];
 
-// The following object maps the unit mnemonics from B5500SystemConfiguration.units
+// The following object maps the unit mnemonics from this.sysConfig.units
 // to the attributes needed to configure the CC unit[] array.
 
 B5500CentralControl.unitSpecs = {
@@ -126,8 +126,8 @@ B5500CentralControl.unitSpecs = {
     CRB: {unitIndex: 23, designate: 14, unitClass: "B5500CardReader"},
     CRA: {unitIndex: 24, designate: 10, unitClass: "B5500CardReader"},
     CPA: {unitIndex: 25, designate: 10, unitClass: "B5500CardPunch"},
-    LPB: {unitIndex: 26, designate: 26, unitClass: "B5500DummyPrinter"},
-    LPA: {unitIndex: 27, designate: 22, unitClass: "B5500DummyPrinter"},
+    LPB: {unitIndex: 26, designate: 26, unitClass: "B5500LinePrinter"},
+    LPA: {unitIndex: 27, designate: 22, unitClass: "B5500LinePrinter"},
     DKB: {unitIndex: 28, designate: 12, unitClass: "B5500DiskUnit"},
     DKA: {unitIndex: 29, designate:  6, unitClass: "B5500DiskUnit"},
     DRB: {unitIndex: 30, designate:  8, unitClass: null},
@@ -151,7 +151,7 @@ B5500CentralControl.unitSpecs = {
 
 
 /**************************************/
-B5500CentralControl.bindMethod = function bindMethod(f, context) {
+B5500CentralControl.bindMethod = function bindMethod(context, f) {
     /* Returns a new function that binds the function "f" to the object "context".
     Note that this is a static constructor property function, NOT an instance
     method of the CC object */
@@ -205,7 +205,7 @@ B5500CentralControl.prototype.clear = function clear() {
     this.P2BF = 0;                      // Processor 2 busy FF
     this.HP2F = 0;                      // Halt processor 2 FF
 
-    this.ccLatch = 0x20;                // I/O Unit busy & P2 latched status (reset by console UI)
+    this.ccLatch = 0;                   // I/O Unit busy & P2 latched status (reset by console UI)
     this.interruptMask = 0;             // Interrupt status mask
     this.interruptLatch = 0;            // Interrupt latched status (reset by console UI)
     this.iouMask = 0;                   // I/O Unit busy status mask
@@ -214,10 +214,6 @@ B5500CentralControl.prototype.clear = function clear() {
 
     this.P1 = (this.PB1L ? this.PB : this.PA);
     this.P2 = (this.PB1L ? this.PA : this.PB);
-    if (!this.P2) {
-        this.P2BF = 1;                  // mark non-existent P2 as busy
-        this.ccLatch |= 0x10;
-    }
     if (this.PA) {
         this.PA.clear();
     }
@@ -624,23 +620,23 @@ B5500CentralControl.prototype.initiateIO = function initiateIO() {
 
     if (this.IO1 && this.IO1.REMF && !this.AD1F) {
         this.AD1F = 1;
-        this.iouMask |= 0x1;
-        this.ccLatch |= 0x1;
+        this.iouMask |= 0x01;
+        this.ccLatch |= 0x01;
         this.IO1.initiate();
     } else if (this.IO2 && this.IO2.REMF && !this.AD2F) {
         this.AD2F = 1;
-        this.iouMask |= 0x2;
-        this.ccLatch |= 0x2;
+        this.iouMask |= 0x02;
+        this.ccLatch |= 0x02;
         this.IO2.initiate();
     } else if (this.IO3 && this.IO3.REMF && !this.AD3F) {
         this.AD3F = 1;
-        this.iouMask |= 0x4;
-        this.ccLatch |= 0x4;
+        this.iouMask |= 0x04;
+        this.ccLatch |= 0x04;
         this.IO3.initiate();
     } else if (this.IO4 && this.IO4.REMF && !this.AD4F) {
         this.AD4F = 1;
-        this.iouMask |= 0x8;
-        this.ccLatch |= 0x8;
+        this.iouMask |= 0x08;
+        this.ccLatch |= 0x08;
         this.IO4.initiate();
     } else {
         this.CCI04F = 1;                // set I/O busy interrupt
@@ -785,33 +781,42 @@ B5500CentralControl.prototype.load = function load(dontStart) {
     this.clear();                       // initialize P1/P2 configuration
     if (!this.P1 || this.P1.busy) {     // P1 is busy or not available
         result = 1;
-    } else if (!this.testUnitReady(22)) { // SPO not ready
-        result = 2;
-    } else if (this.testUnitBusy(22)) { // SPO is busy
-        result = 3;
+    } else if (!this.testUnitReady(22)) {
+        result = 2;                     // SPO not ready
+    } else if (this.testUnitBusy(22)) {
+        result = 3;                     // SPO is busy
+    } else if (!(this.cardLoadSelect || this.testUnitReady(29))) {
+        result = 4;                     // DKA not ready
+    } else if (!this.cardLoadSelect && this.testUnitBusy(29)) {
+        result = 5;                     // DKA is busy
     } else {                            // ready to rock 'n roll
+        if (!this.P2) {
+            this.P2BF = 1;              // mark non-existent P2 as busy
+            this.ccLatch |= 0x10;
+        }
+
         this.nextTimeStamp = performance.now();
         this.tock();
         this.LOFF = 1;                  // set the Load FF
         if (this.IO1 && this.IO1.REMF && !this.AD1F) {
             this.AD1F = 1;
-            this.iouMask |= 0x1;
-            this.ccLatch |= 0x1;
+            this.iouMask |= 0x01;
+            this.ccLatch |= 0x01;
             this.IO1.initiateLoad(this.cardLoadSelect, boundLoadComplete);
         } else if (this.IO2 && this.IO2.REMF && !this.AD2F) {
             this.AD2F = 1;
-            this.iouMask |= 0x2;
-            this.ccLatch |= 0x2;
+            this.iouMask |= 0x02;
+            this.ccLatch |= 0x02;
             this.IO2.initiateLoad(this.cardLoadSelect, boundLoadComplete);
         } else if (this.IO3 && this.IO3.REMF && !this.AD3F) {
             this.AD3F = 1;
-            this.iouMask |= 0x4;
-            this.ccLatch |= 0x4;
+            this.iouMask |= 0x04;
+            this.ccLatch |= 0x04;
             this.IO3.initiateLoad(this.cardLoadSelect, boundLoadComplete);
         } else if (this.IO4 && this.IO4.REMF && !this.AD4F) {
             this.AD4F = 1;
-            this.iouMask |= 0x8;
-            this.ccLatch |= 0x8;
+            this.iouMask |= 0x08;
+            this.ccLatch |= 0x08;
             this.IO4.initiateLoad(this.cardLoadSelect, boundLoadComplete);
         } else {
             this.CCI04F = 1;            // set I/O busy interrupt
@@ -831,7 +836,7 @@ B5500CentralControl.prototype.loadTest = function loadTest(buf, loadAddr) {
     should not be used to load ESPOL "DECK" files */
     var addr = loadAddr;            // starting B5500 memory address
     var bytes = buf.byteLength;
-    var data = new DataView(buf);   // use DataView() to avoid problems with littleendians.
+    var data = new DataView(buf);   // use DataView() to avoid problems with little-endians.
     var power = 0x10000000000;
     var word = 0;
     var x = 0;
@@ -987,7 +992,7 @@ B5500CentralControl.prototype.dumpSystemState = function dumpSystemState(caption
         writer(nr, "B=" + padOctal(px.B, 16) + " BROF=" + px.BROF);
     }
 
-    writer(0, "B5500 State Dump by " + (caption || "(unknown)") + " : " + new Date().toString());
+    writer(0, "retro-B5500 State Dump by \"" + (caption || "(unknown)") + "\" : " + new Date().toString());
 
     // Dump the processor states
     dumpProcessorState(this.P1, 1);
@@ -1033,10 +1038,9 @@ B5500CentralControl.prototype.dumpSystemState = function dumpSystemState(caption
 };
 
 /**************************************/
-B5500CentralControl.prototype.configureSystem = function configureSystem() {
-    /* Establishes the hardware module configuration from the
-    B5500SystemConfiguration module */
-    var cfg = B5500SystemConfiguration;
+B5500CentralControl.prototype.configureSystem = function configureSystem(cfg) {
+    /* Establishes the hardware module configuration from the system configuration
+    object "cfg" */
     var mnem;
     var signal = null;
     var specs;
@@ -1097,38 +1101,37 @@ B5500CentralControl.prototype.configureSystem = function configureSystem() {
         }
     }
 
-    // ***** !! inhibit for now ***** // this.DD = new B5500DistributionAndDisplay(this);
-
     // Configure the processors
-    if (cfg.PA) {this.PA = new B5500Processor("A", this)}
-    if (cfg.PB) {this.PB = new B5500Processor("B", this)}
+    if (cfg.PA.enabled) {this.PA = new B5500Processor("A", this)}
+    if (cfg.PB.enabled) {this.PB = new B5500Processor("B", this)}
 
     // Determine P1/P2
     this.PB1L = (cfg.PB1L ? 1 : 0);
 
     // Configure the I/O Units
-    if (cfg.IO1) {this.IO1 = new B5500IOUnit("1", this)}
-    if (cfg.IO2) {this.IO2 = new B5500IOUnit("2", this)}
-    if (cfg.IO3) {this.IO3 = new B5500IOUnit("3", this)}
-    if (cfg.IO4) {this.IO4 = new B5500IOUnit("4", this)}
+    if (cfg.IO1.enabled) {this.IO1 = new B5500IOUnit("1", this)}
+    if (cfg.IO2.enabled) {this.IO2 = new B5500IOUnit("2", this)}
+    if (cfg.IO3.enabled) {this.IO3 = new B5500IOUnit("3", this)}
+    if (cfg.IO4.enabled) {this.IO4 = new B5500IOUnit("4", this)}
 
     // Configure memory
     for (x=0; x<8; ++x) {
-        if (cfg.memMod[x]) {
-            this.addressSpace[x] = new ArrayBuffer(32768);  // 4K B5500 words @ 8 bytes each
+        if (cfg.memMod[x].enabled) {
+            this.addressSpace[x] = new ArrayBuffer(4096*8);     // 4K B5500 words @ 8 bytes each
             this.memMod[x] = new Float64Array(this.addressSpace[x]);
         }
     }
 
     // Configure the peripheral units
     for (mnem in cfg.units) {
-        if (cfg.units[mnem]) {
+        if (cfg.units[mnem].enabled) {
             specs = B5500CentralControl.unitSpecs[mnem];
             if (specs) {
                 unitClass = this.global[specs.unitClass || "B5500DummyUnit"];
                 if (unitClass) {
                     u = new unitClass(mnem, specs.unitIndex, specs.designate,
-                        makeChange(this, specs.unitIndex), makeSignal(this, mnem));
+                            makeChange(this, specs.unitIndex), makeSignal(this, mnem),
+                            cfg.units[mnem]);
                     this.unit[specs.unitIndex] = u;
                 }
             }
@@ -1139,12 +1142,13 @@ B5500CentralControl.prototype.configureSystem = function configureSystem() {
 };
 
 /**************************************/
-B5500CentralControl.prototype.powerOn = function powerOn() {
+B5500CentralControl.prototype.powerOn = function powerOn(config) {
     /* Powers up the system and establishes the hardware module configuration.
-    Redundant power-ons are ignored. */
+    "config" is the system configuration object. Redundant power-ons are ignored. */
 
     if (!this.poweredUp) {
-        this.configureSystem();
+        this.sysConfig = config;
+        this.configureSystem(config);
         this.poweredUp = 1;
     }
 };
@@ -1154,7 +1158,7 @@ B5500CentralControl.prototype.powerOff = function powerOff() {
     /* Powers down the system and deallocates the hardware modules.
     Redundant power-offs are ignored. */
 
-    function shutDown() {
+    function systemShutDown() {
         var x;
 
         if (this.timer) {
@@ -1182,12 +1186,13 @@ B5500CentralControl.prototype.powerOff = function powerOff() {
             this.addressSpace[x] = null;
         }
 
+        this.clear();
         this.poweredUp = 0;
     }
 
     if (this.poweredUp) {
         this.halt();
         // Wait a little while for I/Os, etc., to finish
-        setCallback(this.mnemonic, this, 500, shutDown);
+        setCallback(this.mnemonic, this, 500, systemShutDown);
     }
 };
