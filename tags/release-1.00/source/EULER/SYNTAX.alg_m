@@ -1,0 +1,453 @@
+BEGIN  COMMENT  SYNTAX-PROCESSOR.  NIKLAUS WIRTH DEC.1964;              00010000          
+ DEFINE NSY =180#;  COMMENT  MAX. NO. OF SYMBOLS;                       00020000          
+ DEFINE NPR =180#;  COMMENT  MAX. NO. OF PRODUCTIONS;                   00030000          
+ DEFINE UPTO =STEP 1 UNTIL#;                                            00040000          
+ DEFINE LS ="<"#, EQ ="="#, GR =">"#, NULL =" "#;                       00050000          
+ FILE IN CARDFIL (1,10); FILE PRINTFIL 1 (1,15);                        00060000          
+ FILE OUT PCH 0 (2,10);  COMMENT  PUNCH FILE;                           00070000          
+ INTEGER LT;  COMMENT  NUMBER OF LAST NONBASIC SYMBOL;                  00080000          
+ INTEGER K,M,N, MAX, OLDN;  BOOLEAN ERRORFLAG;                          00090000          
+ ALPHA ARRAY READBUFFER[0:9], WRITEBUFFER[0:14];                        00100000          
+ ALPHA ARRAY TEXT[0:11];  COMMENT  AUXILIARY TEXT ARRAY;                00110000          
+ ALPHA ARRAY SYTB[0:NSY];  COMMENT  SYMBOLTABLE;                        00120000          
+ INTEGER ARRAY REF[0:NPR,0:5];  COMMENT  SYNTAX REFERENCE TABLE;        00130000          
+ LABEL START,EXIT;                                                      00140000          
+ LABEL A,B,C,E,F,G;                                                     00150000          
+                                                                        00160000          
+STREAM PROCEDURE CLEAR(D,N); VALUE N;                                   00170000          
+ BEGIN  DI ~ D; DS ~ 8 LIT " "; SI ~ D; DS ~ N WDS                      00180000          
+ END;                                                                   00190000          
+STREAM PROCEDURE MARK(D,S); VALUE S;                                    00200000          
+ BEGIN  DI ~ D; SI ~ LOC S; SI ~ SI+7; DS ~ CHR                         00210000          
+ END;                                                                   00220000          
+BOOLEAN STREAM PROCEDURE FINIS(S);                                      00230000          
+ BEGIN  TALLY ~ 1; SI ~ S; IF SC = "*" THEN FINIS ~ TALLY               00240000          
+ END;                                                                   00250000          
+STREAM PROCEDURE EDIT(S,D,N);                                           00260000          
+ BEGIN  DI ~ D; SI ~ N; DS ~ 3 DEC; SI ~ S; DS ~ 9 WDS;                 00270000          
+ END;                                                                   00280000          
+STREAM PROCEDURE MOVE(S,D);                                             00290000          
+ BEGIN  SI ~ S; DI ~ D; DS ~ WDS;                                       00300000          
+ END;                                                                   00310000          
+STREAM PROCEDURE MOVETEXT(S,D,N); VALUE N;                              00320000          
+ BEGIN  DI ~ D; SI ~ S; DS ~ N WDS;                                     00330000          
+ END;                                                                   00340000          
+BOOLEAN STREAM PROCEDURE EQUAL(S,D);                                    00350000          
+ BEGIN  SI ~ S; DI ~ D; TALLY ~ 1; IF 8 SC = DC THEN EQUAL ~ TALLY;     00360000          
+ END;                                                                   00370000          
+STREAM PROCEDURE SCAN(S,DD,N);                                          00380000          
+ BEGIN  LABEL A,B,C,D,E;                                                00390000          
+     SI ~ S; DI ~ DD; DS ~ 48 LIT "0"; DI ~ DD; SI ~ SI+1;              00400000          
+     IF SC = " " THEN DI ~ DI+8;                                        00410000          
+ A:  IF SC = " " THEN BEGIN SI ~ SI+1; GO TO A END;                     00420000          
+     IF SC > "9" THEN GO TO D;                                          00430000          
+     8 (IF SC = " " THEN BEGIN DS ~ LIT " "; GO TO E END; DS ~ CHR; E:);00440000          
+ B:  IF SC ! " " THEN BEGIN SI ~ SI+1; GO TO B END;                     00450000          
+ C:  SI ~ SI+1; GO TO A;                                                00460000          
+ D:  DI ~ N; SI ~ SI+5; DS ~ 3 OCT                                      00470000          
+ END;                                                                   00480000          
+STREAM PROCEDURE EDITTEXT(S,D,N); VALUE N;                              00490000          
+ BEGIN  SI ~ S; DI ~ D; DI ~ DI+10; N(DI ~ DI+2; DS ~ 8 CHR)            00500000          
+ END;                                                                   00510000          
+STREAM PROCEDURE SETTEXT(A,B,C,D,E,Z);                                  00520000          
+ BEGIN  DI ~ Z; DI ~ DI+8; SI ~ A; DS ~ 3 DEC; SI ~ B; DS ~ WDS;        00530000          
+     DI ~ DI+5; SI ~ C; DS ~ 3 DEC; DI ~ DI+3; SI ~ D; DS ~ 3 DEC;      00540000          
+     DI ~ DI+3; SI ~ E; DS ~ 3 DEC;                                     00550000          
+ END;                                                                   00560000          
+STREAM PROCEDURE PCHTX(S,D,N); VALUE N;                                 00570000          
+ BEGIN  SI ~ S; DI ~ D; DI ~ DI+4;                                      00580000          
+     N(DS ~ LIT """; DS ~ 8 CHR; DS ~ LIT """; DS ~ LIT ",");           00590000          
+ END;                                                                   00600000          
+PROCEDURE INPUT;                                                        00610000          
+ READ (CARDFIL, 10, READBUFFER[*]) [EXIT];                              00620000          
+PROCEDURE OUTPUT;                                                       00630000          
+ BEGIN  WRITE (PRINTFIL, 15, WRITEBUFFER[*]);                           00640000          
+        CLEAR(WRITEBUFFER[0], 14);                                      00650000          
+ END;                                                                   00660000          
+INTEGER PROCEDURE INX(X); REAL X;                                       00670000          
+ BEGIN  INTEGER I; LABEL F;                                             00680000          
+     FOR I ~ 0 UPTO M DO                                                00690000          
+         IF EQUAL(SYTB[I], X) THEN GO TO F;                             00700000          
+     WRITE (PRINTFIL, <"UNDEFINED SYMBOL">);                            00710000          
+     ERRORFLAG ~ TRUE;                                                  00720000          
+ F: INX ~ I;                                                            00730000          
+ END;                                                                   00740000          
+                                                                        00750000          
+START:                                                                  00760000          
+ FOR N ~ 0 UPTO 5 DO                                                    00770000          
+ FOR M ~ 0 UPTO NPR DO REF[M,N] ~ 0;                                    00780000          
+ M ~ N ~ MAX ~ OLDN ~ 0; ERRORFLAG ~ FALSE;                             00790000          
+ CLEAR(WRITEBUFFER[0],14);                                              00800000          
+ COMMENT  READ LIST OF SYMBOLS, ONE SYMBOL MUST APPEAR PER CARD,        00810000          
+ STARTING IN COL.9 (8 CHARS. ARE SIGNIFICANT), THE LIST OF NON-         00820000          
+ BASIC SYMBOLS IS FOLLOWED BY AN ENDCARD ("*" IN COL.1). THEN           00830000          
+ FOLLOWS THE LIST OF BASIC SYMBOLS AND AGAIN AN ENDCARD;                00840000          
+ WRITE (PRINTFIL, <  "NONBASIC SYMBOLS:">);                             00850000          
+A:  INPUT;                                                              00860000          
+ IF FINIS(READBUFFER[0]) THEN GO TO E;                                  00870000          
+ M ~ M+1;                                                               00880000          
+ MOVE(READBUFFER[1], SYTB[M]);                                          00890000          
+ EDIT(READBUFFER[0], WRITEBUFFER[1], M);                                00900000          
+ OUTPUT; GO TO A;                                                       00910000          
+E:  WRITE (PRINTFIL, </"BASIC SYMBOLS:">); LT ~ M;                      00920000          
+F:  INPUT;                                                              00930000          
+ IF FINIS(READBUFFER[0]) THEN GO TO G;                                  00940000          
+ M ~ M + 1;                                                             00950000          
+ MOVE(READBUFFER[1], SYTB[M]);                                          00960000          
+ EDIT(READBUFFER[0], WRITEBUFFER[1], M);                                00970000          
+ OUTPUT; GO TO F;                                                       00980000          
+                                                                        00990000          
+ COMMENT  READ THE LIST OF PRODUCTIONS, ONE PER CARD. THE LEFTPART      01000000          
+ IS A NONBASIC SYMBOL STARTING IN COL.2. NO FORMAT IS PRESCRIBED        01010000          
+ FOR THE RIGHT PART. ONE OR MORE BLANKS ACT AS SYMBOL SEPARATORS.       01020000          
+ IF COL.2 IS BLANK, THE SAME LEFTPART AS IN THE PREVIOUS PRODUCTION     01030000          
+ IS SUBSTITUTED. THE MAX. LENGTH OF A PRODUCTION IS 6 SYMBOLS;          01040000          
+G:  WRITE (PRINTFIL, </"SYNTAX:">);                                     01050000          
+B:  INPUT;                                                              01060000          
+ IF FINIS(READBUFFER[0]) THEN GO TO C;                                  01070000          
+ MOVETEXT(READBUFFER[0], WRITEBUFFER[1], 10); OUTPUT;                   01080000          
+ MARK(READBUFFER[9], 12); SCAN(READBUFFER[0],TEXT[0],N);                01090000          
+ IF N { 0 OR N > NPR OR REF[N,0] ! 0 THEN                               01100000          
+     BEGIN  WRITE (PRINTFIL, <"UNACCEPTABLE TAG">);                     01110000          
+     ERRORFLAG ~ TRUE; GO TO B                                          01120000          
+     END;                                                               01130000          
+ IF N > MAX THEN MAX ~ N;                                               01140000          
+ COMMENT  THE SYNTAX IS STORED IN REF, EACH SYMBOL REPRESENTED BY       01150000          
+     ITS INDEX IN THE SYMBOL-TABLE;                                     01160000          
+ FOR K ~ 0 UPTO 5 DO REF[N,K] ~ INX(TEXT[K]);                           01170000          
+ IF REF[N,0] = 0 THEN REF[N,0] ~ REF[OLDN,0] ELSE                       01180000          
+ IF REF[N,0] > LT THEN                                                  01190000          
+     BEGIN  WRITE (PRINTFIL, <"ILLEGAL PRODUCTION">);                   01200000          
+     ERRORFLAG ~ TRUE END;                                              01210000          
+ OLDN ~ N; GO TO B;                                                     01220000          
+C:  IF ERRORFLAG THEN GO TO EXIT;                                       01230000          
+ N ~ MAX;                                                               01240000          
+ COMMENT  M IS THE LENGTH OF THE SYMBOL-TABLE, N OF THE REF-TABLE;      01250000          
+                                                                        01260000          
+BEGIN  COMMENT  BLOCK A;                                                01270000          
+ INTEGER ARRAY H[0:M, 0:M];  COMMENT  PRECEDENCE MATRIX;                01280000          
+ INTEGER ARRAY F, G [0:M];  COMMENT  PRECEDENCE FUNCTIONS;              01290000          
+BEGIN  COMMENT  BLOCK B1;                                               01300000          
+ INTEGER ARRAY LINX, RINX [0:LT];  COMMENT  LEFT / RIGHT INDICES;       01310000          
+ INTEGER ARRAY LEFTLIST, RIGHTLIST[0:1022];                             01320000          
+BEGIN  COMMENT  BLOCK C1,  BUILD LEFT- AND RIGHT-SYMBOL LISTS;          01330000          
+ INTEGER I,J;                                                           01340000          
+ INTEGER SP, RSP;  COMMENT  STACK- AND RECURSTACK-POINTERS;             01350000          
+ INTEGER LP, RP;   COMMENT  LEFT/RIGHT LIST POINTERS;                   01360000          
+ INTEGER ARRAY INSTACK[0:M];                                            01370000          
+ BOOLEAN ARRAY DONE, ACTIVE [0:LT];                                     01380000          
+ INTEGER ARRAY RECURSTACK, STACKMARK [0:LT+1];                          01390000          
+ INTEGER ARRAY STACK[0:1022];  COMMENT  HERE THE LISTS ARE BUILT;       01400000          
+                                                                        01410000          
+PROCEDURE PRINTLIST(LX,L); ARRAY LX, L [0];                             01420000          
+ BEGIN  INTEGER I,J,K;                                                  01430000          
+     FOR I ~ 1 UPTO LT DO IF DONE[I] THEN                               01440000          
+     BEGIN K ~ 0; MOVE(SYTB[I], WRITEBUFFER[0]);                        01450000          
+         FOR J ~ LX[I],J+1 WHILE L[J] ! 0 DO                            01460000          
+             BEGIN  MOVE(SYTB[L[J]], TEXT[K]); K ~ K+1;                 01470000          
+                 IF K } 10 THEN                                         01480000          
+                 BEGIN  EDITTEXT(TEXT[0], WRITEBUFFER[0],10);OUTPUT;    01490000          
+                     K ~ 0;                                             01500000          
+                 END;                                                   01510000          
+             END;                                                       01520000          
+         IF K > 0 THEN                                                  01530000          
+         BEGIN EDITTEXT(TEXT[0], WRITEBUFFER[0], K);                    01540000          
+               OUTPUT END;                                              01550000          
+     END                                                                01560000          
+ END;                                                                   01570000          
+PROCEDURE DUMPIT;                                                       01580000          
+ BEGIN  INTEGER I,J; WRITE (PRINTFIL [PAGE]);                           01590000          
+     WRITE (PRINTFIL, <X9,"DONE ACTIVE LINX RINX">);                    01600000          
+     WRITE (PRINTFIL, <5I6>, FOR I ~ 1 UPTO LT DO                       01610000          
+       [I, DONE[I], ACTIVE[I], LINX[I], RINX[I]]);                      01620000          
+     WRITE (PRINTFIL, </"STACK:     SP =",I3>, SP);                     01630000          
+     WRITE (PRINTFIL, <I10,":   ",10I6>,                                01640000          
+       FOR I ~ 0 STEP 10 UNTIL SP DO                                    01650000          
+       [I, FOR J ~ I UPTO I+9 DO STACK[J]]);                            01660000          
+     WRITE (PRINTFIL, </"RECURSTACK:">);                                01670000          
+     WRITE (PRINTFIL, <3I6>, FOR I ~ 1 UPTO RSP DO                      01680000          
+       [I, RECURSTACK[I], STACKMARK[I]]);                               01690000          
+ END;                                                                   01700000          
+PROCEDURE RESET(X); VALUE X; INTEGER X;                                 01710000          
+ BEGIN  INTEGER I;                                                      01720000          
+     FOR I ~ X UPTO RSP DO STACKMARK[I] ~ STACKMARK[X];                 01730000          
+ END;                                                                   01740000          
+PROCEDURE PUTINTOSTACK(X); VALUE X; INTEGER X;                          01750000          
+ COMMENT  X IS PUT INTO THE WORKSTACK. DUPLICATION IS AVOIDED!;         01760000          
+ BEGIN  IF INSTACK[X] = 0 THEN                                          01770000          
+        BEGIN  SP ~ SP+1; STACK[SP] ~ X; INSTACK[X] ~ SP END            01780000          
+        ELSE IF INSTACK[X] < STACKMARK[RSP] THEN                        01790000          
+        BEGIN  SP ~ SP+1; STACK[SP] ~ X;                                01800000          
+            STACK[INSTACK[X]] ~ 0; INSTACK[X] ~ SP;                     01810000          
+        END;                                                            01820000          
+     IF SP > 1020 THEN                                                  01830000          
+     BEGIN WRITE (PRINTFIL, </"STACK OVERFLOW"/>);                      01840000          
+           DUMPIT; GO TO EXIT END;                                      01850000          
+ END;                                                                   01860000          
+PROCEDURE COPYLEFTSYMBOLS(X); VALUE X; INTEGER X;                       01870000          
+ COMMENT  COPY THE LIST OF LEFTSYMBOLS OF X INTO THE STACK;             01880000          
+ BEGIN  FOR X ~ LINX[X], X+1 WHILE LEFTLIST[X] ! 0 DO                   01890000          
+        PUTINTOSTACK(LEFTLIST[X]);                                      01900000          
+ END;                                                                   01910000          
+PROCEDURE COPYRIGHTSYMBOLS(X); VALUE X; INTEGER X;                      01920000          
+ COMMENT  COPY THE LIST OF RIGHTSYMBOLS OF X INTO THE STACK;            01930000          
+ BEGIN  FOR X ~ RINX[X], X+1 WHILE RIGHTLIST[X] ! 0 DO                  01940000          
+        PUTINTOSTACK(RIGHTLIST[X]);                                     01950000          
+ END;                                                                   01960000          
+PROCEDURE SAVELEFTSYMBOLS(X); VALUE X; INTEGER X;                       01970000          
+ COMMENT  THE LEFTSYMBOLLISTS OF ALL SYMBOLS IN THE RECURSTACK          01980000          
+ WITH INDEX > X HAVE BEEN BUILT AND MUST NOW BE REMOVED, THEY ARE       01990000          
+ COPIED INTO "LEFTLIST" AND THE SYMBOLS ARE MARKED "DONE";              02000000          
+ BEGIN  INTEGER I,J,U; LABEL L,EX;                                      02010000          
+ L:  IF STACKMARK[X] = STACKMARK[X+1] THEN                              02020000          
+     BEGIN X ~ X+1; IF X < RSP THEN GO TO L ELSE GO TO EX END;          02030000          
+     STACKMARK[RSP+1] ~ SP+1;                                           02040000          
+     FOR I ~ X+1 UPTO RSP DO                                            02050000          
+     BEGIN  LINX[RECURSTACK[I]] ~ LP+1;                                 02060000          
+         ACTIVE[RECURSTACK[I]] ~ FALSE; DONE[RECURSTACK[I]] ~ TRUE;     02070000          
+         FOR J ~ STACKMARK[I] UPTO STACKMARK[I+1]-1 DO                  02080000          
+         IF STACK[J] ! 0 THEN                                           02090000          
+         BEGIN  LP ~ LP+1; LEFTLIST[LP] ~ STACK[J];                     02100000          
+         IF LP > 1020 THEN                                              02110000          
+         BEGIN WRITE (PRINTFIL, </"LEFTLIST OVERFLOW"/>);               02120000          
+               DUMPIT;                                                  02130000          
+               PRINTLIST(LINX, LEFTLIST);                               02140000          
+               GO TO EXIT                                               02150000          
+         END;                                                           02160000          
+         END                                                            02170000          
+     END;                                                               02180000          
+     LP ~ LP+1; LEFTLIST[LP] ~ 0;                                       02190000          
+ EX: RSP ~ X;                                                           02200000          
+ END;                                                                   02210000          
+PROCEDURE SAVERIGHTSYMBOLS(X); VALUE X; INTEGER X;                      02220000          
+ COMMENT  ANALOG TO "SAVELEFTSYMBOLS";                                  02230000          
+ BEGIN  INTEGER I,J; LABEL L,EX;                                        02240000          
+ L:  IF STACKMARK[X] = STACKMARK[X+1] THEN                              02250000          
+     BEGIN  X ~ X+1; IF X < RSP THEN GO TO L ELSE GO TO EX END;         02260000          
+     STACKMARK[RSP+1] ~ SP+1;                                           02270000          
+     FOR I ~ X+1 UPTO RSP DO                                            02280000          
+     BEGIN  RINX[RECURSTACK[I]] ~ RP+1;                                 02290000          
+         ACTIVE[RECURSTACK[I]] ~ FALSE; DONE[RECURSTACK[I]] ~ TRUE;     02300000          
+         FOR J ~ STACKMARK[I] UPTO STACKMARK[I+1]-1 DO                  02310000          
+         IF STACK[J] ! 0 THEN                                           02320000          
+         BEGIN  RP ~ RP+1; RIGHTLIST[RP] ~ STACK[J];                    02330000          
+         IF RP > 1020 THEN                                              02340000          
+         BEGIN WRITE (PRINTFIL, </"RIGHTLIST OVERFLOW"/>);              02350000          
+               DUMPIT;                                                  02360000          
+                PRINTLIST(RINX,RIGHTLIST); GO TO EXIT                   02370000          
+         END;                                                           02380000          
+         END                                                            02390000          
+     END;                                                               02400000          
+     RP ~ RP+1; RIGHTLIST[RP] ~ 0;                                      02410000          
+ EX: RSP ~ X;                                                           02420000          
+ END;                                                                   02430000          
+PROCEDURE BUILDLEFTLIST(X); VALUE X; INTEGER X;                         02440000          
+ COMMENT  THE LEFTLIST OF THE SYMBOL X IS BUILT BY SCANNING THE         02450000          
+ SYNTAX FOR PRODUCTIONS WITH LEFTPART = X. THE LEFTMOST SYMBOL IN       02460000          
+ THE RIGHTPART IS THEN INSPECTED: IF IT IS NONBASIC AND NOT MARKED      02470000          
+ DONE, ITS LEFTLIST IS BUILT FIRST. WHILE A SYMBOL IS BEING INSPECTED   02480000          
+ IT IS MARKED ACTIVE;                                                   02490000          
+ BEGIN INTEGER I,R,OWNRSP;                                              02500000          
+     ACTIVE[X] ~ TRUE;                                                  02510000          
+     RSP ~ OWNRSP ~ LINX[X] ~ RSP+1;                                    02520000          
+     RECURSTACK[RSP] ~ X; STACKMARK[RSP] ~ SP+1;                        02530000          
+     FOR I ~ 1 UPTO N DO                                                02540000          
+     IF REF[I,0] = X THEN                                               02550000          
+     BEGIN  IF OWNRSP < RSP THEN SAVELEFTSYMBOLS(OWNRSP);               02560000          
+         R ~ REF[I,1]; PUTINTOSTACK(R);                                 02570000          
+         IF R { LT THEN                                                 02580000          
+         BEGIN  IF DONE[R] THEN COPYLEFTSYMBOLS(R) ELSE                 02590000          
+             IF ACTIVE[R] THEN RESET(LINX[R]) ELSE                      02600000          
+             BUILDLEFTLIST(R);                                          02610000          
+         END                                                            02620000          
+     END;                                                               02630000          
+ END;                                                                   02640000          
+PROCEDURE BUILDRIGHTLIST(X); VALUE X; INTEGER X;                        02650000          
+ COMMENT  ANALOG TO "BUILDLEFTLIST";                                    02660000          
+ BEGIN  INTEGER I,R,OWNRSP; LABEL QQ;                                   02670000          
+     ACTIVE[X] ~ TRUE;                                                  02680000          
+     RSP ~ OWNRSP ~ RINX[X] ~ RSP+1;                                    02690000          
+     RECURSTACK[RSP] ~ X; STACKMARK[RSP] ~ SP+1;                        02700000          
+     FOR I ~ 1 UPTO N DO                                                02710000          
+     IF REF[I,0] = X THEN                                               02720000          
+     BEGIN  IF OWNRSP < RSP THEN SAVERIGHTSYMBOLS(OWNRSP);              02730000          
+         FOR R ~ 2,3,4,5 DO IF REF[I,R] = 0 THEN GO TO QQ;              02740000          
+     QQ: R ~ REF[I,R-1]; PUTINTOSTACK(R);                               02750000          
+         IF R { LT THEN                                                 02760000          
+         BEGIN  IF DONE[R] THEN COPYRIGHTSYMBOLS(R) ELSE                02770000          
+             IF ACTIVE[R] THEN RESET(RINX[R]) ELSE                      02780000          
+             BUILDRIGHTLIST(R);                                         02790000          
+         END                                                            02800000          
+     END                                                                02810000          
+ END;                                                                   02820000          
+                                                                        02830000          
+ SP ~ RSP ~ LP ~ 0;                                                     02840000          
+ FOR I ~ 1 UPTO LT DO DONE[I] ~ FALSE;                                  02850000          
+ FOR I ~ 1 UPTO LT DO IF NOT DONE[I] THEN                               02860000          
+ BEGIN  SP ~ RSP ~ 0;                                                   02870000          
+     FOR J ~ 1 UPTO M DO INSTACK[J] ~ 0;                                02880000          
+     BUILDLEFTLIST(I); SAVELEFTSYMBOLS(0);                              02890000          
+ END;                                                                   02900000          
+ WRITE (PRINTFIL [PAGE]);                                               02910000          
+ WRITE (PRINTFIL, <X20,"***   LEFTMOST  SYMBOLS   ***"/>);              02920000          
+ PRINTLIST(LINX, LEFTLIST);                                             02930000          
+ SP ~ RSP ~ RP ~ 0;                                                     02940000          
+ FOR I ~ 1 UPTO LT DO DONE[I] ~ FALSE;                                  02950000          
+ FOR I ~ 1 UPTO LT DO IF NOT DONE[I] THEN                               02960000          
+ BEGIN SP ~ RSP ~ 0;                                                    02970000          
+     FOR J ~ 1 UPTO M DO INSTACK[J] ~ 0;                                02980000          
+     BUILDRIGHTLIST(I); SAVERIGHTSYMBOLS(0);                            02990000          
+ END;                                                                   03000000          
+ WRITE (PRINTFIL [3]);                                                  03010000          
+ WRITE (PRINTFIL, <X20,"***   RIGHTMOST  SYMBOLS   ***"/>);             03020000          
+ PRINTLIST(RINX, RIGHTLIST);                                            03030000          
+END BLOCK C1;                                                           03040000          
+                                                                        03050000          
+                                                                        03060000          
+BEGIN  COMMENT  BLOCK C2,  BUILD PRECEDENCE RELATIONS;                  03070000          
+    INTEGER J,K,P,Q,R,L,T;                                              03080000          
+    LABEL NEXTPRODUCTION;                                               03090000          
+PROCEDURE ENTER(X,Y,S); VALUE X,Y,S; INTEGER X,Y,S;                     03100000          
+ COMMENT  ENTER THE RELATION S INTO POSITION [X,Y]. CHECK FOR DOUBLE-   03110000          
+ OCCUPATION OF THIS POSITION;                                           03120000          
+ BEGIN  T ~ H[X,Y]; IF T ! NULL AND T ! S THEN                          03130000          
+     BEGIN  ERRORFLAG ~ TRUE;                                           03140000          
+     WRITE (PRINTFIL,                                                   03150000          
+       <"PRECEDENCE  VIOLATED  BY  ",2A1,                               03160000          
+       " FOR PAIR",2I4,                                                 03170000          
+       "  BY  PRODUCTION",I4>, T, S, X, Y, J);                          03180000          
+     END;                                                               03190000          
+     H[X,Y] ~ S;                                                        03200000          
+ END;                                                                   03210000          
+ WRITE (PRINTFIL [PAGE]);                                               03220000          
+ FOR K ~ 1 UPTO M DO                                                    03230000          
+ FOR J ~ 1 UPTO M DO H[K,J] ~ NULL;                                     03240000          
+ FOR J ~ 1 UPTO N DO                                                    03250000          
+ BEGIN  FOR K ~ 2,3,4,5 DO IF REF[J,K] ! 0 THEN                         03260000          
+     BEGIN P ~ REF[J,K-1]; Q ~ REF[J,K];                                03270000          
+         ENTER(P,Q,EQ);                                                 03280000          
+         IF P { LT THEN                                                 03290000          
+         BEGIN  FOR R ~ RINX[P],R+1 WHILE RIGHTLIST[R] ! 0 DO           03300000          
+                ENTER(RIGHTLIST[R],Q,GR);                               03310000          
+              IF Q { LT THEN                                            03320000          
+              FOR L ~ LINX[Q],L+1 WHILE LEFTLIST[L] ! 0 DO              03330000          
+              BEGIN  ENTER(P, LEFTLIST[L], LS);                         03340000          
+                  FOR R ~ RINX[P],R+1 WHILE RIGHTLIST[R] ! 0 DO         03350000          
+                     ENTER(RIGHTLIST[R],LEFTLIST[L],GR)                 03360000          
+              END                                                       03370000          
+          END                                                           03380000          
+          ELSE  IF Q { LT THEN                                          03390000          
+              FOR L ~ LINX[Q],L+1 WHILE LEFTLIST[L] ! 0 DO              03400000          
+                     ENTER(P, LEFTLIST[L], LS);                         03410000          
+      END                                                               03420000          
+      ELSE GO TO NEXTPRODUCTION;                                        03430000          
+ NEXTPRODUCTION: END J;                                                 03440000          
+ WRITE (PRINTFIL, </X3,39I3/>, FOR J ~ 1 UPTO M DO J);                  03450000          
+ FOR K ~ 1 STEP 1 UNTIL M DO                                            03460000          
+ WRITE (PRINTFIL, </X3,39(X2,A1)/>, FOR J ~ 1 UPTO M DO H[K,J]);        03470000          
+END BLOCK C2;                                                           03480000          
+END BLOCK B1;                                                           03490000          
+ IF ERRORFLAG THEN GO TO EXIT;                                          03500000          
+ WRITE (PRINTFIL, </"SYNTAX  IS  A  PRECEDENCE  GRAMMAR"/>);            03510000          
+                                                                        03520000          
+                                                                        03530000          
+BEGIN  COMMENT  BLOCK B2.  BUILD F AND G PRECEDENCE FUNCTIONS;          03540000          
+ INTEGER I, J, K,K1, N, FMIN, GMIN, T;                                  03550000          
+PROCEDURE THRU(I,J,X); VALUE I,J,X; INTEGER I,J,X;                      03560000          
+ BEGIN  WRITE (PRINTFIL,                                                03570000          
+           </"NO  PRIORITY  FUNCTIONS  EXIST  ",3I6>, I,J,X);           03580000          
+     GO TO EXIT                                                         03590000          
+ END;                                                                   03600000          
+PROCEDURE FIXUPCOL(L,J,X); VALUE L,J,X; INTEGER L,J,X; FORWARD;         03610000          
+PROCEDURE FIXUPROW(I,L,X); VALUE I,L,X; INTEGER I,L,X;                  03620000          
+ BEGIN  INTEGER J; F[I] ~ G[L] + X;                                     03630000          
+     IF K1 = K THEN                                                     03640000          
+     BEGIN  IF H[I,K]= EQ AND F[I] ! G[K] THEN THRU(I,K,0) ELSE         03650000          
+            IF H[I,K]= LS AND F[I] } G[K] THEN THRU(I,K,0)              03660000          
+     END;                                                               03670000          
+ FOR J ~ K1 STEP -1 UNTIL 1 DO                                          03680000          
+     IF H[I,J]= EQ AND F[I] ! G[J] THEN FIXUPCOL(I,J,0) ELSE            03690000          
+     IF H[I,J]= LS AND F[I] } G[J] THEN FIXUPCOL(I,J,1);                03700000          
+ END;                                                                   03710000          
+PROCEDURE FIXUPCOL(L,J,X); VALUE L,J,X; INTEGER L,J,X;                  03720000          
+ BEGIN  INTEGER I; G[J] ~ F[L] + X;                                     03730000          
+     IF K1 ! K THEN                                                     03740000          
+     BEGIN  IF H[K,J] = EQ AND F[K] ! G[J] THEN THRU(K,J,1) ELSE        03750000          
+            IF H[K,J] = GR AND F[K] { G[J] THEN THRU(K,J,1)             03760000          
+     END;                                                               03770000          
+ FOR I ~ K STEP -1 UNTIL 1 DO                                           03780000          
+     IF H[I,J] = EQ AND F[I] ! G[J] THEN FIXUPROW(I,J,0) ELSE           03790000          
+     IF H[I,J] = GR AND F[I] { G[J] THEN FIXUPROW(I,J,1);               03800000          
+ END;                                                                   03810000          
+ K1 ~ 0;                                                                03820000          
+ FOR K ~ 1 UPTO M DO                                                    03830000          
+ BEGIN  FMIN ~ 1;                                                       03840000          
+     FOR J ~ 1 UPTO K1 DO                                               03850000          
+         IF H[K,J] = EQ AND FMIN < G[J] THEN FMIN ~ G[J] ELSE           03860000          
+         IF H[K,J] = GR AND FMIN { G[J] THEN FMIN ~ G[J]+1;             03870000          
+     F[K] ~ FMIN;                                                       03880000          
+     FOR J ~ K1 STEP -1 UNTIL 1 DO                                      03890000          
+         IF H[K,J] = EQ AND FMIN > G[J] THEN FIXUPCOL(K,J,0) ELSE       03900000          
+         IF H[K,J] = LS AND FMIN } G[J] THEN FIXUPCOL(K,J,1);           03910000          
+     K1 ~ K1+1;  GMIN ~ 1;                                              03920000          
+     FOR I ~ 1 UPTO K DO                                                03930000          
+         IF H[I,K]= EQ AND F[I] > GMIN THEN GMIN ~ F[I] ELSE            03940000          
+         IF H[I,K]= LS AND F[I] } GMIN THEN GMIN ~ F[I]+1;              03950000          
+     G[K] ~ GMIN;                                                       03960000          
+     FOR I ~ K STEP -1 UNTIL 1 DO                                       03970000          
+         IF H[I,K] = EQ AND F[I] < GMIN THEN FIXUPROW(I,K,0) ELSE       03980000          
+         IF H[I,K] = GR AND F[I] { GMIN THEN FIXUPROW(I,K,1);           03990000          
+ END K;                                                                 04000000          
+END BLOCK B2;                                                           04010000          
+ WRITE (PRINTFIL [PAGE]);                                               04020000          
+                                                                        04030000          
+                                                                        04040000          
+BEGIN  COMMENT  BLOCK B3. BUILD TABLES OF PRODUCTION REFERENCES;        04050000          
+ INTEGER I,J,K,L;                                                       04060000          
+ INTEGER ARRAY MTB[0:M];  COMMENT  MASTER  TABLE;                       04070000          
+ INTEGER ARRAY PRTB[0:1022];  COMMENT  PRODUCTION  TABLE;               04080000          
+ L ~ 0;                                                                 04090000          
+ FOR I ~ 1 UPTO M DO                                                    04100000          
+     BEGIN  MTB[I] ~ L+1;                                               04110000          
+         FOR J ~ 1 UPTO N DO                                            04120000          
+         IF REF[J,1] = I THEN                                           04130000          
+             BEGIN  FOR K ~ 2,3,4,5 DO                                  04140000          
+                    IF REF[J,K] ! 0 THEN                                04150000          
+                        BEGIN  L ~ L+1; PRTB[L] ~ REF[J,K]              04160000          
+                        END;                                            04170000          
+                 L ~ L+1; PRTB[L] ~ -J; L ~ L+1;                        04180000          
+                 PRTB[L] ~ REF[J,0];                                    04190000          
+             END;                                                       04200000          
+         L ~ L+1; PRTB[L] ~ 0                                           04210000          
+     END;                                                               04220000          
+ COMMENT  PRINT AND PUNCH THE RESULTS:                                  04230000          
+ SYMBOLTABLE, PRECEDENCE FUNCTIONS, SYNTAX REFERENCE TABLES;            04240000          
+ WRITE (PRINTFIL, <X8,"NO.",X5,"SYMBOL",X8,                             04250000          
+          "F",X5,"G",X4,"MTB"/>);                                       04260000          
+ FOR I ~ 1 UPTO M DO                                                    04270000          
+ BEGIN  SETTEXT(I,SYTB[I],F[I],G[I], MTB[I], WRITEBUFFER[0]);           04280000          
+     OUTPUT                                                             04290000          
+ END;                                                                   04300000          
+ WRITE (PRINTFIL, </"PRODUCTION TABLE:"/>);                             04310000          
+ FOR I ~ 0 STEP 10 UNTIL L DO                                           04320000          
+ WRITE (PRINTFIL, <I9,X2,10I6>,                                         04330000          
+         FOR I ~ 0 STEP 10 UNTIL L DO                                   04340000          
+         [I, FOR J ~ I UPTO I+9 DO PRTB[J]]);                           04350000          
+ WRITE (PRINTFIL, </"SYNTAX  VERSION  ",A5>, TIME(0));                  04360000          
+ WRITE (PCH, <X4,"FT ~",I3,"; LT ~",I4,";  LP ~",I4,";">,               04370000          
+    LT+1,M,L);                                                          04380000          
+ FOR I ~ 1 STEP 6 UNTIL M DO                                            04390000          
+ BEGIN  PCHTX(SYTB[I], WRITEBUFFER[0],                                  04400000          
+          IF M-I } 6 THEN 6 ELSE M-I+1);                                04410000          
+     WRITE (PCH,10,WRITEBUFFER[*]);                                     04420000          
+     CLEAR(WRITEBUFFER[0],9)                                            04430000          
+ END;                                                                   04440000          
+ WRITE (PCH, <X4,12(I4,",")>, FOR I ~ 1 UPTO M DO F[I]);                04450000          
+ WRITE (PCH, <X4,12(I4,",")>, FOR I ~ 1 UPTO M DO G[I]);                04460000          
+ WRITE (PCH, <X4,12(I4,",")>, FOR I ~ 1 UPTO M DO MTB[I]);              04470000          
+ WRITE (PCH, <X4,12(I4,",")>, FOR I ~ 1 UPTO L DO PRTB[I]);             04480000          
+END BLOCK B3                                                            04490000          
+END BLOCK A;                                                            04500000          
+                                                                        04510000          
+EXIT:                                                                   04520000          
+END.                                                                    99999900          
