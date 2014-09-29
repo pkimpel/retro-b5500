@@ -1,15 +1,39 @@
 <!DOCTYPE html>
+<html manifest="B5500Manifest.appcache">
 <head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <title>B5500 Processor Syllable Debugger</title>
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<!--
+/***********************************************************************
+* retro-b5500/emulator B5500SyllableDebugger.html
+************************************************************************
+* Copyright (c) 2012, Nigel Williams and Paul Kimpel.
+* Licensed under the MIT License, see
+*       http://www.opensource.org/licenses/mit-license.php
+************************************************************************
+* B5500 emulator Syllable Debugger page.
+*
+* The Syllable Debugger is a basic execution testbed and opcode debugging
+* tool for the retro-B5500 emulator.
+*
+************************************************************************
+* 2012-11-25  P.Kimpel
+*   Original version, from B5500TestArithmetics.html.
+***********************************************************************/
+-->
 <meta name="Author" content="Nigel Williams & Paul Kimpel">
 <meta http-equiv="Content-Script-Type" content="text/javascript">
 <meta http-equiv="Content-Style-Type" content="text/css">
 <link id=defaultStyleSheet rel=stylesheet type="text/css" href="B5500SyllableDebugger.css">
 
-<script src="./B5500SetCallback.js"></script>
+<script src="./B5500SetCallback.js"></script>   <!-- must be first -->
+<script src="./B5500Util.js"></script>          <!-- must be second -->
 
-<script src="./B5500DummyUnit.js"></script>
+<script src="../emulator/B5500SystemConfiguration.js"></script>
+<script src="./B5500DiskStorageConfig.js"></script>
+<script src="./B5500SystemConfig.js"></script>
+
+<script src="./B5500DummyUnit.js"></script>     <!-- must be present -->
 
 <!-- Uncomment the following elements to enable I/O devices in the debugger.
      To halt/load the MCP, you will need at least the SPO and Disk. -->
@@ -18,13 +42,12 @@
 <script src="./B5500SPOUnit.js"></script>
 <script src="./B5500DiskUnit.js"></script>
 <script src="./B5500CardReader.js"></script>
-<script src="./B5500DummyPrinter.js"></script>
+<script src="./B5500LinePrinter.js"></script>
 <script src="./B5500CardPunch.js"></script>
 <script src="./B5500DatacomUnit.js"></script>
 <script src="./B5500MagTapeDrive.js"></script>
 -->
 
-<script src="../emulator/B5500SystemConfiguration.js"></script>
 <script src="../emulator/B5500CentralControl.js"></script>
 <script src="../emulator/B5500Processor.js"></script>
 <script src="../emulator/B5500IOUnit.js"></script>
@@ -36,7 +59,7 @@ var runningCycles = 1000;               // Number of instructions per run-mode i
 
 var cc;
 var injected = false;                   // true if syllable manually injected into T
-var memAddr = 0x40;                     // @100
+var memAddr = 0x40;                     // @100: default address for memory peephole display
 var px;                                 // reference to currently-displayed processor
 var running = false;                    // true if in run mode
 var runSilently = false;                // true if system state is not to be refreshed after each step
@@ -226,32 +249,20 @@ function $$(id) {
 
 function hasClass(id, name) {
     /* returns true if element "e" has class "name" in its class list */
-    var e = $$(id);
-    var classes = e.className;
 
-    if (!e) {
-        return false;
-    } else if (classes == name) {
-        return true;
-    } else {
-        return (classes.search("\\b" + name + "\\b") >= 0);
-    }
+    return B5500Util.hasClass($$(id), name);
 }
 
 function addClass(id, name) {
     /* Adds a class "name" to the element "e"s class list */
-    var e = $$(id);
 
-    if (!hasClass(id, name)) {
-        e.className += (" " + name);
-    }
+    B5500Util.addClass($$(id), name);
 }
 
 function removeClass(id, name) {
     /* Removes the class "name" from the element "e"s class list */
-    var e = $$(id);
 
-    e.className = e.className.replace(new RegExp("\\b" + name + "\\b\\s*", "g"), "");
+    B5500Util.removeClass($$(id), name);
 }
 
 function setText(id, text) {
@@ -1199,6 +1210,7 @@ function checkBrowser() {
 }
 
 function initialize() {
+    var sysConfig = new B5500SystemConfig();
 
     document.body.addEventListener("error", function(ev) {
         console.log(ev);
@@ -1363,24 +1375,24 @@ function initialize() {
     $$("RunSilently").addEventListener("click", runSilently_onClick, false);
 
     cc = new B5500CentralControl(window);
-    cc.powerOn();
-    px = cc.P1;                         // set current processor reference
+    sysConfig.getSystemConfig(null, function(config) {  // get current system config
+        cc.powerOn(config);
 
-    px.S = 0x40;                        // stack at @100
-    px.R = 0x005;                       // PRT at @500 (R has addr div 64)
+        px = cc.P1;                     // set current processor reference
+        px.S = 0x40;                    // stack at @100
+        px.R = 0x005;                   // PRT at @500 (R has addr div 64)
+        px.C = 0x10;                    // execute from address @20
+        px.loadPviaC();
+        px.T = cc.fieldIsolate(px.P, 0, 12);
+        px.TROF = 1;
+        px.L = 1;                       // point to the next syllable
+        px.NCSF = 0;                    // initiate test in control state
 
-    px.C = 0x10;                        // execute from address @20
-    px.loadPviaC();
-    px.T = cc.fieldIsolate(px.P, 0, 12);
-    px.TROF = 1;
-    px.L = 1;                           // point to the next syllable
-
-    px.NCSF = 0;                        // initiate test in control state
-
-    displaySystemState();
-    displayOctal("StopAddr", stopAddress, 5);
-    establishSilence(runSilently);
-    $$("StepBtn").disabled = false;
+        displaySystemState();
+        displayOctal("StopAddr", stopAddress, 5);
+        establishSilence(runSilently);
+        $$("StepBtn").disabled = false;
+    });
 }
 
 window.onload = function() {
@@ -1395,10 +1407,10 @@ window.onload = function() {
 
 <div id=LogoDiv>
     <div id=BurroughsLogo>
-        <img id=BurroughsLogoImage src="Burroughs-Logo-Neg.jpg">
+        <img id=BurroughsLogoImage src="./resources/Burroughs-Logo-Neg.jpg">
     </div>
     <div id=B5500Logo>
-        <img id=RetroLogoImage src="retro-B5500-Logo.png" alt="retro-B5500 logo">
+        <img id=RetroLogoImage src="./resources/retro-B5500-Logo.png" alt="retro-B5500 logo">
     </div>
 </div>
 
@@ -1459,7 +1471,7 @@ window.onload = function() {
     <td id=BRegOrig class=number>
 <tr>
     <td class=center>S-0
-    <td id=SAddr0 class="data center">00000
+    <td id=SAddr0 class="number center">00000
     <td>
         <input id=SWord0 name=SWord0 type=text class=number size=16 maxlength=16
                data-b55sd-bicID=SBIC0 data-b55sd-valueID=SValue0 data-b55sd-origID=SOrig0>
@@ -1468,7 +1480,7 @@ window.onload = function() {
     <td id=SOrig0 class=number>
 <tr>
     <td class=center>S-1
-    <td id=SAddr1 class="data center">11111
+    <td id=SAddr1 class="number center">11111
     <td>
         <input id=SWord1 name=SWord1 type=text class=number size=16 maxlength=16
                data-b55sd-bicID=SBIC1 data-b55sd-valueID=SValue1 data-b55sd-origID=SOrig1>
@@ -1477,7 +1489,7 @@ window.onload = function() {
     <td id=SOrig1 class=number>
 <tr>
     <td class=center>S-2
-    <td id=SAddr2 class="data center">22222
+    <td id=SAddr2 class="number center">22222
     <td>
         <input id=SWord2 name=SWord2 type=text class=number size=16 maxlength=16
                data-b55sd-bicID=SBIC2 data-b55sd-valueID=SValue2 data-b55sd-origID=SOrig2>
@@ -1486,7 +1498,7 @@ window.onload = function() {
     <td id=SOrig2 class=number>
 <tr>
     <td class=center>S-3
-    <td id=SAddr3 class="data center">33333
+    <td id=SAddr3 class="number center">33333
     <td>
         <input id=SWord3 name=SWord3 type=text class=number size=16 maxlength=16
                data-b55sd-bicID=SBIC3 data-b55sd-valueID=SValue3 data-b55sd-origID=SOrig3>
@@ -1495,7 +1507,7 @@ window.onload = function() {
     <td id=SOrig3 class=number>
 <tr>
     <td class=center>S-4
-    <td id=SAddr4 class="data center">44444
+    <td id=SAddr4 class="number center">44444
     <td>
         <input id=SWord4 name=SWord4 type=text class=number size=16 maxlength=16
                data-b55sd-bicID=SBIC4 data-b55sd-valueID=SValue4 data-b55sd-origID=SOrig4>
@@ -1504,7 +1516,7 @@ window.onload = function() {
     <td id=SOrig4 class=number>
 <tr>
     <td class=center>S-5
-    <td id=SAddr5 class="data center">55555
+    <td id=SAddr5 class="number center">55555
     <td>
         <input id=SWord5 name=SWord5 type=text class=number size=16 maxlength=16
                data-b55sd-bicID=SBIC5 data-b55sd-valueID=SValue5 data-b55sd-origID=SOrig5>
@@ -1513,7 +1525,7 @@ window.onload = function() {
     <td id=SOrig5 class=number>
 <tr>
     <td class=center>S-6
-    <td id=SAddr6 class="data center">66666
+    <td id=SAddr6 class="number center">66666
     <td>
         <input id=SWord6 name=SWord6 type=text class=number size=16 maxlength=16
                data-b55sd-bicID=SBIC6 data-b55sd-valueID=SValue6 data-b55sd-origID=SOrig6>
@@ -1522,7 +1534,7 @@ window.onload = function() {
     <td id=SOrig6 class=number>
 <tr>
     <td class=center>S-7
-    <td id=SAddr7 class="data center">77777
+    <td id=SAddr7 class="number center">77777
     <td>
         <input id=SWord7 name=SWord7 type=text class=number size=16 maxlength=16
                data-b55sd-bicID=SBIC7 data-b55sd-valueID=SValue7 data-b55sd-origID=SOrig7>
@@ -1535,7 +1547,7 @@ window.onload = function() {
     <td colspan=6 class="revcaption">MEMORY
 <tr>
     <td class=center>+4
-    <td id=MAddrP4 class="data center">44444
+    <td id=MAddrP4 class="number center">44444
     <td>
         <input id=MWordP4 name=MWordP4 type=text class=number size=16 maxlength=16
                data-b55sd-bicID=MBICP4 data-b55sd-valueID=MValueP4 data-b55sd-origID=MOrigP4>
@@ -1544,7 +1556,7 @@ window.onload = function() {
     <td id=MOrigP4 class=number>
 <tr>
     <td class=center>+3
-    <td id=MAddrP3 class="data center">33333
+    <td id=MAddrP3 class="number center">33333
     <td>
         <input id=MWordP3 name=MWordP3 type=text class=number size=16 maxlength=16
                data-b55sd-bicID=MBICP3 data-b55sd-valueID=MValueP3 data-b55sd-origID=MOrigP3>
@@ -1553,7 +1565,7 @@ window.onload = function() {
     <td id=MOrigP3 class=number>
 <tr>
     <td class=center>+2
-    <td id=MAddrP2 class="data center">22222
+    <td id=MAddrP2 class="number center">22222
     <td>
         <input id=MWordP2 name=MWordP2 type=text class=number size=16 maxlength=16
                data-b55sd-bicID=MBICP2 data-b55sd-valueID=MValueP2 data-b55sd-origID=MOrigP2>
@@ -1562,7 +1574,7 @@ window.onload = function() {
     <td id=MOrigP2 class=number>
 <tr>
     <td class=center>+1
-    <td id=MAddrP1 class="data center">11111
+    <td id=MAddrP1 class="number center">11111
     <td>
         <input id=MWordP1 name=MWordP1 type=text class=number size=16 maxlength=16
                data-b55sd-bicID=MBICP1 data-b55sd-valueID=MValueP1 data-b55sd-origID=MOrigP1>
@@ -1572,7 +1584,7 @@ window.onload = function() {
 <tr>
     <td class=center>Addr
     <td class="center">
-        <input id=MAddr name=MAddr type=text class=center size=5 maxlength=5>
+        <input id=MAddr name=MAddr type=text class="number center" size=5 maxlength=5>
     <td>
         <input id=MWordP0 name=MWordP0 type=text class=number size=16 maxlength=16
                data-b55sd-bicID=MBICP0 data-b55sd-valueID=MValueP0 data-b55sd-origID=MOrigP0>
@@ -1581,7 +1593,7 @@ window.onload = function() {
     <td id=MOrigP0 class=number>
 <tr>
     <td class=center>-1
-    <td id=MAddrM1 class="data center">11111
+    <td id=MAddrM1 class="number center">11111
     <td>
         <input id=MWordM1 name=MWordM1 type=text class=number size=16 maxlength=16
                data-b55sd-bicID=MBICM1 data-b55sd-valueID=MValueM1 data-b55sd-origID=MOrigM1>
@@ -1590,7 +1602,7 @@ window.onload = function() {
     <td id=MOrigM1 class=number>
 <tr>
     <td class=center>-2
-    <td id=MAddrM2 class="data center">22222
+    <td id=MAddrM2 class="number center">22222
     <td>
         <input id=MWordM2 name=MWordM2 type=text class=number size=16 maxlength=16
                data-b55sd-bicID=MBICM2 data-b55sd-valueID=MValueM2 data-b55sd-origID=MOrigM2>
@@ -1599,7 +1611,7 @@ window.onload = function() {
     <td id=MOrigM2 class=number>
 <tr>
     <td class=center>-3
-    <td id=MAddrM3 class="data center">33333
+    <td id=MAddrM3 class="number center">33333
     <td>
         <input id=MWordM3 name=MWordM3 type=text class=number size=16 maxlength=16
                data-b55sd-bicID=MBICM3 data-b55sd-valueID=MValueM3 data-b55sd-origID=MOrigM3>
@@ -1608,7 +1620,7 @@ window.onload = function() {
     <td id=MOrigM3 class=number>
 <tr>
     <td class=center>-4
-    <td id=MAddrM4 class="data center">44444
+    <td id=MAddrM4 class="number center">44444
     <td>
         <input id=MWordM4 name=MWordM4 type=text class=number size=16 maxlength=16
                data-b55sd-bicID=MBICM4 data-b55sd-valueID=MValueM4 data-b55sd-origID=MOrigM4>
