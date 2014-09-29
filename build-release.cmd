@@ -1,1 +1,0 @@
-"%ProgramFiles%\7-Zip\7z.exe" a -tzip releases\retro-b5500-%1.zip build-release.cmd emulator\ webui\ -x!webui\prototypes\* tools\*.html tools\*.js tools\*.card
