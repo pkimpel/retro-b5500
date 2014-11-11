@@ -30,6 +30,7 @@
 /**************************************/
 function B5500MagTapeDrive(mnemonic, unitIndex, designate, statusChange, signal, options) {
     /* Constructor for the MagTapeDrive object */
+    var y = ((mnemonic.charCodeAt(2) - "A".charCodeAt(0))*30);
 
     this.mnemonic = mnemonic;           // Unit mnemonic
     this.unitIndex = unitIndex;         // Ready-mask bit number
@@ -53,7 +54,7 @@ function B5500MagTapeDrive(mnemonic, unitIndex, designate, statusChange, signal,
     }
     this.doc = null;
     this.window = window.open("../webUI/B5500MagTapeDrive.html", mnemonic,
-            "location=no,scrollbars=no,resizable,width=560,height=120,left=280,top=0");
+            "location=no,scrollbars=no,resizable,width=560,height=120,left=280,top=" + y);
     this.window.addEventListener("load",
             B5500CentralControl.bindMethod(this, B5500MagTapeDrive.prototype.tapeDriveOnload), false);
 }
@@ -1137,7 +1138,6 @@ B5500MagTapeDrive.prototype.beforeUnload = function beforeUnload(ev) {
 B5500MagTapeDrive.prototype.tapeDriveOnload = function tapeDriveOnload() {
     /* Initializes the reader window and user interface */
     var de;
-    var y = ((this.mnemonic.charCodeAt(2) - "A".charCodeAt(0))*30);
 
     this.doc = this.window.document;
     de = this.doc.documentElement;
@@ -1167,7 +1167,6 @@ B5500MagTapeDrive.prototype.tapeDriveOnload = function tapeDriveOnload() {
 
     this.window.resizeBy(de.scrollWidth - this.window.innerWidth + 4, // kludge for right-padding/margin
                          de.scrollHeight - this.window.innerHeight);
-    this.window.moveTo(280, y);
 };
 
 /**************************************/

@@ -93,7 +93,7 @@
             delete pendingCallbacks[cookieName];
             category = thisCallback.category;
             if (category) {
-                delayDev[category] = (delayDev[category] || 0) +
+                delayDev[category] = (delayDev[category] || 0)*delayAlpha +
                     (endStamp - thisCallback.startStamp - thisCallback.delay)*(1.0-delayAlpha);
             }
             try {

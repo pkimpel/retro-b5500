@@ -40,10 +40,12 @@ window.addEventListener("load", function() {
     var timer = 0;                      // Console display update timer control cookie
     var timerInterval = 50;             // Console display update interval [ms]
 
+    /**************************************/
     function $$(id) {
         return document.getElementById(id);
     }
 
+    /**************************************/
     function setAnnunciators(showEm) {
         $$("CentralControl").style.display = (showEm && cc.poweredUp ? "block" : "none");
         $$("RetroVersion").style.visibility = (showEm ? "visible" : "hidden");
@@ -52,6 +54,7 @@ window.addEventListener("load", function() {
         $$("ConfigLabel").style.display = (showEm ? "inline" : "none");
     }
 
+    /**************************************/
     function evaluateNotReady(config) {
         /* Evaluates the system configuration to determine whether the
         NOT READY lamp should be illuminated */
@@ -70,11 +73,13 @@ window.addEventListener("load", function() {
         $$("NotReadyBtn").className = lampClass;
     }
 
+    /**************************************/
     function BurroughsLogo_Click(ev) {
         showAnnunciators = !showAnnunciators;
         setAnnunciators(showAnnunciators);
     }
 
+    /**************************************/
     function B5500Logo_Click(ev) {
         var sysConfig = new B5500SystemConfig();
 
@@ -86,6 +91,7 @@ window.addEventListener("load", function() {
         }
     }
 
+    /**************************************/
     function PowerOnBtn_Click(ev) {
         var sysConfig = new B5500SystemConfig();
 
@@ -124,6 +130,7 @@ window.addEventListener("load", function() {
         return true;
     }
 
+    /**************************************/
     function PowerOffBtn_Click(ev) {
         $$("PowerOnBtn").className = "greenButton";
         $$("ANormalBtn").className = "yellowButton";
@@ -149,6 +156,7 @@ window.addEventListener("load", function() {
         return true;
     }
 
+    /**************************************/
     function HaltBtn_Click(ev) {
         $$("HaltBtn").className = "redButton redLit";
         cc.halt();
@@ -161,6 +169,7 @@ window.addEventListener("load", function() {
         }
     }
 
+    /**************************************/
     function LoadBtn_Click(ev) {
         var result;
 
@@ -194,6 +203,7 @@ window.addEventListener("load", function() {
         }
     }
 
+    /**************************************/
     function LoadSelectBtn_Click(ev) {
         if (cc.cardLoadSelect) {
             cc.cardLoadSelect = 0;
@@ -204,6 +214,7 @@ window.addEventListener("load", function() {
         }
     }
 
+    /**************************************/
     function dumpState(caption) {
         /* Generates a dump of the processor states and all of memory */
         var doc;
@@ -284,6 +295,7 @@ window.addEventListener("load", function() {
         win.focus();
     }
 
+    /**************************************/
     function displayCallbacks() {
         /* Builds a table of outstanding callbacks */
         var cb;
@@ -320,6 +332,7 @@ window.addEventListener("load", function() {
         oldBody.parentNode.replaceChild(body, oldBody);
     }
 
+    /**************************************/
     function displayCentralControl() {
         /* Displays the I/O and interrupt status in CentralControl */
         var cells;
@@ -382,6 +395,7 @@ window.addEventListener("load", function() {
         }
     }
 
+    /**************************************/
     function dasBlinkenlicht() {
         var cycles;
         var pa = cc.PA;
@@ -536,6 +550,7 @@ window.addEventListener("load", function() {
         // displayCallbacks();
     }
 
+    /**************************************/
     function buildLightMaps() {
         /* Builds tables of the DOM entries for the annunciator lights, for efficient access */
         var mnem;
@@ -559,6 +574,7 @@ window.addEventListener("load", function() {
         }
     }
 
+    /**************************************/
     function lampTest(callback, callbackParam) {
         /* Lights up the operator console, waits a bit, then turns everything
         off and calls the "callback" function, passing "callbackParam".
@@ -607,7 +623,8 @@ window.addEventListener("load", function() {
         setTimeout(switchEm, 2000, 0);
     }
 
-    function clearStatus(inSeconds) {
+    /**************************************/
+    function clearStatusLabel(inSeconds) {
         /* Delays for "inSeconds" seconds, then clears the StatusLabel element */
 
         setTimeout(function(ev) {
@@ -615,6 +632,7 @@ window.addEventListener("load", function() {
         }, inSeconds*1000);
     }
 
+    /**************************************/
     function checkBrowser() {
         /* Checks whether this browser can support the necessary stuff */
         var missing = "";
@@ -659,11 +677,11 @@ window.addEventListener("load", function() {
         }, false);
         window.applicationCache.addEventListener("noupdate", function(ev) {
             $$("StatusLabel").textContent = "Emulator version is current.";
-            clearStatus(5);
+            clearStatusLabel(15);
         }, false);
         window.applicationCache.addEventListener("obsolete", function(ev) {
             $$("StatusLabel").textContent = "Emulator off-line installation has been disabled.";
-            clearStatus(15);
+            clearStatusLabel(15);
         }, false);
         window.applicationCache.addEventListener("downloading", function(ev) {
             $$("StatusLabel").textContent = "Initiating download for emulator update...";
@@ -674,15 +692,15 @@ window.addEventListener("load", function() {
         }, false);
         window.applicationCache.addEventListener("updateready", function(ev) {
             $$("StatusLabel").textContent = "Emulator update completed. Reload this page to activate the new version.";
-            clearStatus(10);
+            clearStatusLabel(15);
         }, false);
         window.applicationCache.addEventListener("cached", function(ev) {
             $$("StatusLabel").textContent = "Emulator is now installed for off-line use.";
-            clearStatus(10);
+            clearStatusLabel(15);
         }, false);
         window.applicationCache.addEventListener("error", function(ev) {
             $$("StatusLabel").textContent = "Unable to check for emulator update.";
-            clearStatus(10);
+            clearStatusLabel(15);
         }, false);
 
         aControl = $$("AControlBtn");

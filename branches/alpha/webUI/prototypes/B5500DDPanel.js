@@ -1,4 +1,4 @@
- /***********************************************************************
+/***********************************************************************
 * retro-b5500/emulator B5500DDPanel.js
 ************************************************************************
 * Copyright (c) 2012, Nigel Williams and Paul Kimpel.
@@ -29,8 +29,8 @@ function B5500DDLamp(x, y) {
 
 /**************************************/
 
-B5500DDLamp.onColor = "#FF9900";
-B5500DDLamp.offColor = "#999999";
+B5500DDLamp.lampClass = "ddLamp";
+B5500DDLamp.litClass = "ddLamp ddLampLit";
 
 /**************************************/
 B5500DDLamp.prototype.set = function(v) {
@@ -39,19 +39,19 @@ B5500DDLamp.prototype.set = function(v) {
     var newState = v & 1;
 
     if (this.state ^ newState) {         // the state has changed
-        this.element.style.backgroundColor = (newState ? B5500DDLamp.onColor : B5500DDLamp.offColor);
+        this.element.className = (newState ? B5500Lamp.litClass : B5500Lamp.lampClass);
         this.state = newState;
     }
-}
+};
 
 /**************************************/
 B5500DDLamp.prototype.flip = function() {
     /* Complements the visible state of the lamp */
     var newState = this.state ^ 1;
 
-    this.element.style.backgroundColor = (newState ? B5500DDLamp.onColor : B5500DDLamp.offColor);
+    this.element.className = (newState ? B5500Lamp.litClass : B5500Lamp.lampClass);
     this.state = newState;
-}
+};
 
 /**************************************/
 B5500DDLamp.prototype.setCaption = function(caption) {
@@ -61,7 +61,7 @@ B5500DDLamp.prototype.setCaption = function(caption) {
     e.className = "ddLampCaption";
     e.appendChild(document.createTextNode(caption));
     this.element.appendChild(e);
-}
+};
 
 
 /***********************************************************************
@@ -137,14 +137,14 @@ B5500DDRegister.prototype.xCoord = function(col) {
     /* Returns the horizontal lamp coordinate in "px" format */
 
     return String((col-1)*B5500DDRegister.hSpacing + B5500DDRegister.hOffset) + "px";
-}
+};
 
 /**************************************/
 B5500DDRegister.prototype.yCoord = function(row) {
     /* Returns the vertical lamp coordinate in "px" format */
 
     return String((row-1)*B5500DDRegister.vSpacing + B5500DDRegister.vOffset) + "px";
-}
+};
 
 /**************************************/
 B5500DDRegister.prototype.YYupdate = function(value) {
@@ -169,7 +169,7 @@ B5500DDRegister.prototype.YYupdate = function(value) {
         high >>>= 1;
     }
     this.lastValue = value;
-}
+};
 
 /**************************************/
 B5500DDRegister.prototype.XXupdate = function(value) {
@@ -184,7 +184,7 @@ B5500DDRegister.prototype.XXupdate = function(value) {
         this.lamps[bitNr].set(bit);
         mask = (mask-bit)/2;
     }
-}
+};
 
 /**************************************/
 B5500DDRegister.prototype.update = function(value) {
@@ -196,7 +196,7 @@ B5500DDRegister.prototype.update = function(value) {
     while (bitNr < this.bits) {
         bitNr++;
         bit = mask % 2;
-        this.lamps[bitNr].element.style.backgroundColor = (bit ? B5500DDLamp.onColor : B5500DDLamp.offColor);
+        this.lamps[bitNr].element.className = (bit ? B5500DDLamp.litClass : B5500DDLamp.lampClass);
         mask = (mask-bit)/2;
     }
-}
+};
