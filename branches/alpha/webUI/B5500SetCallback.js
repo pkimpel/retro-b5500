@@ -25,17 +25,17 @@
 * sooner than requested, and that due to either other activity or browser
 * limitations the delay may be longer than requested, the timing behavior of
 * setCallback() may be divided into "categories." For each category, a separate
-* record is kept of the exponential-moving-average difference between the
-* requested delay and the actual delay. This difference is used to adjust the
+* record is kept of the exponential-moving-average deviation between the
+* requested delay and the actual delay. This deviation is used to adjust the
 * requested delay on subsequent calls in an attempt to smooth out the differences.
 * We are going for good average behavior here, and quick call-backs are better
 * than consistently too-long callbacks in this environment, so that I/Os can be
 * initiated and their finish detected in finer-grained time increments.
 *
-* The SetCallback mechanism defines two functions, which become members of the
+* The SetCallback mechanism defines three functions that become members of the
 * global (window) object:
 *
-*   cookie = setCallback(category, context, delay, fcn[, arg])
+*   token = setCallback(category, context, delay, fcn[, arg])
 *
 *       Requests that the function "fcn" be called after "delay" milliseconds.
 *       The function will be called as a method of "context", passing a
@@ -47,10 +47,22 @@
 *       with clearCallback(). Note that passing a string in lieu of a function
 *       object is not permitted.
 *
-*   clearCallBack(cookie)
+*   clearCallBack(token)
 *
 *       Cancels a pending call-back event, if in fact it is still pending.
-*       The "cookie" parameter is a value returned from setCallback().
+*       The "token" parameter is a value returned from setCallback().
+*
+*   object = getCallbackState(optionMask)
+*
+*       This is a diagnostic function intended for use in monitoring the callback
+*       mechanism. It returns an object that, depending upon bits set in its mask
+*       parameter, contains copies of the nextTokenNr value, poolLength
+*       value, current delayDev hash, pendingCallbacks hash, and pool array:
+*           bit 0x01: delayDev hash
+*           bit 0x02: pendingCallbacks hash
+*           bit 0x04: pool array
+*       The nextTokenNr and poolLength values are always returned. If no mask
+*       is supplied, no additional items are returned.
 *
 * This implementation has been inspired by Domenic Denicola's shim for the
 * setImmediate() API at https://github.com/NobleJS/setImmediate, and
@@ -65,6 +77,8 @@
 * 2014-04-05  P.Kimpel
 *   Change calling sequence to add "category" parameter; reorder setCallback
 *   parameters into a more reasonable sequence; implement call-back pooling.
+* 2014-12-14  P.Kimpel
+*   Added getCallbackState() diagnostic function, changed "cookie" to "token".
 ***********************************************************************/
 "use strict";
 
@@ -73,24 +87,24 @@
     var delayAlpha = 0.99;              // exponential-moving-average decay factor
     var delayDev = {NUL: 0};            // hash of average delay time deviations by category
     var minTimeout = 4;                 // minimum setTimeout() threshold, milliseconds
-    var nextCookieNr = 1;               // next setCallback cookie return value
-    var pendingCallbacks = {};          // hash of pending callbacks, indexed by cookie as a string
+    var nextTokenNr = 1;                // next setCallback token return value
+    var pendingCallbacks = {};          // hash of pending callbacks, indexed by token as a string
     var perf = global.performance;      // cached window.performance object
     var pool = [];                      // pool of reusable callback objects
     var poolLength = 0;                 // length of active entries in pool
-    var secretPrefix = "com.google.code.p.retro-b5500.webUI." + Date.now().toString(16);
+    var secretPrefix = "retro-b5500.webUI." + Date.now().toString(16);
 
     /**************************************/
-    function activateCallback(cookie) {
+    function activateCallback(token) {
         /* Activates a callback after its delay period has expired */
         var category;
-        var cookieName = cookie.toString();
         var endStamp = perf.now();
         var thisCallback;
+        var tokenName = token.toString();
 
-        thisCallback = pendingCallbacks[cookieName];
+        thisCallback = pendingCallbacks[tokenName];
         if (thisCallback) {
-            delete pendingCallbacks[cookieName];
+            delete pendingCallbacks[tokenName];
             category = thisCallback.category;
             if (category) {
                 delayDev[category] = (delayDev[category] || 0)*delayAlpha +
@@ -109,14 +123,14 @@
     }
 
     /**************************************/
-    function clearCallback(cookie) {
+    function clearCallback(token) {
         /* Disables a pending callback, if it still exists and is still pending */
-        var cookieName = cookie.toString();
         var thisCallback;
+        var tokenName = token.toString();
 
-        thisCallback = pendingCallbacks[cookieName];
+        thisCallback = pendingCallbacks[tokenName];
         if (thisCallback) {
-            delete pendingCallbacks[cookieName];
+            delete pendingCallbacks[tokenName];
             if (thisCallback.isTimeout) {
                 if (thisCallback.cancelToken) {
                     global.clearTimeout(thisCallback.cancelToken);
@@ -130,45 +144,6 @@
     }
 
     /**************************************/
-    function _setCallback_Old(fcn, context, callbackDelay, arg) {
-        /* Sets up and schedules a callback for function "fcn", called with context
-        "context", after a delay of "delay" ms. An optional "arg" value will be passed
-        to "fcn". If the delay is less than "minTimeout", a setImmediate-like mechanism
-        based on window.postsMessage() will be used; otherwise the environment's standard
-        setTimeout mechanism will be used */
-        var delay = callbackDelay || 0;
-        var cookie = nextCookieNr++;
-        var cookieName = cookie.toString();
-        var thisCallback;
-
-        if (poolLength > 0) {
-            thisCallback = pool[--poolLength];
-            pool[poolLength] = null;
-        } else {
-            thisCallback = {};
-        }
-
-        thisCallback.startStamp = perf.now();
-        thisCallback.category = "NUL";
-        thisCallback.context = context || this;
-        thisCallback.delay = delay;
-        thisCallback.fcn = fcn;
-        thisCallback.arg = arg;
-        pendingCallbacks[cookieName] = thisCallback;
-
-        if (delay < minTimeout) {
-            thisCallback.isTimeout = false;
-            global.postMessage(secretPrefix + cookieName, "*");
-            thisCallback.cancelToken = 0;
-        } else {
-            thisCallback.isTimeout = true;
-            thisCallback.cancelToken = global.setTimeout(activateCallback, delay, cookie);
-        }
-
-        return cookie;
-    }
-
-    /**************************************/
     function setCallback(category, context, callbackDelay, fcn, arg) {
         /* Sets up and schedules a callback for function "fcn", called with context
         "context", after a delay of "delay" ms. An optional "arg" value will be passed
@@ -176,10 +151,10 @@
         based on window.postsMessage() will be used; otherwise the environment's standard
         setTimeout mechanism will be used */
         var categoryName = (category || "NUL").toString();
-        var cookie = nextCookieNr++;
-        var cookieName = cookie.toString();
         var delay = callbackDelay || 0;
         var thisCallback;
+        var token = nextTokenNr++;
+        var tokenName = token.toString();
 
         // Allocate a call-back object from the pool.
         if (poolLength <= 0) {
@@ -193,24 +168,24 @@
         thisCallback.startStamp = perf.now();
         thisCallback.category = categoryName;
         thisCallback.context = context || this;
-        thisCallback.delay = (delay < 0 ? 0 : delay);
+        thisCallback.delay = delay;
         thisCallback.fcn = fcn;
         thisCallback.arg = arg;
 
-        pendingCallbacks[cookieName] = thisCallback;
+        pendingCallbacks[tokenName] = thisCallback;
 
         // Decide whether to do a time wait or just a yield.
-        if (delay >= minTimeout) {
-            thisCallback.isTimeout = true;
-            thisCallback.cancelToken = global.setTimeout(activateCallback,
-                    delay - (delayDev[categoryName] || 0), cookie);
-        } else {
+        delay -= (delayDev[categoryName] || 0); // bias by the current avg. deviation
+        if (delay < minTimeout) {
             thisCallback.isTimeout = false;
-            global.postMessage(secretPrefix + cookieName, "*");
             thisCallback.cancelToken = 0;
+            global.postMessage(secretPrefix + tokenName, "*");
+        } else {
+            thisCallback.isTimeout = true;
+            thisCallback.cancelToken = global.setTimeout(activateCallback, delay, token);
         }
 
-        return cookie;
+        return token;
     }
 
     /**************************************/
@@ -218,12 +193,49 @@
         /* Handler for the global.onmessage event. Activates the callback */
         var payload;
 
-        // if (ev.source === global) {
+        if (ev.source === global) {
             payload = ev.data.toString();
             if (payload.substring(0, secretPrefix.length) === secretPrefix) {
                 activateCallback(payload.substring(secretPrefix.length));
             }
-        // }
+        }
+    }
+
+    /**************************************/
+    function getCallbackState(optionMask) {
+        /* Diagnostic function. Returns an object that, depending upon bits in
+        the option mask, contains copies of the nextTokenNr value, poolLength
+        value, current delayDev hash, pendingCallbacks hash, and pool array.
+            bit 0x01: delayDev hash
+            bit 0x02: pendingCallbacks hash
+            bit 0x04: pool array
+        If no mask is supplied, no additional items are returned */
+        var e;
+        var mask = optionMask || 0;
+        var state = {
+            nextTokenNr: nextTokenNr,
+            poolLength: poolLength,
+            delayDev: {},
+            pendingCallbacks: {},
+            pool: []};
+
+        if (mask & 0x01) {
+            for (e in delayDev) {
+                state.delayDev[e] = delayDev[e];
+            }
+        }
+        if (mask & 0x02) {
+            for (e in pendingCallbacks) {
+                state.pendingCallbacks[e] = pendingCallbacks[e];
+            }
+        }
+        if (mask & 0x04) {
+            for (e=0; e<poolLength; ++e) {
+                state.pool[e] = pool[e];
+            }
+        }
+
+        return state;
     }
 
     /********** Outer block of anonymous closure **********/
@@ -242,5 +254,6 @@
         global.addEventListener("message", onMessage, false);
         attachee.setCallback = setCallback;
         attachee.clearCallback = clearCallback;
+        attachee.getCallbackState = getCallbackState;
     }
 }(typeof global === "object" && global ? global : this));

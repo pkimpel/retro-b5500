@@ -61,7 +61,7 @@ function B5500CentralControl(global) {
 /**************************************/
 
 /* Global constants */
-B5500CentralControl.version = "1.01a1";
+B5500CentralControl.version = "1.01a2";
 
 B5500CentralControl.memReadCycles = 2;          // assume 2 탎 memory read cycle time (the other option was 3 탎)
 B5500CentralControl.memWriteCycles = 4;         // assume 4 탎 memory write cycle time (the other option was 6 탎)
@@ -240,11 +240,12 @@ B5500CentralControl.prototype.bitSet = function bitSet(word, bit) {
     /* Sets the specified bit in word and returns the updated word */
     var ue = 48-bit;                    // word upper power exponent
     var le = ue-1;                      // word lower power exponent
-    var bpower = 1;                     // bottom portion of word power of 2
+    var bpower =                        // bottom portion of word power of 2
+        B5500CentralControl.pow2[le];
     var bottom =                        // unaffected bottom portion of word
-        (le == 0 ? 0 : (word % (bpower = B5500CentralControl.pow2[le])));
+        (le <= 0 ? 0 : (word % bpower));
     var top =                           // unaffected top portion of word
-        (bit == 0 ? 0 : (word - (word % B5500CentralControl.pow2[ue])));
+        (bit <= 0 ? 0 : (word - (word % B5500CentralControl.pow2[ue])));
 
     return bpower + top + bottom;
 };
@@ -255,9 +256,9 @@ B5500CentralControl.prototype.bitReset = function bitReset(word, bit) {
     var ue = 48-bit;                    // word upper power exponent
     var le = ue-1;                      // word lower power exponent
     var bottom =                        // unaffected bottom portion of word
-        (le == 0 ? 0 : (word % B5500CentralControl.pow2[le]));
+        (le <= 0 ? 0 : (word % B5500CentralControl.pow2[le]));
     var top =                           // unaffected top portion of word
-        (bit == 0 ? 0 : (word - (word % B5500CentralControl.pow2[ue])));
+        (bit <= 0 ? 0 : (word - (word % B5500CentralControl.pow2[ue])));
 
     return top + bottom;
 };
@@ -268,7 +269,7 @@ B5500CentralControl.prototype.fieldIsolate = function fieldIsolate(word, start, 
     var le = 48-start-width;            // lower power exponent
     var p;                              // bottom portion of word power of 2
 
-    return (le == 0 ? word :
+    return (le <= 0 ? word :
                       (word - word % (p = B5500CentralControl.pow2[le]))/p
             ) % B5500CentralControl.pow2[width];
 };
@@ -279,11 +280,12 @@ B5500CentralControl.prototype.fieldInsert = function fieldInsert(word, start, wi
     into word.[start:width] and returns the updated word */
     var ue = 48-start;                  // word upper power exponent
     var le = ue-width;                  // word lower power exponent
-    var bpower = 1;                     // bottom portion of word power of 2
+    var bpower =                        // bottom portion of word power of 2
+        B5500CentralControl.pow2[le];
     var bottom =                        // unaffected bottom portion of word
-        (le == 0 ? 0 : (word % (bpower = B5500CentralControl.pow2[le])));
+        (le <= 0 ? 0 : (word % bpower));
     var top =                           // unaffected top portion of word
-        (ue == 0 ? 0 : (word - (word % B5500CentralControl.pow2[ue])));
+        (ue <= 0 ? 0 : (word - (word % B5500CentralControl.pow2[ue])));
 
     return (value % B5500CentralControl.pow2[width])*bpower + top + bottom;
 };
@@ -296,13 +298,14 @@ B5500CentralControl.prototype.fieldTransfer = function fieldTransfer(word, wstar
     var le = ue-width;                  // word lower power exponent
     var ve = 48-vstart-width;           // value lower power exponent
     var vpower;                         // bottom port of value power of 2
-    var bpower = 1;                     // bottom portion of word power of 2
+    var bpower =                        // bottom portion of word power of 2
+        B5500CentralControl.pow2[le];
     var bottom =                        // unaffected bottom portion of word
-        (le == 0 ? 0 : (word % (bpower = B5500CentralControl.pow2[le])));
+        (le <= 0 ? 0 : (word % bpower));
     var top =                           // unaffected top portion of word
-        (ue == 0 ? 0 : (word - (word % B5500CentralControl.pow2[ue])));
+        (ue <= 0 ? 0 : (word - (word % B5500CentralControl.pow2[ue])));
 
-    return ((ve == 0 ? value :
+    return ((ve <= 0 ? value :
                        (value - value % (vpower = B5500CentralControl.pow2[ve]))/vpower
                 ) % B5500CentralControl.pow2[width]
             )*bpower + top + bottom;

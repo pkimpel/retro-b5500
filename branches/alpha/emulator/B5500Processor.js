@@ -3137,7 +3137,7 @@ B5500Processor.prototype.indexDescriptor = function indexDescriptor() {
     var xt;                             // index exponent sign
 
     this.adjustABFull();
-    aw = this.A;                    
+    aw = this.A;
     bw = this.B;
     xm = (bw % 0x8000000000);
     xe = (bw - xm)/0x8000000000;
@@ -3510,7 +3510,7 @@ B5500Processor.prototype.operandCall = function operandCall() {
                 if (this.A >= 0x800000000000 && this.NCSF) {// Flag bit is set
                     this.I = (this.I & 0x0F) | 0x80;        // set I08: flag-bit interrupt
                     this.cc.signalInterrupt();
-                    dumpState("Flag Bit: OPDC");        // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< DEBUG >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+                    // dumpState("Flag Bit: OPDC"); // <<<<<<<<<< DEBUG >>>>>>>>>>
                 }
             }
             break;

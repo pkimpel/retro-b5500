@@ -84,7 +84,8 @@ window.addEventListener("load", function() {
         var sysConfig = new B5500SystemConfig();
 
         if (cc.poweredUp) {
-            alert("System configuration changes are\nnot allowed while power is on.");
+            $$("StatusLabel").textContent = "System configuration changes are not allowed while power is on.";
+            clearStatusLabel(15);
         } else {
             $$("ConfigLabel").style.display = "none";
             sysConfig.openConfigUI();
@@ -296,22 +297,42 @@ window.addEventListener("load", function() {
     }
 
     /**************************************/
-    function displayCallbacks() {
-        /* Builds a table of outstanding callbacks */
+    function displayCallbackState() {
+        /* Builds a table of outstanding callback state */
         var cb;
-        var cbs = clearCallback(0);
-        var cookie;
+        var cbs;
         var e;
         var body = document.createElement("tbody");
         var oldBody = $$("CallbackBody");
         var row;
+        var state = getCallbackState(0x03);
+        var token;
 
-        for (cookie in cbs) {
-            cb = cbs[cookie];
+        cbs = state.delayDev;
+        for (token in cbs) {
             row = document.createElement("tr");
 
             e = document.createElement("td");
-            e.appendChild(document.createTextNode(cookie.toString()));
+            e.appendChild(document.createTextNode(token));
+            row.appendChild(e);
+
+            e = document.createElement("td");
+            e.appendChild(document.createTextNode((cbs[token]||0).toFixed(2)));
+            row.appendChild(e);
+
+            e = document.createElement("td");
+            e.colSpan = 2;
+            row.appendChild(e);
+            body.appendChild(row);
+        }
+
+        cbs = state.pendingCallbacks;
+        for (token in cbs) {
+            cb = cbs[token];
+            row = document.createElement("tr");
+
+            e = document.createElement("td");
+            e.appendChild(document.createTextNode(token.toString()));
             row.appendChild(e);
 
             e = document.createElement("td");
@@ -319,7 +340,7 @@ window.addEventListener("load", function() {
             row.appendChild(e);
 
             e = document.createElement("td");
-            e.appendChild(document.createTextNode(cb.context.mnemonic || "??"));
+            e.appendChild(document.createTextNode((cb.context && cb.context.mnemonic) || "??"));
             row.appendChild(e);
 
             e = document.createElement("td");
@@ -547,7 +568,7 @@ window.addEventListener("load", function() {
         if (showAnnunciators) {
             displayCentralControl();
         }
-        // displayCallbacks();
+        //displayCallbackState();
     }
 
     /**************************************/
@@ -613,7 +634,7 @@ window.addEventListener("load", function() {
 
             if (!mode) {
                 setAnnunciators(showAnnunciators);
-                setTimeout(callback, 1000, callbackParam);
+                setTimeout(callback, 250, callbackParam);
             }
         }
 
