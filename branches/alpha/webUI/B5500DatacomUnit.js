@@ -27,7 +27,7 @@
 function B5500DatacomUnit(mnemonic, unitIndex, designate, statusChange, signal, options) {
     /* Constructor for the DatacomUnit object */
 
-    this.maxScrollLines = 1500;         // Maximum amount of printer scrollback
+    this.maxScrollLines = 5000;         // Maximum amount of printer scrollback
     this.charPeriod = 100;              // Printer speed, milliseconds per character
     this.bufferSize = 112;              // 4 28-character B487 buffer segments
 

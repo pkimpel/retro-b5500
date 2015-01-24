@@ -61,7 +61,7 @@ function B5500CentralControl(global) {
 /**************************************/
 
 /* Global constants */
-B5500CentralControl.version = "1.01a2";
+B5500CentralControl.version = "1.01a3";
 
 B5500CentralControl.memReadCycles = 2;          // assume 2 탎 memory read cycle time (the other option was 3 탎)
 B5500CentralControl.memWriteCycles = 4;         // assume 4 탎 memory write cycle time (the other option was 6 탎)
@@ -83,7 +83,7 @@ B5500CentralControl.pow2 = [ // powers of 2 from 0 to 52
          0x1000000000000,  0x2000000000000,  0x4000000000000,  0x8000000000000,
         0x10000000000000];
 
-B5500CentralControl.mask2 = [ // (2**n)-1 For n From 0 to 52
+B5500CentralControl.mask2 = [ // (2**n)-1 for n from 0 to 52
                      0x0,              0x1,              0x3,              0x7,
                     0x0F,             0x1F,             0x3F,             0x7F,
                    0x0FF,            0x1FF,            0x3FF,            0x7FF,

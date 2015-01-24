@@ -37,6 +37,7 @@ window.addEventListener("load", function() {
     var procDelay;                      // Current average P1 delay [ms]
     var procSlack;                      // Current average P1 slack time [%]
     var showAnnunciators = true;        // Display non-purist console mode (annunciators)
+    var statusLabelTimer = 0;           // Status label display timer control cookie
     var timer = 0;                      // Console display update timer control cookie
     var timerInterval = 50;             // Console display update interval [ms]
 
@@ -647,9 +648,14 @@ window.addEventListener("load", function() {
     /**************************************/
     function clearStatusLabel(inSeconds) {
         /* Delays for "inSeconds" seconds, then clears the StatusLabel element */
+                           
+        if (statusLabelTimer) {
+            clearTimeout(statusLabelTimer);
+        }
 
-        setTimeout(function(ev) {
+        statusLabelTimer = setTimeout(function(ev) {
             $$("StatusLabel").textContent = "";
+            statusLabelTimer = 0;
         }, inSeconds*1000);
     }
 
@@ -669,18 +675,18 @@ window.addEventListener("load", function() {
         if (!(window.performance && "now" in performance)) {missing += ", performance.now"}
 
         if (missing.length == 0) {
-            return false;
-        } else {
-            alert("No can do... your browser does not support the following features:\n" +
-                missing.substring(2));
             return true;
+        } else {
+            alert("The emulator cannot run...\nyour browser does not support the following features:\n\n" +
+                missing.substring(2));
+            return false;
         }
     }
 
     /***** window.onload() outer block *****/
 
     $$("RetroVersion").innerHTML = B5500CentralControl.version;
-    if (!checkBrowser()) {
+    if (checkBrowser()) {
         window.name = "B5500Console";
         $$("BurroughsLogo").addEventListener("click", BurroughsLogo_Click, false);
         $$("B5500Logo").addEventListener("click", B5500Logo_Click, false);
@@ -695,6 +701,7 @@ window.addEventListener("load", function() {
 
         window.applicationCache.addEventListener("checking", function(ev) {
             $$("StatusLabel").textContent = "Checking for emulator update...";
+            clearStatusLabel(15);
         }, false);
         window.applicationCache.addEventListener("noupdate", function(ev) {
             $$("StatusLabel").textContent = "Emulator version is current.";
@@ -706,10 +713,12 @@ window.addEventListener("load", function() {
         }, false);
         window.applicationCache.addEventListener("downloading", function(ev) {
             $$("StatusLabel").textContent = "Initiating download for emulator update...";
+            clearStatusLabel(15);
         }, false);
         window.applicationCache.addEventListener("progress", function(ev) {
             var text = (ev.loaded && ev.total ? ev.loaded.toString() + "/" + ev.total.toString() : "Unknown number of");
             $$("StatusLabel").textContent = text + " resources downloaded thus far...";
+            clearStatusLabel(15);
         }, false);
         window.applicationCache.addEventListener("updateready", function(ev) {
             $$("StatusLabel").textContent = "Emulator update completed. Reload this page to activate the new version.";
@@ -720,7 +729,7 @@ window.addEventListener("load", function() {
             clearStatusLabel(15);
         }, false);
         window.applicationCache.addEventListener("error", function(ev) {
-            $$("StatusLabel").textContent = "Unable to check for emulator update.";
+            $$("StatusLabel").textContent = "Browser reported error during emulator version check.";
             clearStatusLabel(15);
         }, false);
 
