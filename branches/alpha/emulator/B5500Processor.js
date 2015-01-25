@@ -3510,7 +3510,7 @@ B5500Processor.prototype.operandCall = function operandCall() {
                 if (this.A >= 0x800000000000 && this.NCSF) {// Flag bit is set
                     this.I = (this.I & 0x0F) | 0x80;        // set I08: flag-bit interrupt
                     this.cc.signalInterrupt();
-                    // dumpState("Flag Bit: OPDC"); // <<<<<<<<<< DEBUG >>>>>>>>>>
+                    // B5500DumpState("Flag Bit: OPDC"); // <<< DEBUG >>>
                 }
             }
             break;

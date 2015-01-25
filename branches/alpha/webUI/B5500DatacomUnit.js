@@ -107,9 +107,9 @@ B5500DatacomUnit.prototype.clear = function clear() {
 B5500DatacomUnit.prototype.showBufferIndex = function showBufferIndex() {
     /* Formats the buffer index and length, and the column counter, for display */
 
-    this.$$("BufferOffset").innerHTML = this.bufIndex.toString();
-    this.$$("BufferLength").innerHTML = this.bufLength.toString();
-    this.$$("PrintColumn").innerHTML = (this.printCol+1).toString();
+    this.$$("BufferOffset").textContent = this.bufIndex.toString();
+    this.$$("BufferLength").textContent = this.bufLength.toString();
+    this.$$("PrintColumn").textContent = (this.printCol+1).toString();
 };
 
 /**************************************/
@@ -333,7 +333,7 @@ B5500DatacomUnit.prototype.keyAction = function keyAction(ev, c) {
     var nextTime;                       // next character output time, ms
     var stamp;                          // current timestamp, ms
 
-    //this.$$("CharCode").innerHTML = c.toString() + ":0x" + c.toString(16);
+    //this.$$("CharCode").textContent = c.toString() + ":0x" + c.toString(16);
 
     if (this.connected) {
         stamp = performance.now();

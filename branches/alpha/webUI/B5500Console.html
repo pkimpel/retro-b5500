@@ -2,7 +2,7 @@
 <html manifest="B5500Manifest.appcache">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>retro-B5500 Emulator Operator Console</title>
+<title>retro-B5500 Emulator</title>
 <!--
 /***********************************************************************
 * retro-b5500/emulator B5500Console.html
@@ -20,6 +20,8 @@
 *   Original version, from thin air and a PowerPoint mockup.
 * 2014-07-20  P.Kimpel
 *   Split off Javascript code into a separate script.
+* 2015-01-24  P.Kimpel
+*   Strip down to new, minimal home page sans console panel.
 ***********************************************************************/
 -->
 <meta name="Author" content="Nigel Williams & Paul Kimpel">
@@ -48,116 +50,32 @@
 <script src="../emulator/B5500Processor.js"></script>
 <script src="../emulator/B5500IOUnit.js"></script>
 
+<script src="./B5500ConsolePanel.js"></script>
 <script src="./B5500Console.js"></script>
 </head>
 
 <body>
+<div id=VersionDiv>
+    <img id=RetroB5500Logo src="./resources/retro-B5500-Logo.png" alt="retro-B5500 Logo">
+    <div id=EmulatorVersion></div>
+</div>
+<h1>Burroughs B5500 Emulator</h1>
+<hr>
+<table id=InfoTable>
+<tr>
+    <td><a href="https://code.google.com/p/retro-b5500/" target="_blank">
+        Open-Source Project</a>
+    <td id=StatusMsg>
+    <td class=rj><a href="http://retro-b5500.blogspot.com/" target="_blank">
+        Project Blog</a>
+</table>
 
-<div id=ConsoleDiv class=devicePanel>
-    <button id=HaltBtn class="redButton" DISABLED>HALT</button>
-
-    <button id=NotReadyBtn class=whiteButton>NOT<br>READY</button>
-    <button id=MemoryCheckBtn class=redButton DISABLED>MEMORY<br>CHECK</button>
-    <button id=LoadBtn class="blackButton blackLit" DISABLED>LOAD</button>
-
-    <button id=LoadSelectBtn class="yellowButton" DISABLED>CARD<br>LOAD<br>SELECT</button>
-    <button id=ANormalBtn class=yellowButton>A<br>NORMAL</button>
-    <button id=AControlBtn class=yellowButton>A<br>CONTROL</button>
-    <button id=BNormalBtn class=yellowButton>B<br>NORMAL</button>
-    <button id=BControlBtn class=yellowButton>B<br>CONTROL</button>
-
-    <button id=PowerOnBtn class=greenButton>POWER<br>ON</button>
-    <button id=PowerOffBtn class="blackButton blackLit" DISABLED>POWER<br>OFF</button>
-
-    <div id=StatusLabel></div>
-    <div id=ConfigLabel>
-        Using <span id=SysConfigName class=data>(none)</span>+<span id=StorageName class=data>(none)</span>
-    </div>
-
-    <div id=BurroughsLogo>
-        <img id=BurroughsLogoImage src="./resources/Burroughs-Logo-Neg.jpg" alt="Burroughs logo"
-             title="Click to toggle display of the white annunciator lights">
-    </div>
-    <div id=RetroVersion title="retro-B5500 emulator version">
-        ?.??
-    </div>
-    <div id=B5500Logo title="Click to open the System Configuration dialog">
-        <img id=RetroLogoImage src="./resources/retro-B5500-Logo.png" alt="retro-B5500 logo">
-        <img id=B5500LogoImage src="./resources/B5500Logo.jpg" alt="B5500 original logo">
-    </div>
-
-    <table id=CentralControl>
-    <colgroup>
-        <col span=31 class=AnnunciatorCol>
-        <col span=3>
-    </colgroup>
-    <tbody>
-    <tr id=CCInterruptRow>
-        <td id=AD1F class=annunciator title="I/O Unit 1 busy">IOU1
-        <td id=AD2F class=annunciator title="I/O Unit 2 busy">IOU2
-        <td id=AD3F class=annunciator title="I/O Unit 3 busy">IOU3
-        <td id=AD4F class=annunciator title="I/O Unit 4 busy">IOU4
-        <td id=CCI03F class=annunciator title="Interval Timer interrupt">TIMR
-        <td id=CCI04F class=annunciator title="I/O Busy interrupt">IOBZ
-        <td id=CCI05F class=annunciator title="Keyboard Request interrupt">KBD
-        <td id=CCI06F class=annunciator title="Printer 1 Finished interrupt">PR1F
-        <td id=CCI07F class=annunciator title="Printer 2 Finished interrupt">PR2F
-        <td id=CCI08F class=annunciator title="I/O Unit 1 Finished interrupt (RD in @14)">IO1F
-        <td id=CCI09F class=annunciator title="I/O Unit 2 Finished interrupt (RD in @15)">IO2F
-        <td id=CCI10F class=annunciator title="I/O Unit 3 Finished interrupt (RD in @16)">IO3F
-        <td id=CCI11F class=annunciator title="I/O Unit 4 Finished interrupt (RD in @17)">IO4F
-        <td id=CCI12F class=annunciator title="P2 Busy interrupt">P2BZ
-        <td id=CCI13F class=annunciator title="Remote Inquiry Request interrupt">INQ
-        <td id=CCI14F class=annunciator title="Special Interrupt #1 (not used)">SPEC
-        <td id=CCI15F class=annunciator title="Disk File #1 Read check finished">DK1F
-        <td id=CCI16F class=annunciator title="Disk File #2 Read check finished">DK2F
-        <td colspan=9>
-        <td id=P2BF class=annunciator title="Processor 2 Busy FF">P2BF
-        <td id=HP2F class=annunciator title="Halt Processor 2 FF">HP2F
-        <td colspan=2>
-        <td id=procSlack class=annunciator>
-        <td class="annunciator statLabel">%
-        <td class="annunciator statLabel" title="Percentage of time Processor A is throttling its performance">P1 Slack
-    <tr id=CCPeripheralRow>
-        <td id=DRA class=annunciator title="Drum A">DRA                        <!-- Unit 31 -->
-        <td id=DRB class=annunciator title="Drum B">DRB                        <!-- Unit 30 -->
-        <td id=DKA class=annunciator title="Disk File Control A">DKA           <!-- Unit 29 -->
-        <td id=DKB class=annunciator title="Disk File Control B">DKB           <!-- Unit 28 -->
-        <td id=SPO class=annunciator title="Supervisory Printer/Keyboard">SPO  <!-- Unit 22 -->
-        <td id=CPA class=annunciator title="Card Punch A">CPA                  <!-- Unit 25 -->
-        <td id=CRA class=annunciator title="Card Reader A">CRA                 <!-- Unit 24 -->
-        <td id=CRB class=annunciator title="Card Reader B">CRB                 <!-- Unit 23 -->
-        <td id=LPA class=annunciator title="Line Printer A">LPA                <!-- Unit 27 -->
-        <td id=LPB class=annunciator title="Line Printer B">LPB                <!-- Unit 26 -->
-        <td id=DCA class=annunciator title="Datacommunications Control A">DCA  <!-- Unit 17 -->
-        <td id=PRA class=annunciator title="Paper Tape Reader A">PRA           <!-- Unit 20 -->
-        <td id=PRB class=annunciator title="Paper Tape Reader B">PRB           <!-- Unit 19 -->
-        <td id=PPA class=annunciator title="Paper Tape Punch A">PPA            <!-- Unit 21 -->
-        <td id=PPB class=annunciator title="Paper Tape Punch B">PPB            <!-- Unit 18 -->
-        <td id=MTA class=annunciator title="Magnetic Tape Drive A">MTA         <!-- Unit 47 -->
-        <td id=MTB class=annunciator title="Magnetic Tape Drive B">MTB         <!-- Unit 46 -->
-        <td id=MTC class=annunciator title="Magnetic Tape Drive C">MTC         <!-- Unit 45 -->
-        <td id=MTD class=annunciator title="Magnetic Tape Drive D">MTD         <!-- Unit 44 -->
-        <td id=MTE class=annunciator title="Magnetic Tape Drive E">MTE         <!-- Unit 43 -->
-        <td id=MTF class=annunciator title="Magnetic Tape Drive F">MTF         <!-- Unit 42 -->
-        <td id=MTH class=annunciator title="Magnetic Tape Drive H">MTH         <!-- Unit 41 -->
-        <td id=MTJ class=annunciator title="Magnetic Tape Drive J">MTJ         <!-- Unit 40 -->
-        <td id=MTK class=annunciator title="Magnetic Tape Drive K">MTK         <!-- Unit 39 -->
-        <td id=MTL class=annunciator title="Magnetic Tape Drive L">MTL         <!-- Unit 38 -->
-        <td id=MTM class=annunciator title="Magnetic Tape Drive M">MTM         <!-- Unit 37 -->
-        <td id=MTN class=annunciator title="Magnetic Tape Drive N">MTN         <!-- Unit 36 -->
-        <td id=MTP class=annunciator title="Magnetic Tape Drive P">MTP         <!-- Unit 35 -->
-        <td id=MTR class=annunciator title="Magnetic Tape Drive R">MTR         <!-- Unit 34 -->
-        <td id=MTS class=annunciator title="Magnetic Tape Drive S">MTS         <!-- Unit 33 -->
-        <td id=MTT class=annunciator title="Magnetic Tape Drive T">MTT         <!-- Unit 32 -->
-        <td id=procDelay class=annunciator>
-        <td class="annunciator statLabel">ms
-        <td class="annunciator statLabel" title="Average excess throttling delay for Processor A (ms)">P1 Delay
-    </table>
+<div id=CenteredBody>
+    <img id=B5500Image src="./resources/Burroughs-B5500-102646215-05-01-06.jpg"
+         alt="Burroughs B5500 System, ca. 1966">
 </div>
 
-<table id=CallbackTable
-       style="position:absolute; top:1ex; visibility:hidden; border-collapse:collapse; border-spacing:0">
+<table id=CallbackTable>
 <thead>
   <tr>
     <th>ID
@@ -168,6 +86,10 @@
 <tbody id=CallbackBody>
 </tbody>
 </table>
+
+<div id=PageFooter>
+    <i>(Closing or minimizing this window may cause the emulator to run very slowly)</i>
+</div>
 
 </body>
 </html>
