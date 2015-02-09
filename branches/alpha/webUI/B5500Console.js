@@ -17,8 +17,28 @@
 "use strict";
 
 window.addEventListener("load", function() {
-    var consolePanel;
-    var statusMsgTimer = 0;             // status message timer control cookie
+    var consolePanel = null;            // the ConsolePanel object
+    var statusMsgTimer = 0;             // status message timer control token
+
+    /**************************************/
+    function systemShutDown() {
+        /* Re-enables the startup buttons on the home page */
+
+        consolePanel = null;
+        document.getElementById("StartUpPoweredBtn").disabled = false;
+        document.getElementById("StartUpNoPowerBtn").disabled = false;
+        window.focus();
+    }
+
+    /**************************************/
+    function systemStartup(ev) {
+        /* Establishes the system components */
+        var powerUp = (ev.target.id == "StartUpPoweredBtn" ? 1 : 0);
+
+        consolePanel = new B5500ConsolePanel(window, powerUp, systemShutDown);
+        document.getElementById("StartUpPoweredBtn").disabled = true;
+        document.getElementById("StartUpNoPowerBtn").disabled = true;
+    }
 
     /**************************************/
     function clearStatusMsg(inSeconds) {
@@ -39,13 +59,13 @@ window.addEventListener("load", function() {
         /* Checks whether this browser can support the necessary stuff */
         var missing = "";
 
-        if (!window.indexedDB) {missing += ", IndexedDB"}
         if (!window.ArrayBuffer) {missing += ", ArrayBuffer"}
         if (!window.DataView) {missing += ", DataView"}
         if (!window.Blob) {missing += ", Blob"}
         if (!window.File) {missing += ", File"}
         if (!window.FileReader) {missing += ", FileReader"}
         if (!window.FileList) {missing += ", FileList"}
+        if (!window.indexedDB) {missing += ", IndexedDB"}
         if (!window.postMessage) {missing += ", window.postMessage"}
         if (!(window.performance && "now" in performance)) {missing += ", performance.now"}
 
@@ -61,8 +81,15 @@ window.addEventListener("load", function() {
 
     /***** window.onload() outer block *****/
 
+    document.getElementById("StartUpPoweredBtn").disabled = true;
+    document.getElementById("StartUpNoPowerBtn").disabled = true;
     document.getElementById("EmulatorVersion").textContent = B5500CentralControl.version;
     if (checkBrowser()) {
+        document.getElementById("StartUpPoweredBtn").disabled = false;
+        document.getElementById("StartUpPoweredBtn").addEventListener("click", systemStartup);
+        document.getElementById("StartUpNoPowerBtn").disabled = false;
+        document.getElementById("StartUpNoPowerBtn").addEventListener("click", systemStartup);
+
         window.applicationCache.addEventListener("checking", function(ev) {
             document.getElementById("StatusMsg").textContent = "Checking for emulator update...";
             clearStatusMsg(15);
@@ -96,7 +123,5 @@ window.addEventListener("load", function() {
             document.getElementById("StatusMsg").textContent = "Browser reported error during emulator version check.";
             clearStatusMsg(15);
         });
-
-        consolePanel = new B5500ConsolePanel(window);
     }
 });

@@ -17,11 +17,16 @@
 "use strict";
 
 /**************************************/
-function B5500ConsolePanel(global) {
+function B5500ConsolePanel(global, autoPowerUp, shutDown) {
     /* Constructor for the Console Panel object. "global" must be the
-    global window object */
-    var panel;
+    global window object; "autoPowerUp" indicates whether the system should
+    be powered on automatically; "shutDown" is a function to be called back
+    when the window closes */
+    var height = 144;
+    var width = 1133;
+    var left = screen.availWidth - width;
 
+    this.autoPowerUp = autoPowerUp;     // Automatically power on during onload event
     this.aControl;                      // A-Control button/light
     this.aNormal;                       // A-Normal button/light
     this.bControl;                      // B-Control button/light
@@ -43,8 +48,9 @@ function B5500ConsolePanel(global) {
     this.procDelay;                     // Current average P1 delay [ms]
     this.procSlack;                     // Current average P1 slack time [%]
     this.showAnnunciators = true;       // Display non-purist console mode (annunciators)
-    this.statusLabelTimer = 0;          // Status label display timer control cookie
-    this.timer = 0;                     // Console display update timer control cookie
+    this.shutDown = shutDown;           // Function to be called back when the panel closes
+    this.statusLabelTimer = 0;          // Status label display timer control token
+    this.timer = 0;                     // Console display update timer control token
     this.timerInterval = 50;            // Console display update interval [ms]
 
     this.window = window.open("", "B5500Console");
@@ -55,7 +61,8 @@ function B5500ConsolePanel(global) {
 
     this.doc = null;
     this.window = window.open("../webUI/B5500ConsolePanel.html", "B5500Console",
-            "location=no,scrollbars=no,resizable,left=0,top=0,width=1133,height=144");
+            "location=no,scrollbars=no,resizable,top=0,left=" + left +
+            ",width=" + width + ",height=" + height);
     this.window.addEventListener("load",
             B5500CentralControl.bindMethod(this, B5500ConsolePanel.prototype.consoleOnload));
 }
@@ -481,20 +488,20 @@ B5500ConsolePanel.prototype.dasBlinkenlichten = function dasBlinkenlichten() {
                     this.aNormal.className = "yellowButton";
                     break;
                 case 1:
-                    //this.aNormal.className = "yellowButton yellowLit1";
-                    //break;
+                    this.aNormal.className = "yellowButton yellowLit1";
+                    break;
                 case 2:
                     this.aNormal.className = "yellowButton yellowLit2";
                     break;
                 case 3:
-                    //this.aNormal.className = "yellowButton yellowLit3";
-                    //break;
+                    this.aNormal.className = "yellowButton yellowLit3";
+                    break;
                 case 4:
                     this.aNormal.className = "yellowButton yellowLit4";
                     break;
                 case 5:
-                    //this.aNormal.className = "yellowButton yellowLit5";
-                    //break;
+                    this.aNormal.className = "yellowButton yellowLit5";
+                    break;
                 default:
                     this.aNormal.className = "yellowButton yellowLit";
                     break;
@@ -509,20 +516,20 @@ B5500ConsolePanel.prototype.dasBlinkenlichten = function dasBlinkenlichten() {
                     this.aControl.className = "yellowButton";
                     break;
                 case 1:
-                    //this.aControl.className = "yellowButton yellowLit1";
-                    //break;
+                    this.aControl.className = "yellowButton yellowLit1";
+                    break;
                 case 2:
                     this.aControl.className = "yellowButton yellowLit2";
                     break;
                 case 3:
-                    //this.aControl.className = "yellowButton yellowLit3";
-                    //break;
+                    this.aControl.className = "yellowButton yellowLit3";
+                    break;
                 case 4:
                     this.aControl.className = "yellowButton yellowLit4";
                     break;
                 case 5:
-                    //this.aControl.className = "yellowButton yellowLit5";
-                    //break;
+                    this.aControl.className = "yellowButton yellowLit5";
+                    break;
                 default:
                     this.aControl.className = "yellowButton yellowLit";
                     break;
@@ -549,20 +556,20 @@ B5500ConsolePanel.prototype.dasBlinkenlichten = function dasBlinkenlichten() {
                     this.bNormal.className = "yellowButton";
                     break;
                 case 1:
-                    //this.bNormal.className = "yellowButton yellowLit1";
-                    //break;
+                    this.bNormal.className = "yellowButton yellowLit1";
+                    break;
                 case 2:
                     this.bNormal.className = "yellowButton yellowLit2";
                     break;
                 case 3:
-                    //this.bNormal.className = "yellowButton yellowLit3";
-                    //break;
+                    this.bNormal.className = "yellowButton yellowLit3";
+                    break;
                 case 4:
                     this.bNormal.className = "yellowButton yellowLit4";
                     break;
                 case 5:
-                    //this.bNormal.className = "yellowButton yellowLit5";
-                    //break;
+                    this.bNormal.className = "yellowButton yellowLit5";
+                    break;
                 default:
                     this.bNormal.className = "yellowButton yellowLit";
                     break;
@@ -577,20 +584,20 @@ B5500ConsolePanel.prototype.dasBlinkenlichten = function dasBlinkenlichten() {
                     this.bControl.className = "yellowButton";
                     break;
                 case 1:
-                    //this.bControl.className = "yellowButton yellowLit1";
-                    //break;
+                    this.bControl.className = "yellowButton yellowLit1";
+                    break;
                 case 2:
                     this.bControl.className = "yellowButton yellowLit2";
                     break;
                 case 3:
-                    //this.bControl.className = "yellowButton yellowLit3";
-                    //break;
+                    this.bControl.className = "yellowButton yellowLit3";
+                    break;
                 case 4:
                     this.bControl.className = "yellowButton yellowLit4";
                     break;
                 case 5:
-                    //this.bControl.className = "yellowButton yellowLit5";
-                    //break;
+                    this.bControl.className = "yellowButton yellowLit5";
+                    break;
                 default:
                     this.bControl.className = "yellowButton yellowLit";
                     break;
@@ -695,6 +702,21 @@ B5500ConsolePanel.prototype.beforeUnload = function beforeUnload(ev) {
 };
 
 /**************************************/
+B5500ConsolePanel.prototype.consoleUnload = function consoleUnload(ev) {
+    /* Called when the ConsolePanel window unloads or is closed */
+
+    if (this.cc && this.cc.poweredUp) {
+        this.cc.powerOff();
+        if (this.timer) {
+            clearInterval(this.timer);
+            this.timer = 0;
+        }
+    }
+
+    this.shutDown();
+};
+
+/**************************************/
 B5500ConsolePanel.prototype.clearStatusLabel = function clearStatusLabel(inSeconds) {
     /* Delays for "inSeconds" seconds, then clears the StatusLabel element */
 
@@ -715,6 +737,8 @@ B5500ConsolePanel.prototype.consoleOnload = function consoleOnload(ev) {
     this.doc = this.window.document;
     this.$$("RetroVersion").textContent = B5500CentralControl.version;
     this.window.name = "B5500Console";
+    this.window.addEventListener("unload",
+            B5500CentralControl.bindMethod(this, B5500ConsolePanel.prototype.consoleUnload));
     this.$$("BurroughsLogo").addEventListener("click",
             B5500CentralControl.bindMethod(this, B5500ConsolePanel.prototype.BurroughsLogo_Click));
     this.$$("B5500Logo").addEventListener("click",
@@ -744,9 +768,13 @@ B5500ConsolePanel.prototype.consoleOnload = function consoleOnload(ev) {
 
     this.cc = new B5500CentralControl(this.global);
     this.global.B5500DumpState = this.dumpState;
-    this.window.resizeTo(this.doc.documentElement.scrollWidth + this.window.outerWidth - this.window.innerWidth,
+    this.window.resizeTo(this.doc.documentElement.scrollWidth + this.window.outerWidth - this.window.innerWidth + 2, // kludge +2, dunno why
                          this.doc.documentElement.scrollHeight + this.window.outerHeight - this.window.innerHeight);
     this.window.moveTo(screen.availWidth - this.window.outerWidth, 0);
     this.window.focus();
     this.setAnnunciators(this.showAnnunciators);
+
+    if (this.autoPowerUp) {
+        setCallback(null, this, 1000, this.PowerOnBtn_Click, ev);
+    }
 };
