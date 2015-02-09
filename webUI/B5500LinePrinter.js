@@ -52,9 +52,10 @@ function B5500LinePrinter(mnemonic, unitIndex, designate, statusChange, signal, 
     this.window.addEventListener("load",
         B5500CentralControl.bindMethod(this, B5500LinePrinter.prototype.printerOnload), false);
 }
+
 B5500LinePrinter.prototype.linesPerMinute = 1040;       // B329 line printer
 B5500LinePrinter.prototype.maxPaperLines = 150000;      // maximum printer scrollback (about a box of paper)
-B5500LinePrinter.prototype.rtrimRex = /\s+$/g;          // regular expression for right-trimming lines
+B5500LinePrinter.prototype.rtrimRex = /\s+$/;           // regular expression for right-trimming lines
 B5500LinePrinter.prototype.theColorGreen = "#CFC";      // for greenbar shading
 
 /**************************************/
@@ -203,7 +204,7 @@ B5500LinePrinter.prototype.setGreenbar = function setGreenbar(useGreen) {
             // Next, search through the rules for the one that controls greenbar shading.
             for (x=rules.length-1; x>=0; --x) {
                 rule = rules[x];
-                if (rule.selectorText == "PRE.greenBar") {
+                if (rule.selectorText.toLowerCase() == "pre.greenbar") {
                     // Found it: now flip the background color.
                     rule.style.backgroundColor = (useGreen ? this.theColorGreen : "white");
                 }

@@ -20,7 +20,7 @@
 function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal, options) {
     /* Constructor for the SPOUnit object */
 
-    this.maxScrollLines = 1500;         // Maximum amount of printer scrollback
+    this.maxScrollLines = 5000;         // Maximum amount of printer scrollback
     this.charPeriod = 100;              // Printer speed, milliseconds per character
 
     this.mnemonic = mnemonic;           // Unit mnemonic
@@ -173,7 +173,7 @@ B5500SPOUnit.prototype.setAlgolGlyphs = function setAlgolGlyphs(makeItPretty) {
 /**************************************/
 B5500SPOUnit.prototype.appendEmptyLine = function appendEmptyLine(text) {
     /* Removes excess lines already printed, then appends a new text node
-    to the <pre> element within the <iframe> */
+    to the <pre> element within the paper element */
     var count = this.paper.childNodes.length;
     var line = text || "";
 

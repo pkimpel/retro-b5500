@@ -45,10 +45,10 @@ B5500DistributionAndDisplay.prototype.clear = function() {
     this.nextTimeStamp = new Date().getTime() + this.refreshPeriod;
     this.timer = setTimeout(this.tock, this.refreshPeriod);
     }
-}
+};
 
 /**************************************/
-B5500DistributionAndDisplay.prototype.openProcessorPanel(p, caption) {
+B5500DistributionAndDisplay.prototype.openProcessorPanel = function(p, caption) {
     /* Creates a D&D panel window for a processor */
     var x;
     var panel = this.panels[caption];
@@ -61,7 +61,7 @@ B5500DistributionAndDisplay.prototype.openProcessorPanel(p, caption) {
         panel = {module:p, window:win, caption:caption};
         this.panels[caption] = panel;
     }
-}
+};
 
 /**************************************/
 B5500DistributionAndDisplay.prototype.updateDisplay = function updateDisplay() {
@@ -74,6 +74,4 @@ B5500DistributionAndDisplay.prototype.updateDisplay = function updateDisplay() {
     that.nextRefresh += that.refreshPeriod;
     delayTime = that.nextRefresh - thisTime;
     that.timer = setTimeout(that.updateDisplay, (delayTime < 0 ? 1 : delayTime);
-
-
-}
+};
