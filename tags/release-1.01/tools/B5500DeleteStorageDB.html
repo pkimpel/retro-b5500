@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<head>
+<title>B5500 Emulator Storage DB Deletion</title>
+<meta name="Author" content="Nigel Williams & Paul Kimpel">
+<!-- 2014-08-30 Original version -->
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta http-equiv="Content-Script-Type" content="text/javascript">
+<meta http-equiv="Content-Style-Type" content="text/css">
+
+<script>
+var storageName = "________";
+
+window.addEventListener("load", function(ev) {
+    var req;
+
+    if (confirm("This will PERMANENTLY DELETE the \n\"" +
+                storageName + "\" Disk Storage database." +
+                "\n\nAre you sure you want to do this?\n")) {
+        if (confirm("Deletion of the storage database CANNOT BE UNDONE.\n\n" +
+                    "Are you really sure?\n")) {
+            req = window.indexedDB.deleteDatabase(storageName);
+
+            req.onerror = function(ev) {
+                alert("CANNOT DELETE the Disk Storage database:\n" + ev.target.error);
+            };
+
+            req.onblocked = function(ev) {
+                alert("Deletion of the Disk Storage database is BLOCKED");
+            };
+
+            req.onsuccess = function(ev) {
+                alert("Disk Storage database \"" + storageName +
+                      "\"\n successfully deleted.");
+            };
+        }
+    }
+});
+</script>
+</head>
+
+<body>
+<h2>Delete a Disk Storage Database!</h2>
+
+</body>
+</html>

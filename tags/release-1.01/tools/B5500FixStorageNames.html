@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<head>
+<title>B5500 Emulator Fix StorageNames</title>
+<meta name="Author" content="Nigel Williams & Paul Kimpel">
+<!-- 2014-08-30 Original version -->
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta http-equiv="Content-Script-Type" content="text/javascript">
+<meta http-equiv="Content-Style-Type" content="text/css">
+
+<script>
+var configName = "retro-B5500-Config";
+var storageName = "B5500DiskUnit";
+
+window.addEventListener("load", function(ev) {
+    var req;
+
+    req = window.indexedDB.open(configName);
+
+    req.onerror = function(ev) {
+        alert("Cannot open \"" + configName + "\" database:\n" + ev.target.error);
+    };
+
+    req.onblocked = function(ev) {
+        alert("Database open is BLOCKED");
+    };
+
+    req.onsuccess = function(ev) {
+        var db = ev.target.result;
+        var req;
+        var txn = db.transaction("StorageNames", "readwrite");
+
+        db.onerror = function(ev) {
+            alert("Database error: " + ev.target.error);
+        };
+
+        req = txn.objectStore("StorageNames").put(storageName);
+
+        txn.oncomplete = function(ev) {
+            alert("Disk Storage name \"" + storageName + "\"\n successfully added.");
+        };
+    };
+});
+</script>
+</head>
+
+<body>
+<h2>Fix System Config StorageNames Store!</h2>
+
+</body>
+</html>

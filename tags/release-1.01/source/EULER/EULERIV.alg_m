@@ -1,0 +1,1153 @@
+$ CARD LIST SINGLE XREF                                                 00000010          
+BEGIN  COMMENT    E U L E R   IV   S Y S T E M         MARCH  1965;     00010000          
+ FILE IN CARDFIL (1,10); FILE PRINFIL 1 (1,15);                         00020000          
+ INTEGER FT, LT;  COMMENT  INDEX OF FIRST AND LAST BASIC SYMBOL;        00030000          
+ INTEGER LP;  COMMENT  LENGTH OF PRODUCTION TABLE;                      00040000          
+ ARRAY PROGRAM[0:1022];                                                 00050000          
+ DEFINE AFIELD =[39:9]#, BFIELD =[9:30]#, CFIELD =[1:8]#;               00060000          
+ LABEL EXIT;                                                            00070000          
+ FT ~ 45; LT ~ 119; LP ~ 465;    COMMENT  DATA  GENERATED  BY  SY-PR.;  00080000          
+                                                                        00090000          
+BEGIN  COMMENT  E U L E R   IV   TRANSLATOR          N.WIRTH;           00100000          
+ DEFINE MARK =119#, IDSYM =63#, REFSYM =59#, LABSYM =62#;               00110000          
+ DEFINE VALSYM =56#, CALLSYM =55#, UNDEF =0#, NEWSYM =60#;              00120000          
+ DEFINE UNARYMINUS =116#, NUMSYM =68#, BOOLSYM =64#;                    00130000          
+ DEFINE LISTSYM =102#, SYMSYM =113#, FORSYM =61#;                       00140000          
+ DEFINE NAME =V[0]#;                                                    00150000          
+ INTEGER I,J,K,M,N,R,T,T1,SCALE; BOOLEAN ERRORFLAG;                     00160000          
+ INTEGER BN, ON;  COMMENT  BLOCK- AND ORDER-NUMBER;                     00170000          
+ INTEGER NP;  COMMENT  NAME LIST POINTER;                               00180000          
+ INTEGER MP;  COMMENT  MARK-POINTER OF NAME-LIST;                       00190000          
+ INTEGER PRP;  COMMENT  PROGRAM POINTER;                                00200000          
+ INTEGER WC, CC;  COMMENT  INPUT POINTERS;                              00210000          
+ ALPHA ARRAY READBUFFER, WRITEBUFFER [0:14];                            00220000          
+ ALPHA ARRAY SYTB[0:LT];  COMMENT  TABLE OF BASIC SYMBOLS;              00230000          
+ INTEGER ARRAY F, G [0:LT];  COMMENT  PRIORITY FUNCTIONS;               00240000          
+ INTEGER ARRAY MTB[0:LT];  COMMENT  SYNTAX MASTER TABLE;                00250000          
+ INTEGER ARRAY PRTB[0:LP];  COMMENT  PRODUCTION TABLE;                  00260000          
+ INTEGER ARRAY S[0:127];  COMMENT  STACK;                               00270000          
+ REAL ARRAY V[0:127];  COMMENT  VALUE STACK;                            00280000          
+ ALPHA ARRAY NL1[0:63];  COMMENT  NAME LIST;                            00290000          
+ INTEGER ARRAY NL2, NL3, NL4 [0:63];                                    00300000          
+ LABEL A0,A1,A2,A3,A4,A5,A6,A7,A8,A9;                                   00310000          
+ LABEL L0, L1131, NAMEFOUND,                                            00320000          
+   L1,L2,L3,L4,L5,L6,L7,L8,L9,L10,L11,L12,L13,L14,L15,L16,L17,L18,L19,  00330000          
+   L20,L21,L22,L23,L24,L25,L26,L27,L28,L29,L30,L31,L32,L33,L34,         00340000          
+   L35,L36,L37,L38,L39,L40,L41,L42,L43,L44,L45,L46,L47,L48,L49,L50,L51, 00350000          
+   L52,L53,L54,L55,L56,L57,L58,L59,L60,L61,L62,L63,L64,L65,L66,L67,L68, 00360000          
+   L69,L70,L71,L72,L73,L74,L75,L76,L77,L78,L79,L80,L81,L82,L83,L84,L85, 00370000          
+   L86,L87,L88,L89,L90,L91,L92,L93,L94,L95,L96,L97,L98,L99,L100,L101,   00380000          
+   L102,L103,L104,L105,L106,L107,L108,L109,L110,L111,L112,L113,L114,    00390000          
+   L115,L116,L117,L118,L119,L120;                                       00400000          
+ SWITCH BRANCH ~                                                        00410000          
+   L1,L2,L3,L4,L5,L6,L7,L8,L9,L10,L11,L12,L13,L14,L15,L16,L17,L18,L19,  00420000          
+   L20,L21,L22,L23,L24,L25,L26,L27,L28,L29,L30,L31,L32,L33,L34,         00430000          
+   L35,L36,L37,L38,L39,L40,L41,L42,L43,L44,L45,L46,L47,L48,L49,L50,L51, 00440000          
+   L52,L53,L54,L55,L56,L57,L58,L59,L60,L61,L62,L63,L64,L65,L66,L67,L68, 00450000          
+   L69,L70,L71,L72,L73,L74,L75,L76,L77,L78,L79,L80,L81,L82,L83,L84,L85, 00460000          
+   L86,L87,L88,L89,L90,L91,L92,L93,L94,L95,L96,L97,L98,L99,L100,L101,   00470000          
+   L102,L103,L104,L105,L106,L107,L108,L109,L110,L111,L112,L113,L114,    00480000          
+   L115,L116,L117,L118,L119,L120;                                       00490000          
+                                                                        00500000          
+STREAM PROCEDURE ZERO(D);                                               00510000          
+ BEGIN  DI ~ D; DS ~ 8 LIT "0";                                         00520000          
+ END;                                                                   00530000          
+STREAM PROCEDURE CLEAR(D);                                              00540000          
+ BEGIN  DI ~ D; DS ~ 8 LIT " "; SI ~ D; DS ~ 14 WDS                     00550000          
+ END;                                                                   00560000          
+STREAM PROCEDURE MOVE(S,D);                                             00570000          
+ BEGIN  SI ~ S; DI ~ D; DS ~ WDS;                                       00580000          
+ END;                                                                   00590000          
+BOOLEAN STREAM PROCEDURE EQUAL(X,Y);                                    00600000          
+ BEGIN  TALLY ~ 1; SI ~ X; DI ~ Y; IF 8 SC = DC THEN EQUAL ~ TALLY;     00610000          
+ END;                                                                   00620000          
+                                                                        00630000          
+INTEGER PROCEDURE INSYMBOL;                                             00640000          
+ COMMENT  "INSYMBOL" READS THE NEXT EULER-SYMBOL FROM INPUT.            00650000          
+ STRINGS OF LETTERS AND DIGITS ARE RECOGNIZED AS IDENTIFIERS, IF        00660000          
+ THEY ARE NOT EQUAL TO AN EULER-IVWORD-DELIMITER.                       00670000          
+ A CHARACTER-SEQUENCE ENCLOSED IN " IS RECOGNIZED AS A SYMBOL;          00680000          
+ BEGIN  INTEGER I; LABEL A,B,C,D,E;                                     00690000          
+STREAM PROCEDURE TRCH(S,M,D,N); VALUE M,N;                              00700000          
+ BEGIN  SI ~ S; SI ~ SI+M; DI ~ D; DI ~ DI+N; DS ~ CHR                  00710000          
+ END;                                                                   00720000          
+BOOLEAN STREAM PROCEDURE BLANK(S,N); VALUE N;                           00730000          
+ BEGIN  TALLY ~ 1; SI ~ S; SI ~ SI+N; IF SC = " " THEN BLANK ~ TALLY    00740000          
+ END;                                                                   00750000          
+STREAM PROCEDURE BLANKOUT(D);                                           00760000          
+ BEGIN  DI ~ D; DS ~ 8 LIT " ";                                         00770000          
+ END;                                                                   00780000          
+BOOLEAN STREAM PROCEDURE QUOTE(S,N); VALUE N;                           00790000          
+ BEGIN  TALLY ~ 1; SI ~ S; SI ~ SI+N; IF SC = """ THEN QUOTE ~ TALLY    00800000          
+ END;                                                                   00810000          
+BOOLEAN STREAM PROCEDURE LETTER(S,N); VALUE N;                          00820000          
+ BEGIN  TALLY ~ 1; SI ~ S; SI ~ SI+N;                                   00830000          
+     IF SC = ALPHA THEN                                                 00840000          
+     BEGIN  IF SC < "0" THEN LETTER ~ TALLY END                         00850000          
+ END;                                                                   00860000          
+BOOLEAN STREAM PROCEDURE LETTERORDIGIT(S,N); VALUE N;                   00870000          
+ BEGIN  TALLY ~ 1; SI ~ S; SI ~ SI+N;                                   00880000          
+     IF SC = ALPHA THEN LETTERORDIGIT ~ TALLY                           00890000          
+ END;                                                                   00900000          
+STREAM PROCEDURE EDIT(N,S,D); VALUE N;                                  00910000          
+ BEGIN  SI ~ LOC N; DI ~ D; DS ~ 3 DEC;                                 00920000          
+     SI ~ S; DI ~ DI + 13; DS ~ 10 WDS                                  00930000          
+ END;                                                                   00940000          
+PROCEDURE ADVANCE;                                                      00950000          
+ COMMENT  ADVANCES THE INPUT POINTER BY 1 CHARACTER POSITION;           00960000          
+ BEGIN  IF CC = 7 THEN                                                  00970000          
+     BEGIN  IF WC = 8 THEN                                              00980000          
+         BEGIN  READ (CARDFIL, 10, READBUFFER[*]) [EXIT];               00990000          
+             EDIT(PRP+1, READBUFFER[0], WRITEBUFFER[0]);                01000000          
+             WRITE (PRINFIL, 15, WRITEBUFFER[*]); WC ~ 0                01010000          
+         END  ELSE WC ~ WC+1;                                           01020000          
+         CC ~ 0;                                                        01030000          
+     END                                                                01040000          
+     ELSE  CC ~ CC+1;                                                   01050000          
+ END ADVANCE;                                                           01060000          
+                                                                        01070000          
+ BLANKOUT(NAME);                                                        01080000          
+A:  IF BLANK(READBUFFER[WC], CC) THEN                                   01090000          
+     BEGIN  ADVANCE; GO TO A END;                                       01100000          
+ IF LETTER(READBUFFER[WC], CC) THEN                                     01110000          
+     BEGIN  FOR I ~ 0 STEP 1 UNTIL 7 DO                                 01120000          
+         BEGIN  TRCH(READBUFFER[WC], CC, NAME, I); ADVANCE;             01130000          
+             IF NOT LETTERORDIGIT(READBUFFER[WC], CC) THEN GO TO C      01140000          
+         END;                                                           01150000          
+B:          ADVANCE;                                                    01160000          
+         IF LETTERORDIGIT(READBUFFER[WC], CC) THEN GO TO B;             01170000          
+C:      END                                                             01180000          
+ ELSE IF QUOTE(READBUFFER[WC], CC) THEN                                 01190000          
+     BEGIN  ADVANCE; ZERO(NAME); NAME ~ "      ";                       01200000          
+E:          TRCH(READBUFFER[WC], CC, I, 7); ADVANCE;                    01210000          
+         IF I ! """ THEN                                                01220000          
+             BEGIN  NAME ~ I.[42:6] & NAME [18:24:24]; GO TO E END      01230000          
+         ELSE I ~ SYMSYM; GO TO D                                       01240000          
+     END                                                                01250000          
+ ELSE                                                                   01260000          
+     BEGIN  TRCH(READBUFFER[WC], CC, NAME, 0); ADVANCE                  01270000          
+     END;                                                               01280000          
+ FOR I ~ FT STEP 1 UNTIL LT DO                                          01290000          
+     IF EQUAL(SYTB[I], NAME) THEN BEGIN ZERO(NAME); GO TO D END;        01300000          
+ I ~ IDSYM;                                                             01310000          
+D:  INSYMBOL ~ I                                                        01320000          
+ END INSYMBOL;                                                          01330000          
+                                                                        01340000          
+PROCEDURE P1(X); VALUE X; INTEGER X;                                    01350000          
+ BEGIN  PRP ~ PRP+1; PROGRAM[PRP] ~ X                                   01360000          
+ END;                                                                   01370000          
+PROCEDURE P2(X,Y); VALUE X,Y; INTEGER X; REAL Y;                        01380000          
+ BEGIN  PRP ~ PRP+1; PROGRAM[PRP] ~ X; PROGRAM[PRP].BFIELD ~ Y;         01390000          
+ END;                                                                   01400000          
+PROCEDURE P3(X,Y,Z); VALUE X,Y,Z; INTEGER X,Y,Z;                        01410000          
+ BEGIN  PRP ~ PRP+1; PROGRAM[PRP] ~ X; PROGRAM[PRP].BFIELD ~ Y;         01420000          
+     PROGRAM[PRP].CFIELD ~ Z                                            01430000          
+ END;                                                                   01440000          
+PROCEDURE FIXUP(I,X); VALUE I,X; INTEGER I,X;                           01450000          
+ PROGRAM[I].BFIELD ~ X;                                                 01460000          
+PROCEDURE ERROR(N); VALUE N; INTEGER N;                                 01470000          
+ BEGIN  SWITCH FORMAT ERR ~                                             01480000          
+         ("UNDECLARED  IDENTIFIER"),                                    01490000          
+         ("NUMBER  TOO  LARGE"),                                        01500000          
+         ("LABEL  IS  DEFINED  TWICE"),                                 01510000          
+         ("A  LABEL  IS  NOT  DECLARED"),                               01520000          
+         ("LABEL  DECLARED  BUT  NOT  DEFINED"),                        01530000          
+         ("PROGRAM  SYNTACTICALLY  INCORRECT");                         01540000          
+     ERRORFLAG ~ TRUE;                                                  01550000          
+     WRITE (PRINFIL [NO], ERR[N]); WRITE (PRINFIL, <X40, "COL.",I3>,    01560000          
+       WC|8 + CC + 1)                                                   01570000          
+ END ERROR;                                                             01580000          
+                                                                        01590000          
+PROCEDURE PROGRAMDUMP;                                                  01600000          
+ BEGIN  REAL T; INTEGER I; LABEL L;                                     01610000          
+STREAM PROCEDURE NUM(N,D); VALUE N;                                     01620000          
+ BEGIN  DI ~ D; SI ~ LOC N; DS ~ 3 DEC                                  01630000          
+ END;                                                                   01640000          
+                                                                        01650000          
+ READ (CARDFIL, <A4>, T) [L]; IF T ! "DUMP" THEN GO TO L;               01660000          
+ WRITE (PRINFIL, <//"PROGRAM DUMP">);                                   01670000          
+ FOR I ~ 1 STEP 1 UNTIL PRP DO                                          01680000          
+     BEGIN  CLEAR(WRITEBUFFER[0]);                                      01690000          
+         T ~ PROGRAM[I]; NUM(I, WRITEBUFFER[0]);                        01700000          
+         MOVE(SYTB[T.AFIELD], WRITEBUFFER[1]);                          01710000          
+         IF T.BFIELD ! 0 THEN NUM(T.BFIELD, WRITEBUFFER[2]);            01720000          
+         IF T.CFIELD ! 0 THEN NUM(T.CFIELD, WRITEBUFFER[3]);            01730000          
+         IF T.AFIELD = NUMSYM THEN                                      01740000          
+          BEGIN  I ~ I+1;                                               01750000          
+            WRITE (PRINFIL [NO], <X14, E16.8>, PROGRAM[I])              01760000          
+          END;                                                          01770000          
+         WRITE (PRINFIL, 15, WRITEBUFFER[*]);                           01780000          
+     END;                                                               01790000          
+L:  END PROGRAMDUMP;                                                    01800000          
+                                                                        01810000          
+ COMMENT  INITIALISE THE SYMBOLTABLE, THE PRIORITY FUNCTIONS AND THE    01820000          
+     PRODUCTION TABLES WITH DATA GENERATED BY THE SYNTAX-PROCESSOR;     01830000          
+ FILL SYTB[*] WITH 0,                                                   01840000          
+     "PROGRAM ","BLOCK   ","BLOKHEAD","BLOKBODY","LABDEF  ","STAT    ", 01850000          
+     "STAT-   ","EXPR    ","EXPR-   ","IFCLAUSE","TRUEPART","CATENA  ", 01860000          
+     "DISJ    ","DISJHEAD","CONJ    ","CONJ-   ","CONJHEAD","NEGATION", 01870000          
+     "RELATION","CHOICE  ","CHOICE- ","SUM     ","SUM-    ","TERM    ", 01880000          
+     "TERM-   ","FACTOR  ","FACTOR- ","PRIMARY ","PROCDEF ","PROCHEAD", 01890000          
+     "LIST*   ","LISTHEAD","REFERENC","NUMBER  ","REAL*   ","INTEGER*", 01900000          
+     "INTEGER-","DIGIT   ","LOGVAL  ","VAR     ","VAR-    ","VARDECL ", 01910000          
+     "FORDECL ","LABDECL ","0       ","1       ","2       ","3       ", 01920000          
+     "4       ","5       ","6       ","7       ","8       ","9       ", 01930000          
+     ",       ",".       ",";       ",":       ","@       ","NEW     ", 01940000          
+     "FORMAL  ","LABEL   ","IDENT*  ","[       ","]       ","BEGIN   ", 01950000          
+     "END     ","(       ",")       ","LQ      ","RQ      ","GOTO    ", 01960000          
+     "OUT     ","~       ","IF      ","THEN    ","ELSE    ","&       ", 01970000          
+     "OR      ","AND     ","NOT     ","=       ","!       ","<       ", 01980000          
+     "{       ","}       ",">       ","MIN     ","MAX     ","+       ", 01990000          
+     "-       ","|       ","/       ","%       ","MOD     ","*       ", 02000000          
+     "ABS     ","LENGTH  ","INTEGER ","REAL    ","LOGICAL ","LIST    ", 02010000          
+     "TAIL    ","IN      ","ISB     ","ISN     ","ISR     ","ISL     ", 02020000          
+     "ISLI    ","ISY     ","ISP     ","ISU     ","SYMBOL* ","UNDEFINE", 02030000          
+     "TEN     ","#       ","TRUE    ","FALSE   ","$       ";            02040000          
+ FILL F[*] WITH 0,                                                      02050000          
+        1,   4,  19,   1,   2,   1,   2,   3,   4,   1,   4,   4,       02060000          
+        5,   5,   5,   6,   6,   6,   7,   7,   8,   9,  10,  11,       02070000          
+       11,  12,  12,  13,  13,   3,  13,   3,  13,  13,  13,  15,       02080000          
+       17,  19,  13,  13,  15,   1,   1,   1,  19,  19,  19,  19,       02090000          
+       19,  19,  19,  19,  19,  19,  19,  16,  21,  19,  13,  14,       02100000          
+       14,  14,  16,   3,  16,  21,   5,  19,  13,  19,  13,  12,       02110000          
+        4,   4,   3,  19,  19,  12,  19,  19,   7,   8,   8,   8,       02120000          
+        8,   8,   8,   9,   9,  10,  10,  11,  11,  11,  11,  12,       02130000          
+       12,  13,  12,  12,  12,  12,  12,  13,  13,  13,  13,  13,       02140000          
+       13,  13,  13,  13,  13,  13,  16,  16,  13,  13,   5;            02150000          
+ FILL G[*] WITH 0,                                                      02160000          
+        1,   5,   6,   6,   3,   1,   2,   3,   4,   5,   1,   5,       02170000          
+        5,   6,   6,   6,   7,   7,   7,   8,   9,   9,  10,  10,       02180000          
+       11,  11,  12,  12,  13,  13,  13,  14,  13,  13,  13,  16,       02190000          
+       17,  17,  13,  13,  14,  19,   3,  19,  18,  18,  18,  18,       02200000          
+       18,  18,  18,  18,  18,  18,   3,  15,   1,  16,  13,  20,       02210000          
+        4,  20,  14,  15,   3,   6,   1,  14,   3,  13,   3,   5,       02220000          
+        5,  13,   5,   3,   3,   4,   5,   6,   7,   7,   7,   7,       02230000          
+        7,   7,   7,   8,   8,  10,  10,  11,  11,  11,  11,  12,       02240000          
+       13,  13,  13,  13,  13,  13,  13,  13,  13,  13,  13,  13,       02250000          
+       13,  13,  13,  13,  13,  13,  13,  16,  13,  13,   4;            02260000          
+ FILL MTB[*] WITH 0,                                                    02270000          
+        1,   2,   5,  16,  25,  29,  30,  33,  39,  42,  47,  48,       02280000          
+       55,  58,  62,  68,  71,  75,  81,  84, 111, 122, 125, 136,       02290000          
+      139, 158, 161, 168, 171, 174, 183, 186, 198, 201, 204, 216,       02300000          
+      223, 229, 232, 235, 245, 256, 257, 258, 259, 262, 265, 268,       02310000          
+      271, 274, 277, 280, 283, 286, 289, 290, 291, 292, 293, 297,       02320000          
+      301, 305, 309, 315, 320, 321, 324, 325, 328, 329, 332, 333,       02330000          
+      337, 341, 342, 347, 348, 349, 350, 351, 352, 356, 357, 358,       02340000          
+      359, 360, 361, 362, 363, 364, 368, 372, 373, 374, 375, 376,       02350000          
+      377, 381, 385, 389, 393, 397, 401, 405, 408, 412, 416, 420,       02360000          
+      424, 428, 432, 436, 440, 443, 446, 454, 455, 458, 461;            02370000          
+ FILL PRTB[*] WITH 0,                                                   02380000          
+        0,-103,   9,   0,  42,  57,-115,   3,  44,  57,-116,   3,       02390000          
+     -117,   4,   0,   6,  57,-118,   4,   6,  67,-119,   2,   0,       02400000          
+        7,-110,   7,   0,   0,-112,   6,   0,  77,-101,  11,-111,       02410000          
+        7,   0,-109,   8,   0,  11,   9,-104,   9,   0,   0,  78,       02420000          
+       28, -99,  12,-108,   9,   0,-100,  12,   0,  13, -97,  13,       02430000          
+        0,  79, -96,  14, -98,  13,   0, -95,  15,   0,  16, -93,       02440000          
+       16,   0,  80, -92,  17, -94,  16,   0, -90,  18,   0, -83,       02450000          
+       19,  82,  20, -84,  19,  83,  20, -85,  19,  84,  20, -86,       02460000          
+       19,  85,  20, -87,  19,  86,  20, -88,  19,  87,  20, -89,       02470000          
+       19,   0,  88,  22, -80,  21,  89,  22, -81,  21, -82,  20,       02480000          
+        0, -79,  21,   0,  90,  24, -76,  23,  91,  24, -77,  23,       02490000          
+      -78,  22,   0, -73,  23,   0,  92,  26, -68,  25,  93,  26,       02500000          
+      -69,  25,  94,  26, -70,  25,  95,  26, -71,  25, -72,  24,       02510000          
+        0, -67,  25,   0,  96,  28, -65,  27, -66,  26,   0, -64,       02520000          
+       27,   0, -46,  28,   0,  43,  57, -35,  30,   8,  71, -37,       02530000          
+       29,   0, -44,  28,   0,   8,  55, -31,  32,   8,  69, -33,       02540000          
+       31,  69, -34,  31,   0, -43,  28,   0, -41,  28,   0, -25,       02550000          
+       34, 115,  36, -26,  34, 115, 116,  36, -27,  34,   0,  56,       02560000          
+       36, -23,  35, -24,  35,   0,  38, -21,  37, -22,  36,   0,       02570000          
+      -20,  37,   0, -40,  28,   0, -38,  28,  31, -39,  28,  74,       02580000          
+        9,-105,   9,   0,  64,   8,  65,  -5,  41,  56,  -6,  41,       02590000          
+       -7,  40,   0,   0,   0,   0, -10,  38,   0, -11,  38,   0,       02600000          
+      -12,  38,   0, -13,  38,   0, -14,  38,   0, -15,  38,   0,       02610000          
+      -16,  38,   0, -17,  38,   0, -18,  38,   0, -19,  38,   0,       02620000          
+        0,   0,   0,   0,  40, -30,  33,   0,  63,  -1,  42,   0,       02630000          
+       63,  -2,  43,   0,  63,  -3,  44,   0,  -4,  41,  58,-113,       02640000          
+        5,   0,   8,  65, -48,  28,   0,   0,-114,   3,   0,   0,       02650000          
+      -32,  32,   0,   0, -36,  30,   0,   0,  28,-106,   9,   0,       02660000          
+        9,-107,   9,   0,   0,   8,  76,-102,  10,   0,   0,   0,       02670000          
+        0,   0,   0,  19, -91,  18,   0,   0,   0,   0,   0,   0,       02680000          
+        0,   0,   0,  24, -74,  23,   0,  24, -75,  23,   0,   0,       02690000          
+        0,   0,   0,   0,  28, -58,  28,   0,  40, -59,  28,   0,       02700000          
+       28, -60,  28,   0,  28, -61,  28,   0,  28, -62,  28,   0,       02710000          
+       28, -63,  28,   0,  28, -45,  28,   0, -49,  28,   0,  40,       02720000          
+      -50,  28,   0,  40, -51,  28,   0,  40, -52,  28,   0,  40,       02730000          
+      -53,  28,   0,  40, -54,  28,   0,  40, -55,  28,   0,  40,       02740000          
+      -56,  28,   0,  40, -57,  28,   0, -42,  28,   0, -47,  28,       02750000          
+        0,  36, -28,  34, 116,  36, -29,  34,   0,   0,  -8,  39,       02760000          
+        0,  -9,  39,   0,   2, 119,-120,   1,   0;                      02770000          
+                                                                        02780000          
+ WC ~ 8; CC ~ 7; CLEAR(WRITEBUFFER[0]); CLEAR(READBUFFER[0]);           02790000          
+ S[0] ~ MARK; ERRORFLAG ~ FALSE;                                        02800000          
+ I ~ J ~ BN ~ ON ~ NP ~ PRP ~ 0;                                        02810000          
+                                                                        02820000          
+ COMMENT  ALGORITHM FOR SYNTACTIC ANALYSIS:                             02830000          
+     COMPARE THE PRIORITIES OF THE SYMBOL R AND OF THE                  02840000          
+     SYMBOL ON TOP OF THE STACK S.  IF S[J]...S[I] CONSTITUTE A RIGHT-  02850000          
+     PART OF A PRODUCTION, THEN REPLACE THIS SEQUENCE BY THE            02860000          
+     CORRESPONDING LEFT-PART AND BRANCH TO THE INTERPRETATION-RULE      02870000          
+     BELONGING TO THE PERFORMED PRODUCTION;                             02880000          
+A0: R ~ INSYMBOL;                                                       02890000          
+A1: IF F[S[I]] > G[R] THEN GO TO A2;                                    02900000          
+ IF R = MARK THEN GO TO A9;                                             02910000          
+ I ~ J ~ I+1; S[I] ~ R; MOVE(NAME, V[I]); GO TO A0;                     02920000          
+A2: IF F[S[J-1]] = G[S[J]] THEN BEGIN J ~ J-1; GO TO A2 END;            02930000          
+ M ~ MTB[S[J]];                                                         02940000          
+A3: IF PRTB[M] = 0 THEN BEGIN ERROR(5); GO TO EXIT END;                 02950000          
+ N ~ J;                                                                 02960000          
+A4: N ~ N+1;                                                            02970000          
+ IF PRTB[M] < 0 THEN GO TO A8;                                          02980000          
+ IF N { I THEN GO TO A7;                                                02990000          
+A5: M ~ M+1;                                                            03000000          
+ IF PRTB[M] } 0 THEN GO TO A5;                                          03010000          
+A6: M ~ M+2; GO TO A3;                                                  03020000          
+A7: IF PRTB[M] ! S[N] THEN GO TO A5;                                    03030000          
+ M ~ M+1; GO TO A4;                                                     03040000          
+A8: IF N { I THEN GO TO A6;                                             03050000          
+ GO TO BRANCH[-PRTB[M]];                                                03060000          
+L0: S[J] ~ PRTB[M+1]; I ~ J; GO TO A1;                                  03070000          
+                                                                        03080000          
+ COMMENT  THE FOLLOWING ARE THE INTERPRETATION-RULES;                   03090000          
+L1:                                                                     03100000          
+L2: P1(S[J]); NP ~ NP+1; MOVE(V[I], NL1[NP]); ZERO(V[I]);               03110000          
+ NL2[NP] ~ BN; NL3[NP] ~ ON ~ ON+1; NL4[NP] ~ S[J]; GO TO L0;           03120000          
+L3: NP ~ NP+1; MOVE(V[I], NL1[NP]); ZERO(V[I]);                         03130000          
+ NL2[NP] ~ BN; NL3[NP] ~ NL4[NP] ~ UNDEF; GO TO L0;                     03140000          
+L4: FOR T ~ NP STEP -1 UNTIL 1 DO                                       03150000          
+ IF EQUAL(NL1[T], V[I]) THEN GO TO NAMEFOUND;                           03160000          
+ ERROR(0); GO TO L0;                                                    03170000          
+NAMEFOUND:                                                              03180000          
+ IF NL4[T] = NEWSYM THEN                                                03190000          
+     P3(REFSYM, NL3[T], NL2[T])                                         03200000          
+ ELSE IF NL4[T] = LABSYM THEN                                           03210000          
+     P3(LABSYM, NL3[T], NL2[T])                                         03220000          
+ ELSE IF NL4[T] = FORSYM THEN                                           03230000          
+     BEGIN  P3(REFSYM, NL3[T], NL2[T]); P1(VALSYM) END                  03240000          
+ ELSE                                                                   03250000          
+     BEGIN  P3(LABSYM, NL3[T], NL2[T]); NL3[T] ~ PRP END;               03260000          
+ GO TO L0;                                                              03270000          
+L5: P1(S[I]); GO TO L0;                                                 03280000          
+L6: P1(VALSYM); GO TO L0;                                               03290000          
+L10:                                                                    03300000          
+L9: V[J] ~ 0; GO TO L0;                                                 03310000          
+L11:                                                                    03320000          
+L8: V[J] ~ 1; GO TO L0;                                                 03330000          
+L12:V[J] ~ 2; GO TO L0;                                                 03340000          
+L13:V[J] ~ 3; GO TO L0;                                                 03350000          
+L14:V[J] ~ 4; GO TO L0;                                                 03360000          
+L15:V[J] ~ 5; GO TO L0;                                                 03370000          
+L16:V[J] ~ 6; GO TO L0;                                                 03380000          
+L17:V[J] ~ 7; GO TO L0;                                                 03390000          
+L18:V[J] ~ 8; GO TO L0;                                                 03400000          
+L19:V[J] ~ 9; GO TO L0;                                                 03410000          
+L20:SCALE ~ 1; GO TO L0;                                                03420000          
+L21:V[J] ~ V[J] | 10 + V[I]; SCALE ~ SCALE+1;                           03430000          
+ IF SCALE > 11 THEN ERROR(1); GO TO L0;                                 03440000          
+L23:V[J] ~ V[I] | 10 * (-SCALE) + V[J]; GO TO L0;                       03450000          
+L26:V[J] ~ V[J] | 10 * V[I]; GO TO L0;                                  03460000          
+L27:V[J] ~ V[J] | .1 * V[I]; GO TO L0;                                  03470000          
+L28:V[J] ~ 10 * V[I]; GO TO L0;                                         03480000          
+L29:V[J] ~ .1 * V[I]; GO TO L0;                                         03490000          
+L31:V[J] ~ V[J]+1; GO TO L0;                                            03500000          
+L32:V[J] ~ 0; GO TO L0;                                                 03510000          
+L33:P2(S[I], V[J]+1); GO TO L0;                                         03520000          
+L34:P2(S[I], V[J]); GO TO L0;                                           03530000          
+L36:BN ~ BN+1; ON ~ 0; P2(S[J], UNDEF); V[J] ~ PRP;                     03540000          
+ NP ~ NP+1; ZERO(NL1[NP]); NL2[NP] ~ MP; MP ~ NP; GO TO L0;             03550000          
+L37:P1(S[I]); FIXUP(V[J], PRP+1); NP ~ MP-1; MP ~ NL2[MP];              03560000          
+ BN ~ BN-1; GO TO L0;                                                   03570000          
+L38:P1(VALSYM); GO TO L0;                                               03580000          
+L39:P1(CALLSYM); GO TO L0;                                              03590000          
+L40:P2(BOOLSYM, V[I]); GO TO L0;                                        03600000          
+L41:P1(NUMSYM); PRP ~ PRP+1; PROGRAM[PRP] ~ V[I]; GO TO L0;             03610000          
+L42:P2(S[I], V[I]); GO TO L0;                                           03620000          
+L75:P1(UNARYMINUS); GO TO L0;                                           03630000          
+L92:                                                                    03640000          
+L96:                                                                    03650000          
+L101:                                                                   03660000          
+L102:P2(S[I], UNDEF); V[J] ~ PRP; GO TO L0;                             03670000          
+L93:                                                                    03680000          
+L97: FIXUP(V[J], PRP+1); GO TO L0;                                      03690000          
+L104:FIXUP(V[J], V[J+1]+1); FIXUP(V[J+1], PRP+1); GO TO L0;             03700000          
+L113:FOR T ~ NP STEP -1 UNTIL MP+1 DO                                   03710000          
+  IF EQUAL(NL1[T], V[J]) THEN                                           03720000          
+  BEGIN  IF NL4[T] ! UNDEF THEN ERROR(2);                               03730000          
+      T1 ~ NL3[T]; NL3[T] ~ PRP+1; NL4[T] ~ LABSYM; ZERO(V[J]);         03740000          
+L1131:   IF T1 ! UNDEF THEN                                             03750000          
+      BEGIN T ~ PROGRAM[T1].BFIELD; FIXUP(T1, PRP+1);                   03760000          
+            T1 ~ T; GO TO L1131                                         03770000          
+      END; GO TO L0;                                                    03780000          
+  END;                                                                  03790000          
+  ERROR(3); GO TO L0;                                                   03800000          
+L114:BN ~ BN+1; ON ~ 0; P1(S[I]);                                       03810000          
+  NP ~ NP+1; ZERO(NL1[NP]); NL2[NP] ~ MP; MP ~ NP; GO TO L0;            03820000          
+L118:P1(S[I]); GO TO L0;                                                03830000          
+L119:FOR T ~ MP+1 STEP 1 UNTIL NP DO IF NL4[T] = UNDEF THEN ERROR(4);   03840000          
+  NP ~ MP-1; MP ~ NL2[MP]; P1(S[I]); BN ~ BN-1; GO TO L0;               03850000          
+                                                                        03860000          
+L45:                                                                    03870000          
+L47:                                                                    03880000          
+L49:                                                                    03890000          
+L50:                                                                    03900000          
+L51:                                                                    03910000          
+L52:                                                                    03920000          
+L53:                                                                    03930000          
+L54:                                                                    03940000          
+L55:                                                                    03950000          
+L56:                                                                    03960000          
+L57:                                                                    03970000          
+L58:                                                                    03980000          
+L59:                                                                    03990000          
+L60:                                                                    04000000          
+L61:                                                                    04010000          
+L62:                                                                    04020000          
+L63:                                                                    04030000          
+L91:                                                                    04040000          
+L106:                                                                   04050000          
+L107:P1(S[J]); GO TO L0;                                                04060000          
+                                                                        04070000          
+L65:                                                                    04080000          
+L68:                                                                    04090000          
+L69:                                                                    04100000          
+L70:                                                                    04110000          
+L71:                                                                    04120000          
+L76:                                                                    04130000          
+L77:                                                                    04140000          
+L80:                                                                    04150000          
+L81:                                                                    04160000          
+L84:                                                                    04170000          
+L85:                                                                    04180000          
+L86:                                                                    04190000          
+L87:                                                                    04200000          
+L88:                                                                    04210000          
+L89:                                                                    04220000          
+L99:                                                                    04230000          
+L105:P1(S[J+1]); GO TO L0;                                              04240000          
+                                                                        04250000          
+L7:                                                                     04260000          
+L22:                                                                    04270000          
+L24:                                                                    04280000          
+L25:                                                                    04290000          
+L30:                                                                    04300000          
+L35:                                                                    04310000          
+L43:                                                                    04320000          
+L44:                                                                    04330000          
+L46:                                                                    04340000          
+L48:                                                                    04350000          
+L64:                                                                    04360000          
+L66:                                                                    04370000          
+L67:                                                                    04380000          
+L72:                                                                    04390000          
+L73:                                                                    04400000          
+L74:                                                                    04410000          
+L78:                                                                    04420000          
+L79:                                                                    04430000          
+L82:                                                                    04440000          
+L83:                                                                    04450000          
+L90:                                                                    04460000          
+L94:                                                                    04470000          
+L95:                                                                    04480000          
+L98:                                                                    04490000          
+L100:                                                                   04500000          
+L103:                                                                   04510000          
+L108:                                                                   04520000          
+L109:                                                                   04530000          
+L110:                                                                   04540000          
+L111:                                                                   04550000          
+L112:                                                                   04560000          
+L115:                                                                   04570000          
+L116:                                                                   04580000          
+L117:                                                                   04590000          
+L120:GO TO L0;                                                          04600000          
+                                                                        04610000          
+A9:  P1(MARK); PROGRAMDUMP; IF ERRORFLAG THEN GO TO EXIT                04620000          
+END * ;                                                                 04630000          
+                                                                        50000000          
+BEGIN  COMMENT  E U L E R   IV   INTERPRETER     MCKEEMAN  &  WIRTH;    50010000          
+ REAL ARRAY S, SI, F, FI[0:1022];   COMMENT  STACK;                     50020000          
+ INTEGER I1, I2, LVL, FORMALCOUNT;                                      50030000          
+ INTEGER SP;     COMMENT  TOP-STACK POINTER;                            50040000          
+ INTEGER FP;     COMMENT  FREE STORAGE SPACE POINTER;                   50050000          
+ INTEGER MP;     COMMENT  BLOCK- OR PROCEDURE-MARK POINTER;             50060000          
+ INTEGER PP;     COMMENT  PROGRAM POINTER;                              50070000          
+ LABEL ADD, SUB, MUL, DIVIDE, IDIV, REMAINDER, POWER, NEG, ABSV,        50080000          
+   INTEGERIZE, REALL, LOGICAL, MIN, MAX, EQL, NEQ, LSS, LEQ, GEQ, GTR,  50090000          
+   LENGTH, ISLOGICAL, ISNUMBER, ISREFERENCE, ISLABEL, ISSYMBOL,         50100000          
+   ISLIST, ISPROCEDURE, ISUNDEFINED, LAND, LOR, LNOT, LEFTQUOTE,        50110000          
+   RIGHTQUOTE, RIGHTPAREN, REFERENCE, PROCEDURECALL, VALUEOPERATOR,     50120000          
+   GOTO, NEW, FORMAL, BEGINV, ENDV, STORE, THENV, ELSEV, NUMBER, LOGVAL,50130000          
+   LABELL, SUBSCRIPT, SEMICOLON, UNDEFIND, OUTPUT, INPUT, TAIL,         50140000          
+   CATENATE, LISTT, SYMBOL, DONE, UNDEFINEDOPERATOR, NEXT, TRANSFER;    50150000          
+                                                                        50160000          
+COMMENT  SI AND FI FIELD DEFINITIONS                                    50170000          
+           1-4   8-17    18-27       28-37   38-47    48-97             50180000          
+NUMBER     TYPE                                       VALUE             50190000          
+BOOLEAN    TYPE                                       VALUE             50200000          
+SYMBOL     TYPE                                       VALUE             50210000          
+UNDEFINED  TYPE                                                         50220000          
+LIST       TYPE                      LENGTH  ADDRESS                    50230000          
+REFERENCE  TYPE                      MARK    ADDRESS                    50240000          
+LABEL      TYPE                      MARK    ADDRESS                    50250000          
+BLOCKMARK  TYPE  DYNAMIC  BLOCK NO.  STATIC  ADDRESS  LIST;             50260000          
+                                                                        50270000          
+ DEFINE TYPE=[1:4]#,                                                    50280000          
+     WCT=[28:10]#,                                                      50290000          
+     ADDRESS=[38:10]#,                                                  50300000          
+     STATIC=[28:10]#,                                                   50310000          
+     DYNAMIC=[8:10]#,                                                   50320000          
+     BLN=[18:10]#,                                                      50330000          
+     NSA=[18:10]#;       COMMENT  NEW STARTING ADDRESS FOR FREE;        50340000          
+ DEFINE UNDEFINED=0#,                                                   50350000          
+     NUMBERTYPE=1#,                                                     50360000          
+     SYMBOLTYPE=2#,                                                     50370000          
+     BOOLEANTYPE=3#,                                                    50380000          
+     LABELTYPE=4#,                                                      50390000          
+     REFERENCETYPE=5#,                                                  50400000          
+     PROCEDURETYPE=6#,                                                  50410000          
+     LISTTYPE=7#,                                                       50420000          
+     BLOCKMARK=8#;                                                      50430000          
+                                                                        50440000          
+STREAM PROCEDURE MOVE(F1, T1, W);                                       50450000          
+ BEGIN  LOCAL R1, R2;                                                   50460000          
+     SI ~ W; SI ~ SI + 6;                                               50470000          
+     DI ~ LOC R1; DI ~ DI + 7; DS ~ CHR;                                50480000          
+     DI ~ LOC R2; DI ~ DI + 7; DS ~ CHR;                                50490000          
+     SI ~ F1; DI ~ T1;                                                  50500000          
+     R1(2(DS ~ 32 WDS)); DS ~ R2 WDS;                                   50510000          
+ END;                                                                   50520000          
+                                                                        50530000          
+PROCEDURE DUMPOUT(XI, X); VALUE XI, X; REAL XI, X;                      50540000          
+ BEGIN  INTEGER T, I;                                                   50550000          
+                                                                        50560000          
+PROCEDURE LISTOUT(XI); VALUE XI; REAL XI;                               50570000          
+ BEGIN  COMMENT  RECURSIVE LIST OUTPUT;                                 50580000          
+  INTEGER I, N;                                                         50590000          
+  SWITCH FORMAT LPAR ~                                                  50600000          
+   ("("), (".("), ("..("),("...("), ("....("), (".....("), ("......("); 50610000          
+  SWITCH FORMAT RPAR ~                                                  50620000          
+   (")"), (".)"), ("..)"),("...)"), ("....)"), (".....)"), ("......)"); 50630000          
+  WRITE (PRINFIL, <X9, "LIST", I10>, XI.ADDRESS);                       50640000          
+  WRITE (PRINFIL [NO], LPAR[LVL]);                                      50650000          
+  LVL ~ LVL + 1; N ~ XI.ADDRESS + XI.WCT - 1;                           50660000          
+  FOR I ~ XI.ADDRESS STEP 1 UNTIL N DO DUMPOUT(FI[I], F[I]);            50670000          
+  LVL ~ LVL - 1; WRITE (PRINFIL, RPAR[LVL]);                            50680000          
+ END LISTOUT;                                                           50690000          
+                                                                        50700000          
+ T ~ XI.TYPE;                                                           50710000          
+ IF T = UNDEFINED THEN                                                  50720000          
+  WRITE (PRINFIL, <X9, "UNDEFINED">)                                    50730000          
+ ELSE IF T = NUMBERTYPE THEN                                            50740000          
+     BEGIN                                                              50750000          
+       IF X ! ENTIER(X) THEN                                            50760000          
+         WRITE (PRINFIL, <X9, "NUMBER", E20.10>, X)                     50770000          
+       ELSE                                                             50780000          
+         WRITE (PRINFIL, <X9, "NUMBER", I20>, X)                        50790000          
+     END                                                                50800000          
+ ELSE IF T = BOOLEANTYPE THEN                                           50810000          
+WRITE (PRINFIL, <X9, "LOGICAL", 14X1, L5>, BOOLEAN(X))                  50820000          
+ ELSE IF T = LISTTYPE THEN LISTOUT(XI)                                  50830000          
+ ELSE IF T = LABELTYPE THEN                                             50840000          
+WRITE (PRINFIL, <X9, "LABEL,  ADDRESS  =", I4, "  MARK=", I4>,          50850000          
+  XI.ADDRESS, XI.STATIC)                                                50860000          
+ ELSE IF T = REFERENCETYPE THEN                                         50870000          
+WRITE (PRINFIL, <X9, "REFERENCE,  ADDRESS  =", I4, "  MARK=", I4>,      50880000          
+  XI.ADDRESS, XI.STATIC)                                                50890000          
+ ELSE IF T = PROCEDURETYPE THEN                                         50900000          
+WRITE (PRINFIL, <X9, "PROCEDURE DESCRIPTOR,  ADDRESS  =",               50910000          
+  I4, "  BN=", I4, "  MARK=", I4>,                                      50920000          
+    XI.ADDRESS, XI.BLN, XI.STATIC)                                      50930000          
+ ELSE IF T = BLOCKMARK THEN                                             50940000          
+WRITE (PRINFIL, <X9, "BLOCKMARK,  BN=", I4,                             50950000          
+  "  DYNAMIC=", I4, "  STATIC=", I4, "  RETURN=", I4>,                  50960000          
+    XI.BLN, XI.DYNAMIC, XI.STATIC, XI.ADDRESS)                          50970000          
+ ELSE IF T = SYMBOLTYPE THEN                                            50980000          
+     WRITE (PRINFIL, <X9, "SYMBOL    ", A5>, X)                         50990000          
+ END DUMPOUT;                                                           51000000          
+                                                                        51010000          
+PROCEDURE ERROR(N); VALUE N; INTEGER N;                                 51020000          
+ BEGIN  INTEGER I;                                                      51030000          
+  SWITCH FORMAT ER ~                                                    51040000          
+      ("ILLEGAL  INSTRUCTION  ENCOUNTERED"),                            51050000          
+      ("IMPROPER  OPERAND  TYPE"),                                      51060000          
+      ("CANNOT  DIVIDE  BY  0"),                                        51070000          
+      ("CALL  OPERATOR  DID  NOT  FIND  A  PROCEDURE"),                 51080000          
+      ("REFERENCE  OR  LABEL  OUT  OF  SCOPE"),                         51090000          
+      ("OUT  OF  SCOPE  ASSIGNMENT  OF  A  LABEL  OR  A  REFERENCE"),   51100000          
+      ("SUBSCRIPT  IS  NOT  A  NUMBER"),                                51110000          
+      ("SUBSCRIPT  NOT  APPLIED  TO  A  VARIABLE"),                     51120000          
+      ("SUBSCRIPTED  VARIABLE  IS  NOT  A  LIST"),                      51130000          
+      ("SUBSCRIPT  IS  OUT  OF  BOUNDS"),                               51140000          
+      ("CANNOT  TAKE  TAIL  OF  A  NULL  LIST"),                        51150000          
+      ("STACK  OVERFLOW"),                                              51160000          
+      ("STACK  OVERFLOW  DURING  GARBAGE  COLLECTION"),                 51170000          
+      ("ASSIGNMENT  TO  A  NON-VARIABLE  ATTEMPTED"),                   51180000          
+      ("FREE  STORAGE  AREA  IS  TOO  SMALL");                          51190000          
+   WRITE (PRINFIL [DBL], ER[N]);                                        51200000          
+WRITE (PRINFIL,                                                         51210000          
+  </ "SP=", I4, " FP=", I4, " PP=", I4, " MP=", I4, " SYL=", I4/>,      51220000          
+            SP, FP, PP, MP, PROGRAM[PP].AFIELD);                        51230000          
+     FOR I ~ 1 STEP 1 UNTIL SP DO                                       51240000          
+         BEGIN  WRITE(PRINFIL [NO], <I4>, I);                           51250000          
+          DUMPOUT(SI[I], S[I])                                          51260000          
+         END;                                                           51270000          
+     GO TO DONE                                                         51280000          
+ END ERROR;                                                             51290000          
+                                                                        51300000          
+PROCEDURE FREE(NEED); VALUE NEED; INTEGER NEED;                         51310000          
+ COMMENT  "FREE" IS A "GARBAGE COLLECTION" PROCEDURE.  IT IS CALLED     51320000          
+     WHEN FREE STORAGE F IS USED UP, AND MORE SPACE IS NEEDED.          51330000          
+     GARBAGE COLLECTION TAKES THE FOLLOWING STEPS:                      51340000          
+     1.  ALL BLOCKMARKS, LIST DESCRIPTORS AND REFERENCES IN STACK       51350000          
+     POINT TO VALID INFORMATION IN FREE STORAGE.  LIKEWISE, ALL         51360000          
+     LIST DESCRIPTORS AND REFERENCES THAT ARE POINTED TO ARE VALID,     51370000          
+     ENTER INTO THE STACK ALL SUCH ENTITIES.                            51380000          
+     2.  THE GARBAGE COLLECTOR MUST KNOW IN WHICH ORDER TO COLLAPSE THE 51390000          
+     FREE STORAGE.  THUS SORT THE LIST BY FREE STORAGE ADDRESS.         51400000          
+     3.  MOVE EACH BLOCK DOWN IF NECESSARY.                             51410000          
+     4.  NOW THE ADDRESSES ARE WRONG--MAKE ONE MORE PASS THROUGH THE    51420000          
+     SORTED LIST TO UPDATE ALL ADDRESSES;                               51430000          
+ BEGIN  OWN INTEGER G, H, I, J; OWN REAL T;                             51440000          
+                                                                        51450000          
+INTEGER PROCEDURE FIND(W); VALUE W; REAL W;                             51460000          
+ BEGIN  COMMENT  BINARY SEARCH THROUGH ORDERED TABLE;                   51470000          
+     INTEGER T, N, B, KEY, K;                                           51480000          
+     LABEL FOUND, BINARY;                                               51490000          
+     T ~ G+1; B ~ SP + 1;                                               51500000          
+     KEY ~ W.ADDRESS;                                                   51510000          
+BINARY: N ~ (B+T) DIV 2;                                                51520000          
+     K ~ SI[N].ADDRESS;                                                 51530000          
+     IF K = KEY THEN GO TO FOUND;                                       51540000          
+     IF K < KEY THEN B ~ N ELSE T ~ N;                                  51550000          
+     GO TO BINARY;                                                      51560000          
+FOUND:  FIND ~ SI[N].NSA                                                51570000          
+ END FIND;                                                              51580000          
+                                                                        51590000          
+PROCEDURE RESET(W, Z); REAL W, Z;                                       51600000          
+ BEGIN  INTEGER TY;                                                     51610000          
+     TY ~ W.TYPE;                                                       51620000          
+     IF TY = REFERENCETYPE OR TY = LISTTYPE THEN                        51630000          
+         W.ADDRESS ~ FIND(W)                                            51640000          
+     ELSE IF TY = BLOCKMARK THEN                                        51650000          
+         Z.ADDRESS ~ FIND(Z)                                            51660000          
+ END RESET;                                                             51670000          
+                                                                        51680000          
+PROCEDURE VALIDATE(P); VALUE P; REAL P;                                 51690000          
+ BEGIN  COMMENT  TREE SEARCH FOR ACTIVE LIST STORAGE;                   51700000          
+     INTEGER I, U;                                                      51710000          
+     G ~ G + 1;                                                         51720000          
+     IF G > 1022 THEN ERROR(12);                                        51730000          
+     SI[G] ~ P;                                                         51740000          
+     U ~ P.ADDRESS + P.WCT - 1;                                         51750000          
+     IF P.TYPE = LISTTYPE THEN                                          51760000          
+         FOR I ~ P.ADDRESS STEP 1 UNTIL U DO                            51770000          
+             IF FI[I].TYPE = LISTTYPE OR FI[I].TYPE = REFERENCETYPE THEN51780000          
+                 VALIDATE(FI[I]);                                       51790000          
+ END VALIDATION;                                                        51800000          
+                                                                        51810000          
+PROCEDURE SORT(LB, UB); VALUE LB, UB; INTEGER LB, UB;                   51820000          
+ BEGIN  COMMENT  BINARY SORT;                                           51830000          
+     INTEGER M;                                                         51840000          
+                                                                        51850000          
+PROCEDURE MERGE(LB, M, UB); VALUE LB, M, UB; INTEGER LB, M, UB;         51860000          
+ BEGIN  INTEGER K,L,U,K1,K2; LABEL A, B;                                51870000          
+     K ~ UB - LB;                                                       51880000          
+     MOVE(SI[LB], S[LB], K);                                            51890000          
+     L ~ K ~ LB; U ~ M; GO TO B;                                        51900000          
+A:      K1 ~ S[L].ADDRESS; K2 ~ S[U].ADDRESS;                           51910000          
+     IF K1 < K2 OR (K1 = K2 AND S[L].TYPE = LISTTYPE) THEN              51920000          
+         BEGIN SI[K] ~ S[L]; L ~ L+1 END                                51930000          
+     ELSE                                                               51940000          
+         BEGIN SI[K] ~ S[U]; U ~ U+1 END;                               51950000          
+     K ~ K + 1;                                                         51960000          
+B:      IF L = M THEN                                                   51970000          
+     ELSE IF U = UB THEN                                                51980000          
+         BEGIN  K ~ M-L; MOVE(S[L], SI[UB-K], K) END                    51990000          
+     ELSE                                                               52000000          
+         GO TO A                                                        52010000          
+ END MERGE;                                                             52020000          
+                                                                        52030000          
+     IF LB < UB THEN                                                    52040000          
+         BEGIN  M ~ (LB+UB) DIV 2;                                      52050000          
+             SORT(LB, M); SORT(M+1, UB); MERGE(LB, M+1, UB+1)           52060000          
+         END                                                            52070000          
+ END SORT;                                                              52080000          
+                                                                        52090000          
+ INTEGER LLA, LLW;                                                      52100000          
+ G ~ SP;                                                                52110000          
+ FOR H ~ 1 STEP 1 UNTIL SP DO                                           52120000          
+     BEGIN  COMMENT  LOCATE ALL ACTIVE LISTS AND REFERENCES;            52130000          
+         IF SI[H].TYPE = LISTTYPE OR SI[H].TYPE = REFERENCETYPE THEN    52140000          
+             VALIDATE(SI[H])                                            52150000          
+         ELSE IF SI[H].TYPE = BLOCKMARK THEN                            52160000          
+             VALIDATE(S[H]);                                            52170000          
+     END                                                                52180000          
+ COMMENT  SORT THEM IN ORDER OF INCREASING ADDRESS;                     52190000          
+ SORT(SP+1, G);                                                         52200000          
+ I ~ 1;  COMMENT  COLLAPSE THE FREE STORAGE;                            52210000          
+ FOR J ~ SP+1 STEP 1 UNTIL G DO                                         52220000          
+     IF SI[J].TYPE = LISTTYPE THEN                                      52230000          
+         BEGIN  COMMENT  IF G.C. OCCURS DURING "COPY" THEN WE MUST AVOID52240000          
+             THE CREATION OF DOUBLE LIST ENTRIES FROM DUPLICATED DESCRIP52250000          
+             IF SI[J] = SI[J+1] THEN SI[J+1].TYPE ~ UNDEFINED;          52260000          
+             LLA ~ SI[J].ADDRESS; LLW ~ SI[J].WCT;                      52270000          
+             IF LLA ! I THEN                                            52280000          
+                 BEGIN                                                  52290000          
+                     MOVE(F[LLA], F[I], LLW);                           52300000          
+                     MOVE(FI[LLA], FI[I], LLW);                         52310000          
+                 END;                                                   52320000          
+             SI[J].NSA ~ I;                                             52330000          
+             I ~ I + LLW;                                               52340000          
+         END                                                            52350000          
+     ELSE                                                               52360000          
+         SI[J].NSA ~ I - LLW + SI[J].ADDRESS - LLA;                     52370000          
+     FP ~ I;                                                            52380000          
+                                                                        52390000          
+     COMMENT  RESET ALL AFFECTED ADDRESSES;                             52400000          
+     FOR I ~ 1 STEP 1 UNTIL SP DO RESET(SI[I], S[I]);                   52410000          
+     FOR I ~ 1 STEP 1 UNTIL FP-1 DO RESET(FI[I], F[I]);                 52420000          
+     IF FP + NEED > 1022 THEN ERROR(14);                                52430000          
+ END FREE;                                                              52440000          
+                                                                        52450000          
+PROCEDURE MOVESEG(LD); REAL LD;                                         52460000          
+ BEGIN  COMMENT  MOVE ONE LIST SEGMENT;                                 52470000          
+     INTEGER W, X;                                                      52480000          
+     W ~ LD.WCT;                                                        52490000          
+     IF FP + W > 1022 THEN FREE(W);                                     52500000          
+     X ~ LD.ADDRESS;                                                    52510000          
+     MOVE(F[X], F[FP], W);                                              52520000          
+     MOVE(FI[X], FI[FP], W);                                            52530000          
+     LD.ADDRESS ~ FP;                                                   52540000          
+     FP ~ FP + W;                                                       52550000          
+ END MOVE SEGMENT;                                                      52560000          
+                                                                        52570000          
+PROCEDURE COPY(LD); REAL LD;                                            52580000          
+ BEGIN  INTEGER I, J;  COMMENT  RECURSIVE LIST COPY;                    52590000          
+     MOVESEG(LD);                                                       52600000          
+     J ~ LD.WCT - 1;                                                    52610000          
+     FOR I ~ 0 STEP 1 UNTIL J DO                                        52620000          
+         IF FI[I+LD.ADDRESS].TYPE = LISTTYPE THEN COPY(FI[I+LD.ADDRESS])52630000          
+ END COPY;                                                              52640000          
+                                                                        52650000          
+PROCEDURE BOOLTEST; IF SI[SP].TYPE ! BOOLEANTYPE THEN ERROR(1);         52660000          
+                                                                        52670000          
+INTEGER PROCEDURE ROUND(X); VALUE X; REAL X; ROUND ~ X;                 52680000          
+                                                                        52690000          
+PROCEDURE BARITH;                                                       52700000          
+ BEGIN                                                                  52710000          
+     IF SI[SP].TYPE ! NUMBERTYPE OR SI[SP-1].TYPE ! NUMBERTYPE THEN     52720000          
+         ERROR(1)                                                       52730000          
+     ELSE                                                               52740000          
+         SP ~ SP-1;                                                     52750000          
+ END BARITH;                                                            52760000          
+                                                                        52770000          
+PROCEDURE FETCH;                                                        52780000          
+ BEGIN  INTEGER I;                                                      52790000          
+     IF SI[SP].TYPE = REFERENCETYPE THEN                                52800000          
+         BEGIN  I ~ SI[SP].ADDRESS; SI[SP] ~ FI[I]; S[SP] ~ F[I] END    52810000          
+ END FETCH;                                                             52820000          
+                                                                        52830000          
+INTEGER PROCEDURE MARKINDEX(BL); VALUE BL; INTEGER BL;                  52840000          
+ BEGIN  COMMENT  MARKINDEX IS THE INDEX OF THE MARK WITH BLOCKNUMBER BL;52850000          
+     LABEL U1; INTEGER I;                                               52860000          
+     I ~ MP;                                                            52870000          
+U1:     IF SI[I].BLN > BL THEN                                          52880000          
+         BEGIN  I ~ SI[I].STATIC; GO TO U1 END;                         52890000          
+     IF SI[I].BLN < BL THEN ERROR(4);                                   52900000          
+     MARKINDEX ~ I                                                      52910000          
+ END MARKINDEX;                                                         52920000          
+                                                                        52930000          
+PROCEDURE LEVELCHECK(X, Y); VALUE Y; INTEGER Y; REAL X;                 52940000          
+ BEGIN  INTEGER T, I, L, U; T ~ X.TYPE;                                 52950000          
+     IF T = REFERENCETYPE OR T = LABELTYPE THEN                         52960000          
+         BEGIN  IF X.STATIC > Y THEN ERROR(5) END                       52970000          
+     ELSE IF T = PROCEDURETYPE THEN                                     52980000          
+         X.STATIC ~ Y                                                   52990000          
+     ELSE IF T = LISTTYPE THEN                                          53000000          
+         BEGIN                                                          53010000          
+             L ~ X.ADDRESS; U ~ L + X.WCT - 1;                          53020000          
+             FOR I ~ L STEP 1 UNTIL U DO LEVELCHECK(FI[I], Y)           53030000          
+         END                                                            53040000          
+ END LEVEL CHECK;                                                       53050000          
+                                                                        53060000          
+PROCEDURE SPUP; IF SP } 1022 THEN ERROR(11) ELSE SP ~ SP + 1;           53070000          
+                                                                        53080000          
+PROCEDURE SETIS(V); VALUE V; INTEGER V;                                 53090000          
+ BEGIN                                                                  53100000          
+     FETCH;                                                             53110000          
+     S[SP] ~ REAL(SI[SP].TYPE = V);                                     53120000          
+     SI[SP].TYPE ~ BOOLEANTYPE;                                         53130000          
+ END SET IS;                                                            53140000          
+                                                                        53150000          
+ SWITCH EXECUTE ~                                                       53160000          
+     PROCEDURECALL, VALUEOPERATOR, SEMICOLON, UNDEFINEDOPERATOR,        53170000          
+     REFERENCE, NEW, FORMAL, LABELL, UNDEFINEDOPERATOR, LOGVAL,         53180000          
+     SUBSCRIPT, BEGINV, ENDV, NUMBER, RIGHTPAREN, LEFTQUOTE, RIGHTQUOTE,53190000          
+     GOTO, OUTPUT, STORE, UNDEFINEDOPERATOR, THENV, ELSEV, CATENATE,    53200000          
+     LOR, LAND, LNOT, EQL, NEQ, LSS, LEQ, GEQ, GTR, MIN, MAX,           53210000          
+     ADD, SUB, MUL, DIVIDE, IDIV, REMAINDER, POWER, ABSV, LENGTH,       53220000          
+     INTEGERIZE, REALL, LOGICAL, LISTT, TAIL, INPUT,                    53230000          
+     ISLOGICAL, ISNUMBER, ISREFERENCE, ISLABEL, ISLIST, ISSYMBOL,       53240000          
+     ISPROCEDURE, ISUNDEFINED, SYMBOL, UNDEFIND, UNDEFINEDOPERATOR, NEG,53250000          
+     UNDEFINEDOPERATOR, UNDEFINEDOPERATOR, DONE;                        53260000          
+                                                                        53270000          
+ WRITE (PRINFIL [PAGE]);                                                53280000          
+ SP ~ MP ~ PP ~ 0; FP ~ 1; LVL ~ 0; FT ~ FT+9;                          53290000          
+                                                                        53300000          
+NEXT:                                                                   53310000          
+ PP ~ PP+1;                                                             53320000          
+TRANSFER:                                                               53330000          
+ GO TO EXECUTE[PROGRAM[PP].AFIELD - FT];                                53340000          
+                                                                        53350000          
+UNDEFINEDOPERATOR:                                                      53360000          
+ ERROR(0);                                                              53370000          
+SEMICOLON:                                                              53380000          
+ SP ~ SP - 1;                                                           53390000          
+ GO TO NEXT;                                                            53400000          
+UNDEFIND:                                                               53410000          
+ SPUP;                                                                  53420000          
+ SI[SP].TYPE ~ UNDEFINED;                                               53430000          
+ GO TO NEXT;                                                            53440000          
+NUMBER:                                                                 53450000          
+ PP ~ PP + 1;                                                           53460000          
+ SPUP;                                                                  53470000          
+ SI[SP].TYPE ~ NUMBERTYPE;                                              53480000          
+ S[SP] ~ PROGRAM[PP];                                                   53490000          
+ GO TO NEXT;                                                            53500000          
+SYMBOL:                                                                 53510000          
+ SPUP;                                                                  53520000          
+ SI[SP].TYPE ~ SYMBOLTYPE;                                              53530000          
+ S[SP] ~ PROGRAM[PP].BFIELD;                                            53540000          
+ GO TO NEXT;                                                            53550000          
+LOGVAL:                                                                 53560000          
+ SPUP;                                                                  53570000          
+ SI[SP].TYPE ~ BOOLEANTYPE;                                             53580000          
+ S[SP] ~ PROGRAM[PP].BFIELD;                                            53590000          
+ GO TO NEXT;                                                            53600000          
+REFERENCE:                                                              53610000          
+ SPUP;                                                                  53620000          
+ SI[SP] ~ 0;                                                            53630000          
+ SI[SP].TYPE ~ REFERENCETYPE;                                           53640000          
+ SI[SP].STATIC ~ I1 ~ MARKINDEX(PROGRAM[PP].CFIELD);                    53650000          
+ SI[SP].ADDRESS ~ S[I1].ADDRESS + PROGRAM[PP].BFIELD - 1;               53660000          
+ GO TO NEXT;                                                            53670000          
+LABELL:                                                                 53680000          
+ SPUP;                                                                  53690000          
+ SI[SP].TYPE ~ LABELTYPE;                                               53700000          
+ SI[SP].STATIC ~ MARKINDEX(PROGRAM[PP].CFIELD);                         53710000          
+ SI[SP].ADDRESS ~ PROGRAM[PP].BFIELD;                                   53720000          
+ GO TO NEXT;                                                            53730000          
+CATENATE:                                                               53740000          
+ IF SI[SP].TYPE ! LISTTYPE OR SI[SP-1].TYPE ! LISTTYPE THEN ERROR(1);   53750000          
+ IF SI[SP-1].ADDRESS + SI[SP-1].WCT ! SI[SP].ADDRESS THEN               53760000          
+     BEGIN  COMMENT  MUST HAVE CONTIGUOUS LISTS;                        53770000          
+         MOVESEG(SI[SP-1]);                                             53780000          
+         MOVESEG(SI[SP]);                                               53790000          
+     END;                                                               53800000          
+ SP ~ SP - 1;                                                           53810000          
+ SI[SP].WCT ~ SI[SP].WCT + SI[SP+1].WCT;                                53820000          
+ GO TO NEXT;                                                            53830000          
+LOR:                                                                    53840000          
+ BOOLTEST;                                                              53850000          
+ IF NOT BOOLEAN(S[SP]) THEN                                             53860000          
+     BEGIN                                                              53870000          
+         SP ~ SP - 1;                                                   53880000          
+         GO TO NEXT                                                     53890000          
+     END;                                                               53900000          
+ PP ~ PROGRAM[PP].BFIELD;                                               53910000          
+ GO TO TRANSFER;                                                        53920000          
+LAND:                                                                   53930000          
+ BOOLTEST;                                                              53940000          
+ IF BOOLEAN(S[SP]) THEN                                                 53950000          
+     BEGIN                                                              53960000          
+         SP ~ SP - 1;                                                   53970000          
+         GO TO NEXT                                                     53980000          
+     END;                                                               53990000          
+ PP ~ PROGRAM[PP].BFIELD;                                               54000000          
+ GO TO TRANSFER;                                                        54010000          
+LNOT:                                                                   54020000          
+ BOOLTEST;                                                              54030000          
+ S[SP] ~ REAL(NOT BOOLEAN(S[SP]));                                      54040000          
+ GO TO NEXT;                                                            54050000          
+LSS:                                                                    54060000          
+ BARITH;                                                                54070000          
+ S[SP] ~ REAL(S[SP] < S[SP+1]);                                         54080000          
+ SI[SP].TYPE ~ BOOLEANTYPE;                                             54090000          
+ GO TO NEXT;                                                            54100000          
+LEQ:                                                                    54110000          
+ BARITH;                                                                54120000          
+ S[SP] ~ REAL(S[SP] { S[SP+1]);                                         54130000          
+ SI[SP].TYPE ~ BOOLEANTYPE;                                             54140000          
+ GO TO NEXT;                                                            54150000          
+EQL:                                                                    54160000          
+ BARITH;                                                                54170000          
+ S[SP] ~ REAL(S[SP] = S[SP+1]);                                         54180000          
+ SI[SP].TYPE ~ BOOLEANTYPE;                                             54190000          
+ GO TO NEXT;                                                            54200000          
+NEQ:                                                                    54210000          
+ BARITH;                                                                54220000          
+ S[SP] ~ REAL(S[SP] ! S[SP+1]);                                         54230000          
+ SI[SP].TYPE ~ BOOLEANTYPE;                                             54240000          
+ GO TO NEXT;                                                            54250000          
+GEQ:                                                                    54260000          
+ BARITH;                                                                54270000          
+ S[SP] ~ REAL(S[SP] } S[SP+1]);                                         54280000          
+ SI[SP].TYPE ~ BOOLEANTYPE;                                             54290000          
+ GO TO NEXT;                                                            54300000          
+GTR:                                                                    54310000          
+ BARITH;                                                                54320000          
+ S[SP] ~ REAL(S[SP] > S[SP+1]);                                         54330000          
+ SI[SP].TYPE ~ BOOLEANTYPE;                                             54340000          
+ GO TO NEXT;                                                            54350000          
+MIN:                                                                    54360000          
+ BARITH;                                                                54370000          
+ IF S[SP+1] < S[SP] THEN S[SP] ~ S[SP+1];                               54380000          
+ GO TO NEXT;                                                            54390000          
+MAX:                                                                    54400000          
+ BARITH;                                                                54410000          
+ IF S[SP+1] > S[SP] THEN S[SP] ~ S[SP+1];                               54420000          
+ GO TO NEXT;                                                            54430000          
+ADD:                                                                    54440000          
+ BARITH;                                                                54450000          
+ S[SP] ~ S[SP] + S[SP+1];                                               54460000          
+ GO TO NEXT;                                                            54470000          
+SUB:                                                                    54480000          
+ BARITH;                                                                54490000          
+ S[SP] ~ S[SP] - S[SP+1];                                               54500000          
+ GO TO NEXT;                                                            54510000          
+NEG:                                                                    54520000          
+ IF SI[SP].TYPE ! NUMBERTYPE THEN ERROR(1);                             54530000          
+ S[SP] ~ -S[SP];                                                        54540000          
+ GO TO NEXT;                                                            54550000          
+MUL:                                                                    54560000          
+ BARITH;                                                                54570000          
+ S[SP] ~ S[SP] | S[SP+1];                                               54580000          
+ GO TO NEXT;                                                            54590000          
+DIVIDE:                                                                 54600000          
+ BARITH;                                                                54610000          
+ IF S[SP+1] = 0 THEN ERROR(2);                                          54620000          
+ S[SP] ~ S[SP] / S[SP+1];                                               54630000          
+ GO TO NEXT;                                                            54640000          
+IDIV:                                                                   54650000          
+ BARITH;                                                                54660000          
+ IF ROUND(S[SP+1]) = 0 THEN ERROR(2);                                   54670000          
+ S[SP] ~ ROUND(S[SP]) DIV ROUND(S[SP+1]);                               54680000          
+ GO TO NEXT;                                                            54690000          
+REMAINDER:                                                              54700000          
+ BARITH;                                                                54710000          
+ IF S[SP+1] = 0 THEN ERROR(2);                                          54720000          
+ S[SP] ~ S[SP] MOD S[SP+1];                                             54730000          
+ GO TO NEXT;                                                            54740000          
+POWER:                                                                  54750000          
+ BARITH;                                                                54760000          
+ S[SP] ~ S[SP] * S[SP+1];                                               54770000          
+ GO TO NEXT;                                                            54780000          
+ABSV:                                                                   54790000          
+ IF SI[SP].TYPE ! NUMBERTYPE THEN ERROR(1);                             54800000          
+ S[SP] ~ ABS(S[SP]);                                                    54810000          
+ GO TO NEXT;                                                            54820000          
+REALL:                                                                  54830000          
+ IF SI[SP].TYPE > BOOLEANTYPE THEN ERROR(1);                            54840000          
+ SI[SP].TYPE ~ NUMBERTYPE;                                              54850000          
+ GO TO NEXT;                                                            54860000          
+LOGICAL:                                                                54870000          
+ IF SI[SP].TYPE ! NUMBERTYPE THEN ERROR(1);                             54880000          
+ IF S[SP] = 0 OR S[SP] = 1 THEN                                         54890000          
+     SI[SP].TYPE ~ BOOLEANTYPE                                          54900000          
+ ELSE                                                                   54910000          
+     SI[SP].TYPE ~ UNDEFINED;                                           54920000          
+ GO TO NEXT;                                                            54930000          
+LISTT:                                                                  54940000          
+ IF SI[SP].TYPE ! NUMBERTYPE THEN ERROR(1);                             54950000          
+ I2 ~ S[SP];                                                            54960000          
+ IF I2 + FP > 1022 THEN FREE(I2);                                       54970000          
+ FOR I1 ~ FP STEP 1 UNTIL FP+I2-1 DO                                    54980000          
+     FI[I1].TYPE ~ UNDEFINED;                                           54990000          
+ SI[SP].TYPE ~ LISTTYPE;                                                55000000          
+ SI[SP].WCT ~ I2;                                                       55010000          
+ SI[SP].ADDRESS ~ FP;                                                   55020000          
+ FP ~ FP + I2;                                                          55030000          
+ GO TO NEXT;                                                            55040000          
+                                                                        55050000          
+ISLOGICAL:                                                              55060000          
+ SETIS(BOOLEANTYPE);                                                    55070000          
+ GO TO NEXT;                                                            55080000          
+ISNUMBER:                                                               55090000          
+ SETIS(NUMBERTYPE);                                                     55100000          
+ GO TO NEXT;                                                            55110000          
+ISREFERENCE:                                                            55120000          
+ SETIS(REFERENCETYPE);                                                  55130000          
+ GO TO NEXT;                                                            55140000          
+ISLABEL:                                                                55150000          
+ SETIS(LABELTYPE);                                                      55160000          
+ GO TO NEXT;                                                            55170000          
+ISLIST:                                                                 55180000          
+ SETIS(LISTTYPE);                                                       55190000          
+ GO TO NEXT;                                                            55200000          
+ISSYMBOL:                                                               55210000          
+ SETIS(SYMBOLTYPE);                                                     55220000          
+ GO TO NEXT;                                                            55230000          
+ISPROCEDURE:                                                            55240000          
+ SETIS(PROCEDURETYPE);                                                  55250000          
+ GO TO NEXT;                                                            55260000          
+ISUNDEFINED:                                                            55270000          
+ SETIS(UNDEFINED);                                                      55280000          
+ GO TO NEXT;                                                            55290000          
+                                                                        55300000          
+TAIL:                                                                   55310000          
+ IF SI[SP].TYPE ! LISTTYPE THEN ERROR(1);                               55320000          
+ IF SI[SP].WCT = 0 THEN ERROR(10);                                      55330000          
+ SI[SP].WCT ~ SI[SP].WCT - 1;                                           55340000          
+ SI[SP].ADDRESS ~ SI[SP].ADDRESS + 1;                                   55350000          
+ GO TO NEXT;                                                            55360000          
+THENV:                                                                  55370000          
+ BOOLTEST;                                                              55380000          
+ SP ~ SP - 1;                                                           55390000          
+ IF BOOLEAN(S[SP+1]) THEN                                               55400000          
+     GO TO NEXT;                                                        55410000          
+ PP ~ PROGRAM[PP].BFIELD;                                               55420000          
+ GO TO TRANSFER;                                                        55430000          
+ELSEV:                                                                  55440000          
+ PP ~ PROGRAM[PP].BFIELD;                                               55450000          
+ GO TO TRANSFER;                                                        55460000          
+LENGTH:                                                                 55470000          
+ FETCH;                                                                 55480000          
+ IF SI[SP].TYPE ! LISTTYPE THEN ERROR(1);                               55490000          
+ SI[SP].TYPE ~ NUMBERTYPE;                                              55500000          
+ S[SP] ~ SI[SP].WCT;                                                    55510000          
+ GO TO NEXT;                                                            55520000          
+GOTO:                                                                   55530000          
+ IF SI[SP].TYPE ! LABELTYPE THEN ERROR(1);                              55540000          
+ MP ~ SI[SP].STATIC;                                                    55550000          
+ COMMENT  WE MUST RETURN TO THE BLOCK WHERE THE LABEL IS DEFINED;       55560000          
+ PP ~ SI[SP].ADDRESS;                                                   55570000          
+ SP ~ MP;                                                               55580000          
+ GO TO TRANSFER;                                                        55590000          
+FORMAL:                                                                 55600000          
+ FORMALCOUNT ~ FORMALCOUNT + 1;                                         55610000          
+ IF FORMALCOUNT { S[MP].WCT THEN                                        55620000          
+     GO TO NEXT                                                         55630000          
+ ELSE                                                                   55640000          
+     GO TO NEW;                                                         55650000          
+NEW:                                                                    55660000          
+ S[MP].WCT ~ S[MP].WCT + 1;                                             55670000          
+ FI[FP].TYPE ~ UNDEFINED;                                               55680000          
+ FP ~ FP + 1;                                                           55690000          
+ IF FP > 1022 THEN FREE(1);                                             55700000          
+ GO TO NEXT;                                                            55710000          
+STORE:                                                                  55720000          
+ IF SI[SP-1].TYPE ! REFERENCETYPE THEN ERROR(13);                       55730000          
+ LEVELCHECK(SI[SP], SI[SP-1].STATIC);                                   55740000          
+ SP ~ SP - 1;            COMMENT  NON-DESTRUCTIVE STORE;                55750000          
+ I1 ~ SI[SP].ADDRESS;                                                   55760000          
+ S[SP] ~ F[I1] ~ S[SP+1];                                               55770000          
+ SI[SP] ~ FI[I1] ~ SI[SP+1];                                            55780000          
+ COMMENT  THE NON-DESTRUCTIVE STORE IS NOT APPLICABLE TO LISTS;         55790000          
+ IF SI[SP].TYPE = LISTTYPE THEN SI[SP].TYPE ~ UNDEFINED;                55800000          
+ GO TO NEXT;                                                            55810000          
+SUBSCRIPT:                                                              55820000          
+ IF SI[SP].TYPE ! NUMBERTYPE THEN ERROR(6);                             55830000          
+ SP ~ SP - 1;                                                           55840000          
+ IF SI[SP].TYPE ! REFERENCETYPE THEN ERROR(7);                          55850000          
+ I1 ~ SI[SP].STATIC; SI[SP] ~ FI[SI[SP].ADDRESS];                       55860000          
+ IF SI[SP].TYPE ! LISTTYPE THEN ERROR(8);                               55870000          
+ IF S[SP+1] < 1 OR S[SP+1] > SI[SP].WCT THEN ERROR(9);                  55880000          
+ SI[SP].ADDRESS ~ SI[SP].ADDRESS + S[SP+1] - 1;                         55890000          
+ SI[SP].TYPE ~ REFERENCETYPE;        COMMENT  MUST CREATE A REFERENCE;  55900000          
+ SI[SP].STATIC ~ I1; GO TO NEXT;                                        55910000          
+BEGINV:                                                                 55920000          
+ SPUP;                                                                  55930000          
+ SI[SP] ~ 0;                                                            55940000          
+ SI[SP].TYPE ~ BLOCKMARK;                                               55950000          
+ SI[SP].BLN ~ SI[MP].BLN + 1;                                           55960000          
+ SI[SP].DYNAMIC ~ MP;                                                   55970000          
+ SI[SP].STATIC ~ MP;                                                    55980000          
+ S[SP].TYPE ~ LISTTYPE;                                                 55990000          
+ S[SP].ADDRESS ~ FP;                                                    56000000          
+ S[SP].WCT ~ 0;          COMMENT  A NULL LIST;                          56010000          
+ MP ~ SP;                                                               56020000          
+ GO TO NEXT;                                                            56030000          
+ENDV:                                                                   56040000          
+ I1 ~ SI[MP].DYNAMIC;                                                   56050000          
+ LEVELCHECK(SI[SP], SI[MP].STATIC);                                     56060000          
+ SI[MP] ~ SI[SP];                                                       56070000          
+ S[MP] ~ S[SP];                                                         56080000          
+ SP ~ MP;                                                               56090000          
+ MP ~ I1;                                                               56100000          
+ GO TO NEXT;                                                            56110000          
+LEFTQUOTE:                  COMMENT  PROCEDURE DECLARATION;             56120000          
+ SPUP;                                                                  56130000          
+ SI[SP].TYPE ~ PROCEDURETYPE;                                           56140000          
+ SI[SP].ADDRESS ~ PP;                                                   56150000          
+ COMMENT  THE PROCEDURE DESCRIPTOR MUST SAVE ITS OWN LEXICOGRAPHICAL    56160000          
+ LEVEL AS WELL AS THE STACK MARKER FOR UPLEVEL ADDRESSED VARIABLES;     56170000          
+ SI[SP].BLN ~ SI[MP].BLN + 1;                                           56180000          
+ SI[SP].STATIC ~ MP;                                                    56190000          
+ PP ~ PROGRAM[PP].BFIELD;                                               56200000          
+ GO TO TRANSFER;                                                        56210000          
+RIGHTQUOTE:                                                             56220000          
+ PP ~ SI[MP].ADDRESS;    COMMENT  A PROCEDURE RETURN;                   56230000          
+ I1 ~ SI[MP].DYNAMIC;                                                   56240000          
+ LEVELCHECK(SI[SP], SI[MP].STATIC);                                     56250000          
+ SI[MP] ~ SI[SP];                                                       56260000          
+ S[MP] ~ S[SP];                                                         56270000          
+ SP ~ MP;                                                               56280000          
+ MP ~ I1;                                                               56290000          
+ GO TO NEXT;                                                            56300000          
+VALUEOPERATOR:                                                          56310000          
+ IF SI[SP].TYPE = LISTTYPE THEN                                         56320000          
+     GO TO NEXT;                                                        56330000          
+ FETCH;                                                                 56340000          
+ IF SI[SP].TYPE = PROCEDURETYPE THEN                                    56350000          
+     BEGIN                                                              56360000          
+         FORMALCOUNT ~ 0;                                               56370000          
+         I1 ~ SI[SP].ADDRESS;                                           56380000          
+         SI[SP].TYPE ~ BLOCKMARK;                                       56390000          
+         SI[SP].ADDRESS ~ PP;                                           56400000          
+         SI[SP].DYNAMIC ~ MP;                                           56410000          
+         S[SP].TYPE ~ LISTTYPE;                                         56420000          
+         S[SP].WCT ~ 0;                                                 56430000          
+         MP ~ SP;                                                       56440000          
+         PP ~ I1;                                                       56450000          
+     END                                                                56460000          
+ ELSE IF SI[SP].TYPE = LISTTYPE THEN                                    56470000          
+     COPY(SI[SP]);                                                      56480000          
+ GO TO NEXT;                                                            56490000          
+PROCEDURECALL:                                                          56500000          
+ SP ~ SP - 1;                                                           56510000          
+ FETCH;                                                                 56520000          
+ IF SI[SP].TYPE ! PROCEDURETYPE THEN ERROR(3);                          56530000          
+ FORMALCOUNT ~ 0;                                                       56540000          
+ I1 ~ SI[SP].ADDRESS;                                                   56550000          
+ SI[SP].TYPE ~ BLOCKMARK;                                               56560000          
+ SI[SP].ADDRESS ~ PP;                                                   56570000          
+ SI[SP].DYNAMIC ~ MP;                                                   56580000          
+ S[SP] ~ SI[SP+1];       COMMENT  THE LIST DESC. FOR PARAMETERS;        56590000          
+ MP ~ SP;                                                               56600000          
+ PP ~ I1;                                                               56610000          
+ GO TO NEXT;                                                            56620000          
+RIGHTPAREN:                                                             56630000          
+ I1 ~ PROGRAM[PP].BFIELD;                                               56640000          
+ IF I1 + FP > 1022 THEN FREE(I1);                                       56650000          
+ SP ~ SP - I1 + 1;                                                      56660000          
+ MOVE(S[SP], F[FP], I1);                                                56670000          
+ MOVE(SI[SP], FI[FP], I1);                                              56680000          
+ SI[SP].TYPE ~ LISTTYPE;                                                56690000          
+ SI[SP].WCT ~ I1;                                                       56700000          
+ SI[SP].ADDRESS ~ FP;                                                   56710000          
+ FP ~ FP + I1;                                                          56720000          
+ GO TO NEXT;                                                            56730000          
+INPUT:                                                                  56740000          
+ SPUP;                                                                  56750000          
+ READ (CARDFIL, /, S[SP]) [EXIT];                                       56760000          
+ SI[SP].TYPE ~ NUMBERTYPE;                                              56770000          
+ GO TO NEXT;                                                            56780000          
+OUTPUT:                                                                 56790000          
+ DUMPOUT(SI[SP], S[SP]);                                                56800000          
+ GO TO NEXT;                                                            56810000          
+INTEGERIZE:                                                             56820000          
+ GO TO NEXT;                                                            56830000          
+DONE:                                                                   56840000          
+ END INTERPRETER;                                                       56850000          
+                                                                        56860000          
+EXIT:                                                                   56870000          
+END.                                                                    99999900          
