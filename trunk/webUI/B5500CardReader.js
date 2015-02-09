@@ -113,7 +113,7 @@ B5500CardReader.prototype.armEOF = function armEOF(armed) {
 };
 
 /**************************************/
-B5500CardReader.prototype.CRStartBtn_onclick = function CRStartBtn_onclick(ev) {
+B5500CardReader.prototype.CRStartBtn_onClick = function CRStartBtn_onClick(ev) {
     /* Handle the click event for the START button */
 
     if (!this.ready) {
@@ -124,7 +124,7 @@ B5500CardReader.prototype.CRStartBtn_onclick = function CRStartBtn_onclick(ev) {
 };
 
 /**************************************/
-B5500CardReader.prototype.CRStopBtn_onclick = function CRStopBtn_onclick(ev) {
+B5500CardReader.prototype.CRStopBtn_onClick = function CRStopBtn_onClick(ev) {
     /* Handle the click event for the STOP button */
 
     this.$$("CRFileSelector").value = null;     // reset the control so the same file can be reloaded
@@ -136,19 +136,19 @@ B5500CardReader.prototype.CRStopBtn_onclick = function CRStopBtn_onclick(ev) {
 };
 
 /**************************************/
-B5500CardReader.prototype.CREOFBtn_onclick = function CREOFBtn_onclick(ev) {
+B5500CardReader.prototype.CREOFBtn_onClick = function CREOFBtn_onClick(ev) {
     /* Handle the click event for the EOF button */
 
     this.armEOF(!this.eofArmed);
 };
 
 /**************************************/
-B5500CardReader.prototype.CRHopperBar_onclick = function CRHopperBar_onclick(ev) {
+B5500CardReader.prototype.CRHopperBar_onClick = function CRHopperBar_onClick(ev) {
     /* Handle the click event for the "input hopper" meter bar */
 
     if (this.bufIndex < this.bufLength && !this.ready) {
         if (this.window.confirm((this.bufLength-this.bufIndex).toString() + " of " + this.bufLength.toString() +
-                     " characters remaining to read.\nDo you want to clear the reader input hopper?")) {
+                     " characters remaining to read.\nDo you want to clear the input hopper?")) {
             this.buffer = "";
             this.bufLength = 0;
             this.bufIndex = 0;
@@ -324,13 +324,13 @@ B5500CardReader.prototype.readerOnload = function readerOnload() {
     this.$$("CRFileSelector").addEventListener("change",
             B5500CentralControl.bindMethod(this, B5500CardReader.prototype.fileSelector_onChange), false);
     this.$$("CRStartBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRStartBtn_onclick), false);
+            B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRStartBtn_onClick), false);
     this.$$("CRStopBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRStopBtn_onclick), false);
+            B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRStopBtn_onClick), false);
     this.$$("CREOFBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CREOFBtn_onclick), false);
+            B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CREOFBtn_onClick), false);
     this.hopperBar.addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRHopperBar_onclick), false);
+            B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRHopperBar_onClick), false);
 
     this.window.resizeBy(de.scrollWidth - this.window.innerWidth + 4, // kludge for right-padding/margin
                          de.scrollHeight - this.window.innerHeight);
