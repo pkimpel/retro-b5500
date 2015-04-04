@@ -28,8 +28,8 @@ The console was used to power the system on and off, initiate a load (boot) of t
 From left to right, the controls on the console are:
 
     * *HALT* button -- pressing this red pushbutton halts the system. This initiates a complete termination of all processing. The only way to continue after halting is to press *LOAD* and reboot the system. The button illuminates when power is on and the system is halted.
-    * *NOT READY* light -- this white indicator illuminates when one of the components of the system that did not have its own ready/not ready indicator is in a not-ready or off-line state. It applies to processors, I/O units, memory modules, and the first drum (if present).
-    * *MEMORY CHECK* -- this red light illuminates when a memory parity error is detected by either processor.
+    * *NOT READY* light -- this white indicator illuminates when one of the components of the system that did not have its own ready/not ready indicator is in a not-ready or off-line state. It applies to processors, I/O units, memory modules, and the first drum (if present). The emulator does not presently illuminate this indicator at all.
+    * *MEMORY CHECK* -- this red light illuminates when a memory parity error is detected by either processor. The emulator does not presently generate memory parity errors, however. Clicking this button when "power" is on will produce a complete dump of processor state and memory in a separate browser window. This dump can be generated at any time, even while the system is running.
     * *LOAD* -- pressing this black pushbutton clears all registers in the system and initiates a load operation. When loading from disk, 63 sectors (1890 words) are read into memory starting at location 20 octal. When loading from cards, one binary card is read starting at location 20 octal. If the read is successful, Processor 1 then starts executing at that address.
     * *CARD LOAD SELECT* -- this yellow button/light controls whether a load operation reads from the first disk^1^ or the first card reader. In its normal position, load is from disk. When pressed, the physical button latched inward and lit, enabling load from cards. In the web-based emulator, the state of the button toggles each time you click it, but the button only lights.
     * *A NORMAL* -- this yellow light illuminates when Processor A is operating in Normal State (i.e., running user code).
@@ -66,7 +66,7 @@ The `NOT READY` indicator was also a simple lamp on the B5500. As a temporary me
 
 The console attempts to update its display every 50 milliseconds. This update period applies not only to the additional annunciators below, but also to the A/B Normal/Control lights described above. Generally, an annunciator is lit if the corresponding element of the system had any activity since the last update of the display.
 
-The top row of annunciators displays activity for the I/O Units (channels) and external interrupts for the system:
+The top row of annunciators displays activity for the I/O Units (channels), external interrupts, and Processor 2 control for the system:
 
     * `IOU1` -- I/O unit 1 busy (i.e., an I/O was active on this unit)
     * `IOU2` -- I/O unit 2 busy
@@ -84,8 +84,10 @@ The top row of annunciators displays activity for the I/O Units (channels) and e
     * `P2BZ` -- Processor 2 busy interrupt
     * `INQ ` -- Remote inquiry request interrupt
     * `SPEC` -- Special interrupt #1 (not used)
-    * `DK1F` -- Disk file #1 read check finished
-    * `DK2F` -- Disk file #2 read check finished
+    * `DK1F` -- Disk file control #1 read check finished
+    * `DK2F` -- Disk file control #2 read check finished
+    * `P2BF` -- Processor 2 busy flip-flop^3^
+    * `HP2F` -- Halt Processor 2 flip-flop
 
 The second row of annunciators displays activity for the peripheral devices in the system:
 
@@ -109,7 +111,7 @@ The second row of annunciators displays activity for the peripheral devices in t
 At the far right of the lower portion of the console are two statistics that indicate how well the emulator for Processor 1 is performing:
 
     * *P1 Slack:* the exponential moving average for the percentage of time the emulated processor is delaying its execution in order to throttle its performance to that of a real B5500. Numbers closer to 100% indicate the processor emulation is using relatively small amounts of your workstation's physical processor. Numbers closer to zero indicate the emulator is barely able (or perhaps unable) to run at the speed of a real B5500.
-    * *P1 Delay:* the exponential moving average amount of time (in milliseconds) the processor emulation is delayed during throttling _in excess of_ the amount of time it requested to be delayed. This is a running average over the last 1000 delays, and is an indication of how precise the Javascript `setTimeout()` implementation is for your browser.
+    * *P1 Delay:* the exponential moving average amount of time (in milliseconds) that processor emulation is delayed during throttling, _in excess of_ the amount of time it requested to be delayed. This is somewhat an indication of how precise the Javascript `setTimeout()` implementation is for your browser.
 
 In our experience with Mozilla Firefox and Google Chrome, the delay number is typically about half the browser's actual precision, plus one or two milliseconds. HTLM5 standards specify that browsers must have a precision of at least four milliseconds, so you should see values in the 3-4ms range for a compliant browser. Lower values are better, as all of the emulation takes place on one Javascript thread, and shorter delays allow the emulation to switch among processor and I/O tasks more efficiently.
 
@@ -124,3 +126,5 @@ Starting with version 23, Firefox under Windows appears to handle timers more pr
 ^1^ On the B5000 and early B5500s, hardware load operated from sector 0 of the first drum device (DRA). Later B5500s were modified to load from sector 1 of the first Head-per-Track disk device (DKA). Systems wired to load from drum but without a drum device used a one-card bootstrap program to load the KERNEL bootstrap program from sector 1 of the disk, which in turn loaded the MCP. Such systems were thus effectively always booted from cards.
 
 ^2^ The B5000 and B5500 could have two processors, which were physically identified as Processor A and Processor B. Both processors were identical, with their identification determined by where they were plugged into the D&D. Based on a manual switch in the Central Control Unit, one processor could be designed as Processor 1, the control processor. The other (if present) would then be Processor 2. Only Processor 1 could run in Control State, execute MCP code, and respond to interrupts. Processor 2 could run only user programs in Normal State, and was essentially a slave to Processor 1.
+
+^3^ P2BF served primarily to inhibit initiating a program on P2, so it is always lit for a system where a second processor is not configured.

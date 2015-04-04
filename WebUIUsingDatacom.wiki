@@ -19,17 +19,17 @@ The second iteration was a "data transmission" system, which consisted of the B2
 
 Each B487 supported up to 15 communications circuits. Each circuit was terminated in an adapter card that plugged into the B487. There were different adapter cards for different types of circuits (e.g., teletype current-loop, Bell 103A modem, TWIX, etc.). The B487 buffered characters from each circuit to assemble messages, sending blocks of message data instead of individual characters through the B249 to the I/O Control Unit.
 
-The B487 was limited, however, by a very small buffer memory -- 420 characters total for all circuits. 28 characters of this was allocated to each adapter slot, but multiple 28-character units could be assigned to an adapter by leaving the appropriate number of adapter slots following it unoccupied. Thus, you could configure lots of adapters with small buffers, or fewer adapters with larger buffers, on one B487.
+The B487 was limited, however, by a very small buffer memory -- 420 characters total for all circuits. 28 characters of this was allocated to each adapter slot, but multiple 28-character chunks could be assigned to an adapter by leaving the appropriate number of adapter slots following that adapter unoccupied. Thus, on one B487 you could configure lots of adapters with small buffers, or fewer adapters with larger buffers.
 
 One problem with implementing a datacom interface in the web-based emulator is that web browsers act strictly as clients in a network connection, and what the emulator needs to do is act as a server. As a result, the web-based emulator cannot support something obvious, such as the Telnet protocol -- there just is not any way to get a browser to accept those connections as a server.
 
 Therefore, we have decided to punt and implement a datacom interface for a _single_ terminal within the browser environment itself. While internally this terminal implements much of the mechanism of the B487 and B249, on the surface it works somewhat like the SPO device. It has a terminal-like window that emulates a teletype device. The device has been assigned four buffer segments, or 112 characters of buffer memory. Ping-pong buffering is not currently supported.
 
-The windor for the terminal interface we have developed for the web-based emulator looks like this:
+The window for the terminal interface we have developed for the web-based emulator looks like this:
 
     https://googledrive.com/host/0BxqKm7v4xBswRjNYQnpqM0ItbkU/B5500-Datacom-Terminal.png
 
-You type messages into this window, and the window displays the system's responses -- all at ten characters per second -- just like any good 1960s terminal would do. If you think this is too slow to do any useful work, it just means you are spoiled by current Internet technology. Get over it.
+You type messages into this window, and the window displays the system's responses -- all at ten characters per second -- just like any good 1960s terminal would do.
 
 
 = Terminal Control Panel =
@@ -49,7 +49,7 @@ The B249 DTCU and B487 DTTU do not have a user interface. The terminal itself is
 
 = Using the Datacom Terminal =
 
-The *Connect* button is used to initiate a connection between the terminal and the DTTU, similar to dialing a telephone number and establishing a modem connection. Simply click the button to connect. It will light. Click again to disconnect. After connecting, the system should respond with an identification message within a few seconds:
+The *Connect* button is used to initiate a connection between the terminal and the DTTU, similar to dialing a telephone number and establishing a modem connection. Simply click the button to connect. It will light. Click again to disconnect. After connecting, a system running the Datacom MCP should respond with an identification message within a few seconds:
 
     {{{
     B-5500 01/00
@@ -60,7 +60,7 @@ The numbers following "`B-5500`" are the DTTU number and buffer number within th
 Because the B5500 had a character set consisting of only 64 printable characters, it had no native provision for the types of control characters (carriage-return, backspace, etc.) we are now accustomed to using with ASCII. Therefore, certain of the Model 33 printable characters were reserved for this purpose. On input, the following characters have special meaning:
 
     * `<` -- backspace.
-    * (left-arrow) -- end of message. For the web-based emulator, we use the tilde (~) to represent the left arrow. The ASCII DC1 character (also known as X-on or control-Q) will also end an input message.
+    * (left-arrow) -- end of message. The Model 33 Teletype had this character, but on modern keyboards this is represented by the underscore character (`_`). For the web-based emulator, we use both underscore and the tilde (`~`) to represent the left arrow. The ASCII DC1 character (also known as X-on or control-Q) will also end an input message.
     * (control-B) -- also known as ASCII STX, this is the equivalent of sending a Break signal from the terminal.
     * (control-E) -- also known as ASCII ENQ, this is the WRU (who-are-you) character.
     * (control-L) -- also known as ASCII FF, this character would clear the input buffer after the user started entering a message, but leave the buffer in an Input Busy state.
@@ -68,8 +68,8 @@ Because the B5500 had a character set consisting of only 64 printable characters
 
 The emulated terminal supports two user-interface features that the DTTU Teletype adapter did not:
 
-    # You can press the Enter key on your keyboard instead of the "~" to end a message. The terminal will print a "~".
-    # You can press the Backspace key to correct errors. The terminal will print a "<".
+    # You can press the Enter key on your keyboard instead of the "`~`" to end a message. The terminal will print a "`~`".
+    # You can press the Backspace key to correct errors. The terminal will print a "`<`".
 
 See pages 3-15 and 3-16 in the [http://bitsavers.org/pdf/burroughs/1031986_B5500_Handbook_Aug70.pdf B5500 Handbook] for information on the character substitutions used by the B249/B487.
 
