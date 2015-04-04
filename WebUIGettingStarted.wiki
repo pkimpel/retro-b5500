@@ -45,7 +45,7 @@ The retro-B5500 emulator pushes the limits in several areas of current web-brows
     * Window `postMessage` API
     * HTML `<progress>` element
 
-As of this writing, the emulator has been tested with and works with Mozilla Firefox 21 and Google Chrome 27. Somewhat earlier versions of these browsers may also work. Our next priority is to get it to work in Apple Safari. Microsoft Internet Explorer (at least through IE9) will _not_ support the emulator. We have not yet tried IE10.
+As of this writing, the emulator has been tested with and works with Mozilla Firefox (version 21 and above) and Google Chrome (version 27 and above). Somewhat earlier versions of these browsers may also work. Apple Safari will not support the emulator, because it does not as yet support the IndexedDB API (the emulator runs fine under Firefox on a Macintosh, however). Microsoft Internet Explorer (at least through IE10) will not support the emulator. We have not yet tried Opera.
 
 == The Web Server ==
 
@@ -53,7 +53,7 @@ The emulator must be hosted on a web server. You will not be able to run the emu
 See [WebUIGettingStarted#Establish_the_Web_Server Establish the Web Server]
 below for more details.
 
-If you need a small, simple web server to host the emulator locally, we have had good success with mongoose (https://github.com/valenok/mongoose). It can run on the same workstation as your browser to serve the emulator files using the loop-back port (localhost or 127.0.0.1). Versions are available that run under Windows, Linux, UNIX, Mac OS, and others. It is extremely easy to set up. Under Windows, it can run as either a regular program or as a service.
+If you need a small, simple web server to host the emulator locally, we have had good success with `mongoose` (https://github.com/valenok/mongoose). It can run on the same workstation as your browser to serve the emulator files using the loop-back port (localhost or 127.0.0.1). Versions are available that run under Windows, Linux, UNIX, Mac OS, and others. It is extremely easy to set up. Under Windows, it can run as either a regular program or as a service.
 
 As an alternative to setting up and operating your own web server, you are welcome to use a web site we have set up on a hosting service. Just point your browser to the following URL:
 
@@ -128,7 +128,9 @@ The default configuration also has two Disk File Controls, DKA and DKB, and assu
 
 === Running the Cold Loader ===
 
-Initializing the disk subsystem on a real B5500 involved loading a couple of bootstrap programs from cards and loading the system software from tape. The emulator does not yet boot programs from cards nor support tape drives, so in the interim, we have developed a standalone web page, the Cold Loader, to initialize the IndexedDB database structures, create an initial disk directory, and load files from the tape images. Before proceeding with this section, you must have the emulator files set up on a web server and have downloaded at least the `SYSTEM` tape image, as described in the previous sections.
+Initializing the disk subsystem on a real B5500 involved loading a couple of bootstrap programs from cards and loading the system software from tape. Initially, the emulator did not boot programs from cards or support tape drives, so in the interim, we developed a standalone web page, the Cold Loader, to initialize the IndexedDB database structures, create an initial disk directory, and load files from the tape images. That is no longer the case, and in theory you could cold-start the system the old-fashioned way with card decks, but the Cold Loader is still the easier way to do it.
+
+Before proceeding with this section, you must have the emulator files set up on a web server and have downloaded at least the `SYSTEM` tape image, as described in the previous sections.
 
 The Cold Loader script is `B5500ColdLoader.html` in the `webUI/` directory. If you are running the emulator from our hosting site, simply open
 
@@ -152,7 +154,7 @@ Finally, different web browsers store their IndexedDB databases differently. A d
 
 === Cold-starting the System ===
 
-In B5500 parlance, a "cold start" is an initialization of the system that assumes there is nothing of value in the disk subsystem. A cold start creates an empty disk directory and initializes some MCP configuration data on the disk. It it similar to formatting a disk in Microsoft Windows or creating a file system in Linux. Any prior contents of the disk subsystem are, of course, lost when you do this.
+In B5500 parlance, a "cold start" is an initialization of the system that assumes there is nothing of value in the disk subsystem. A cold start creates an empty disk directory and initializes some MCP configuration data on the disk. It it similar to formatting a disk in Microsoft Windows or creating a file system in Linux. Any prior contents of the disk subsystem are, of course, lost when you do this. The Cold Loader does not merely overwrite the disk space when cold-starting, it deletes the database structures and recreates them.
 
 To cold-start the emulator disk subsystem, click the *Cold Start* button at the top of the browser page:
 
@@ -172,10 +174,13 @@ The page will read the directory of files on the tape image and display a list o
 
     https://googledrive.com/host/0BxqKm7v4xBswRjNYQnpqM0ItbkU/ColdLoader-Tape-File-List.png
 
-In the *Load* column of this list are checkboxes. Check the corresponding boxes for the files you wish to load. You can load as many files at one time as you wish. There should be plenty of disk space -- the entire `SYSTEM` tape is only 12.4 million characters. We recommend that you select at least the following files initially:
+In the *Load* column of this list are checkboxes. Check the corresponding boxes for the files you wish to load. You can load as many files at one time as you wish. There should be plenty of disk space -- the entire `SYSTEM` tape is only 12.4 million characters. You _must_ select at least the following files initially:
 
     * `MCP/DISK` -- the Master Control Program operating system. *Important!* also tick the radio button in the *As MCP* column. This will cause the Cold Loader to set the MCP bootstrap address in segment zero to point to this file.
     * `INT/DISK` -- the System Intrinsics, a library of dynamically-bound subroutines used by all programs. *Important!* also tick the radio button in the *As INT* column. This will cause the Cold Loader to set the Intrinsics address in segment zero to point to this file.
+
+We recommend that you select these additional files when cold-starting as well:
+
     * `PRNPBT/DISK` -- the spooler for printer output.
     * `LDNCTRL/DISK` -- the spooler for card reader input (known as "pseudo" readers).
     * `ALGOL/DISK` -- the Extended Algol compiler.
@@ -196,13 +201,31 @@ You may wish to select some of the following additional files, depending on how 
     * `PATCH/MERGE` -- a program to merge multiple source patch files into one and resolve conflicts among patches.
     * `XREF/JONES` -- a program for documentation and cross-referencing identifiers in program source files.
 
-Feel free to select any additional files from the `SYSTEM` tape, but note that `NDL/DISK`, `TSPOL/DISK`, the TSS/MCP (time-sharing MCP), and related `CANDE` files will not be very useful until the data communications interface is supported in the emulator.
+Feel free to select any additional files from the `SYSTEM` tape when you are cold-starting, but it is now generally better to wait until the MCP is up and running and load any additional files using the Library/Maintenance feature of the MCP. See below for more on this.
 
 After selecting files from the list for the `SYSTEM` tape image, click the *Load* button at the bottom of the list. The page will read the tape image, extract the selected files, and store them in the disk subsystem, updating the disk directory as necessary.
 
 Once files from the `SYSTEM` tape image have been loaded, you can click the *Browse* or *Choose File* button again and repeat the steps above to select and load files from the `SYMBOL1` and `SYMBOL2` tape images. Those two tape images contain only source code files.
 
-    _NOTE:_ It is possible to run the Cold Loader again at a later time to load additional files to an existing disk subsystem without cold-starting it first, but we do not recommend doing this. The disk directory update facilities in the Cold Loader are not very robust at this point, and subsequent load runs may corrupt the disk directory, especially if a file is loaded that replaces one that is already in the directory with the same name.
+    _NOTE:_ It is possible to run the Cold Loader again at a later time to load additional files to an existing disk subsystem without cold-starting it first, but we do not recommend doing this. The disk directory update facilities in the Cold Loader are not very robust at this point, and subsequent load runs may corrupt the disk directory, especially if you attempt to replace a file name that is already in the directory.
+
+We now recommend that you load only a minimum set of files to disk using the Cold Loader (i.e., the two mandatory and three recommended files above), and load any additional files using Library/Maintenance once the MCP is up and running. The MCP does a much better job of disk space allocation and directory maintenance than the Cold Loader. In particular, the MCP will replace existing files safely. It will also try to evenly distribute files across the available disk EUs, which will tend to more evenly distribute I/Os across the EUs and increase the probability of multiple simultaneous I/Os taking place.
+
+Library/Maintenance is the portion of the MCP that manages disk files and maintains the disk directory. Among its features is the capability to dump disk files to and load disk files from magnetic tape. This was typically used for file backup, archiving, and transferring files among systems.
+
+Files can be loaded from Library/Maintenance volumes such as the `SYSTEM`, `SYMBOL1`, and `SYMBOL2` tape images using the `LOAD` and `ADD` control card commands, e.g.,
+
+    {{{
+    ?LOAD FROM SYSTEM ESPOL/DISK, COBOL/DISK, DUMP/ANALYZE
+    }}}
+
+A control card command can be continued across multiple card images by terminating a card with a hyphen (-) wherever a word or other punctuation character might appear. The following continuation card(s) must not have an invalid character in column 1.
+
+All files having the same first or last identifier in their file name may be loaded by specifying `MFID/=` or `=/FID`. All files from a tape can be loaded by specifying `=/=`.
+
+The `ADD` command works the same as `LOAD`, except that loads only files that are not already in the disk directory.
+
+See [WebUIUsingTheMagTapeDrive Using the Magnetic Tape Drive] for more information on how to mount tape images onto a tape drive. See Section 4 in http://bitsavers.org/pdf/burroughs/B5000_5500_5700/1024916_B5500_B5700_OperMan_Sep68.pdf for more information on control card syntax and the Library/Maintenance commands.
 
 
 = Next Steps =
