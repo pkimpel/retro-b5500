@@ -1,0 +1,323 @@
+#summary Instructions for setting up the TSMCP and CANDE timesharing environment in the web-based retro-B5500 emulator.
+#labels Burroughs,B5500,emulator,retro-b5500,TSMCP,CANDE,timesharing
+
+= WebUI Setting Up TSMCP and CANDE =
+<wiki:toc max_depth="2"/>
+
+= D R A F T =
+
+
+= Introduction =
+
+This page describes how to the timesharing features to an existing emulator environment for the Burroughs B5500 system. At the end is a short sample session using CANDE.
+
+== Prerequisites ==
+
+The procedure described below assumes you have the retro-B5500 emulator installed and set up with the default DCMCP (Datacom MCP) software as described in [WebUIGettingStarted WebUI Getting Started].
+
+Before proceeding, you should have a basic familiarity with the emulator, SPO, card reader, and tape drive. See the following pages for information these topics:
+
+  * [WebUIRuningTheEmulator Running the Emulator]
+  * [WebUIUsingTheSPO Using the SPO]
+  * [WebUIUsingTheCardReader Using the Card Reader]
+  * [WebUIUsingTheMagTapeDrive Using the Magnetic Tape Drive]
+
+== Background ==
+
+There were several variations of the MCP (Master Control Program) operating system used with the B5000 and B5500 computer systems over their long active lifetime. The original MCP for the B5000, released in early 1963, was somewhat limited, largely due to the severely restricted mass storage (two 32K-word drums) available on that system. The B5000 was a batch system, with most processing involving punched cards, magnetic tape, and possibly paper tape.
+
+The B5500, first available in early 1965, was essentially the same system, but with the addition of a new Head-per-Track disk subsystem. HPT disk offered capacities up to one billion 6-bit characters. The MCP was completely rewritten to take advantage of this new disk, becoming known as the Disk File MCP (DFMCP).
+
+Data communications interface hardware became available for the B5500 shortly after the DFMCP was released. The most commonly-used interface was the B249 Data Transmission Control Unit DTCU) paired with one or more B487 Data Transmission Terminal Units (DTTU). Each DTTU could support up to 16 line-adapter slots. Each adapter supported one data communications circuit. Later a programmable interface, the Data Communications Processor (DCP), originally developed for the B6500 project, became available on the B5500. The B5500 was then renamed for marketing purposes as the B5700.
+
+The DFMCP was enhanced to support this datacom equipment, becoming the Data Communications MCP (DCMCP). Its capabilities were oriented towards transaction processing, where multiple remote stations exchanged messages with one or more central server programs, rather than interactive timesharing.
+
+== The TSMCP and CANDE ==
+
+The DCMCP worked well in the environment it was designed for, but its approach to dynamic memory management was not well-suited for the user-oriented interactivity typical of a timesharing environment. To address that, Burroughs created another variation, the Timesharing MCP (TSMCP or TSSMCP).
+
+The TSMCP was derived from the DCMCP and supported all but a few of the DCMCP capabilities. The major change was a new memory management mechanism. Memory is typically the most critical resource in an on-line system. It was especially critical with the relatively small memory sizes (the 32K-word maximum for the B5500 was typical) available in the 1960s.
+
+Core memory for the TSMCP is divided into two portions at a site-specified location known as the "fence." Memory below the fence is managed the same way as for the DCMCP, with data and code segments for all programs allocated from one common heap. Batch programs and the TSMCP itself run below the fence.
+
+Memory above the fence is organized into a number of "swap areas" for use by the interactive programs initiated by remote users. Code and data segments for these programs are allocated solely within their respective swap areas. This supported the "time slicing" of memory for interactive programs, as all of the non-shared memory used by an interactive program was in its swap area, and could be paged out to disk as a unit, making room for the swap areas of other users to be paged in for their time slice.
+
+To manage remote interactive sessions, Burroughs developed the Command and Edit (CANDE) handler. This was a command-line interface somewhat like what we would call a shell today, but with a line-oriented file editor built in. Most terminal devices of the day were teletype-like devices, which could only support line editing. Full-screen editing was something still in the future.
+
+With CANDE, users could create and edit source and text files, compile programs, and run programs, interacting with the programs through so-called "remote files." CANDE also supported commands to rename and delete files, list files to the terminal, copy files to line printer and card punch devices, and manage their interactive session. A basic security system isolated each user's files from other users. The owner could specify permissions that allowed other users to share individual files.
+
+The TSMCP and CANDE were quite popular on B5500s used by schools and universities. Some systems continued to run through the late 1970s and possibly into the early 1980s.
+
+Sites with heavy batch loads or more transaction-oriented datacom requirements tended to stick with the DCMCP. Both variations of the MCP continued to be supported and enhanced in parallel by Burroughs through the 1970s. Only one MCP could be run on a system at a time, but as we will see, it requires little more than a Halt/Load (reboot) to switch between them.
+
+
+= Overview of the Setup Process ==
+
+CANDE consists of a main program (`CANDE/TSHARER`) and numerous helper programs that are invoked by the main program as needed to do time-consuming tasks (such as a compilation or file resequence) on behalf of a user.  All this software is on the `SYSTEM` tape and must be loaded to disk before it can be run.
+
+Once you have the necessary software loaded, you will need to set up two configuration files:
+
+   * *`SYSTEM/DISK`* describes the data communications circuit and station environment, and is used only by the TSMCP. Since the web-based emulator currently supports only one terminal device, that configuration file has a fixed configuration, as shown below. This file is maintained by the program `SYSDISK/MAKER`.
+   * *`USER/CANDE`* defines the remote users. This file is used by CANDE. It is binary file containing the user's login name, password, and per-account information. This file is maintained by the program `USERS/CANDE`.
+
+CANDE only runs under the TSMCP, so the next requirement is to Halt/Load the system under that MCP. TSMCP also requires a different set of System Intrinsics. After creating the two files above, you must specify the new MCP and Intrinsics files to the system and Halt/Load to initiate the TSMCP.
+
+Once TSMCP initialization finishes, you must initiate CANDE. At that point you can log in using the terminal and start timesharing.
+
+
+= Setting Up the System =
+
+This section discusses the step-by-step process to prepare the web-based emulator for the TSMCP and CANDE, switch to the TSMCP, and initiate CANDE.
+
+== Preparing the Configuration Files ==
+
+This first step takes place outside of the emulator. Using your text editor of choice, prepare a text file for a card deck to create the `SYSTEM/DISK` file as follows:
+
+    {{{
+    ?EXECUTE SYSDISK/MAKER
+    ?FILE LINE = LINE BACKUP
+    ?DATA CARD
+    LINE,0,0,112,0,0,7,0,
+    LINE,1,0,112,0,0,0,1,
+    STA,0,0,0,0,"0","0",0,0,
+    ?END
+    }}}
+
+The web-based emulator supports the B249/B487 interface, with a single terminal on DTTU #1, buffer #0. That adapter slot is configured with a 112-character buffer.
+
+  * The first `LINE` card defines a pseudo-line that CANDE uses for its "schedule" sessions.
+  * The second `LINE` card defines the datacom circuit for the emulated terminal.
+  * The `STA` card defines the teletype station on that line. Teletype circuits could support only one station, so this card is optional.
+
+Note the trailing commas ("`,`") on each of the cards. These are required. The only acceptable variation to this configuration concerns the last field on the second `LINE` card:
+
+  * `1` indicates this is a direct-connect (hardwired) circuit. TSMCP considers the terminal to be permanently connected to the system
+  * `0` indicates this is a switched (dial-up) circuit.
+
+The emulated terminal behaves as if it is connected on a switched circuit, although you can choose either option on its `LINE` card. The only behavioral difference is that if you configure the line as switched, TSMCP will automatically disconnect when you log out from CANDE.
+
+The `SYSDISK/MAKER` program and format of the cards it processes is documented in Section 1 of the [http://bitsavers.org/pdf/burroughs/B5000_5500_5700/1058583_B5700_TSS_RefMan_Sep72.pdf Burroughs B5700 Time Sharing System Reference Manual].
+
+Next, prepare another card deck to create the `USERS/CANDE` file:
+
+    {{{
+    ?EXECUTE USER/CANDE
+    ?FILE LINE = LINE BACKUP
+    ?DATA CARD
+    $NEW
+    $USER "B5500"
+    PASSWORD "SECRET"
+    NAME "USER NAME"
+    NO CHARGE
+    }}}
+
+Replace the text in the quoted strings with a user name, password, and display name of your choice. `$NEW` indicates that a new file will be created rather than an existing file being updated. `PASSWORD` and `NAME` are optional, and may be omitted. If no password is specified, you will log in with only your user name. `NO CHARGE` indicates that CANDE will not request a "charge code" (billing account number) as part of the log-in process.
+
+You may create multiple user accounts by repeating the sequence of cards starting with the `$USER` card above.
+
+There are a few additional options for configuring user accounts. The `USER/CANDE` program and format of the cards it processes is also documented in Section 1 of the [http://bitsavers.org/pdf/burroughs/B5000_5500_5700/1058583_B5700_TSS_RefMan_Sep72.pdf Burroughs B5700 Time Sharing System Reference Manual].
+
+== Loading the System Software Files ==
+
+The next step is to load the necessary files from the Mark XIII `SYSTEM` tape image file. You should already have this file from the original setup for the DCMCP, as described in [WebUIGettingStarted WebUI Getting Started].
+
+First, Halt/Load the system to the DCMCP and set the date and time as necessary. You can also do the following steps under the TSMCP, but you will still need to Halt/Load after building the configuration files.
+
+Load the `SYSTEM` tape image file into the tape drive (MTA window) by clicking the *LOAD* button on the drive, selecting the file, and then clicking the *REMOTE* button. You can confirm that the tape is loaded and ready by entering the following SPO command, but this is not necessary:
+
+    {{{
+    OL MTA
+    }}}
+
+CANDE requires quite a few files, and the easiest thing to do is simply load everything from the `SYSTEM` tape. This is safe, as MCP Library/Maintenance will not overwrite critical files, such as the running MCP. With the tape loaded in the drive, enter the following command on the SPO:
+
+    {{{
+    CC LOAD FROM SYSTEM =/=; END
+    }}}
+
+Copying the files to disk will take a few minutes and output many messages to the SPO.
+
+If you wish to do a more targeted load, you will need the following files:
+
+    {{{
+    CC LOAD FROM SYSTEM TSS/MCP, TSS/INT, USERS/CANDE, SYSDISK/MAKER, -
+       CANDE/TSHARER, FIND/DISK, GUARD/DISK, =/CANDE; END
+    }}}
+
+Note the "`-`" at the end of the first line, which allows continuation of a control command. You should also load any additional compilers or utility programs you will want to use, e.g., `ALGOL/DISK`, `BASIC/DISK`, `COBOL/DISK`, `COBOL68/DISK`, `FORTRAN/DISK`, or `XALGOL/DISK`.
+
+== Building the Configuration Files ==
+
+Create the two configuration files, `SYSTEM/DISK` and `USERS/CANDE` by loading the card deck files you created above into the card reader and clicking the reader's *START* button. The decks can be run in any order. You can load both decks into the reader at the same time, if you wish.
+
+Make sure you resolve any errors in these decks before proceeding. CANDE will not start without both files present.
+
+== Initiating TSMCP and CANDE ==
+
+The next step is to designate the TSMCP as the MCP that should be
+used at the next Halt/Load.  Enter the following two commands on the SPO:
+on the SPO:
+
+    {{{
+    CM TSS/MCP
+    CI TSS/INT
+    }}}
+
+These commands modify the bootstrap information in sector 0 of the disk. You should see responses similar to this:
+
+    {{{
+    CM TSS/MCP
+     NEXT MCP WILL BE TSS/MCP
+    CI TSS/INT
+     NEW INTRINSIC FILE IS: TSS/INT.
+    }}}
+
+Now reboot the system by switching to the emulator's Console window and clicking first the *HALT* button and then the *LOAD* button (this is why it's called a Halt/Load). You should see a message indicating the TSMCP is now running. After initialization completes, enter the date and time as necessary:
+
+    {{{
+    -H/L WITH TSS/MCP MARK XIII,F=16384[MODS=RRRRRRRR]-
+     TIME IS 1429
+     DATE IS THURSDAY, 11/17/83
+    #TR PLEASE
+    TR 1431
+     TIME IS 1431
+    }}}
+
+The "`F=16384`" indicates the fence location in memory. The value shown is the default if the fence was not specified at cold-start time. You can change this value at any time using the `MF` SPO command, but it will only take effect at the next Halt/Load. Fence values must be in the range 8184 to 28644. Lower values give more memory to the swap areas for interactive programs. Higher values give more memory to the MCP, the CANDE handler program, and batch programs. The default value is a good one to start with.
+
+To switch back to the DCMCP, simply designate its MCP and intrinsics files and do another Halt/Load. The fence location is ignored by the DCMCP:
+
+    {{{
+    CM MCP/DISK
+    CI INT/DISK
+    }}}
+
+Once the TSMCP has initialized, you can initiate CANDE with the following SPO command:
+
+    {{{
+    CE
+    }}}
+
+You should see the CANDE handler enter the mix and output its initialization message:
+
+    {{{
+     0:CANDE/TSHARER/SITE= 1 BOJ 1516
+    USERS/CANDE FILE DATED 00111783
+    }}}
+
+This indicates that CANDE is running and ready for use.
+
+
+= Using CANDE =
+
+A typical B5500 timesharing system supported 20-30 users. The web-based emulator supports only one terminal, though, so only one user at a time can be signed on to CANDE in this environment. More information on using the emulated terminal can be found in the [WebUIUsingDatacom Using Datacom] wiki page.
+
+To begin a session, click the *Connect* button on the terminal (DCA) window. The button should light.
+
+== Logging In ==
+
+After connecting the terminal, you should see a welcome message from CANDE within a few seconds:
+
+   {{{
+   B5500 TIME SHARING - 01/00, STATION 02
+   ENTER USER CODE, PLEASE-
+   }}}
+
+Enter your user name as defined in the `USERS/CANDE` file. Officially, the end-of-message character for a teletype device was the left-arrow key (Shift-letter-O, "`~`" in the emulator), but as a convenience the emulator also supports using the Enter key. The terminal will echo a "`~`" in either case.
+
+    {{{
+    ENTER USER CODE, PLEASE-B5500~
+    }}}
+
+CANDE will next request your password and output several sequences of characters on the same line of the terminal. On a teletype device, this would create an inky blob on the paper, which would obscure the password when it was entered. That doesn't work so well on a web page, so just enter your password on top of those characters, followed by end-of-message. If you did not specify a password for your user name, just key end-of-message by itself.
+
+    {{{
+    AND YOUR PASSWORD
+    SECRET~@
+    11/17/83  2:33 PM.
+    GOOD AFTERNOON, USER NAME       YOU HAVE STATION 02
+    }}}
+
+At this point, you are logged in to CANDE and can begin entering commands. When you are finished with your session, enter `BYE` to log out. Alternatively, you can click the terminal's *Connect* button to disconnect.
+
+CANDE commands and use of the terminal under CANDE are documented in the
+[http://bitsavers.org/pdf/burroughs/B5000_5500_5700/1038205_B5500_TS_TerminalUG_Jun69.pdf Burroughs B5500 Time Sharing System Terminal User's Guide].
+
+Note that the emulator does not presently support the paper tape terminal features described in this manual, particularly the CANDE `TAPE` command.
+
+
+== Sample CANDE Session ==
+
+Here is a sample session, illustrating creating, compiling, and running a simple program. CANDE requires line numbers (more properly known as sequence numbers) on all lines of all files, not just those for BASIC:
+
+    {{{
+    CREATE FOO BASIC~
+    FILE:FOO - TYPE:BASIC  -- CREATED
+    10FOR I = 1 TO 5~
+    20PRINT I, I*I~
+    30NEXT I~
+    40END~
+    RUN~
+     WAIT.
+
+     COMPILING.
+
+     END COMPILE 1.5 SEC.
+
+     RUNNING
+
+     1              1
+     2              4
+     3              9
+     4              16
+     5              25
+
+     END FOO .4 SEC.
+    }}}
+
+Note that the `RUN` command knows if the program source has not been compiled since it was last modified, and automatically recompiles before running it.
+
+Now we edit the program slightly and recompile and rerun it. The "`*`" (`FIX`) command below searches line 20 for the literal string "`I*I`" and replaces it with "`SQR(I)`". Most non-alphanumeric characters can be used as token delimiters in this command.
+
+Also note that multiple CANDE commands can be entered on one line, delimited by semicolons ("`;`"). Due to their nature, single-line entries (commands beginning with a sequence number) and `FIX` commands can appear only as the last command on a line.
+
+    {{{
+    *20/I*I/SQR(I)~
+    LIST; RUN~
+
+    FILE:FOO - TYPE:BASIC  --11/17/83  3:26 PM.
+
+    10 FOR I = 1 TO 5
+    20 PRINT I, SQR(I)
+    30 NEXT I
+    40 END
+
+     END LIST 3.5 SEC.
+
+     COMPILING.
+
+     END COMPILE 2.4 SEC.
+
+     RUNNING
+
+     1              1
+     2              1.414214
+     3              1.732051
+     4              2
+     5              2.236068
+
+     END FOO .3 SEC.
+    }}}
+
+
+= Cold-Starting Directly to the TSMCP =
+
+This page has described how to set up TSMCP and CANDE after the B5500 emulator has already been cold-started with the DCMCP. It is also possible to cold-start directly to the TSMCP.
+
+Peter Grootswagers has prepared a very nice set of instructions for cold-starting directly to TSMCP. This is available on the [http://groups.google.com/group/retro-b5500 retro-B5500 forum], dated 20 November 2013. The direct link to the post with his instructions is [https://groups.google.com/forum/#!topic/retro-b5500/zCBSxow113M].
+
+
+
+________________
+
+_Credits_: The information in this wiki page was prepared by Tim Sirianni, with historial notes and editorial interference from Paul Kimpel.
