@@ -53,7 +53,7 @@ CANDE consists of a main program (`CANDE/TSHARER`) and numerous helper programs 
 Once you have the necessary software loaded, you will need to set up two configuration files:
 
   * **`SYSTEM/DISK`** describes the data communications circuit and station environment, and is used only by the TSMCP. Since the web-based emulator currently supports only one terminal device, that configuration file has a fixed configuration, as shown below. This file is maintained by the program `SYSDISK/MAKER`.
-  * **`USER/CANDE`** defines the remote users. This file is used by CANDE. It is binary file containing the user's login name, password, and per-account information. This file is maintained by the program `USERS/CANDE`.
+  * **`USERS/CANDE`** defines the remote users. This file is used by CANDE. It is a binary file containing the user's login name, password, and per-account information. This file is maintained by the program `USER/CANDE`.
 
 CANDE only runs under the TSMCP, so the next requirement is to Halt/Load the system under that MCP. TSMCP also requires a different set of System Intrinsics. After creating the two files above, you must specify the new MCP and Intrinsics files to the system and Halt/Load the system to initiate the TSMCP.
 
@@ -135,7 +135,7 @@ Copying the files to disk will take a few minutes and output many messages to th
 If you wish to do a more targeted load, you will need the following files:
 
 ```
-    CC ADD FROM SYSTEM TSS/MCP, TSS/INT, USERS/CANDE, SYSDISK/MAKER, -
+    CC ADD FROM SYSTEM TSS/MCP, TSS/INT, USER/CANDE, SYSDISK/MAKER, -
        CANDE/TSHARER, FIND/DISK, GUARD/DISK, =/CANDE; END
 ```
 

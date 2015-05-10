@@ -224,7 +224,12 @@ Before proceeding with this section, you must have completed the following:
   * You must have downloaded at least the `SYSTEM` tape image, as described in earlier sections, and have that tape image available on your workstation. The name of this tape image as downloaded from our hosting site is `B5500-XIII-SYSTEM-adc00257.bcd`.
   * You must have the Cold Start deck available on your workstation. You can copy this file from the `tools/` directory of the emulator files, or [download it from our hosting site](http://www.phkimpel.us/B5500/tools/COLDSTART-XIII.card).
 
-If you wish to customize the parameter cards in the Cold Start deck, do so before proceeding further. A description of the parameter cards can be found in the [B5500 MCP Operations Manual](http://bitsavers.org/pdf/burroughs/B5000_B5500_B5700/1024916_B5500_B5700_OperMan_Sep68.pdf), starting on page 3-14 ("Card Load Select Programs"). Be careful not to alter the card images containing object code for the programs. Note that the two binary bootstrap card images in this deck are each 160 characters long, and each must be fully contained on one text line.
+If you wish to customize the parameter cards in the Cold Start deck, do so before proceeding further. A description of the parameter cards can be found in the [B5500 MCP Operations Manual](http://bitsavers.org/pdf/burroughs/B5000_B5500_B5700/1024916_B5500_B5700_OperMan_Sep68.pdf), starting on page 3-14 ("Card Load Select Programs"). Be careful not to alter the card images containing object code for the programs. Note that the two binary bootstrap card images at the start of each of the loaders are each 160 characters long, and each must be fully contained on one text line.                                           
+
+The two parameter cards in the coldstart deck you probably will want to change are:
+
+  * **ESU** make sure the number on this card matches the number of disk Electronic Units (EUs) in your hardware configuration. See the Operations Manual above on how this number should be specified on the card.
+  * **DATE** You may wish to set today's date during the load, but this can be changed after the system does its initial halt/load.
 
 The following steps accomplish the Cold Start:
 
@@ -267,7 +272,7 @@ To set the date, use the `DT` command, specifying the date in mm/dd/yy format. C
 To terminate the command, either click the **END OF MESSAGE** button on the SPO or press **Enter** on your keyboard. The MCP will respond with a message indicating the new date.
 
 The time is set in a similar manner using the `TR` command, specifying the time as a four-digit number in 24-hour format:
-000000000000............
+
 ```
     TR 1936
 ```
@@ -305,6 +310,10 @@ To specify the name of the Intrinsics file, use the `CI` SPO command, thus:
 ```
 
 You should only need to do this once. The MCP will store the name with the other system options on disk and automatically load the Intrinsics from that file after subsequent halt/loads.
+
+> Note that some browsers have a limit on the amount of physical disk space an IndexedDB database may use without approval from the user. This limit varies, but is often in the range of 10-50MB. It is not unusual to hit this limit during the initial load of the system files.
+
+> If during this load you notice that the emulator appears to hang, check the home page window for an alert requesting permission to use more disk space. Since other windows, such as the operator console and SPO, are often on top of the home page window, this alert may not be visible until the home page is brought to the top and given the focus. Once you give the browser approval to use more space, the emulator should resume normal operation. In our experience, this approval only needs to be given once per disk subsystem.
 
 The system and MCP are now ready for use. For additional information on using the SPO, see the [Using the SPO](WebUIUsingTheSPO.md) page. For a general overview of emulator and MCP operations, see the [Running the Emulator](WebUIRunningTheEmulator.md) page.
 
