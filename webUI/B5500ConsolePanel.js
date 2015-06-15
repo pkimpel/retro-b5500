@@ -296,14 +296,14 @@ B5500ConsolePanel.prototype.dumpState = function dumpState(caption) {
         /* Call-back function for cc.dumpSystemState */
 
         switch (phase) {
-        case 0:
+        case 0:         // Initialization and heading line
             lastPhase = phase;
             doc.writeln(escapeHTML(text));
             doc.writeln("User Agent: " + navigator.userAgent);
             break;
 
-        case 1:
-        case 2:
+        case 1:         // Processor 1 state
+        case 2:         // Processor 2 state
             if (phase == lastPhase) {
                 doc.writeln(escapeHTML(text));
             } else {
@@ -314,7 +314,7 @@ B5500ConsolePanel.prototype.dumpState = function dumpState(caption) {
             }
             break;
 
-        case 32:
+        case 32:        // Memory lines
             if (phase != lastPhase) {
                 lastPhase = phase;
                 doc.writeln();
@@ -323,7 +323,7 @@ B5500ConsolePanel.prototype.dumpState = function dumpState(caption) {
             doc.writeln(escapeHTML(text));
             break;
 
-        case -1:
+        case -1:        // Termination
             break;
         } // switch
     }
@@ -335,6 +335,72 @@ B5500ConsolePanel.prototype.dumpState = function dumpState(caption) {
     doc.write("<pre>");
 
     this.cc.dumpSystemState(caption, writer);
+
+    doc.writeln("</pre></body></html>")
+    doc.close();
+    win.focus();
+}
+
+/**************************************/
+B5500ConsolePanel.prototype.dumpTape = function dumpTape(caption) {
+    /* Generates a dump of all of memory to a MEMORY/DUMP tape image */
+    var doc;
+    var win = window.open("", "", "location=no,resizable,scrollbars,status");
+    var x;
+
+    var htmlMatch = /[<>&"]/g;          // regular expression for escaping HTML text
+    var tapeLabel = " LABEL  0MEMORY 0DUMP00100175001019936500000000000000000000000000000000000000000";
+
+    function htmlFilter(c) {
+        /* Used to escape HTML-sensitive characters in a string */
+        switch (c) {
+        case "&":
+            return "&amp;";
+        case "<":
+            return "&lt;";
+        case ">":
+            return "&gt;";
+        case "\"":
+            return "&quot;";
+        default:
+            return c;
+        }
+    }
+
+    function escapeHTML(text) {
+        /* Returns "text" as escaped HTML */
+
+        return text.replace(htmlMatch, htmlFilter);
+    }
+
+    function writer(phase, text) {
+        /* Call-back function for cc.dumpSystemTape */
+
+        switch (phase) {
+        case 0:         // Initialization, write tape label
+            doc.writeln(tapeLabel);
+            doc.writeln("}");   // tape mark
+            break;
+
+        case 32:        // Dump data
+            doc.writeln(escapeHTML(text));
+            break;
+
+        case -1:        // Termination, write tape label
+            doc.writeln(text);
+            doc.writeln("}");   // tape mark
+            doc.writeln(tapeLabel);
+            break;
+        } // switch
+    }
+
+    doc = win.document;
+    doc.open();
+    doc.writeln("<html><head><title>retro-B5500 Console Tape Dump</title>");
+    doc.writeln("</head><body>");
+    doc.write("<pre>");
+
+    this.cc.dumpSystemTape(caption, writer);
 
     doc.writeln("</pre></body></html>")
     doc.close();
@@ -757,6 +823,10 @@ B5500ConsolePanel.prototype.consoleOnload = function consoleOnload(ev) {
             B5500CentralControl.bindMethod(this, function(ev) {
                 this.dumpState("Memory-Check Button");
     }));
+    this.$$("NotReadyBtn").addEventListener("click",
+            B5500CentralControl.bindMethod(this, function(ev) {
+                this.dumpTape("Not-Ready Button");
+    }));
 
     this.aControl = this.$$("AControlBtn");
     this.aNormal  = this.$$("ANormalBtn");
@@ -767,7 +837,8 @@ B5500ConsolePanel.prototype.consoleOnload = function consoleOnload(ev) {
     this.buildLightMaps();
 
     this.cc = new B5500CentralControl(this.global);
-    this.global.B5500DumpState = this.dumpState;
+    this.global.B5500DumpState = this.dumpState;        // for use by Processor
+    this.global.B5500DumpState = this.dumpTape;         // for use by Processor
     this.window.resizeTo(this.doc.documentElement.scrollWidth + this.window.outerWidth - this.window.innerWidth + 2, // kludge +2, dunno why
                          this.doc.documentElement.scrollHeight + this.window.outerHeight - this.window.innerHeight);
     this.window.moveTo(screen.availWidth - this.window.outerWidth, 0);

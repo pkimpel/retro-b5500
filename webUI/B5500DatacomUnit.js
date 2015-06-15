@@ -273,7 +273,11 @@ B5500DatacomUnit.prototype.outputChar = function outputChar() {
     var nextTime;
     var stamp;
 
-    if (this.bufIndex < this.bufLength) {
+    if (this.bufIndex >= this.bufLength) {
+        this.interrupt = true;
+        this.setState(this.fullBuffer ? this.bufWriteReady : this.bufIdle);
+        this.signal();
+    } else {
         stamp = performance.now();
         nextTime = (this.nextCharTime < stamp ? stamp : this.nextCharTime) + this.charPeriod;
         delay = nextTime - stamp;
@@ -306,10 +310,6 @@ B5500DatacomUnit.prototype.outputChar = function outputChar() {
             break;
         }
         this.showBufferIndex();
-    } else {
-        this.interrupt = true;
-        this.setState(this.fullBuffer ? this.bufWriteReady : this.bufIdle);
-        this.signal();
     }
 };
 
@@ -370,7 +370,7 @@ B5500DatacomUnit.prototype.keyAction = function keyAction(ev, c) {
                 ev.stopPropagation();
                 ev.preventDefault();
                 break;
-            case 0x21:                  // ! EOT, disconnect
+            case 0x21:                  // !, EOT, send disconnect request
                 this.buffer[this.bufIndex++] = 0x7D;    // } greater-or-equal code
                 this.interrupt = true;
                 this.abnormal = true;
@@ -400,6 +400,7 @@ B5500DatacomUnit.prototype.keyAction = function keyAction(ev, c) {
             case 0x0C:                  // Ctrl-L, FF, clear input buffer
                 if (this.bufState == this.bufInputBusy) {
                     this.bufIndex = this.bufLength = 0;
+                    this.setState(this.bufIdle);
                 }
                 ev.stopPropagation();
                 ev.preventDefault();
@@ -450,27 +451,7 @@ B5500DatacomUnit.prototype.keyPress = function keyPress(ev) {
     var c = ev.charCode;
 
     if (ev.ctrlKey) {
-        switch(c) {
-        case 0x42:
-        case 0x62:
-            c = 0x02;               // Ctrl-B: force STX, break
-            break;
-        case 0x45:
-        case 0x65:
-            c = 0x05;               // Ctrl-E:force ENQ, WRU
-            break;
-        case 0x4C:
-        case 0x6C:
-            c = 0x0C;               // Ctrl-L: force FF, clear input buffer
-            break;
-        case 0x51:
-        case 0x71:
-            c = 0x7E;               // Ctrl-Q: DC1, X-ON to ~ (GM) for end-of-message
-            break;
-        default:
-            c = 0;                  // not something we want
-            break;
-        }
+        c = 0;                          // not something we want
     }
 
     this.keyAction(ev, c);
@@ -489,6 +470,31 @@ B5500DatacomUnit.prototype.keyDown = function keyDown(ev) {
     case 0x0D:                          // Enter: force ~ (GM) for end-of-message
         this.keyAction(ev, 0x7E);
         break;
+    case 0x42:
+        if (ev.ctrlKey) {
+            this.keyAction(ev, 0x02);   // Ctrl-B: force STX, break
+        }
+        break;
+    case 0x44:
+        if (ev.ctrlKey) {
+            this.keyAction(ev, 0x21);   // Ctrl-D: force EOT, disconnect request
+        }
+        break;
+    case 0x45:
+        if (ev.ctrlKey) {
+            this.keyAction(ev, 0x05);   // Ctrl-E:force ENQ, WRU
+        }
+        break;
+    case 0x4C:
+        if (ev.ctrlKey) {
+            this.keyAction(ev, 0x0C);   // Ctrl-L: force FF, clear input buffer
+        }
+        break;
+    case 0x51:
+        if (ev.ctrlKey) {
+            this.keyAction(ev, 0x7E);   // Ctrl-Q: DC1, X-ON to ~ (GM) for end-of-message
+        }
+        break;
     }
 };
 
@@ -505,10 +511,10 @@ B5500DatacomUnit.prototype.termConnectBtnClick = function termConnectBtnClick(ev
 };
 
 /**************************************/
-B5500SPOUnit.prototype.copyPaper = function copyPaper(ev) {
+B5500DatacomUnit.prototype.copyPaper = function copyPaper(ev) {
     /* Copies the text contents of the "paper" area of the SPO, opens a new
     temporary window, and pastes that text into the window so it can be copied
-    or saved */
+    or saved by the user */
     var text = ev.target.textContent;
     var title = "B5500 " + this.mnemonic + " Text Snapshot";
     var win = window.open("./B5500FramePaper.html", this.mnemonic + "-Snapshot",
@@ -566,7 +572,7 @@ B5500DatacomUnit.prototype.datacomOnload = function datacomOnload() {
     this.$$("TermOut").addEventListener("keypress",
             B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.keyPress), false);
     this.paper.addEventListener("dblclick",
-            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.copyPaper), false);
+            B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.copyPaper), false);
     this.$$("TermConnectBtn").addEventListener("click",
             B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.termConnectBtnClick), false);
 

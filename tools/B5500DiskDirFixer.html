@@ -24,6 +24,8 @@
 ************************************************************************
 * 2013-07-27  P.Kimpel
 *   Original version, from B5500DiskDirList.html.
+* 2015-04-17  P.Kimpel
+*   Add "db=" URL parameter.
 ***********************************************************************/
 "use strict";
 
@@ -34,7 +36,6 @@ if (!window.indexedDB) {                // for Safari, mostly
 window.addEventListener("load", function() {
     var configName = "CONFIG";          // database configuration store name
     var dbName = "B5500DiskUnit";       // IDB database name
-    var dbVersion;                      // current IDB database version (leave undefined)
     var directoryTop;                   // start of directory area
     var directoryEnd;                   // end of directory area
     var euPrefix = "EU";                // prefix for EU object store names
@@ -509,15 +510,15 @@ window.addEventListener("load", function() {
     }
 
     /**************************************/
-    function openDatabase(name, version, successor) {
-        /* Attempts to open the disk subsystem database for the specified "name"
-        and "version". Stores the IDB database object in "disk" if successful, or
-        stores null if unsuccessful. Also gets directoryTop from seg 0 */
+    function openDatabase(name, successor) {
+        /* Attempts to open the disk subsystem database for the specified "name".
+        Stores the IDB database object in "disk" if successful, or stores null
+        if unsuccessful. Also gets directoryTop from seg 0 */
         var block = new Array(30);
         var db = null;
         var req;
 
-        req = window.indexedDB.open(name, version);
+        req = window.indexedDB.open(name);      // open current version
 
         req.onerror = function(ev) {
             alert("Cannot open disk database: " + ev.target.error);
@@ -545,6 +546,32 @@ window.addEventListener("load", function() {
     }
 
     /**************************************/
+    function getDBName(defaultName) {
+        /* Parses the URL query string for a "db=name" parameter. If "db" is
+        found, returns the corresponding name; if not found, returns "defaultName" */
+        var args;
+        var i;
+        var name;
+        var search = location.search.substring(1);      // drop the "?"
+        var value = defaultName;
+        var x;
+
+        args = search.split("&");
+        for (x=args.length-1; x>=0; --x) {
+            i = args[x].indexOf("=");
+            if (i > 0 ) {
+                name = decodeURIComponent(args[x].substring(0, i));
+                if (name.toLowerCase() == "db") {
+                    value = decodeURIComponent(args[x].substring(i+1));
+                    break; // out of for loop
+                }
+            }
+        }
+
+        return value;
+    }
+
+    /**************************************/
     function checkBrowser() {
         /* Checks whether this browser can support the necessary stuff */
         var missing = "";
@@ -569,7 +596,8 @@ window.addEventListener("load", function() {
     /********** Start of window.onload() **********/
 
     if (!checkBrowser()) {
-        openDatabase(dbName, dbVersion, function() {
+        dbName = getDBName(dbName);
+        openDatabase(dbName, function() {
             directorySearch("TAPE", "COMPARE", fixIt);
         });
     }

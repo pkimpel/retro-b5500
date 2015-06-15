@@ -66,7 +66,9 @@ B5500MagTapeDrive.prototype.tapeRemote = 2;
 
 B5500MagTapeDrive.prototype.density = 800;
                                         // 800 bits/inch
-B5500MagTapeDrive.prototype.charsPerSec = 72000;
+B5500MagTapeDrive.prototype.tapeSpeed = 90;
+                                        // tape motion speed [inches/sec]
+B5500MagTapeDrive.prototype.charsPerSec = B5500MagTapeDrive.prototype.tapeSpeed*B5500MagTapeDrive.prototype.density;
                                         // B425, 90 inches/sec @ 800 bits/inch
 B5500MagTapeDrive.prototype.gapLength = 0.75;
                                         // inter-block blank tape gap [inches]
@@ -74,8 +76,6 @@ B5500MagTapeDrive.prototype.startStopTime = 0.0045 + 0.0042;
                                         // tape start+stop time [sec]
 B5500MagTapeDrive.prototype.rewindSpeed = 320;
                                         // rewind speed [inches/sec]
-B5500MagTapeDrive.prototype.tapeSpeed = B5500MagTapeDrive.prototype.charsPerSec/B5500MagTapeDrive.prototype.density;
-                                        // tape motion speed [inches/sec]
 B5500MagTapeDrive.prototype.maxTapeLength = 2410*12;
                                         // max tape length on reel [inches]
 B5500MagTapeDrive.prototype.postEOTLength = 20*12;
@@ -159,6 +159,7 @@ B5500MagTapeDrive.prototype.clear = function clear() {
     this.reelAngle = 0;                 // current rotation angle of reel image [degrees]
     this.tapeInches = 0;                // number of inches currently up-tape
     this.writeRing = false;             // true if write ring is present and tape is writable
+    this.botSensed = false;             // true if BOT marker sensed during reverse tape motion
     this.atBOT = true;                  // true if tape at BOT
     this.atEOT = false;                 // true if tape at EOT
 
@@ -245,15 +246,16 @@ B5500MagTapeDrive.prototype.setAtBOT = function setAtBOT(atBOT) {
 
     if (atBOT ^ this.atBOT) {
         this.atBOT = atBOT;
-        if (atBOT) {
+        if (!atBOT) {
+            this.botSensed = false;
+            B5500Util.removeClass(this.$$("MTAtBOTLight"), "annunciatorLit");
+        } else {
             this.imgIndex = 0;
             this.tapeInches = 0;
             B5500Util.addClass(this.$$("MTAtBOTLight"), "annunciator");
             this.reelBar.value = this.imgMaxInches;
-            this.reelIcon.style.transform = "rotate(0deg)";
-            this.reelIcon.style["-webkit-transform"] = "rotate(0deg)";  // temp for Chrome
-        } else {
-            B5500Util.removeClass(this.$$("MTAtBOTLight"), "annunciatorLit");
+            this.reelIcon.style.transform = "none";
+            this.reelIcon.style["-webkit-transform"] = "none";          // temp for Chrome
         }
     }
 };
@@ -264,11 +266,11 @@ B5500MagTapeDrive.prototype.setAtEOT = function setAtEOT(atEOT) {
 
     if (atEOT ^ this.atEOT) {
         this.atEOT = atEOT;
-        if (atEOT) {
+        if (!atEOT) {
+            B5500Util.removeClass(this.$$("MTAtEOTLight"), "annunciatorLit");
+        } else {
             B5500Util.addClass(this.$$("MTAtEOTLight"), "annunciatorLit");
             this.reelBar.value = 0;
-        } else {
-            B5500Util.removeClass(this.$$("MTAtEOTLight"), "annunciatorLit");
         }
     }
 };
@@ -413,6 +415,7 @@ B5500MagTapeDrive.prototype.loadTape = function loadTape() {
         mt.reelBar.value = mt.imgMaxInches;
         mt.setAtEOT(false);
         mt.setAtBOT(true);
+        mt.botSensed = false;
         mt.tapeState = mt.tapeLocal;    // setTapeRemote() requires it not be unloaded
         mt.setTapeRemote(false);
         mt.reelIcon.style.visibility = "visible";
@@ -471,15 +474,18 @@ B5500MagTapeDrive.prototype.loadTape = function loadTape() {
 
     function blankLoader() {
         /* Loads a blank tape image into the drive */
+        var x;
 
         writeRing = true;
         eotInches = tapeInches;
         tapeInches += mt.postEOTLength;
         mt.image = new Uint8Array(new ArrayBuffer(tapeInches*mt.density));
         mt.image[0] = 0x81;             // put a little noise on the tape to avoid blank-tape timeouts
-        mt.image[1] = 0x03;
-        mt.image[2] = 0x8F;
-        mt.imgTopIndex = 3;
+        for (x=1; x<80; ++x) {
+            mt.image[x] = 0x40;
+        }
+        mt.image[80] = 0x8F;
+        mt.imgTopIndex = 81;
         finishLoad();
     }
 
@@ -741,16 +747,16 @@ B5500MagTapeDrive.prototype.tapeRewind = function tapeRewind(makeReady) {
         if (interval <= 0) {
             interval = this.spinUpdateInterval/2;
         }
-        if (this.tapeInches > 0) {
+        if (this.tapeInches <= 0) {
+            this.setAtBOT(true);
+            this.botSensed = true;
+            this.timer = setCallback(this.mnemonic, this, 2000, rewindFinish);
+        } else {
             inches = interval/1000*this.rewindSpeed;
             this.tapeInches -= inches;
             lastStamp = stamp;
             this.timer = setCallback(this.mnemonic, this, this.spinUpdateInterval, rewindDelay);
             this.spinReel(-inches);
-        } else {
-            this.setAtBOT(true);
-            this.timer = setCallback(this.mnemonic, this, 2000, rewindFinish);
-            this.spinReel(6);
         }
     }
 
@@ -822,10 +828,8 @@ B5500MagTapeDrive.prototype.buildErrorMask = function buildErrorMask(chars) {
     var mask = this.errorMask & 0x01FC7FFF;     // clear out the char count bits
 
     mask |= (chars & 0x07) << 15;
-    if (this.atBOT) {
+    if (this.botSensed) {
         mask |= 0x80000;                // tape at BOT
-    } else if (this.atEOT) {
-        mask |= 0x40020;                // tape at EOT
     }
     this.errorMask = mask;
     return mask;
@@ -894,7 +898,11 @@ B5500MagTapeDrive.prototype.bcdSpaceBackward = function bcdSpaceBackward(checkEO
 
     if (imgIndex <= 0) {
         this.setAtBOT(true);
-        this.errorMask |= 0x100000;     // set blank-tape bit
+        if (this.botSensed) {
+            this.errorMask |= 0x100000; // set blank-tape bit
+        } else {
+            this.botSensed = true;
+        }
     } else {
         if (this.atEOT) {
             this.setAtEOT(false);
@@ -1028,7 +1036,11 @@ B5500MagTapeDrive.prototype.bcdReadBackward = function bcdReadBackward(oddParity
 
     if (imgIndex <= 0) {
         this.setAtBOT(true);
-        this.errorMask |= 0x100000;     // set blank-tape bit
+        if (this.botSensed) {
+            this.errorMask |= 0x100000; // set blank-tape bit
+        } else {
+            this.botSensed = true;
+        }
     } else {
         if (this.atEOT) {
             this.setAtEOT(false);
@@ -1196,7 +1208,7 @@ B5500MagTapeDrive.prototype.read = function read(finish, buffer, length, mode, c
             count = this.bcdReadBackward(mode);
             residue = 7 - count % 8;
             imgCount -= this.imgIndex;
-            inches = -imgCount/this.density - this.gapLength;
+            inches = (imgCount > 0 ? -imgCount/this.density - this.gapLength : 0);
             this.tapeInches += inches;
             if (this.atEOT && this.tapeInches < this.imgEOTInches) {
                 this.setAtEOT(false);
@@ -1205,10 +1217,11 @@ B5500MagTapeDrive.prototype.read = function read(finish, buffer, length, mode, c
             count = this.bcdReadForward(mode);
             residue = count % 8;
             imgCount = this.imgIndex - imgCount;
-            inches = imgCount/this.density + this.gapLength;
+            inches = (imgCount > 0 ? imgCount/this.density + this.gapLength : 0);
             this.tapeInches += inches;
             if (!this.atEOT && this.tapeInches > this.imgEOTInches) {
                 this.setAtEOT(true);
+                this.errorMask |= 0x40020; // tape at EOT
             }
         }
 
@@ -1249,7 +1262,7 @@ B5500MagTapeDrive.prototype.space = function space(finish, length, control) {
         if (control) {
             this.bcdSpaceBackward(true);
             imgCount -= this.imgIndex;
-            inches = -imgCount/this.density - this.gapLength;
+            inches = (imgCount > 0 ? -imgCount/this.density - this.gapLength : 0);
             this.tapeInches += inches;
             if (this.atEOT && this.tapeInches < this.imgEOTInches) {
                 this.setAtEOT(false);
@@ -1257,10 +1270,11 @@ B5500MagTapeDrive.prototype.space = function space(finish, length, control) {
         } else {
             this.bcdSpaceForward(true);
             imgCount = this.imgIndex - imgCount;
-            inches = imgCount/this.density + this.gapLength;
+            inches = (imgCount > 0 ? imgCount/this.density + this.gapLength : 0);
             this.tapeInches += inches;
             if (!this.atEOT && this.tapeInches > this.imgEOTInches) {
                 this.setAtEOT(true);
+                this.errorMask |= 0x40020; // tape at EOT
             }
         }
 
@@ -1307,6 +1321,7 @@ B5500MagTapeDrive.prototype.write = function write(finish, buffer, length, mode,
         this.tapeInches += inches;
         if (!this.atEOT && this.tapeInches > this.imgEOTInches) {
             this.setAtEOT(true);
+            this.errorMask |= 0x40020;  // tape at EOT
         }
 
         this.imgWritten = true;
@@ -1349,6 +1364,7 @@ B5500MagTapeDrive.prototype.erase = function erase(finish, length) {
         this.tapeInches += inches;
         if (!this.atEOT && this.tapeInches > this.imgEOTInches) {
             this.setAtEOT(true);
+            this.errorMask |= 0x40020;  // tape at EOT
         }
 
         this.imgWritten = true;
@@ -1410,11 +1426,19 @@ B5500MagTapeDrive.prototype.writeInterrogate = function writeInterrogate(finish,
     } else if (!this.ready) {
         finish(0x04, 0);                // report unit not ready
     } else {
-        if (this.writeRing) {
-            this.buildErrorMask(0);
-        } else {
-            this.errorMask |= 0x50;     // RD bits 26 & 28 => no write ring, don't return Mod III bits
+        if (!this.writeRing) {
+            this.errorMask |= 0x50;     // RD bits 26 & 28 => no write ring
         }
+        this.buildErrorMask(0);
+
+        /* For some reason the MCP does not like the BOT status being reported in
+        the result descriptor for a write interrogate. The I/O Control Unit flows
+        clearly show the Mod-III I/O Unit bits being set, but the MCP error mask
+        causes them to be seen as fatal errors. For now, we'll unconditionally
+        eliminate the BOT result bit in the error mask, although that just doesn't
+        seem right */
+        this.errorMask &= 0xFF7FFFF;
+
         finish(this.errorMask, 0);
     }
     //console.log(this.mnemonic + " writeInterrogate: c=" + control + ", mask=" + this.errorMask.toString(8));

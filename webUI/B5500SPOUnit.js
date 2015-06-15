@@ -88,6 +88,7 @@ B5500SPOUnit.prototype.clear = function clear() {
     this.nextCharTime = 0;
 
     this.spoState = this.spoLocal;      // Current state of SPO interface
+    this.spoInputRequested = false;     // INPUT REQUEST button pressed
     this.spoLocalRequested = false;     // LOCAL button pressed while active
 };
 
@@ -96,6 +97,7 @@ B5500SPOUnit.prototype.setLocal = function setLocal() {
     /* Sets the status of the SPO to Local and enables the input element */
 
     this.spoLocalRequested = false;
+    this.spoInputRequested = false;
     this.spoState = this.spoLocal;
     this.endOfPaper.scrollIntoView();
     B5500Util.addClass(this.$$("SPOLocalBtn"), "yellowLit");
@@ -134,6 +136,7 @@ B5500SPOUnit.prototype.setRemote = function setRemote() {
     if (this.spoState == this.spoLocal) {
         this.spoState = this.spoRemote;
         this.spoLocalRequested = false;
+        this.spoInputRequested = false;
         B5500Util.addClass(this.$$("SPORemoteBtn"), "yellowLit");
         B5500Util.removeClass(this.$$("SPOLocalBtn"), "yellowLit");
         B5500Util.removeClass(this.inputBox, "visible");
@@ -212,7 +215,8 @@ B5500SPOUnit.prototype.printChar = function printChar(c) {
         line += s;
         ++this.printCol;
     } else {
-         line = line.substring(0, 71) + s;
+         line = s;
+         this.appendEmptyLine();
     }
     this.paper.lastChild.nodeValue = line;
 };
@@ -259,9 +263,19 @@ B5500SPOUnit.prototype.requestInput = function requestInput() {
     /* Handles the request for keyboard input, from either the Input Request
     button or the ESC key */
 
-    if (this.spoState == this.spoRemote || this.spoState == this.spoOutput) {
-        B5500Util.addClass(this.$$("SPOInputRequestBtn"), "yellowLit");
-        this.signal();
+    switch (this.spoState) {
+    case this.spoRemote:
+    case this.spoOutput:
+        if (!this.spoInputRequested) {
+            this.spoInputRequested = true;
+            B5500Util.addClass(this.$$("SPOInputRequestBtn"), "yellowLit");
+            this.signal();
+        }
+        break;
+    case this.spoInput:
+        // the second click moved focus out of the SPO input control
+        this.inputBox.focus();
+        break;
     }
 };
 
@@ -400,7 +414,7 @@ B5500SPOUnit.prototype.keyDown = function keyDown(ev) {
 B5500SPOUnit.prototype.copyPaper = function copyPaper(ev) {
     /* Copies the text contents of the "paper" area of the SPO, opens a new
     temporary window, and pastes that text into the window so it can be copied
-    or saved */
+    or saved by the user */
     var text = ev.target.textContent;
     var title = "B5500 " + this.mnemonic + " Text Snapshot";
     var win = window.open("./B5500FramePaper.html", this.mnemonic + "-Snapshot",
@@ -501,8 +515,8 @@ B5500SPOUnit.prototype.spoOnload = function spoOnload() {
 
     this.printText("retro-B5500 Emulator Version " + B5500CentralControl.version,
             B5500CentralControl.bindMethod(this, function initFinish() {
-        //window.open("", "B5500Console").focus();
         this.window.focus();
+        window.open("", "B5500Console").focus();
         this.setRemote();
         this.appendEmptyLine("\xA0");
         this.endOfPaper.scrollIntoView();
@@ -521,6 +535,7 @@ B5500SPOUnit.prototype.read = function read(finish, buffer, length, mode, contro
     switch (this.spoState) {
     case this.spoRemote:
         this.spoState = this.spoInput;
+        this.spoInputRequested = false;
         B5500Util.addClass(this.$$("SPOReadyBtn"), "yellowLit");
         B5500Util.removeClass(this.$$("SPOInputRequestBtn"), "yellowLit");
         this.endOfPaper.scrollIntoView();

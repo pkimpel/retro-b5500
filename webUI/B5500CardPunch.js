@@ -72,6 +72,40 @@ B5500CardPunch.prototype.clear = function clear() {
 };
 
 /**************************************/
+B5500CardPunch.prototype.emptyStacker = function emptyStacker(stacker) {
+    /* Empties the stacker of all text lines */
+
+    while (stacker.firstChild) {
+        stacker.removeChild(stacker.firstChild);
+    }
+};
+
+/**************************************/
+B5500CardPunch.prototype.copyStacker = function copyStacker(ev) {
+    /* Copies the text contents of a "stacker" area of the device, opens a new
+    temporary window, and pastes that text into the window so it can be copied
+    or saved by the user */
+    var stacker = ev.target;
+    var text = stacker.textContent;
+    var title = "B5500 " + this.mnemonic + " Stacker Snapshot";
+    var win = window.open("./B5500FramePaper.html", this.mnemonic + "-Snapshot",
+            "scrollbars,resizable,width=500,height=500");
+
+    win.moveTo((screen.availWidth-win.outerWidth)/2, (screen.availHeight-win.outerHeight)/2);
+    win.addEventListener("load", function() {
+        var doc;
+
+        doc = win.document;
+        doc.title = title;
+        doc.getElementById("Paper").textContent = text;
+    });
+
+    this.emptyStacker(stacker);
+    ev.preventDefault();
+    ev.stopPropagation();
+};
+
+/**************************************/
 B5500CardPunch.prototype.setPunchReady = function setPunchReady(ready) {
     /* Controls the ready-state of the card punch */
 
@@ -86,14 +120,10 @@ B5500CardPunch.prototype.setPunchReady = function setPunchReady(ready) {
                     this.stacker1Count = this.stacker2Count = 0;
                     this.$$("CPStacker1Bar").value = 0;
                     B5500Util.removeClass(this.$$("CPStacker1Full"), "annunciatorLit");
-                    while (this.stacker1.firstChild) {
-                        this.stacker1.removeChild(this.stacker1.firstChild);
-                    }
+                    this.emptyStacker(stacker1);
                     this.$$("CPStacker2Bar").value = 0;
                     B5500Util.removeClass(this.$$("CPStacker2Full"), "annunciatorLit");
-                    while (this.stacker2.firstChild) {
-                        this.stacker2.removeChild(this.stacker2.firstChild);
-                    }
+                    this.emptyStacker(stacker2);
                 }
             }
             this.armRunout(false);
@@ -214,6 +244,10 @@ B5500CardPunch.prototype.punchOnload = function punchOnload() {
 
     this.window.addEventListener("beforeunload",
             B5500CardPunch.prototype.beforeUnload, false);
+    this.stacker1.addEventListener("dblclick",
+            B5500CentralControl.bindMethod(this, B5500CardPunch.prototype.copyStacker));
+    this.stacker2.addEventListener("dblclick",
+            B5500CentralControl.bindMethod(this, B5500CardPunch.prototype.copyStacker));
     this.$$("CPStartBtn").addEventListener("click",
             B5500CentralControl.bindMethod(this, B5500CardPunch.prototype.CPStartBtn_onclick), false);
     this.$$("CPStopBtn").addEventListener("click",

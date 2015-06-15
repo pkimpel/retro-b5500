@@ -83,7 +83,6 @@ B5500LinePrinter.prototype.clear = function clear() {
 B5500LinePrinter.prototype.setPrinterReady = function setPrinterReady(ready) {
     /* Controls the ready-state of the line printer */
 
-    this.formFeedCount = 0;
     if (ready && !this.ready) {
         this.statusChange(1);
         B5500Util.addClass(this.$$("LPStartBtn"), "greenLit")
@@ -102,13 +101,41 @@ B5500LinePrinter.prototype.ripPaper = function ripPaper(ev) {
     /* Handles an event to clear the "paper" from the printer */
 
     this.formFeedCount = 0;
-    if (this.window.confirm("Do you want to clear the \"paper\" from the printer?")) {
-        B5500Util.removeClass(this.$$("LPEndOfPaperBtn"), "whiteLit");
-        this.paperMeter.value = this.paperLeft = this.maxPaperLines;
-        while (this.paper.firstChild) {
-            this.paper.removeChild(this.paper.firstChild);
-        }
+    B5500Util.removeClass(this.$$("LPEndOfPaperBtn"), "whiteLit");
+    this.paperMeter.value = this.paperLeft = this.maxPaperLines;
+    while (this.paper.firstChild) {
+        this.paper.removeChild(this.paper.firstChild);
     }
+};
+
+/**************************************/
+B5500LinePrinter.prototype.copyPaper = function copyPaper(ev) {
+    /* Copies the text contents of the "paper" area of the device, opens a new
+    temporary window, and pastes that text into the window so it can be copied
+    or saved by the user */
+    var barGroup = this.paper.firstChild;
+    var text = "";
+    var title = "B5500 " + this.mnemonic + " Paper Snapshot";
+    var win = window.open("./B5500FramePaper.html", this.mnemonic + "-Snapshot",
+            "scrollbars,resizable,width=500,height=500");
+
+    while (barGroup) {
+        text += barGroup.textContent + "\n";
+        barGroup = barGroup.nextSibling;
+    }
+
+    win.moveTo((screen.availWidth-win.outerWidth)/2, (screen.availHeight-win.outerHeight)/2);
+    win.addEventListener("load", function() {
+        var doc;
+
+        doc = win.document;
+        doc.title = title;
+        doc.getElementById("Paper").textContent = text;
+    });
+
+    this.ripPaper();
+    ev.preventDefault();
+    ev.stopPropagation();
 };
 
 /**************************************/
@@ -147,7 +174,7 @@ B5500LinePrinter.prototype.appendLine = function appendLine(text) {
 /**************************************/
 B5500LinePrinter.prototype.printLine = function printLine(text, control) {
     /* Prints one line to the "paper", handling carriage control and greenbar
-    group completion. For now, SPACE 0 (overprintng) is treated as single-spacing */
+    group completion. For now, SPACE 0 (overprinting) is treated as single-spacing */
     var lines = 1;
 
     this.appendLine(text || "\xA0");
@@ -238,7 +265,7 @@ B5500LinePrinter.prototype.LPStopBtn_onclick = function LPStopBtn_onclick(ev) {
 
 /**************************************/
 B5500LinePrinter.prototype.LPSpaceBtn_onclick = function LPSpaceBtn_onclick(ev) {
-    /* Handle the click event for the Skip To Heading button */
+    /* Handle the click event for the Space button */
 
     if (!this.ready) {
         this.formFeedCount = 0;
@@ -255,7 +282,9 @@ B5500LinePrinter.prototype.LPFormFeedBtn_onclick = function LPFormFeedBtn_onclic
         this.printLine("", -1);
         this.endOfPaper.scrollIntoView();
         if (++this.formFeedCount >= 3) {
-            this.ripPaper();
+            if (this.window.confirm("Do you want to clear the \"paper\" from the printer?")) {
+                this.ripPaper();
+            }
         }
     }
 };
@@ -266,7 +295,7 @@ B5500LinePrinter.prototype.LPEndOfPaperBtn_onclick = function LPEndOfPaperBtn_on
     and end-of-paper condition, this will make the printer ready, but it will
     still be in an EOP condition. The next time a print line is received, the
     EOP condition will force it not-ready again. You can print only one line
-    at a time (presumably to the end of the current page. The EOP condition can
+    at a time (presumably to the end of the current page). The EOP condition can
     be cleared by clicking Skip To Heading three times to "rip" the paper */
 
     if (this.paperLeft <= 0 && !this.ready) {
@@ -327,6 +356,8 @@ B5500LinePrinter.prototype.printerOnload = function printerOnload() {
 
     this.window.addEventListener("beforeunload",
             B5500LinePrinter.prototype.beforeUnload, false);
+    this.paper.addEventListener("dblclick",
+            B5500CentralControl.bindMethod(this, B5500LinePrinter.prototype.copyPaper));
     this.$$("LPEndOfPaperBtn").addEventListener("click",
             B5500CentralControl.bindMethod(this, B5500LinePrinter.prototype.LPEndOfPaperBtn_onclick), false);
     this.$$("LPFormFeedBtn").addEventListener("click",

@@ -61,7 +61,7 @@ function B5500CentralControl(global) {
 /**************************************/
 
 /* Global constants */
-B5500CentralControl.version = "1.01";
+B5500CentralControl.version = "1.02";
 
 B5500CentralControl.memReadCycles = 2;          // assume 2 탎 memory read cycle time (the other option was 3 탎)
 B5500CentralControl.memWriteCycles = 4;         // assume 4 탎 memory write cycle time (the other option was 6 탎)
@@ -896,6 +896,7 @@ B5500CentralControl.prototype.runTest = function runTest(runAddr) {
     this.P1.start();
 };
 
+/**************************************/
 B5500CentralControl.prototype.dumpSystemState = function dumpSystemState(caption, writer) {
     /* Generates a dump of the processor states and all of memory
        "caption is an identifying string that is output in the heading line.
@@ -961,7 +962,7 @@ B5500CentralControl.prototype.dumpSystemState = function dumpSystemState(caption
         }
     }
 
-    function convertWordtoANSI(value) {
+    function convertWordToANSI(value) {
         /* Converts the "value" as a B5500 word to an eight character string and returns it */
         var c;                              // current character
         var s = "";                         // working string value
@@ -1020,7 +1021,7 @@ B5500CentralControl.prototype.dumpSystemState = function dumpSystemState(caption
                     bic += "????????";
                 } else {
                     line += " " + padOctal(accessor.word, 16);
-                    bic += convertWordtoANSI(accessor.word);
+                    bic += convertWordToANSI(accessor.word);
                 }
             } // for x
 
@@ -1038,6 +1039,102 @@ B5500CentralControl.prototype.dumpSystemState = function dumpSystemState(caption
     } // for mod
 
     writer(-1, null);
+};
+
+/**************************************/
+B5500CentralControl.prototype.dumpSystemTape = function dumpSystemTape(caption, writer) {
+    /* Generates a dump of the processor states and all of memory for generation of a tape image.
+       "caption is an identifying string that is output in the heading line.
+       "writer" is a function that is called to output lines of text to the outside
+       world. It takes two parameters:
+           "phase" is a numeric code indicating the type of line being output:
+                   0 = initialization (text parameter not valid)
+                  32 = core memory: control word plus 512 memory words translated to ANSI
+                  -1 = end of dump (text parameter is caption)
+           "text" is the line of text to be output.
+    */
+    var addr;
+    var bic;
+    var dupCount = 0;
+    var lastLine = "";
+    var line;
+    var lineAddr;
+    var mod;
+    var x;
+
+    var accessor = {                    // Memory access control block
+        requestorID: "C",               // Memory requestor ID
+        addr: 0,                        // Memory address
+        word: 0,                        // 48-bit data word
+        MAIL: 0,                        // Truthy if attempt to access @000-@777 in normal state
+        MPED: 0,                        // Truthy if memory parity error
+        MAED: 0                         // Truthy if memory address/inhibit error
+    };
+
+    var BICtoANSI = [
+            "0", "1", "2", "3", "4", "5", "6", "7",
+            "8", "9", "#", "@", "?", ":", ">", "}",
+            "+", "A", "B", "C", "D", "E", "F", "G",
+            "H", "I", ".", "[", "&", "(", "<", "~",
+            "|", "J", "K", "L", "M", "N", "O", "P",
+            "Q", "R", "$", "*", "-", ")", ";", "{",
+            " ", "/", "S", "T", "U", "V", "W", "X",
+            "Y", "Z", ",", "%", "!", "=", "]", "\""];
+
+    function convertWordToANSI(value) {
+        /* Converts the "value" as a B5500 word to an eight character string and returns it */
+        var c;                              // current character
+        var s = "";                         // working string value
+        var w = value;                      // working word value
+        var x;                              // character counter
+
+        for (x=0; x<8; ++x) {
+            c = w % 64;
+            w = (w-c)/64;
+            s = BICtoANSI[c] + s;
+        }
+        return s;
+    }
+
+    writer(0, null);
+
+    // Dump all of memory
+    for (mod=0; mod<0x8000; mod+=0x1000) {
+        accessor.addr = mod;
+        this.fetch(accessor);
+        if (accessor.MAED) {    // invalid address
+            bic = convertWordToANSI(0x200000000000 + mod);
+            for (addr=0; addr<512; ++addr) {
+                bic += "00000000";
+            }
+            writer(32, bic);
+        } else {
+            for (addr=0; addr<0x1000; addr+=512) {
+                lineAddr = mod+addr;
+                bic = convertWordToANSI(lineAddr);
+                for (x=0; x<512; ++x) {
+                    accessor.addr = lineAddr+x;
+                    this.fetch(accessor);
+                    if (accessor.MPED) {
+                        bic += "????????";
+                    } else {
+                        bic += convertWordToANSI(accessor.word);
+                    }
+                } // for x
+
+                writer(32, bic);
+            } // for addr
+        }
+    } // for mod
+
+    bic = caption.toUpperCase();
+    while (bic.length < 150) {
+        bic += "          ";
+    }
+    while (bic.length < 160) {
+        bic += " ";
+    }
+    writer(-1, bic);
 };
 
 /**************************************/
@@ -1126,6 +1223,7 @@ B5500CentralControl.prototype.configureSystem = function configureSystem(cfg) {
     }
 
     // Configure the peripheral units
+    this.unitStatusMask = 0;
     for (mnem in cfg.units) {
         if (cfg.units[mnem].enabled) {
             specs = B5500CentralControl.unitSpecs[mnem];
@@ -1173,6 +1271,7 @@ B5500CentralControl.prototype.powerOff = function powerOff() {
         for (x=0; x<this.unit.length; ++x) {
             if (this.unit[x]) {
                 this.unit[x].shutDown();
+                this.unit[x] = null;
             }
         }
 
@@ -1190,6 +1289,7 @@ B5500CentralControl.prototype.powerOff = function powerOff() {
         }
 
         this.clear();
+        this.unitStatusMask = 0;
         this.poweredUp = 0;
     }
 

@@ -463,7 +463,7 @@ B5500DiskStorageConfig.prototype.normalizeStorageConfig = function normalizeStor
 
     if (newConfig.configLevel != this.dbConfigLevel) {
         this.alertWin.alert("ERROR: Cannot normalize existing CONFIG\nlevel " +
-                            newConfig.configLevel + " to current level " + that.dbConfigLevel);
+                            newConfig.configLevel + " to current level " + this.dbConfigLevel);
     }
 
     return newConfig;
@@ -695,6 +695,7 @@ B5500DiskStorageConfig.prototype.saveStorageDialog = function saveStorageDialog(
 /**************************************/
 B5500DiskStorageConfig.prototype.deleteStorageDialog = function deleteStorageDialog(storageName) {
     /* Initiates deletion of the currently-selected system configuration */
+    var that = this;
 
     function deleteFailed(ev) {
         that.alertWin.alert("Deletion of database \"" + storageName +

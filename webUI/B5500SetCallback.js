@@ -84,8 +84,8 @@
 
 (function (global) {
     /* Define a closure for the setCallback() mechanism */
-    var delayAlpha = 0.99;              // exponential-moving-average decay factor
-    var delayDev = {NUL: 0};            // hash of average delay time deviations by category
+    var delayAlpha = 0.25;              // delay deviation decay factor
+    var delayDev = {NUL: 0};            // hash of delay time deviations by category
     var minTimeout = 4;                 // minimum setTimeout() threshold, milliseconds
     var nextTokenNr = 1;                // next setCallback token return value
     var pendingCallbacks = {};          // hash of pending callbacks, indexed by token as a string
@@ -107,8 +107,7 @@
             delete pendingCallbacks[tokenName];
             category = thisCallback.category;
             if (category) {
-                delayDev[category] = (delayDev[category] || 0)*delayAlpha +
-                    (endStamp - thisCallback.startStamp - thisCallback.delay)*(1.0-delayAlpha);
+                delayDev[category] += endStamp - thisCallback.startStamp - thisCallback.delay;
             }
             try {
                 thisCallback.fcn.call(thisCallback.context, thisCallback.arg);
@@ -152,6 +151,7 @@
         setTimeout mechanism will be used */
         var categoryName = (category || "NUL").toString();
         var delay = callbackDelay || 0;
+        var delayBias;
         var thisCallback;
         var token = nextTokenNr++;
         var tokenName = token.toString();
@@ -175,7 +175,14 @@
         pendingCallbacks[tokenName] = thisCallback;
 
         // Decide whether to do a time wait or just a yield.
-        delay -= (delayDev[categoryName] || 0); // bias by the current avg. deviation
+        if (categoryName in delayDev) {
+            delayBias = delayDev[categoryName]*delayAlpha;
+            delayDev[categoryName] -= delayBias;
+            delay -= delayBias;
+        } else {
+            delayDev[categoryName] = 0;         // got a new one
+        }
+
         if (delay < minTimeout) {
             thisCallback.isTimeout = false;
             thisCallback.cancelToken = 0;

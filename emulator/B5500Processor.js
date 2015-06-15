@@ -1965,8 +1965,8 @@ B5500Processor.prototype.singlePrecisionMultiply = function singlePrecisionMulti
 
             this.B = (sb*128 + eb)*0x8000000000 + mb;   // Final Answer
         }
+        this.X = xx;                    // for display purposes only
     }
-    this.X = xx;                        // for display purposes only
 };
 
 /**************************************/
@@ -2075,8 +2075,8 @@ B5500Processor.prototype.singlePrecisionDivide = function singlePrecisionDivide(
         }
 
         this.B = (sb*128 + eb)*0x8000000000 + xx;   // Final Answer
+        this.X = xx;                    // for display purposes only
     }
-    this.X = xx;                        // for display purposes only
 };
 
 /**************************************/
@@ -2173,8 +2173,8 @@ B5500Processor.prototype.integerDivide = function integerDivide() {
             this.A = 0;                 // required by specs
             this.B = (sb*128 + eb)*0x8000000000 + xx;   // Final Answer
         }
+        this.X = xx;                    // for display purposes only
     }
-    this.X = xx;                        // for display purposes only
 };
 
 /**************************************/
@@ -2281,8 +2281,8 @@ B5500Processor.prototype.remainderDivide = function remainderDivide() {
             this.A = 0;                 // required by specs
             this.B = (sb*128 + eb)*0x8000000000 + mb;   // Final Answer
         }
+        this.X = xx;                    // for display purposes only
     }
-    this.X = xx;                        // for display purposes only
 };
 
 /**************************************/

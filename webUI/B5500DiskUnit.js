@@ -134,8 +134,8 @@ function B5500DiskUnit(mnemonic, index, designate, statusChange, signal, options
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
     this.config = null;                 // copy of CONFIG store contents
     this.db = null;                     // the IDB database object
-    this.euBase =                       // base EU number for this DFCU
-            (mnemonic=="DKB" && !options.DFX ? 10 : 0);
+    this.euPrefix =                     // prefix for EU object store names
+            (mnemonic=="DKA" || options.DFX ? "EU" : "EU1");
 
     this.stdFinish = B5500CentralControl.bindMethod(this, B5500DiskUnit.prototype.stdFinish);
 
@@ -143,7 +143,6 @@ function B5500DiskUnit(mnemonic, index, designate, statusChange, signal, options
     this.openDatabase();                // attempt to open the IDB database
 }
 
-B5500DiskUnit.prototype.euPrefix = "EU";        // prefix for EU object store names
 B5500DiskUnit.prototype.charXferRate = 96;      // avg. transfer rate [characters/ms = KC/sec]
 B5500DiskUnit.prototype.modelILatency = 40;     // Model-I disk max rotational latency [ms]
 B5500DiskUnit.prototype.modelIBLatency = 80;    // Model-IB disk max rotational latency [ms]
@@ -203,7 +202,7 @@ B5500DiskUnit.prototype.loadStorageConfig = function loadStorageConfig(storageCo
     var name;
 
     for (name in config) {              // for each property in the config
-        if (name.search(euRex) == 0) {  // filter name for "EUn" or "EUnn"
+        if (name.search(euRex) == 0) {  // filter name for "EUn" or "EU1n"
             eu = config[name];
             eu.maxLatency = (eu.slow ? this.modelIBLatency : this.modelILatency);
             eu.charXferRate = this.charXferRate;
@@ -278,7 +277,7 @@ B5500DiskUnit.prototype.read = function read(finish, buffer, length, mode, contr
     this.finish = finish;               // for global error handler
     var segs = Math.floor((length+239)/240);
     var segAddr = control % 1000000;    // starting seg address
-    var euNumber = (control % 10000000 - segAddr)/1000000 + this.euBase;
+    var euNumber = (control % 10000000 - segAddr)/1000000;
     var euName = this.euPrefix + euNumber;
     var endAddr = segAddr+segs-1;       // ending seg address
 
@@ -367,14 +366,16 @@ B5500DiskUnit.prototype.write = function write(finish, buffer, length, mode, con
     this.finish = finish;               // for global error handler
     var segs = Math.floor((length+239)/240);
     var segAddr = control % 1000000;    // starting seg address
-    var euNumber = (control % 10000000 - segAddr)/1000000 + this.euBase;
+    var euNumber = (control % 10000000 - segAddr)/1000000;
     var euName = this.euPrefix + euNumber;
     var endAddr = segAddr+segs-1;       // ending seg address
 
     eu = this.config[euName];
     if (!eu) {                          // EU does not exist
+        console.log(euName + " does not exist");
         this.stdFinish(0x20, 0);        // set D27F for EU not ready
     } else if (segAddr < 0) {
+        console.log(euName + " invalid starting addr");
         this.stdFinish(0x20, 0);        // set D27F for invalid starting seg address
     } else {
         if (endAddr >= eu.size) {       // if read is past end of disk
@@ -392,6 +393,14 @@ B5500DiskUnit.prototype.write = function write(finish, buffer, length, mode, con
         } else {
             // Do the write
             txn = this.db.transaction(euName, "readwrite")
+            txn.onerror = function writeTxnOnError(ev) {
+                console.log(euName + " write txn onerror", ev);
+                that.stdFinish(0x20, 0);
+            };
+            txn.onabort = function writeTxnOnAbort(ev) {
+                console.log(euName + " write txn onabort", ev);
+                that.stdFinish(0x20, 0);
+            };
             txn.oncomplete = function writeComplete(ev) {
                 that.timer = setCallback(that.mnemonic, that, finishTime - performance.now(),
                     function writeTimeout() {
@@ -440,7 +449,7 @@ B5500DiskUnit.prototype.readCheck = function readCheck(finish, length, control) 
     this.finish = finish;               // for global error handler
     var segs = Math.floor((length+239)/240);
     var segAddr = control % 1000000;    // starting seg address
-    var euNumber = (control % 10000000 - segAddr)/1000000 + this.euBase;
+    var euNumber = (control % 10000000 - segAddr)/1000000;
     var euName = this.euPrefix + euNumber;
     var endAddr = segAddr+segs-1;       // ending seg address
 
@@ -501,7 +510,7 @@ B5500DiskUnit.prototype.readInterrogate = function readInterrogate(finish, contr
     the address */
     var eu;                             // EU characteristics object
     var segAddr = control % 1000000;    // starting seg address
-    var euNumber = (control % 10000000 - segAddr)/1000000 + this.euBase;
+    var euNumber = (control % 10000000 - segAddr)/1000000;
     var euName = this.euPrefix + euNumber;
 
     this.finish = finish;               // for global error handler
@@ -511,11 +520,13 @@ B5500DiskUnit.prototype.readInterrogate = function readInterrogate(finish, contr
     } else {
         if (segAddr < 0 || segAddr >= eu.size) { // if read is past end of disk
             this.errorMask |= 0x20;     // set D27F for invalid seg address
+        } else if (eu.slow) {
+            this.errorMask |= 0x10;     // set D28F (lockout bit) to indicate Mod IB (slow) disk
         }
         this.timer = setCallback(this.mnemonic, this,
             Math.random()*eu.maxLatency + this.initiateStamp - performance.now(),
             function readInterrogateTimeout() {
-                this.stdFinish(0, length);
+                this.stdFinish(0, 0);
         });
     }
 };
@@ -533,7 +544,7 @@ B5500DiskUnit.prototype.writeInterrogate = function writeInterrogate(finish, con
 
     var eu;                             // EU characteristics object
     var segAddr = control % 1000000;    // starting seg address
-    var euNumber = (control % 10000000 - segAddr)/1000000 + this.euBase;
+    var euNumber = (control % 10000000 - segAddr)/1000000;
     var euName = this.euPrefix + euNumber;
 
     this.finish = finish;               // for global error handler
@@ -547,7 +558,7 @@ B5500DiskUnit.prototype.writeInterrogate = function writeInterrogate(finish, con
         this.timer = setCallback(this.mnemonic, this,
             Math.random()*eu.maxLatency + this.initiateStamp - performance.now(),
             function writeInterrogateTimeout() {
-                this.stdFinish(0, length);
+                this.stdFinish(0, 0);
         });
     }
 };
