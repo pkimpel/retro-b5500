@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>B5500 Disk Subsystem Peeker</title>
+<!--
+/***********************************************************************
+* retro-b5500/webUI B5500DiskPeeker.html
+************************************************************************
+* Copyright (c) 2015, Paul Kimpel.
+* Licensed under the MIT License,
+*       see http://www.opensource.org/licenses/mit-license.php
+************************************************************************
+* B5500 Disk Subsystem Peeker.
+************************************************************************
+* 2015-04-25  P.Kimpel
+*   Original version, from B5500ColdLoader.html.
+***********************************************************************/
+-->
+<meta name="Author" content="Paul Kimpel">
+<meta http-equiv="Content-Script-Type" content="text/javascript">
+<meta http-equiv="Content-Style-Type" content="text/css">
+<link id=defaultStyleSheet rel=stylesheet type="text/css" href="../webUI/B5500Common.css">
+
+<script>
+"use strict";
+
+window.addEventListener("load", function() {
+    var configName = "CONFIG";          // database configuration store name
+    var dbName = "TSS-CANDE";           // IDB database name
+    var directoryTop = 2000;            // start of directory area
+    var directoryEnd = 3008;            // end of directory area
+    var euSize = 200000;                // model I size (5 Storage Units: 6MW or 48MC)
+    var euPrefix = "EU";                // prefix for EU object store names
+
+    var config = null;                  // copy of CONFIG store contents
+    var db = null;                      // the IDB database object
+    var panel = document.getElementById("TextPanel");
+
+    var euSet = {EU0: euSize, EU1: euSize};
+
+    var BICtoANSIChar = [               // Index by 6-bit BIC to get ANSI character
+            "0", "1", "2", "3", "4", "5", "6", "7",
+            "8", "9", "#", "@", "?", ":", ">", "}",
+            "+", "A", "B", "C", "D", "E", "F", "G",
+            "H", "I", ".", "[", "&", "(", "<", "~",
+            "|", "J", "K", "L", "M", "N", "O", "P",
+            "Q", "R", "$", "*", "-", ")", ";", "{",
+            " ", "/", "S", "T", "U", "V", "W", "X",
+            "Y", "Z", ",", "%", "!", "=", "]", "\""];
+
+    var BICtoANSI = [                   // Index by 6-bit BIC to get 8-bit ANSI code
+        0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,        // 00-07, @00-07
+        0x38,0x39,0x23,0x40,0x3F,0x3A,0x3E,0x7D,        // 08-1F, @10-17
+        0x2B,0x41,0x42,0x43,0x44,0x45,0x46,0x47,        // 10-17, @20-27
+        0x48,0x49,0x2E,0x5B,0x26,0x28,0x3C,0x7E,        // 18-1F, @30-37
+        0x7C,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,        // 20-27, @40-47
+        0x51,0x52,0x24,0x2A,0x2D,0x29,0x3B,0x7B,        // 28-2F, @50-57
+        0x20,0x2F,0x53,0x54,0x55,0x56,0x57,0x58,        // 30-37, @60-67
+        0x59,0x5A,0x2C,0x25,0x21,0x3D,0x5D,0x22];       // 38-3F, @70-77
+
+    var BICtoBCLANSI = [                // Index by 6-bit BIC to get 8-bit BCL-as-ANSI code
+        0x23,0x31,0x32,0x33,0x34,0x35,0x36,0x37,        // 00-07, @00-07
+        0x38,0x39,0x40,0x3F,0x30,0x3A,0x3E,0x7D,        // 08-1F, @10-17
+        0x2C,0x2F,0x53,0x54,0x55,0x56,0x57,0x58,        // 10-17, @20-27
+        0x59,0x5A,0x25,0x21,0x20,0x3D,0x5D,0x22,        // 18-1F, @30-37
+        0x24,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,        // 20-27, @40-47
+        0x51,0x52,0x2A,0x2D,0x7C,0x29,0x3B,0x7B,        // 28-2F, @50-57
+        0x2B,0x41,0x42,0x43,0x44,0x45,0x46,0x47,        // 30-37, @60-67
+        0x48,0x49,0x5B,0x26,0x2E,0x28,0x3C,0x7E];       // 38-3F, @70-77
+
+    var ANSItoBIC = [                   // Index by 8-bit ANSI to get 6-bit BIC (upcased, invalid=>"?")
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 00-0F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 10-1F
+        0x30,0x3C,0x3F,0x0A,0x2A,0x3B,0x1C,0x0C,0x1D,0x2D,0x2B,0x10,0x3A,0x2C,0x1A,0x31,  // 20-2F
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0D,0x2E,0x1E,0x3D,0x0E,0x0C,  // 30-3F
+        0x0B,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x21,0x22,0x23,0x24,0x25,0x26,  // 40-4F
+        0x27,0x28,0x29,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x1B,0x0C,0x3E,0x0C,0x0C,  // 50-5F
+        0x0C,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x21,0x22,0x23,0x24,0x25,0x26,  // 60-6F
+        0x27,0x28,0x29,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x2F,0x20,0x0F,0x1F,0x0C,  // 70-7F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 80-8F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 90-9F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // A0-AF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // B0-BF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // C0-CF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // D0-DF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // E0-EF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C]; // F0-FF
+
+    var BCLANSItoBIC = [                // Index by 8-bit BCL-as-ANSI to get 6-bit BIC (upcased, invalid=>"?")
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 00-0F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 10-1F
+        0x1C,0x1B,0x1F,0x00,0x20,0x1A,0x3B,0x0C,0x3D,0x2D,0x2A,0x30,0x10,0x2B,0x3C,0x11,  // 20-2F
+        0x0C,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0D,0x2E,0x3E,0x1D,0x0E,0x0B,  // 30-3F
+        0x0A,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x21,0x22,0x23,0x24,0x25,0x26,  // 40-4F
+        0x27,0x28,0x29,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x3A,0x0C,0x1E,0x0C,0x0C,  // 50-5F
+        0x0C,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x21,0x22,0x23,0x24,0x25,0x26,  // 60-6F
+        0x27,0x28,0x29,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x2F,0x2C,0x0F,0x3F,0x0C,  // 70-7F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 80-8F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 90-9F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // A0-AF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // B0-BF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // C0-CF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // D0-DF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // E0-EF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C]; // F0-FF
+
+    var pow2 = [                        // powers of 2 from 0 to 52
+                     0x1,              0x2,              0x4,              0x8,
+                    0x10,             0x20,             0x40,             0x80,
+                   0x100,            0x200,            0x400,            0x800,
+                  0x1000,           0x2000,           0x4000,           0x8000,
+                 0x10000,          0x20000,          0x40000,          0x80000,
+                0x100000,         0x200000,         0x400000,         0x800000,
+               0x1000000,        0x2000000,        0x4000000,        0x8000000,
+              0x10000000,       0x20000000,       0x40000000,       0x80000000,
+             0x100000000,      0x200000000,      0x400000000,      0x800000000,
+            0x1000000000,     0x2000000000,     0x4000000000,     0x8000000000,
+           0x10000000000,    0x20000000000,    0x40000000000,    0x80000000000,
+          0x100000000000,   0x200000000000,   0x400000000000,   0x800000000000,
+         0x1000000000000,  0x2000000000000,  0x4000000000000,  0x8000000000000,
+        0x10000000000000];
+
+    /**************************************/
+    function $$(id) {
+        return document.getElementById(id);
+    }
+
+    /**************************************/
+    function bit(word, bit) {
+        /* Extracts and returns the specified bit from the word */
+        var e = 47-bit;                     // word lower power exponent
+        var p;                              // bottom portion of word power of 2
+
+        if (e > 0) {
+            return ((word - word % (p = pow2[e]))/p) % 2;
+        } else {
+            return word % 2;
+        }
+    };
+
+    /**************************************/
+    function fieldIsolate(word, start, width) {
+        /* Extracts a bit field [start:width] from word and returns the field */
+        var le = 48-start-width;            // lower power exponent
+        var p;                              // bottom portion of word power of 2
+
+        return (le == 0 ? word : (word - word % (p = pow2[le]))/p) % pow2[width];
+    };
+
+    /**************************************/
+    function spout(text) {
+        /* Appends "text"+NL as a new text node to the panel DOM element */
+        var e = document.createTextNode(text + "\n");
+
+        panel.appendChild(e);
+        $$("PageBottom").scrollIntoView();
+    }
+
+    /**************************************/
+    function clearPanel() {
+        /* Clears the text panel */
+        var kid;
+
+        while (kid = panel.firstChild) {
+            panel.removeChild(kid);
+        }
+    }
+
+    /**************************************/
+    function parseNumber(s) {
+        /* Parses the string "s" as a base-10 number. Returns 0 if it is not a number */
+        var n = parseInt(s, 10);
+
+        return (isNaN(n) ? 0 : n);
+    }
+
+    /**************************************/
+    function rtrim(s) {
+        /* Trims trailing spaces from "s" and returns the resulting string */
+        var m = s.match(/^(.*?) *$/);
+
+        return m[1];
+    }
+
+    /**************************************/
+    function padToLength(text, len) {
+        /* Converts the input string "text" to exactly "len" characters,
+        truncating or padding on the right with spaces as necessary */
+        var x = text.length;
+
+        if (x > len) {
+            return text.substring(0, len);
+        } else {
+            x = len-x;
+            while (x-- > 0) {
+                text += " ";
+            }
+            return text;
+        }
+    }
+
+    /**************************************/
+    function stringToANSI(text, bytes, bx, asBinary) {
+        /* Translates the characters in a string to upper case, and then to ANSI
+        byte-array format. "text" is the input string, "bytes" is the Uint8Array
+        output buffer, and "bx" is the offset into that output buffer. If "asBinary" is
+        truthy, the translation is binary, otherwise it is done as BCLANSI */
+        var len = text.length;
+        var table1 = (asBinary ? BICtoANSI : BICtoBCLANSI);
+        var utxt = text.toUpperCase();
+        var x;
+
+        bx = bx || 0;
+        for (x=0; x<len; x++) {
+            bytes[bx++] = table1[ANSItoBIC[utxt.charCodeAt(x) & 0xFF]];
+        }
+    }
+
+    /**************************************/
+    function ANSItoString(bytes, bx, bLength, asBinary) {
+        /* Translates a portion of an ANSI byte array to a string and returns it.
+        "bytes" = the Uint8Array byte array
+        "bx" = 0-relative offset into "bytes"
+        "bLength" = number of bytes to translate
+        "asBinary" = if truthy, then binary translation is done; otherwise
+                     B5500 BCLANSI translation is done */
+        var table = (asBinary ? ANSItoBIC : BCLANSItoBIC);
+        var text = "";
+        var x;
+
+        if (bLength < 0) {
+            bLength = -bLength;
+        }
+        for (x=0; x<bLength; x++) {
+            text += BICtoANSIChar[table[bytes[bx+x]]];
+        }
+        return text;
+    }
+
+    /**************************************/
+    function wordsToANSI(words, wx, wLength, bytes, bx, asBinary) {
+        /* Translates an array of B5500 words to ANSI byte-array format.
+        "words" = the array of words
+        "wx" = the starting index in "words"
+        "wLength" = the number of words to translate
+        "bytes" = a Uint8Array array
+        "bx" = the starting index in "bytes" to store the translated data
+        "asBinary" = if truthy, then binary translation is done; otherwise
+                     B5500 BCLANSI translation is done */
+        var c;
+        var table = (asBinary ? BICtoANSI : BICtoBCLANSI);
+        var w;
+        var x;
+        var y;
+        var z;
+
+        bx = bx || 0;
+        if (wLength < 0) {
+            wLength = -wLength;
+        }
+        for (x=0; x<wLength; x++) {
+            w = words[wx+x] || 0;
+            for (y=0; y<8; y++) {
+                z = w % 0x40000000000;
+                c = (w-z)/0x40000000000;
+                bytes[bx++] = table[c];
+                w = z*64;
+            }
+        }
+    }
+
+    /**************************************/
+    function ANSItoWords(bytes, bx, bLength, words, wx, asBinary) {
+        /* Translates a portion of an ANSI byte array to a sequence of B5500 words.
+        "bytes" = the Uint8Array byte array
+        "bx" = 0-relative offset into "bytes"
+        "bLength" = number of bytes to translate
+        "words" = the word array
+        "wx" = 0-relative offset into "words" to store the translated data
+        "asBinary" = if truthy, then binary translation is done; otherwise
+                     B5500 BCLANSI translation is done */
+        var cx = 0;
+        var w = 0;
+        var table = (asBinary ? ANSItoBIC : BCLANSItoBIC);
+        var x;
+
+        wx = wx || 0;
+        if (bLength < 0) {
+            bLength = -bLength;
+        }
+        for (x=0; x<bLength; x++) {
+            if (cx >= 8) {
+                words[wx++] = w;
+                w = cx = 0;
+            }
+            w = w*64 + table[bytes[bx+x]];
+            cx++;
+        }
+        while (cx++ < 8) {
+            w *= 64;
+        }
+        words[wx++] = w;
+    }
+
+    /**************************************/
+    function genericDBError(ev) {
+        /* Formats a generic alert when otherwise-unhandled database errors occur */
+        var db = ev.currentTarget.result;
+
+        alert("Disk Subsystem \"" + db.name + "\" error: " + ev.target.result.error);
+    }
+
+    /**************************************/
+    function dumpDisk() {
+        /* Dumps the initial and directory portions of the disk */
+        var txn = db.transaction("EU0");
+        var endKey = directoryEnd+10;
+        var eu = txn.objectStore("EU0");
+        var range = IDBKeyRange.upperBound(endKey);
+        var req = eu.openCursor(range);
+        var lastKey = -1;
+
+        spout("===== START OF DISK DUMP =====");
+        req.onsuccess = function(ev) {
+            var cursor = ev.target.result;
+
+            if (cursor) {
+                if (cursor.key-lastKey > 1) {
+                    spout("----- " + (cursor.key-lastKey-1) + " unallocated segments -----");
+                }
+                spout(cursor.key + ": " + ANSItoString(cursor.value, 0, cursor.value.length));
+                lastKey = cursor.key;
+                cursor.continue();
+            } else {
+                if (endKey > lastKey) {
+                    spout("----- " + (endKey-lastKey) + " unallocated segments thru " + endKey + " -----");
+                }
+                spout("===== END OF DISK DUMP =====");
+            }
+        };
+    }
+
+    /**************************************/
+    function openDatabase(name) {
+        /* Attempts to open the disk subsystem database for the specified "name".
+        Stores the IDB database object in "db" if successful, or stores null
+        if unsuccessful */
+        var req;
+
+        req = window.indexedDB.open(name);
+
+        req.onerror = function(ev) {
+            alert("Cannot open retro-B5500 Disk Subsystem database:\n" + ev.target.error);
+        };
+
+        req.onblocked = function(ev) {
+            alert("Disk Subsystem open is blocked -- cannot continue");
+        };
+
+        req.onupgradeneeded = function(ev) {
+            configureDatabase(ev, req);
+        };
+
+        req.onsuccess = function(ev) {
+            var txn;
+
+            db = ev.target.result;    // save the object reference globally for later use
+            db.onerror = genericDBError;
+            alert("Disk Subsystem opened: " + name + " #" + db.version);
+
+            dumpDisk();
+        };
+    }
+
+    /********** Start of window.onload() **********/
+
+    openDatabase(dbName);
+}, false);
+</script>
+
+<style>
+BODY {
+    font-family:        DejaVuSansWeb, sans-serif;
+    font-size:          small}
+TABLE {
+    border-collapse:    collapse}
+TH {
+    vertical-align:     bottom}
+.center {
+    text-align:         center}
+.rj {
+    text-align:         right}
+</style>
+</head>
+
+<body>
+
+<div style="position:relative; width:100%; height:4em">
+    <div style="position:absolute; left:0; top:0; width:auto">
+        <img src="./resources/retro-B5500-Logo.png" alt="retro-B5500 Logo" style="float:left">
+        &nbsp;Disk SubSystem Peeker
+    </div>
+
+</div>
+
+<pre id=TextPanel>
+</pre>
+
+<div id=PageBottom>
+</div>
+
+</body>
+</html>
