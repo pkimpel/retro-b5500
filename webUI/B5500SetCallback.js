@@ -14,21 +14,21 @@
 * the call-back function.
 *
 * This facility is needed because modern browsers implement a minimum delay
-* when calling setTimeout(). HTML5 specs require 4ms, but on Microsoft Windows
-* systems (at least through Win7), the minimum precision of setTimeout() is
-* about 15ms, unless you are running Google Chrome. This module will use
+* when calling setTimeout(). HTML5 specs require 4ms, but browsers vary in the
+* minimum they use, and their precision in activating the call-back function
+* once the actual delay is established varies even more. This module will use
 * setTimeout() if the requested delay time is above a certain threshold, and
 * a setImmediate()-like mechanism (based on window.postMessage) if the requested
 * delay is below that threshold.
 *
 * To help compensate for the fact that the call-back function may be called
-* sooner than requested, and that due to either other activity or browser
+* sooner than requested, and that due either to other activity or to browser
 * limitations the delay may be longer than requested, the timing behavior of
 * setCallback() may be divided into "categories." For each category, a separate
-* record is kept of the exponential-moving-average deviation between the
-* requested delay and the actual delay. This deviation is used to adjust the
-* requested delay on subsequent calls in an attempt to smooth out the differences.
-* We are going for good average behavior here, and quick call-backs are better
+* record is kept of the current total deviation between the requested delay and 
+* the actual delay. A portion of this deviation is then applied to the requested
+* delay on subsequent calls in an attempt to smooth out the differences. We are
+* going for good average behavior here, and some too-quick call-backs are better
 * than consistently too-long callbacks in this environment, so that I/Os can be
 * initiated and their finish detected in finer-grained time increments.
 *
@@ -56,12 +56,13 @@
 *
 *       This is a diagnostic function intended for use in monitoring the callback
 *       mechanism. It returns an object that, depending upon bits set in its mask
-*       parameter, contains copies of the nextTokenNr value, poolLength
-*       value, current delayDev hash, pendingCallbacks hash, and pool array:
+*       parameter, contains copies of the lastTokenNr value, poolLength
+*       value, current delayDev hash, pendingCallbacks hash, and pool array.
+*       The optionMask parameter supports the following bit values:
 *           bit 0x01: delayDev hash
 *           bit 0x02: pendingCallbacks hash
 *           bit 0x04: pool array
-*       The nextTokenNr and poolLength values are always returned. If no mask
+*       The lastTokenNr and poolLength values are always returned. If no mask
 *       is supplied, no additional items are returned.
 *
 * This implementation has been inspired by Domenic Denicola's shim for the
@@ -79,15 +80,16 @@
 *   parameters into a more reasonable sequence; implement call-back pooling.
 * 2014-12-14  P.Kimpel
 *   Added getCallbackState() diagnostic function, changed "cookie" to "token".
+* 2015-08-09  P.Kimpel
+*   Implement new method of delay deviation accounting and delay adjustment.
 ***********************************************************************/
 "use strict";
 
 (function (global) {
     /* Define a closure for the setCallback() mechanism */
-    var delayAlpha = 0.25;              // delay deviation decay factor
     var delayDev = {NUL: 0};            // hash of delay time deviations by category
     var minTimeout = 4;                 // minimum setTimeout() threshold, milliseconds
-    var nextTokenNr = 1;                // next setCallback token return value
+    var lastTokenNr = 0;                // last setCallback token return value
     var pendingCallbacks = {};          // hash of pending callbacks, indexed by token as a string
     var perf = global.performance;      // cached window.performance object
     var pool = [];                      // pool of reusable callback objects
@@ -117,6 +119,7 @@
 
             thisCallback.context = null;
             thisCallback.fcn = null;
+            thisCallback.arg = null;
             pool[poolLength++] = thisCallback;
         }
     }
@@ -138,6 +141,7 @@
 
             thisCallback.context = null;
             thisCallback.fcn = null;
+            thisCallback.arg = null;
             pool[poolLength++] = thisCallback;
         }
     }
@@ -150,11 +154,12 @@
         based on window.postsMessage() will be used; otherwise the environment's standard
         setTimeout mechanism will be used */
         var categoryName = (category || "NUL").toString();
-        var delay = callbackDelay || 0;
-        var delayBias;
-        var thisCallback;
-        var token = nextTokenNr++;
-        var tokenName = token.toString();
+        var delay = callbackDelay || 0; // actual delay to be generated
+        var delayBias;                  // current amount of delay deviation
+        var ratio;                      // ratio of delay to delayBias
+        var thisCallback;               // call-back object to be used
+        var token = ++lastTokenNr;      // call-back token number
+        var tokenName = token.toString(); // call-back token ID
 
         // Allocate a call-back object from the pool.
         if (poolLength <= 0) {
@@ -164,32 +169,43 @@
             pool[poolLength] = null;
         }
 
-        // Fill in the object and tank it in pendingCallbacks.
+        delayBias = delayDev[categoryName];
+        if (!delayBias) {
+            delayDev[categoryName] = 0;         // got a new one
+        } else {
+            ratio = delay/delayBias;
+            if (ratio > 1) {
+                delay -= delayBias;
+                delayDev[categoryName] = 0;
+            } else if (ratio > 0) {
+                delayDev[categoryName] -= delay;
+                delay = 0;
+            } else if (ratio < -1) {
+                delay += delayBias;
+                delayDev[categoryName] = 0;
+            } else {
+                delayDev[categoryName] += delay;
+                delay = 0;
+            }
+        }
+
+        // Fill in the call-back object and tank it in pendingCallbacks.
         thisCallback.startStamp = perf.now();
         thisCallback.category = categoryName;
         thisCallback.context = context || this;
         thisCallback.delay = delay;
         thisCallback.fcn = fcn;
         thisCallback.arg = arg;
-
         pendingCallbacks[tokenName] = thisCallback;
 
         // Decide whether to do a time wait or just a yield.
-        if (categoryName in delayDev) {
-            delayBias = delayDev[categoryName]*delayAlpha;
-            delayDev[categoryName] -= delayBias;
-            delay -= delayBias;
+        if (delay > minTimeout) {
+            thisCallback.isTimeout = true;
+            thisCallback.cancelToken = global.setTimeout(activateCallback, delay, token);
         } else {
-            delayDev[categoryName] = 0;         // got a new one
-        }
-
-        if (delay < minTimeout) {
             thisCallback.isTimeout = false;
             thisCallback.cancelToken = 0;
             global.postMessage(secretPrefix + tokenName, "*");
-        } else {
-            thisCallback.isTimeout = true;
-            thisCallback.cancelToken = global.setTimeout(activateCallback, delay, token);
         }
 
         return token;
@@ -211,7 +227,7 @@
     /**************************************/
     function getCallbackState(optionMask) {
         /* Diagnostic function. Returns an object that, depending upon bits in
-        the option mask, contains copies of the nextTokenNr value, poolLength
+        the option mask, contains copies of the lastTokenNr value, poolLength
         value, current delayDev hash, pendingCallbacks hash, and pool array.
             bit 0x01: delayDev hash
             bit 0x02: pendingCallbacks hash
@@ -220,7 +236,7 @@
         var e;
         var mask = optionMask || 0;
         var state = {
-            nextTokenNr: nextTokenNr,
+            lastTokenNr: lastTokenNr,
             poolLength: poolLength,
             delayDev: {},
             pendingCallbacks: {},

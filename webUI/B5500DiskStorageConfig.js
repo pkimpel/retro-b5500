@@ -352,7 +352,7 @@ B5500DiskStorageConfig.prototype.modifyStorageSchema =
         // Since we know we just went through an onupgradeneeded event, we know
         // this database now has a "CONFIG" structure, so the extra tests in
         // openStorageDB() are not necessary.
-        that.alertWin.alert("Database \"" + dbName + "\" schema upgrade successful");
+        // that.alertWin.alert("Database \"" + dbName + "\" schema upgrade successful");
         delete that.storageConfig;
         onsuccess(ev);
     };

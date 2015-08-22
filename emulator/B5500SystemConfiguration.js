@@ -77,7 +77,7 @@ B5500SystemConfiguration.prototype.systemConfig = {
         CRA:    {enabled: true},        // Card Reader A
         CRB:    {enabled: false},       // Card Reader B
         CPA:    {enabled: true,         // Card Punch A
-                 algolGlyphs: true},
+                 algolGlyphs: false},
 
         LPA:    {enabled: true,         // Line Printer A
                  algolGlyphs: true},

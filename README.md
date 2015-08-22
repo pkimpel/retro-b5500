@@ -1,16 +1,16 @@
-The Burroughs B5500 was an innovative computer system. Released first as the B5000 in 1962 and then, with minor improvements and a new disk subsystem, re-released as the B5500 in 1964, its design was a radical departure from other commercial systems of the day. Many of the concepts that it embodied were being worked on and implemented by others around the same time, but it is difficult to think of another system that pulled so many concepts together and made them work so well in a commercially-successful product:
+The Burroughs B5500 was an innovative computer system. Released first as the B5000 in 1962 and then, with minor improvements and a new disk subsystem, re-released as the B5500 in 1964, its design was a radical departure from other commercial systems of the day. Many of the concepts that it embodied were being worked on and implemented by others around the same time, but it is difficult to think of another system that pulled so many new concepts together and made them work so well in a commercially-successful product:
 
     * Multi-programming (multiple tasks sharing the same processor)
     * Multi-processing (multiple physical processors sharing common memory and I/O)
-    * Automatic memory address relocation
-    * Automatic memory segment overlay (what we now call virtual memory)
+    * Automatic memory allocation and address relocation
+    * Automatic memory segment overlay (what we now call virtual memory)    
+    * Use of labeled file media and automatic assignment of labeled file media to requesting programs (what we now call automatic volume recognition)
     * Variable-length memory segments
     * Hardware bounds checking
     * Stack- and descriptor-oriented instruction set
     * Unified integer/floating-point numeric format
     * Management by a sophisticated operating system, the Master Control Program, or **MCP**
     * Designed for and programmed exclusively in higher-level languages
-
 
 The B5500 was the foundation for the Burroughs B6000/7000/A Series, which are still produced and sold today as Unisys ClearPath MCP systems.
 

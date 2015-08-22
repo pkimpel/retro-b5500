@@ -536,7 +536,7 @@ B5500ConsolePanel.prototype.dasBlinkenlichten = function dasBlinkenlichten() {
     var p1 = this.cc.P1;
     var stateRate;
 
-    cycles = p1.normalCycles+p1.controlCycles;
+    cycles = p1.normalCycles+p1.controlCycles+1; // avoid div zero
 
     if (pa) {
         if (pa.normalCycles+pa.controlCycles <= 0) {

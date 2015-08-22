@@ -979,7 +979,7 @@ B5500IOUnit.prototype.finishTapeIO = function finishTapeIO(errorMask, count) {
 
     if (errorMask & 0x1C0008) {
         partialCount += ((errorMask % 0x200000) >>> 18) * 0x08 +
-            (errorMask & 0x08) * 0x08;  // relocate the memory parity bit
+            (errorMask & 0x08) * 0x40;  // relocate the memory parity bit
         this.D02F = 1;                  // mark as a Mod III RD
         errorMask |= 0x08;              // set the original mem parity bit (D29) unconditionally
     }

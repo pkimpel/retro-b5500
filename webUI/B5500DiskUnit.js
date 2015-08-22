@@ -134,6 +134,7 @@ function B5500DiskUnit(mnemonic, index, designate, statusChange, signal, options
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
     this.config = null;                 // copy of CONFIG store contents
     this.db = null;                     // the IDB database object
+    this.sectorBuf = new Uint8Array(240); // sector buffer used by write()
     this.euPrefix =                     // prefix for EU object store names
             (mnemonic=="DKA" || options.DFX ? "EU" : "EU1");
 
@@ -274,13 +275,13 @@ B5500DiskUnit.prototype.read = function read(finish, buffer, length, mode, contr
     var that = this;                    // local object context
     var txn;                            // IDB transaction object
 
-    this.finish = finish;               // for global error handler
     var segs = Math.floor((length+239)/240);
     var segAddr = control % 1000000;    // starting seg address
     var euNumber = (control % 10000000 - segAddr)/1000000;
     var euName = this.euPrefix + euNumber;
     var endAddr = segAddr+segs-1;       // ending seg address
 
+    this.finish = finish;               // for global error handler
     eu = this.config[euName];
     if (!eu) {                          // EU does not exist
         this.stdFinish(0x20, 0);        // set D27F for EU not ready/not present
@@ -298,48 +299,58 @@ B5500DiskUnit.prototype.read = function read(finish, buffer, length, mode, contr
 
         if (segs < 1) {                 // No length specified, so just finish the I/O
             this.stdFinish(0, 0);
-        } else if (segs < 2) {          // A single-segment read
-            req = this.db.transaction(euName).objectStore(euName).get(segAddr);
-            req.onsuccess = function singleReadOnsuccess(ev) {
-                that.copySegment(ev.target.result, buffer, 0);
-                that.timer = setCallback(that.mnemonic, that, finishTime - performance.now(),
-                    function singleReadTimeout() {
-                        this.stdFinish(0, length);
-                });
-            }
-        } else {                        // A multi-segment read
-            range = IDBKeyRange.bound(segAddr, endAddr);
+        } else {
             txn = this.db.transaction(euName);
-
-            req = txn.objectStore(euName).openCursor(range);
-            req.onsuccess = function rangeReadOnsuccess(ev) {
-                var cursor = ev.target.result;
-
-                if (cursor) {           // found a segment at some address in range
-                    // Fill buffer with zeroes for any unallocated segments
-                    while (cursor.key > segAddr) {
-                        that.copySegment(null, buffer, bx);
-                        bx += 240;
-                        segAddr++;
-                    }
-                    // Copy the segment data to the buffer and request next seg
-                    that.copySegment(cursor.value, buffer, bx);
-                    bx += 240;
-                    segAddr++;
-                    cursor.continue();
-                } else {                // at end of range
-                    // Fill buffer with zeroes for any remaining segments in range
-                    while (endAddr > segAddr) {
-                        that.copySegment(null, buffer, bx);
-                        bx += 240;
-                        segAddr++;
-                    }
+            txn.onerror = function writeTxnOnError(ev) {
+                console.log(euName + " read txn onerror: " + ev.target.error.name);
+                that.stdFinish(0x20, 0);
+            };
+            txn.onabort = function writeTxnOnAbort(ev) {
+                console.log(euName + " read txn onabort: " + ev.target.error.name);
+                that.stdFinish(0x20, 0);
+            };
+            if (segs < 2) {             // A single-segment read
+                req = txn.objectStore(euName).get(segAddr);
+                req.onsuccess = function singleReadOnsuccess(ev) {
+                    that.copySegment(ev.target.result, buffer, 0);
                     that.timer = setCallback(that.mnemonic, that, finishTime - performance.now(),
-                        function rangeReadTimeout() {
+                        function singleReadTimeout() {
                             this.stdFinish(0, length);
                     });
                 }
-            };
+            } else {                    // A multi-segment read
+                range = IDBKeyRange.bound(segAddr, endAddr);
+
+                req = txn.objectStore(euName).openCursor(range);
+                req.onsuccess = function rangeReadOnsuccess(ev) {
+                    var cursor = ev.target.result;
+
+                    if (cursor) {       // found a segment at some address in range
+                        // Fill buffer with zeroes for any unallocated segments
+                        while (cursor.key > segAddr) {
+                            that.copySegment(null, buffer, bx);
+                            bx += 240;
+                            segAddr++;
+                        }
+                        // Copy the segment data to the buffer and request next seg
+                        that.copySegment(cursor.value, buffer, bx);
+                        bx += 240;
+                        segAddr++;
+                        cursor.continue();
+                    } else {            // at end of range
+                        // Fill buffer with zeroes for any remaining segments in range
+                        while (endAddr > segAddr) {
+                            that.copySegment(null, buffer, bx);
+                            bx += 240;
+                            segAddr++;
+                        }
+                        that.timer = setCallback(that.mnemonic, that, finishTime - performance.now(),
+                            function rangeReadTimeout() {
+                                this.stdFinish(0, length);
+                        });
+                    }
+                };
+            }
         }
     }
 };
@@ -359,17 +370,19 @@ B5500DiskUnit.prototype.write = function write(finish, buffer, length, mode, con
     var bx = 0;                         // current buffer offset
     var eu;                             // EU characteristics object
     var finishTime;                     // predicted time of I/O completion, ms
-    var req;                            // IDB request object
+    var req;                            // IDB request object  
+    var sectorBuf = this.sectorBuf;     // local copy
     var that = this;                    // local object context
     var txn;                            // IDB transaction object
+    var x;                              // loop index for sectorBuf copy
 
-    this.finish = finish;               // for global error handler
     var segs = Math.floor((length+239)/240);
     var segAddr = control % 1000000;    // starting seg address
     var euNumber = (control % 10000000 - segAddr)/1000000;
     var euName = this.euPrefix + euNumber;
     var endAddr = segAddr+segs-1;       // ending seg address
 
+    this.finish = finish;               // for global error handler
     eu = this.config[euName];
     if (!eu) {                          // EU does not exist
         console.log(euName + " does not exist");
@@ -394,11 +407,11 @@ B5500DiskUnit.prototype.write = function write(finish, buffer, length, mode, con
             // Do the write
             txn = this.db.transaction(euName, "readwrite")
             txn.onerror = function writeTxnOnError(ev) {
-                console.log(euName + " write txn onerror", ev);
+                console.log(euName + " write txn onerror: " + ev.target.error.name);
                 that.stdFinish(0x20, 0);
             };
             txn.onabort = function writeTxnOnAbort(ev) {
-                console.log(euName + " write txn onabort", ev);
+                console.log(euName + " write txn onabort: " + ev.target.error.name);
                 that.stdFinish(0x20, 0);
             };
             txn.oncomplete = function writeComplete(ev) {
@@ -409,8 +422,10 @@ B5500DiskUnit.prototype.write = function write(finish, buffer, length, mode, con
             };
             eu = txn.objectStore(euName);
             while (segAddr<=endAddr) {
-                eu.put(buffer.subarray(bx, bx+240), segAddr);
-                bx += 240;
+                for (x=0; x<240; ++x) {
+                    sectorBuf[x] = buffer[bx++];
+                }
+                eu.put(sectorBuf, segAddr);
                 ++segAddr;
             }
         }
