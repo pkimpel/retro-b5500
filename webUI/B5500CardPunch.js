@@ -31,11 +31,6 @@ function B5500CardPunch(mnemonic, unitIndex, designate, statusChange, signal, op
 
     this.clear();
 
-    this.window = window.open("", mnemonic);
-    if (this.window) {
-        this.shutDown();                // destroy the previously-existing window
-        this.window = null;
-    }
     this.doc = null;
     this.stacker1 = null;
     this.endOfStacker1 = null;
@@ -48,6 +43,7 @@ function B5500CardPunch(mnemonic, unitIndex, designate, statusChange, signal, op
 }
 
 B5500CardPunch.prototype.cardsPerMinute = 300;  // Punch speed
+B5500CardPunch.prototype.msPerCard = 60000/B5500CardPunch.prototype.cardsPerMinute;
 B5500CardPunch.prototype.maxScrollLines = 850;  // Maximum punch stacker scrollback (stacker capacity)
 B5500CardPunch.prototype.rtrimRex = /\s+$/g;    // regular expression for right-trimming card text
 
@@ -308,7 +304,7 @@ B5500CardPunch.prototype.write = function write(finish, buffer, length, mode, co
     }
 
     this.timer = setCallback(this.mnemonic, this,
-        60000/this.cardsPerMinute + this.initiateStamp - performance.now(),
+        this.msPerCard + this.initiateStamp - performance.now(),
         function writeDelay() {
             this.busy = false;
             finish(this.errorMask, length);

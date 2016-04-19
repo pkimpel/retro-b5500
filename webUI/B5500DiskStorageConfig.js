@@ -743,11 +743,6 @@ B5500DiskStorageConfig.prototype.openStorageUI = function openStorageUI(storageN
                 B5500CentralControl.bindMethod(this, this.closeStorageUI), false);
     }
 
-    this.window = window.open("", this.storageConfigName);
-    if (this.window) {
-        this.window.close();
-        this.window = null;
-    }
     this.doc = null;
     this.window = window.open("../webUI/B5500DiskStorageConfig.html", storageName+"_Config",
             "location=no,scrollbars,resizable,width=560,height=480");

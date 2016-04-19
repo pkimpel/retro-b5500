@@ -993,7 +993,9 @@ B5500IOUnit.prototype.finishTapeIO = function finishTapeIO(errorMask, count) {
 
 /**************************************/
 B5500IOUnit.prototype.finishTapeRead = function finishTapeRead(errorMask, length) {
-    /* Handles I/O finish for a tape drive read operation */
+    /* Handles I/O finish for a tape drive read operation. Note that all translations are
+    ANSI-to-BIC, as the tape driver is already handling even partity BCL-to-ANSI
+    translation for us */
     var count;
     var memWords = (length+7) >>> 3;
 
@@ -1003,15 +1005,15 @@ B5500IOUnit.prototype.finishTapeRead = function finishTapeRead(errorMask, length
 
     if (this.D22F) {
         if (this.D21F) {
-            count = this.storeBufferBackward(length, 0, this.D21F, memWords);
+            count = this.storeBufferBackward(length, 0, 1, memWords);
         } else {
-            count = this.storeBufferBackwardWithGM(length, 0, this.D21F, memWords);
+            count = this.storeBufferBackwardWithGM(length, 0, 1, memWords);
         }
     } else {
         if (this.D21F) {
-            count = this.storeBuffer(length, 0, this.D21F, memWords);
+            count = this.storeBuffer(length, 0, 1, memWords);
         } else {
-            count = this.storeBufferWithGM(length, 0, this.D21F, memWords);
+            count = this.storeBufferWithGM(length, 0, 1, memWords);
         }
     }
 
@@ -1020,15 +1022,19 @@ B5500IOUnit.prototype.finishTapeRead = function finishTapeRead(errorMask, length
 
 /**************************************/
 B5500IOUnit.prototype.initiateTapeIO = function initiateTapeIO(u) {
-    /* Initiates an I/O to a Magnetic Tape unit */
+    /* Initiates an I/O to a Magnetic Tape unit. Note that all translations are
+    BIC-to-ANSI, as the tape driver will handle even parity ANSI-to-BCL translation
+    for us */
     var addr = this.Daddress;           // initial data transfer address
     var chars;                          // characters to print
     var memWords;                       // words to fetch from memory
 
+    //console.log("TapeIO: u=" + u.mnemonic + ", R=" + this.D24F + ", WC=" + this.DwordCount +
+    //            ", BK=" + this.D22F + ", MI=" + this.D18F + ", D=" + this.D.toString(8));
+
     if (this.D24F) {                    // tape read operation
         if (this.D18F) {                        // read memory inhibit => maintenance commands
-            this.D30F = 1;                      // (MAINTENANCE I/Os NOT YET IMPLEMENTED)
-            this.finish();
+            u.space(this.boundFinishTapeIO, 0, this.D22F); // for now, just do a normal space
         } else if (this.D23F && this.DwordCount == 0) { // forward or backward space
             u.space(this.boundFinishTapeIO, 0, this.D22F);
         } else {                                // some sort of actual read

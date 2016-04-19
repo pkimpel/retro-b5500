@@ -35,11 +35,6 @@ function B5500LinePrinter(mnemonic, unitIndex, designate, statusChange, signal, 
 
     this.clear();
 
-    this.window = window.open("", mnemonic);
-    if (this.window) {
-        this.shutDown();                // destroy the previously-existing window
-        this.window = null;
-    }
     this.doc = null;
     this.barGroup = null;               // current greenbar line group
     this.paperDoc = null;               // the content document for the paper frame
@@ -54,6 +49,7 @@ function B5500LinePrinter(mnemonic, unitIndex, designate, statusChange, signal, 
 }
 
 B5500LinePrinter.prototype.linesPerMinute = 1040;       // B329 line printer
+B5500LinePrinter.prototype.msPerLine = 60000/B5500LinePrinter.prototype.linesPerMinute;
 B5500LinePrinter.prototype.maxPaperLines = 150000;      // maximum printer scrollback (about a box of paper)
 B5500LinePrinter.prototype.rtrimRex = /\s+$/;           // regular expression for right-trimming lines
 B5500LinePrinter.prototype.theColorGreen = "#CFC";      // for greenbar shading
@@ -406,7 +402,7 @@ B5500LinePrinter.prototype.write = function write(finish, buffer, length, mode, 
     }
 
     this.timer = setCallback(this.mnemonic, this,
-        60000/this.linesPerMinute + this.initiateStamp - performance.now(),
+        this.msPerLine + this.initiateStamp - performance.now(),
         this.signal);
     finish(this.errorMask, 0);
     this.endOfPaper.scrollIntoView();

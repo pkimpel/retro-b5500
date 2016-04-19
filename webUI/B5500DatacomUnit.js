@@ -44,11 +44,6 @@ function B5500DatacomUnit(mnemonic, unitIndex, designate, statusChange, signal, 
 
     this.clear();
 
-    this.window = window.open("", mnemonic);
-    if (this.window) {
-        this.shutDown();                // destroy any previously-existing window
-        this.window = null;
-    }
     this.doc = null;
     this.paper = null;
     this.endOfPaper = null;

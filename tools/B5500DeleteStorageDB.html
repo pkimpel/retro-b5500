@@ -2,16 +2,46 @@
 <head>
 <title>B5500 Emulator Storage DB Deletion</title>
 <meta name="Author" content="Nigel Williams & Paul Kimpel">
-<!-- 2014-08-30 Original version -->
+<!--
+2014-08-30 Original version.
+2016-03-25 P.Kimpel Add getDBName() routine to take stroage name from ?db=... query string.
+-->
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta http-equiv="Content-Script-Type" content="text/javascript">
 <meta http-equiv="Content-Style-Type" content="text/css">
 
 <script>
-var storageName = "________";
 
 window.addEventListener("load", function(ev) {
     var req;
+    var storageName = "________";
+
+    function getDBName(defaultName) {
+        /* Parses the URL query string for a "db=name" parameter. If "db" is
+        found, returns the corresponding name; if not found, returns "defaultName" */
+        var args;
+        var i;
+        var name;
+        var search = location.search.substring(1);      // drop the "?"
+        var value = defaultName;
+        var x;
+
+        args = search.split("&");
+        for (x=args.length-1; x>=0; --x) {
+            i = args[x].indexOf("=");
+            if (i > 0 ) {
+                name = decodeURIComponent(args[x].substring(0, i));
+                if (name.toLowerCase() == "db") {
+                    value = decodeURIComponent(args[x].substring(i+1));
+                    break; // out of for loop
+                }
+            }
+        }
+
+        return value;
+    }
+
+    storageName = getDBName(storageName);
 
     if (confirm("This will PERMANENTLY DELETE the \n\"" +
                 storageName + "\" Disk Storage database." +

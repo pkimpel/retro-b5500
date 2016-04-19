@@ -75,6 +75,82 @@ B5500Util.removeClass = function removeClass(e, name) {
 };
 
 /**************************************/
+B5500Util.octize = function octize(v, n) {
+    /* Converts "v" to an octal digit string and truncates or pads with zeroes
+    on the left as necessary to make a string of length "n" */
+    var s = v.toString(8);
+    var z = s.length;
+
+    if (z > n) {
+        s = s.substring(z-n);
+    } else {
+        while (z < n) {
+           ++z;
+           s = "0" + s;
+        }
+    }
+
+    return s;
+};
+
+/**************************************/
+B5500Util.pic9n = function pic9n(v, n) {
+    /* Converts "v" to a trimmed string and truncates or pads with zeroes on
+    the left as necessary to make a string of length "n" */
+    var s = v.toString().trim();
+    var z = s.length;
+
+    if (z > n) {
+        s = s.substring(z-n);
+    } else {
+        while (z < n) {
+            ++z;
+            s = "0" + s;
+        }
+    }
+
+    return s;
+};
+
+/**************************************/
+B5500Util.picXn = function picXn(v, n) {
+    /* Converts "v" to a trimmed string and truncates or pads with spaces on
+    the right as necessary to make a string of length "n" */
+    var s = v.toString().trim();
+    var z = s.length;
+
+    if (z > n) {
+        s = s.substring(0, n);
+    } else {
+        while (z < n) {
+            ++z;
+            s += " ";
+        }
+    }
+
+    return s;
+};
+
+/**************************************/
+B5500Util.picZn = function picZn(v, n) {
+    /* Converts "v" to a trimmed string and truncates or pads with spaces on
+    the left as necessary to make a string of length "n" */
+    var s = v.toString().trim();
+    var z = s.length;
+
+    if (z > n) {
+        s = s.substring(z-n);
+    } else {
+        while (z < n) {
+            ++z;
+            s = " " + s;
+        }
+    }
+
+    return s;
+};
+
+/**************************************/
 B5500Util.deepCopy = function deepCopy(source, dest) {
     /* Performs a deep copy of the object "source" into the object "dest".
     If "dest" is null or undefined, simply returns a deep copy of "source".

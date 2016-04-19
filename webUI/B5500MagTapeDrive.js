@@ -47,11 +47,6 @@ function B5500MagTapeDrive(mnemonic, unitIndex, designate, statusChange, signal,
     this.reelBar = null;                // handle for tape-full meter
     this.reelIcon = null;               // handle for the reel spinner
 
-    this.window = window.open("", mnemonic);
-    if (this.window) {
-        this.shutDown();                // destroy any previously-existing window
-        this.window = null;
-    }
     this.doc = null;
     this.window = window.open("../webUI/B5500MagTapeDrive.html", mnemonic,
             "location=no,scrollbars=no,resizable,width=560,height=120,left=280,top=" + y);
@@ -183,7 +178,6 @@ B5500MagTapeDrive.prototype.spinReel = function spinReel(inches) {
     }
 
     this.reelAngle = (this.reelAngle + degrees)%360;
-    this.reelIcon.style["-webkit-transform"] = "rotate(" + this.reelAngle.toFixed(0) + "deg)";  // temp for Chrome
     this.reelIcon.style.transform = "rotate(" + this.reelAngle.toFixed(0) + "deg)";
 
     if (this.tapeInches < this.imgMaxInches) {
@@ -863,7 +857,7 @@ B5500MagTapeDrive.prototype.bcdSpaceForward = function bcdSpaceForward(checkEOF)
     var imgIndex = this.imgIndex;       // current tape image offset
 
     if (imgIndex >= imgLength) {
-        this.errorMask |= 0x10;         // report parity error if beyond end of tape
+        this.errorMask |= 0x30;         // report EOF & parity error if beyond end of tape
     } else {
         if (this.atBOT) {
             this.setAtBOT(false);
@@ -951,7 +945,7 @@ B5500MagTapeDrive.prototype.bcdReadForward = function bcdReadForward(oddParity) 
     when the next frame has its high-order bit set, or the end of the tape image data
     is reached. The resulting buffer is always at least one character in length, unless
     the block is a tapeMark or the end of the data has been reached.
-        oddParity 0=Alpha (even parity), 1=Binary (odd parity) read
+        oddParity: 0=Alpha (even parity), 1=Binary (odd parity) read
     Exits with the image index pointing to the first frame of the next block (or beyond
     the end of the image blob if at EOT). Returns the number of characters read into the
     IOUnit buffer */
@@ -967,7 +961,7 @@ B5500MagTapeDrive.prototype.bcdReadForward = function bcdReadForward(oddParity) 
     var xlate = (oddParity ? this.bcdXlateInOdd : this.bcdXlateInEven);
 
     if (imgIndex >= imgLength) {
-        this.errorMask |= 0x10;         // report parity error if beyond end of tape
+        this.errorMask |= 0x30;         // report EOF & parity error if beyond end of tape
     } else {
         if (this.atBOT) {
             this.setAtBOT(false);
@@ -991,7 +985,13 @@ B5500MagTapeDrive.prototype.bcdReadForward = function bcdReadForward(oddParity) 
                 } else {
                     blankCount = 0;
                     cx = xlate[c];
-                    if (cx < 0xFF) {
+                    if (cx >= 0xFF) {
+                        this.errorMask |= 0x10;         // parity error
+                        this.imgIndex = imgIndex;
+                        this.bcdSpaceForward(false);
+                        imgIndex = this.imgIndex;
+                        break;                          // kill the read loop
+                    } else {
                         if (bufIndex < bufLength) {
                             buffer[bufIndex++] = cx;    // store the ANSI character
                             if (++imgIndex < imgLength) {
@@ -1005,12 +1005,6 @@ B5500MagTapeDrive.prototype.bcdReadForward = function bcdReadForward(oddParity) 
                             imgIndex = this.imgIndex;
                             break;                      // kill the read loop
                         }
-                    } else {
-                        this.errorMask |= 0x10;         // parity error
-                        this.imgIndex = imgIndex;
-                        this.bcdSpaceForward(false);
-                        imgIndex = this.imgIndex;
-                        break;                          // kill the read loop
                     }
                 }
             } while (c < 0x80);
@@ -1029,7 +1023,7 @@ B5500MagTapeDrive.prototype.bcdReadBackward = function bcdReadBackward(oddParity
     when the next frame has its high-order bit set, or the beginning of the tape image
     data is reached. The resulting buffer is always at least one character in length,
     unless the block is a tapeMark or the end of the data has been reached.
-        oddParity 0=Alpha (even parity), 1=Binary (odd parity) read
+        oddParity: 0=Alpha (even parity), 1=Binary (odd parity) read
     Note that the characters are stored in this.buffer in ascending order as they are
     being read backwards; thus the buffer is in reverse order with respect to how the
     data will be stored in memory. The IOUnit will unravel this at finish.
@@ -1074,7 +1068,13 @@ B5500MagTapeDrive.prototype.bcdReadBackward = function bcdReadBackward(oddParity
                 } else {
                     blankCount = 0;
                     cx = xlate[c & 0x7F];
-                    if (cx < 0xFF) {
+                    if (cx >= 0xFF) {
+                        this.errorMask |= 0x10;         // parity error
+                        this.imgIndex = imgIndex;
+                        this.bcdSpaceBackward(false);
+                        imgIndex = this.imgIndex;
+                        break;                          // kill the read loop
+                    } else {
                         if (bufIndex < bufLength) {
                             buffer[bufIndex++] = cx;    // store the ANSI character
                             if (c >= 0x80) {
@@ -1090,12 +1090,6 @@ B5500MagTapeDrive.prototype.bcdReadBackward = function bcdReadBackward(oddParity
                             imgIndex = this.imgIndex;
                             break;                      // kill the read loop
                         }
-                    } else {
-                        this.errorMask |= 0x10;         // parity error
-                        this.imgIndex = imgIndex;
-                        this.bcdSpaceBackward(false);
-                        imgIndex = this.imgIndex;
-                        break;                          // kill the read loop
                     }
                 }
             } while (true);

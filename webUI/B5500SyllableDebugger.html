@@ -809,6 +809,21 @@ function stepIt(ev) {
     ev.target.disabled = false;
 }
 
+function executeSingle(ev) {
+    /* Executes a single instruction the same was as stepIt() does, but preserves
+    and restores the original value of the T register across the execution. This
+    is useful for repeated tests of the same syllable */
+    var lastT = px.T;
+    var lastTROF = px.TROF
+
+    stepIt(ev);
+    px.T = lastT;
+    px.TROF = lastTROF;
+    displayOctal("TReg", px.T, 4);
+    $$("TROF").checked = (px.TROF != 0);
+    displaySyllable();
+}
+
 function runIt(ev) {
     /* Steps through instructions continuously until the C register matches the
     StopAddr address. StopAddr can be changed while running. Setting it to zero
@@ -1099,6 +1114,12 @@ function checkBrowser() {
     }
 }
 
+function focusConsole() {
+    window.focus();
+    $$("AReg").select();
+    $$("AReg").focus();
+}
+
 function initialize() {
     var sysConfig = new B5500SystemConfig();
 
@@ -1261,6 +1282,7 @@ function initialize() {
     $$("Dump").addEventListener("click", dump_onClick, false);
     $$("GoBtn").addEventListener("click", goIt, false);
     $$("StepBtn").addEventListener("click", stepIt, false);
+    $$("Execute1Btn").addEventListener("click", executeSingle, false);
     $$("RunBtn").addEventListener("click", runIt, false);
     $$("RunSilently").addEventListener("click", runSilently_onClick, false);
 
@@ -1282,6 +1304,7 @@ function initialize() {
         displayOctal("StopAddr", stopAddress, 5);
         establishSilence(runSilently);
         $$("StepBtn").disabled = false;
+        $$("Execute1Btn").disabled = false;
     });
 }
 
@@ -1624,7 +1647,9 @@ window.onload = function() {
         &nbsp;
         <input id=RunBtn name=RunBtn type=button value="Run" accesskey=R>
 <tr>
-    <td colspan=6 class=rj>
+    <td colspan=2 class=center>
+        <input id=Execute1Btn name=Execute1Btn type=button value="Execute Single" accesskey=X>
+    <td colspan=4 class=rj>
         <label for=RunSilently>Run Silently</label>
         <input id=RunSilently name=RunSilently type=checkbox value=1>
 </table>

@@ -31,11 +31,6 @@ function B5500CardReader(mnemonic, unitIndex, designate, statusChange, signal, o
 
     this.clear();
 
-    this.window = window.open("", mnemonic);
-    if (this.window) {
-        this.shutDown();                // destroy the previously-existing window
-        this.window = null;
-    }
     this.doc = null;
     this.window = window.open("../webUI/B5500CardReader.html", mnemonic,
             "location=no,scrollbars=no,resizable,width=560,height=160,left=0,top="+x);
@@ -50,6 +45,7 @@ function B5500CardReader(mnemonic, unitIndex, designate, statusChange, signal, o
 B5500CardReader.prototype.eolRex = /([^\n\r\f]*)((:?\r[\n\f]?)|\n|\f)?/g;
 
 B5500CardReader.prototype.cardsPerMinute = 1400;        // B129 card reader
+B5500CardReader.prototype.msPerCard = 60000/B5500CardReader.prototype.cardsPerMinute;
 
 B5500CardReader.prototype.cardFilter = [ // Filter ASCII character values to valid BIC ones
         0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,  // 00-0F
@@ -362,7 +358,7 @@ B5500CardReader.prototype.read = function read(finish, buffer, length, mode, con
         }
 
         this.timer = setCallback(this.mnemonic, this,
-            60000/this.cardsPerMinute + this.initiateStamp - performance.now(),
+            this.msPerCard + this.initiateStamp - performance.now(),
             function readDelay() {
                 this.busy = false;
                 finish(this.errorMask, length);

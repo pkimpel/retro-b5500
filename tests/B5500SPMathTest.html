@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>B5500 Single-Precision Math Test</title>
+<!--
+/***********************************************************************
+* retro-b5500 B5500SPAddSubtractTest.html
+************************************************************************
+* Copyright (c) 2016, Nigel Williams and Paul Kimpel.
+* Licensed under the MIT License, see
+*       http://www.opensource.org/licenses/mit-license.php
+************************************************************************
+* B5500 emulator Single-Precision Add/Subtract Syllable Test
+************************************************************************
+* 2016-03-16  P.Kimpel
+*   Original version.
+***********************************************************************/
+-->
+<meta name="Author" content="Nigel Williams & Paul Kimpel">
+<meta http-equiv="Content-Script-Type" content="text/javascript">
+<meta http-equiv="Content-Style-Type" content="text/css">
+
+<script src="../webUI/B5500Util.js"></script>
+<script src="../emulator/B5500Processor.js"></script>
+</head>
+
+<body>
+<pre>
+<script>
+"use strict";
+
+var vmax = 63;
+var i;
+var j;
+
+var p1 = new B5500Processor("A", {p1: null});
+
+var v = [
+    1, 2, 3, 4, 5, 6, 7, 8,
+    parseInt("1141000000000000", 8), parseInt("1142000000000000", 8),
+    parseInt("1143000000000000", 8), parseInt("1144000000000000", 8),
+    parseInt("1145000000000000", 8), parseInt("1146000000000000", 8),
+    parseInt("1147000000000000", 8), parseInt("1131000000000000", 8),
+    parseInt("0151000000000000", 8), parseInt("0152000000000000", 8),
+    parseInt("0153000000000000", 8), parseInt("0154000000000000", 8),
+    parseInt("0155000000000000", 8), parseInt("0156000000000000", 8),
+    parseInt("0157000000000000", 8), parseInt("0161000000000000", 8),
+    parseInt("0370000000000001", 8), parseInt("0370000000000002", 8),
+    parseInt("0370000000000003", 8), parseInt("0370000000000004", 8),
+    parseInt("0370000000000005", 8), parseInt("0370000000000006", 8),
+    parseInt("0370000000000007", 8), parseInt("0370000000000010", 8),
+    parseInt("1370000000000001", 8), parseInt("1370000000000002", 8),
+    parseInt("1370000000000003", 8), parseInt("1370000000000004", 8),
+    parseInt("1370000000000005", 8), parseInt("1370000000000006", 8),
+    parseInt("1370000000000007", 8), parseInt("1370000000000010", 8),
+    parseInt("0001111111111111", 8), parseInt("0002222222222222", 8),
+    parseInt("0003333333333333", 8), parseInt("0004444444444444", 8),
+    parseInt("0005555555555555", 8), parseInt("0006666666666666", 8),
+    parseInt("0007777777777777", 8), parseInt("0011010101010101", 8),
+    parseInt("1141111111111111", 8), parseInt("1142222222222222", 8),
+    parseInt("1143333333333333", 8), parseInt("1144444444444444", 8),
+    parseInt("1145555555555555", 8), parseInt("1146666666666666", 8),
+    parseInt("1147777777777777", 8), parseInt("0011010101010101", 8),
+    parseInt("0151111111111111", 8), parseInt("0152222222222222", 8),
+    parseInt("0153333333333333", 8), parseInt("0154444444444444", 8),
+    parseInt("0155555555555555", 8), parseInt("0156666666666666", 8),
+    parseInt("0157777777777777", 8), parseInt("0011010101010101", 8)];
+
+var r = Array(vmax+1);
+
+function b55Number(v) {
+    /* Formats the parameter as a B5500 FP number as E18.11 */
+    var m = v%0x8000000000;
+    var e = ((v - m)/0x8000000000)%0x80;
+    var s = (v - v%0x800000000000)/0x800000000000;
+    var r = m;
+
+
+    if (e%0x40) {                       // exponent != 0
+        if (e < 0x40) {                 // non-negative exponent
+            r *= Math.pow(8, e);
+        } else {                        // negative exponent
+            r /= Math.pow(8, e%0x40);
+        }
+    }
+
+    if (s) {
+        r = -r;
+    }
+
+    return r.toExponential(11) /* DEBUG: + " " + s + " " + B5500Util.octize(e, 3) + " " + B5500Util.octize(m, 13) */;
+}
+
+function b55Normalize(w) {
+    /* Returns fully normalized numeric word values if they are non-integer */
+    var m = w%0x8000000000;             // mantissa field
+    var e;                              // exponent field (signed)
+    var s;                              // mantissa sign field
+
+    if (m == 0) {                       // mantissa is all zeroes
+        return w;
+    } else {
+        e = (w-m)/0x8000000000;
+        s = (e >>> 7) & 0x01;
+        e = (e & 0x40 ? -(e & 0x3F) : (e & 0x3F));
+
+        if (e == 0) {                   // it's an integer value
+            return w;
+        } else {
+            while (m < 0x1000000000) {
+                --e;
+                m *= 8;                 // normalize mantissa field
+            }
+
+            // Reconstruct the word and return it
+            if (e < 0) {
+                e = (-e) | 0x40;                // set the exponent sign bit
+            }
+
+            return (s*128 + e)*0x8000000000 + m;
+        }
+    }
+}
+
+function dumpr(caption) {
+    var i;
+    var j;
+    var k;
+
+    document.writeln();
+    document.write(caption);
+
+    for (i=0; i<=vmax; ++i) {
+        document.writeln();
+        document.write(B5500Util.picZn(i, 5));
+        k = 0;
+        for (j=0; j<=vmax; ++j) {
+            if (k < 6) {
+                ++k;
+            } else {
+                k = 1;
+                document.writeln();
+                document.write("     ");
+            }
+            document.write("  ");
+            //document.write(B5500Util.octize(r[i][j], 16));                // raw output
+            document.write(B5500Util.octize(b55Normalize(r[i][j]), 16));  // normalized output
+        }
+    }
+    document.writeln();
+}
+
+// Initialize the results array storage
+for (i=0; i<=vmax; ++i) {
+    r[i] = Array(vmax+1);
+}
+
+// Dump the raw data
+document.writeln("RAW DATA");
+
+for (i= 0; i<=vmax; ++i) {
+  document.write(B5500Util.picZn(i, 3));
+  document.write("  ");
+  document.write(B5500Util.octize(v[i], 16));
+  document.write("   ");
+  document.writeln(b55Number(v[i]));
+}
+
+// Apply the data to each of the math ops
+p1.NCSF = 1;
+p1.S = 512;
+
+for (i=0; i<=vmax; ++i) {
+  for (j=0; j<=vmax; ++j) {
+    p1.AROF = p1.BROF = 1;
+    p1.B = v[i];
+    p1.A = v[j];
+    p1.singlePrecisionAdd(true);
+    r[i][j] = p1.B;
+  }
+}
+dumpr("ADD   ");
+
+for (i=0; i<=vmax; ++i) {
+  for (j=0; j<=vmax; ++j) {
+    p1.AROF = p1.BROF = 1;
+    p1.B = v[i];
+    p1.A = v[j];
+    p1.singlePrecisionAdd(false);
+    r[i][j] = p1.B;
+  }
+}
+dumpr("SUB   ");
+
+/************************************
+for i:= 0 step 1 until vmax do
+  for j:= 0 step 1 until vmax do
+    r[i,j]:= v[i] | v[j];
+dumpr("MUL   ");
+
+expovr ~ fdiverr;
+intovr ~ fdiverr;
+zero ~ fdiverr;
+for i:= 0 step 1 until vmax do
+  for j:= 0 step 1 until vmax do
+    begin
+    r[i,j]:= v[i] / v[j];
+    go to fdivok;
+  fdiverr:
+    r[i,j]:= 0 & 1[1:1];
+  fdivok:
+    end for j;
+dumpr("F-DIV ");
+
+expovr ~ idiverr;
+intovr ~ idiverr;
+zero ~ idiverr;
+for i:= 0 step 1 until vmax do
+  for j:= 0 step 1 until vmax do
+    begin
+    r[i,j]:= v[i] div v[j];
+    go to idivok;
+  idiverr:
+    r[i,j]:= 0 & 1[1:1];
+  idivok:
+    end for j;
+dumpr("i-div ");
+
+expovr ~ rdiverr;
+intovr ~ rdiverr;
+zero ~ rdiverr;
+for i:= 0 step 1 until vmax do
+  for j:= 0 step 1 until vmax do
+    begin
+    r[i,j]:= v[i] mod v[j];
+    go to rdivok;
+  rdiverr:
+    r[i,j]:= 0 & 1[1:1];
+  rdivok:
+    end for j;
+dumpr("mod   ");
+***************************/
+
+</script>
+
+</pre>
+</body>

@@ -869,11 +869,6 @@ B5500SystemConfig.prototype.openConfigUI = function openConfigUI() {
                 B5500CentralControl.bindMethod(this, this.closeConfigUI), false);
     }
 
-    this.window = window.open("", this.configDBName);
-    if (this.window) {
-        this.window.close();
-        this.window = null;
-    }
     this.doc = null;
     this.window = window.open("../webUI/B5500SystemConfig.html", this.configDBName,
             "location=no,scrollbars,resizable,width=640,height=700");

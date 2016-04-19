@@ -36,11 +36,6 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal, opti
 
     this.clear();
 
-    this.window = window.open("", mnemonic);
-    if (this.window) {
-        this.shutDown();                // destroy any previously-existing window
-        this.window = null;
-    }
     this.doc = null;
     this.paper = null;
     this.inputBox = null;
@@ -269,7 +264,7 @@ B5500SPOUnit.prototype.requestInput = function requestInput() {
         if (!this.spoInputRequested) {
             this.spoInputRequested = true;
             B5500Util.addClass(this.$$("SPOInputRequestBtn"), "yellowLit");
-            this.signal();
+            this.signal(0);             // Cause the Input Request interrupt
         }
         break;
     case this.spoInput:
@@ -516,10 +511,10 @@ B5500SPOUnit.prototype.spoOnload = function spoOnload() {
     this.printText("retro-B5500 Emulator Version " + B5500CentralControl.version,
             B5500CentralControl.bindMethod(this, function initFinish() {
         this.window.focus();
-        window.open("", "B5500Console").focus();
         this.setRemote();
         this.appendEmptyLine("\xA0");
         this.endOfPaper.scrollIntoView();
+        this.signal(-1);                // re-focus the Console window
     }));
 
     this.window.moveTo(screen.availWidth-this.window.outerWidth,

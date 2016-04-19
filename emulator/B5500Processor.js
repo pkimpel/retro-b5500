@@ -9,10 +9,11 @@
 *
 * Instance variables in all caps generally refer to register or flip-flop (FF)
 * entities in the processor hardware. See the Burroughs B5500 Reference Manual
-* (1021326, May 1967) and B5281 Processor Training Manual (B5281.55, August 1966)
-* for details:
+* (1021326, May 1967), B5000 Processor Flow Chart, and B5281 Processor Training
+* Manual (B5281.55, August 1966) for details:
 * http://bitsavers.org/pdf/burroughs/B5000_5500_5700/1021326_B5500_RefMan_May67.pdf
-* http://bitsavers.org/pdf/burroughs/B5000_5500_5700/B5281.55_ProcessorTrainingManual_Aug66.pdf
+* http://bitsavers.org/pdf/burroughs/B5000_5500_5700/service/B5000_Processor_Flow_Chart.pdf
+* http://bitsavers.org/pdf/burroughs/B5000_5500_5700/service/B5281.55_ProcessorTrainingManual_Aug66.pdf
 *
 * B5500 word format: 48 bits plus (hidden) parity.
 *   Bit 0 is high-order, bit 47 is low-order, big-endian character ordering.
@@ -56,8 +57,10 @@ function B5500Processor(procID, cc) {
 
 B5500Processor.cyclesPerMilli = 1000;   // clock cycles per millisecond (1000 => 1.0 MHz)
 B5500Processor.timeSlice = 4000;        // this.run() time-slice, clocks
-B5500Processor.delayAlpha = 0.999;      // decay factor for exponential weighted average delay
-B5500Processor.slackAlpha = 0.9999;     // decay factor for exponential weighted average slack
+B5500Processor.delayAlpha = 0.0001;     // decay factor for exponential weighted average delay
+B5500Processor.delayAlpha1 = 1-B5500Processor.delayAlpha;
+B5500Processor.slackAlpha = 0.00001;    // decay factor for exponential weighted average slack
+B5500Processor.slackAlpha1 = 1-B5500Processor.slackAlpha;
 
 B5500Processor.collation = [            // index by BIC to get collation value
     53, 54, 55, 56, 57, 58, 59, 60,             // @00: 0 1 2 3 4 5 6 7
@@ -1678,6 +1681,328 @@ B5500Processor.prototype.singlePrecisionCompare = function singlePrecisionCompar
 
 /**************************************/
 B5500Processor.prototype.singlePrecisionAdd = function singlePrecisionAdd(adding) {
+    /* Adds the contents of the A register to the B register, leaving the result
+    in B and invalidating A. If "adding" is not true, subtraction is performed
+    instead of addition.
+    The B5500 did this by complement arithmetic, exchanging operands as necessary,
+    and maintaining a bunch of Q-register flags to keep it all straight. Since the
+    B5500 used a unified numeric word format, this routine does both integer and
+    floating-point addition, attemting to keep integer operands as integers if
+    possible. Prior to addition or subtraction, the operands must be aligned:
+    the operand with the larger exponent is normalized to the left, the operand
+    the smaller exponent is scaled to the right, with overflow going into the X
+    register. The alignment process results in either the exponents becoming equal
+    or one of the mantissas going to zero.
+    Rewritten 2016-03-12: this version attempts to follow the flows closely,
+    implementing most of the J-count state logic as described in the Flow Chart
+    and Training Manual documents.
+
+    During development of this version of SP add/subtract we learned that the
+    flows can be subtle, and some things are not as they appear on the surface.
+    In some cases you need to examine the service/B5500_Processor_Equation_Book.pdf
+    document on bitsavers.org to see what is really happening. In particular:
+
+    1. Exit conditions for an instruction (SECL) are evaluated on the NEXT CLOCK,
+    and typically depend upon the state of the J register. If J has changed during
+    the current clock, then the exit condition likely no longer holds. Hence
+    statements such as "j = (j==n ? -1 : j)" where "n" is the current J setting.
+
+    2. The flip-flops used by the B5500 had separate 0/1 inputs and 0/1 outputs.
+    A flip-flop is reset by applying a signal to its 0 input and no signal to its
+    1 input. Similarly, it is set by applying a signal to its 1 input and no signal
+    to its 0 input. Applying a signal simultaneously to both inputs COMPLEMENTS the
+    state of the flip-flop. See service/logic/B5000_Parallel_Plate_Packages.pdf on
+    bitsavers.org for details.
+
+    Complementing the flip-flop is an issue in the J04L block where the result of
+    an addition is scaled due to overflow. There are two unique controls at the
+    bottom of that block, one setting Q01F to 1 and one setting Q01F to 0. The
+    conditions in those two controls are not mutually exclusive, however, so if
+    B04F*B02F/*B01F/ is true, both corresponding actions are enabled. Since the two
+    actions each set different sides of the inputs to Q01F, the flip-flop complements.
+    Q01F affects the rounding of the final result at J15L.
+
+    This also explains the use of full arrowheads (for double-ended replacement)
+    and half arrowheads (for single-ended replacement) in the flows. A single-ended
+    replacement apparently applies a signal to only one input (0 or 1) for all
+    flip-flops in a register. A double-ended replacement apparently applies signals
+    as appropriate to the 0 and 1 inputs of the register.
+
+    3. In the J05L block that performs subtraction, the term W03L controls whether
+    control passes to J15L, where the result may be rounded and checked for zero.
+    The flows and Training Manual describe W03L as true "if the 13th (high-order)
+    octades of the A and B register are equal." Not quite -- the Equation Book
+    shows that the complement, W03L/, is defined as:
+
+        A39F*B39F + A39F/*B39F/ + A38F*B38F + A38F/*B38F/ + A37F*B37F + A37F/*B37F/
+
+    which is the same as saying that W03L/ is true if any of the three pairs of bits
+    in that 13th octade have matching states, or correspondingly, W03L is true if
+    NONE of the three pairs of bits have matching states. That is a form of logical
+    equivalence, not arithmetic equality. Logical equivalence is the complement of
+    exclusive-or. Hence the eye-watering expression for W03L/ in case 5 under !Q04F
+    that extracts the 13th octades from both register values, XORs them, complements
+    the result, and tests that for not equal to zero.
+    */
+
+    var ea;                             // signed exponent of A
+    var eb;                             // signed exponent of B
+    var j = 0;                          // state variable
+    var ma;                             // absolute mantissa of A
+    var mb;                             // absolute mantissa of B
+    var sa;                             // mantissa sign of A (0=positive)
+    var sb;                             // mantissa sign of B (ditto)
+    var t1;                             // temp
+    var t2;                             // temp
+    var xx = 0;                         // local X register, set to zero by prior SECL
+
+    var Q01F = 0;                       // local carry/guard bit flag
+    var Q02F = 0;                       // local flag for change of sign
+    var Q04F = 0;                       // local flag for scaling of non-zero digit
+    var Q06F = 0;                       // local flag for interchanged operands
+    var W13L;                           // true => carry from 13th octade of sum
+    var W73L;                           // true => exponents equal
+    var W74L;                           // true => ea > eb
+    var W75L;                           // true => eb > ea
+    var W36C;                           // true => carry from 12th octade of sum
+    var W99L;                           // true => internal addition operation
+
+    this.cycleCount += 2;               // estimate some general overhead
+    this.adjustABFull();
+    this.AROF = 0;                      // A is unconditionally marked empty
+    ma = this.A % 0x8000000000;         // extract the A mantissa
+    mb = this.B % 0x8000000000;         // extract the B mantissa
+
+    if (ma == 0) { // W06L              // if A mantissa is zero
+        if (mb == 0) { // W07L          // and B mantissa is zero
+            this.B = 0;                 // result is all zeroes
+        } else { // W07L/
+            this.B %= 0x800000000000;   // otherwise, result is B with flag bit reset
+        }
+    } else { // W06L/                   // rats... we actually have to do this...
+        ea = (this.A - ma)/0x8000000000;
+        sa = (ea >>> 7) & 0x01;
+        ea = (ea & 0x40 ? -(ea & 0x3F) : (ea & 0x3F));
+
+        eb = (this.B - mb)/0x8000000000;
+        sb = (eb >>> 7) & 0x01;
+        eb = (eb & 0x40 ? -(eb & 0x3F) : (eb & 0x3F));
+
+        W99L = (adding ? (sa == sb) : (sa != sb));      // true => internal add
+
+        do {
+            ++this.cycleCount;          // one clock per iteration
+            W73L = (ea == eb);          // we must compute these levels at start
+            W74L = (ea > eb);           // of clock since eb can change in a
+            W75L = (eb > ea);           // dependent way during mid-clock
+            /********** DEBUG **********
+            console.log("J" + B5500Util.pic9n(j, 2) + ": " +
+                        ", A" + (this.AROF ? "=" : "|") + (sa ? "-" : "+") + " " + B5500Util.picZn(ea.toString(8), 4) + " " + B5500Util.octize(ma,14) +
+                        ", B" + (this.BROF ? "=" : "|") + (sb ? "-" : "+") + " " + B5500Util.picZn(eb.toString(8), 4) + " " + B5500Util.octize(mb,14) +
+                        ", X=" + B5500Util.octize(xx, 13) +
+                        ", Q01F=" + Q01F + ", Q02F=" + Q02F + ", Q04F=" + Q04F + ",Q06F=" + Q06F);
+            ***************************/
+
+            switch (j) {
+            case 0:
+                if (!W73L) {            // ea != eb
+                    j = 2;              // next: normalize or scale
+                }
+                if (mb == 0) { // W07L  // B mantissa is zero, so the result is A, Set exponents
+                    eb = ea;            // equal; transfer A to B is completed by the add below
+                }
+                // no break: J=0 and J=2 share logic (see J91L)
+
+            case 2:                     // normalize or scale; add or subtract
+                if (W74L) {             // ea > eb
+                    if (mb == 0) { // W74L*W07L
+                        if (j == 2) {
+                            eb = ea;            // B mantissa is zero, so stop scaling
+                            Q01F = Q04F = 0;
+                        }
+                    } else { // W74L*W07L/
+                        if (ma < 0x1000000000) {// A13L
+                            ma *= 8;            // normalize A
+                            --ea;
+                        } else { // A13L/
+                            t1 = mb%8;          // scale B
+                            ++eb;
+                            mb = (mb - t1)/8;   // shift right into extension
+                            xx = (xx - xx%8)/8 + ((8-Q04F-t1)%8)*0x1000000000;
+                            if (W99L) {
+                                Q01F = (t1 & 4) >>> 2;  // was B03F: prepare for possible round
+                            }
+                            if (t1) { // B01L/          // was low-order octade before scaling shift
+                                Q04F = 1;               // indicate scaling of non-zero digit
+                                if (!W99L) { // W98L
+                                    Q01F = 1;
+                                }
+                            }
+                        }
+                    }
+                }
+                if (W75L && mb) {       // eb > ea: W75L*W07L/
+                    if (mb < 0x1000000000) { // B13L
+                        mb *= 8;                // normalize B (X is zero, so it need not participate)
+                        --eb;
+                    } else { // B13L/
+                        Q06F = 1;               // exchange A & B operands and continue
+                        t1 = sa;
+                        sa = sb;
+                        sb = t1;
+                        t1 = ea;
+                        ea = eb;
+                        eb = t1;
+                        t1 = ma;
+                        ma = mb;
+                        mb = t1;
+                    }
+                }
+                if (W73L) {             // ea == eb: now add or subtract
+                    if (W99L) {                 // internal addition
+                        W13L = (mb + ma + Q01F >= 0x8000000000);
+                        mb += ma + Q01F;
+                        ma = ea = sa = 0;
+                        j = (W13L ? 4 : -1);   // next = if carry from 13th octade then scale else SECL
+                        if (Q06F && !adding) { // SU1L*Q06F
+                            sb = 1 - sb;
+                        }
+                    } else { // W98L            // internal subtraction
+                        j = 5;                  // next = do the subtraction
+                        Q01F = 1 - Q01F;
+                        if (ma - ma%0x1000000000 < mb - mb%0x1000000000) { // W02L
+                            t1 = 0x3FFFFFFFFFF - ma;    // generate 42-bit complement of A
+                        } else { // W02L/
+                            t1 = 0x3FFFFFFFFFF - mb;    // generate 42-bit complement of B
+                            mb = ma;                    // move A to B (mantissa of A to B below)
+                            eb = ea;
+                            sb = sa;
+                            if (!adding && !Q06F) { // SU1L*Q06F/*W02L/
+                                Q02F = 1;       // memorize change of sign
+                            }
+                        }
+                        ma = t1;                // set A mantissa to complement of smallest operand
+                    }
+                }
+                break;
+
+            case 4:                     // scale for overflow
+                ++eb;
+                j = 15;                 // next = round and exit
+                t1 = mb%8;
+                mb = (mb - t1)/8;       // scale B
+                if (!(t1 & 4)) { // B03F/
+                    Q01F = 0;                   // reset Q01F from B03F
+                } else { // B02F
+                    if (!(t1 & 3)) { // B02F/*B01F/
+                        Q01F = 1 - Q01F;        // Q01F is being both set and reset, so complement it
+                    } else {
+                        Q01F = 1;               // set Q01F from B03F
+                    }
+                }
+                break;
+
+            case 5:                     // do the subtraction
+                t2 = mb%0x8000000000;           // to test high-order bits of mb below
+                W13L = (mb%0x8000000000 + ma%0x8000000000 + Q01F >= 0x8000000000);
+                W36C = (mb%0x1000000000 + ma%0x1000000000 + Q01F >= 0x1000000000);
+                mb += ma + Q01F;                // finish the subtraction
+                Q01F = 0;
+                if (Q02F) {
+                    sb = 1 - sb;                // if sign was changed, change it back in the result
+                }
+                if (!W13L) {                    // if no carry from 13th octade
+                    j = 7;                      // next = decomplement and exit
+                }
+                if (!Q04F) {
+                    if (((~(((ma%0x8000000000 - ma%0x1000000000)/0x1000000000) ^
+                            ((t2 - t2%0x1000000000)/0x1000000000))) & 7) != 0) { // W03L/
+                        j = (j==5 ? -1 : j);    // next = SECL
+                    } else { // W03L
+                        if (W13L) {             // if carry from 13th octade
+                            j = 15;             // next = round and exit
+                        }
+                    }
+                } else { // Q04F
+                    if (t2 < 0x2000000000) {    // B39F/*B38F/: two high order bits of mb were zero
+                        if (W36C) {             // was carry from 12th octade of sum
+                            j = 15;             // next = round and exit
+                        } else { // W36C/       // no carry from 12th octade of sum
+                            j = 8;              // next = normalize and exit
+                        }
+                    }
+                   if ((t2 - t2%0x1000000000)/0x1000000000 != 1) { // I07L
+                        if (xx < 0x4000000000) { // X39F/*I07L
+                            j = (j==5 ? -1 : j); // next = SECL
+                        } else { // X39F*I07L
+                            j = 15;             // next = round and exit
+                        }
+                    }
+                    if ((!W36C && t2 < 0x2000000000 && xx%0x1000000000 >= 0x800000000) ||   // W36C/*B39F/*B38F/*X36F +
+                            (xx >= 0x4000000000 && (W36C || t2 >= 0x2000000000))) {         // X39F(W36C+B39F+B38F)
+                        Q01F = 1;               // prepare for round
+                    }
+                }
+                ma = ea = sa = 0;               // set A = 0
+                break;
+
+            case 7:                     // decomplement
+                ma = 0x7FFFFFFFFF - mb%0x8000000000; // complement of B to A
+                mb = 0;
+                j = 15;                         // next = round and exit
+                sb = 1 - sb;                    // complement sign
+                Q01F = 1;                       // prepare end-around carry
+                break;
+
+            case 8:                     // normalize result
+                j = 15;                         // next = round and exit
+                t1 = (xx - xx%0x1000000000)/0x1000000000;       // get the high-order octade from X
+                xx = (xx%0x1000000000)*8;                       // shift B and X left together
+                mb = mb*8 + t1;
+                --eb;
+                break;
+
+            case 15:                    // round and exit
+                if (mb%0x8000000000 == 0 && !Q01F) { // Q01F/*W07L
+                    eb = sb = 0;                // clear B completely
+                } else {
+                    mb += ma + Q01F;
+                }
+
+                j = -1;                         // next = SECL
+                if (eb > 63) {                  // check for exponent overflow
+                    eb %= 64;
+                    if (this.NCSF) {
+                        this.I = (this.I & 0x0F) | 0xB0;        // set I05/6/8: exponent-overflow
+                        this.cc.signalInterrupt();
+                    }
+                }
+                break;
+            } // switch j
+        } while (j >= 0);
+
+        /********** DEBUG **********
+        console.log("J" + B5500Util.pic9n(j, 2) + ": " +
+                    ", A" + (this.AROF ? "=" : "|") + (sa ? "-" : "+") + " " + B5500Util.picZn(ea.toString(8), 4) + " " + B5500Util.octize(ma,14) +
+                    ", B" + (this.BROF ? "=" : "|") + (sb ? "-" : "+") + " " + B5500Util.picZn(eb.toString(8), 4) + " " + B5500Util.octize(mb,14) +
+                    ", X=" + B5500Util.octize(xx, 13) +
+                    ", Q01F=" + Q01F + ", Q02F=" + Q02F + ", Q04F=" + Q04F + ",Q06F=" + Q06F);
+        ***************************/
+
+        // Reconstruct registers from local variables
+        if (eb < 0) {
+            eb = (-eb) | 0x40;                          // set the exponent sign bit
+        }
+
+        this.Q = ((Q06F*4 + Q04F)*4 + Q02F)*2 + Q01F;   // for display only
+        this.X = xx;                                    // for display only
+        this.A = (sa*128 + ea)*0x8000000000 + ma;       // for display only
+        this.B = (sb*128 + eb)*0x8000000000 + mb%0x8000000000; // Final Answer
+    }
+};
+
+/**************************************/
+B5500Processor.prototype.singlePrecisionAdd__PRIOR__ = function singlePrecisionAdd__PRIOR__(adding) {
     /* Adds the contents of the A register to the B register, leaving the result
     in B and invalidating A. If "adding" is not true, the sign of A is complemented
     to accomplish subtraction instead of addition.
@@ -5310,10 +5635,10 @@ B5500Processor.prototype.schedule = function schedule() {
     this.procSlack += delayTime;
 
     // Compute the exponential weighted average of scheduling delay
-    this.delayDeltaAvg = (1-B5500Processor.delayAlpha)*(delayTime - this.delayRequested) +
-                         B5500Processor.delayAlpha*this.delayDeltaAvg;
-    this.procSlackAvg = (1-B5500Processor.slackAlpha)*delayTime +
-                        B5500Processor.slackAlpha*this.procSlackAvg;
+    this.delayDeltaAvg = (delayTime - this.delayRequested)*B5500Processor.delayAlpha +
+                         this.delayDeltaAvg*B5500Processor.delayAlpha1;
+    this.procSlackAvg = B5500Processor.slackAlpha*delayTime +
+                        this.procSlackAvg*B5500Processor.slackAlpha1;
 
     if (this.busy) {
         this.cycleLimit = B5500Processor.timeSlice;
@@ -5321,8 +5646,8 @@ B5500Processor.prototype.schedule = function schedule() {
         this.run();                     // execute syllables for the timeslice
 
         clockOff = performance.now();
-        this.procRunAvg = (1.0-B5500Processor.slackAlpha)*(clockOff - this.delayLastStamp) +
-                     B5500Processor.slackAlpha*this.procRunAvg;
+        this.procRunAvg = (clockOff - this.delayLastStamp)*B5500Processor.slackAlpha +
+                     this.procRunAvg*B5500Processor.slackAlpha1;
         this.delayLastStamp = clockOff;
         this.totalCycles += this.runCycles;
         if (!this.busy) {

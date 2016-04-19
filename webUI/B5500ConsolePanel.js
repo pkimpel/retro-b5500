@@ -53,12 +53,6 @@ function B5500ConsolePanel(global, autoPowerUp, shutDown) {
     this.timer = 0;                     // Console display update timer control token
     this.timerInterval = 50;            // Console display update interval [ms]
 
-    this.window = window.open("", "B5500Console");
-    if (this.window) {
-        this.window.close();
-        this.window = null;
-    }
-
     this.doc = null;
     this.window = window.open("../webUI/B5500ConsolePanel.html", "B5500Console",
             "location=no,scrollbars=no,resizable,top=0,left=" + left +
@@ -100,6 +94,13 @@ B5500ConsolePanel.prototype.evaluateNotReady = function evaluateNotReady(config)
     }
 
     this.$$("NotReadyBtn").className = lampClass;
+}
+
+/**************************************/
+B5500ConsolePanel.prototype.focusConsole = function focusConsole() {
+    /* Globally-accessible function to focus the console panel window */
+
+    this.window.focus();
 }
 
 /**************************************/
@@ -839,6 +840,8 @@ B5500ConsolePanel.prototype.consoleOnload = function consoleOnload(ev) {
     this.cc = new B5500CentralControl(this.global);
     this.global.B5500DumpState = this.dumpState;        // for use by Processor
     this.global.B5500DumpState = this.dumpTape;         // for use by Processor
+    this.global.focusConsole = B5500CentralControl.bindMethod(this, B5500ConsolePanel.prototype.focusConsole);
+
     this.window.resizeTo(this.doc.documentElement.scrollWidth + this.window.outerWidth - this.window.innerWidth + 2, // kludge +2, dunno why
                          this.doc.documentElement.scrollHeight + this.window.outerHeight - this.window.innerHeight);
     this.window.moveTo(screen.availWidth - this.window.outerWidth, 0);

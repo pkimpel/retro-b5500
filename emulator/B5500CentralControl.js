@@ -61,7 +61,7 @@ function B5500CentralControl(global) {
 /**************************************/
 
 /* Global constants */
-B5500CentralControl.version = "1.03";
+B5500CentralControl.version = "1.03c";
 
 B5500CentralControl.memReadCycles = 2;          // assume 2 탎 memory read cycle time (the other option was 3 탎)
 B5500CentralControl.memWriteCycles = 4;         // assume 4 탎 memory write cycle time (the other option was 6 탎)
@@ -1158,9 +1158,15 @@ B5500CentralControl.prototype.configureSystem = function configureSystem(cfg) {
     function makeSignal(cc, mnemonic) {
         switch (mnemonic) {
         case "SPO":
-            return function signalSPO() {
-                cc.CCI05F = 1;
-                cc.signalInterrupt();
+            return function signalSPO(f) {
+                if (f === 0) {          // cause Input Request interrupt
+                    cc.CCI05F = 1;
+                    cc.signalInterrupt();
+                } else if (f === -1) {  // focus Console Panel window (if available)
+                    if ("focusConsole" in cc.global) {
+                        cc.global.focusConsole();
+                    }
+                }
             };
             break;
         case "LPA":
