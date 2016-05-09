@@ -19,6 +19,8 @@
 /**************************************/
 function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal, options) {
     /* Constructor for the SPOUnit object */
+    var h = Math.max(screen.availHeight*0.33, 420);
+    var w = 688;
 
     this.maxScrollLines = 5000;         // Maximum amount of printer scrollback
     this.charPeriod = 100;              // Printer speed, milliseconds per character
@@ -41,7 +43,7 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal, opti
     this.inputBox = null;
     this.endOfPaper = null;
     this.window = window.open("../webUI/B5500SPOUnit.html", mnemonic,
-            "location=no,scrollbars=no,resizable,width=688,height=508");
+            "location=no,scrollbars=no,resizable,width=" + w + ",height=" + h);
     this.window.addEventListener("load", B5500CentralControl.bindMethod(this,
             B5500SPOUnit.prototype.spoOnload), false);
 }

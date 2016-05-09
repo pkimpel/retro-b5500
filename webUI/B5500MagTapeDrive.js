@@ -589,8 +589,35 @@ B5500MagTapeDrive.prototype.loadTape = function loadTape() {
         }
     }
 
-    function tapeLoadOnload (ev) {
-        /* Driver for the tape loader window */
+    function tapeLoadCancelBtn(ev) {
+        /* Handler for the Cancel button */
+
+        file = null;
+        mt.$$("MTFileName").value = "";
+        win.close();
+    }
+
+    function tapeLoadFormatSelect(ev) {
+        /* Handler for the FormatSelect list */
+
+        tapeFormat = ev.target.value;
+        if (tapeFormat == "blank") {
+            file = null;
+            fileSelect.value = null;
+            writeRingCheck.checked = true;
+            tapeLengthSelect.disabled = false;
+            tapeLengthSelect.selectedIndex = tapeLengthSelect.length-1;
+        }
+    }
+
+    function tapeLoadWriteRingCheck(ev) {
+        /* Handler for the WriteRingCheck checkbox */
+
+        tapeLengthSelect.disabled = !ev.target.checked;
+    }
+
+    function tapeLoadOnload(ev) {
+        /* On-load handler for the tape loader window */
         var de;
 
         doc = win.document;
@@ -607,46 +634,39 @@ B5500MagTapeDrive.prototype.loadTape = function loadTape() {
 
         doc.title = "B5500 " + mt.mnemonic + " Tape Loader";
         fileSelect.addEventListener("change", fileSelector_onChange, false);
-
-        formatSelect.addEventListener("change", function loadFormatSelect(ev) {
-            tapeFormat = ev.target.value;
-            if (tapeFormat == "blank") {
-                file = null;
-                fileSelect.value = null;
-                writeRingCheck.checked = true;
-                tapeLengthSelect.disabled = false;
-                tapeLengthSelect.selectedIndex = tapeLengthSelect.length-1;
-            }
-        }, false);
-
-        writeRingCheck.addEventListener("click", function loadWriteRingCheck(ev) {
-            tapeLengthSelect.disabled = !ev.target.checked;
-        }, false);
-
+        formatSelect.addEventListener("change", tapeLoadFormatSelect, false);
+        writeRingCheck.addEventListener("click", tapeLoadWriteRingCheck, false);
         $$$("MTLoadOKBtn").addEventListener("click", tapeLoadOK, false);
-        $$$("MTLoadCancelBtn").addEventListener("click", function loadCancelBtn(ev) {
-            file = null;
-            mt.$$("MTFileName").value = "";
-            win.close();
-        }, false);
+        $$$("MTLoadCancelBtn").addEventListener("click", tapeLoadCancelBtn, false);
+        win.addEventListener("unload", tapeLoadOnUnload, false);
 
         win.resizeBy(de.scrollWidth - win.innerWidth,
                      de.scrollHeight - win.innerHeight);
+    }
+
+    function tapeLoadOnUnload(ev) {
+        /* On-unload handler for the tape loader window */
+
+        fileSelect.removeEventListener("change", fileSelector_onChange, false);
+        formatSelect.removeEventListener("change", tapeLoadFormatSelect, false);
+        writeRingCheck.removeEventListener("click", tapeLoadWriteRingCheck, false);
+        $$$("MTLoadOKBtn").removeEventListener("click", tapeLoadOK, false);
+        $$$("MTLoadCancelBtn").removeEventListener("click", tapeLoadCancelBtn, false);
+        win.removeEventListener("load", tapeLoadOnload, false);
+        win.removeEventListener("unload", tapeLoadOnUnload, false);
+
+        mt.loadWindow = null;
+        mt.$$("MTLoadBtn").disabled = (mt.tapeState != mt.tapeUnloaded);
     }
 
     // Outer block of loadTape
     if (this.loadWindow && !this.loadWindow.closed) {
         this.loadWindow.close();
     }
+
     this.loadWindow = win;
-    mt.$$("MTLoadBtn").disabled = true;
+    this.$$("MTLoadBtn").disabled = true;
     win.addEventListener("load", tapeLoadOnload, false);
-    win.addEventListener("unload", function tapeLoadUnload(ev) {
-        this.loadWindow = null;
-        if (win.closed) {
-            mt.$$("MTLoadBtn").disabled = (mt.tapeState != mt.tapeUnloaded);
-        }
-    }, false);
 };
 
 /**************************************/
@@ -710,6 +730,7 @@ B5500MagTapeDrive.prototype.unloadTape = function unloadTape() {
         /* Loads a status message into the "paper" rendering area, then calls
         unloadDriver after a short wait to allow the message to appear */
 
+        win.removeEventListener("load", unloadSetup, false);
         win.document.getElementById("Paper").appendChild(
                 win.document.createTextNode("Rendering tape image... please wait..."));
         setTimeout(unloadDriver, 50);

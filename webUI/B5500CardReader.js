@@ -32,6 +32,7 @@ function B5500CardReader(mnemonic, unitIndex, designate, statusChange, signal, o
     this.clear();
 
     this.doc = null;
+    this.keyinWindow = null;
     this.window = window.open("../webUI/B5500CardReader.html", mnemonic,
             "location=no,scrollbars=no,resizable,width=560,height=160,left=0,top="+x);
     this.window.addEventListener("load",
@@ -79,6 +80,35 @@ B5500CardReader.prototype.$$ = function $$(e) {
 };
 
 /**************************************/
+B5500CardReader.prototype.appendDeckText = function appendDeckText(text) {
+    /* Appends "text" to the card reader "input stacker" buffer, discards any
+    portion of the buffer that has already been read, and updates the hopper
+    progress bar */
+
+    if (this.bufIndex >= this.bufLength) {
+        this.buffer = text;
+    } else {
+        switch (this.buffer.charAt(this.buffer.length-1)) {
+        case "\r":
+        case "\n":
+        case "\f":
+            break;                  // do nothing -- the last card has a delimiter
+        default:
+            this.buffer += "\n";    // so the next deck starts on a new line
+            break;
+        }
+        this.buffer = this.buffer.substring(this.bufIndex) + text;
+    }
+
+    this.bufIndex = 0;
+    this.bufLength = this.buffer.length;
+    if (this.bufLength > 0) {
+        this.$$("CRHopperBar").value = this.bufLength;
+        this.$$("CRHopperBar").max = this.bufLength;
+    }
+};
+
+/**************************************/
 B5500CardReader.prototype.setReaderReady = function setReaderReady(ready) {
     /* Controls the ready-state of the card reader */
 
@@ -88,10 +118,14 @@ B5500CardReader.prototype.setReaderReady = function setReaderReady(ready) {
         this.statusChange(1);
         B5500Util.addClass(this.$$("CRStartBtn"), "greenLit")
         B5500Util.removeClass(this.$$("CRNotReadyLight"), "whiteLit");
+        this.$$("CRKeyinDeckBtn").disabled = true;
+        B5500Util.removeClass(this.$$("CRKeyinDeckBtn"), "whiteLit");
     } else {
         this.statusChange(0);
         B5500Util.removeClass(this.$$("CRStartBtn"), "greenLit")
         B5500Util.addClass(this.$$("CRNotReadyLight"), "whiteLit");
+        this.$$("CRKeyinDeckBtn").disabled = false;
+        B5500Util.addClass(this.$$("CRKeyinDeckBtn"), "whiteLit");
     }
 };
 
@@ -139,6 +173,104 @@ B5500CardReader.prototype.CREOFBtn_onClick = function CREOFBtn_onClick(ev) {
 };
 
 /**************************************/
+B5500CardReader.prototype.CRKeyinDeckBtn_onClick = function CRKeyinDeckBtn_onClick(ev) {
+    /* Handler for the click event for the Insert Deck button on the reader window */
+    var cr = this;                      // this B5500CardReader instance
+    var $$$ = null;                     // getElementById shortcut for keyin window
+    var doc = null;                     // loader window.document
+    var keyinText = null;               // keyin text area
+    var win = this.window.open("B5500CardReaderKeyin.html", this.mnemonic + "Keyin",
+            "location=no,scrollbars=no,resizable,width=640,height=240,left=" +
+            (this.window.screenX+32) +",top=" + (this.window.screenY+32));
+
+    function keyinCancelDeck(ev) {
+        /* Handler for the Cancel button on the deck keyin window -- closes it */
+
+        win.close();
+    }
+
+    function keyinInsertDeck(ev) {
+        /* Handler for the Insert buttons on the deck keyin window -- extracts the
+        text from the window and appends it to the reader's "input stacker" buffer */
+
+        switch (ev.target) {
+        case $$$("CRKeyinControlDeckBtn"):
+            keyinText.value += "?LABEL  0CONTROL0DECK\n";
+            keyinText.focus();
+            break;
+        case $$$("CRKeyinEndControlBtn"):
+            keyinText.value += "?END CONTROL\n";
+            keyinText.focus();
+            break;
+        case $$$("CRKeyinEndCardBtn"):
+            keyinText.value += "?END\n";
+            keyinText.focus();
+            break;
+        default:
+            cr.appendDeckText(keyinText.value);
+            win.close();
+            break;
+        } // switch ev.target
+    }
+
+    function keyinOnload(ev) {
+        /* On-load handler for the deck keyin window */
+        var de;
+
+        doc = win.document;
+        de = doc.documentElement;
+        $$$ = function $$$(id) {
+            return doc.getElementById(id);
+        };
+
+        doc.title = "B5500 " + cr.mnemonic + " Deck Keyin";
+
+        keyinText = $$$("CRKeyinText")
+        keyinText.focus();
+        $$$("CRKeyinControlDeckBtn").addEventListener("click", keyinInsertDeck, false);
+        $$$("CRKeyinEndControlBtn").addEventListener("click", keyinInsertDeck, false);
+        $$$("CRKeyinEndCardBtn").addEventListener("click", keyinInsertDeck, false);
+        $$$("CRKeyinInsertBtn").addEventListener("click", keyinInsertDeck, false);
+        $$$("CRKeyinCancelBtn").addEventListener("click", keyinCancelDeck, false);
+        win.addEventListener("unload", keyinOnUnload, false);
+
+        win.resizeBy(de.scrollWidth - win.innerWidth,
+                     de.scrollHeight - win.innerHeight);
+    }
+
+    function keyinOnUnload(ev) {
+        /* On-unload handler for the deck keyin window */
+
+        $$$("CRKeyinControlDeckBtn").removeEventListener("click", keyinInsertDeck, false);
+        $$$("CRKeyinEndControlBtn").removeEventListener("click", keyinInsertDeck, false);
+        $$$("CRKeyinEndCardBtn").removeEventListener("click", keyinInsertDeck, false);
+        $$$("CRKeyinInsertBtn").removeEventListener("click", keyinInsertDeck, false);
+        $$$("CRKeyinCancelBtn").removeEventListener("click", keyinCancelDeck, false);
+        win.removeEventListener("load", keyinOnload, false);
+        win.removeEventListener("unload", keyinOnUnload, false);
+
+        keyinText = null;
+        cr.keyinWindow = null;
+        cr.$$("CRStartBtn").disabled = false;
+        cr.$$("CRKeyinDeckBtn").disabled = false;
+        B5500Util.addClass(cr.$$("CRKeyinDeckBtn"), "whiteLit");
+
+    }
+
+    // Outer block of loadTape
+    if (this.keyinWindow && !this.keyinWindow.closed) {
+        this.keyinWindow.close();
+    }
+
+    this.keyinWindow = win;
+    this.$$("CRStartBtn").disabled = true;
+    this.$$("CRKeyinDeckBtn").disabled = true;
+    B5500Util.removeClass(this.$$("CRKeyinDeckBtn"), "whiteLit");
+    win.addEventListener("load", keyinOnload, false);
+
+};
+
+/**************************************/
 B5500CardReader.prototype.CRHopperBar_onClick = function CRHopperBar_onClick(ev) {
     /* Handle the click event for the "input hopper" meter bar */
 
@@ -161,40 +293,30 @@ B5500CardReader.prototype.CRHopperBar_onClick = function CRHopperBar_onClick(ev)
 B5500CardReader.prototype.fileSelector_onChange = function fileSelector_onChange(ev) {
     /* Handle the <input type=file> onchange event when files are selected. For each
     file, load it and add it to the "input hopper" of the reader */
-    var deck;
     var f = ev.target.files;
     var that = this;
-    var x;
+    var index = 0;
 
     function fileLoader_onLoad(ev) {
-        /* Handle the onload event for a Text FileReader */
+        /* Handle the onload event for a Text FileReader and advances to the next
+        selected deck, if any */
 
-        if (that.bufIndex >= that.bufLength) {
-            that.buffer = ev.target.result;
-        } else {
-            switch (that.buffer.charAt(that.buffer.length-1)) {
-            case "\r":
-            case "\n":
-            case "\f":
-                break;                  // do nothing -- the last card has a delimiter
-            default:
-                that.buffer += "\n";    // so the next deck starts on a new line
-                break;
-            }
-            that.buffer = that.buffer.substring(that.bufIndex) + ev.target.result;
+        that.appendDeckText(ev.target.result);
+        if (++index < f.length) {
+            loadDeck(index);
         }
-
-        that.bufIndex = 0;
-        that.bufLength = that.buffer.length;
-        that.$$("CRHopperBar").value = that.bufLength;
-        that.$$("CRHopperBar").max = that.bufLength;
     }
 
-    for (x=f.length-1; x>=0; x--) {
+    function loadDeck(x) {
+        /* Initiates the load for the selected file indicated by "x" */
+        var deck;
+
         deck = new FileReader();
         deck.onload = fileLoader_onLoad;
         deck.readAsText(f[x]);
     }
+
+    loadDeck(index);
 };
 
 /**************************************/
@@ -325,6 +447,8 @@ B5500CardReader.prototype.readerOnload = function readerOnload() {
             B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRStopBtn_onClick), false);
     this.$$("CREOFBtn").addEventListener("click",
             B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CREOFBtn_onClick), false);
+    this.$$("CRKeyinDeckBtn").addEventListener("click",
+            B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRKeyinDeckBtn_onClick), false);
     this.hopperBar.addEventListener("click",
             B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRHopperBar_onClick), false);
 

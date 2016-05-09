@@ -18,7 +18,7 @@
 /**************************************/
 function B5500LinePrinter(mnemonic, unitIndex, designate, statusChange, signal, options) {
     /* Constructor for the LinePrinter object */
-    var h = screen.availHeight*0.60;
+    var h = Math.max(screen.availHeight*0.33, 420);
     var w = 900;
 
     this.mnemonic = mnemonic;           // Unit mnemonic
