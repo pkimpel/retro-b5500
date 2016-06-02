@@ -101,6 +101,7 @@ B5500ConsolePanel.prototype.focusConsole = function focusConsole() {
     /* Globally-accessible function to focus the console panel window */
 
     this.window.focus();
+    this.$$("LoadBtn").focus();
 }
 
 /**************************************/

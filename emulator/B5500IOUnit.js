@@ -778,8 +778,25 @@ B5500IOUnit.prototype.finishGenericRead = function finishGenericRead(errorMask, 
 /**************************************/
 B5500IOUnit.prototype.finishDatacomRead = function finishDatacomRead(errorMask, length) {
     /* Handles I/O finish for a datacom read operation */
-    var bufExhausted = (errorMask & 0x080) >>> 7;
+    var bufExhausted = (errorMask & 0x80) >>> 7;
     var tuBuf = (errorMask%0x10000000000 - errorMask%0x40000000)/0x40000000;    // get TU/buf #
+
+    /********** Debug: **********
+    console.log(this.mnemonic + " U" + this.Dunit + ": TU " +
+            ((tuBuf >>> 5) & 0x0F) + "/" + (tuBuf & 0x0F) + " " +
+            "DCRF: len=" + length + ", mask=" + errorMask.toString(8) + " " +
+            "state=" + ((errorMask & 0x100) >>> 8) + ((errorMask & 0x20) >>> 5) +
+                       ((errorMask & 0x10) >>> 4) + ((errorMask & 0x04) >>> 2) + " " +
+            ((tuBuf & 0x200) ? "DTCN " : "DTCU ") +
+            ((tuBuf & 0x10) ? "DCCN " : "DCCU ") +
+            ((errorMask & 0x4000) ? "Intg " : "R/W ") +
+            ((errorMask & 0x800) ? "BIN " : "BCL ") +
+            ((errorMask & 0x200) ? "ABN " : "NOR ") +
+            (bufExhausted ? "BE " : "GM ") +
+            ((errorMask & 0x40) ? "MO " : "OK ") +
+            ((errorMask & 1) ? "BZ " : "RY "));
+    console.log(" ");
+    ****************************/
 
     if (bufExhausted || (tuBuf & 0x10)) {
         this.storeBuffer(length, 0, 1, 56);
@@ -799,10 +816,27 @@ B5500IOUnit.prototype.finishDatacomRead = function finishDatacomRead(errorMask, 
 /**************************************/
 B5500IOUnit.prototype.finishDatacomWrite = function finishDatacomWrite(errorMask, length) {
     /* Handles I/O finish for a datacom write or interrogate operation */
-    var bufExhausted = (errorMask & 0x080) >>> 7;
+    var bufExhausted = (errorMask & 0x80) >>> 7;
     var tuBuf = (errorMask%0x10000000000 - errorMask%0x40000000)/0x40000000;    // get TU/buf #
 
-    if (!(bufExhausted || (this.DwordCount & 0x10))) {
+    /********** Debug: **********
+    console.log(this.mnemonic + " U" + this.Dunit + ": TU " +
+            ((tuBuf >>> 5) & 0x0F) + "/" + (tuBuf & 0x0F) + " " +
+            "DCWF: len=" + length + ", mask=" + errorMask.toString(8) + " " +
+            "state=" + ((errorMask & 0x100) >>> 8) + ((errorMask & 0x20) >>> 5) +
+                       ((errorMask & 0x10) >>> 4) + ((errorMask & 0x04) >>> 2) + " " +
+            ((tuBuf & 0x200) ? "DTCN " : "DTCU ") +
+            ((tuBuf & 0x10) ? "DCCN " : "DCCU ") +
+            ((errorMask & 0x4000) ? "Intg " : "R/W ") +
+            ((errorMask & 0x800) ? "BIN " : "BCL ") +
+            ((errorMask & 0x200) ? "ABN " : "NOR ") +
+            (bufExhausted ? "BE " : "GM ") +
+            ((errorMask & 0x40) ? "MO " : "OK ") +
+            ((errorMask & 1) ? "BZ " : "RY "));
+    console.log(" ");
+    ****************************/
+
+    if (!bufExhausted) {
         ++length;                       // account for the terminating Group Mark
     }
     this.Daddress += (length+7) >>> 3;
@@ -823,6 +857,14 @@ B5500IOUnit.prototype.initiateDatacomIO = function initiateDatacomIO(u) {
     determined by the IOUnit, so all of the requested lengths are in excess of the
     maximum DTTU buffer of 448 chars (56 B5500 words) */
     var chars;
+
+    /********** Debug: **********
+    console.log(this.mnemonic + " U" + this.Dunit + " IOCW=" + this.D.toString(8) + ": TU " +
+            ((this.DwordCount >>> 5) & 0x0F) + "/" + (this.DwordCount & 0x0F) + " " +
+            (this.D24F ? (this.D18F ? "Rint " : "Read ") : (this.D18F ? "Intg " : "Write ")) +
+            ((this.DwordCount & 0x10) ? "NG " : "GM ") +
+            (this.D21F ? "BIN " : "BCL ") + "A=" + this.Daddress.toString(8));
+    ****************************/
 
     this.D23F = 0;              // datacom does not use word count field as a word count
     if (this.D24F) {            // DCA read
@@ -1088,7 +1130,7 @@ B5500IOUnit.prototype.forkIO = function forkIO() {
     this.LP = (x >>> 15) & 0x3F;        // save control bits for disk, drum, and printer
     this.Daddress = x % 0x8000;         // starting memory address
 
-    this.busyUnit = index = B5500CentralControl.unitIndex[this.D24F & 1][this.Dunit & 0x1F];
+    this.busyUnit = index = B5500CentralControl.unitIndex[this.D24F][this.Dunit];
     if (this.cc.testUnitBusy(index)) {
         this.D32F = 1;                  // set unit busy error
         this.finish();

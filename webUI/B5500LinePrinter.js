@@ -140,21 +140,23 @@ B5500LinePrinter.prototype.appendLine = function appendLine(text) {
     greenbar group, this.barGroup. This handles top-of-form and greenbar
     highlighting */
     var feed = "\n";
+    var skip = "";
 
     if (this.groupLinesLeft <= 0) {
         // Start the green half of a greenbar group
-        this.barGroup = this.doc.createElement("pre");
+        this.barGroup = this.doc.createElement("div");
         this.paper.appendChild(this.barGroup);
         this.groupLinesLeft = this.lpi;
         if (!this.atTopOfForm) {
             this.barGroup.className = "paper greenBar";
         } else {
+            skip = "\f";               // prepend a form-feed to the line
             this.atTopOfForm = false;
             this.barGroup.className = "paper greenBar topOfForm";
         }
     } else if (this.groupLinesLeft*2 == this.lpi) {
         // Start the white half of a greenbar group
-        this.barGroup = this.doc.createElement("pre");
+        this.barGroup = this.doc.createElement("div");
         this.paper.appendChild(this.barGroup);
         this.barGroup.className = "paper whiteBar";
     } else if (this.groupLinesLeft == 1) {
@@ -163,7 +165,7 @@ B5500LinePrinter.prototype.appendLine = function appendLine(text) {
         feed = "";                      // ditto
     }
 
-    this.barGroup.appendChild(this.doc.createTextNode(text + feed));
+    this.barGroup.appendChild(this.doc.createTextNode(skip + text + feed));
     --this.groupLinesLeft;
 };
 
@@ -227,7 +229,7 @@ B5500LinePrinter.prototype.setGreenbar = function setGreenbar(useGreen) {
             // Next, search through the rules for the one that controls greenbar shading.
             for (x=rules.length-1; x>=0; --x) {
                 rule = rules[x];
-                if (rule.selectorText.toLowerCase() == "pre.greenbar") {
+                if (rule.selectorText.toLowerCase() == "div.greenbar") {
                     // Found it: now flip the background color.
                     rule.style.backgroundColor = (useGreen ? this.theColorGreen : "white");
                 }
@@ -368,6 +370,8 @@ B5500LinePrinter.prototype.printerOnload = function printerOnload() {
             B5500CentralControl.bindMethod(this, B5500LinePrinter.prototype.LPStopBtn_onclick), false);
     this.$$("LPStartBtn").addEventListener("click",
             B5500CentralControl.bindMethod(this, B5500LinePrinter.prototype.LPStartBtn_onclick), false);
+
+    this.window.moveTo(0, screen.availHeight - this.window.outerHeight);
 };
 
 /**************************************/

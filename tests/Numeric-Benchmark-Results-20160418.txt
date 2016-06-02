@@ -1,0 +1,2137 @@
+ LABEL  0XALGOL 0COMPILE00186108?COMPILE DIRCHLT/B5500 XALGOL GO                                         XALGOL /DIRCHLT
+ 
+ 
+ 
+ 
+ 
+                      BURROUGHS B-5700 XALGOL COMPILER MARK XIII.0     FRIDAY, 04/18/86,   6:19 PM.
+ 
+ 
+ 
+ 
+ 
+                % DIRICHLET PROBLEM FOR A BEAN-SHAPED REGION.  FROM P J DAVIS,                  00100100    0000
+                % "ORTHONORMALIZING CODES IN NUMERICAL ANALYSIS" IN J TODD, --SURVEY OF         00100200    0000
+                % NUMERICAL ANLAYSIS--, MCGRAW-HILL, 1962,  P.347. P H KIMPEL 8/15/70           00100300    0000
+                % MODIFICATION LOG:                                                             00100320    0000
+                % 92/03/17  P.KIMPEL, PARADIGM CORP, SAN DIEGO, CA  92117.                      00100321    0000
+                %   CONVERT FOR UNISYS A-SERIES MCP 3.8.4.                                      00100322    0000
+                % 2014-11-15  P.KIMPEL                                                          00100330    0000
+                %   RETRO-CONVERT FROM UNISYS MCP ALGOL TO BURROUGHS B5500 XALGOL.              00100331    0000
+                                                                                                00100398    0000
+                BEGIN                                                                           00100400    0000
+                                                                                        START OF SEGMENT **********    2
+                FILE IN CDS (1,10);                                                             00100500    0000
+                FILE OUT PR 18 (2,17);                                                          00100600    0003
+                FORMAT F1 (X30,I3,2F10.3,4F10.5),                                               00100700    0007
+                                                                                        START OF SEGMENT **********    3
+                       F2 (X40,"X",X9,"Y",X9,"W",X8,"BV",X7,"CBV,",X7,"DEV"),                   00100800    0007
+                       FT (///X40,"PROCESSOR TIME: ", F6.2," SEC");                             00100900    0007
+                                                                                           3 IS   34 LONG, NEXT SEG    2
+                DEFINE N = 43#,  M = 11#,  P = 11#,  N1 = 42#,  M1 = 10#,  P1 = 10#;            00101000    0007
+                LABEL QUIT;                                                                     00101100    0007
+                INTEGER I, J;                                                                   00101200    0007
+                INTEGER STARTT;                                                                 00101210    0007
+                REAL SUM, GMDT;                                                                 00101300    0007
+                ARRAY                                                                           00101400    0007
+                  X,                      % ABSCISSA VALUES.                                    00101500    0007
+                  Y,                      % ORDINATE VALUES.                                    00101600    0007
+                  W,                      % WEIGHTS.                                            00101700    0007
+                  CBV[0:N1],              % BOUNDARY VALUES CALCULATED FROM ORTHO COEFS.        00101800    0008
+                  BV[0:0, 0:N1+P],        % GIVEN BOUNDARY VALUES.                              00101900    0009
+                  Z[0:M1, 0:N1+P],        % APPROXIMATING VECTORS.                              00102000    0013
+                  ORTHV[0:M, 0:N1+P],     % ORTHONORMAL VECTORS RETURNED BY "ORTHO"             00102100    0016
+                  DEV[0:0, 0:N1],         % DEVIATIONS.                                         00102200    0020
+                  COF[0:0, 0:P1],         % COEFFICIENTS.                                       00102300    0022
+                  STD[0:0],               % STANDARD DEVIATION.                                 00102400    0024
+                  CV[0:P, 0:P1],          % COVARIANCE MATRIX.                                  00102500    0026
+                  VCV[0:0, 0:P, 0:P1],    % VARIANCE/COVARIANCE MATRIX.                         00102600    0028
+                  Q[0:0, 0:M],            % FOURIER COEFFICIENTS.                               00102700    0030
+                  Q2,                     % SQUARED FOURIER COEFFICIENTS.                       00102800    0032
+                  E,                      % SUM OF SQUARED RESIDUALS.                           00102900    0032
+                  EP[0:0, 0:M1],          % RESIDUALS.                                          00103000    0032
+                  A[0:M1, 0:P1],          % LOWER TRIANGULAR MATRIX USED TO CALC CV.            00103100    0034
+                  GF[0:M],                % GRAM FACTORS.                                       00103200    0036
+                  ENF[0:M1];              % NORMS OF THE APPROXIMATING VECTORS.                 00103300    0038
+                %***********************************************************************        00103400    0040
+                PROCEDURE ORTHO (W, Y, Z, N, FN, M, P, R, AI, AUI, MUI, ZEI, X, DEV,            00103500    0040
+                                 COF, STD, CV, VCV, GMDT, Q, Q2, E, EP, A, GF, ENF);            00103600    0040
+                VALUE  N, M, P, R, AI, AUI, MUI, ZEI;                                           00103700    0040
+                REAL  FN, GMDT;                                                                 00103800    0040
+                REAL ARRAY STD, GF,  W, ENF [1];                                                00103900    0040
+                REAL ARRAY     Y, Z, X, DEV, COF, CV, Q, Q2, E, EP, A [1, 1];                   00104000    0040
+                REAL ARRAY VCV [1, 1, 1];                                                       00104100    0040
+                INTEGER  N, M, P, R, AI, AUI, ZEI, MUI;                                         00104200    0040
+                COMMENT                                                                         00104300    0040
+                          ORTHO    IS TAKEN FROM ACM ALGORITHM 127 [COMM. ACM, VOL.5,           00104400    0040
+                                 OCTOBER 1962, P. 511, AUTHOR: PHILIP J. WALSH];                00104500    0040
+                BEGIN                                                                           00104600    0040
+                INTEGER  NPP, NPM, M1, N2, M2, R1, RBAR, P2, BEI, RHI, I18, GAI, SII, I,        00104700    0040
+                                                                                        START OF SEGMENT **********    4
+                                 J, DEI, NUI, E1Z2, E1Z1, K, THI, ALI, OMI, NII;                00104800    0000
+                REAL ARRAY  PK, XP [1:N+P], QK[1:M+1];                                          00104900    0000
+                REAL DENOM, SUM, DK2, DK, FI, SS, SSQ;                                          00105000    0008
+                LABEL   BOX1, AT1, AT2, BOX2, AU1, AU2, BOX3, BOX4, BOX5, BOX6, MU1,            00105100    0008
+                      MU2, BOX7, OM1, OM2, BOX8, DE1, BOX8A, BOX8B, DE2, BOX8C, BOX8D,          00105200    0008
+                      BOX9, TH1, TH2, TH3, BOX10, AL1, AL2, BOX11, NU1, NU2, BOX12,             00105300    0008
+                      BE1, BE2, BOX13, GA1, GA2, BOX14, RH1, ZE1, ZE2, RH2, SI1, SI2,           00105400    0008
+                      FINAL;                                                                    00105500    0008
+                SWITCH AT := AT1, AT2;    SWITCH ZE := ZE1, ZE2;                                00105600    0008
+                SWITCH AU := AU1, AU2;    SWITCH MU := MU1, MU2;                                00105700    0018
+                SWITCH  BE := BE1, BE2;  SWITCH  RH := RH1, RH2;  SWITCH GA := GA1, GA2;        00105800    0028
+                SWITCH  SI := SI1, SI2;  SWITCH  DE := DE1, DE2;  SWITCH  NU := NU1, NU2        00105900    0041
+                ;                                                                               00106000    0056
+                SWITCH  TH := TH1, TH2, TH3;  SWITCH AL := AL1, AL2;                            00106100    0058
+                SWITCH  OM := OM1, OM2;                                                         00106200    0068
+                      NPP := N+P; NPM := N+M; M1 := M-1; N2 := N+1; M2 := M+1;                  00106300    0073
+                          R1 := 0; RBAR := R; P2 := P+1; DENOM := IF N=M THEN 1.0               00106400    0080
+                                 ELSE SQRT(N-M);  BEI := RHI := I18 := 1;                       00106500    0083
+                      IF (P NEQ 0) THEN GAI := SII := 2  ELSE  GAI := SII := 1;                 00106600    0088
+                BOX1:            GO TO AT[AI];                                                  00106700    0094
+                      AT1:       FOR J := 1 STEP 1 UNTIL N DO BEGIN                             00106800    0097
+                                 X[2,J] := Z[1,J];  X[1,J] := 1.0 END;                          00106900    0098
+                                 FOR I := 2 STEP 1 UNTIL M1 DO BEGIN                            00107000    0108
+                                 FOR J := 1 STEP 1 UNTIL N DO                                   00107100    0110
+                                 X[I+1,J] := X[I,J] × X[2,J]  END;   GO TO BOX2;                00107200    0111
+                      AT2:       FOR I := 1 STEP 1 UNTIL M DO BEGIN                             00107300    0124
+                                 FOR J := 1 STEP 1 UNTIL N DO                                   00107400    0125
+                                 X[I,J] := Z[I,J]  END;                                         00107500    0126
+                BOX2:            IF P = 0 THEN GO TO BOX3  ELSE  GO TO AU[AUI];                 00107600    0135
+                      AU1:       FOR I := 1 STEP 1 UNTIL M DO BEGIN                             00107700    0139
+                                 FOR J := N2 STEP 1 UNTIL NPP DO                                00107800    0141
+                                 X[I,J] := 0.0;  X[I,N+I] := 1.0  END;  GO TO BOX3;             00107900    0142
+                      AU2:       FOR I := 1 STEP 1 UNTIL M DO BEGIN                             00108000    0155
+                                 FOR J := N2 STEP 1 UNTIL NPP DO                                00108100    0156
+                                 X[I,J] := Z[I,J]  END;                                         00108200    0157
+                BOX3:            DEI := NUI := E1Z1 := E1Z2 := K := 1;                          00108300    0166
+                BOX4:            THI := 1;                                                      00108400    0169
+                BOX5:            ALI := OMI := 1;  IF P = 0 THEN GO TO BOX6  ELSE               00108500    0170
+                                 FOR J := 1 STEP 1 UNTIL P DO PK[N+J] := 0.0;                   00108600    0173
+                BOX6:            GO TO MU[MUI];                                                 00108700    0179
+                      MU1:       FOR I := 1 STEP 1 UNTIL N DO PK[I] := X[K,I];                  00108800    0182
+                                 GO TO BOX7;                                                    00108900    0189
+                      MU2:       FOR I := 1 STEP 1 UNTIL N DO                                   00109000    0189
+                                 PK[I] := X[K,I] × W[I];   GO TO BOX7;                          00109100    0191
+                BOX7:            GO TO OM[OMI];                                                 00109200    0198
+                      OM1:       FOR I := 1 STEP 1 UNTIL K DO BEGIN SUM := 0.0;                 00109300    0201
+                                 FOR J := 1 STEP 1 UNTIL NPP DO                                 00109400    0202
+                                 SUM := SUM + PK[J] × X[I,J];  QK[I] := SUM END;                00109500    0204
+                                 GO TO BOX8;                                                    00109600    0214
+                      OM2:       DK2 := 0.0;  FOR I := 1 STEP 1 UNTIL NPP DO                    00109700    0215
+                                 DK2 := DK2 + PK[I] × X[K,I];                                   00109800    0218
+                                 DK := SQRT(DK2);                                               00109900    0224
+                                 GF[I18] := DK;   I18 := I18 + 1;                               00110000    0226
+                                 FOR I := 1 STEP 1 UNTIL NPP DO                                 00110100    0229
+                                 X[K,I] := X[K,I]/DK;;                                          00110200    0230
+                                 OMI := 1;    GO TO BOX6;                                       00110300    0237
+                BOX8:            GO TO DE[DEI];                                                 00110400    0239
+                      DE1:       E1Z1 := -E1Z1;   IF E1Z1 < 0 THEN GO TO BOX8B   ELSE           00110500    0241
+                                 GO TO BOX8A;                                                   00110600    0242
+                BOX8A:           FOR I := 1 STEP 1 UNTIL K-1 DO                                 00110700    0243
+                                 QK[I] := -QK[I];   QK[K] := 1.0;                               00110800    0248
+                                 FOR I := 1 STEP 1 UNTIL NPP DO BEGIN                           00110900    0253
+                                 SUM := 0.0;  FOR J := 1 STEP 1 UNTIL K DO                      00111000    0255
+                                 SUM := SUM + X[J,I] × QK[J];                                   00111100    0257
+                                 XP[I] := SUM END;  GO TO BOX9;                                 00111200    0263
+                BOX8B:           ENF[I18] := SQRT(QK[K]);   GO TO BOX8A;                        00111300    0268
+                      DE2:       E1Z2 := -E1Z2;  IF E1Z2 < 0 THEN GO TO BOX8C  ELSE             00111400    0272
+                                 GO TO BOX8A;                                                   00111500    0274
+                BOX8C:           FOR I := 1 STEP 1 UNTIL M DO BEGIN                             00111600    0275
+                                 Q[R1,I] := QK[I];  Q2[R1,I] := QK[I] × QK[I]  END;             00111700    0277
+                                 Q[R1,M2] := QK[M2];  E[R1,1] := Q[R1,M2] - Q2[R1,1];           00111800    0288
+                                 FOR J := 2 STEP 1 UNTIL M DO                                   00111900    0299
+                                 E[R1,J] := E[R1,J-1] - Q2[R1,J];                               00112000    0300
+                                 FI := 1.0;                                                     00112100    0310
+                                 FOR I := 1 STEP 1 UNTIL M DO BEGIN                             00112200    0311
+                                 IF (FN - FI) > 0.0 THEN BEGIN IF E[R1,I] < 0.0 THEN            00112300    0313
+                                 BEGIN EP[R1,I] := -SQRT(ABS(E[R1,I])/(FN - FI));               00112400    0317
+                                 GO TO BOX8D;    END                                            00112500    0325
+                                 ELSE  EP[R1,I] := SQRT(E[R1,I]/(FN - FI));                     00112600    0325
+                                 GO TO BOX8D;  END  ELSE  E[R1,I] := -1.0;                      00112700    0332
+                BOX8D:           FI := FI + 1.0;   END;   GO TO BOX8A;                          00112800    0336
+                BOX9:            GO TO TH[THI];                                                 00112900    0342
+                      TH1:       FOR I := 1 STEP 1 UNTIL NPP DO                                 00113000    0344
+                                 X[K,I] := XP[I];  GO TO BOX10;                                 00113100    0345
+                      TH2:       FOR I := 1 STEP 1 UNTIL N DO                                   00113200    0351
+                                 DEV[R1,I] := XP[I];                                            00113300    0353
+                                 FOR I := 1 STEP 1 UNTIL P DO                                   00113400    0359
+                                 COF[R1,I] := -XP[N+I];  THI := 3;  GO TO TH1;                  00113500    0360
+                      TH3:       GO TO BOX11;                                                   00113600    0368
+                BOX10:           GO TO AL[ALI];                                                 00113700    0368
+                      AL1:       OMI := ALI := 2;  GO TO BOX6;                                  00113800    0371
+                      AL2:       IF K < M THEN BEGIN K := K + 1;  GO TO BOX4;  END              00113900    0372
+                                 ELSE  GO TO BOX12;                                             00114000    0376
+                BOX11:           GO TO NU[NUI];                                                 00114100    0376
+                      NU1:       NUI := 2;  GO TO BOX14;                                        00114200    0378
+                      NU2:       SS := DK/DENOM;  SSQ := SS × SS;                               00114300    0379
+                                 STD[R1] := SS;  GO TO BOX14;                                   00114400    0382
+                BOX12:           GO TO BE[BEI];                                                 00114500    0384
+                      BE1:       FOR I := 1 STEP 1 UNTIL M DO BEGIN                             00114600    0387
+                                 FOR J := 1 STEP 1 UNTIL P DO                                   00114700    0388
+                                 A[I,J] := X[I,N+J]  END;                                       00114800    0389
+                                 GMDT := 1.0;  FOR I := 1 STEP 1 UNTIL M DO                     00114900    0399
+                                 GMDT := GMDT × (GF[I]/ENF[I]);                                 00115000    0402
+                                 GMDT := GMDT × GMDT;  DEI := BEI := THI := 2;                  00115100    0407
+                                 K := K + 1;       GO TO BOX13;                                 00115200    0411
+                      BE2:       GO TO BOX11;                                                   00115300    0412
+                BOX13:           GO TO GA[GAI];                                                 00115400    0413
+                      GA1:       GO TO BOX11;                                                   00115500    0416
+                      GA2:       FOR I := 1 STEP 1 UNTIL P DO BEGIN                             00115600    0416
+                                 FOR J := I STEP 1 UNTIL P DO BEGIN                             00115700    0418
+                                 SUM := 0.0;                                                    00115800    0419
+                                 FOR NII := 1 STEP 1 UNTIL M DO                                 00115900    0419
+                                 SUM := SUM + A[NII,I] × A[NII,J];                              00116000    0421
+                                 CV[I,J] := SUM  END  END;                                      00116100    0429
+                                 FOR I := 1 STEP 1 UNTIL P DO                                   00116200    0436
+                                 CV[P2,I] := SQRT(CV[I,I]);  GAI := 1;  GO TO BOX11;            00116300    0438
+                BOX14:           GO TO RH[RHI];                                                 00116400    0447
+                      RH1:       IF RBAR = 0 THEN GO TO FINAL  ELSE  RBAR := RBAR - 1;          00116500    0449
+                                 R1 := R1 + 1;  THI := RHI := 2;  GO TO ZE[ZEI];                00116600    0451
+                      ZE1:       FOR I := 1 STEP 1 UNTIL N DO                                   00116700    0456
+                                 X[M2,I] := Y[R1,I];                                            00116800    0457
+                                 FOR I := 1 STEP 1 UNTIL P DO                                   00116900    0464
+                                 X[M2,N+I] := 0.0;  GO TO BOX5;                                 00117000    0465
+                      ZE2:       FOR I := 1 STEP 1 UNTIL NPP DO                                 00117100    0471
+                                 X[M2,I] := Y[R1,I];   GO TO BOX5;                              00117200    0473
+                      RH2:       GO TO SI[SII];                                                 00117300    0480
+                      SI1:       GO TO RH1;                                                     00117400    0483
+                      SI2:       FOR I := 1 STEP 1 UNTIL P DO BEGIN                             00117500    0483
+                                 FOR J := I STEP 1 UNTIL P DO                                   00117600    0485
+                                 VCV[R1,I,J] := SSQ × CV[I,J]  END;                             00117700    0486
+                                 FOR I := 1 STEP 1 UNTIL P DO                                   00117800    0497
+                                 VCV[R1, P2, I] := SS × CV[P2,I];  GO TO RH1;                   00117900    0498
+                FINAL:  END  ORTHO ;                                                            00118000    0507
+                                                                                           4 IS  520 LONG, NEXT SEG    2
+                %***********************************************************************        00118100    0040
+                REAL PROCEDURE G (I, X, Y);                                                     00118200    0040
+                  VALUE I, X, Y;   REAL X, Y;   INTEGER I;                                      00118300    0040
+                  CASE (I - 1) OF                                                               00118400    0040
+                    BEGIN                                                                       00118500    0041
+                      G := 1;                                                        % 1        00118600    0042
+                      G := X;                                                        % 2        00118700    0043
+                      G := Y;                                                        % 3        00118800    0044
+                      G := X*2 - Y*2;                                                % 4        00118900    0046
+                      G := 2.0 × X × Y;                                              % 5        00119000    0048
+                      G := X*3 - 3.0 × X × Y*2;                                      % 6        00119100    0051
+                      G := 3.0 × X*2 × Y - Y*3;                                      % 7        00119200    0055
+                      G := X*4 + Y*4 - 6.0 × X*2 × Y*2;                              % 8        00119300    0059
+                      G := 4.0 × X*3 × Y - 4.0 × X × Y*3;                            % 9        00119400    0065
+                      G := X*5 - 10.0 × X*3 × Y*2 + 5.0 × X × Y*4;                   %10        00119500    0071
+                      G := Y*5 - 10.0 × Y*3 × X*2 + 5.0 × Y × X*4;                   %11        00119600    0079
+                      G := X*6 - 15.0 × X*4 × Y*2 + 15.0 × X*2 × Y*4 - Y*6;          %12        00119700    0088
+                      G := 6.0 × X*5 × Y + 6.0 × X × Y*5 - 20.0 × X*3 × Y*3;         %13        00119800    0098
+                      G := X*7 - 21.0 ×X*5 × Y*2 + 35.0 × X*3 × Y*4  - 7.0 × X ×     %14        00119900    0109
+                      Y*6;                                                                      00120000    0119
+                      G := 7.0 ×X*6 × Y - 35.0 × X*4 × Y*3 + 21.0 × X*2 × Y*5 -      %15        00120100    0122
+                      Y*7;                                                                      00120200    0132
+                      G := X*8 + Y*8 - 28.0 ×X*6 × Y*2 + 70.0 × X*4 × Y*4 - 28.0                00120300    0135
+                              × X*2 × Y*6;                                           %16        00120400    0146
+                      G := 8.0 × X*7 ×Y - 56.0 × X*5 × Y*3 + 56.0 × X*3 × Y*5                   00120500    0150
+                              - 8.0 ×X × Y*7;                                        %17        00120600    0174
+                  END G;                                                                        00120700    0180
+                                                                                        START OF SEGMENT **********    5
+                                                                                           5 IS   17 LONG, NEXT SEG    2
+                                                                                                00120780    0185
+                STARTT := TIME(1);                                                              00120790    0185
+                FOR I := 0 STEP 1 UNTIL N1 DO                                                   00120800    0187
+                  BEGIN                                                                         00120900    0188
+                    READ (CDS,  /, X[I], Y[I], W[I]);                                           00121000    0188
+                    BV[0,I] := EXP(X[I]) × COS(Y[I]) + LN((1 - Y[I])*2 + X[I]*2);               00121100    0199
+                    FOR J := 0 STEP 1 UNTIL M1 DO                                               00121200    0207
+                        Z[J,I] := G(J+1, X[I], Y[I]);                                           00121300    0208
+                  END;                                                                          00121400    0214
+                CLOSE (CDS);                                                                    00121500    0216
+                ORTHO (W, BV, Z, N , N , M , P,  1, 2, 1, 2, 1, ORTHV, DEV, COF, STD,           00121600    0218
+                          CV, VCV, GMDT, Q, Q2, E, EP, A, GF, ENF);                             00121700    0228
+                FOR I := 0 STEP 1 UNTIL N1 DO                                                   00121800    0237
+                  BEGIN  SUM := 0;                                                              00121900    0238
+                    FOR J:=0 STEP 1 UNTIL M1 DO  SUM := SUM + COF[0,J]×G(J+1, X[I], Y[I]        00122000    0238
+                    );                                                                          00122100    0243
+                    CBV[I] := SUM;                                                              00122200    0247
+                  END;                                                                          00122300    0248
+                WRITE (PR[DBL], F2);                                                            00122400    0250
+                WRITE (PR, F1, FOR I := 0 STEP 1 UNTIL N1 DO [I,X[I],Y[I],W[I], BV[0,I],        00122500    0253
+                                 CBV[I], (CBV[I]-BV[0,I])]);                                    00122600    0266
+                WRITE (PR, FT, TIME(2)/60);                                                     00122700    0277
+                QUIT:                                                                           00122800    0287
+                BEGIN                                                                           00122900    0288
+                    COMMENT INNER BLOCK;                                                        00123000    0288
+                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%        00123100    0288
+                PROCEDURE DMMP (NAME, ROW, SZ);                                                 00123200    0288
+                                                                                        START OF SEGMENT **********    6
+                    VALUE NAME, SZ;                                                             00123300    0000
+                    ALPHA NAME, SZ;                                                             00123400    0000
+                    ARRAY ROW[0];                                                               00123500    0000
+                    BEGIN                                                                       00123600    0000
+                    REAL                                                                        00123700    0000
+                                                                                        START OF SEGMENT **********    7
+                    I,                                                                          00123800    0000
+                    UB;                                                                         00123900    0000
+                FORMAT                                                                          00124000    0000
+                    F (A6," = ",/*(6E20.11,/));                                                 00124100    0000
+                                                                                        START OF SEGMENT **********    8
+                                                                                           8 IS   10 LONG, NEXT SEG    7
+                    UB := SZ-1;                                                                 00124200    0000
+                    WRITE (PR[DBL]);                                                            00124300    0001
+                    WRITE (PR[DBL]);                                                            00124310    0005
+                    WRITE (PR, F, NAME, (SZ+5)DIV 6,                                            00124400    0009
+                        FOR I:=0 STEP 1 UNTIL UB DO ROW[I]);                                    00124410    0017
+                    END DMMP;                                                                   00124500    0025
+                                                                                           7 IS   28 LONG, NEXT SEG    6
+                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%        00124600    0000
+                ARRAY NR[0:99];                                                                 00124700    0000
+                FOR I := 0 STEP 1 UNTIL 99 DO                                                   00124800    0002
+                    REPLACE POINTER(NR[I])+6 BY I FOR 2 DIGITS;                                 00124900    0004
+                                                                                                00125000    0014
+                DMMP ("X     ", X, N1+1);                                                       00125100    0014
+                DMMP ("Y     ", Y, N1+1);                                                       00125200    0016
+                DMMP ("W     ", W, N1+1);                                                       00125300    0018
+                DMMP ("CBV   ", CBV, N1+1);                                                     00125400    0020
+                DMMP ("BV    ", BV[0,*], N1+P+1);                                               00125500    0023
+                FOR I := 0 STEP 1 UNTIL M1 DO                                                   00125600    0026
+                    BEGIN                                                                       00125700    0032
+                    SUM := "Z     " & NR[I] [11:12];                                            00125800    0032
+                    DMMP (SUM, Z[I,*], N1+P+1);                                                 00125900    0034
+                    END;                                                                        00126000    0037
+                FOR I := 0 STEP 1 UNTIL M DO                                                    00126100    0039
+                    BEGIN                                                                       00126200    0041
+                    SUM := "ORTHV " & NR[I] [11:12];                                            00126300    0041
+                    DMMP (SUM, ORTHV[I,*], N1+P+1);                                             00126400    0043
+                    END;                                                                        00126500    0046
+                DMMP ("DEV   ", DEV[0,*], N1+1);                                                00126600    0048
+                DMMP ("COF   ", COF[0,*], P1+1);                                                00126700    0050
+                DMMP ("STD   ", STD, 1);                                                        00126800    0053
+                FOR I := 0 STEP 1 UNTIL P DO                                                    00126900    0055
+                    BEGIN                                                                       00127000    0060
+                    SUM := "CV    " & NR[I] [11:12];                                            00127100    0060
+                    DMMP (SUM, CV[I,*], P1+1);                                                  00127200    0062
+                    END;                                                                        00127300    0064
+                FOR I := 0 STEP 1 UNTIL P DO                                                    00127400    0066
+                    BEGIN                                                                       00127500    0069
+                    SUM := "VCV   " & NR[I] [11:12];                                            00127600    0069
+                    DMMP (SUM, VCV[0,I,*], P1+1);                                               00127700    0071
+                    END;                                                                        00127800    0074
+                DMMP ("EP    ", EP[0,*], M1+1);                                                 00127900    0076
+                FOR I := 0 STEP 1 UNTIL M1 DO                                                   00128000    0079
+                    BEGIN                                                                       00128100    0082
+                    SUM := "A     " & NR[I] [11:12];                                            00128200    0082
+                    DMMP (SUM, A[I,*], P1+1);                                                   00128300    0084
+                    END;                                                                        00128400    0086
+                DMMP ("GF    ", GF, M+1);                                                       00128500    0088
+                DMMP ("Q     ", Q[0,*], M+1);                                                   00128600    0091
+                DMMP ("Q2    ", Q2[0,*], M1+1);                                                 00128700    0093
+                DMMP ("E     ", E[0,*], M1+1);                                                  00128800    0096
+                DMMP ("ENF   ", ENF, M1+1);                                                     00128900    0098
+                END INNER BLOCK;                                                                00129000    0100
+                                                                                           6 IS  110 LONG, NEXT SEG    2
+                WRITE (PR, </,"ELAPSED=",F8.2,", PROCESSOR=",F8.2,", I/O=",F8.2," SEC">,        00129080    0289
+                        (TIME(1)-STARTT)/60, TIME(2)/60, TIME(3)/60);                           00129090    0290
+                                                                                           9 IS   13 LONG, NEXT SEG    2
+                  END.                                                                          00129100    0305
+                                                                                           2 IS  308 LONG, NEXT SEG    1
+                                                                                           1 IS    2 LONG, NEXT SEG    0
+                                                                                          21 IS   69 LONG, NEXT SEG    0
+NUMBER OF ERRORS DETECTED =   0.  COMPILATION TIME =   20 SECONDS.
+ 
+PRT SIZE =  71; TOTAL SEGMENT SIZE =  1111 WORDS; DISK SIZE =  49 SEGS; NO. PGM. SEGS =  21
+ 
+ESTIMATED CORE STORAGE REQUIRED =  6724 WORDS.
+ 
+ESTIMATED AUXILIARY MEMORY REQUIRED =     0 WORDS.
+ 
+ 
+ LABEL  0XALGOL 0COMPILE00186108?COMPILE DIRCHLT/B5500 XALGOL GO                                         XALGOL /DIRCHLT
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ LABEL  000000000PR     00186108?COMPILE DIRCHLT/B5500 XALGOL GO                                         DIRCHLT/B5500
+ 
+ 
+ 
+ 
+ 
+                                        X         Y         W        BV       CBV,       DEV
+ 
+                                0     0.000     0.110   0.01414   0.76089   0.76399   0.00310
+                                1    -0.050     0.108   0.01427   0.72025   0.72348   0.00323
+                                2    -0.100     0.115   0.01963   0.66721   0.67049   0.00327
+                                3    -0.160     0.150   0.02300   0.55236   0.55576   0.00340
+                                4    -0.220     0.205   0.03897   0.40068   0.40386   0.00319
+                                5    -0.320     0.300   0.02792   0.17014   0.17015   0.00001
+                                6    -0.400     0.358   0.03324   0.06949   0.06500  -0.00449
+                                7    -0.500     0.420   0.01483   0.02006   0.01360  -0.00647
+                                8    -0.550     0.436   0.01423   0.04590   0.04344  -0.00246
+                                9    -0.600     0.430   0.01505   0.12037   0.12444   0.00408
+                               10    -0.644     0.400   0.01483   0.22850   0.23541   0.00691
+                               11    -0.660     0.350   0.01420   0.33248   0.33513   0.00265
+                               12    -0.655     0.300   0.02881   0.41180   0.41041  -0.00139
+                               13    -0.635     0.200   0.03043   0.56169   0.55792  -0.00377
+                               14    -0.595     0.100   0.03076   0.70069   0.69969  -0.00100
+                               15    -0.552     0.000   0.03311   0.84177   0.84369   0.00192
+                               16    -0.500    -0.105   0.03175   0.98915   0.99146   0.00231
+                               17    -0.440    -0.200   0.01809   1.12198   1.12185  -0.00013
+                               18    -0.400    -0.250   0.01998   1.19326   1.19145  -0.00180
+                               19    -0.350    -0.300   0.01882   1.26792   1.26504  -0.00288
+                               20    -0.300    -0.344   0.03140   1.33734   1.33459  -0.00275
+                               21    -0.204    -0.400   0.03450   1.44505   1.44501  -0.00003
+                               22    -0.100    -0.436   0.02846   1.54875   1.55126   0.00251
+                               23     0.000    -0.448   0.02831   1.64168   1.64342   0.00174
+                               24     0.100    -0.442   0.03860   1.73582   1.73434  -0.00148
+                               25     0.230    -0.400   0.02431   1.85882   1.85513  -0.00370
+                               26     0.300    -0.350   0.02059   1.91643   1.91502  -0.00141
+                               27     0.353    -0.300   0.03566   1.95563   1.95689   0.00126
+                               28     0.430    -0.200   0.03122   1.99206   1.99507   0.00301
+                               29     0.477    -0.100   0.02975   1.96611   1.96579  -0.00032
+                               30     0.510     0.000   0.02846   1.89648   1.89241  -0.00407
+                               31     0.522     0.100   0.01696   1.75623   1.75328  -0.00295
+                               32     0.520     0.160   0.02330   1.63625   1.63683   0.00058
+                               33     0.500     0.240   0.02102   1.41224   1.41798   0.00574
+                               34     0.456     0.300   0.01795   1.14765   1.15160   0.00394
+                               35     0.400     0.330   0.01147   0.91523   0.91269  -0.00254
+                               36     0.360     0.337   0.01762   0.78913   0.78354  -0.00558
+                               37     0.300     0.320   0.01648   0.68785   0.68274  -0.00511
+                               38     0.250     0.290   0.01901   0.66231   0.65991  -0.00239
+                               39     0.300     0.245   0.01901   0.89407   0.89251  -0.00156
+                               40     0.150     0.200   0.01809   0.72694   0.72885   0.00191
+                               41     0.100     0.160   0.01677   0.75642   0.75909   0.00267
+                               42     0.050     0.128   0.01501   0.77202   0.77499   0.00297
+ 
+ 
+ 
+                                        PROCESSOR TIME:   6.70 SEC
+ 
+ 
+ 
+ 
+X      =
+   0.00000000000@+00  -5.00000000000@-02  -1.00000000000@-01  -1.60000000001@-01  -2.20000000000@-01  -3.20000000000@-01
+  -4.00000000000@-01  -5.00000000000@-01  -5.50000000000@-01  -6.00000000000@-01  -6.44000000000@-01  -6.60000000000@-01
+  -6.55000000000@-01  -6.35000000000@-01  -5.95000000000@-01  -5.52000000000@-01  -5.00000000000@-01  -4.40000000001@-01
+  -4.00000000000@-01  -3.50000000000@-01  -3.00000000000@-01  -2.03999999999@-01  -1.00000000000@-01   0.00000000000@+00
+   1.00000000000@-01   2.30000000000@-01   3.00000000000@-01   3.53000000000@-01   4.30000000000@-01   4.77000000000@-01
+   5.10000000001@-01   5.22000000002@-01   5.20000000001@-01   5.00000000000@-01   4.56000000000@-01   4.00000000000@-01
+   3.60000000001@-01   3.00000000000@-01   2.50000000000@-01   3.00000000000@-01   1.50000000000@-01   1.00000000000@-01
+   5.00000000000@-02
+ 
+ 
+ 
+ 
+Y      =
+   1.10000000001@-01   1.08000000000@-01   1.14999999999@-01   1.50000000000@-01   2.05000000000@-01   3.00000000000@-01
+   3.58000000000@-01   4.20000000000@-01   4.36000000000@-01   4.30000000000@-01   4.00000000000@-01   3.50000000000@-01
+   3.00000000000@-01   2.00000000001@-01   1.00000000000@-01   0.00000000000@+00  -1.05000000000@-01  -2.00000000001@-01
+  -2.50000000000@-01  -3.00000000000@-01  -3.43999999999@-01  -4.00000000000@-01  -4.36000000000@-01  -4.48000000001@-01
+  -4.42000000000@-01  -4.00000000000@-01  -3.50000000000@-01  -3.00000000000@-01  -2.00000000001@-01  -1.00000000000@-01
+   0.00000000000@+00   1.00000000000@-01   1.60000000001@-01   2.39999999999@-01   3.00000000000@-01   3.30000000000@-01
+   3.37000000000@-01   3.20000000000@-01   2.90000000001@-01   2.45000000001@-01   2.00000000001@-01   1.60000000001@-01
+   1.28000000001@-01
+ 
+ 
+ 
+ 
+W      =
+   1.41400000000@-02   1.42700000000@-02   1.96300000000@-02   2.29999999999@-02   3.89700000001@-02   2.79200000000@-02
+   3.32399999999@-02   1.48299999999@-02   1.42300000000@-02   1.50500000000@-02   1.48299999999@-02   1.42000000000@-02
+   2.88100000001@-02   3.04300000001@-02   3.07600000002@-02   3.31100000000@-02   3.17500000002@-02   1.80900000001@-02
+   1.99800000001@-02   1.88200000000@-02   3.14000000001@-02   3.45000000000@-02   2.84600000001@-02   2.83099999999@-02
+   3.86000000002@-02   2.43100000000@-02   2.05900000001@-02   3.56600000001@-02   3.12200000000@-02   2.97499999999@-02
+   2.84600000001@-02   1.69600000000@-02   2.33000000000@-02   2.10199999998@-02   1.79500000000@-02   1.14700000000@-02
+   1.76200000000@-02   1.64800000000@-02   1.90100000000@-02   1.90100000000@-02   1.80900000001@-02   1.67700000000@-02
+   1.50100000000@-02
+ 
+ 
+ 
+ 
+CBV    =
+   7.63990857000@-01   7.23476999550@-01   6.70486515620@-01   5.55760515690@-01   4.03864157242@-01   1.70153235251@-01
+   6.50036131620@-02   1.35969111804@-02   4.34406209922@-02   1.24443888181@-01   2.35411546883@-01   3.35127952258@-01
+   4.10409228179@-01   5.57922404120@-01   6.99692526170@-01   8.43691658110@-01   9.91455364510@-01   1.12185181366@+00
+   1.19145281421@+00   1.26504184521@+00   1.33459251738@+00   1.44501061818@+00   1.55125970980@+00   1.64342354803@+00
+   1.73434400866@+00   1.85512612469@+00   1.91501751200@+00   1.95689478869@+00   1.99507156912@+00   1.96578820441@+00
+   1.89241116472@+00   1.75328349823@+00   1.63683157068@+00   1.41798014338@+00   1.15159624467@+00   9.12686299540@-01
+   7.83542953740@-01   6.82743770100@-01   6.59913937640@-01   8.92513136020@-01   7.28852845610@-01   7.59094650350@-01
+   7.74988822250@-01
+ 
+ 
+ 
+ 
+BV     =
+   7.60888465450@-01   7.20246055780@-01   6.67212406800@-01   5.52356512670@-01   4.00677168384@-01   1.70143475069@-01
+   6.94918044650@-02   2.00633089262@-02   4.59001323489@-02   1.20368543445@-01   2.28496737625@-01   3.32481404050@-01
+   4.11800002861@-01   5.61688937140@-01   7.00690877200@-01   8.41773259000@-01   9.89149666870@-01   1.12198473963@+00
+   1.19325814303@+00   1.26792135330@+00   1.33733963929@+00   1.44504543647@+00   1.54874888482@+00   1.64168181988@+00
+   1.73582146871@+00   1.85882384451@+00   1.91643181675@+00   1.95563019495@+00   1.99206099581@+00   1.96610965548@+00
+   1.89648227785@+00   1.75623351628@+00   1.63625089460@+00   1.41224024707@+00   1.14765460414@+00   9.15228104730@-01
+   7.89128023850@-01   6.87850932100@-01   6.62307799950@-01   8.94070846770@-01   7.26940189160@-01   7.56420955760@-01
+   7.72021544670@-01   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+ 
+Z   00 =
+   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00
+   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00
+   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00
+   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00
+   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00
+   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00
+   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00   1.00000000000@+00
+   1.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+ 
+Z   01 =
+   0.00000000000@+00  -5.00000000000@-02  -1.00000000000@-01  -1.60000000001@-01  -2.20000000000@-01  -3.20000000000@-01
+  -4.00000000000@-01  -5.00000000000@-01  -5.50000000000@-01  -6.00000000000@-01  -6.44000000000@-01  -6.60000000000@-01
+  -6.55000000000@-01  -6.35000000000@-01  -5.95000000000@-01  -5.52000000000@-01  -5.00000000000@-01  -4.40000000001@-01
+  -4.00000000000@-01  -3.50000000000@-01  -3.00000000000@-01  -2.03999999999@-01  -1.00000000000@-01   0.00000000000@+00
+   1.00000000000@-01   2.30000000000@-01   3.00000000000@-01   3.53000000000@-01   4.30000000000@-01   4.77000000000@-01
+   5.10000000001@-01   5.22000000002@-01   5.20000000001@-01   5.00000000000@-01   4.56000000000@-01   4.00000000000@-01
+   3.60000000001@-01   3.00000000000@-01   2.50000000000@-01   3.00000000000@-01   1.50000000000@-01   1.00000000000@-01
+   5.00000000000@-02   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+ 
+Z   02 =
+   1.10000000001@-01   1.08000000000@-01   1.14999999999@-01   1.50000000000@-01   2.05000000000@-01   3.00000000000@-01
+   3.58000000000@-01   4.20000000000@-01   4.36000000000@-01   4.30000000000@-01   4.00000000000@-01   3.50000000000@-01
+   3.00000000000@-01   2.00000000001@-01   1.00000000000@-01   0.00000000000@+00  -1.05000000000@-01  -2.00000000001@-01
+  -2.50000000000@-01  -3.00000000000@-01  -3.43999999999@-01  -4.00000000000@-01  -4.36000000000@-01  -4.48000000001@-01
+  -4.42000000000@-01  -4.00000000000@-01  -3.50000000000@-01  -3.00000000000@-01  -2.00000000001@-01  -1.00000000000@-01
+   0.00000000000@+00   1.00000000000@-01   1.60000000001@-01   2.39999999999@-01   3.00000000000@-01   3.30000000000@-01
+   3.37000000000@-01   3.20000000000@-01   2.90000000001@-01   2.45000000001@-01   2.00000000001@-01   1.60000000001@-01
+   1.28000000001@-01   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+ 
+Z   03 =
+  -1.20999999999@-02  -9.16400000000@-03  -3.22500000002@-03   3.10000000014@-03   6.37499999970@-03   1.24000000003@-02
+   3.18360000002@-02   7.36000000000@-02   1.12404000000@-01   1.75100000000@-01   2.54736000001@-01   3.13100000001@-01
+   3.39025000001@-01   3.63225000000@-01   3.44024999999@-01   3.04704000000@-01   2.38975000000@-01   1.53599999999@-01
+   9.75000000000@-02   3.25000000007@-02  -2.83359999998@-02  -1.18384000000@-01  -1.80096000001@-01  -2.00704000001@-01
+  -1.85363999999@-01  -1.07100000000@-01  -3.25000000007@-02   3.46090000001@-02   1.44899999999@-01   2.17529000001@-01
+   2.60100000000@-01   2.62484000000@-01   2.44800000002@-01   1.92400000000@-01   1.17936000001@-01   5.10999999999@-02
+   1.60310000005@-02  -1.24000000003@-02  -2.16000000005@-02   2.99749999990@-02  -1.75000000004@-02  -1.56000000000@-02
+  -1.38840000003@-02   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+ 
+Z   04 =
+   0.00000000000@+00  -1.08000000000@-02  -2.30000000002@-02  -4.79999999997@-02  -9.02000000000@-02  -1.92000000000@-01
+  -2.86399999999@-01  -4.20000000000@-01  -4.79600000003@-01  -5.16000000000@-01  -5.15200000000@-01  -4.62000000004@-01
+  -3.92999999998@-01  -2.54000000002@-01  -1.19000000000@-01   0.00000000000@+00   1.05000000000@-01   1.76000000001@-01
+   2.00000000001@-01   2.09999999999@-01   2.06400000000@-01   1.63200000000@-01   8.72000000000@-02   0.00000000000@+00
+  -8.84000000000@-02  -1.84000000000@-01  -2.09999999999@-01  -2.11799999999@-01  -1.72000000000@-01  -9.54000000000@-02
+   0.00000000000@+00   1.04400000001@-01   1.66400000002@-01   2.39999999999@-01   2.73599999999@-01   2.64000000000@-01
+   2.42640000001@-01   1.92000000000@-01   1.45000000001@-01   1.47000000002@-01   6.00000000000@-02   3.20000000001@-02
+   1.28000000000@-02   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+ 
+Z   05 =
+   0.00000000000@+00   1.62460000000@-03   2.96749999998@-03   6.70399999990@-03   1.70885000000@-02   5.36319999996@-02
+   8.97968000000@-02   1.39600000001@-01   1.47283400000@-01   1.16820000001@-01   4.20300159986@-02  -4.49460000018@-02
+  -1.04161375004@-01  -1.79847875000@-01  -1.92794874999@-01  -1.68196608000@-01  -1.08462500000@-01  -3.23839999996@-02
+   1.09999999999@-02   5.16249999996@-02   7.95023999990@-02   8.94303360000@-02   5.60288000000@-02   0.00000000000@+00
+  -5.76092000000@-02  -9.82330000000@-02  -8.32500000010@-02  -5.13230229990@-02   2.79069999997@-02   9.42213330010@-02
+   1.32651000000@-01   1.26576648001@-01   1.00672000002@-01   3.86000000002@-02  -2.83011839993@-02  -6.66800000000@-02
+  -7.59985200000@-02  -6.51600000000@-02  -4.74500000005@-02  -2.70225000005@-02  -1.46250000001@-02  -6.68000000000@-03
+  -2.33260000005@-03   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+ 
+Z   06 =
+  -1.33099999999@-03  -4.49712000001@-04   1.92912499998@-03   8.14499999990@-03   2.11508749999@-02   6.51600000000@-02
+   1.25957287999@-01   2.40912000001@-01   3.12788144000@-01   3.84893000001@-01   4.33683200002@-01   4.14505000002@-01
+   3.59122499998@-01   2.33935000002@-01   1.05207500000@-01   0.00000000000@+00  -7.75923750000@-02  -1.08160000000@-01
+  -1.04375000000@-01  -8.32500000000@-02  -5.21724159997@-02   1.40607999999@-02   6.98018560000@-02   8.99153920010@-02
+   7.30908880000@-02   5.19999999824@-04  -5.16249999996@-02  -8.51481000000@-02  -1.02940000000@-01  -6.72587000000@-02
+   0.00000000000@+00   8.07452000000@-02   1.25696000000@-01   1.66176000000@-01   1.60142400001@-01   1.22463000000@-01
+   9.27528470000@-02   5.36319999996@-02   2.99860000001@-02   5.14438749997@-02   5.49999999990@-03   7.04000000010@-04
+  -1.13715200002@-03   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+ 
+Z   07 =
+   1.46410000000@-04  -3.26611039996@-05  -5.18599374998@-04  -2.29438999998@-03  -8.09539937500@-03  -3.67102399997@-02
+  -8.10114291040@-02  -1.70983040000@-01  -2.17381500785@-01  -2.35595990000@-01  -2.00540610304@-01  -1.15412390002@-01
+  -3.95110493756@-02   6.74164006240@-02   1.04192200623@-01   9.28445276160@-02   4.60840506248@-02  -7.38304000010@-03
+  -3.04937500000@-02  -4.30437499996@-02  -4.17980311035@-02  -1.26194685440@-02   2.48307292160@-02   4.02820956163@-02
+   2.65452524959@-02  -2.23855900000@-02  -4.30437499996@-02  -4.36614571186@-02  -8.58799000030@-03   3.82177058415@-02
+   6.76520100000@-02   5.79984902570@-02   3.22380800005@-02  -2.05822399998@-02  -6.09480599040@-02  -6.70847900000@-02
+  -5.86171766390@-02  -3.67102399997@-02  -2.05584400000@-02  -2.07104993751@-02  -3.29374999995@-03  -7.80640000000@-04
+   2.89254560038@-05   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+ 
+Z   08 =
+   0.00000000000@+00   1.97942400002@-04   1.48350000000@-04  -2.97600000010@-04  -1.15004999995@-03  -4.76160000017@-03
+  -1.82356607997@-02  -6.18240000000@-02  -1.07817916798@-01  -1.80703200000@-01  -2.62479974401@-01  -2.89304400001@-01
+  -2.66473650002@-01  -1.84518300003@-01  -8.18779499990@-02   0.00000000000@+00   5.01847500000@-02   5.40672000004@-02
+   3.89999999998@-02   1.36499999999@-02  -1.16971007996@-02  -3.86405375999@-02  -3.14087424001@-02   0.00000000000@+00
+   3.27723551997@-02   3.94127999998@-02   1.36500000001@-02  -1.46603724000@-02  -4.98456000006@-02  -4.15045332004@-02
+   0.00000000000@+00   5.48066592001@-02   8.14694400020@-02   9.23520000000@-02   6.45345792000@-02   2.69807999999@-02
+   7.77952368070@-03  -4.76159999994@-03  -6.26400000010@-03   8.81264999970@-03  -2.10000000001@-03  -9.98399999990@-04
+  -3.55430400009@-04   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+ 
+Z   09 =
+   0.00000000000@+00  -1.97447239999@-05   3.47996874996@-05   4.11742399997@-04   2.01674811251@-03   1.31757567998@-02
+   3.89329382080@-02   1.11457600001@-01   1.66568437156@-01   2.19059970001@-01   2.34140142797@-01   1.77428717403@-01
+   1.05821832342@-01  -5.90575439620@-03  -5.38065643712@-02  -5.12501792441@-02  -1.77726265627@-02   1.40619776002@-02
+   2.19475000001@-02   1.91603125002@-02   8.51560665600@-03  -1.28818434571@-02  -1.61772846080@-02   0.00000000000@+00
+   1.71399062479@-02   1.06164342999@-02  -8.13562499980@-03  -1.98106060829@-02  -1.36619557001@-02   1.40793923664@-02
+   3.45025251000@-02   2.47945459939@-02   3.72869119994@-03  -3.24555999998@-02  -4.71526890760@-02  -3.57375800000@-02
+  -2.37238830705@-02  -9.48935999990@-03  -3.32304999998@-03  -8.37224906250@-03  -7.40624999940@-05   8.16799999970@-05
+   4.69413640017@-05   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+ 
+Z   10 =
+   1.61050999998@-05  -1.34245192319@-05  -7.44739281250@-05  -2.96542499999@-04  -1.40654587190@-03  -9.48935999990@-03
+  -2.17078272993@-02  -4.09008768002@-02  -3.54784801039@-02   7.11564430090@-03   8.88208593930@-02   1.50546567501@-01
+   1.62686925940@-01   1.30652400626@-01   5.91366003120@-02   0.00000000000@+00  -2.99312003158@-02  -2.23129600001@-02
+  -7.97656249980@-03   8.13562499980@-03   1.78876529394@-02   1.29304570882@-02  -7.68532369800@-03  -1.80463788360@-02
+  -8.45576608310@-03   1.80191800003@-02   1.91603125002@-02   7.92332567830@-03  -1.97160100000@-02  -2.36194329210@-02
+   0.00000000000@+00   3.44089251285@-02   4.75222016005@-02   4.12362623998@-02   1.11433501447@-02  -1.13456607000@-02
+  -1.69533600024@-02  -1.31757567998@-02  -7.52794760000@-03  -2.43027734700@-03  -9.73750000000@-04  -2.24742399997@-04
+  -1.40690616313@-05   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+ 
+ORTH00 =
+   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01
+   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01
+   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01
+   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01
+   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01
+   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01
+   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01   9.99995000030@-01
+   9.99995000030@-01   9.99995000030@-01   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+ 
+ORTH01 =
+   1.80914235387@-01   5.41552019810@-02  -7.26038314250@-02  -2.24714671515@-01  -3.76825511601@-01  -6.30343578410@-01
+  -8.33158031860@-01  -1.08667609867@+00  -1.21343513209@+00  -1.34019416549@+00  -1.45174211489@+00  -1.49230500558@+00
+  -1.47962910224@+00  -1.42892548887@+00  -1.32751826214@+00  -1.21850549342@+00  -1.08667609867@+00  -9.34565258600@-01
+  -8.33158031860@-01  -7.06398998460@-01  -5.79639965050@-01  -3.36262620913@-01  -7.26038314250@-02   1.80914235387@-01
+   4.34432302200@-01   7.64005789050@-01   9.41468435820@-01   1.07583301123@+00   1.27104192268@+00   1.39019541409@+00
+   1.47385637613@+00   1.50427854415@+00   1.49920818281@+00   1.44850456945@+00   1.33695662006@+00   1.19498650264@+00
+   1.09357927591@+00   9.41468435820@-01   8.14709402420@-01   9.41468435820@-01   5.61191335600@-01   4.34432302200@-01
+   3.07673268793@-01   1.80914235387@-01   2.53518066813@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+ 
+ORTH02 =
+   3.80771471710@-01   3.49866071394@-01   3.51052032461@-01   4.47322987158@-01   6.14908078260@-01   9.06102252830@-01
+   1.07487486972@+00   1.24840071924@+00   1.28167804168@+00   1.23650981409@+00   1.10861750119@+00   9.22724484440@-01
+   7.46816542100@-01   3.99755454744@-01   6.22039620550@-02  -2.73921091434@-01  -6.23595361420@-01  -9.33808725340@-01
+  -1.09307487700@+00  -1.24758623134@+00  -1.38070334475@+00  -1.53473687227@+00  -1.61365242553@+00  -1.60889293400@+00
+  -1.53995071973@+00  -1.32837866792@+00  -1.11680974557@+00  -9.13323978670@-01  -5.20141357157@-01  -1.41223127650@-01
+   2.31038385585@-01   5.93314824410@-01   8.06306274170@-01   1.08205322511@+00   1.27507452606@+00   1.35541886558@+00
+   1.36135962399@+00   1.27221382404@+00   1.14146863275@+00   1.00478581250@+00   7.73007045570@-01   6.06604786080@-01
+   4.68728181151@-01  -1.14562785201@-02   4.75479733539@-01   3.56570682029@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+ 
+ORTH03 =
+  -7.98230679010@-01  -8.00670335140@-01  -7.97158058240@-01  -8.45914528020@-01  -9.52342360660@-01  -1.13149559140@+00
+  -1.13635631400@+00  -9.96454733350@-01  -7.69251149490@-01  -3.28863117695@-01   2.80848830605@-01   7.86226627130@-01
+   1.06657893074@+00   1.43115116286@+00   1.49022773434@+00   1.40423507632@+00   1.13947635221@+00   7.18134835610@-01
+   4.19573748318@-01   6.15962883030@-02  -2.76648949872@-01  -7.81435218710@-01  -1.11065867469@+00  -1.18488142181@+00
+  -1.02887760731@+00  -4.61405719093@-01   3.23082105783@-02   4.62088497172@-01   1.13129821487@+00   1.50946023254@+00
+   1.66078431938@+00   1.50757995862@+00   1.27124440605@+00   7.36483532880@-01   6.31272108930@-02  -5.08034843534@-01
+  -7.98055067530@-01  -1.00811182191@+00  -1.04943624920@+00  -5.66262807350@-01  -9.14877561260@-01  -8.57550001910@-01
+  -8.15736972880@-01  -5.15126039884@-01   5.47815637176@-01  -1.77161132384@+00   7.29152012420@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+ 
+ORTH04 =
+   1.89813751040@-01   1.82127389697@-01   1.74755299152@-01   1.28035535669@-01   9.38427469670@-05  -3.82834322212@-01
+  -7.66095545140@-01  -1.32972943195@+00  -1.57423861745@+00  -1.69595052706@+00  -1.62918519635@+00  -1.32905143118@+00
+  -9.79794909550@-01  -2.99574852387@-01   3.16987522010@-01   8.33004137860@-01   1.24656603605@+00   1.46330007198@+00
+   1.49002115033@+00   1.42541050234@+00   1.29267120875@+00   8.72687158290@-01   2.93072413659@-01  -3.06363787901@-01
+  -8.81817741670@-01  -1.47087288338@+00  -1.61283163294@+00  -1.60835662884@+00  -1.34343848955@+00  -8.64370931000@-01
+  -2.82537366655@-01   3.50649641428@-01   7.27218315560@-01   1.18345021208@+00   1.42002917650@+00   1.41428668692@+00
+   1.32645395539@+00   1.08466183656@+00   8.52462105030@-01   8.04445980890@-01   4.26593933304@-01   2.96644440327@-01
+   2.20610358790@-01   1.16011370516@-01  -1.02995232365@+00   7.24525365880@-01   4.87223944212@-01   5.47827928630@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+ 
+ORTH05 =
+  -2.24390098965@-01  -1.66400183375@-01  -1.13110015845@-01  -4.95212136934@-02   6.62319784940@-02   4.78687150042@-01
+   9.30687900040@-01   1.58807650617@+00   1.75676283607@+00   1.53378186611@+00   8.33053076810@-01  -4.05475762073@-02
+  -6.47235174420@-01  -1.39934393538@+00  -1.48659811099@+00  -1.16416362645@+00  -4.74044768720@-01   3.46951720782@-01
+   7.84809608860@-01   1.15675794336@+00   1.36980774369@+00   1.25997951292@+00   6.40039498240@-01  -1.93963909827@-01
+  -9.87932827850@-01  -1.49676338502@+00  -1.26043239531@+00  -8.07722587580@-01   2.79097483486@-01   1.16971971419@+00
+   1.67592346178@+00   1.57342778410@+00   1.20607924739@+00   3.27689972104@-01  -6.42175793890@-01  -1.23639609976@+00
+  -1.40920120204@+00  -1.30306097311@+00  -1.06907127744@+00  -7.14438767770@-01  -5.60312915570@-01  -4.06871372426@-01
+  -2.99667166072@-01  -1.17762788829@-01  -7.15374218030@-01  -7.44720174440@-01   2.04199098746@+00   4.80984991258@-01
+   1.22683224850@+01   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+ 
+ORTH06 =
+  -7.83031145230@-01  -8.26709438640@-01  -8.77828056950@-01  -9.92311996970@-01  -1.12511418184@+00  -1.19016660869@+00
+  -9.42966227060@-01  -2.07261027826@-01   3.88532526414@-01   1.12034403956@+00   1.76793176187@+00   1.84772647024@+00
+   1.55281022728@+00   7.83945834410@-01  -6.03865301880@-02  -6.99681424930@-01  -1.06754405847@+00  -1.02231553767@+00
+  -8.07220914270@-01  -4.26665832660@-01   2.41154834160@-02   8.30166519350@-01   1.41930839993@+00   1.53948511036@+00
+   1.20729587539@+00   1.70100992276@-01  -5.46115067537@-01  -1.01248061082@+00  -1.31372288401@+00  -9.43924261000@-01
+  -1.75763375887@-01   7.63322709580@-01   1.28529437978@+00   1.73412582700@+00   1.58976436041@+00   1.03546895435@+00
+   6.01652362520@-01   2.67400607363@-02  -3.25873691819@-01   6.35479255760@-02  -6.73398898580@-01  -7.35527877110@-01
+  -7.60150931590@-01  -5.00629958679@-01   6.28807337500@-01  -2.40459949737@+00   2.41675999967@-01   2.49542628691@+00
+  -4.42402144898@-01   1.12479055209@+01   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+ 
+ORTH07 =
+   5.51019868750@-01   5.86449920050@-01   6.24283106120@-01   7.32035647020@-01   8.84088443090@-01   9.47495489520@-01
+   5.66882664010@-01  -6.07064036380@-01  -1.39435947253@+00  -1.94429415709@+00  -1.80033041716@+00  -8.50067168850@-01
+   4.52894976773@-02   1.14460785783@+00   1.19437281445@+00   5.50207769960@-01  -5.02554397187@-01  -1.34725485135@+00
+  -1.55085379902@+00  -1.43918708571@+00  -1.04847533569@+00   8.71044431450@-02   1.12855577534@+00   1.38649471350@+00
+   8.05734743630@-01  -7.49814519390@-01  -1.40087019585@+00  -1.48167167636@+00  -6.24788834450@-01   6.15015948700@-01
+   1.45746131465@+00   1.34130790365@+00   7.65253146800@-01  -4.88870417081@-01  -1.46796803072@+00  -1.58296839228@+00
+  -1.32242712592@+00  -6.66521622340@-01  -1.64267376660@-01  -2.83287896696@-01   3.96118099923@-01   4.88832744524@-01
+   5.26276688301@-01   3.22346629783@-01  -3.98322961006@-01   1.68602489073@+00  -3.56061481009@+00  -2.02793324394@+00
+   5.75218328540@+00   2.34567128998@+00   2.21921335688@+01   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+ 
+ORTH08 =
+  -4.59552511470@-01  -3.57550489980@-01  -2.49956886808@-01  -1.10535202184@-01   8.77662307320@-02   6.32960321680@-01
+   1.12882158719@+00   1.55029207033@+00   1.34881637966@+00   5.12435290270@-01  -8.01007729160@-01  -1.58243318800@+00
+  -1.59762632252@+00  -9.04910929790@-01   2.09683139037@-01   1.04361495218@+00   1.31891473010@+00   8.43271563970@-01
+   3.10697753780@-01  -3.57647682531@-01  -9.27659546960@-01  -1.31906637880@+00  -7.88340798290@-01   2.75512116509@-01
+   1.27517603344@+00   1.47674674967@+00   7.22450718720@-01  -1.20510890598@-01  -1.26539228961@+00  -1.25287096374@+00
+  -3.22375177981@-01   1.01872396069@+00   1.67978145208@+00   1.89345027274@+00   1.00216352320@+00  -2.05430790485@-01
+  -8.50249452030@-01  -1.28070007350@+00  -1.29971844597@+00  -6.82412211010@-01  -9.18301665170@-01  -7.37394431680@-01
+  -5.82032104440@-01  -2.71354763210@-01  -9.13273574380@-01  -1.33368544841@+00   2.69915052323@+00  -3.41088821356@+00
+  -1.09262623727@+00   6.40460783320@+00  -2.10432742399@+00   2.35554663755@+01   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+ 
+ORTH09 =
+   5.67693111240@-01   4.74598780666@-01   3.75296678294@-01   2.29025067559@-01  -2.92455539033@-02  -7.58149749410@-01
+  -1.26933550453@+00  -1.10567014320@+00  -2.80419398300@-01   1.04616657300@+00   2.01236982015@+00   1.42377440620@+00
+   3.37695080737@-01  -1.15952200739@+00  -1.18146695504@+00  -2.10132176020@-01   1.03460812513@+00   1.46705086911@+00
+   1.15259282354@+00   3.92532611245@-01  -4.89935964155@-01  -1.48728506995@+00  -1.06514096104@+00   3.02677436445@-01
+   1.41727581010@+00   8.46544045380@-01  -4.24653958010@-01  -1.25741740139@+00  -1.18141072491@+00   2.38769035009@-01
+   1.39238833761@+00   1.06767127615@+00   1.05848814118@-01  -1.53933250972@+00  -1.96709221463@+00  -9.81147646440@-01
+  -1.08714149501@-01   8.32118106250@-01   1.15807409945@+00   5.11250792872@-01   1.00135455033@+00   8.35754218380@-01
+   6.84349746040@-01   3.49810067308@-01   6.23064584790@-01   1.58846218545@+00  -2.74717991462@+00   2.62591176035@+00
+  -8.90654483320@+00  -5.73054769770@+00   1.55998059094@+01   4.39807205094@+00   4.53723510556@+01   0.00000000000@+00
+ 
+ 
+ 
+ 
+ 
+ORTH10 =
+   5.60986276260@-01   6.05255230050@-01   6.39970402400@-01   7.23809443920@-01   8.28450990180@-01   7.34941553640@-01
+   1.24775818147@-01  -1.33191819911@+00  -1.96702460886@+00  -1.73161410799@+00  -2.91746247295@-01   1.12008519444@+00
+   1.47716389687@+00   7.72840847580@-01  -6.14853992030@-01  -1.41746182699@+00  -1.16288063591@+00  -3.86166401497@-02
+   6.47659473720@-01   1.11186667976@+00   1.12575048879@+00   1.30445705655@-01  -1.14269519123@+00  -1.37747173011@+00
+  -4.13686115913@-01   1.33159783993@+00   1.34576239529@+00   6.33505518840@-01  -1.07525371169@+00  -1.49911126496@+00
+  -4.87447528858@-01   1.07534378140@+00   1.61941090363@+00   1.14423418882@+00  -4.19941899291@-01  -1.41823956642@+00
+  -1.52501726954@+00  -9.81163165710@-01  -4.02355070162@-01  -3.56591928373@-01   3.22621158234@-01   4.55724956910@-01
+   5.19484361014@-01   3.25875290866@-01  -6.67870606450@-01   1.65787392310@+00  -3.44055713767@+00  -2.13559787397@+00
+   3.96432506853@+00  -8.12323218960@+00  -2.84939504576@+00   1.41768956571@+01   2.58171592641@+00   4.46610303462@+01
+ 
+ 
+ 
+ 
+ 
+ORTH11 =
+  -1.03121629563@+00  -1.07394628094@+00  -1.08829407845@+00  -1.13147013269@+00  -1.05933592973@+00  -3.24422290538@-03
+   1.49184780123@+00   2.14939172841@+00   8.17526785970@-01  -1.35462008341@+00  -2.29844101581@+00  -8.79696708890@-01
+   4.62285141772@-01   1.25197292762@+00   3.31845879076@-01  -6.37664325400@-01  -7.66400026320@-01   4.41838022953@-02
+   6.00080454410@-01   9.57131173120@-01   9.13126803040@-01   1.15733869882@-02  -8.34583126250@-01  -5.78939963320@-01
+   4.91098853142@-01   1.22909982271@+00   4.70106407169@-01  -4.20343344800@-01  -1.00069646251@+00   1.06848410817@-01
+   1.35321352392@+00   9.80568257150@-01  -1.93013220975@-01  -1.90790700899@+00  -1.31017761663@+00   8.44880761440@-01
+   1.85644372235@+00   1.69758994576@+00   7.95705440390@-01   5.17773687001@-01  -6.35755502000@-01  -8.88720000420@-01
+  -9.86305221160@-01  -3.32990033813@+02  -3.31558678024@+02   6.61777554410@+02  -4.92064262576@+02   3.02242196197@+00
+  -6.25674489760@+01  -2.07193268945@+02   1.18044582297@+02  -7.88576947510@+00   3.93728856274@+01   9.32160345480@+01
+ 
+ 
+ 
+ 
+ 
+DEV    =
+  -3.10239154896@-03  -3.23094377018@-03  -3.27410880345@-03  -3.40400301320@-03  -3.18698884985@-03  -9.76017327050@-06
+   4.48819130429@-03   6.46639774990@-03   2.45951135822@-03  -4.07534473289@-03  -6.91480925340@-03  -2.64654820421@-03
+   1.39077468339@-03   3.76653302192@-03   9.98351029920@-04  -1.91839910076@-03  -2.30569762607@-03   1.32925997605@-04
+   1.80532885133@-03   2.87950808706@-03   2.74712190730@-03   3.48182802554@-05  -2.51082498289@-03  -1.74172814877@-03
+   1.47746010043@-03   3.69771978876@-03   1.41430478834@-03  -1.26459370949@-03  -3.01057330216@-03   3.21451094351@-04
+   4.07111312961@-03   2.95001803897@-03  -5.80676030950@-04  -5.73989628170@-03  -3.94164054887@-03   2.54180519187@-03
+   5.58507011560@-03   5.10716202189@-03   2.39386231988@-03   1.55771075151@-03  -1.91265644753@-03  -2.67369457833@-03
+  -2.96727756904@-03
+ 
+ 
+ 
+ 
+COF    =
+   1.00179319429@+00   9.97486991870@-01  -1.99094321998@+00   1.48036451348@+00  -9.09289000960@-03   1.88232794389@-01
+   6.23336393450@-01  -3.55134530048@-01   2.37241640579@-02  -1.18452460601@-01  -2.80438390118@-01
+ 
+ 
+ 
+ 
+STD    =
+   5.31828800487@-04
+ 
+ 
+ 
+ 
+CV  00 =
+   1.98226565763@+00  -5.92977582510@-02   4.24862799856@+00  -8.02335245200@+00  -1.75889496584@-01  -8.96309335540@-01
+  -1.12646040117@+01   1.22530004493@+01  -2.33498124639@-01   1.67130226051@+01   1.45539262544@+01
+ 
+ 
+ 
+ 
+CV  01 =
+   0.00000000000@+00   1.07482751246@+01  -5.71691317460@-01   1.72315950283@+00   2.56795372980@+00  -1.85449961746@+01
+   2.14403838782@+00   4.70490406305@+00  -2.82406339367@+01   2.65456528898@+01  -2.98277894221@+01
+ 
+ 
+ 
+ 
+CV  02 =
+   0.00000000000@+00   0.00000000000@+00   3.26076705648@+01  -3.43374837286@+01  -6.29032158830@-01  -4.49248189433@+00
+  -5.42036331896@+01   6.02787644840@+01  -9.25905973300@-01   7.63524234290@+01   7.40423575900@+01
+ 
+ 
+ 
+ 
+CV  03 =
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   9.69796096490@+01   2.40238340074@+00   1.23428084525@+01
+   5.53446074890@+01  -1.17749502923@+02   2.72103464813@+00  -1.33528552657@+02  -1.53658826734@+02
+ 
+ 
+ 
+ 
+CV  04 =
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   6.36729053540@+01  -3.49953257233@+01
+   3.76609775156@+00   9.22233598870@+00  -9.90722617300@+01   1.13630283187@+02  -9.53780014570@+01
+ 
+ 
+ 
+ 
+CV  05 =
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   2.80031315013@+02
+   2.03550380832@+01  -2.02838357957@+01  -8.70712364720@+00  -3.93876117699@+02   1.77050842188@+02
+ 
+ 
+ 
+ 
+CV  06 =
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   2.71862632025@+02  -2.76710756103@+01   1.04979476481@+01  -2.80980299799@+02  -3.62791919327@+02
+ 
+ 
+ 
+ 
+CV  07 =
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   7.48391982780@+02  -2.13549197577@+01   7.00443541560@+02  -1.27256918607@+02
+ 
+ 
+ 
+ 
+CV  08 =
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   7.75187404400@+02   2.36151586368@+02   6.33154767160@+02
+ 
+ 
+ 
+ 
+CV  09 =
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   2.06531549744@+03   1.15302093334@+02
+ 
+ 
+ 
+ 
+CV  10 =
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   1.99460763158@+03
+ 
+ 
+ 
+ 
+CV  11 =
+   1.40792956416@+00   3.27845621057@+00   5.71031265040@+00   9.84782258420@+00   7.97953039680@+00   1.67341362195@+01
+   1.64882573982@+01   2.73567538787@+01   2.78421874931@+01   4.54457423466@+01   4.46610303462@+01
+ 
+ 
+ 
+ 
+VCV 00 =
+   5.60667731440@-07  -1.67718890100@-08   1.20168990090@-06  -2.26934003548@-06  -4.97489146597@-08  -2.53513811275@-07
+  -3.18610169757@-06   3.46566159728@-06  -6.60430469210@-08   4.72714261757@-06   4.11645976167@-06
+ 
+ 
+ 
+ 
+VCV 01 =
+   0.00000000000@+00   3.04006226805@-06  -1.61698243022@-07   4.87381661306@-07   7.26324842780@-07  -5.24530145329@-06
+   6.06423833450@-07   1.33074387761@-06  -7.98763379810@-06   7.50822218400@-06  -8.43654782840@-06
+ 
+ 
+ 
+ 
+VCV 02 =
+   0.00000000000@+00   0.00000000000@+00   9.22281461760@-06  -9.71207821290@-06  -1.77916633998@-07  -1.27066199353@-06
+  -1.53310571362@-05   1.70493586504@-05  -2.61884979735@-07   2.15956624527@-05   2.09422791041@-05
+ 
+ 
+ 
+ 
+VCV 03 =
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   2.74298944384@-05   6.79494620790@-07   3.49106306114@-06
+   1.56537724442@-05  -3.33044899548@-05   7.69622536450@-07  -3.77674659360@-05  -4.34611503604@-05
+ 
+ 
+ 
+ 
+VCV 04 =
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   1.80093638113@-05  -9.89814347480@-06
+   1.06521014206@-06   2.60846278472@-06  -2.80217840725@-05   3.21394021294@-05  -2.69768925777@-05
+ 
+ 
+ 
+ 
+VCV 05 =
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   7.92045816440@-05
+   5.75725709700@-06  -5.73711810860@-06  -2.46273916106@-06  -1.11404658870@-04   5.00773918258@-05
+ 
+ 
+ 
+ 
+VCV 06 =
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   7.68941360480@-05  -7.82653885430@-06   2.96925917575@-06  -7.94729942790@-05  -1.02612745982@-04
+ 
+ 
+ 
+ 
+VCV 07 =
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   2.11676590168@-04  -6.04006550260@-06   1.98114763244@-04  -3.59935852146@-05
+ 
+ 
+ 
+ 
+VCV 08 =
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   2.19255457408@-04   6.67935570070@-05   1.79082680258@-04
+ 
+ 
+ 
+ 
+VCV 09 =
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   5.84157703690@-04   3.26122600427@-05
+ 
+ 
+ 
+ 
+VCV 10 =
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   5.64158558470@-04
+ 
+ 
+ 
+ 
+VCV 11 =
+   7.48777491270@-04   1.74357743391@-03   3.03690872724@-03   5.23735567236@-03   4.24374407939@-03   8.89969559280@-03
+   8.76893015420@-03   1.45491096005@-02   1.48072771773@-02   2.41693546396@-02   2.37520221974@-02
+ 
+ 
+ 
+ 
+EP     =
+   9.44815104250@-02   7.08147372820@-02   3.08117457038@-02   1.05123860881@-02   9.46203601620@-03   8.67105689850@-03
+   2.87556742466@-03   1.51818956510@-03   1.25508164606@-03   1.21206176477@-03   5.31828779618@-04
+ 
+ 
+ 
+ 
+A   00 =
+   9.99995000030@-01   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+A   01 =
+   1.80914235387@-01   2.53518066813@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+A   02 =
+  -1.14562785201@-02   4.75479733539@-01   3.56570682029@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+A   03 =
+  -5.15126039884@-01   5.47815637176@-01  -1.77161132384@+00   7.29152012420@+00   0.00000000000@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+A   04 =
+   1.16011370516@-01  -1.02995232365@+00   7.24525365880@-01   4.87223944212@-01   5.47827928630@+00   0.00000000000@+00
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+A   05 =
+  -1.17762788829@-01  -7.15374218030@-01  -7.44720174440@-01   2.04199098746@+00   4.80984991258@-01   1.22683224850@+01
+   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+A   06 =
+  -5.00629958679@-01   6.28807337500@-01  -2.40459949737@+00   2.41675999967@-01   2.49542628691@+00  -4.42402144898@-01
+   1.12479055209@+01   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+A   07 =
+   3.22346629783@-01  -3.98322961006@-01   1.68602489073@+00  -3.56061481009@+00  -2.02793324394@+00   5.75218328540@+00
+   2.34567128998@+00   2.21921335688@+01   0.00000000000@+00   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+A   08 =
+  -2.71354763210@-01  -9.13273574380@-01  -1.33368544841@+00   2.69915052323@+00  -3.41088821356@+00  -1.09262623727@+00
+   6.40460783320@+00  -2.10432742399@+00   2.35554663755@+01   0.00000000000@+00   0.00000000000@+00
+ 
+ 
+ 
+ 
+A   09 =
+   3.49810067308@-01   6.23064584790@-01   1.58846218545@+00  -2.74717991462@+00   2.62591176035@+00  -8.90654483320@+00
+  -5.73054769770@+00   1.55998059094@+01   4.39807205094@+00   4.53723510556@+01   0.00000000000@+00
+ 
+ 
+ 
+ 
+A   10 =
+   3.25875290866@-01  -6.67870606450@-01   1.65787392310@+00  -3.44055713767@+00  -2.13559787397@+00   3.96432506853@+00
+  -8.12323218960@+00  -2.84939504576@+00   1.41768956571@+01   2.58171592641@+00   4.46610303462@+01
+ 
+ 
+ 
+ 
+GF     =
+   1.00000499999@+00   3.94449205365@-01   2.80449305117@-01   1.37145613393@-01   1.82539068883@-01   8.15107363880@-02
+   8.89054409410@-02   4.50610121331@-02   4.24529909133@-02   2.20398541565@-02   2.23908851240@-02   3.00847801003@-03
+ 
+ 
+ 
+ 
+ 
+Q      =
+   1.05755607611@+00   4.11485037932@-01  -4.09425525258@-01   1.83479281511@-01  -3.01289796986@-02   2.49041632135@-02
+   4.98422256508@-02  -1.47312078273@-02   5.20707850368@-03  -2.25338081282@-03  -6.27926377750@-03   1.49334859822@+00
+ 
+ 
+ 
+ 
+ 
+Q2     =
+   1.11842485411@+00   1.69319936442@-01   1.67629260734@-01   3.36646467433@-02   9.07755417690@-04   6.20217345360@-04
+   2.48424745783@-03   2.17008484052@-04   2.71136665434@-05   5.07772508757@-06   3.94291535874@-05
+ 
+ 
+ 
+ 
+E      =
+   3.74923744108@-01   2.05603807667@-01   3.79745469327@-02   4.30990018936@-03   3.40214477168@-03   2.78192742633@-03
+   2.97679968497@-04   8.06714844450@-05   5.35578179015@-05   4.84800928140@-05   9.05093922650@-06
+ 
+ 
+ 
+ 
+ENF    =
+   1.00000499999@+00   4.00852450222@-01   2.85622988465@-01   1.77505404205@-01   2.10744207133@-01   8.84918706130@-02
+   1.42309699631@-01   6.82848260940@-02   8.46487648830@-02   5.77703003310@-02   4.61220683614@-02
+ 
+ELAPSED=   21.10, PROCESSOR=   14.08, I/O=   19.03 SEC
+ 
+ 
+ LABEL  000000000PR     00186108?COMPILE DIRCHLT/B5500 XALGOL GO                                         DIRCHLT/B5500
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ LABEL  0XALGOL 0COMPILE00186108?COMPILE 37433/ORTHOTEST XALGOL GO                                       XALGOL /37433
+ 
+ 
+ 
+ 
+ 
+                      BURROUGHS B-5700 XALGOL COMPILER MARK XIII.0     FRIDAY, 04/18/86,   6:21 PM.
+ 
+ 
+ 
+ 
+ 
+                %      -ORTHO- TEST,    3/3/70                                                  00000100    0000
+                BEGIN                                                                           00000200    0000
+                                                                                        START OF SEGMENT **********    2
+                INTEGER STARTT;                                                                 00000300    0000
+                FORMAT FT (//"DATE: "A6" PROC TIME: "F8.2" I/O TIME: "F8.2" ELAPSED: "          00000400    0000
+                                                                                        START OF SEGMENT **********    3
+                                  F8.2" SEC");                                                  00000500    0000
+                                                                                           3 IS   17 LONG, NEXT SEG    2
+                INTEGER I, J, N, M, P, R, AI, AUI, ZEI, MUI;                                    00000600    0000
+                REAL SUM, GMDT, FN;                                                             00000700    0000
+                FILE IN PARAMS (1,10);                                                          00000800    0000
+                FILE OUT FLUSH 18 (5,17);                                                       00000900    0003
+                                                                                                00001000    0007
+                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%        00002000    0007
+                PROCEDURE ORTHO (W, Y, Z, N, FN, M, P, R, AI, AUI, MUI, ZEI, X, DEV,            00003000    0007
+                                 COF, STD, CV, VCV, GMDT, Q, Q2, E, EP, A, GF, ENF);            00004000    0007
+                VALUE  N, M, P, R, AI, AUI, MUI, ZEI;                                           00005000    0007
+                REAL  FN, GMDT;                                                                 00006000    0007
+                REAL ARRAY STD, GF,  W, ENF [1];                                                00007000    0007
+                REAL ARRAY     Y, Z, X, DEV, COF, CV, Q, Q2, E, EP, A [1, 1];                   00008000    0007
+                REAL ARRAY VCV [1, 1, 1];                                                       00009000    0007
+                INTEGER  N, M, P, R, AI, AUI, ZEI, MUI;                                         00010000    0007
+                                                                                                00011000    0007
+                COMMENT                                                                         00012000    0007
+                          ORTHO    IS TAKEN FROM ACM ALGORITHM 127 [COMM. ACM, VOL.5,           00013000    0007
+                                 OCTOBER 1962, P. 511, AUTHOR: PHILIP J. WALSH];                00014000    0007
+                                                                                                00015000    0007
+                BEGIN                                                                           00016000    0007
+                INTEGER  NPP, NPM, M1, N2, M2, R1, RBAR, P2, BEI, RHI, I18, GAI, SII, I,        00017000    0007
+                                                                                        START OF SEGMENT **********    4
+                                 J, DEI, NUI, E1Z2, E1Z1, K, THI, ALI, OMI, NII;                00018000    0000
+                REAL ARRAY  PK, XP [1:N+P], QK[1:M+1];                                          00019000    0000
+                REAL DENOM, SUM, DK2, DK, FI, SS, SSQ;                                          00020000    0008
+                LABEL   BOX1, AT1, AT2, BOX2, AU1, AU2, BOX3, BOX4, BOX5, BOX6, MU1,            00021000    0008
+                      MU2, BOX7, OM1, OM2, BOX8, DE1, BOX8A, BOX8B, DE2, BOX8C, BOX8D,          00022000    0008
+                      BOX9, TH1, TH2, TH3, BOX10, AL1, AL2, BOX11, NU1, NU2, BOX12,             00023000    0008
+                      BE1, BE2, BOX13, GA1, GA2, BOX14, RH1, ZE1, ZE2, RH2, SI1, SI2,           00024000    0008
+                      FINAL;                                                                    00025000    0008
+                SWITCH AT ← AT1, AT2;    SWITCH ZE ← ZE1, ZE2;                                  00026000    0008
+                SWITCH AU ← AU1, AU2;    SWITCH MU ← MU1, MU2;                                  00027000    0018
+                SWITCH  BE ← BE1, BE2;  SWITCH  RH ← RH1, RH2;  SWITCH GA ← GA1, GA2;           00028000    0028
+                SWITCH  SI ← SI1, SI2;  SWITCH  DE ← DE1, DE2;  SWITCH  NU ← NU1, NU2;          00029000    0043
+                SWITCH  TH ← TH1, TH2, TH3;  SWITCH AL ← AL1, AL2;                              00030000    0058
+                SWITCH  OM ← OM1, OM2;                                                          00031000    0068
+                      NPP ← N+P; NPM ← N+M; M1 ← M-1; N2 ← N+1; M2 ← M+1;                       00032000    0073
+                          R1 ← 0; RBAR ← R; P2 ← P+1; DENOM ← IF N=M THEN 1.0                   00033000    0080
+                                 ELSE SQRT(N-M);  BEI ← RHI ← I18 ← 1;                          00034000    0083
+                      IF (P ≠ 0) THEN GAI ← SII ← 2  ELSE  GAI ← SII ← 1;                       00035000    0088
+                BOX1:            GO TO AT[AI];                                                  00036000    0094
+                      AT1:       FOR J ← 1 STEP 1 UNTIL N DO BEGIN                              00037000    0097
+                                 X[2,J] ← Z[1,J];  X[1,J] ← 1.0 END;                            00038000    0098
+                                 FOR I ← 2 STEP 1 UNTIL M1 DO BEGIN                             00039000    0108
+                                 FOR J ← 1 STEP 1 UNTIL N DO                                    00040000    0110
+                                 X[I+1,J] ← X[I,J] × X[2,J]  END;   GO TO BOX2;                 00041000    0111
+                      AT2:       FOR I ← 1 STEP 1 UNTIL M DO BEGIN                              00042000    0124
+                                 FOR J ← 1 STEP 1 UNTIL N DO                                    00043000    0125
+                                 X[I,J] ← Z[I,J]  END;                                          00044000    0126
+                BOX2:            IF P = 0 THEN GO TO BOX3  ELSE  GO TO AU[AUI];                 00045000    0135
+                      AU1:       FOR I ← 1 STEP 1 UNTIL M DO BEGIN                              00046000    0139
+                                 FOR J ← N2 STEP 1 UNTIL NPP DO                                 00047000    0141
+                                 X[I,J] ← 0.0;  X[I,N+I] ← 1.0  END;  GO TO BOX3;               00048000    0142
+                      AU2:       FOR I ← 1 STEP 1 UNTIL M DO BEGIN                              00049000    0155
+                                 FOR J ← N2 STEP 1 UNTIL NPP DO                                 00050000    0156
+                                 X[I,J] ← Z[I,J]  END;                                          00051000    0157
+                BOX3:            DEI ← NUI ← E1Z1 ← E1Z2 ← K ← 1;                               00052000    0166
+                BOX4:            THI ← 1;                                                       00053000    0169
+                BOX5:            ALI ← OMI ← 1;  IF P = 0 THEN GO TO BOX6  ELSE                 00054000    0170
+                                 FOR J ← 1 STEP 1 UNTIL P DO PK[N+J] ← 0.0;                     00055000    0173
+                BOX6:            GO TO MU[MUI];                                                 00056000    0179
+                      MU1:       FOR I ← 1 STEP 1 UNTIL N DO PK[I] ← X[K,I];                    00057000    0182
+                                 GO TO BOX7;                                                    00058000    0189
+                      MU2:       FOR I ← 1 STEP 1 UNTIL N DO                                    00059000    0189
+                                 PK[I] ← X[K,I] × W[I];   GO TO BOX7;                           00060000    0191
+                BOX7:            GO TO OM[OMI];                                                 00061000    0198
+                      OM1:       FOR I ← 1 STEP 1 UNTIL K DO BEGIN SUM ← 0.0;                   00062000    0201
+                                 FOR J ← 1 STEP 1 UNTIL NPP DO                                  00063000    0202
+                                 SUM ← SUM + PK[J] × X[I,J];  QK[I] ← SUM END;                  00064000    0204
+                                 GO TO BOX8;                                                    00065000    0214
+                      OM2:       DK2 ← 0.0;  FOR I ← 1 STEP 1 UNTIL NPP DO                      00066000    0215
+                                 DK2 ← DK2 + PK[I] × X[K,I];                                    00067000    0218
+                                 DK ← SQRT(DK2);                                                00068000    0224
+                                 GF[I18] ← DK;   I18 ← I18 + 1;                                 00069000    0226
+                                 FOR I ← 1 STEP 1 UNTIL NPP DO                                  00070000    0229
+                                 X[K,I] ← X[K,I]/DK;;                                           00071000    0230
+                                 OMI ← 1;    GO TO BOX6;                                        00072000    0237
+                BOX8:            GO TO DE[DEI];                                                 00073000    0239
+                      DE1:       E1Z1 ← -E1Z1;   IF E1Z1 < 0 THEN GO TO BOX8B   ELSE            00074000    0241
+                                 GO TO BOX8A;                                                   00075000    0242
+                BOX8A:           FOR I ← 1 STEP 1 UNTIL K-1 DO                                  00076000    0243
+                                 QK[I] ← -QK[I];   QK[K] ← 1.0;                                 00077000    0248
+                                 FOR I ← 1 STEP 1 UNTIL NPP DO BEGIN                            00078000    0253
+                                 SUM ← 0.0;  FOR J ← 1 STEP 1 UNTIL K DO                        00079000    0255
+                                 SUM ← SUM + X[J,I] × QK[J];                                    00080000    0257
+                                 XP[I] ← SUM END;  GO TO BOX9;                                  00081000    0263
+                BOX8B:           ENF[I18] ← SQRT(QK[K]);   GO TO BOX8A;                         00082000    0268
+                      DE2:       E1Z2 ← -E1Z2;  IF E1Z2 < 0 THEN GO TO BOX8C  ELSE              00083000    0272
+                                 GO TO BOX8A;                                                   00084000    0274
+                BOX8C:           FOR I ← 1 STEP 1 UNTIL M DO BEGIN                              00085000    0275
+                                 Q[R1,I] ← QK[I];  Q2[R1,I] ← QK[I] × QK[I]  END;               00086000    0277
+                                 Q[R1,M2] ← QK[M2];  E[R1,1] ← Q[R1,M2] - Q2[R1,1];             00087000    0288
+                                 FOR J ← 2 STEP 1 UNTIL M DO                                    00088000    0299
+                                 E[R1,J] ← E[R1,J-1] - Q2[R1,J];                                00089000    0300
+                                 FI ← 1.0;                                                      00090000    0310
+                                 FOR I ← 1 STEP 1 UNTIL M DO BEGIN                              00091000    0311
+                                 IF (FN - FI) > 0.0 THEN BEGIN IF E[R1,I] < 0.0 THEN            00093000    0313
+                                 BEGIN EP[R1,I] ← -SQRT(ABS(E[R1,I])/(FN - FI));                00094000    0317
+                                 GO TO BOX8D;    END                                            00095000    0325
+                                 ELSE  EP[R1,I] ← SQRT(E[R1,I]/(FN - FI));                      00096000    0325
+                                 GO TO BOX8D;  END  ELSE  E[R1,I] ← -1.0;                       00097000    0332
+                BOX8D:           FI ← FI + 1.0;   END;   GO TO BOX8A;                           00098000    0336
+                BOX9:            GO TO TH[THI];                                                 00099000    0342
+                      TH1:       FOR I ← 1 STEP 1 UNTIL NPP DO                                  00100000    0344
+                                 X[K,I] ← XP[I];  GO TO BOX10;                                  00101000    0345
+                      TH2:       FOR I ← 1 STEP 1 UNTIL N DO                                    00102000    0351
+                                 DEV[R1,I] ← XP[I];                                             00103000    0353
+                                 FOR I ← 1 STEP 1 UNTIL P DO                                    00104000    0359
+                                 COF[R1,I] ← -XP[N+I];  THI ← 3;  GO TO TH1;                    00105000    0360
+                      TH3:       GO TO BOX11;                                                   00106000    0368
+                BOX10:           GO TO AL[ALI];                                                 00107000    0368
+                      AL1:       OMI ← ALI ← 2;  GO TO BOX6;                                    00108000    0371
+                      AL2:       IF K < M THEN BEGIN K ← K + 1;  GO TO BOX4;  END               00109000    0372
+                                 ELSE  GO TO BOX12;                                             00110000    0376
+                BOX11:           GO TO NU[NUI];                                                 00111000    0376
+                      NU1:       NUI ← 2;  GO TO BOX14;                                         00112000    0378
+                      NU2:       SS ← DK/DENOM;  SSQ ← SS × SS;                                 00113000    0379
+                                 STD[R1] ← SS;  GO TO BOX14;                                    00114000    0382
+                BOX12:           GO TO BE[BEI];                                                 00115000    0384
+                      BE1:       FOR I ← 1 STEP 1 UNTIL M DO BEGIN                              00116000    0387
+                                 FOR J ← 1 STEP 1 UNTIL P DO                                    00117000    0388
+                                 A[I,J] ← X[I,N+J]  END;                                        00118000    0389
+                                 GMDT ← 1.0;  FOR I ← 1 STEP 1 UNTIL M DO                       00119000    0399
+                                 GMDT ← GMDT × (GF[I]/ENF[I]);                                  00120000    0402
+                                 GMDT ← GMDT × GMDT;  DEI ← BEI ← THI ← 2;                      00121000    0407
+                                 K ← K + 1;       GO TO BOX13;                                  00122000    0411
+                      BE2:       GO TO BOX11;                                                   00123000    0412
+                BOX13:           GO TO GA[GAI];                                                 00124000    0413
+                      GA1:       GO TO BOX11;                                                   00125000    0416
+                      GA2:       FOR I ← 1 STEP 1 UNTIL P DO BEGIN                              00126000    0416
+                                 FOR J ← I STEP 1 UNTIL P DO BEGIN                              00127000    0418
+                                 SUM ← 0.0;                                                     00128000    0419
+                                 FOR NII ← 1 STEP 1 UNTIL M DO                                  00129000    0419
+                                 SUM ← SUM + A[NII,I] × A[NII,J];                               00130000    0421
+                                 CV[I,J] ← SUM  END  END;                                       00131000    0429
+                                 FOR I ← 1 STEP 1 UNTIL P DO                                    00132000    0436
+                                 CV[P2,I] ← SQRT(CV[I,I]);  GAI ← 1;  GO TO BOX11;              00133000    0438
+                BOX14:           GO TO RH[RHI];                                                 00134000    0447
+                      RH1:       IF RBAR = 0 THEN GO TO FINAL  ELSE  RBAR ← RBAR - 1;           00135000    0449
+                                 R1 ← R1 + 1;  THI ← RHI ← 2;  GO TO ZE[ZEI];                   00136000    0451
+                      ZE1:       FOR I ← 1 STEP 1 UNTIL N DO                                    00137000    0456
+                                 X[M2,I] ← Y[R1,I];                                             00138000    0457
+                                 FOR I ← 1 STEP 1 UNTIL P DO                                    00139000    0464
+                                 X[M2,N+I] ← 0.0;  GO TO BOX5;                                  00140000    0465
+                      ZE2:       FOR I ← 1 STEP 1 UNTIL NPP DO                                  00141000    0471
+                                 X[M2,I] ← Y[R1,I];   GO TO BOX5;                               00142000    0473
+                      RH2:       GO TO SI[SII];                                                 00143000    0480
+                      SI1:       GO TO RH1;                                                     00144000    0483
+                      SI2:       FOR I ← 1 STEP 1 UNTIL P DO BEGIN                              00145000    0483
+                                 FOR J ← I STEP 1 UNTIL P DO                                    00146000    0485
+                                 VCV[R1,I,J] ← SSQ × CV[I,J]  END;                              00147000    0486
+                                 FOR I ← 1 STEP 1 UNTIL P DO                                    00148000    0497
+                                 VCV[R1, P2, I] ← SS × CV[P2,I];  GO TO RH1;                    00149000    0498
+                FINAL:  END  ORTHO ;                                                            00150000    0507
+                                                                                           4 IS  520 LONG, NEXT SEG    2
+                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%        00151000    0007
+                                                                                                00152000    0007
+                STARTT ← TIME(1);                                                               00901000    0007
+                  READ (PARAMS, /, N, M, P);                                                    00902000    0008
+                  CLOSE(PARAMS);                                                                00903000    0018
+                  R ← 1;   AI ← 2;   AUI ← 1;                                                   00904000    0020
+                      ZEI ← 1;   MUI ← 2;   FN ← N;                                             00905000    0022
+                                                                                                00906000    0025
+                BEGIN   %INNER BLOCK                                                            00907000    0025
+                LABEL DUMPIT;                                                                   00908000    0025
+                                                                                        START OF SEGMENT **********    5
+                REAL ARRAY W[1:N],   Y[1:R, 1:N+P],   Z[1:M, 1:N+P],                            00909000    0000
+                     X[1:M+1, 1:N+P],   DEV[1:R, 1:N],   COF[1:R, 1:P],   STD[1:R],             00910000    0018
+                     CV[1:P+1, 1:P],   VCV[1:R, 1:P+1, 1:P],   Q[1:R, 1:M+1],                   00911000    0042
+                     Q2, E, EP [1:R, 1:M],   A[1:M, 1:P],   GF[1:M+R],   ENF[1:M];              00912000    0064
+                DUMP FLUSH (N, M, P, R, AI, AUI, ZEI, MUI,                                      00913000    0087
+                            GMDT, FN,                                                           00914000    0130
+                            W, Y, Z, X, DEV, COF, STD, CV, VCV, Q, Q2, A, GF, ENF, E,           00915000    0140
+                            EP)   DUMPIT:1;                                                     00916000    0215
+                  FOR I ← 1 STEP 1 UNTIL N DO                                                   00917000    0221
+                  BEGIN                                                                         00918000    0223
+                    W[I] ← 1.0;   SUM ← 0.0;                                                    00919000    0223
+                    FOR J ← 1 STEP 1 UNTIL M DO                                                 00920000    0225
+                      SUM ← SUM + J×(Z[J,I] ← I*J);                                             00921000    0228
+                    Y[1,I] ← SUM;                                                               00922000    0236
+                  END;                                                                          00922500    0239
+                  ORTHO (W, Y, Z, N, FN, M, P, R, AI, AUI, MUI, ZEI, X, DEV,                    00923000    0242
+                         COF, STD, CV, VCV, GMDT, Q, Q2, E, EP, A, GF, ENF);                    00924000    0249
+                                                                                                00924500    0260
+                DUMPIT:   END INNER BLOCK;                                                      00925000    0260
+                                                                                           5 IS  267 LONG, NEXT SEG    2
+                WRITE(FLUSH, FT, TIME(0), TIME(2)/60, TIME(3)/60, (TIME(1)-STARTT)/60);         00926000    0026
+                END.                                                                            00999000    0044
+                                                                                           2 IS   47 LONG, NEXT SEG    1
+                                                                                           1 IS    2 LONG, NEXT SEG    0
+                                                                                          17 IS   69 LONG, NEXT SEG    0
+NUMBER OF ERRORS DETECTED =   0.  COMPILATION TIME =   15 SECONDS.
+ 
+PRT SIZE =  69; TOTAL SEGMENT SIZE =   922 WORDS; DISK SIZE =  40 SEGS; NO. PGM. SEGS =  17
+ 
+ESTIMATED CORE STORAGE REQUIRED =  6640 WORDS.
+ 
+ESTIMATED AUXILIARY MEMORY REQUIRED =     0 WORDS.
+ 
+ 
+ 
+ 
+ LABEL  0XALGOL 0COMPILE00186108?COMPILE 37433/ORTHOTEST XALGOL GO                                       XALGOL /37433
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ LABEL  000000000FLUSH  00186108?COMPILE 37433/ORTHOTEST XALGOL GO                                       37433  /ORTHOTE
+ 
+ 
+ 
+ 
+ 
+N     =             7
+M     =             5
+P     =             5
+R     =             1
+AI    =             2
+AUI   =             1
+ZEI   =             1
+MUI   =             2
+GMDT  =  7.95978557760@-13
+FN    =  7.00000000000@+00
+W     =
+  1.00000000000@+00  1.00000000000@+00  1.00000000000@+00  1.00000000000@+00  1.00000000000@+00  1.00000000000@+00
+  1.00000000000@+00
+ 
+Y     =
+  1.50000000000@+01  2.58000000000@+02  1.64100000000@+03  6.37200000000@+03  1.85550000000@+04  4.47900000000@+04
+  9.47730000000@+04  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00
+ 
+Z     =
+  1.00000000000@+00  2.00000000000@+00  3.00000000000@+00  4.00000000000@+00  5.00000000000@+00  6.00000000000@+00
+  7.00000000000@+00  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00
+ 
+  1.00000000000@+00  4.00000000000@+00  9.00000000000@+00  1.60000000000@+01  2.50000000000@+01  3.60000000000@+01
+  4.90000000000@+01  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00
+ 
+  1.00000000000@+00  8.00000000000@+00  2.70000000000@+01  6.40000000000@+01  1.25000000000@+02  2.16000000000@+02
+  3.43000000000@+02  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00
+ 
+  1.00000000000@+00  1.60000000000@+01  8.10000000000@+01  2.56000000000@+02  6.25000000000@+02  1.29600000000@+03
+  2.40100000000@+03  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00
+ 
+  1.00000000000@+00  3.20000000000@+01  2.43000000000@+02  1.02400000000@+03  3.12500000000@+03  7.77600000000@+03
+  1.68070000000@+04  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00
+ 
+X     =
+  8.45154254730@-02  1.69030850946@-01  2.53546276417@-01  3.38061701890@-01  4.22577127363@-01  5.07092552836@-01
+  5.91607978310@-01  8.45154254730@-02  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00
+ 
+ -2.72194114288@-01 -4.26042961504@-01 -4.61546541619@-01 -3.78704854662@-01 -1.77517900620@-01  1.42014320496@-01
+  5.79891808700@-01 -3.31366747831@-01  5.91726335410@-02  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00
+ 
+  4.76953052195@-01  4.51171806197@-01  1.41796853346@-01 -2.32031214606@-01 -4.51171806173@-01 -2.96484329729@-01
+  4.51171806146@-01  8.01367065190@-01 -3.60937444913@-01  3.65234319258@-02  0.00000000000@+00  0.00000000000@+00
+ 
+ -5.75222608290@-01 -9.75064491970@-02  3.84136144734@-01  3.61231945273@-01 -1.34153167983@-01 -5.29414209752@-01
+  2.88592912830@-01 -1.58649754667@+00  1.29872264109@+00 -3.09970165528@-01  2.25224627661@-02  0.00000000000@+00
+ 
+  5.00984992241@-01 -3.74051232471@-01 -3.20215515048@-01  3.25977747061@-01  3.63679214553@-01 -4.95222759726@-01
+  1.50970502167@-01  2.97305973984@+00 -3.79154925331@+00  1.56281360173@+00 -2.58148034254@-01  1.48089385724@-02
+ 
+  9.93519107370@-03 -3.47731687580@-01 -1.19222292885@-01  3.17926114360@-01 -2.11950742905@-01  0.00000000000@+00
+  8.47802971620@-01 -1.77797041259@+06 -3.55594555435@+06 -5.33391403290@+06 -7.11188698720@+06 -8.88985847520@+06
+ 
+DEV   =
+  5.58793544770@-09 -1.95577740669@-07 -6.70552253720@-08  1.78813934326@-07 -1.19209289551@-07  0.00000000000@+00
+  4.76837158203@-07
+ 
+COF   =
+  9.99999277290@-01  2.00000121444@+00  2.99999940395@+00  4.00000011083@+00  4.99999999293@+00
+ 
+STD   =
+  3.97704182898@-07
+ 
+CV    =
+  1.21151946342@+01 -1.36417739446@+01  5.16737378280@+00 -8.03221359490@-01  4.40278590595@-02
+ 
+  0.00000000000@+00  1.61963034784@+01 -6.34123269100@+00  1.00803141885@+00 -5.61488199870@-02
+ 
+  0.00000000000@+00  0.00000000000@+00  2.53980181836@+00 -4.10418550704@-01  2.31436106283@-02
+ 
+  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00  6.71476689180@-02 -3.82289838186@-03
+ 
+  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00  2.19304661642@-04
+ 
+  3.48068881605@+00  4.02446312922@+00  1.59367556873@+00  2.59128672513@-01  1.48089385724@-02
+ 
+VCV   =
+  1.91624358113@-12 -2.15770051954@-12  8.17316365240@-13 -1.27044411650@-13  6.96382558110@-15
+ 
+  0.00000000000@+00  2.56174692324@-12 -1.00298400540@-12  1.59438935507@-13 -8.88098120870@-15
+ 
+  0.00000000000@+00  0.00000000000@+00  4.01716941304@-13 -6.49153345950@-14  3.66059288762@-15
+ 
+  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00  1.06206539339@-14 -6.04662550350@-16
+ 
+  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00  3.46871150543@-17
+ 
+  1.38428450151@-06  1.60054582041@-06  6.33811439870@-07  1.03056556967@-07  5.88957681450@-09
+ 
+Q     =
+  8.92371332630@+04  5.47405559506@+04  1.99856219504@+04  4.04749400663@+03  3.37633920789@+02  1.13757157080@+10
+ 
+Q2    =
+  7.96326595300@+09  2.99652846578@+09  3.99425084744@+08  1.63822077337@+07  1.13996664467@+05
+ 
+A     =
+  8.45154254730@-02  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00
+ 
+ -3.31366747831@-01  5.91726335410@-02  0.00000000000@+00  0.00000000000@+00  0.00000000000@+00
+ 
+  8.01367065190@-01 -3.60937444913@-01  3.65234319258@-02  0.00000000000@+00  0.00000000000@+00
+ 
+ -1.58649754667@+00  1.29872264109@+00 -3.09970165528@-01  2.25224627661@-02  0.00000000000@+00
+ 
+  2.97305973984@+00 -3.79154925331@+00  1.56281360173@+00 -2.58148034254@-01  1.48089385724@-02
+ 
+GF    =
+  1.18321595662@+01  1.68997041394@+01  2.73796833230@+01  4.44001178019@+01  6.75267842530@+01  5.62438649270@-07
+ 
+ENF   =
+  1.18321595662@+01  6.83812839890@+01  4.29906966681@+02  2.81200924607@+03  1.88099893674@+04
+ 
+E     =
+  3.41244975498@+09  4.15921289203@+08  1.64962044590@+07  1.13996725250@+05  6.07829093930@-02
+ 
+EP    =
+  2.38483044645@+04  9.12054043580@+03  2.03077598833@+03  1.94933087024@+02  1.74331450682@-01
+ 
+ 
+ 
+DATE: 086108 PROC TIME:     2.02 I/O TIME:    15.42 ELAPSED:     3.88 SEC
+ 
+ 
+ 
+ 
+ 
+ LABEL  000000000FLUSH  00186108?COMPILE 37433/ORTHOTEST XALGOL GO                                       37433  /ORTHOTE
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ LABEL  0XALGOL 0COMPILE00186108?COMPILE YUSPAR/TEST XALGOL GO; ALGOL STACK=600                          XALGOL /YUSPAR
+ 
+ 
+ 
+ 
+ 
+                      BURROUGHS B-5700 XALGOL COMPILER MARK XIII.0     FRIDAY, 04/18/86,   6:22 PM.
+ 
+ 
+ 
+ 
+ 
+                %       FREE STANDING YU/SPARROW ROUTINE  -- 3/5/70 -- P H KIMPEL               00337000    0000
+                BEGIN                                                                           00339000    0000
+                                                                                        START OF SEGMENT **********    2
+                FILE IN YUSPAR (1,10);                                                          00340000    0000
+                FILE OUT OUTPUT 18 "YU/SPAR"/"RESULTS" (2,17);                                  00341000    0003
+                FORMAT FT (  "DATE: "A5" PROC TIME: "F8.2" I/O TIME: "F8.2" ELAPSED: "          00342000    0007
+                                                                                        START OF SEGMENT **********    3
+                                 F8.2" SEC"),                                                   00343000    0007
+                    FMTYS (10(R20.12,/));                                                       00344000    0007
+                                                                                           3 IS   22 LONG, NEXT SEG    2
+                INTEGER                                                                         00350000    0007
+                    STARTT,                                                                     00353000    0007
+                    NPOINTS,                                                                    00356000    0007
+                    NA,                                                                         00357000    0007
+                    NB,                                                                         00358000    0007
+                    NAB,                                                                        00359000    0007
+                    N1  ,                                                                       00360000    0007
+                    N2,                                                                         00361000    0007
+                    N12,                                                                        00362000    0007
+                    KUSTAR,                                                                     00363000    0007
+                    NUSTAR,                                                                     00364000    0007
+                    NSUSTAR;                                                                    00365000    0007
+                REAL                                                                            00366000    0007
+                    FN,                                                                         00367000    0007
+                    GMDT,                                                                       00368000    0007
+                    D,                                                                          00369000    0007
+                    H,                                                                          00370000    0007
+                    R,                                                                          00371000    0007
+                    MU1,                                                                        00372000    0007
+                    MU2,                                                                        00373000    0007
+                    DPDZ,                                                                       00374000    0007
+                    PI,                                                                         00375000    0007
+                    MU12,                                                                       00376000    0007
+                    ISUM,                                                                       00377000    0007
+                    YSTRT,                                                                      00378000    0007
+                    YSTEP,                                                                      00379000    0007
+                    YEND,                                                                       00380000    0007
+                    XSTEP,                                                                      00381000    0007
+                    XEND,                                                                       00382000    0007
+                    XX,                                                                         00383000    0007
+                    YY,                                                                         00384000    0007
+                    USUM,                                                                       00385000    0007
+                    Q1Q1FULL,                                                                   00386000    0007
+                    Q2Q2FULL,                                                                   00387000    0007
+                    Q1STARQ1FULL,                                                               00387100    0007
+                    Q2STARQ2FULL,                                                               00387200    0007
+                    Q1Q1STAR,                                                                   00387300    0007
+                    Q2Q2STAR,                                                                   00387400    0007
+                    X,                                                                          00387500    0007
+                    Y;                                                                          00387600    0007
+                REAL TAB21, TAB22, Q1Q2;                                                        00388000    0007
+                                                                                                00389000    0007
+                          % BEGIN EXECUTION IN OUTER BLOCK.                                     00390000    0007
+                  NPOINTS ← 100;   NA ← NB ← 17;   NAB ← NA + NB;                               00391000    0007
+                  PI ← 3.141592653589796;                                                       00403000    0010
+                      R ← 1.0;                                                                  00405000    0011
+                FOR MU12 ← 1.0 DO %% ,2.0,4.0,7.0,10.0,20.0,40.0,70.0,100.0,200.0,400.0,        00410000    0011
+                        %% 700.0,1000.0,2000.0 DO                                               00411000    0014
+                  FOR H ← -0.8 STEP 0.2 UNTIL 0.8 DO                                            00412000    0014
+                    BEGIN                                                                       00413000    0019
+                  STARTT ← TIME(1);                                                             00414000    0019
+                %***********************************************************************        00418000    0020
+                BEGIN         % ***** INNER BLOCK *****                                         00419000    0020
+                  REAL ARRAY                                                                    00420000    0020
+                                                                                        START OF SEGMENT **********    4
+                    W[1:NPOINTS],                                                               00421000    0000
+                    Y[1:1, 1:NPOINTS+NAB],                                                      00422000    0004
+                    Z[1:NAB, 1:NPOINTS+NAB],                                                    00423000    0009
+                    X[1:NAB+1, 1:NPOINTS+NAB],                                                  00423100    0016
+                    DEV[1:1, 1:NPOINTS],                                                        00423200    0023
+                    COF[1:1, 1:NAB],                                                            00423300    0028
+                    STD[1:1],                                                                   00423400    0032
+                    CV[1:NAB+1, 1:NAB],                                                         00423500    0035
+                    VCV[1:1, 1:NAB+1, 1:NAB],                                                   00423600    0041
+                    Q[1:1, 1:NAB+1],                                                            00423700    0048
+                    Q2,                                                                         00423800    0053
+                    E,                                                                          00423900    0054
+                    EP[1:1, 1:NAB],                                                             00424000    0055
+                    A[1:NAB, 1:NAB],                                                            00424100    0060
+                    GF[1:NAB+1],                                                                00424200    0066
+                    ENF[1:NAB];                                                                 00424300    0071
+                LABEL DUMPIT;                                                                   00424500    0075
+                DUMP OUTPUT (D, MU1, MU2, H, MU12, N1, N2, GMDT, Q1Q1STAR, Q2Q2STAR,            00424600    0075
+                      COF, STD, TAB21, TAB22, Q1Q2)  DUMPIT:1;                                  00424700    0128
+                                                                                                00425000    0154
+                %***********************************************************************        00426000    0154
+                REAL PROCEDURE G (I, X, Y);                                                     00427000    0154
+                  VALUE I, X, Y;   REAL X, Y;   INTEGER I;                                      00428000    0154
+                  CASE (I - 1) OF                                                               00429000    0154
+                    BEGIN                                                                       00430000    0156
+                      G ← 1;                                                         % 1        00431000    0157
+                      G ← X;                                                         % 2        00432000    0158
+                      G ← Y;                                                         % 3        00433000    0159
+                      G ← X*2 - Y*2;                                                 % 4        00434000    0161
+                      G ← 2.0 × X × Y;                                               % 5        00435000    0163
+                      G ← X*3 - 3.0 × X × Y*2;                                       % 6        00436000    0166
+                      G ← 3.0 × X*2 × Y - Y*3;                                       % 7        00437000    0170
+                      G ← X*4 + Y*4 - 6.0 × X*2 × Y*2;                               % 8        00438000    0174
+                      G ← 4.0 × X*3 × Y - 4.0 × X × Y*3;                             % 9        00439000    0180
+                      G ← X*5 - 10.0 × X*3 × Y*2 + 5.0 × X × Y*4;                    %10        00440000    0186
+                      G ← Y*5 - 10.0 × Y*3 × X*2 + 5.0 × Y × X*4;                    %11        00441000    0194
+                      G ← X*6 - 15.0 × X*4 × Y*2 + 15.0 × X*2 × Y*4 - Y*6;           %12        00442000    0203
+                      G ← 6.0 × X*5 × Y + 6.0 × X × Y*5 - 20.0 × X*3 × Y*3;          %13        00443000    0213
+                      G ← X*7 - 21.0 ×X*5 × Y*2 + 35.0 × X*3 × Y*4  - 7.0 × X × Y*6; %14        00444000    0224
+                      G ← 7.0 ×X*6 × Y - 35.0 × X*4 × Y*3 + 21.0 × X*2 × Y*5 - Y*7;  %15        00445000    0237
+                      G ← X*8 + Y*8 - 28.0 ×X*6 × Y*2 + 70.0 × X*4 × Y*4 - 28.0                 00446000    0250
+                              × X*2 × Y*6;                                           %16        00447000    0261
+                      G ← 8.0 × X*7 ×Y - 56.0 × X*5 × Y*3 + 56.0 × X*3 × Y*5                    00448000    0265
+                              - 8.0 ×X × Y*7;                                        %17        00449000    0289
+                  END G;                                                                        00450000    0295
+                                                                                        START OF SEGMENT **********    5
+                                                                                           5 IS   17 LONG, NEXT SEG    4
+                                                                                                00451000    0300
+                %***********************************************************************        00452000    0300
+                REAL PROCEDURE DG (I, X, Y);                                                    00453000    0300
+                  VALUE I, X, Y;   INTEGER I;   REAL X, Y;                                      00454000    0300
+                  CASE (I - 1) OF                                                               00455000    0300
+                  BEGIN                                                                         00456000    0301
+                      DG ←  0.0;                                                     % 1        00457000    0302
+                      DG ←  0.0;                                                     % 2        00458000    0303
+                      DG ←  1.0;                                                     % 3        00459000    0304
+                      DG ←  -2.0 × Y;                                                % 4        00460000    0306
+                      DG ←  2.0 × X;                                                 % 5        00461000    0308
+                      DG ←  -6.0 × X ×Y;                                             % 6        00462000    0309
+                      DG ←  3.0 × X*2 - 3.0 × Y*2;                                   % 7        00463000    0312
+                      DG ←  4.0 × Y*3 - 12.0 ×X*2 × Y;                               % 8        00464000    0316
+                      DG ←  4.0 × X*3 - 12.0 × X × Y*2;                              % 9        00465000    0320
+                      DG ←  -20.0 ×X*3 × Y + 20.0 × X × Y*3;                         %10        00466000    0325
+                      DG ←  5.0 × Y*4 - 30.0 × Y*2 ×X*2 + 5.0 × X*4;                 %11        00467000    0331
+                      DG ←  -30.0 × X*4 ×Y + 60.0 × X*2 × Y*3 - 6.0 × Y*5;           %12        00468000    0338
+                      DG ←  6.0 × X*5 + 30.0 × X × Y*4 - 60.0 × X*3 × Y*2;           %13        00469000    0347
+                      DG ←  -42.0 × X*5 × Y + 140.0 × X*3 × Y*3 - 42.0 × X × Y*5;    %14        00470000    0356
+                      DG ←  7.0 × X*6 - 105.0 × X*4 × Y*2 + 105.0 × X*2 × Y*4                   00471000    0367
+                                - 7.0 × Y*6;                                         %15        00472000    0373
+                      DG ←  8.0 ×Y*7 - 56.0 × X*6 × Y + 280.0 × X*4 × Y*3                       00473000    0378
+                                - 168.0 × X*2 × Y*5;                                 %16        00474000    0386
+                      DG ←  8.0 × X*7 - 168.0 × X*5 × Y*2 + 280.0 × X*3 × Y*4                   00475000    0392
+                                - 56.0 × X × Y*6;                                    %17        00476000    0400
+                  END DG;                                                                       00477000    0406
+                                                                                        START OF SEGMENT **********    6
+                                                                                           6 IS   17 LONG, NEXT SEG    4
+                                                                                                00478000    0427
+                %***********************************************************************        00479000    0427
+                REAL PROCEDURE USTAR (I, X, Y);                                                 00480000    0427
+                  VALUE I, X, Y;   INTEGER I;   REAL X, Y;                                      00481000    0427
+                  BEGIN                                                                         00482000    0427
+                    NUSTAR ← IF I = 1 THEN NA ELSE NA + NB;                                     00483000    0427
+                    NSUSTAR ← IF I = 1 THEN 1 ELSE NA + 1;                                      00484000    0431
+                    USUM ← 0.0;                                                                 00485000    0434
+                    FOR KUSTAR ← NSUSTAR STEP 1 UNTIL NUSTAR DO                                 00486000    0435
+                      USUM ← USUM + COF[1,KUSTAR] × G(KUSTAR-NSUSTAR+1, X, Y);                  00487000    0436
+                    USTAR ← USUM;                                                               00488000    0444
+                  END USTAR;                                                                    00489000    0444
+                                                                                                00490000    0447
+                %***********************************************************************        00491000    0447
+                REAL PROCEDURE INTEGRALUSTAR (I, S);                                            00492000    0447
+                  VALUE I, S;   INTEGER I;   BOOLEAN S;                                         00493000    0447
+                  BEGIN                                                                         00494000    0447
+                    ISUM ← 0.0;                                                                 00495000    0447
+                    IF I = 1 THEN BEGIN YSTRT ← H;  YEND ← 0.9999;  END                         00496000    0448
+                             ELSE BEGIN YSTRT ← -0.9999;  YEND ← H;   END;                      00497000    0451
+                    YSTEP ← (YEND - YSTRT)/30.00;                                               00498000    0454
+                    FOR YY ← YSTRT STEP YSTEP UNTIL YEND DO                                     00499000    0456
+                      BEGIN  XSTEP ← (XX ← SQRT(1.0 - YY*2))/15.0;                              00500000    0460
+                        FOR XX ← -XX STEP XSTEP UNTIL 0.0 DO                                    00501000    0463
+                        ISUM ← ISUM + XSTEP × YSTEP × (USTAR (I, XX, YY)                        00502000    0467
+                                   - (IF S THEN 0.25 × (XX*2 + YY*2) ELSE 0.0));                00503000    0468
+                      END;                                                                      00504000    0477
+                    INTEGRALUSTAR ← 2.0 × ISUM;                                                 00505000    0480
+                  END INTEGRALUSTAR;                                                            00506000    0482
+                                                                                                00507000    0486
+                %***********************************************************************        00508000    0486
+                REAL PROCEDURE ARCSIN (X);                                                      00509000    0486
+                  VALUE X;   REAL X;                                                            00510000    0486
+                    ARCSIN ← ARCTAN(X/SQRT(1.0 - X*2));                                         00511000    0486
+                                                                                                00512000    0493
+                %***********************************************************************        00513000    0493
+                REAL PROCEDURE EQUATION23 (A);                                                  00514000    0493
+                  VALUE A;   REAL A;                                                            00515000    0493
+                    EQUATION23 ← 0.5 - 2.0/3.0/PI × (A × (1.0 - A*2)*1.5                        00516000    0493
+                            + 1.5 × A ×SQRT(1.0 - A*2) + 1.5 × ARCSIN(A));                      00517000    0497
+                                                                                                00518000    0512
+                %***********************************************************************        00519000    0512
+                                                                                                00520000    0512
+                PROCEDURE ORTHO (W, Y, Z, N, M, P, COF);                                        00521000    0512
+                VALUE N, M, P;                                                                  00522000    0512
+                REAL ARRAY COF, W[1];                                                           00523000    0512
+                REAL ARRAY Y, Z [1, 1];                                                         00524000    0512
+                INTEGER N, M, P;                                                                00525000    0512
+                %                                                                               00526000    0512
+                %COMMENT                                                                        00527000    0512
+                %           -ORTHO-  IS TAKEN FROM ACM ALGORITHM 127 [COMM. ACM, VOL.5,         00528000    0512
+                %                OCTOBER 1962, P. 511, AUTHOR: PHILIP J. WALSH],                00529000    0512
+                %                AND INCORPORATES THE SUGGESTIONS IN BARRODALE-S                00530000    0512
+                %                CERTIFICATION  [COMM. ACM, VOL.13, #2, FEB.1970, 122]          00531000    0512
+                %                   .... P H KIMPEL  3/25/70  U OF DELAWARE                     00534000    0512
+                %                                                                               00535000    0512
+                BEGIN                                                                           00536000    0512
+                INTEGER NPP, M1, N2, M2, R1, RBAR, P2, BEI, I, J, K, THI, ALI,                  00537000    0512
+                                                                                        START OF SEGMENT **********    7
+                          OMI, R;                                                               00538000    0000
+                REAL ARRAY  PK, XP [1:N+P], QK[1:M+1],  X[1:M+1, 1:N+P];                        00539000    0000
+                REAL SUM, DK2, DK;                                                              00540000    0014
+                LABEL  BOX1, BOX2, BOX3, BOX4, BOX5, BOX6, BOX7, OM1, OM2, BOX8, BOX9,          00541000    0014
+                      TH1, TH2, TH3, BOX10, AL1, AL2, BOX12, BE1, BE2, BOX14, FINAL;            00542000    0014
+                SWITCH  BE ← BE1, BE2;                                                          00543000    0014
+                SWITCH  TH ← TH1, TH2, TH3;  SWITCH AL ← AL1, AL2;                              00544000    0020
+                SWITCH  OM ← OM1, OM2;                                                          00545000    0030
+                       NPP ← N + P;  R ← 1; M1 ← M-1; N2 ← N+1; M2 ← M+1;                       00546000    0035
+                          R1 ← 0; RBAR ← R; P2 ← P+1;  BEI ← 1;                                 00547000    0041
+                BOX1:            FOR I ← 1 STEP 1 UNTIL M DO BEGIN                              00548000    0045
+                                 FOR J ← 1 STEP 1 UNTIL N DO                                    00549000    0047
+                                 X[I,J] ← Z[I,J]  END;                                          00550000    0048
+                BOX2:            FOR I ← 1 STEP 1 UNTIL M DO BEGIN                              00551000    0057
+                                 FOR J ← N2 STEP 1 UNTIL NPP DO                                 00552000    0059
+                                 X[I,J] ← 0.0;  X[I,N+I] ← 1.0  END;  GO TO BOX3;               00553000    0060
+                BOX3:            K ← 1;                                                         00554000    0073
+                BOX4:            THI ← 1;                                                       00555000    0073
+                BOX5:            ALI ← OMI ← 1;                                                 00556000    0074
+                                 FOR J ← 1 STEP 1 UNTIL P DO PK[N+J] ← 0.0;                     00557000    0076
+                BOX6:            FOR I ← 1 STEP 1 UNTIL N DO                                    00558000    0081
+                                 PK[I] ← X[K,I] × W[I];                                         00559000    0083
+                BOX7:            GO TO OM[OMI];                                                 00560000    0090
+                      OM1:       FOR I ← 1 STEP 1 UNTIL K DO BEGIN SUM ← 0.0;                   00561000    0093
+                                 FOR J ← 1 STEP 1 UNTIL NPP DO                                  00562000    0094
+                                 SUM ← SUM + PK[J] × X[I,J];  QK[I] ← SUM END;                  00563000    0096
+                                 GO TO BOX8;                                                    00564000    0106
+                      OM2:       DK2 ← 0.0;  FOR I ← 1 STEP 1 UNTIL NPP DO                      00565000    0107
+                                 DK2 ← DK2 + PK[I] × X[K,I];                                    00566000    0110
+                                 DK ← SQRT(DK2);                                                00567000    0116
+                                 FOR I ← 1 STEP 1 UNTIL NPP DO                                  00568000    0118
+                                 X[K,I] ← X[K,I]/DK;;                                           00569000    0119
+                                 OMI ← 1;    GO TO BOX6;                                        00570000    0126
+                BOX8:            FOR I ← 1 STEP 1 UNTIL K-1 DO                                  00571000    0128
+                                 QK[I] ← -QK[I];   QK[K] ← 1.0;                                 00572000    0132
+                                 FOR I ← 1 STEP 1 UNTIL NPP DO BEGIN                            00573000    0137
+                                 SUM ← 0.0;  FOR J ← 1 STEP 1 UNTIL K DO                        00574000    0139
+                                 SUM ← SUM + X[J,I] × QK[J];                                    00575000    0141
+                                 XP[I] ← SUM END;  GO TO BOX9;                                  00576000    0147
+                BOX9:            GO TO TH[THI];                                                 00577000    0152
+                      TH1:       FOR I ← 1 STEP 1 UNTIL NPP DO                                  00578000    0155
+                                 X[K,I] ← XP[I];  GO TO BOX10;                                  00579000    0156
+                      TH2:       FOR I ← 1 STEP 1 UNTIL P DO                                    00580000    0162
+                                 COF[I] ← -XP[N+I];  THI ← 3;  GO TO TH1;                       00581000    0164
+                      TH3:       GO TO BOX14;                                                   00582000    0170
+                BOX10:           GO TO AL[ALI];                                                 00583000    0171
+                      AL1:       OMI ← ALI ← 2;  GO TO BOX6;                                    00584000    0174
+                      AL2:       IF K < M THEN BEGIN K ← K + 1;  GO TO BOX4;  END               00585000    0175
+                                 ELSE  GO TO BOX12;                                             00586000    0179
+                BOX12:           GO TO BE[BEI];                                                 00587000    0179
+                      BE1:       BEI ← THI ← 2;   K ← K + 1;   GO TO BOX14;                     00588000    0181
+                      BE2:       GO TO BOX14;                                                   00589000    0184
+                BOX14:           IF RBAR = 0 THEN GO TO FINAL  ELSE  RBAR ← RBAR - 1;           00590000    0184
+                                 R1 ← R1 + 1;   THI ← 2;                                        00591000    0187
+                                 FOR I ← 1 STEP 1 UNTIL N DO                                    00592000    0189
+                                 X[M2,I] ← Y[R1,I];                                             00593000    0191
+                                 FOR I ← 1 STEP 1 UNTIL P DO                                    00594000    0198
+                                 X[M2,N+I] ← 0.0;  GO TO BOX5;                                  00595000    0199
+                FINAL:  END  ORTHO ;                                                            00596000    0205
+                                                                                           7 IS  215 LONG, NEXT SEG    4
+                %***********************************************************************        00597000    0512
+                                                                                                00598000    0512
+                                                                                                00598400    0512
+                %***********************************************************************        00598500    0512
+                %***********************************************************************        00599000    0512
+                %            BEGIN EXECUTION    (INNER BLOCK)                          %        00600000    0512
+                %***********************************************************************        00601000    0512
+                %***********************************************************************        00601500    0512
+                BEGIN                                                                           00602000    0512
+                  COMMENT  INITALIZE & SET UP DATA FOR -ORTHO-;                                 00604000    0513
+                  INTEGER I, J;                                                                 00605000    0513
+                                                                                        START OF SEGMENT **********    8
+                  REAL THETA1, ARCC1, ARCC2, ARCC12, DS1, DS2, DS12, XX, YY, TOTALARC;          00606000    0000
+                %%      CALCULATE ARC LENGTHS OF EACH INTERFACE.                                00607000    0000
+                  ARCC12 ← 2.0 ×SQRT(1.0 - H*2);                                                00608000    0000
+                  ARCC1 ← 2.0 × (THETA1 ← PI/2.0 - ARCTAN(2.0×H/ARCC12));                       00609000    0002
+                  ARCC2 ← 2.0 ×PI  -  ARCC1;                                                    00610000    0007
+                %%      CALCULATE NO. OF POINTS ON EACH ARC.                                    00611000    0008
+                  N1 ← NPOINTS × ARCC1/(TOTALARC ← ARCC1 + ARCC2 + 2×ARCC12);                   00612000    0008
+                  N2 ← NPOINTS ×ARCC2/TOTALARC;                                                 00613000    0012
+                  IF (N12 ← NPOINTS - N1 - N2)MOD 2 = 0 THEN                                    00614000    0014
+                      N12 ← N12 DIV 2                                                           00615000    0017
+                    ELSE BEGIN                                                                  00616000    0017
+                      N12 ← (N12 DIV 2) + 1;                                                    00617000    0022
+                      N2 ← N2 - 1;                                                              00618000    0023
+                    END;                                                                        00619000    0025
+                %%      CALCULATE THE LENGTH OF LINE SEGMENTS BETWEEN POINTS ON EACH            00620000    0025
+                %%            INTERFACE.                                                        00621000    0025
+                  DS1 ← ARCC1/(N1 - 1);                                                         00622000    0025
+                  DS2 ← ARCC2/(N2 - 1);                                                         00623000    0026
+                  DS12 ← ARCC12/(N12 - 1);                                                      00624000    0028
+                                                                                                00625000    0030
+                  FOR J ← 1 STEP 1 UNTIL NPOINTS-N12 DO                                         00626000    0030
+                    IF J ≤ N1 THEN                     %% DATA FOR ARC C1.                      00627000    0034
+                      BEGIN                                                                     00628000    0035
+                        W[J] ← 1.0;    Y[1,J] ← 0.25;                                           00629000    0036
+                        XX ← SIN(YY ← DS1×(J-1)-THETA1);   YY ← COS(YY);                        00630000    0040
+                        FOR I ← 1 STEP 1 UNTIL NAB DO                                           00631000    0045
+                          Z[I,J] ← IF I ≤ NA THEN G(I, XX, YY) ELSE 0.0;                        00632000    0048
+                      END ELSE                                                                  00633000    0056
+                        IF J ≤ N1 + N2 THEN            %% DATA FOR ARC C2.                      00634000    0056
+                          BEGIN                                                                 00635000    0058
+                            W[J] ← DS2/DS1;    Y[1,J] ← 0.25;                                   00636000    0058
+                            XX ← SIN(YY ← - THETA1 - DS2×(J-N1-1));  YY ← COS(YY);              00637000    0063
+                            FOR I ← 1 STEP 1 UNTIL NAB DO                                       00638000    0069
+                              Z[I,J] ← IF I ≤ NA THEN 0.0  ELSE  G(I-NA, XX, YY);               00639000    0071
+                          END ELSE                     %% DATA FOR ARC C12.                     00640000    0079
+                            BEGIN                                                               00641000    0079
+                              W[J] ← W[J+N12] ← DS12/DS1;                                       00642000    0080
+                              Y[1,J] ← 0.25 × ((XX ← DS12×(J-N1-N2-1)-ARCC12/2)*2 + H*2)        00643000    0084
+                                    × (1.0 - MU12);                                             00644000    0091
+                              Y[1,J+N12] ← 0.0;                                                 00645000    0094
+                              FOR I ← 1 STEP 1 UNTIL NAB DO                                     00646000    0097
+                                IF I ≤ NA THEN                                                  00647000    0101
+                                  BEGIN                                                         00648000    0101
+                                    Z[I,J] ← G(I, XX, H);                                       00649000    0102
+                                    Z[I,J+N12] ← DG(I, XX, H);                                  00650000    0106
+                                  END ELSE                                                      00651000    0110
+                                  BEGIN                                                         00652000    0110
+                                    Z[I,J] ← -G (I-NA, XX, H) × MU12;                           00653000    0111
+                                    Z[I,J+N12] ← -DG (I-NA, XX, H);                             00654000    0116
+                                  END;                                                          00655000    0121
+                            END;                                                                00656000    0124
+                  END  INITIALIZATION;                                                          00657000    0124
+                                                                                           8 IS  125 LONG, NEXT SEG    4
+                                                                                                00658000    0514
+                %%%  THE NUMBER SMASHING COMMENCES.                                             00659000    0514
+                  ORTHO (W, Y, Z, NPOINTS, NAB, NAB, COF[1,*]);  %######################        00660000    0514
+                                                                                                00661000    0519
+                %%%  UPON EXIT FROM ORTHO, THE YU/SPARROW COEFFICIENTS, A[J], B[J],             00662000    0519
+                %%%%    ARE CONTAINED IN THE VECTOR COF[1,*].                                   00663000    0519
+                                                                                                00664000    0519
+                  Q1Q1FULL ← 8.0/PI × INTEGRALUSTAR(1,TRUE);                                    00665000    0519
+                  Q2Q2FULL ← 8.0/PI × INTEGRALUSTAR(2,TRUE);                                    00666000    0522
+                  Q1STARQ1FULL ← EQUATION23(H);                                                 00667000    0524
+                  Q2STARQ2FULL ← 1.0 - Q1STARQ1FULL;                                            00668000    0525
+                  TAB21 ← Q1Q1FULL × PI/8.0;   TAB22 ← Q2Q2FULL × PI/8.0;                       00669000    0527
+                  Q1Q2 ← Q1Q1FULL/Q2Q2FULL/MU12;                                                00670000    0530
+                  Q1Q1STAR ← Q1Q1FULL/Q1STARQ1FULL;                                             00671000    0532
+                  Q2Q2STAR ← Q2Q2FULL/Q2STARQ2FULL;                                             00671500    0533
+                                                                                                00672000    0534
+                                                                                                00673000    0534
+                DUMPIT:                                                                         00680000    0534
+                WRITE(OUTPUT, FT, TIME(0), TIME(2)/60, TIME(3)/60, (TIME(1)-STARTT)/60);        00681000    0535
+                END  INNER BLOCK;                                                               00682000    0558
+                                                                                           4 IS  562 LONG, NEXT SEG    2
+                  END H FOR LOOP;                                                               00684000    0021
+                END.                                                                            00686000    0026
+                                                                                           2 IS   29 LONG, NEXT SEG    1
+                                                                                           1 IS    2 LONG, NEXT SEG    0
+                                                                                          22 IS   69 LONG, NEXT SEG    0
+NUMBER OF ERRORS DETECTED =   0.  COMPILATION TIME =   20 SECONDS.
+ 
+PRT SIZE = 119; TOTAL SEGMENT SIZE =  1058 WORDS; DISK SIZE =  47 SEGS; NO. PGM. SEGS =  22
+ 
+ESTIMATED CORE STORAGE REQUIRED =  6773 WORDS.
+ 
+ESTIMATED AUXILIARY MEMORY REQUIRED =     0 WORDS.
+ 
+ 
+ LABEL  0XALGOL 0COMPILE00186108?COMPILE YUSPAR/TEST XALGOL GO; ALGOL STACK=600                          XALGOL /YUSPAR
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ LABEL  0YU/SPAR0RESULTS00186108?COMPILE YUSPAR/TEST XALGOL GO; ALGOL STACK=600                          YUSPAR /TEST
+ 
+ 
+ 
+ 
+ 
+D     =  0.00000000000@+00
+MU1   =  0.00000000000@+00
+MU2   =  0.00000000000@+00
+H     = -8.00000000000@-01
+MU12  =  1.00000000000@+00
+N1    =            58
+N2    =            14
+GMDT  =  0.00000000000@+00
+Q1Q1ST=  1.01688907441@+00
+Q2Q2ST=  9.51470306110@-01
+COF   =
+  2.50000000018@-01 -6.45222623970@-13  2.30927541982@-12  9.81553232360@-13  3.59888142187@-13 -1.11595879287@-12
+ -1.98801808290@-13 -2.70407962086@-13  4.80907460195@-13  5.41103426316@-13  2.73438386598@-13 -8.26229825980@-13
+ -5.07558604291@-13 -4.09191114695@-13 -4.23960998094@-14 -3.50272650064@-13 -2.67467907249@-13  2.49999999985@-01
+  5.29791009728@-10 -1.96825380210@-10  1.03009092047@-09  1.93864019312@-09 -3.90753478174@-09  2.79450205336@-09
+ -4.54597555520@-09 -4.79988880866@-09  3.67379145970@-09 -4.63492943823@-09  2.92138770183@-09  1.68002176731@-09
+ -4.00543223464@-10  1.04516032388@-09 -1.62402731007@-10 -3.27809045619@-11
+ 
+STD   =
+  0.00000000000@+00
+ 
+TAB21 =  3.93191796984@-01
+TAB22 =  5.74463384740@-03
+Q1Q2  =  6.84450580200@+01
+DATE: 86108 PROC TIME:    80.02 I/O TIME:     8.13 ELAPSED:    82.15 SEC
+D     =  0.00000000000@+00
+MU1   =  0.00000000000@+00
+MU2   =  0.00000000000@+00
+H     = -6.00000000000@-01
+MU12  =  1.00000000000@+00
+N1    =            47
+N2    =            19
+GMDT  =  0.00000000000@+00
+Q1Q1ST=  1.03226122068@+00
+Q2Q2ST=  1.04235401601@+00
+COF   =
+  2.50000000005@-01 -9.76662863880@-13  1.85197757914@-12  1.73003474604@-12  3.49509615737@-13 -1.12928249179@-13
+ -5.18866561122@-13  6.62087704260@-13 -3.94924017590@-14 -9.50938873920@-14 -8.09862229730@-15  3.01770927573@-13
+  4.97016209135@-14 -1.20297906895@-13 -5.19087889053@-14 -1.92692439630@-14  2.63200237514@-13  2.49999999991@-01
+  7.28851509620@-13  1.19982155208@-12  1.57226242356@-11  3.15951580089@-11 -1.07876727035@-10  4.16480258031@-11
+ -6.87633117230@-11 -1.84286089732@-10  1.86058072115@-10 -7.91097736020@-11  5.93593130180@-11  1.11052039552@-10
+ -3.43391102395@-11  2.71739947839@-11 -5.85763067040@-12 -3.12446817796@-12
+ 
+STD   =
+  0.00000000000@+00
+ 
+TAB21 =  3.74078232217@-01
+TAB22 =  3.15957330449@-02
+Q1Q2  =  1.18395174338@+01
+DATE: 86108 PROC TIME:   158.78 I/O TIME:     8.32 ELAPSED:    79.13 SEC
+D     =  0.00000000000@+00
+MU1   =  0.00000000000@+00
+MU2   =  0.00000000000@+00
+H     = -3.99999999998@-01
+MU12  =  1.00000000000@+00
+N1    =            40
+N2    =            22
+GMDT  =  0.00000000000@+00
+Q1Q1ST=  1.04620825090@+00
+Q2Q2ST=  1.06523994713@+00
+COF   =
+  2.49999999993@-01 -1.28790667643@-12  8.32587579630@-13  3.27688146834@-12  7.56326969520@-13  1.30906061161@-12
+  6.07390226550@-14  3.39219297050@-14 -9.02270281880@-13 -9.49459791130@-13 -4.57831078707@-13 -1.90376994710@-14
+  1.82441014569@-12  9.21018557160@-13 -1.83957973272@-13 -4.07682021897@-13 -1.83552053349@-13  2.49999999996@-01
+  5.76182331630@-12 -1.62493092812@-12  1.61580552587@-11  1.65266460113@-11 -1.68760194979@-11  2.37081136675@-11
+ -2.01167446139@-11 -5.42482148516@-12 -9.12438183030@-12 -9.73459864910@-12  1.62361987720@-12 -1.52347877784@-11
+  1.05752635177@-11 -1.59509622102@-12  8.44151694520@-13  3.80528018494@-12
+ 
+STD   =
+  0.00000000000@+00
+ 
+TAB21 =  3.34030574304@-01
+TAB22 =  7.82117856170@-02
+Q1Q2  =  4.27084705548@+00
+DATE: 86108 PROC TIME:   237.52 I/O TIME:     8.40 ELAPSED:    78.83 SEC
+D     =  0.00000000000@+00
+MU1   =  0.00000000000@+00
+MU2   =  0.00000000000@+00
+H     = -1.99999999997@-01
+MU12  =  1.00000000000@+00
+N1    =            35
+N2    =            27
+GMDT  =  0.00000000000@+00
+Q1Q1ST=  1.03809040073@+00
+Q2Q2ST=  9.71319579100@-01
+COF   =
+  2.49999999995@-01  2.47020736762@-13  4.55698213401@-12  1.44350422035@-12 -7.39343039870@-13 -9.22953054860@-13
+  1.54344669441@-12  9.45537485260@-13  6.92025891800@-13  1.25130437171@-12 -2.81659858847@-12 -4.60221973896@-12
+ -1.09064119495@-12 -9.64893549850@-13  2.89534854109@-12  5.62131805240@-13  1.89804324175@-13  2.49999999984@-01
+  9.10271019420@-13 -3.27243666634@-13  3.84140562814@-12 -3.46981948769@-13  5.92186286330@-13  1.03813023197@-11
+ -1.24720314003@-11  1.06952016122@-12 -1.52610248691@-12 -9.48158220680@-12  2.96780771995@-12 -1.53061939898@-12
+  8.51256224160@-14 -9.24044908670@-13  1.15741051541@-12  0.00000000000@+00
+ 
+STD   =
+  0.00000000000@+00
+ 
+TAB21 =  2.71658824462@-01
+TAB22 =  1.27250799544@-01
+Q1Q2  =  2.13483000058@+00
+DATE: 86108 PROC TIME:   315.72 I/O TIME:     8.57 ELAPSED:    78.42 SEC
+D     =  0.00000000000@+00
+MU1   =  0.00000000000@+00
+MU2   =  0.00000000000@+00
+H     =  3.63797880710@-12
+MU12  =  1.00000000000@+00
+N1    =            31
+N2    =            31
+GMDT  =  0.00000000000@+00
+Q1Q1ST=  1.03535417003@+00
+Q2Q2ST=  9.77744397510@-01
+COF   =
+  2.50000000009@-01 -2.38691186695@-12 -3.94476776723@-12  3.94379191510@-13  2.69558966412@-12  2.96932635690@-12
+ -2.01078985853@-12 -3.22574760550@-12 -1.98969819297@-13  3.35360756360@-12  3.70314019168@-12  3.90790497428@-12
+ -5.03026787610@-12 -4.88913303080@-12 -1.73402316998@-12  3.90368009946@-13  2.26148222520@-12  2.50000000007@-01
+ -3.91965711305@-14 -3.87979954174@-12  2.96514461644@-12  3.94836853489@-12 -4.59269723619@-12 -1.31592598536@-14
+  7.98328454450@-13 -4.12231487087@-12  1.68035586566@-12 -8.99483498930@-14  2.34233653583@-13 -5.29318047993@-13
+  1.67117288819@-12  2.32090000851@-13  3.73404743693@-23  5.62094394350@-13
+ 
+STD   =
+  0.00000000000@+00
+ 
+TAB21 =  2.03291315902@-01
+TAB22 =  1.91979663521@-01
+Q1Q2  =  1.05892109702@+00
+DATE: 86108 PROC TIME:   394.17 I/O TIME:     8.72 ELAPSED:    78.67 SEC
+D     =  0.00000000000@+00
+MU1   =  0.00000000000@+00
+MU2   =  0.00000000000@+00
+H     =  2.00000000004@-01
+MU12  =  1.00000000000@+00
+N1    =            27
+N2    =            35
+GMDT  =  0.00000000000@+00
+Q1Q1ST=  1.03929245409@+00
+Q2Q2ST=  1.03533279811@+00
+COF   =
+  2.50000000004@-01 -9.08907005100@-12 -1.00781112684@-11 -2.86129272303@-11  1.16729787325@-11  6.98174090880@-12
+  4.36751812200@-11  4.93377124731@-11  1.09607690790@-13  2.32289563949@-12 -4.03220976418@-11 -2.25472716087@-11
+ -2.45910337535@-12 -1.68113301827@-12  8.06436703500@-12  1.55347426677@-12  7.56046370860@-13  2.50000000000@-01
+  1.61082893091@-12  1.10078967708@-12  1.25435627916@-12  5.51475903020@-12 -4.29503882000@-12  6.51857404810@-12
+ -8.36223471810@-12 -2.04222207364@-12  5.00610942471@-13 -7.96623565730@-12  6.35326343530@-12  2.33785190848@-13
+ -7.25039961410@-14  3.88698167063@-12 -1.39263108025@-12  4.22382023124@-13
+ 
+STD   =
+  0.00000000000@+00
+ 
+TAB21 =  1.36155801434@-01
+TAB22 =  2.70937184920@-01
+Q1Q2  =  5.02536414389@-01
+DATE: 86108 PROC TIME:   471.98 I/O TIME:     8.87 ELAPSED:    78.05 SEC
+D     =  0.00000000000@+00
+MU1   =  0.00000000000@+00
+MU2   =  0.00000000000@+00
+H     =  4.00000000005@-01
+MU12  =  1.00000000000@+00
+N1    =            23
+N2    =            39
+GMDT  =  0.00000000000@+00
+Q1Q1ST=  1.04032340470@+00
+Q2Q2ST=  1.04496368008@+00
+COF   =
+  2.50000000011@-01 -1.49555504708@-11 -8.77331834270@-12 -2.21394074228@-11  3.97927191949@-11  6.47403308090@-11
+  3.13287247650@-11  2.12401073201@-11 -6.76544386050@-11 -4.63297669398@-11 -2.76475852428@-13  1.40034983529@-11
+  1.97780509128@-11  5.52111010890@-12 -1.17296282676@-11 -4.23268400243@-12 -2.10230490404@-13  2.50000000009@-01
+  4.46247764717@-13  1.50865893322@-12  1.73125395339@-13 -4.56841343221@-13 -8.14664692350@-13  5.20594434970@-13
+ -8.12593979390@-13 -1.86717503052@-12  1.49419834702@-12 -1.62288254355@-12  1.38405473648@-12  1.39752315478@-12
+ -9.31368374230@-13  1.32880794170@-12 -5.55323400800@-13 -3.44309737466@-13
+ 
+STD   =
+  0.00000000000@+00
+ 
+TAB21 =  7.63823693590@-02
+TAB22 =  3.33633211059@-01
+Q1Q2  =  2.28941145027@-01
+DATE: 86108 PROC TIME:   549.82 I/O TIME:     8.98 ELAPSED:    77.95 SEC
+D     =  0.00000000000@+00
+MU1   =  0.00000000000@+00
+MU2   =  0.00000000000@+00
+H     =  6.00000000010@-01
+MU12  =  1.00000000000@+00
+N1    =            20
+N2    =            46
+GMDT  =  0.00000000000@+00
+Q1Q1ST=  1.04546474198@+00
+Q2Q2ST=  1.00457959026@+00
+COF   =
+  2.49999999991@-01  3.10785209686@-12  2.67813577834@-11  7.85935597430@-11 -5.85618735120@-11 -1.71502300829@-10
+ -1.71906990689@-10 -2.54093942955@-10  2.65943989453@-10  2.47151267124@-10  2.54462504682@-10  1.74704434523@-10
+ -1.34157950869@-10 -3.60729764567@-11 -7.29815284570@-11 -1.64722002649@-11  1.70417666036@-12  2.49999999991@-01
+  3.79618858696@-14  9.43964293250@-13 -2.62357711001@-12  4.53267003911@-13  9.01695903440@-14  8.21954464130@-13
+ -5.31439545179@-15 -8.09999463620@-13  4.47197846796@-13 -5.44695314137@-13 -1.40435041123@-13  5.38449098045@-13
+ -4.58642025169@-13 -1.46190061944@-13  5.75673319170@-14  6.72761132710@-14
+ 
+STD   =
+  0.00000000000@+00
+ 
+TAB21 =  3.16900250650@-02
+TAB22 =  3.64046764244@-01
+Q1Q2  =  8.70493249150@-02
+DATE: 86108 PROC TIME:   626.73 I/O TIME:     9.10 ELAPSED:    77.03 SEC
+ 
+ 
+ 
+ 
+ LABEL  0YU/SPAR0RESULTS00186108?COMPILE YUSPAR/TEST XALGOL GO; ALGOL STACK=600                          YUSPAR /TEST
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+

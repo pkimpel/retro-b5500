@@ -27,6 +27,7 @@ window.addEventListener("load", function() {
         consolePanel = null;
         document.getElementById("StartUpPoweredBtn").disabled = false;
         document.getElementById("StartUpNoPowerBtn").disabled = false;
+        document.getElementById("StartUpPoweredBtn").focus();
         window.focus();
     }
 
@@ -89,6 +90,7 @@ window.addEventListener("load", function() {
         document.getElementById("StartUpPoweredBtn").addEventListener("click", systemStartup);
         document.getElementById("StartUpNoPowerBtn").disabled = false;
         document.getElementById("StartUpNoPowerBtn").addEventListener("click", systemStartup);
+        document.getElementById("StartUpPoweredBtn").focus();
 
         window.applicationCache.addEventListener("checking", function(ev) {
             document.getElementById("StatusMsg").textContent = "Checking for emulator update...";

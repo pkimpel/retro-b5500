@@ -43,7 +43,8 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal, opti
     this.inputBox = null;
     this.endOfPaper = null;
     this.window = window.open("../webUI/B5500SPOUnit.html", mnemonic,
-            "location=no,scrollbars=no,resizable,width=" + w + ",height=" + h);
+            "location=no,scrollbars=no,resizable,width=" + w + ",height=" + h +
+            ",left=" + (screen.availWidth - w) + ",top=" + (screen.availHeight - h));
     this.window.addEventListener("load", B5500CentralControl.bindMethod(this,
             B5500SPOUnit.prototype.spoOnload), false);
 }
@@ -510,18 +511,20 @@ B5500SPOUnit.prototype.spoOnload = function spoOnload() {
     this.$$("SPOAlgolGlyphsBtn").addEventListener("click",
             B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.SPOAlgolGlyphsBtn_onclick), false);
 
+    this.window.focus();
     this.printText("retro-B5500 Emulator Version " + B5500CentralControl.version,
             B5500CentralControl.bindMethod(this, function initFinish() {
-        this.window.focus();
         this.setRemote();
         this.appendEmptyLine("\xA0");
         this.endOfPaper.scrollIntoView();
         this.signal(-1);                // re-focus the Console window
     }));
 
-    this.window.moveTo(screen.availWidth-this.window.outerWidth,
-                       screen.availHeight-this.window.outerHeight);
-    this.window.focus();
+    // Kludge for Chrome window.outerWidth/Height timing bug
+    setCallback(null, this, 100, function chromeBug() {
+        this.window.moveTo(screen.availWidth-this.window.outerWidth,
+                           screen.availHeight-this.window.outerHeight);
+    });
 };
 
 /**************************************/

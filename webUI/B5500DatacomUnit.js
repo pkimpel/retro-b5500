@@ -29,7 +29,7 @@ function B5500DatacomUnit(mnemonic, unitIndex, designate, statusChange, signal, 
 
     this.maxScrollLines = 5000;         // Maximum amount of printer scrollback
     this.charPeriod = 100;              // Printer speed, milliseconds per character
-    this.bufferSize = 112;              // 4 28-character B487 buffer segments
+    this.bufferSize = 56;               // 2 x 28-character B487 buffer segments
 
     this.mnemonic = mnemonic;           // Unit mnemonic
     this.unitIndex = unitIndex;         // Ready-mask bit number
@@ -275,8 +275,8 @@ B5500DatacomUnit.prototype.outputChar = function outputChar() {
     } else {
         stamp = performance.now();
         nextTime = (this.nextCharTime < stamp ? stamp : this.nextCharTime) + this.charPeriod;
-        delay = nextTime - stamp;
         this.nextCharTime = nextTime;
+        delay = nextTime - stamp;
 
         c = this.buffer[this.bufIndex++];
         switch (c) {
@@ -337,7 +337,8 @@ B5500DatacomUnit.prototype.keyAction = function keyAction(ev, c) {
             this.nextCharTime = stamp;
         }
 
-        nextTime = this.nextCharTime + this.charPeriod;
+        nextTime = (this.nextCharTime < stamp ? stamp : this.nextCharTime) + this.charPeriod;
+        this.nextCharTime = nextTime;
         delay = nextTime - stamp;
 
         if (this.bufState == this.bufReadReady && this.fullBuffer) {
@@ -351,7 +352,7 @@ B5500DatacomUnit.prototype.keyAction = function keyAction(ev, c) {
             case 0x7E:                  // ~ left-arrow (Group Mark), end of message
             case 0x5F:                  // _ underscore (TTY left-arrow), end of message
                 this.inTimer = setCallback(this.mnemonic, this, delay, this.printChar, c);
-                this.nextCharTime = this.charPeriod + nextTime;
+                this.nextCharTime += this.charPeriod;
                 setCallback(this.mnemonic, this, this.charPeriod+delay, this.terminateInput);
                 ev.stopPropagation();
                 ev.preventDefault();
@@ -361,7 +362,6 @@ B5500DatacomUnit.prototype.keyAction = function keyAction(ev, c) {
                     --this.bufIndex;
                 }
                 this.inTimer = setCallback(this.mnemonic, this, delay, this.printChar, c);
-                this.nextCharTime = nextTime;
                 ev.stopPropagation();
                 ev.preventDefault();
                 break;
@@ -372,7 +372,6 @@ B5500DatacomUnit.prototype.keyAction = function keyAction(ev, c) {
                 this.setState(this.bufReadReady);
                 setCallback(this.mnemonic, this, delay, this.signal);
                 this.inTimer = setCallback(this.mnemonic, this, delay, this.printChar, c);
-                this.nextCharTime = nextTime;
                 ev.stopPropagation();
                 ev.preventDefault();
                 break;
@@ -412,7 +411,6 @@ B5500DatacomUnit.prototype.keyAction = function keyAction(ev, c) {
                         c -= 32;        // up-case echoed letters
                     }
                     this.inTimer = setCallback(this.mnemonic, this, delay, this.printChar, c);
-                    this.nextCharTime = nextTime;
                     if (this.bufIndex < this.bufferSize) {
                         this.setState(this.bufInputBusy);
                     } else {
@@ -755,7 +753,7 @@ B5500DatacomUnit.prototype.writeInterrogate = function writeInterrogate(finish, 
     var bufNr;
     var tuNr;
 
-    this.errorMask = 0;                 // default result is idle
+    this.errorMask = 0x4000;            // default result is idle & interrogate
     bufNr = control % 0x10;
     tuNr = (control % 0x200) >>> 5;
 
