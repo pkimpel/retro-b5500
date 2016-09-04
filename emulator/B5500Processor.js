@@ -1693,9 +1693,12 @@ B5500Processor.prototype.singlePrecisionAdd = function singlePrecisionAdd(adding
     the smaller exponent is scaled to the right, with overflow going into the X
     register. The alignment process results in either the exponents becoming equal
     or one of the mantissas going to zero.
+
     Rewritten 2016-03-12: this version attempts to follow the flows closely,
     implementing most of the J-count state logic as described in the Flow Chart
-    and Training Manual documents.
+    and Training Manual documents. This runs considerably slower (in terms of
+    number of emulated clocks) than the original version, e.g., the
+    YUSPAR-RETRO-DECK.card test runs about 7% slower with this version.
 
     During development of this version of SP add/subtract we learned that the
     flows can be subtle, and some things are not as they appear on the surface.
@@ -3564,16 +3567,25 @@ B5500Processor.prototype.integerStore = function integerStore(conditional, destr
         be = (bt ? -(be & 0x3F) : (be & 0x3F));
 
         if (be != 0) {                  // is B non-integer?
-            if (be < 0) {               // B exponent is negative
+            if (bm == 0) {              // B mantissa is zero -- clear B sign
+                bs = 0;
+            } else if (be < 0) {        // B exponent is negative, scale right
                 do {
                     ++this.cycleCount;
-                    bo = bm % 8;
-                    bm = (bm - bo)/8;
+                    if (bm == 0) {              // B mantissa has become zero, quit and do not round
+                        bo = 0;
+                        break;
+                    } else {                    // scale right
+                        bo = bm % 8;
+                        bm = (bm - bo)/8;
+                    }
                 } while (++be < 0);
                 if (bs ? bo > 4 : bo >= 4) {
                     ++bm;               // round the B mantissa
+                } else if (bm == 0) {
+                    bs = 0;             // B mantissa has become zero, clear B sign
                 }
-            } else {                    // B exponent is positive and not zero
+            } else {                    // B exponent is positive, normalize left
                 do {
                     ++this.cycleCount;
                     if (bm < 0x1000000000) {
@@ -5570,7 +5582,7 @@ B5500Processor.prototype.run = function run() {
         *   SECL: Syllable Execution Complete Level                    *
         ***************************************************************/
 
-        if ((this.isP1 ? cc.IAR : (this.I || cc.HP2F)) && this.NCSF) {
+        if ((this.isP1 ? (cc.IAR && this.NCSF) : (this.I || cc.HP2F))) {
             // there's an interrupt and we're in Normal State
             // reset Q09F (R-relative adder mode) and set Q07F (hardware-induced SFI) (for display only)
             this.Q = (this.Q & 0xFFFEFF) | 0x40;

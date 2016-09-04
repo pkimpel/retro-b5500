@@ -254,7 +254,6 @@ B5500MagTapeDrive.prototype.setAtBOT = function setAtBOT(atBOT) {
             B5500Util.addClass(this.$$("MTAtBOTLight"), "annunciatorLit");
             this.reelBar.value = this.imgMaxInches;
             this.reelIcon.style.transform = "none";
-            this.reelIcon.style["-webkit-transform"] = "none";          // temp for Chrome
         }
     }
 };
