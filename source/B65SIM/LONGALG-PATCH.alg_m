@@ -1,0 +1,127 @@
+?REMOVE LONGALG/DISK, LONGALG/NEW, NEWSYM/LONGALG                       00000100          
+?COMPILE LONGALG/NEW ALGOL LIBRARY                                      00000200          
+?ALGOL STACK=1000                                                       00000300          
+?ALGOL FILE TAPE=SYMBOL/ALGOL SERIAL                                    00000400          
+?ALGOL FILE NEWTAPE=NEWSYM/LONGALG SERIAL                               00000450          
+?FILE LINE = LINE BACK UP DISK                                          00000500          
+?FILE NEWTAPE = "0CRDIMG" TAPE                                          00000600          
+?FILE PNCH = PNCH PUNCH                                                 00000700          
+?DATA CARD                                                              00000800          
+$ TAPE CHECK NEW                                                        00000900          
+%           THE SECOND COMING OF THE B-5500 LONGALG COMPILER            00001020          
+%                        3 JUNE 2017                                    00001040          
+ 506     BLOCK: LONG APPEARS IMMEDIATELY BEFORE IDENTIFIER(NO TYPE).    00305070          
+          [22:1]  =IF 1, THIS IS THE FINAL ROW OF A LONG ARRAY, WHICH   01106700          
+                   WILL REQUIRE DOUBLING OF THE RAW INDEX VALUE AND     01106800          
+                   AN EXTRA LEVEL OF INDEXING FOR LONGROWSZ-WORD ROWS.  01106900          
+         DEFINEV        =19#,    COMMENT  23;                           01298000          
+         LONGV          =20#;    COMMENT  24;                           01298100          
+DEFINE LONGROWSZ=256#;  % SIZE OF LONG-ARRAY SEGMENTED ROWS             01299300          
+         LASTSEQUENCE =156#,                                            01575000          
+         SORTA        =666# ;                                           01580000          
+       P5,         COMMENT TELLS WHETHER LONG WAS SEEN;                 01589600          
+          <X22,"RETRO-B5500 LONGALG COMPILER    MARK ",                 01830000          
+    OCT0430000240000000, "4LONG0",                                 %664 09214432          
+                      0, COMMENT SORTA ;                           %666 09214435          
+    "        " ;         COMMENT LASTSEQUENCE,LASTSEQROW ;         %667 09214440          
+639STEP 3UNTIL 660,664                                                  09214516          
+           STEPIT; J~K;P2~P3~P5~FALSE;GTA1[0]~0; GET7(ACCUM[1],FILID);  13080000          
+    BOOLEAN LLITOG,ULITOG,LONGDIM;                                      13450000          
+                                      ELSE IF T1=LONGV THEN             13467100          
+                                                      BEGIN             13467200          
+                                                       P5~TRUE;         13467300          
+                                                       END              13467400          
+CSZ:                                                                    13527000          
+     LONGDIM:= P5 AND TABLE(I)=RTBRKET; % LAST DIM OF LONG ARRAY        13527100          
+     IF LLITOG AND ULITOG THEN                                          13527200          
+                               T~IF ADDCON=ADDC THEN                    13529500          
+                                   T4+T3+1 ELSE T4-T3+1;                13529600          
+                               IF T{0 THEN FLAG(59);                    13529700          
+                               IF NOT LONGDIM THEN                      13529800          
+                                 BEGIN                                  13529900          
+                                 IF T>1023 THEN FLAG(59);               13530000          
+                                 EMITL(T);                              13530100          
+                                 END                                    13530200          
+                               ELSE                                     13530300          
+                                 BEGIN                                  13530400          
+                                 % FOR A LONG ARRAY, DOUBLE THE SIZE OF 13530500          
+                                 % THE LAST DIMENSION AND SPLIT IT INTO 13530600          
+                                 % LONGROWSZ-WORD ROWS.                 13530700          
+                                 T~(2|T+LONGROWSZ-1) DIV LONGROWSZ;     13530800          
+                                 EMITL(T);           % # ROWS           13530900          
+                                 EMITL(LONGROWSZ);   % FINAL ROW SIZE   13531000          
+                                 IF T>1023 THEN FLAG(59);               13531100          
+                                 IF T<LONGROWSZ THEN % CHOOSE MAX SIZE  13531200          
+                                   T~LONGROWSZ;                         13531300          
+                                 END;                                   13531400          
+                                       END;EMITL(1);EMITO(ADD);         13545000          
+                                  IF LONGDIM THEN                       13545100          
+                                    BEGIN                               13545200          
+                                    EMITO(DUP);                         13545300          
+                                    EMITO(ADD); % DOUBLE THE SIZE       13545400          
+                                    EMITL(LONGROWSZ-1);                 13545500          
+                                    EMITO(ADD); % ROUND UP TO LONGROWSZ 13545550          
+                                    EMITL(LONGROWSZ);                   13545600          
+                                    EMITO(IDV); % # ROWS                13545650          
+                                    EMITL(LONGROWSZ); % FINAL ROW SIZE  13545700          
+                                    END;                                13545800          
+SLB: % IF LAST DIM OF LONG ARRAY, SET BIT 22 IN INFO DIMENSION WORD     13547000          
+     PUTNBUMP(T2 & REAL(LONGDIM)[22:47:1]);                             13547100          
+     LBJ~LBJ+1;IF T~TABLE(I)=COMMA THEN GO TO TWO                       13547200          
+                     EMITL(LBJ+REAL(LONGDIM));EMITL(GTA1[0]);           13552000          
+                         THEN G~GTA1[J~J-1];                            13726100          
+              IF NOT P5                                                 13726200          
+                 THEN IF P5~(G=LONGV)                                   13726300          
+       STREAMERR,DEFINEDEC,LONGERR,CALLSTATEMENT,HF,START;              14017000          
+               STREAMERR,DEFINEDEC,LONGERR;                             14021000          
+    P2~P3~P5~FALSE;                                                     14133000          
+LONGERR:FLAG(506);J~J+1;GO TO REALDEC;                                  14136200          
+PROCEDURE INDEXER(TALL,J,BYNAME);                                       15214020          
+       VALUE TALL,J,BYNAME;                                             15214040          
+       REAL TALL,J;                                                     15214060          
+       BOOLEAN BYNAME;                                                  15214080          
+       BEGIN COMMENT                                                    15214100          
+           INDEXER HANDLES THE COMPLEXITIES OF INITIAL AND FINAL        15214120          
+           INDEXING OF ARRAY DIMENSIONS WHERE DOUBLE-INDEXING OF THE    15214140          
+           LAST DIMENSION OF A LONG ARRAY MAY BE INVOLVED. ON ENTRY,    15214160          
+           ASSUMES THE RAW INDEX VALUE IS AT TOP OF STACK;              15214180          
+                                                                        15214200          
+       IF BOOLEAN(TAKE(GIT(TALL)+J).[22:1]) THEN                        15214220          
+         BEGIN % THIS IS THE LONG DIMENSION FOR A LONG ARRAY.           15214240          
+         EMITO(DUP);                                                    15214260          
+         EMITO(ADD);                   % DOUBLE THE INDEX               15214280          
+         EMITPAIR(JUNK,ISN);           % SAVE A COPY FOR THE COL INDEX  15214300          
+         EMITL(LONGROWSZ);                                              15214320          
+         EMITO(IDV);                   % COMPUTE THE SPLIT-ROW INDEX    15214340          
+         IF J=1 THEN                                                    15214360          
+           EMITN(TALL.ADDRESS)                                          15214380          
+         ELSE                                                           15214400          
+           EMITO(CDC);                                                  15214420          
+         EMITO(LOD);                   % LOAD THE DESTINATION DESCRIPTOR15214440          
+         EMITV(JUNK);                  % RETRIEVE THE SAVED INDEX VALUE 15214460          
+         EMITL(LONGROWSZ);                                              15214480          
+         EMITO(RDV);                   % COMPUTE THE SPLIT-COL INDEX    15214500          
+         IF BYNAME THEN                                                 15214520          
+           EMITO(CDC)                                                   15214540          
+         ELSE                                                           15214560          
+           EMITO(COC);                                                  15214580          
+         END                                                            15214600          
+       ELSE IF J=1 THEN                                                 15214620          
+         IF BYNAME THEN                                                 15214640          
+           EMITN(TALL.ADDRESS)                                          15214660          
+         ELSE                                                           15214680          
+           EMITV(TALL.ADDRESS)                                          15214700          
+       ELSE                                                             15214720          
+         IF BYNAME THEN                                                 15214740          
+           EMITO(CDC)                                                   15214760          
+         ELSE                                                           15214780          
+           EMITO(COC);                                                  15214800          
+       END INDEXER;                                                     15214820          
+                                  INDEXER(TALL,J,TRUE);                 15224000          
+                                  INDEXER(TALL,J,TRUE);                 15227000          
+                   INDEXER(TALL,J,FALSE);                               15344000          
+                        INDEXER(TALL,J,NOT SPCLMON);                    15350000          
+$ VOIDT 15356001                                                        15350001          
+$                                                                       15351000          
+END;END.        LAST CARD ON 0CRDIMG TAPE                               99999990          
+?END                                                                    99999999          
