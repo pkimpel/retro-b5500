@@ -20,18 +20,19 @@ window.onload = function() {
 
     function acceptanceBtn_Click(ev) {
         var image = acceptanceCheck.value;
-        var s1 = String.fromCharCode(46,46,47,77,97,114,107,45,88,73,73,73,47,66,53,53,48,48,45,88,73,73,73,45);
+        var s1 = String.fromCharCode(46,46,47,77,97,114,107,45,88,73,73,73,47,66,53,53,48,48,45,88,73,73,73);
         var s2 = String.fromCharCode(45);
         var s3 = String.fromCharCode(46,122,105,112);
         var s4 = String.fromCharCode(108,111,99,97,116,105,111,110);
         var s5 = String.fromCharCode(104,114,101,102);
         var images = {
-            SYSTEM: String.fromCharCode(97,100,99,48,48,50,53,55),
-            SYMBOL1: String.fromCharCode(97,100,99,48,48,50,53,53),
-            SYMBOL2: String.fromCharCode(97,100,99,48,48,50,53,51)};
+            SYSTEM: String.fromCharCode(45,97,100,99,48,48,50,53,55),
+            SYMBOL1: String.fromCharCode(45,97,100,99,48,48,50,53,53),
+            SYMBOL2: String.fromCharCode(45,97,100,99,48,48,50,53,51),
+            Release: ""};
 
         if (acceptanceCheck.checked) {
-            window[s4][s5] = s1 + image + s2 + images[image] + s3;
+            window[s4][s5] = s1 + s2 + image + images[image] + s3;
         }
     }
 
