@@ -39,14 +39,14 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal, opti
     this.clear();
 
     this.doc = null;
+    this.window = null;
     this.paper = null;
     this.inputBox = null;
     this.endOfPaper = null;
-    this.window = window.open("../webUI/B5500SPOUnit.html", mnemonic,
+    B5500Util.openPopup(window, "../webUI/B5500SPOUnit.html", mnemonic,
             "location=no,scrollbars=no,resizable,width=" + w + ",height=" + h +
-            ",left=" + (screen.availWidth - w) + ",top=" + (screen.availHeight - h));
-    this.window.addEventListener("load", B5500CentralControl.bindMethod(this,
-            B5500SPOUnit.prototype.spoOnload), false);
+                ",left=" + (screen.availWidth - w) + ",top=" + (screen.availHeight - h),
+            this, B5500SPOUnit.prototype.spoOnload);
 }
 
 // this.spoState enumerations
@@ -98,11 +98,11 @@ B5500SPOUnit.prototype.setLocal = function setLocal() {
     this.spoInputRequested = false;
     this.spoState = this.spoLocal;
     this.endOfPaper.scrollIntoView();
-    B5500Util.addClass(this.$$("SPOLocalBtn"), "yellowLit");
-    B5500Util.addClass(this.inputBox, "visible");
+    this.$$("SPOLocalBtn").classList.add("yellowLit");
+    this.inputBox.classList.add("visible");
     this.inputBox.focus();
-    B5500Util.removeClass(this.$$("SPORemoteBtn"), "yellowLit");
-    B5500Util.removeClass(this.$$("SPOInputRequestBtn"), "yellowLit");
+    this.$$("SPORemoteBtn").classList.remove("yellowLit");
+    this.$$("SPOInputRequestBtn").classList.remove("yellowLit");
     this.statusChange(0);
 
     // Set up to echo characters from the keyboard
@@ -135,9 +135,9 @@ B5500SPOUnit.prototype.setRemote = function setRemote() {
         this.spoState = this.spoRemote;
         this.spoLocalRequested = false;
         this.spoInputRequested = false;
-        B5500Util.addClass(this.$$("SPORemoteBtn"), "yellowLit");
-        B5500Util.removeClass(this.$$("SPOLocalBtn"), "yellowLit");
-        B5500Util.removeClass(this.inputBox, "visible");
+        this.$$("SPORemoteBtn").classList.add("yellowLit");
+        this.$$("SPOLocalBtn").classList.remove("yellowLit");
+        this.inputBox.classList.remove("visible");
         this.window.focus();
         text = this.inputBox.value;
         if (text.length > 0) {
@@ -165,9 +165,9 @@ B5500SPOUnit.prototype.setAlgolGlyphs = function setAlgolGlyphs(makeItPretty) {
     }
     this.useAlgolGlyphs = makeItPretty;
     if (makeItPretty) {
-        B5500Util.addClass(this.$$("SPOAlgolGlyphsBtn"), "yellowLit");
+        this.$$("SPOAlgolGlyphsBtn").classList.add("yellowLit");
     } else {
-        B5500Util.removeClass(this.$$("SPOAlgolGlyphsBtn"), "yellowLit");
+        this.$$("SPOAlgolGlyphsBtn").classList.remove("yellowLit");
     }
 };
 
@@ -266,7 +266,7 @@ B5500SPOUnit.prototype.requestInput = function requestInput() {
     case this.spoOutput:
         if (!this.spoInputRequested) {
             this.spoInputRequested = true;
-            B5500Util.addClass(this.$$("SPOInputRequestBtn"), "yellowLit");
+            this.$$("SPOInputRequestBtn").classList.add("yellowLit");
             this.signal(0);             // Cause the Input Request interrupt
         }
         break;
@@ -288,8 +288,8 @@ B5500SPOUnit.prototype.terminateInput = function terminateInput() {
     var x;
 
     if (this.spoState == this.spoInput) {
-        B5500Util.removeClass(this.$$("SPOReadyBtn"), "yellowLit");
-        B5500Util.removeClass(this.inputBox, "visible");
+        this.$$("SPOReadyBtn").classList.remove("yellowLit");
+        this.inputBox.classList.remove("visible");
         this.appendEmptyLine(text.substring(0, 72));
         for (x=0; x<len; ++x) {
             this.buffer[this.bufIndex++] = text.charCodeAt(x);
@@ -415,15 +415,15 @@ B5500SPOUnit.prototype.copyPaper = function copyPaper(ev) {
     or saved by the user */
     var text = ev.target.textContent;
     var title = "B5500 " + this.mnemonic + " Text Snapshot";
-    var win = window.open("./B5500FramePaper.html", this.mnemonic + "-Snapshot",
-            "scrollbars,resizable,width=500,height=500");
 
-    win.moveTo((screen.availWidth-win.outerWidth)/2, (screen.availHeight-win.outerHeight)/2);
-    win.addEventListener("load", function() {
-        var doc;
+    B5500Util.openPopup(this.window, "./B5500FramePaper.html", "",
+            "scrollbars,resizable,width=500,height=500",
+            this, function(ev) {
+        var doc = ev.target;
+        var win = doc.defaultView;
 
-        doc = win.document;
         doc.title = title;
+        win.moveTo((screen.availWidth-win.outerWidth)/2, (screen.availHeight-win.outerHeight)/2);
         doc.getElementById("Paper").textContent = text;
     });
 
@@ -472,11 +472,12 @@ B5500SPOUnit.prototype.printText = function printText(msg, finish) {
 };
 
 /**************************************/
-B5500SPOUnit.prototype.spoOnload = function spoOnload() {
+B5500SPOUnit.prototype.spoOnload = function spoOnload(ev) {
     /* Initializes the SPO window and user interface */
     var x;
 
-    this.doc = this.window.document;
+    this.doc = ev.target;
+    this.window = this.doc.defaultView;
     this.doc.title = "retro-B5500 " + this.mnemonic;
     this.paper = this.$$("Paper");
     this.inputBox = this.$$("InputBox");
@@ -487,38 +488,38 @@ B5500SPOUnit.prototype.spoOnload = function spoOnload() {
     this.window.addEventListener("beforeunload",
             B5500SPOUnit.prototype.beforeUnload, false);
     this.window.addEventListener("resize",
-            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.resizeWindow), false);
+            B5500SPOUnit.prototype.resizeWindow.bind(this), false);
     this.window.addEventListener("keydown",
-            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.keyDown), false);
+            B5500SPOUnit.prototype.keyDown.bind(this), false);
     this.$$("SPOUT").addEventListener("keydown",
-            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.keyDown), false);
+            B5500SPOUnit.prototype.keyDown.bind(this), false);
     this.inputBox.addEventListener("keydown",
-            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.keyDown), false);
+            B5500SPOUnit.prototype.keyDown.bind(this), false);
     this.inputBox.addEventListener("keypress",
-            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.keyPress), false);
+            B5500SPOUnit.prototype.keyPress.bind(this), false);
     this.paper.addEventListener("dblclick",
-            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.copyPaper), false);
+            B5500SPOUnit.prototype.copyPaper.bind(this), false);
     this.$$("SPORemoteBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.setRemote), false);
+            B5500SPOUnit.prototype.setRemote.bind(this), false);
     this.$$("SPOLocalBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.requestLocal), false);
+            B5500SPOUnit.prototype.requestLocal.bind(this), false);
     this.$$("SPOInputRequestBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.requestInput), false);
+            B5500SPOUnit.prototype.requestInput.bind(this), false);
     this.$$("SPOErrorBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.cancelInput), false);
+            B5500SPOUnit.prototype.cancelInput.bind(this), false);
     this.$$("SPOEndOfMessageBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.terminateInput), false);
+            B5500SPOUnit.prototype.terminateInput.bind(this), false);
     this.$$("SPOAlgolGlyphsBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500SPOUnit.prototype.SPOAlgolGlyphsBtn_onclick), false);
+            B5500SPOUnit.prototype.SPOAlgolGlyphsBtn_onclick.bind(this), false);
 
     this.window.focus();
     this.printText("retro-B5500 Emulator Version " + B5500CentralControl.version,
-            B5500CentralControl.bindMethod(this, function initFinish() {
+            function initFinish() {
         this.setRemote();
         this.appendEmptyLine("\xA0");
         this.endOfPaper.scrollIntoView();
         this.signal(-1);                // re-focus the Console window
-    }));
+    }.bind(this));
 
     // Kludge for Chrome window.outerWidth/Height timing bug
     setCallback(null, this, 100, function chromeBug() {
@@ -536,10 +537,10 @@ B5500SPOUnit.prototype.read = function read(finish, buffer, length, mode, contro
     case this.spoRemote:
         this.spoState = this.spoInput;
         this.spoInputRequested = false;
-        B5500Util.addClass(this.$$("SPOReadyBtn"), "yellowLit");
-        B5500Util.removeClass(this.$$("SPOInputRequestBtn"), "yellowLit");
+        this.$$("SPOReadyBtn").classList.add("yellowLit");
+        this.$$("SPOInputRequestBtn").classList.remove("yellowLit");
         this.endOfPaper.scrollIntoView();
-        B5500Util.addClass(this.inputBox, "visible");
+        this.inputBox.classList.add("visible");
         this.inputBox.focus();
         this.buffer = buffer;
         this.bufLength = length;

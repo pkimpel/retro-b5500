@@ -13,15 +13,15 @@
 * (EU) and Storage Units (SU) that make up the physical disk storage facility.
 *
 * Physical storage in this implementation is provided by a W3C IndexedDB
-* database local to the browser in which the emulator is running. There may
-* be multiple of these databases, but only one may be selected for use by an
-* instance of the emulator at a time. The database will be initialized to a
+* data base local to the browser in which the emulator is running. There may
+* be multiple of these data bases, but only one may be selected for use by an
+* instance of the emulator at a time. The data base will be initialized to a
 * default configuration the first time the emulator is used, and may be
 * modified using the system configuration UI in the B5500 Console, but see
-* below for considerations when using an existing database from emulator
+* below for considerations when using an existing data base from emulator
 * versions 0.20 and earlier.
 *
-* The database consists of a CONFIG object store and some number of "EUn"
+* The data base consists of a CONFIG object store and some number of "EUn"
 * object stores, where n is in 0..19. The CONFIG store contains an "EUn" member
 * for each such object store that specifies the characteristics of that EU:
 *
@@ -50,13 +50,13 @@
 * versions, the configuration UI will attempt to preserve this older format,
 * and this device driver will accept that format, assuming Model-I disk and
 * a lockoutMask of 0. This will allow older versions of the emulator to
-* continue to use the IndexedDB database. Once the configuration of such a
-* database is changed, however, it will no longer be compatible with the
+* continue to use the IndexedDB data base. Once the configuration of such a
+* data base is changed, however, it will no longer be compatible with the
 * older version of the emulator, as the older emulator requires the IndexedDB
-* database version to be 1.
+* data base version to be 1.
 *
-* Within an EU, segments are represented in the database as 240-byte Uint8Array
-* objects, each with a database key corresponding to its numeric segment address.
+* Within an EU, segments are represented in the data base as 240-byte Uint8Array
+* objects, each with a data base key corresponding to its numeric segment address.
 * The segments in an EU are not pre-allocated, but are created as they are
 * written by IDB put() methods. When reading, any unallocated segments are
 * returned with their bytes set to 0x23 (#), which will be translated by the
@@ -115,7 +115,7 @@
 * 2013-01-19  P.Kimpel
 *   Original version, cloned from B5500DummyUnit.js.
 * 2014-08-25  P.Kimpel
-*   Adapt to new EU configuration object format and selectable databases.
+*   Adapt to new EU configuration object format and selectable data bases.
 ***********************************************************************/
 "use strict";
 
@@ -133,15 +133,15 @@ function B5500DiskUnit(mnemonic, index, designate, statusChange, signal, options
     this.timer = 0;                     // setCallback() token
     this.initiateStamp = 0;             // timestamp of last initiation (set by IOUnit)
     this.config = null;                 // copy of CONFIG store contents
-    this.db = null;                     // the IDB database object
+    this.db = null;                     // the IDB data base object
     this.sectorBuf = new Uint8Array(240); // sector buffer used by write()
     this.euPrefix =                     // prefix for EU object store names
             (mnemonic=="DKA" || options.DFX ? "EU" : "EU1");
 
-    this.stdFinish = B5500CentralControl.bindMethod(this, B5500DiskUnit.prototype.stdFinish);
+    this.stdFinish = B5500DiskUnit.prototype.stdFinish.bind(this);
 
     this.clear();
-    this.openDatabase();                // attempt to open the IDB database
+    this.openDatabase();                // attempt to open the IDB data base
 }
 
 B5500DiskUnit.prototype.charXferRate = 96;      // avg. transfer rate [characters/ms = KC/sec]
@@ -169,17 +169,17 @@ B5500DiskUnit.prototype.stdFinish = function stdFinish(errorMask, length) {
 };
 
 /**************************************/
-B5500DiskUnit.genericIDBError = function genericIDBError(ev) {
-    /* Formats a generic alert when otherwise-unhandled database errors occur */
+B5500DiskUnit.prototype.genericIDBError = function genericIDBError(ev) {
+    /* Formats a generic alert when otherwise-unhandled data base errors occur */
 
     this.stdFinish(0x20, 0);            // set a generic disk-parity error
-    alert("Disk \"" + this.mnemonic + "\" database error: " + ev.target.result.error);
+    alert("Disk \"" + this.mnemonic + "\" data base error: " + ev.target.result.error);
 };
 
 /**************************************/
 B5500DiskUnit.prototype.copySegment = function copySegment(seg, buffer, offset) {
     /* Copies the bytes from a single segment Uint8Array object to "buffer" starting
-    at "offset" for 240 bytes. If "seg" is undefined, copies zero bytes instead */
+    at "offset" for 240 bytes. If "seg" is undefined, copies bytes of zero instead */
     var x;
 
     if (seg) {
@@ -195,7 +195,7 @@ B5500DiskUnit.prototype.copySegment = function copySegment(seg, buffer, offset) 
 
 /**************************************/
 B5500DiskUnit.prototype.loadStorageConfig = function loadStorageConfig(storageConfig) {
-    /* Loads the storage configuration object from the storage database and
+    /* Loads the storage configuration object from the storage data base and
     sets up the internal representation of that object for use by the driver */
     var config = B5500Util.deepCopy(storageConfig);
     var eu;
@@ -214,7 +214,7 @@ B5500DiskUnit.prototype.loadStorageConfig = function loadStorageConfig(storageCo
 
 /**************************************/
 B5500DiskUnit.prototype.openDatabase = function openDatabase() {
-    /* Attempts to open the disk subsystem database specified by
+    /* Attempts to open the disk subsystem data base specified by
     this.options.storageName. If successful, loads the EU configuration,
     sets this.db to the IDB object, and sets the DFCU to ready status */
     var dsc = new B5500DiskStorageConfig();
@@ -225,13 +225,13 @@ B5500DiskUnit.prototype.openDatabase = function openDatabase() {
 
         if (!config) {
             that.config = null;
-            alert(that.mnemonic + ": CONFIG structure does not exist in\ndatabase \"" +
+            alert(that.mnemonic + ": CONFIG structure does not exist in\ndata base \"" +
                   that.options.storageName + "\" -- must recreate storage DB");
         } else {
-            req = indexedDB.open(that.options.storageName);     // accept any database version
+            req = indexedDB.open(that.options.storageName);     // accept any data base version
 
             req.onerror = function idbOpenOnerror(ev) {
-                alert("Cannot open " + that.mnemonic + " Disk Subsystem\ndatabase \"" +
+                alert("Cannot open " + that.mnemonic + " Disk Subsystem\ndata base \"" +
                       that.options.storageName + "\":\n" + ev.target.error);
             };
 
@@ -249,7 +249,7 @@ B5500DiskUnit.prototype.openDatabase = function openDatabase() {
                 // Save the DB object reference globally for later use
                 that.db = ev.target.result;
                 // Set up the generic error handler
-                that.db.onerror = B5500CentralControl.bindMethod(that, that.genericIDBError);
+                that.db.onerror = that.genericIDBError.bind(that);
                 that.loadStorageConfig(config);
                 that.statusChange(1);   // now report the DFCU as ready to Central Control
                 dsc.closeStorageDB();
@@ -259,8 +259,7 @@ B5500DiskUnit.prototype.openDatabase = function openDatabase() {
     }
 
     this.statusChange(0);               // initially force DFCU status to not ready
-    dsc.getStorageConfig(this.options.storageName,
-                B5500CentralControl.bindMethod(this, openStorageDB));
+    dsc.getStorageConfig(this.options.storageName, openStorageDB.bind(this));
 };
 
 /**************************************/
@@ -295,7 +294,7 @@ B5500DiskUnit.prototype.read = function read(finish, buffer, length, mode, contr
             endAddr = eu.size-1;
         }
         finishTime = this.initiateStamp +
-                Math.random()*eu.maxLatency + segs*240/eu.charXferRate;
+                this.initiateStamp%eu.maxLatency + segs*240/eu.charXferRate;
 
         if (segs < 1) {                 // No length specified, so just finish the I/O
             this.stdFinish(0, 0);
@@ -370,7 +369,7 @@ B5500DiskUnit.prototype.write = function write(finish, buffer, length, mode, con
     var bx = 0;                         // current buffer offset
     var eu;                             // EU characteristics object
     var finishTime;                     // predicted time of I/O completion, ms
-    var req;                            // IDB request object  
+    var req;                            // IDB request object
     var sectorBuf = this.sectorBuf;     // local copy
     var that = this;                    // local object context
     var txn;                            // IDB transaction object
@@ -398,7 +397,7 @@ B5500DiskUnit.prototype.write = function write(finish, buffer, length, mode, con
             endAddr = eu.size-1;
         }
         finishTime = this.initiateStamp +
-                Math.random()*eu.maxLatency + segs*240/eu.charXferRate;
+                this.initiateStamp%eu.maxLatency + segs*240/eu.charXferRate;
 
         if (segs < 1) {
             // No length specified, so just finish the I/O
@@ -486,7 +485,7 @@ B5500DiskUnit.prototype.readCheck = function readCheck(finish, length, control) 
             endAddr = eu.size-1;
         }
         finishTime = this.initiateStamp +
-                Math.random()*eu.maxLatency + segs*240/eu.charXferRate;
+                this.initiateStamp%eu.maxLatency + segs*240/eu.charXferRate;
 
         if (segs < 1) {                 // No length specified, so just finish the I/O
             finish(this.errorMask, 0);
@@ -539,7 +538,7 @@ B5500DiskUnit.prototype.readInterrogate = function readInterrogate(finish, contr
             this.errorMask |= 0x10;     // set D28F (lockout bit) to indicate Mod IB (slow) disk
         }
         this.timer = setCallback(this.mnemonic, this,
-            Math.random()*eu.maxLatency + this.initiateStamp - performance.now(),
+            this.initiateStamp%eu.maxLatency + this.initiateStamp - performance.now(),
             function readInterrogateTimeout() {
                 this.stdFinish(0, 0);
         });
@@ -571,7 +570,7 @@ B5500DiskUnit.prototype.writeInterrogate = function writeInterrogate(finish, con
             this.errorMask |= 0x20;     // set D27F for invalid seg address
         }
         this.timer = setCallback(this.mnemonic, this,
-            Math.random()*eu.maxLatency + this.initiateStamp - performance.now(),
+            this.initiateStamp%eu.maxLatency + this.initiateStamp - performance.now(),
             function writeInterrogateTimeout() {
                 this.stdFinish(0, 0);
         });

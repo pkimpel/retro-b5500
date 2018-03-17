@@ -32,11 +32,11 @@ function B5500CardReader(mnemonic, unitIndex, designate, statusChange, signal, o
     this.clear();
 
     this.doc = null;
+    this.window = null;
     this.keyinWindow = null;
-    this.window = window.open("../webUI/B5500CardReader.html", mnemonic,
-            "location=no,scrollbars=no,resizable,width=560,height=160,left=0,top="+x);
-    this.window.addEventListener("load",
-            B5500CentralControl.bindMethod(this, B5500CardReader.prototype.readerOnload), false);
+    B5500Util.openPopup(window, "../webUI/B5500CardReader.html", mnemonic,
+            "location=no,scrollbars=no,resizable,width=560,height=160,left=0,top="+x,
+            this, B5500CardReader.prototype.readerOnload);
 
     this.hopperBar = null;
     this.outHopperFrame = null;
@@ -116,16 +116,16 @@ B5500CardReader.prototype.setReaderReady = function setReaderReady(ready) {
     this.ready = ready;
     if (ready) {
         this.statusChange(1);
-        B5500Util.addClass(this.$$("CRStartBtn"), "greenLit")
-        B5500Util.removeClass(this.$$("CRNotReadyLight"), "whiteLit");
+        this.$$("CRStartBtn").classList.add("greenLit")
+        this.$$("CRNotReadyLight").classList.remove("whiteLit");
         this.$$("CRKeyinDeckBtn").disabled = true;
-        B5500Util.removeClass(this.$$("CRKeyinDeckBtn"), "whiteLit");
+        this.$$("CRKeyinDeckBtn").classList.remove("whiteLit");
     } else {
         this.statusChange(0);
-        B5500Util.removeClass(this.$$("CRStartBtn"), "greenLit")
-        B5500Util.addClass(this.$$("CRNotReadyLight"), "whiteLit");
+        this.$$("CRStartBtn").classList.remove("greenLit")
+        this.$$("CRNotReadyLight").classList.add("whiteLit");
         this.$$("CRKeyinDeckBtn").disabled = false;
-        B5500Util.addClass(this.$$("CRKeyinDeckBtn"), "whiteLit");
+        this.$$("CRKeyinDeckBtn").classList.add("whiteLit");
     }
 };
 
@@ -136,9 +136,9 @@ B5500CardReader.prototype.armEOF = function armEOF(armed) {
 
     this.eofArmed = armed;
     if (armed) {
-        B5500Util.addClass(this.$$("CREOFBtn"), "whiteLit");
+        this.$$("CREOFBtn").classList.add("whiteLit");
     } else {
-        B5500Util.removeClass(this.$$("CREOFBtn"), "whiteLit");
+        this.$$("CREOFBtn").classList.remove("whiteLit");
     }
 };
 
@@ -179,9 +179,7 @@ B5500CardReader.prototype.CRKeyinDeckBtn_onClick = function CRKeyinDeckBtn_onCli
     var $$$ = null;                     // getElementById shortcut for keyin window
     var doc = null;                     // loader window.document
     var keyinText = null;               // keyin text area
-    var win = this.window.open("B5500CardReaderKeyin.html", this.mnemonic + "Keyin",
-            "location=no,scrollbars=no,resizable,width=640,height=240,left=" +
-            (this.window.screenX+32) +",top=" + (this.window.screenY+32));
+    var win = null;
 
     function keyinCancelDeck(ev) {
         /* Handler for the Cancel button on the deck keyin window -- closes it */
@@ -217,8 +215,13 @@ B5500CardReader.prototype.CRKeyinDeckBtn_onClick = function CRKeyinDeckBtn_onCli
         /* On-load handler for the deck keyin window */
         var de;
 
-        doc = win.document;
+        doc = ev.target;
+        win = doc.defaultView;
+        this.keyinWindow = win;
         de = doc.documentElement;
+        this.$$("CRStartBtn").disabled = true;
+        this.$$("CRKeyinDeckBtn").disabled = true;
+        this.$$("CRKeyinDeckBtn").classList.remove("whiteLit");
         $$$ = function $$$(id) {
             return doc.getElementById(id);
         };
@@ -246,14 +249,13 @@ B5500CardReader.prototype.CRKeyinDeckBtn_onClick = function CRKeyinDeckBtn_onCli
         $$$("CRKeyinEndCardBtn").removeEventListener("click", keyinInsertDeck, false);
         $$$("CRKeyinInsertBtn").removeEventListener("click", keyinInsertDeck, false);
         $$$("CRKeyinCancelBtn").removeEventListener("click", keyinCancelDeck, false);
-        win.removeEventListener("load", keyinOnload, false);
         win.removeEventListener("unload", keyinOnUnload, false);
 
         keyinText = null;
         cr.keyinWindow = null;
         cr.$$("CRStartBtn").disabled = false;
         cr.$$("CRKeyinDeckBtn").disabled = false;
-        B5500Util.addClass(cr.$$("CRKeyinDeckBtn"), "whiteLit");
+        cr.$$("CRKeyinDeckBtn").classList.add("whiteLit");
 
     }
 
@@ -262,11 +264,10 @@ B5500CardReader.prototype.CRKeyinDeckBtn_onClick = function CRKeyinDeckBtn_onCli
         this.keyinWindow.close();
     }
 
-    this.keyinWindow = win;
-    this.$$("CRStartBtn").disabled = true;
-    this.$$("CRKeyinDeckBtn").disabled = true;
-    B5500Util.removeClass(this.$$("CRKeyinDeckBtn"), "whiteLit");
-    win.addEventListener("load", keyinOnload, false);
+    B5500Util.openPopup(this.window, "B5500CardReaderKeyin.html", this.mnemonic + "-Keyin",
+            "location=no,scrollbars=no,resizable,width=640,height=240,left=" +
+                (this.window.screenX+32) +",top=" + (this.window.screenY+32),
+            this, keyinOnload);
 
 };
 
@@ -422,11 +423,12 @@ B5500CardReader.prototype.beforeUnload = function beforeUnload(ev) {
 };
 
 /**************************************/
-B5500CardReader.prototype.readerOnload = function readerOnload() {
+B5500CardReader.prototype.readerOnload = function readerOnload(ev) {
     /* Initializes the reader window and user interface */
     var de;
 
-    this.doc = this.window.document;
+    this.doc = ev.target;
+    this.window = this.doc.defaultView;
     de = this.doc.documentElement;
     this.doc.title = "retro-B5500 Card Reader " + this.mnemonic;
 
@@ -440,17 +442,17 @@ B5500CardReader.prototype.readerOnload = function readerOnload() {
     this.window.addEventListener("beforeunload",
             B5500CardReader.prototype.beforeUnload, false);
     this.$$("CRFileSelector").addEventListener("change",
-            B5500CentralControl.bindMethod(this, B5500CardReader.prototype.fileSelector_onChange), false);
+            B5500CardReader.prototype.fileSelector_onChange.bind(this), false);
     this.$$("CRStartBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRStartBtn_onClick), false);
+            B5500CardReader.prototype.CRStartBtn_onClick.bind(this), false);
     this.$$("CRStopBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRStopBtn_onClick), false);
+            B5500CardReader.prototype.CRStopBtn_onClick.bind(this), false);
     this.$$("CREOFBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CREOFBtn_onClick), false);
+            B5500CardReader.prototype.CREOFBtn_onClick.bind(this), false);
     this.$$("CRKeyinDeckBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRKeyinDeckBtn_onClick), false);
+            B5500CardReader.prototype.CRKeyinDeckBtn_onClick.bind(this), false);
     this.hopperBar.addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500CardReader.prototype.CRHopperBar_onClick), false);
+            B5500CardReader.prototype.CRHopperBar_onClick.bind(this), false);
 
     this.window.resizeBy(de.scrollWidth - this.window.innerWidth + 4, // kludge for right-padding/margin
                          de.scrollHeight - this.window.innerHeight);

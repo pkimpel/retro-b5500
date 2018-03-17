@@ -54,12 +54,15 @@ function B5500ConsolePanel(global, autoPowerUp, shutDown) {
     this.timerInterval = 50;            // Console display update interval [ms]
 
     this.doc = null;
-    this.window = window.open("../webUI/B5500ConsolePanel.html", "B5500Console",
+    B5500Util.openPopup(window, "../webUI/B5500ConsolePanel.html", "B5500Console",
             "location=no,scrollbars=no,resizable,top=0,left=" + left +
-            ",width=" + width + ",height=" + height);
-    this.window.addEventListener("load",
-            B5500CentralControl.bindMethod(this, B5500ConsolePanel.prototype.consoleOnload));
+                ",width=" + width + ",height=" + height,
+            this, B5500ConsolePanel.prototype.consoleOnload);
 }
+
+/**************************************/
+B5500ConsolePanel.annOnColor = "white"; // annunciator lamp on color
+B5500ConsolePanel.annOffColor = "#333"; // annunciator lamp off color
 
 /**************************************/
 B5500ConsolePanel.prototype.$$ = function $$(id) {
@@ -157,7 +160,7 @@ B5500ConsolePanel.prototype.PowerOnBtn_Click = function PowerOnBtn_Click(ev) {
             that.$$("SysConfigName").textContent = config.configName;
             that.$$("StorageName").textContent = config.units.DKA.storageName;
             if (that.showAnnunciators) {
-                that.lampTest(B5500CentralControl.bindMethod(that, applyPower), config);
+                that.lampTest(applyPower.bind(that), config);
             } else {
                 applyPower(config);
             }
@@ -225,7 +228,7 @@ B5500ConsolePanel.prototype.LoadBtn_Click = function LoadBtn_Click(ev) {
         this.$$("HaltBtn").disabled = false;
         this.$$("LoadBtn").disabled = true;
         this.timer = setInterval(
-            B5500CentralControl.bindMethod(this, B5500ConsolePanel.prototype.dasBlinkenlichten),
+            B5500ConsolePanel.prototype.dasBlinkenlichten.bind(this),
             this.timerInterval);
         break;
     case 1:
@@ -265,10 +268,10 @@ B5500ConsolePanel.prototype.LoadSelectBtn_Click = function LoadSelectBtn_Click(e
 /**************************************/
 B5500ConsolePanel.prototype.dumpState = function dumpState(caption) {
     /* Generates a dump of the processor states and all of memory */
-    var doc;
+    var doc = null;
     var lastPhase = -2;
-    var win = window.open("", "", "location=no,resizable,scrollbars,status");
-    var x;
+    var win = null;
+    var x = 0;
 
     var htmlMatch = /[<>&"]/g;          // regular expression for escaping HTML text
 
@@ -330,28 +333,38 @@ B5500ConsolePanel.prototype.dumpState = function dumpState(caption) {
         } // switch
     }
 
-    doc = win.document;
-    doc.open();
-    doc.writeln("<html><head><title>retro-B5500 Console State Dump</title>");
-    doc.writeln("</head><body>");
-    doc.write("<pre>");
+    function dumpStateOnLoad(ev) {
+        /* Call-back function for the dumpState onload event */
 
-    this.cc.dumpSystemState(caption, writer);
+        doc = ev.target;
+        win = doc.defaultView;
+        doc.open();
+        doc.writeln("<html><head><title>retro-B5500 Console State Dump</title>");
+        doc.writeln("</head><body>");
+        doc.write("<pre>");
 
-    doc.writeln("</pre></body></html>")
-    doc.close();
-    win.focus();
+        this.cc.dumpSystemState(caption, writer);
+
+        doc.writeln("</pre></body></html>")
+        doc.close();
+        win.focus();
+    }
+
+    // Outer block of dumpState
+    B5500Util.openPopup(this.window, "./B5500FramePaper.html", "",
+            "location=no,resizable,scrollbars,status",
+            this, dumpStateOnLoad);
 }
 
 /**************************************/
 B5500ConsolePanel.prototype.dumpTape = function dumpTape(caption) {
     /* Generates a dump of all of memory to a MEMORY/DUMP tape image */
-    var doc;
-    var win = window.open("", "", "location=no,resizable,scrollbars,status");
-    var x;
+    var doc = null;
+    var win = null;
+    var x = 0;
 
     var htmlMatch = /[<>&"]/g;          // regular expression for escaping HTML text
-    var tapeLabel = " LABEL  0MEMORY 0DUMP00100175001019936500000000000000000000000000000000000000000";
+    var tapeLabel = " LABEL  000000000MDUMP  001750010199365000006400000640000000051300513000002900|4";
 
     function htmlFilter(c) {
         /* Used to escape HTML-sensitive characters in a string */
@@ -389,24 +402,34 @@ B5500ConsolePanel.prototype.dumpTape = function dumpTape(caption) {
             break;
 
         case -1:        // Termination, write tape label
-            doc.writeln(text);
+            doc.writeln(text.substring(0, 160));
             doc.writeln("}");   // tape mark
             doc.writeln(tapeLabel);
             break;
         } // switch
     }
 
-    doc = win.document;
-    doc.open();
-    doc.writeln("<html><head><title>retro-B5500 Console Tape Dump</title>");
-    doc.writeln("</head><body>");
-    doc.write("<pre>");
+    function dumpTapeOnLoad(ev) {
+        /* Call-back function for the dumpTape window onload event */
 
-    this.cc.dumpSystemTape(caption, writer);
+        doc = ev.target;
+        win = doc.defaultView;
+        doc.open();
+        doc.writeln("<html><head><title>retro-B5500 Console Tape Dump</title>");
+        doc.writeln("</head><body>");
+        doc.write("<pre>");
 
-    doc.writeln("</pre></body></html>")
-    doc.close();
-    win.focus();
+        this.cc.dumpSystemTape(caption, writer);
+
+        doc.writeln("</pre></body></html>")
+        doc.close();
+        win.focus();
+    }
+
+    // Outer block of dumpTape
+    B5500Util.openPopup(this.window, "./B5500FramePaper.html", "",
+            "location=no,resizable,scrollbars,status",
+            this, dumpTapeOnLoad);
 }
 
 /**************************************/
@@ -496,7 +519,7 @@ B5500ConsolePanel.prototype.displayCentralControl = function displayCentralContr
     while (ccChange) {
         if (ccChange & 0x01) {
             if (this.ccLightsMap[x]) {
-                this.ccLightsMap[x].style.visibility = (ccMask & 0x01 ? "visible" : "hidden");
+                this.ccLightsMap[x].style.color = (ccMask & 0x01 ? B5500ConsolePanel.annOnColor : B5500ConsolePanel.annOffColor);
             }
         }
         ccMask >>>= 1;
@@ -508,7 +531,7 @@ B5500ConsolePanel.prototype.displayCentralControl = function displayCentralContr
     while (interruptChange) {
         if (interruptChange & 0x01) {
             if (this.intLightsMap[x]) {
-                this.intLightsMap[x].style.visibility = (interruptMask & 0x01 ? "visible" : "hidden");
+                this.intLightsMap[x].style.color = (interruptMask & 0x01 ? B5500ConsolePanel.annOnColor : B5500ConsolePanel.annOffColor);
             }
         }
         interruptMask >>>= 1;
@@ -520,7 +543,7 @@ B5500ConsolePanel.prototype.displayCentralControl = function displayCentralContr
     while (unitBusyChange) {
         if (unitBusyChange & 0x01) {
             if (this.perLightsMap[x]) {
-                this.perLightsMap[x].style.visibility = (unitBusyMask & 0x01 ? "visible" : "hidden");
+                this.perLightsMap[x].style.color = (unitBusyMask & 0x01 ? B5500ConsolePanel.annOnColor : B5500ConsolePanel.annOffColor);
             }
         }
         unitBusyMask >>>= 1;
@@ -532,20 +555,20 @@ B5500ConsolePanel.prototype.displayCentralControl = function displayCentralContr
 /**************************************/
 B5500ConsolePanel.prototype.dasBlinkenlichten = function dasBlinkenlichten() {
     /* Updates the panel display from current system state */
-    var cycles;
+    var cycles = 0;
     var pa = this.cc.PA;
     var pb = this.cc.PB;
     var p1 = this.cc.P1;
-    var stateRate;
+    var stateRate = 0;
 
     cycles = p1.normalCycles+p1.controlCycles+1; // avoid div zero
 
     if (pa) {
         if (pa.normalCycles+pa.controlCycles <= 0) {
             if (this.lastPAControlRate != -1) {
-                this.lastPAControlRate = -1;
-                this.aControl.className = "yellowButton";
+                this.lastPAControlRate = this.lastPANormalRate = -1;
                 this.aNormal.className = "yellowButton";
+                this.aControl.className = (pa === p1 ? "yellowButton yellowLit" : "yellowButton");
             }
         } else {
             stateRate = Math.round(pa.normalCycles/cycles*6 + 0.25);
@@ -576,7 +599,7 @@ B5500ConsolePanel.prototype.dasBlinkenlichten = function dasBlinkenlichten() {
                 }
             }
 
-            stateRate = Math.round(pa.controlCycles/cycles*6 + 0.25);
+            stateRate = (pa === p1 ? Math.round(pa.controlCycles/cycles*6 + 0.25) : 0);
             if (stateRate != this.lastPAControlRate) {
                 this.lastPAControlRate = stateRate;
                 switch (stateRate) {
@@ -611,9 +634,9 @@ B5500ConsolePanel.prototype.dasBlinkenlichten = function dasBlinkenlichten() {
     if (pb) {
         if (pb.normalCycles+pb.controlCycles <= 0) {
             if (this.lastPBControlRate != -1) {
-                this.bControl.className = "yellowButton";
+                this.lastPBControlRate = this.lastPBNormalRate = -1;
                 this.bNormal.className = "yellowButton";
-                this.lastPBControlRate = -1;
+                this.bControl.className = (pb === p1 ? "yellowButton yellowLit" : "yellowButton");
             }
         } else {
             stateRate = Math.round(pb.normalCycles/cycles*6 + 0.25);
@@ -644,7 +667,7 @@ B5500ConsolePanel.prototype.dasBlinkenlichten = function dasBlinkenlichten() {
                 }
             }
 
-            stateRate = Math.round(pb.controlCycles/cycles*6 + 0.25);
+            stateRate = (pb === p1 ? Math.round(pb.controlCycles/cycles*6 + 0.25) : 0);
             if (stateRate != this.lastPBControlRate) {
                 this.lastPBControlRate = stateRate;
                 switch (stateRate) {
@@ -717,7 +740,7 @@ B5500ConsolePanel.prototype.lampTest = function lampTest(callback, callbackParam
     var that = this;
 
     function switchEm(mode) {
-        var visibility = (mode ? "visible" : "hidden");
+        var visibility = (mode ? B5500ConsolePanel.annOnColor : B5500ConsolePanel.annOffColor);
         var x;
 
         that.$$("ANormalBtn").className = "yellowButton" + (mode ? " yellowLit" : "");
@@ -731,19 +754,19 @@ B5500ConsolePanel.prototype.lampTest = function lampTest(callback, callbackParam
 
         for (x in that.ccLightsMap) {
             if (that.ccLightsMap[x]) {
-                that.ccLightsMap[x].style.visibility = visibility;
+                that.ccLightsMap[x].style.color = visibility;
             }
         }
 
         for (x in that.intLightsMap) {
             if (that.intLightsMap[x]) {
-                that.intLightsMap[x].style.visibility = visibility;
+                that.intLightsMap[x].style.color = visibility;
             }
         }
 
         for (x in that.perLightsMap) {
             if (that.perLightsMap[x]) {
-                that.perLightsMap[x].style.visibility = visibility;
+                that.perLightsMap[x].style.color = visibility;
             }
         }
 
@@ -802,33 +825,33 @@ B5500ConsolePanel.prototype.clearStatusLabel = function clearStatusLabel(inSecon
 B5500ConsolePanel.prototype.consoleOnload = function consoleOnload(ev) {
     /* Initialization function called when window finishes loading */
 
-    this.doc = this.window.document;
+    this.doc = ev.target;
+    this.window = this.doc.defaultView;
     this.$$("RetroVersion").textContent = B5500CentralControl.version;
     this.window.name = "B5500Console";
     this.window.addEventListener("unload",
-            B5500CentralControl.bindMethod(this, B5500ConsolePanel.prototype.consoleUnload));
+            B5500ConsolePanel.prototype.consoleUnload.bind(this));
     this.$$("BurroughsLogo").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500ConsolePanel.prototype.BurroughsLogo_Click));
+            B5500ConsolePanel.prototype.BurroughsLogo_Click.bind(this));
     this.$$("B5500Logo").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500ConsolePanel.prototype.B5500Logo_Click));
+            B5500ConsolePanel.prototype.B5500Logo_Click.bind(this));
     this.$$("PowerOnBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500ConsolePanel.prototype.PowerOnBtn_Click));
+            B5500ConsolePanel.prototype.PowerOnBtn_Click.bind(this));
     this.$$("PowerOffBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500ConsolePanel.prototype.PowerOffBtn_Click));
+            B5500ConsolePanel.prototype.PowerOffBtn_Click.bind(this));
     this.$$("HaltBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500ConsolePanel.prototype.HaltBtn_Click));
+            B5500ConsolePanel.prototype.HaltBtn_Click.bind(this));
     this.$$("LoadBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500ConsolePanel.prototype.LoadBtn_Click));
+            B5500ConsolePanel.prototype.LoadBtn_Click.bind(this));
     this.$$("LoadSelectBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500ConsolePanel.prototype.LoadSelectBtn_Click));
+            B5500ConsolePanel.prototype.LoadSelectBtn_Click.bind(this));
     this.$$("MemoryCheckBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, function(ev) {
+            function(ev) {
                 this.dumpState("Memory-Check Button");
-    }));
-    this.$$("NotReadyBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, function(ev) {
-                this.dumpTape("Not-Ready Button");
-    }));
+    }.bind(this));
+    this.$$("NotReadyBtn").addEventListener("click", function(ev) {
+        this.dumpTape("Not-Ready Button");
+    }.bind(this));
 
     this.aControl = this.$$("AControlBtn");
     this.aNormal  = this.$$("ANormalBtn");
@@ -839,9 +862,9 @@ B5500ConsolePanel.prototype.consoleOnload = function consoleOnload(ev) {
     this.buildLightMaps();
 
     this.cc = new B5500CentralControl(this.global);
-    this.global.B5500DumpState = this.dumpState;        // for use by Processor
-    this.global.B5500DumpState = this.dumpTape;         // for use by Processor
-    this.global.focusConsole = B5500CentralControl.bindMethod(this, B5500ConsolePanel.prototype.focusConsole);
+    this.cc.B5500DumpState = B5500ConsolePanel.prototype.dumpState.bind(this);  // for use by Processor
+    this.cc.B5500DumpTape = B5500ConsolePanel.prototype.dumpTape.bind(this);    // for use by Processor
+    this.cc.focusConsole = B5500ConsolePanel.prototype.focusConsole.bind(this);
 
     this.window.resizeTo(this.doc.documentElement.scrollWidth + this.window.outerWidth - this.window.innerWidth + 2, // kludge +2, dunno why
                          this.doc.documentElement.scrollHeight + this.window.outerHeight - this.window.innerHeight);

@@ -45,12 +45,12 @@ function B5500DatacomUnit(mnemonic, unitIndex, designate, statusChange, signal, 
     this.clear();
 
     this.doc = null;
+    this.window = null;
     this.paper = null;
     this.endOfPaper = null;
-    this.window = window.open("../webUI/B5500DatacomUnit.html", mnemonic,
-            "location=no,scrollbars,resizable,width=520,height=540");
-    this.window.addEventListener("load", B5500CentralControl.bindMethod(this,
-            B5500DatacomUnit.prototype.datacomOnload), false);
+    B5500Util.openPopup(window, "../webUI/B5500DatacomUnit.html", mnemonic,
+            "location=no,scrollbars,resizable,width=520,height=540",
+            this, B5500DatacomUnit.prototype.datacomOnload);
 }
 
 // this.bufState enumerations
@@ -114,63 +114,63 @@ B5500DatacomUnit.prototype.setState = function setState(newState) {
     this.showBufferIndex();
 
     if (this.abnormal) {
-        B5500Util.addClass(this.$$("Abnormal"), "textLit")
+        this.$$("Abnormal").classList.add("textLit")
     } else {
-        B5500Util.removeClass(this.$$("Abnormal"), "textLit");
+        this.$$("Abnormal").classList.remove("textLit");
     }
 
     if (this.interrupt) {
-        B5500Util.addClass(this.$$("Interrupt"), "textLit")
+        this.$$("Interrupt").classList.add("textLit")
     } else {
-        B5500Util.removeClass(this.$$("Interrupt"), "textLit");
+        this.$$("Interrupt").classList.remove("textLit");
     }
 
     if (this.fullBuffer) {
-        B5500Util.addClass(this.$$("FullBuffer"), "textLit")
+        this.$$("FullBuffer").classList.add("textLit")
     } else {
-        B5500Util.removeClass(this.$$("FullBuffer"), "textLit");
+        this.$$("FullBuffer").classList.remove("textLit");
     }
 
     if (this.bufState != newState) {
         switch (this.bufState) {
         case this.bufNotReady:
-            B5500Util.removeClass(this.$$("NotReadyState"), "textLit");
+            this.$$("NotReadyState").classList.remove("textLit");
             break;
         case this.bufIdle:
-            B5500Util.removeClass(this.$$("IdleState"), "textLit");
+            this.$$("IdleState").classList.remove("textLit");
             break;
         case this.bufInputBusy:
-            B5500Util.removeClass(this.$$("InputBusyState"), "textLit");
+            this.$$("InputBusyState").classList.remove("textLit");
             break;
         case this.bufReadReady:
-            B5500Util.removeClass(this.$$("ReadReadyState"), "textLit");
+            this.$$("ReadReadyState").classList.remove("textLit");
             break;
         case this.bufOutputBusy:
-            B5500Util.removeClass(this.$$("OutputBusyState"), "textLit");
+            this.$$("OutputBusyState").classList.remove("textLit");
             break;
         case this.bufWriteReady:
-            B5500Util.removeClass(this.$$("WriteReadyState"), "textLit");
+            this.$$("WriteReadyState").classList.remove("textLit");
             break;
         }
 
         switch (newState) {
         case this.bufNotReady:
-            B5500Util.addClass(this.$$("NotReadyState"), "textLit");
+            this.$$("NotReadyState").classList.add("textLit");
             break;
         case this.bufIdle:
-            B5500Util.addClass(this.$$("IdleState"), "textLit");
+            this.$$("IdleState").classList.add("textLit");
             break;
         case this.bufInputBusy:
-            B5500Util.addClass(this.$$("InputBusyState"), "textLit");
+            this.$$("InputBusyState").classList.add("textLit");
             break;
         case this.bufReadReady:
-            B5500Util.addClass(this.$$("ReadReadyState"), "textLit");
+            this.$$("ReadReadyState").classList.add("textLit");
             break;
         case this.bufOutputBusy:
-            B5500Util.addClass(this.$$("OutputBusyState"), "textLit");
+            this.$$("OutputBusyState").classList.add("textLit");
             break;
         case this.bufWriteReady:
-            B5500Util.addClass(this.$$("WriteReadyState"), "textLit");
+            this.$$("WriteReadyState").classList.add("textLit");
             break;
         }
 
@@ -185,7 +185,7 @@ B5500DatacomUnit.prototype.termDisconnect = function termDisconnect() {
     if (this.connected) {
         this.bufLength = 0;
         this.bufIndex = 0;
-        B5500Util.removeClass(this.$$("TermConnectBtn"), "greenLit");
+        this.$$("TermConnectBtn").classList.remove("greenLit");
         this.interrupt = true;
         this.abnormal = true;
         this.setState(this.bufIdle);
@@ -199,7 +199,7 @@ B5500DatacomUnit.prototype.termConnect = function termConnect() {
     /* Sets the status of the datacom unit to connected */
 
     if (!this.connected) {
-        B5500Util.addClass(this.$$("TermConnectBtn"), "greenLit");
+        this.$$("TermConnectBtn").classList.add("greenLit");
         this.interrupt = true;
         this.abnormal = true;
         this.setState(this.bufWriteReady);
@@ -510,15 +510,15 @@ B5500DatacomUnit.prototype.copyPaper = function copyPaper(ev) {
     or saved by the user */
     var text = ev.target.textContent;
     var title = "B5500 " + this.mnemonic + " Text Snapshot";
-    var win = window.open("./B5500FramePaper.html", this.mnemonic + "-Snapshot",
-            "location=no,scrollbars,resizable,width=500,height=500");
 
-    win.moveTo((screen.availWidth-win.outerWidth)/2, (screen.availHeight-win.outerHeight)/2);
-    win.addEventListener("load", function() {
-        var doc;
+    B5500Util.openPopup(this.window, "./B5500FramePaper.html", "",
+            "location=no,scrollbars,resizable,width=500,height=500",
+            this, function(ev) {
+        var doc = ev.target;
+        var win = doc.defaultView;
 
-        doc = win.document;
         doc.title = title;
+        win.moveTo((screen.availWidth-win.outerWidth)/2, (screen.availHeight-win.outerHeight)/2);
         doc.getElementById("Paper").textContent = text;
     });
 
@@ -545,11 +545,12 @@ B5500DatacomUnit.prototype.beforeUnload = function beforeUnload(ev) {
 };
 
 /**************************************/
-B5500DatacomUnit.prototype.datacomOnload = function datacomOnload() {
+B5500DatacomUnit.prototype.datacomOnload = function datacomOnload(ev) {
     /* Initializes the datacom unit and terminal window user interface */
     var x;
 
-    this.doc = this.window.document;
+    this.doc = ev.target;
+    this.window = this.doc.defaultView;
     this.doc.title = "retro-B5500 Datacom Unit " + this.mnemonic + ": TU/BUF=01/00";
     this.paper = this.$$("Paper");
     this.endOfPaper = this.$$("EndOfPaper");
@@ -557,17 +558,17 @@ B5500DatacomUnit.prototype.datacomOnload = function datacomOnload() {
     this.window.addEventListener("beforeunload",
             B5500DatacomUnit.prototype.beforeUnload, false);
     this.window.addEventListener("resize",
-            B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.resizeWindow), false);
+            B5500DatacomUnit.prototype.resizeWindow.bind(this), false);
     this.window.addEventListener("keydown",
-            B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.keyDown), false);
+            B5500DatacomUnit.prototype.keyDown.bind(this), false);
     this.window.addEventListener("keypress",
-            B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.keyPress), false);
+            B5500DatacomUnit.prototype.keyPress.bind(this), false);
     this.$$("TermOut").addEventListener("keypress",
-            B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.keyPress), false);
+            B5500DatacomUnit.prototype.keyPress.bind(this), false);
     this.paper.addEventListener("dblclick",
-            B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.copyPaper), false);
+            B5500DatacomUnit.prototype.copyPaper.bind(this), false);
     this.$$("TermConnectBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500DatacomUnit.prototype.termConnectBtnClick), false);
+            B5500DatacomUnit.prototype.termConnectBtnClick.bind(this), false);
 
     this.statusChange(1);               // make DCA ready
     this.window.moveTo((screen.availWidth-this.window.outerWidth)/2,

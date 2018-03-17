@@ -51,7 +51,6 @@ function B5500IOUnit(ioUnitID, cc) {
         requestorID: ioUnitID,             // Memory requestor ID
         addr: 0,                           // Memory address
         word: 0,                           // 48-bit data word
-        MAIL: 0,                           // Truthy if attempt to access @000-@777 in normal state
         MPED: 0,                           // Truthy if memory parity error
         MAED: 0                            // Truthy if memory address/inhibit error
     };
@@ -1162,6 +1161,7 @@ B5500IOUnit.prototype.forkIO = function forkIO() {
 
         // card #1 reader/punch
         case 10:
+            this.D23F = 0;              // disable word count
             if (this.D24F) {            // CRA
                 u.read(this.boundFinishGenericRead, this.buffer, (this.D21F ? 160 : 80), this.D21F, 0);
             } else {                    // CPA
@@ -1175,6 +1175,7 @@ B5500IOUnit.prototype.forkIO = function forkIO() {
 
         // card #2 reader
         case 14:
+            this.D23F = 0;              // disable word count
             if (this.D24F) {
                 u.read(this.boundFinishGenericRead, this.buffer, (this.D21F ? 160 : 80), this.D21F, 0);
             } else {

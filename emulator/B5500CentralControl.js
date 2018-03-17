@@ -61,7 +61,7 @@ function B5500CentralControl(global) {
 /**************************************/
 
 /* Global constants */
-B5500CentralControl.version = "1.04";
+B5500CentralControl.version = "1.05";
 
 B5500CentralControl.memReadCycles = 2;          // assume 2 µs memory read cycle time (the other option was 3 µs)
 B5500CentralControl.memWriteCycles = 4;         // assume 4 µs memory write cycle time (the other option was 6 µs)
@@ -149,15 +149,6 @@ B5500CentralControl.unitSpecs = {
     MTB: {unitIndex: 46, designate:  3, unitClass: "B5500MagTapeDrive"},
     MTA: {unitIndex: 47, designate:  1, unitClass: "B5500MagTapeDrive"}};
 
-
-/**************************************/
-B5500CentralControl.bindMethod = function bindMethod(context, f) {
-    /* Returns a new function that binds the function "f" to the object "context".
-    Note that this is a static constructor property function, NOT an instance
-    method of the CC object */
-
-    return function bindMethodAnon() {return f.apply(context, arguments)};
-};
 
 /**************************************/
 B5500CentralControl.prototype.clear = function clear() {
@@ -344,7 +335,7 @@ B5500CentralControl.prototype.fetch = function fetch(acc) {
     }
 
     // For now, we assume memory parity can never happen
-    if (acc.MAIL || !this.memMod[modNr]) {
+    if (!this.memMod[modNr]) {
         acc.MPED = 0;   // no memory parity error
         acc.MAED = 1;   // memory address error
         // no .word value is returned in this case
@@ -388,7 +379,7 @@ B5500CentralControl.prototype.store = function store(acc) {
     }
 
     // For now, we assume memory parity can never happen
-    if (acc.MAIL || !this.memMod[modNr]) {
+    if (!this.memMod[modNr]) {
         acc.MPED = 0;   // no memory parity error
         acc.MAED = 1;   // memory address error
         // no word is stored in this case
@@ -923,7 +914,6 @@ B5500CentralControl.prototype.dumpSystemState = function dumpSystemState(caption
         requestorID: "C",               // Memory requestor ID
         addr: 0,                        // Memory address
         word: 0,                        // 48-bit data word
-        MAIL: 0,                        // Truthy if attempt to access @000-@777 in normal state
         MPED: 0,                        // Truthy if memory parity error
         MAED: 0                         // Truthy if memory address/inhibit error
     };
@@ -1066,7 +1056,6 @@ B5500CentralControl.prototype.dumpSystemTape = function dumpSystemTape(caption, 
         requestorID: "C",               // Memory requestor ID
         addr: 0,                        // Memory address
         word: 0,                        // 48-bit data word
-        MAIL: 0,                        // Truthy if attempt to access @000-@777 in normal state
         MPED: 0,                        // Truthy if memory parity error
         MAED: 0                         // Truthy if memory address/inhibit error
     };
@@ -1127,10 +1116,7 @@ B5500CentralControl.prototype.dumpSystemTape = function dumpSystemTape(caption, 
         }
     } // for mod
 
-    bic = caption.toUpperCase();
-    while (bic.length < 150) {
-        bic += "          ";
-    }
+    bic = caption.toUpperCase() + ", P1 S=" + this.P1.S.toString(8) + " F=" + this.P1.F.toString(8);
     while (bic.length < 160) {
         bic += " ";
     }
@@ -1163,8 +1149,8 @@ B5500CentralControl.prototype.configureSystem = function configureSystem(cfg) {
                     cc.CCI05F = 1;
                     cc.signalInterrupt();
                 } else if (f === -1) {  // focus Console Panel window (if available)
-                    if ("focusConsole" in cc.global) {
-                        cc.global.focusConsole();
+                    if ("focusConsole" in cc) {
+                        cc.focusConsole();
                     }
                 }
             };

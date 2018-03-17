@@ -16,8 +16,8 @@
 * Units (EU) and sizes and types of each of the EUs. This module addresses
 * the second part.
 *
-* Each disk storage subsystem is maintained as a separate IndexedDB database.
-* Each database contains a single-object store named "CONFIG" that holds the
+* Each disk storage subsystem is maintained as a separate IndexedDB data base.
+* Each data base contains a single-object store named "CONFIG" that holds the
 * configuration data for that subsystem. In addition, there are one or more
 * "EUn" object stores, where "n" is a one- or two-digit decimal number in the
 * range 0-19. Each of these object stores represents the storage capacity for
@@ -27,7 +27,7 @@
 * represented individually, as their address space was monolithic within an EU
 * (i.e., one I/O could cross SU boundaries but not EU boundaries).
 *
-* In addition to the "CONFIG" and "EUn" object stores, the database will have
+* In addition to the "CONFIG" and "EUn" object stores, the data base will have
 * two object stores reserved for use by the drum units, DRA and DRB. These
 * units have a fixed 32K words of storage and were word-addressible. Since
 * they have a fixed configuration, they are not represented in the "CONFIG"
@@ -64,10 +64,10 @@
 *
 *       configLevel:    the revision level of the CONFIG object.
 *       storageName:    the name of the storage subsystem. This should match
-*                       the name of the IndexedDB database (db.name).
+*                       the name of the IndexedDB data base (db.name).
 *
 * The "EUn" objects in "CONFIG" MUST match one-for-one the "EUn" object stores
-* in the database. Object stores without a matching "CONFIG" entry entry will
+* in the data base. Object stores without a matching "CONFIG" entry entry will
 * not be used by the emulator (the EU will be reported as being not ready).
 * "CONFIG" entries without a matching object store will cause an error when the
 * disk device driver attempts to create an IndexedDB transaction that references
@@ -103,19 +103,19 @@
 *       in the disk subsystem and require a Cold Start to resolve.
 *
 * Also note that in emulator 0.20 and earlier, there was a single disk storage
-* database named "B5500DiskUnit". That database also contained a single-object
+* data base named "B5500DiskUnit". That data base also contained a single-object
 * store named "CONFIG", but with a simpler set of "EUn" objects that indicated
 * only the size of the EU. The "B5500DiskUnit" name is retained as a default
 * storage name for the initial disk subsystem to be created. If the emulator
-* encounters a database with the older form of EU object, it will use it
+* encounters a data base with the older form of EU object, it will use it
 * implying slow=true and lockoutMask=0. If you modify the EU configuration in
 * any way, however, the older form of object will be converted to the new form.
 *
-* With this approach, disk subsystem databases from older versions of the
+* With this approach, disk subsystem data bases from older versions of the
 * emulator will work with the later versions, but ONLY IF THE DISK CONFIGURATION
 * IS NOT MODIFIED. Once you click the "SAVE" button on the Disk Subsystem
 * Configuration dialog, the "CONFIG" structure will be updated to the newer
-* format, and the database will no longer work with older versions of the
+* format, and the data base will no longer work with older versions of the
 * emulator.
 *
 ************************************************************************
@@ -128,8 +128,9 @@
 function B5500DiskStorageConfig() {
     /* Constructor for the DiskStorageConfig object */
 
-    this.db = null;                     // the IndexedDB database connection (null if closed)
+    this.db = null;                     // the IndexedDB data base connection (null if closed)
     this.storageConfig = null;          // the current storage subsystem configuration
+    this.doc = null;                    // configuration UI document object
     this.window = null;                 // configuration UI window object
     this.alertWin = window;             // current base window for alert/confirm/prompt
 }
@@ -159,22 +160,22 @@ B5500DiskStorageConfig.prototype.$$ = function $$(id) {
 
 /**************************************/
 B5500DiskStorageConfig.prototype.genericDBError = function genericDBError(ev) {
-    // Formats a generic alert message when an otherwise-unhandled database error occurs */
+    // Formats a generic alert message when an otherwise-unhandled data base error occurs */
 
-    alert("Database \"" + target.result.name +
+    alert("data base \"" + ev.target.result.name +
           "\" UNHANDLED ERROR: " + ev.target.result.error);
 };
 
 
 /***********************************************************************
-*   Disk Storage Database Configuration Interface                      *
+*   Disk Storage data base Configuration Interface                     *
 ***********************************************************************/
 
 /**************************************/
 B5500DiskStorageConfig.prototype.upgradeStorageSchema = function upgradeStorageSchema(ev) {
-    /* Handles the onupgradeneeded event for this Disk Storage database. Upgrades
-    the schema to the current version. For a new database, creates the default
-    configuration and stores it in the database. "ev" is the upgradeneeded event.
+    /* Handles the onupgradeneeded event for this Disk Storage data base. Upgrades
+    the schema to the current version. For a new data base, creates the default
+    configuration and stores it in the data base. "ev" is the upgradeneeded event.
     Must be called in the context of the DiskStorageConfig object */
     var aborted = false;
     var configStore = null;
@@ -196,9 +197,9 @@ B5500DiskStorageConfig.prototype.upgradeStorageSchema = function upgradeStorageS
     }
 
     function applyNewConfig(config) {
-        /* Applies the new configuration structure in "CONFIG" to the database.
-        If CONFIG contains EU* structures that are not in the database, those
-        new structures are created. If the database contains EU* structures
+        /* Applies the new configuration structure in "CONFIG" to the data base.
+        If CONFIG contains EU* structures that are not in the data base, those
+        new structures are created. If the data base contains EU* structures
         that are not in CONFIG, they are ignored (the storage UI should
         prevent this from happening, however) */
         var name;
@@ -223,7 +224,7 @@ B5500DiskStorageConfig.prototype.upgradeStorageSchema = function upgradeStorageS
     }
 
     function createDefaultConfig() {
-        /* Create an initial disk subsystem configuration for a new database,
+        /* Create an initial disk subsystem configuration for a new data base,
         containing a single EU having the default EU configuration, plus
         both drum units */
         var config = B5500Util.deepCopy(B5500DiskStorageConfig.prototype.storageConfig);
@@ -243,19 +244,19 @@ B5500DiskStorageConfig.prototype.upgradeStorageSchema = function upgradeStorageS
     };
 
     if (ev.oldVersion < 1) {
-        // New database -- start by creating a store for the config structure.
-        if (!this.alertWin.confirm("Disk Storage database \"" + db.name +
+        // New data base -- start by creating a store for the config structure.
+        if (!this.alertWin.confirm("Disk Storage data base \"" + db.name +
                      "\"\ndoes not exist. Do you want to create it?")) {
             aborted = true;
             txn.abort();
             db.close();
         } else {
-            this.alertWin.alert("Disk Storage database \"" + db.name + "\" created.");
+            this.alertWin.alert("Disk Storage data base \"" + db.name + "\" created.");
         }
     }
 
     if (aborted) {
-        this.alertWin.alert("Disk Storage database creation aborted.");
+        this.alertWin.alert("Disk Storage data base creation aborted.");
     } else if (db.objectStoreNames.contains(this.storageConfigName)) {
         // Normal upgrade: get the updated config structure from the DB and apply it
         configStore = txn.objectStore(this.storageConfigName);
@@ -263,8 +264,8 @@ B5500DiskStorageConfig.prototype.upgradeStorageSchema = function upgradeStorageS
             applyNewConfig(that.normalizeStorageConfig(ev.target.result, db.Name));
         };
     } else {
-        // No config structure exists in the database. We assume this is a
-        // database just being created, so simply create a Disk Storage CONFIG
+        // No config structure exists in the data base. We assume this is a
+        // data base just being created, so simply create a Disk Storage CONFIG
         // structure for it.
         configStore = db.createObjectStore(this.storageConfigName);
         createDefaultConfig();
@@ -274,7 +275,7 @@ B5500DiskStorageConfig.prototype.upgradeStorageSchema = function upgradeStorageS
 /**************************************/
 B5500DiskStorageConfig.prototype.deleteStorageDB = function deleteStorageDB(
         storageName, onsuccess, onfailure) {
-    /* Attempts to permanently delete the Disk Storage database named in
+    /* Attempts to permanently delete the Disk Storage data base named in
     "storageName". If successful, calls the "onsuccess" function passing
     the resulting event; if not successful, calls onfailure passing the
     resulting event */
@@ -283,9 +284,9 @@ B5500DiskStorageConfig.prototype.deleteStorageDB = function deleteStorageDB(
     var that = this;
 
     if (this.alertWin.confirm("This will PERMANENTLY DELETE the\n" +
-                "Disk Storage database \"" + storageName + "\".\n\n" +
+                "Disk Storage data base \"" + storageName + "\".\n\n" +
                 "Are you sure you want to do this?\n")) {
-        if (this.alertWin.confirm("Deletion of the Disk Storage database\n" +
+        if (this.alertWin.confirm("Deletion of the Disk Storage data base\n" +
                     "CANNOT BE UNDONE.\n\nAre you really sure?\n")) {
             if (this.db && this.db.name == storageName) {
                 this.storageConfig = null;
@@ -295,16 +296,16 @@ B5500DiskStorageConfig.prototype.deleteStorageDB = function deleteStorageDB(
             req = window.indexedDB.deleteDatabase(storageName);
 
             req.onerror = function(ev) {
-                that.alertWin.alert("CANNOT DELETE Disk Storage database:\n" + ev.target.error);
+                that.alertWin.alert("CANNOT DELETE Disk Storage data base:\n" + ev.target.error);
                 onfailure(ev);
             };
 
             req.onblocked = function(ev) {
-                that.alertWin.alert("Deletion of Disk Storage database is BLOCKED");
+                that.alertWin.alert("Deletion of Disk Storage data base is BLOCKED");
             };
 
             req.onsuccess = function(ev) {
-                that.alertWin.alert("Disk Storage database \"" + storageName +
+                that.alertWin.alert("Disk Storage data base \"" + storageName +
                                     "\"\n successfully deleted.");
                 onsuccess(ev);
                 sysConfig = new B5500SystemConfig();
@@ -319,7 +320,7 @@ B5500DiskStorageConfig.prototype.modifyStorageSchema =
         function modifyStorageSchema(onsuccess, onfailure) {
     /* Called to trigger a schema upgrade. Before calling this method, the new
     EU configuration must be established and stored in the "CONFIG" store.
-    This method simply closes the database and then reopens with with the next
+    This method simply closes the data base and then reopens with with the next
     higher version number. That will trigger the onupgradeneeded event, and
     upgradeStorageSchema() will examine the new config structure, creating any
     new EUs as necessary. The "onsuccess" or "onfailure" callbacks are called
@@ -333,7 +334,7 @@ B5500DiskStorageConfig.prototype.modifyStorageSchema =
     req = window.indexedDB.open(dbName, ver+1); // trigger the schema upgrade
 
     req.onblocked = function(ev) {
-        that.alertWin.alert("Database \"" + dbName +
+        that.alertWin.alert("data base \"" + dbName +
                             "\"\n open for schema upgrade is blocked");
     };
 
@@ -350,9 +351,9 @@ B5500DiskStorageConfig.prototype.modifyStorageSchema =
         that.db = ev.target.result;
         that.db.onerror = that.genericDBError;  // set up global error handler
         // Since we know we just went through an onupgradeneeded event, we know
-        // this database now has a "CONFIG" structure, so the extra tests in
+        // this data base now has a "CONFIG" structure, so the extra tests in
         // openStorageDB() are not necessary.
-        // that.alertWin.alert("Database \"" + dbName + "\" schema upgrade successful");
+        // that.alertWin.alert("data base \"" + dbName + "\" schema upgrade successful");
         delete that.storageConfig;
         onsuccess(ev);
     };
@@ -361,28 +362,28 @@ B5500DiskStorageConfig.prototype.modifyStorageSchema =
 /**************************************/
 B5500DiskStorageConfig.prototype.openStorageDB = function openStorageDB(
         storageName, onsuccess, onfailure) {
-    /* Attempts to open the Disk Storage database named in "storageName".
-    Handles, if necessary, a change in database version. If successful,
+    /* Attempts to open the Disk Storage data base named in "storageName".
+    Handles, if necessary, a change in data base version. If successful,
     calls the "onsuccess" function passing the success event. If not successful,
     calls the "onfailure" function passing the error event.
 
     This process is just a little bit nasty, because the only time we can
     modify the DB schema to add new EUs is during an onupgradeneeded event.
     That event is fired only when the DB version increases. Therefore, we
-    must normally open the database without specifying a version, as we have
+    must normally open the data base without specifying a version, as we have
     no aprori idea what it might me. There are three possibilities:
-         1. This is an open for a database that does not currently exist.
+         1. This is an open for a data base that does not currently exist.
             The old version is 0 and the new version will be 1. The onupgrade-
             needed event will automatically fire, and upgradeStorageSchema()
             will create the "CONFIG" structure and an initial default EU.
-         2. This is an open for an existing database that has a "CONFIG"
+         2. This is an open for an existing data base that has a "CONFIG"
             structure. This is the simplest case, and proceeds like a normal
             IndexedDB open.
-         3. This is an open for an existing database that does not have a
+         3. This is an open for an existing data base that does not have a
             "CONFIG" structure. We have no idea what it is, so we throw up
-            an alert, call onfailure(), and close the database before we do
+            an alert, call onfailure(), and close the data base before we do
             any damage. The failure routine can, if it wishes, still access
-            the database.
+            the data base.
     */
     var req;                            // IndexedDB open request
     var that = this;
@@ -390,7 +391,7 @@ B5500DiskStorageConfig.prototype.openStorageDB = function openStorageDB(
     req = window.indexedDB.open(storageName);   // open the current version, whatever it may be
 
     req.onblocked = function(ev) {
-        that.alertWin.alert("Database \"" + storageName + "\" open is blocked");
+        that.alertWin.alert("data base \"" + storageName + "\" open is blocked");
         that.closeStorageDB();
     };
 
@@ -410,7 +411,7 @@ B5500DiskStorageConfig.prototype.openStorageDB = function openStorageDB(
             delete that.storageConfig;
             onsuccess(ev);
         } else {
-            that.alertWin.alert("ERROR: Disk Storage database \"" + storageName +
+            that.alertWin.alert("ERROR: Disk Storage data base \"" + storageName +
                     "\"\nhas no CONFIG store");
             onfailure(ev);
             that.closeStorageDB();
@@ -477,7 +478,7 @@ B5500DiskStorageConfig.prototype.getStorageConfig = function getStorageConfig(st
     var that = this;
 
     function readConfig() {
-        /* Reads the named system configuration structure from the database,
+        /* Reads the named system configuration structure from the data base,
         then calls the successor function with the configuration object */
         var txn = that.db.transaction(that.storageConfigName);
 
@@ -490,7 +491,7 @@ B5500DiskStorageConfig.prototype.getStorageConfig = function getStorageConfig(st
     function onOpenFailure(ev) {
         that.storageConfig = null;
         that.alertWin.alert("getStorageConfig cannot open \"" + storageName +
-                            "\" database:\n" + ev.target.error);
+                            "\" data base:\n" + ev.target.error);
         successor(that.storageConfig);
     }
 
@@ -506,7 +507,7 @@ B5500DiskStorageConfig.prototype.getStorageConfig = function getStorageConfig(st
 B5500DiskStorageConfig.prototype.putStorageConfig = function putStorageConfig(
         config, successor) {
     /* Attempts to store the structure "config" to the Disk Storage
-    database. The database name must be in config.storageName.
+    data base. The data base name must be in config.storageName.
     If successful, calls "successor" passing the success event */
     var that = this;
 
@@ -528,7 +529,7 @@ B5500DiskStorageConfig.prototype.putStorageConfig = function putStorageConfig(
     function onOpenFailure(ev) {
         that.storageConfig = null;
         that.alertWin.alert("putStorageConfig cannot open \"" + storageName +
-                            "\" database:\n" + ev.target.error);
+                            "\" data base:\n" + ev.target.error);
     }
 
     if (this.db && this.db.name == config.storageName) {
@@ -596,7 +597,7 @@ B5500DiskStorageConfig.prototype.loadStorageDialog = function loadStorageDialog(
 
 /**************************************/
 B5500DiskStorageConfig.prototype.saveStorageDialog = function saveStorageDialog(ev) {
-    /* Saves the configuration UI window settings to the System Config database.
+    /* Saves the configuration UI window settings to the System Config data base.
     A new config object is cloned from the prototype, then the current configuration
     is merged with the settings on the window form into the new object. If there
     are no errors, the new object is stored in "CONFIG" and the window is closed */
@@ -698,7 +699,7 @@ B5500DiskStorageConfig.prototype.deleteStorageDialog = function deleteStorageDia
     var that = this;
 
     function deleteFailed(ev) {
-        that.alertWin.alert("Deletion of database \"" + storageName +
+        that.alertWin.alert("Deletion of data base \"" + storageName +
                 "\" failed: " + ev.target.error);
     }
     function deleteOK(ev) {
@@ -719,6 +720,7 @@ B5500DiskStorageConfig.prototype.closeStorageUI = function closeStorageUI() {
             this.window.close();
         }
         this.window = null;
+        this.doc = null;
     }
 }
 
@@ -729,27 +731,29 @@ B5500DiskStorageConfig.prototype.openStorageUI = function openStorageUI(storageN
     var that = this;
 
     function storageUI_Open(ev) {
+        this.doc = ev.target;
+        this.window = this.doc.defaultView;
+        this.alertWin = this.window;
+
+        this.window.moveTo(screen.availWidth-this.window.outerWidth-80,
+                   (screen.availHeight-this.window.outerHeight)/2);
+        this.window.focus();
+
         this.getStorageConfig(storageName,
-                B5500CentralControl.bindMethod(this, this.loadStorageDialog));
+                this.loadStorageDialog.bind(this));
         this.$$("StorageDeleteBtn").addEventListener("click", function(ev) {
                 that.deleteStorageDialog(storageName);
         });
         this.$$("SaveBtn").addEventListener("click",
-                B5500CentralControl.bindMethod(this, this.saveStorageDialog));
+                this.saveStorageDialog.bind(this));
         this.$$("CancelBtn").addEventListener("click", function(ev) {
                 that.window.close();
         });
         this.window.addEventListener("unload",
-                B5500CentralControl.bindMethod(this, this.closeStorageUI), false);
+                this.closeStorageUI.bind(this), false);
     }
 
-    this.doc = null;
-    this.window = window.open("../webUI/B5500DiskStorageConfig.html", storageName+"_Config",
-            "location=no,scrollbars,resizable,width=560,height=480");
-    this.window.moveTo(screen.availWidth-this.window.outerWidth-80,
-               (screen.availHeight-this.window.outerHeight)/2);
-    this.window.focus();
-    this.alertWin = this.window;
-    this.window.addEventListener("load",
-            B5500CentralControl.bindMethod(this, storageUI_Open), false);
+    B5500Util.openPopup(window, "../webUI/B5500DiskStorageConfig.html", storageName+"_Config",
+            "location=no,scrollbars,resizable,width=560,height=480",
+            this, storageUI_Open);
 };

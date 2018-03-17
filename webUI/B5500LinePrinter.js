@@ -35,17 +35,17 @@ function B5500LinePrinter(mnemonic, unitIndex, designate, statusChange, signal, 
 
     this.clear();
 
-    this.doc = null;
+    this.doc = null;                    // printer UI document object
+    this.window = null;                 // printer UI window object
     this.barGroup = null;               // current greenbar line group
     this.paperDoc = null;               // the content document for the paper frame
     this.paper = null;                  // the "paper" we print on
     this.endOfPaper = null;             // dummy element used to control scrolling
     this.paperMeter = null;             // <meter> element showing amount of paper remaining
-    this.window = window.open("../webUI/B5500LinePrinter.html", mnemonic,
+    B5500Util.openPopup(window, "../webUI/B5500LinePrinter.html", mnemonic,
             "location=no,scrollbars,resizable,width=" + w + ",height=" + h +
-            ",left=0,top=" + (screen.availHeight - h));
-    this.window.addEventListener("load",
-        B5500CentralControl.bindMethod(this, B5500LinePrinter.prototype.printerOnload), false);
+                ",left=0,top=" + (screen.availHeight - h),
+            this, B5500LinePrinter.prototype.printerOnload);
 }
 
 B5500LinePrinter.prototype.linesPerMinute = 1040;       // B329 line printer
@@ -72,7 +72,7 @@ B5500LinePrinter.prototype.clear = function clear() {
     this.paperLeft = this.maxPaperLines;// lines remaining in paper supply
     this.formFeedCount = 0;             // counter for triple-formfeed => rip paper
     this.groupLinesLeft = 0;            // lines remaining in current greenbar group
-    this.topOfForm = false;             // start new page flag
+    this.atTopOfForm = false;             // start new page flag
 };
 
 /**************************************/
@@ -81,13 +81,13 @@ B5500LinePrinter.prototype.setPrinterReady = function setPrinterReady(ready) {
 
     if (ready && !this.ready) {
         this.statusChange(1);
-        B5500Util.addClass(this.$$("LPStartBtn"), "greenLit")
-        B5500Util.removeClass(this.$$("LPNotReadyLight"), "whiteLit");
+        this.$$("LPStartBtn").classList.add("greenLit")
+        this.$$("LPNotReadyLight").classList.remove("whiteLit");
         this.ready = true;
     } else if (!ready && this.ready) {
         this.statusChange(0);
-        B5500Util.removeClass(this.$$("LPStartBtn"), "greenLit")
-        B5500Util.addClass(this.$$("LPNotReadyLight"), "whiteLit");
+        this.$$("LPStartBtn").classList.remove("greenLit")
+        this.$$("LPNotReadyLight").classList.add("whiteLit");
         this.ready = false;
     }
 };
@@ -97,7 +97,7 @@ B5500LinePrinter.prototype.ripPaper = function ripPaper(ev) {
     /* Handles an event to clear the "paper" from the printer */
 
     this.formFeedCount = 0;
-    B5500Util.removeClass(this.$$("LPEndOfPaperBtn"), "whiteLit");
+    this.$$("LPEndOfPaperBtn").classList.remove("whiteLit");
     this.paperMeter.value = this.paperLeft = this.maxPaperLines;
     while (this.paper.firstChild) {
         this.paper.removeChild(this.paper.firstChild);
@@ -112,20 +112,20 @@ B5500LinePrinter.prototype.copyPaper = function copyPaper(ev) {
     var barGroup = this.paper.firstChild;
     var text = "";
     var title = "B5500 " + this.mnemonic + " Paper Snapshot";
-    var win = window.open("./B5500FramePaper.html", this.mnemonic + "-Snapshot",
-            "scrollbars,resizable,width=500,height=500");
 
     while (barGroup) {
         text += barGroup.textContent + "\n";
         barGroup = barGroup.nextSibling;
     }
 
-    win.moveTo((screen.availWidth-win.outerWidth)/2, (screen.availHeight-win.outerHeight)/2);
-    win.addEventListener("load", function() {
-        var doc;
+    B5500Util.openPopup(this.window, "./B5500FramePaper.html", "",
+            "scrollbars,resizable,width=500,height=500",
+            this, function(ev) {
+        var doc = ev.target;
+        var win = doc.defaultView;
 
-        doc = win.document;
         doc.title = title;
+        win.moveTo((screen.availWidth-win.outerWidth)/2, (screen.availHeight-win.outerHeight)/2);
         doc.getElementById("Paper").textContent = text;
     });
 
@@ -191,7 +191,7 @@ B5500LinePrinter.prototype.printLine = function printLine(text, control) {
         this.paperMeter.value = this.paperLeft -= lines;
     } else {
         this.setPrinterReady(false);
-        B5500Util.addClass(this.$$("LPEndOfPaperBtn"), "whiteLit");
+        this.$$("LPEndOfPaperBtn").classList.add("whiteLit");
     }
 };
 
@@ -298,7 +298,7 @@ B5500LinePrinter.prototype.LPEndOfPaperBtn_onclick = function LPEndOfPaperBtn_on
 
     if (this.paperLeft <= 0 && !this.ready) {
         this.formFeedCount = 0;
-        B5500Util.removeClass(this.$$("LPEndOfPaperBtn"), "whiteLit");
+        this.$$("LPEndOfPaperBtn").classList.remove("whiteLit");
         this.setPrinterReady(true);
     }
 };
@@ -328,11 +328,12 @@ B5500LinePrinter.prototype.beforeUnload = function beforeUnload(ev) {
 };
 
 /**************************************/
-B5500LinePrinter.prototype.printerOnload = function printerOnload() {
+B5500LinePrinter.prototype.printerOnload = function printerOnload(ev) {
     /* Initializes the line printer window and user interface */
     var newChild;
 
-    this.doc = this.window.document;
+    this.doc = ev.target;
+    this.window = this.doc.defaultView;
     this.doc.title = "retro-B5500 Line Printer " + this.mnemonic;
 
     this.paperDoc = this.$$("LPPaperFrame").contentDocument;
@@ -355,21 +356,21 @@ B5500LinePrinter.prototype.printerOnload = function printerOnload() {
     this.window.addEventListener("beforeunload",
             B5500LinePrinter.prototype.beforeUnload, false);
     this.paper.addEventListener("dblclick",
-            B5500CentralControl.bindMethod(this, B5500LinePrinter.prototype.copyPaper));
+            B5500LinePrinter.prototype.copyPaper.bind(this), false);
     this.$$("LPEndOfPaperBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500LinePrinter.prototype.LPEndOfPaperBtn_onclick), false);
+            B5500LinePrinter.prototype.LPEndOfPaperBtn_onclick.bind(this), false);
     this.$$("LPFormFeedBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500LinePrinter.prototype.LPFormFeedBtn_onclick), false);
+            B5500LinePrinter.prototype.LPFormFeedBtn_onclick.bind(this), false);
     this.$$("LPSpaceBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500LinePrinter.prototype.LPSpaceBtn_onclick), false);
+            B5500LinePrinter.prototype.LPSpaceBtn_onclick.bind(this), false);
     this.$$("LPAlgolGlyphsCheck").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500LinePrinter.prototype.LPAlgolGlyphsCheck_onclick), false);
+            B5500LinePrinter.prototype.LPAlgolGlyphsCheck_onclick.bind(this), false);
     this.$$("LPGreenbarCheck").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500LinePrinter.prototype.LPGreenbarCheck_onclick), false);
+            B5500LinePrinter.prototype.LPGreenbarCheck_onclick.bind(this), false);
     this.$$("LPStopBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500LinePrinter.prototype.LPStopBtn_onclick), false);
+            B5500LinePrinter.prototype.LPStopBtn_onclick.bind(this), false);
     this.$$("LPStartBtn").addEventListener("click",
-            B5500CentralControl.bindMethod(this, B5500LinePrinter.prototype.LPStartBtn_onclick), false);
+            B5500LinePrinter.prototype.LPStartBtn_onclick.bind(this), false);
 
     this.window.moveTo(0, screen.availHeight - this.window.outerHeight);
 };

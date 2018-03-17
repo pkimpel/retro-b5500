@@ -65,6 +65,7 @@ function B5500SystemConfig() {
 
     this.db = null;                     // the IndexedDB database connection (null if closed)
     this.systemConfig = null;           // the currently-loaded system configuration
+    this.doc = null;                    // configuration UI document object
     this.window = null;                 // configuration UI window object
     this.alertWin = window;             // current base window for alert/confirm/prompt
 }
@@ -786,8 +787,7 @@ B5500SystemConfig.prototype.selectConfigDialog = function selectConfigDialog(ev)
         this.alertWin.alert("No configuration selected");     // should never happen
     } else {
         configName = nameList.options[selection].value;
-        this.getSystemConfig(configName,
-                B5500CentralControl.bindMethod(this, this.loadConfigDialog));
+        this.getSystemConfig(configName, this.loadConfigDialog.bind(this));
     }
 };
 
@@ -847,35 +847,37 @@ B5500SystemConfig.prototype.openConfigUI = function openConfigUI() {
     default system configuration */
 
     function configUI_Open(ev) {
+        this.doc = ev.target;
+        this.window = this.doc.defaultView;
+        this.alertWin = this.window;
+
+        this.window.moveTo(screen.availWidth-this.window.outerWidth-40,
+                   (screen.availHeight-this.window.outerHeight)/2);
+        this.window.focus();
+
         this.getSystemConfig(null,
-                B5500CentralControl.bindMethod(this, this.loadConfigDialog));
+                this.loadConfigDialog.bind(this));
         this.$$("ConfigNewBtn").addEventListener("click",
-                B5500CentralControl.bindMethod(this, this.newConfigDialog));
+                this.newConfigDialog.bind(this));
         this.$$("ConfigDeleteBtn").addEventListener("click",
-                B5500CentralControl.bindMethod(this, this.deleteConfigDialog));
+                this.deleteConfigDialog.bind(this));
         this.$$("ConfigNameList").addEventListener("change",
-                B5500CentralControl.bindMethod(this, this.selectConfigDialog));
+                this.selectConfigDialog.bind(this));
         this.$$("DiskEditBtn").addEventListener("click",
-                B5500CentralControl.bindMethod(this, this.openStorageUI));
+                this.openStorageUI.bind(this));
         this.$$("DiskNewBtn").addEventListener("click",
-                B5500CentralControl.bindMethod(this, this.newStorageDialog));
+                this.newStorageDialog.bind(this));
         this.$$("SaveBtn").addEventListener("click",
-                B5500CentralControl.bindMethod(this, this.saveConfigDialog));
+                this.saveConfigDialog.bind(this));
         this.$$("CancelBtn").addEventListener("click",
-                B5500CentralControl.bindMethod(this, function(ev) {
+                function(ev) {
                     this.window.close();
-        }));
+        }.bind(this));
         this.window.addEventListener("unload",
-                B5500CentralControl.bindMethod(this, this.closeConfigUI), false);
+                this.closeConfigUI.bind(this), false);
     }
 
-    this.doc = null;
-    this.window = window.open("../webUI/B5500SystemConfig.html", this.configDBName,
-            "location=no,scrollbars,resizable,width=640,height=700");
-    this.window.moveTo(screen.availWidth-this.window.outerWidth-40,
-               (screen.availHeight-this.window.outerHeight)/2);
-    this.window.focus();
-    this.alertWin = this.window;
-    this.window.addEventListener("load",
-            B5500CentralControl.bindMethod(this, configUI_Open), false);
+    B5500Util.openPopup(window, "../webUI/B5500SystemConfig.html", this.configDBName,
+            "location=no,scrollbars,resizable,width=640,height=700",
+            this, configUI_Open);
 };

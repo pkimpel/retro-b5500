@@ -18,7 +18,12 @@ function B5500Util() {
     // Nothing to construct at present...
 }
 
+
 /**************************************/
+B5500Util.popupOpenDelayIncrement = 250;// increment for pop-up open delay adjustment, ms
+B5500Util.popupOpenDelay = 500;         // current pop-up open delay, ms
+B5500Util.popupOpenQueue = [];          // queue of pop-up open argument objects
+
 B5500Util.xlateASCIIToAlgolRex =        // For translation of BIC-as-ASCII to Unicode Algol glyphs
         /[^\r\n\xA0 "#$%&()*+,\-./0-9:;<=>?@A-Z\[\]a-z\u00D7\u2190\u2260\u2264\u2265]/g;
 B5500Util.xlateASCIIToAlgolGlyph = {
@@ -39,39 +44,10 @@ B5500Util.xlateAlgolToASCIIGlyph = {
         "\u2264": "{",  // less-than-or-equal
         "\u2265": "}"}; // greater-than-or-equal
 
+
 /**************************************/
 B5500Util.$$ = function $$(e) {
     return document.getElementById(e);
-};
-
-/**************************************/
-B5500Util.hasClass = function hasClass(e, name) {
-    /* returns true if element "e" has class "name" in its class list */
-    var classes = e.className;
-
-    if (!e) {
-        return false;
-    } else if (classes == name) {
-        return true;
-    } else {
-        return (classes.search("\\b" + name + "\\b") >= 0);
-    }
-};
-
-/**************************************/
-B5500Util.addClass = function addClass(e, name) {
-    /* Adds a class "name" to the element "e"s class list */
-
-    if (!B5500Util.hasClass(e, name)) {
-        e.className += (" " + name);
-    }
-};
-
-/**************************************/
-B5500Util.removeClass = function removeClass(e, name) {
-    /* Removes the class "name" from the element "e"s class list */
-
-    e.className = e.className.replace(new RegExp("\\b" + name + "\\b\\s*", "g"), "");
 };
 
 /**************************************/
@@ -260,6 +236,81 @@ B5500Util.xlateDOMTreeText = function xlateDOMTreeText(n, xlate) {
         while (kid) {
             xlateDOMTreeText(kid, xlate);
             kid = kid.nextSibling;
+        }
+    }
+};
+
+/**************************************/
+B5500Util.openPopup = function openPopup(parent, url, windowName, options, context, onload) {
+    /* Schedules the opening of a pop-up window so that browsers such as Apple
+    Safari (11.0+) will not block the opens if they occur too close together.
+    Parameters:
+        parent:     parent window for the pop-up
+        url:        url of window context, passed to window.open()
+        windowName: internal name of the window, passed to window.open()
+        options:    string of window options, passed to window.open()
+        context:    object context ("this") for the onload function (may be null)
+        onload:     event handler for the window's onload event (may be null).
+    If the queue of pending pop-up opens in B5500Util.popupOpenQueue[] is empty,
+    then attempts to open the window immediately. Otherwise queues the open
+    parameters, which will be dequeued and acted upon after the previously-
+    queued entries are completed by B5500Util.dequeuePopup() */
+
+    B5500Util.popupOpenQueue.push({
+        parent: parent,
+        url: url,
+        windowName: windowName,
+        options: options,
+        context: context,
+        onload: onload});
+    if (B5500Util.popupOpenQueue.length == 1) { // queue was empty
+        B5500Util.dequeuePopup();
+    }
+};
+
+/**************************************/
+B5500Util.dequeuePopup = function dequeuePopup() {
+    /* Dequeues a popupOpenQueue[] entry and attempts to open the pop-up window.
+    Called either directly by B5500Util.openPopup() when an entry is inserted
+    into an empty queue, or by setTimeout() after a delay. If the open fails,
+    the entry is reinserted into the head of the queue, the open delay is
+    incremented, and this function is rescheduled for the new delay. If the
+    open is successful, and the queue is non-empty, then this function is
+    scheduled for the current open delay to process the next entry in the queue */
+    var entry = B5500Util.popupOpenQueue.shift();
+    var loader1 = null;
+    var loader2 = null;
+    var win = null;
+
+    if (entry) {
+        try {
+            win = entry.parent.open(entry.url, entry.windowName, entry.options);
+        } catch (e) {
+            win = null;
+        }
+
+        if (!win) {                     // window open failed, requeue
+            B5500Util.popupOpenQueue.unshift(entry);
+            B5500Util.popupOpenDelay += B5500Util.popupOpenDelayIncrement;
+            setTimeout(B5500Util.dequeuePopup, B5500Util.popupOpenDelay);
+            //console.log("Pop-up open failed: " + entry.windowName + ", new delay=" + B5500Util.popupOpenDelay + "ms");
+        } else {                        // window open was successful
+            if (entry.onload) {
+                loader1 = entry.onload.bind(entry.context);
+                win.addEventListener("load", loader1, false);
+            }
+
+            loader2 = function(ev) {    // remove the load event listeners after loading
+                win.removeEventListener("load", loader2, false);
+                if (loader1) {
+                    win.removeEventListener("load", loader1, false);
+                }
+            };
+
+            win.addEventListener("load", loader2, false);
+            if (B5500Util.popupOpenQueue.length > 0) {
+                setTimeout(B5500Util.dequeuePopup, B5500Util.popupOpenDelay);
+            }
         }
     }
 };
