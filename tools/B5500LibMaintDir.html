@@ -14,7 +14,7 @@
 * Licensed under the MIT License,
 *       see http://www.opensource.org/licenses/mit-license.php
 ************************************************************************
-* B5500 Library Maintenance tape file direectory list.
+* B5500 Library Maintenance tape file directory list.
 *
 * This script reads a Burroughs B5500 Library/Maintenance tape as one
 * large blob and outputs directory information for all files.
@@ -34,11 +34,14 @@
 ************************************************************************
 * 2013-06-06  P.Kimpel
 *   Original version, from B5500LibMaintMapper.html and B5500DiskDirList.html.
+* 2018-05-14  P.Kimpel
+*   Add "ShowRows=1" URL parameter to optionally show row addresses.
 ***********************************************************************/
 "use strict";
 
 window.onload = function() {
     var panel = document.getElementById("TextPanel");
+    var showRows = false;
     var tapeMark = 0x8F;
     var tapeDir = [];
 
@@ -437,14 +440,17 @@ window.onload = function() {
         appendCell(row, formatJulianDate(header.logCreationDate), "rj");
         appendCell(row, formatB5500Time(header.logCreationTime), "rj");
 
-        text = "";
-        for (rx=header.maxRows-1; rx>=0; rx--) {
-            if (text || header.rowAddress[rx]) {
-                text = header.rowAddress[rx].toFixed(0) + " " + text;
+        if (showRows) {
+            text = "";
+            for (rx=header.maxRows-1; rx>=0; rx--) {
+                if (text || header.rowAddress[rx]) {
+                    text = header.rowAddress[rx].toFixed(0) + " " + text;
+                }
             }
+
+            appendCell(row, text);
         }
 
-        appendCell(row, text);
         body.appendChild(row);
     }
 
@@ -535,6 +541,35 @@ window.onload = function() {
         reader.readAsArrayBuffer(f);
     }
 
+    function getOptions() {
+        /* Parses the URL query string for parameters and sets their global variables */
+        var args;
+        var i;
+        var name;
+        var search = location.search.substring(1);      // drop the "?"
+        var value;
+        var x;
+
+        args = search.split("&");
+        for (x=args.length-1; x>=0; --x) {
+            i = args[x].indexOf("=");
+            if (i <= 0 ) {
+                name = decodeURIComponent(args[x]);
+                value = "";
+            } else {
+                name = decodeURIComponent(args[x].substring(0, i));
+                value = decodeURIComponent(args[x].substring(i+1));
+            }
+
+            if (name.toLowerCase() == "showrows") {
+                showRows = true;
+                break; // out of for loop
+            }
+        }
+
+        return value;
+    }
+
     function checkBrowser() {
         /* Checks whether this browser can support the necessary stuff */
         var missing = "";
@@ -558,7 +593,14 @@ window.onload = function() {
     if (checkBrowser()) {
         return;
     }
+
+    getOptions();
     document.getElementById("FileSelector").addEventListener("change", fileSelector_onChange, false);
+    if (showRows) {
+        var cell = document.createElement("th");
+        cell.appendChild(document.createTextNode("Row Addresses"));
+        document.getElementById("header1").appendChild(cell);
+    }
 }
 </script>
 
@@ -579,7 +621,7 @@ TR TH {
 
 <div style="position:relative; width:100%; height:3em">
     <div style="position:absolute; left:0; top:0; width:auto">
-        retro-B5500 LibMaint Tape Extract Utility
+        retro-B5500 LibMaint Tape Directory Utility
     </div>
     <div style="position:absolute; top:0; right:0; width:auto">
         <input id=FileSelector type=file size=60>
@@ -592,7 +634,7 @@ TR TH {
 
 <table id=DirListTable border=1 cellspacing=0 cellpadding=1>
 <thead>
-<tr>
+<tr id=header1>
     <th>Tape File
     <th>Disk Name
     <th>Class
@@ -609,7 +651,6 @@ TR TH {
     <th>Last Access
     <th>Log Date
     <th>Log Time
-    <th>Row Addresses
 <tbody id=DirListBody>
 </table>
 

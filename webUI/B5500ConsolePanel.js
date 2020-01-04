@@ -34,6 +34,7 @@ function B5500ConsolePanel(global, autoPowerUp, shutDown) {
     this.cc;                            // B5500CentralControl object
     this.ccLatches = [0, 0, 0];         // I/O- & interrupt-reporting latches
     this.ccLightsMap = new Array(6);    // Misc annunciator DOM objects
+    this.enableLampTest = false;        // Perform lamp test at power-on
     this.global = global;               // Global window object
     this.intLightsMap = new Array(48);  // Interrupt annunciator DOM objects
     this.lastInterruptMask = 0;         // Prior mask of interrupt annunciator lights
@@ -67,7 +68,7 @@ B5500ConsolePanel.annOffColor = "#333"; // annunciator lamp off color
 /**************************************/
 B5500ConsolePanel.prototype.$$ = function $$(id) {
     return this.doc.getElementById(id);
-}
+};
 
 /**************************************/
 B5500ConsolePanel.prototype.setAnnunciators = function setAnnunciators(showEm) {
@@ -78,7 +79,7 @@ B5500ConsolePanel.prototype.setAnnunciators = function setAnnunciators(showEm) {
     this.$$("RetroLogoImage").style.display = (showEm ? "inline" : "none");
     this.$$("B5500LogoImage").style.display = (showEm ? "none" : "inline");
     this.$$("ConfigLabel").style.display = (showEm ? "inline" : "none");
-}
+};
 
 /**************************************/
 B5500ConsolePanel.prototype.evaluateNotReady = function evaluateNotReady(config) {
@@ -87,7 +88,7 @@ B5500ConsolePanel.prototype.evaluateNotReady = function evaluateNotReady(config)
     var lampClass = "whiteButton";
 
     switch (false) {
-    case config.PA.enabled || config.PA.enabled:
+    case config.PA.enabled || config.PB.enabled:
     case (config.PA.enabled && !config.PB1L) || (config.PB.enabled && config.PB1L):
     case config.IO1.enabled || config.IO2.enabled || config.IO3.enabled || config.IO4.enabled:
     case config.memMod[0].enabled:
@@ -97,7 +98,7 @@ B5500ConsolePanel.prototype.evaluateNotReady = function evaluateNotReady(config)
     }
 
     this.$$("NotReadyBtn").className = lampClass;
-}
+};
 
 /**************************************/
 B5500ConsolePanel.prototype.focusConsole = function focusConsole() {
@@ -105,7 +106,7 @@ B5500ConsolePanel.prototype.focusConsole = function focusConsole() {
 
     this.window.focus();
     this.$$("LoadBtn").focus();
-}
+};
 
 /**************************************/
 B5500ConsolePanel.prototype.BurroughsLogo_Click = function BurroughsLogo_Click(ev) {
@@ -113,7 +114,7 @@ B5500ConsolePanel.prototype.BurroughsLogo_Click = function BurroughsLogo_Click(e
 
     this.showAnnunciators = !this.showAnnunciators;
     this.setAnnunciators(this.showAnnunciators);
-}
+};
 
 /**************************************/
 B5500ConsolePanel.prototype.B5500Logo_Click = function B5500Logo_Click(ev) {
@@ -127,7 +128,7 @@ B5500ConsolePanel.prototype.B5500Logo_Click = function B5500Logo_Click(ev) {
         this.$$("ConfigLabel").style.display = "none";
         sysConfig.openConfigUI();
     }
-}
+};
 
 /**************************************/
 B5500ConsolePanel.prototype.PowerOnBtn_Click = function PowerOnBtn_Click(ev) {
@@ -159,7 +160,7 @@ B5500ConsolePanel.prototype.PowerOnBtn_Click = function PowerOnBtn_Click(ev) {
             that.$$("PowerOnBtn").className = "greenButton greenLit";
             that.$$("SysConfigName").textContent = config.configName;
             that.$$("StorageName").textContent = config.units.DKA.storageName;
-            if (that.showAnnunciators) {
+            if (that.enableLampTest && that.showAnnunciators) {
                 that.lampTest(applyPower.bind(that), config);
             } else {
                 applyPower(config);
@@ -169,7 +170,7 @@ B5500ConsolePanel.prototype.PowerOnBtn_Click = function PowerOnBtn_Click(ev) {
 
     sysConfig.getSystemConfig(null, youMayPowerOnWhenReady_Gridley); // get current system config
     return true;
-}
+};
 
 /**************************************/
 B5500ConsolePanel.prototype.PowerOffBtn_Click = function PowerOffBtn_Click(ev) {
@@ -198,7 +199,7 @@ B5500ConsolePanel.prototype.PowerOffBtn_Click = function PowerOffBtn_Click(ev) {
         this.timer = 0;
     }
     return true;
-}
+};
 
 /**************************************/
 B5500ConsolePanel.prototype.HaltBtn_Click = function HaltBtn_Click(ev) {
@@ -213,7 +214,7 @@ B5500ConsolePanel.prototype.HaltBtn_Click = function HaltBtn_Click(ev) {
         clearInterval(this.timer);
         this.timer = 0;
     }
-}
+};
 
 /**************************************/
 B5500ConsolePanel.prototype.LoadBtn_Click = function LoadBtn_Click(ev) {
@@ -250,7 +251,7 @@ B5500ConsolePanel.prototype.LoadBtn_Click = function LoadBtn_Click(ev) {
         this.window.alert("cc.load() result = " + result);
         break;
     }
-}
+};
 
 /**************************************/
 B5500ConsolePanel.prototype.LoadSelectBtn_Click = function LoadSelectBtn_Click(ev) {
@@ -263,7 +264,7 @@ B5500ConsolePanel.prototype.LoadSelectBtn_Click = function LoadSelectBtn_Click(e
         this.cc.cardLoadSelect = 1;
         this.$$("LoadSelectBtn").className = "yellowButton yellowLit";
     }
-}
+};
 
 /**************************************/
 B5500ConsolePanel.prototype.dumpState = function dumpState(caption) {
@@ -354,7 +355,7 @@ B5500ConsolePanel.prototype.dumpState = function dumpState(caption) {
     B5500Util.openPopup(this.window, "./B5500FramePaper.html", "",
             "location=no,resizable,scrollbars,status",
             this, dumpStateOnLoad);
-}
+};
 
 /**************************************/
 B5500ConsolePanel.prototype.dumpTape = function dumpTape(caption) {
@@ -430,7 +431,7 @@ B5500ConsolePanel.prototype.dumpTape = function dumpTape(caption) {
     B5500Util.openPopup(this.window, "./B5500FramePaper.html", "",
             "location=no,resizable,scrollbars,status",
             this, dumpTapeOnLoad);
-}
+};
 
 /**************************************/
 B5500ConsolePanel.prototype.displayCallbackState = function displayCallbackState() {
@@ -487,7 +488,7 @@ B5500ConsolePanel.prototype.displayCallbackState = function displayCallbackState
 
     body.id = oldBody.id;
     oldBody.parentNode.replaceChild(body, oldBody);
-}
+};
 
 /**************************************/
 B5500ConsolePanel.prototype.displayCentralControl = function displayCentralControl() {
@@ -550,7 +551,7 @@ B5500ConsolePanel.prototype.displayCentralControl = function displayCentralContr
         unitBusyChange >>>= 1;
         x--;
     }
-}
+};
 
 /**************************************/
 B5500ConsolePanel.prototype.dasBlinkenlichten = function dasBlinkenlichten() {
@@ -706,7 +707,7 @@ B5500ConsolePanel.prototype.dasBlinkenlichten = function dasBlinkenlichten() {
         this.displayCentralControl();
     }
     //this.displayCallbackState();
-}
+};
 
 /**************************************/
 B5500ConsolePanel.prototype.buildLightMaps = function buildLightMaps() {
@@ -730,7 +731,7 @@ B5500ConsolePanel.prototype.buildLightMaps = function buildLightMaps() {
         spec = B5500CentralControl.unitSpecs[mnem];
         this.perLightsMap[spec.unitIndex] = this.$$(mnem);
     }
-}
+};
 
 /**************************************/
 B5500ConsolePanel.prototype.lampTest = function lampTest(callback, callbackParam) {
@@ -780,7 +781,7 @@ B5500ConsolePanel.prototype.lampTest = function lampTest(callback, callbackParam
     this.$$("CentralControl").style.display = "block";   // overrides if !this.cc.poweredUp
     switchEm(1);
     setCallback(null, this, 2000, switchEm, 0);
-}
+};
 
 /**************************************/
 B5500ConsolePanel.prototype.beforeUnload = function beforeUnload(ev) {
@@ -819,7 +820,7 @@ B5500ConsolePanel.prototype.clearStatusLabel = function clearStatusLabel(inSecon
         this.$$("StatusLabel").textContent = "";
         this.statusLabelTimer = 0;
     });
-}
+};
 
 /**************************************/
 B5500ConsolePanel.prototype.consoleOnload = function consoleOnload(ev) {

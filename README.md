@@ -12,9 +12,9 @@ The Burroughs B5500 was an innovative computer system. Released first as the B50
   * Automatic memory segment overlay (what we now call virtual memory)
   * Use of labeled file media and automatic assignment of labeled file media to requesting programs (what we now call automatic volume recognition)
 
-The B5500 was the foundation for the Burroughs B6000/7000/A Series, which are still produced and sold today as Unisys ClearPath MCP systems.
+The B5500 was the foundation for the Burroughs B6x00/7x00/A Series systems, which are still produced and sold today as Unisys ClearPath MCP systems.
 
-The main goal of this project is creation of a web browser-based emulator for the B5500. A second goal is reconstruction of the source and object code for the system.
+The main goal of this project is creation of a web browser-based emulator for the B5500. A second goal is reconstruction of source and object code for the system.
 
 A complete software release (Mark XIII, 1971) is presently available from the hosting site below under liberal terms of a Unisys educational/hobbyist license.
 

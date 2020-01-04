@@ -81,7 +81,7 @@ function B5500IOUnit(ioUnitID, cc) {
 
 B5500IOUnit.BICtoANSI = [               // Index by 6-bit BIC to get 8-bit ANSI code
         0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,        // 00-07, @00-07
-        0x38,0x39,0x23,0x40,0x3F,0x3A,0x3E,0x7D,        // 08-1F, @10-17
+        0x38,0x39,0x23,0x40,0x3F,0x3A,0x3E,0x7D,        // 08-0F, @10-17
         0x2B,0x41,0x42,0x43,0x44,0x45,0x46,0x47,        // 10-17, @20-27
         0x48,0x49,0x2E,0x5B,0x26,0x28,0x3C,0x7E,        // 18-1F, @30-37
         0x7C,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,        // 20-27, @40-47
@@ -91,7 +91,7 @@ B5500IOUnit.BICtoANSI = [               // Index by 6-bit BIC to get 8-bit ANSI 
 
 B5500IOUnit.BICtoBCLANSI = [            // Index by 6-bit BIC to get 8-bit BCL-as-ANSI code
         0x23,0x31,0x32,0x33,0x34,0x35,0x36,0x37,        // 00-07, @00-07
-        0x38,0x39,0x40,0x3F,0x30,0x3A,0x3E,0x7D,        // 08-1F, @10-17
+        0x38,0x39,0x40,0x3F,0x30,0x3A,0x3E,0x7D,        // 08-0F, @10-17
         0x2C,0x2F,0x53,0x54,0x55,0x56,0x57,0x58,        // 10-17, @20-27
         0x59,0x5A,0x25,0x21,0x20,0x3D,0x5D,0x22,        // 18-1F, @30-37
         0x24,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,        // 20-27, @40-47
@@ -322,6 +322,11 @@ B5500IOUnit.prototype.fetchBufferWithGM = function fetchBufferWithGM(mode, words
     var table = (mode ? B5500IOUnit.BICtoANSI : B5500IOUnit.BICtoBCLANSI);
     var w;                              // local copy of this.W
 
+    /********** DEBUG **********
+    var line = "";
+    var wx = 0;
+    ***************************/
+
     do {                                // loop through the words
         if (words <= 0) {
             done = true;
@@ -333,6 +338,18 @@ B5500IOUnit.prototype.fetchBufferWithGM = function fetchBufferWithGM(mode, words
                 done = true;
             } else if (!this.fetch(addr)) { // fetch the next word from memory
                 w = this.W;             // fill the buffer with this word's characters
+
+                /********** DEBUG **********
+                if (wx >= 4) {
+                    console.log(this.mnemonic + "Mem:" + line);
+                    wx = 0;
+                    line = "";
+                }
+
+                line += " " + (w+0x1000000000000).toString(8).substring(1);
+                ++wx;
+                ***************************/
+
                 for (s=0; s<8; ++s) {
                     c = (w - (w %= 0x40000000000))/0x40000000000;
                     if (c == 0x1F) {
@@ -344,6 +361,7 @@ B5500IOUnit.prototype.fetchBufferWithGM = function fetchBufferWithGM(mode, words
                     }
                 } // for s
             }
+
             if (addr < 0x7FFF) {
                 ++addr;
             } else {
@@ -351,6 +369,10 @@ B5500IOUnit.prototype.fetchBufferWithGM = function fetchBufferWithGM(mode, words
             }
         }
     } while (!done);
+
+    /********** DEBUG **********
+    console.log(this.mnemonic + "Fin:" + line);
+    ***************************/
 
     this.Daddress = addr;
     if (this.D23F) {
@@ -600,12 +622,12 @@ B5500IOUnit.prototype.storeBufferBackwardWithGM = function storeBufferBackwardWi
     in this.buffer will be the last (highest) one in memory.
     "chars": the number of characters to store, starting at "offset" in the buffer;
     "mode": 0=BCLANSI, 1=ANSI; "words": maximum number of words to transfer.
-    The final character stored from the buffer is followed in memory by a group-mark,
-    assuming the word count is not exhausted. At exit, updates this.Daddress with the
-    final transfer address-1.
+    The final character stored from the buffer is followed in memory by sufficient
+    BIC "?" (@14) to fill out the word, assuming the word count is not exhausted.
+    At exit, updates this.Daddress with the final transfer address-1.
     This routine ignores this.D23F, and does NOT update this.wordCount.
     Returns the number of characters stored into memory from the buffer, plus one
-    for the group-mark */
+    for each "?" stored */
     var addr = this.Daddress;           // local copy of memory address
     var buf = this.buffer;              // local pointer to buffer
     var c;                              // current character code
@@ -648,11 +670,14 @@ B5500IOUnit.prototype.storeBufferBackwardWithGM = function storeBufferBackwardWi
         }
     } // while !done
 
-    w += 0x1F*power;                // set group mark in register
-    ++s;
-    ++count;
-
     if (s > 0 && words > 0) {           // partial word left to be stored
+        while (s < 8) {
+            w += 0x0C*power;            // set "?" in register
+            power *= 64;
+            ++s;
+            ++count;
+        }
+
         this.W = w;
         if (overflow) {
             this.AOFF = 1;              // for display only
@@ -661,6 +686,7 @@ B5500IOUnit.prototype.storeBufferBackwardWithGM = function storeBufferBackwardWi
         } else {
             this.store(addr);           // store the word in memory
         }
+
         --words;
         if (addr > 0) {
             --addr;
@@ -876,6 +902,7 @@ B5500IOUnit.prototype.initiateDatacomIO = function initiateDatacomIO(u) {
         } else {                        // GM-terminated write
             chars = this.fetchBufferWithGM(1, 57);
         }
+
         // Restore the starting memory address -- will be adjusted in finishDatacomWrite
         this.Daddress = this.D % 0x8000;
         u.write(this.boundFinishDatacomWrite, this.buffer, chars, this.D21F, this.DwordCount);

@@ -376,7 +376,7 @@ B5500MagTapeDrive.prototype.loadTape = function loadTape() {
         file = ev.target.files[0];
         fileName = file.name;
         x = fileName.lastIndexOf(".");
-        fileExt = (x > 0 ? fileName.substring(x) : "");
+        fileExt = (x > 0 ? fileName.substring(x) : "").toLowerCase();
         writeRingCheck.checked = false;
         tapeLengthSelect.disabled = true;
 
@@ -977,8 +977,8 @@ B5500MagTapeDrive.prototype.bcdReadForward = function bcdReadForward(oddParity) 
     var buffer = this.buffer;           // IOUnit buffer
     var bufLength = this.bufLength      // IOUnit buffer length
     var bufIndex = 0;                   // current IOUnit buffer offset
-    var c;                              // current character (tape image frame)
-    var cx;                             // current character translated to ASCII
+    var c = 0;                          // current character (tape image frame)
+    var cx = 0;                         // current character translated to ASCII
     var image = this.image;             // tape image
     var imgLength = this.imgLength;     // tape image length
     var imgIndex = this.imgIndex;       // current tape image offset
@@ -998,6 +998,10 @@ B5500MagTapeDrive.prototype.bcdReadForward = function bcdReadForward(oddParity) 
             c &= 0x7F;                 // zap the start-of-block bit
             do {
                 if (c == 0x00) {
+                    if (bufIndex > 0) {
+                        this.errorMask |= 0x10;         // dropout detected: no flux change
+                    }
+
                     if (++blankCount > this.maxBlankFrames) {
                         this.errorMask |= 0x100000;     // blank tape timeout
                         break;                          // kill the read loop
@@ -1057,8 +1061,8 @@ B5500MagTapeDrive.prototype.bcdReadBackward = function bcdReadBackward(oddParity
     var buffer = this.buffer;           // IOUnit buffer
     var bufLength = this.bufLength      // IOUnit buffer length
     var bufIndex = 0;                   // current IOUnit buffer offset
-    var c;                              // current character (tape image frame)
-    var cx;                             // current character translated to ASCII
+    var c = 0;                          // current character (tape image frame)
+    var cx = 0;                         // current character translated to ASCII
     var image = this.image;             // tape image
     var imgLength = this.imgLength;     // tape image length
     var imgIndex = this.imgIndex;       // current tape image offset
@@ -1081,13 +1085,17 @@ B5500MagTapeDrive.prototype.bcdReadBackward = function bcdReadBackward(oddParity
         } else {
             do {
                 if (c == 0x00) {
+                    if (bufIndex > 0) {
+                        this.errorMask |= 0x10;         // dropout detected: no flux change
+                    }
+
                     if (++blankCount > this.maxBlankFrames) {
                         this.errorMask |= 0x100000;     // blank tape timeout
                         break;                          // kill the read loop
                     } else if (imgIndex > 0) {
                         c = image[--imgIndex];          // get next char frame
                     } else {
-                        break;                          // at end of tape, kill the read loop
+                        break;                          // at beginning of tape, kill the read loop
                     }
                 } else {
                     blankCount = 0;
@@ -1137,6 +1145,7 @@ B5500MagTapeDrive.prototype.bcdWrite = function bcdWrite(oddParity) {
     var buffer = this.buffer;           // IOUnit buffer
     var bufLength = this.bufLength      // IOUnit buffer length
     var bufIndex = 0;                   // current IOUnit buffer offset
+    var c = 0;                          // current tape character code
     var image = this.image;             // tape image
     var imgLength = this.imgLength;     // tape image length
     var imgIndex = this.imgIndex;       // current tape image offset
@@ -1148,13 +1157,24 @@ B5500MagTapeDrive.prototype.bcdWrite = function bcdWrite(oddParity) {
         if (this.atBOT) {
             this.setAtBOT(false);
         }
-        image[imgIndex++] = xlate[buffer[bufIndex++] & 0x7F] | 0x80;
+
+        c = xlate[buffer[bufIndex++] & 0x7F];
+        if (c == 0) {
+            this.errorMask |= 0x10;     // dropout detected: attempt to write no flux changes
+        }
+
+        image[imgIndex++] = c | 0x80;
         while (bufIndex < bufLength) {
             if (imgIndex >= imgLength) {
                 this.errorMask |= 0x04; // report not ready beyond end of tape
                 break;
             } else {
-                image[imgIndex++] = xlate[buffer[bufIndex++] & 0x7F];
+                c = xlate[buffer[bufIndex++] & 0x7F];
+                if (c == 0) {
+                    this.errorMask |= 0x10; // dropout detected: attempt to write no flux changes
+                }
+
+                image[imgIndex++] = c;
             }
         } // while
     }

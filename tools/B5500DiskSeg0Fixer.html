@@ -1,53 +1,46 @@
 <!DOCTYPE html>
-<html>
 <head>
+<title>B5500 Disk Sector 0 Fixer Utility</title>
+<meta name="Author" content="Paul Kimpel">
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>B5500 Disk Subsystem Peeker</title>
-<!--
+<meta http-equiv="Content-Script-Type" content="text/javascript">
+<meta http-equiv="Content-Style-Type" content="text/css">
+
+<script>
 /***********************************************************************
-* retro-b5500/webUI B5500DiskPeeker.html
+* retro-b5500/tools B5500DiskSeg0Fixer.html
 ************************************************************************
-* Copyright (c) 2015, Paul Kimpel.
+* Copyright (c) 2018, Paul Kimpel.
 * Licensed under the MIT License,
 *       see http://www.opensource.org/licenses/mit-license.php
 ************************************************************************
-* B5500 Disk Subsystem Peeker.
+* B5500 Disk Sector 0 Fixer Utility.
+*
+* This script opens an IndexedDB database in the browser and attempts to
+* treat it as a B5500 disk image, finding a specified file in the disk
+* directory structure, manipulating the header, and writing the header
+* back to the directory. This is intended to be a customized one-timer
+* sort of program, modified as necessary for the fix-up task at hand.
 ************************************************************************
-* 2015-04-25  P.Kimpel
-*   Original version, from B5500ColdLoader.html.
+* 2018-05-12  P.Kimpel
+*   Original version, from B5500DiskDirFixer.html.
 ***********************************************************************/
--->
-<meta name="Author" content="Paul Kimpel">
-<meta http-equiv="Content-Script-Type" content="text/javascript">
-<meta http-equiv="Content-Style-Type" content="text/css">
-<link id=defaultStyleSheet rel=stylesheet type="text/css" href="../webUI/B5500Common.css">
-
-<script>
 "use strict";
+
+if (!window.indexedDB) {                // for Safari, mostly
+    window.indexedDB = window.webkitIndexedDB || window.mozIndexedDB;
+}
 
 window.addEventListener("load", function() {
     var configName = "CONFIG";          // database configuration store name
     var dbName = "B5500DiskUnit";       // IDB database name
-    var directoryTop = 2000;            // start of directory area
-    var directoryEnd = 3008;            // end of directory area
-    var euSize = 200000;                // model I size (5 Storage Units: 6MW or 48MC)
+    var directoryTop;                   // start of directory area
+    var directoryEnd;                   // end of directory area
     var euPrefix = "EU";                // prefix for EU object store names
 
     var config = null;                  // copy of CONFIG store contents
-    var db = null;                      // the IDB database object
-    var panel = document.getElementById("TextPanel");
-
-    var euSet = {EU0: euSize, EU1: euSize};
-
-    var BICtoANSIChar = [               // Index by 6-bit BIC to get ANSI character
-            "0", "1", "2", "3", "4", "5", "6", "7",
-            "8", "9", "#", "@", "?", ":", ">", "}",
-            "+", "A", "B", "C", "D", "E", "F", "G",
-            "H", "I", ".", "[", "&", "(", "<", "~",
-            "|", "J", "K", "L", "M", "N", "O", "P",
-            "Q", "R", "$", "*", "-", ")", ";", "{",
-            " ", "/", "S", "T", "U", "V", "W", "X",
-            "Y", "Z", ",", "%", "!", "=", "]", "\""];
+    var disk = null;                    // the IDB database object
+    var panel = $$("TextPanel");
 
     var BICtoANSI = [                   // Index by 6-bit BIC to get 8-bit ANSI code
         0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,        // 00-07, @00-07
@@ -127,7 +120,7 @@ window.addEventListener("load", function() {
     }
 
     /**************************************/
-    function bit(word, bit) {
+    function bitTest(word, bit) {
         /* Extracts and returns the specified bit from the word */
         var e = 47-bit;                     // word lower power exponent
         var p;                              // bottom portion of word power of 2
@@ -137,7 +130,7 @@ window.addEventListener("load", function() {
         } else {
             return word % 2;
         }
-    };
+    }
 
     /**************************************/
     function fieldIsolate(word, start, width) {
@@ -146,7 +139,7 @@ window.addEventListener("load", function() {
         var p;                              // bottom portion of word power of 2
 
         return (le == 0 ? word : (word - word % (p = pow2[le]))/p) % pow2[width];
-    };
+    }
 
     /**************************************/
     function spout(text) {
@@ -165,14 +158,6 @@ window.addEventListener("load", function() {
         while (kid = panel.firstChild) {
             panel.removeChild(kid);
         }
-    }
-
-    /**************************************/
-    function parseNumber(s) {
-        /* Parses the string "s" as a base-10 number. Returns 0 if it is not a number */
-        var n = parseInt(s, 10);
-
-        return (isNaN(n) ? 0 : n);
     }
 
     /**************************************/
@@ -218,27 +203,6 @@ window.addEventListener("load", function() {
     }
 
     /**************************************/
-    function ANSItoString(bytes, bx, bLength, asBinary) {
-        /* Translates a portion of an ANSI byte array to a string and returns it.
-        "bytes" = the Uint8Array byte array
-        "bx" = 0-relative offset into "bytes"
-        "bLength" = number of bytes to translate
-        "asBinary" = if truthy, then binary translation is done; otherwise
-                     B5500 BCLANSI translation is done */
-        var table = (asBinary ? ANSItoBIC : BCLANSItoBIC);
-        var text = "";
-        var x;
-
-        if (bLength < 0) {
-            bLength = -bLength;
-        }
-        for (x=0; x<bLength; x++) {
-            text += BICtoANSIChar[table[bytes[bx+x]]];
-        }
-        return text;
-    }
-
-    /**************************************/
     function wordsToANSI(words, wx, wLength, bytes, bx, asBinary) {
         /* Translates an array of B5500 words to ANSI byte-array format.
         "words" = the array of words
@@ -268,6 +232,37 @@ window.addEventListener("load", function() {
                 w = z*64;
             }
         }
+    }
+
+    /**************************************/
+    function wordsToString(words, wx, wLength, asBinary) {
+        /* Translates an array of B5500 words to a string and returns the string.
+        "words" = the array of words
+        "wx" = the starting index in "words"
+        "wLength" = the number of words to translate
+        "asBinary" = if truthy, then binary translation is done; otherwise
+                     B5500 BCLANSI translation is done */
+        var c;
+        var table = (asBinary ? BICtoANSI : BICtoBCLANSI);
+        var text = "";
+        var w;
+        var x;
+        var y;
+        var z;
+
+        if (wLength < 0) {
+            wLength = -wLength;
+        }
+        for (x=0; x<wLength; x++) {
+            w = words[wx+x] || 0;
+            for (y=0; y<8; y++) {
+                z = w % 0x40000000000;
+                c = (w-z)/0x40000000000;
+                text += String.fromCharCode(table[c]);
+                w = z*64;
+            }
+        }
+        return text;
     }
 
     /**************************************/
@@ -304,84 +299,203 @@ window.addEventListener("load", function() {
     }
 
     /**************************************/
-    function genericDBError(ev) {
-        /* Formats a generic alert when otherwise-unhandled database errors occur */
-        var db = ev.currentTarget.result;
+    function readDiskBlock(addr, segs, block, callback) {
+        /* Reads a block from the disk "eu" at "addr" for "segs" segments, translates
+        it to words in the "block" array, then calls "callback" passing the address
+        and block */
+        var bx = 0;
+        var eu;
+        var euAddr = addr % 1000000;
+        var euNr = (addr % 10000000 - euAddr)/1000000;
+        var euName = euPrefix + euNr.toString();
+        var endAddr = euAddr + segs - 1;
+        var nextAddr = euAddr;
+        var range = IDBKeyRange.bound(euAddr, endAddr);
+        var req;
+        var txn;
+        var x;
 
-        alert("Disk Subsystem \"" + db.name + "\" error: " + ev.target.result.error);
-    }
+        txn = disk.transaction(euName);
+        eu = txn.objectStore(euName);
+        req = eu.openCursor(range);
 
-    /**************************************/
-    function dumpDisk() {
-        /* Dumps the initial and directory portions of the disk */
-        var txn = db.transaction("EU0");
-        var endKey = directoryEnd+10;
-        var eu = txn.objectStore("EU0");
-        var range = IDBKeyRange.upperBound(endKey);
-        var req = eu.openCursor(range);
-        var lastKey = -1;
-
-        spout("===== START OF DISK DUMP =====");
         req.onsuccess = function(ev) {
             var cursor = ev.target.result;
 
             if (cursor) {
-                if (cursor.key-lastKey > 1) {
-                    spout("----- " + (cursor.key-lastKey-1) + " unallocated segments -----");
+                while (cursor.key > nextAddr) {
+                    for (x=0; x<30; x++) {
+                        block[bx++] = 0;
+                    }
+                    nextAddr++;
                 }
-                spout(cursor.key + ": " + ANSItoString(cursor.value, 0, cursor.value.length));
-                lastKey = cursor.key;
+                ANSItoWords(cursor.value, 0, 240, block, bx);
+                bx += 30;
+                nextAddr++;
                 cursor.continue();
             } else {
-                if (endKey > lastKey) {
-                    spout("----- " + (endKey-lastKey) + " unallocated segments thru " + endKey + " -----");
+                while (nextAddr <= endAddr) {
+                    for (x=0; x<30; x++) {
+                        block[bx++] = 0;
+                    }
+                    nextAddr++;
                 }
-                spout("===== END OF DISK DUMP =====");
+                callback(addr, block);
             }
         };
     }
 
     /**************************************/
-    function openDatabase(name) {
+    function normalizeName(name) {
+        /* Normalizes the name string to match the way file names are stored
+        in the B5500 directory, i.e., with a leading zero and trailing spaces
+        to a length of 8 */
+        var s = "0" + name;
+
+        if (s.length > 8) {
+            s = s.substring(0, 8);
+        } else {
+            while (s.length < 8) {
+                s += " ";
+            }
+        }
+
+        return s;
+    }
+
+    /**************************************/
+    function genericDBError(ev) {
+        /* Formats a generic alert when otherwise-unhandled database errors occur */
+        var disk = ev.currentTarget.result;
+
+        alert("Database \"" + disk.name + "\" error: " + ev.target.result.error);
+    }
+
+    /**************************************/
+    function openDatabase(name, successor) {
         /* Attempts to open the disk subsystem database for the specified "name".
-        Stores the IDB database object in "db" if successful, or stores null
-        if unsuccessful */
+        Stores the IDB database object in "disk" if successful, or stores null
+        if unsuccessful. Also gets directoryTop from seg 0 */
+        var block = new Array(30);
+        var db = null;
         var req;
 
-        req = window.indexedDB.open(name);
+        req = window.indexedDB.open(name);      // open current version
 
         req.onerror = function(ev) {
-            alert("Cannot open retro-B5500 Disk Subsystem database:\n" + ev.target.error);
+            alert("Cannot open disk database: " + ev.target.error);
         };
 
         req.onblocked = function(ev) {
-            alert("Disk Subsystem open is blocked -- cannot continue");
-        };
-
-        req.onupgradeneeded = function(ev) {
-            configureDatabase(ev, req);
+            alert("Database.open is blocked -- cannot continue");
         };
 
         req.onsuccess = function(ev) {
-            var txn;
+            disk = ev.target.result;    // save the object reference globally for later use
+            disk.onerror = genericDBError;
+            // alert("Disk database opened: " + name + " #" + disk.version);
 
-            db = ev.target.result;    // save the object reference globally for later use
-            db.onerror = genericDBError;
-            alert("Disk Subsystem opened: " + name + " #" + db.version);
-
-            dumpDisk();
+            disk.transaction("CONFIG").objectStore("CONFIG").get(0).onsuccess = function(ev) {
+                config = ev.target.result;
+                readDiskBlock(0, 1, block, function(addr, block) {
+                    directoryTop = block[1];
+                    directoryEnd = block[4];
+                    successor();
+                });
+            };
         };
+
+    }
+
+    /**************************************/
+    function getDBName(defaultName) {
+        /* Parses the URL query string for a "db=name" parameter. If "db" is
+        found, returns the corresponding name; if not found, returns "defaultName" */
+        var args;
+        var i;
+        var name;
+        var search = location.search.substring(1);      // drop the "?"
+        var value = defaultName;
+        var x;
+
+        args = search.split("&");
+        for (x=args.length-1; x>=0; --x) {
+            i = args[x].indexOf("=");
+            if (i > 0 ) {
+                name = decodeURIComponent(args[x].substring(0, i));
+                if (name.toLowerCase() == "db") {
+                    value = decodeURIComponent(args[x].substring(i+1));
+                    break; // out of for loop
+                }
+            }
+        }
+
+        return value;
+    }
+
+    /**************************************/
+    function checkBrowser() {
+        /* Checks whether this browser can support the necessary stuff */
+        var missing = "";
+
+        if (!window.File) {missing += ", File"}
+        if (!window.FileReader) {missing += ", FileReader"}
+        if (!window.FileList) {missing += ", FileList"}
+        if (!window.Blob) {missing += ", Blob"}
+        if (!window.ArrayBuffer) {missing += ", ArrayBuffer"}
+        if (!window.DataView) {missing += ", DataView"}
+        if (!window.indexedDB) {missing += ", IndexedDB"}
+
+        if (missing.length == 0) {
+            return false;
+        } else {
+            alert("No can do... your browser does not support the following features:\n" +
+                missing.substring(2));
+            return true;
+        }
     }
 
     /********** Start of window.onload() **********/
 
-    openDatabase(dbName);
+    if (!checkBrowser()) {
+        dbName = getDBName(dbName);
+        openDatabase(dbName, function callback() {
+
+        var block = new Array(30);
+        var buffer = new Uint8Array(240);
+        var eu;
+        var euName = euPrefix + "0";
+        var txn;
+        var x;
+
+        for (x=block.length-1; x>=0; --x) {
+            block[x] = 0;
+        }
+
+        block[ 0] = 1;          // sys number
+        block[ 1] = 2000;       // DRCTRYTP
+        block[ 4] = 3604;       // DIRECT
+        block[12] = 8610;       // MCP disk address
+        wordsToANSI(block, 0, 30, buffer, 0);
+        stringToANSI("0MCP    0DISK   ", buffer, 10*8);
+        stringToANSI("0INT    0DISK   ", buffer, 13*8);
+
+        txn = disk.transaction([euName], "readwrite");
+        txn.oncomplete = function(ev) {
+            alert("Seg 0 fix-up completed successfully");
+        };
+
+        eu = txn.objectStore(euName);
+        eu.put(buffer, 0);
+
+        });
+    }
 }, false);
 </script>
 
 <style>
 BODY {
-    font-family:        DejaVuSansWeb, sans-serif;
+    font-family:        Arial, Helvetica, sans-serif;
     font-size:          small}
 TABLE {
     border-collapse:    collapse}
@@ -391,17 +505,18 @@ TH {
     text-align:         center}
 .rj {
     text-align:         right}
+.mono {
+    font-family:        Courier New, Courier, monospace}
 </style>
 </head>
 
 <body>
 
-<div style="position:relative; width:100%; height:4em">
+<div style="position:relative; width:100%; height:3em">
     <div style="position:absolute; left:0; top:0; width:auto">
-        <img src="./resources/retro-B5500-Logo.png" alt="retro-B5500 Logo" style="float:left">
-        &nbsp;Disk SubSystem Peeker
+        <img src="../webUI/resources/retro-B5500-Logo.png" alt="retro-B5500 Logo" style="float:left">
+        &nbsp;Disk Sector 0 Fixer Utility
     </div>
-
 </div>
 
 <pre id=TextPanel>

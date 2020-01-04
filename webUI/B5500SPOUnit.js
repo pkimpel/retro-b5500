@@ -24,6 +24,7 @@ function B5500SPOUnit(mnemonic, unitIndex, designate, statusChange, signal, opti
 
     this.maxScrollLines = 5000;         // Maximum amount of printer scrollback
     this.charPeriod = 100;              // Printer speed, milliseconds per character
+    this.printGreeting = false;         // Print initial greeting message
 
     this.mnemonic = mnemonic;           // Unit mnemonic
     this.unitIndex = unitIndex;         // Ready-mask bit number
@@ -472,6 +473,16 @@ B5500SPOUnit.prototype.printText = function printText(msg, finish) {
 };
 
 /**************************************/
+B5500SPOUnit.prototype.spoInitialize = function spoInitialize() {
+    /* Initializes the SPO after power-on */
+
+    this.setRemote();
+    this.appendEmptyLine("\xA0");
+    this.endOfPaper.scrollIntoView();
+    this.signal(-1);                    // re-focus the Console window
+};
+
+/**************************************/
 B5500SPOUnit.prototype.spoOnload = function spoOnload(ev) {
     /* Initializes the SPO window and user interface */
     var x;
@@ -513,19 +524,14 @@ B5500SPOUnit.prototype.spoOnload = function spoOnload(ev) {
             B5500SPOUnit.prototype.SPOAlgolGlyphsBtn_onclick.bind(this), false);
 
     this.window.focus();
-    this.printText("retro-B5500 Emulator Version " + B5500CentralControl.version,
-            function initFinish() {
-        this.setRemote();
-        this.appendEmptyLine("\xA0");
-        this.endOfPaper.scrollIntoView();
-        this.signal(-1);                // re-focus the Console window
-    }.bind(this));
-
-    // Kludge for Chrome window.outerWidth/Height timing bug
-    setCallback(null, this, 100, function chromeBug() {
-        this.window.moveTo(screen.availWidth-this.window.outerWidth,
-                           screen.availHeight-this.window.outerHeight);
-    });
+    this.window.moveTo(screen.availWidth-this.window.outerWidth,
+                       screen.availHeight-this.window.outerHeight);
+    if (this.printGreeting) {
+        this.printText("retro-B5500 Emulator Version " + B5500CentralControl.version,
+            B5500SPOUnit.prototype.spoInitialize);
+    } else {
+        this.spoInitialize();
+    }
 };
 
 /**************************************/

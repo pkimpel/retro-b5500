@@ -3908,9 +3908,7 @@ B5500Processor.prototype.exitCharacterMode = function exitCharacterMode(inline) 
             //this.cc.B5500DumpTape("Flag Bit: Exit-Char-Mode"); // <<< DEBUG >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
         }
     } else {                            // flag bit is set
-        this.S = ((this.B - this.B % 0x8000)/0x8000) % 0x8000; // get address of MSCW
-        this.MSFF = 0;                      // AKA TFFF
-        this.SALF = 0;
+        this.S = (this.B % 0x40000000) >>> 15;  // get address of MSCW
         this.applyRCW(this.B, inline);
         this.loadBviaS();               // B = [S], fetch the MSCW
         --this.S;                       // delete the MSCW

@@ -97,6 +97,16 @@ B5500CardPunch.prototype.copyStacker = function copyStacker(ev) {
     });
 
     this.emptyStacker(stacker);
+    if (stacker == this.stacker1) {
+        this.stacker1Count = 0;
+        this.$$("CPStacker1Bar").value = 0;
+        this.$$("CPStacker1Full").classList.remove("annunciatorLit");
+    } else if (stacker == this.stacker2) {
+        this.stacker2Count = 0;
+        this.$$("CPStacker2Bar").value = 0;
+        this.$$("CPStacker2Full").classList.remove("annunciatorLit");
+    }
+
     ev.preventDefault();
     ev.stopPropagation();
 };

@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<head>
+<title>B5500 Disk Subsystem Dumper</title>
+<meta name="Author" content="Paul Kimpel">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta http-equiv="Content-Script-Type" content="text/javascript">
+<meta http-equiv="Content-Style-Type" content="text/css">
+
+<script>
+/***********************************************************************
+* retro-b5500/tools B5500DiskDump.html
+************************************************************************
+* Copyright (c) 2012, Paul Kimpel.
+* Licensed under the MIT License,
+*       see http://www.opensource.org/licenses/mit-license.php
+************************************************************************
+* B5500 Disk Subsystem Dumper
+*
+************************************************************************
+* 2012-12-29  P.Kimpel
+*   Original version, from B5500LibMaintExtract.html.
+* 2013-12-15  T.Sirianni
+*   From B5500ColdLoader.html, stripped out all but disk dumper, whizzed
+*   the output formatting up a bit.
+***********************************************************************/
+"use strict";
+
+if (!window.indexedDB) {                // for Safari, mostly
+    window.indexedDB = window.webkitIndexedDB || window.mozIndexedDB;
+}
+
+    var BICtoANSIChar = [               // Index by 6-bit BIC to get ANSI character
+            "0", "1", "2", "3", "4", "5", "6", "7",
+            "8", "9", "#", "@", "?", ":", ">", "}",
+            "+", "A", "B", "C", "D", "E", "F", "G",
+            "H", "I", ".", "[", "&", "(", "<", "~",
+            "|", "J", "K", "L", "M", "N", "O", "P",
+            "Q", "R", "$", "*", "-", ")", ";", "{",
+            " ", "/", "S", "T", "U", "V", "W", "X",
+            "Y", "Z", ",", "%", "!", "=", "]", "\""];
+
+   var BCLANSItoBIC = [                // Index by 8-bit BCL-as-ANSI to get 6-bit BIC (upcased, invalid=>"?")
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 00-0F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 10-1F
+        0x1C,0x1B,0x1F,0x00,0x20,0x1A,0x3B,0x0C,0x3D,0x2D,0x2A,0x30,0x10,0x2B,0x3C,0x11,  // 20-2F
+        0x0C,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0D,0x2E,0x3E,0x1D,0x0E,0x0B,  // 30-3F
+        0x0A,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x21,0x22,0x23,0x24,0x25,0x26,  // 40-4F
+        0x27,0x28,0x29,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x3A,0x0C,0x1E,0x0C,0x0C,  // 50-5F
+        0x0C,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x21,0x22,0x23,0x24,0x25,0x26,  // 60-6F
+        0x27,0x28,0x29,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x2F,0x2C,0x0F,0x3F,0x0C,  // 70-7F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 80-8F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // 90-9F
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // A0-AF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // B0-BF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // C0-CF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // D0-DF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,  // E0-EF
+        0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C]; // F0-FF
+
+window.addEventListener("load", function() {
+    var configName = "CONFIG";          // database configuration store name
+    var dbName = "B5500DiskUnit";       // IDB database name
+    var dbVersion = undefined;          // current IDB database version
+    var euSize = 200000;                // model I size (5 Storage Units: 6MW or 48MC)
+    var euPrefix = "EU";                // prefix for EU object store names
+
+    var config = null;                  // copy of CONFIG store contents
+    var disk = null;                    // the IDB database object
+    var panel = document.getElementById("TextPanel");
+
+    /**************************************/
+    function $$(id) {
+        return document.getElementById(id);
+    }
+
+    /**************************************/
+    function spout(text) {
+        /* Appends "text"+NL as a new text node to the panel DOM element */
+        var e = document.createTextNode(text + "\n");
+
+        panel.appendChild(e);
+        $$("PageBottom").scrollIntoView();
+    }
+
+    /**************************************/
+    function clearPanel() {
+        /* Clears the text panel */
+        var kid;
+
+        while (kid = panel.firstChild) {
+            panel.removeChild(kid);
+        }
+    }
+
+    /**************************************/
+    function ANSItoString(bytes, bx, bLength, asBinary) {
+        /* Translates a portion of an ANSI byte array to a string and returns it.
+        "bytes" = the Uint8Array byte array
+        "bx" = 0-relative offset into "bytes"
+        "bLength" = number of bytes to translate
+        "asBinary" = if truthy, then binary translation is done; otherwise
+                     B5500 BCLANSI translation is done */
+        var table = (asBinary ? ANSItoBIC : BCLANSItoBIC);
+        var text = "";
+        var x;
+
+        if (bLength < 0) {
+            bLength = -bLength;
+        }
+        for (x=0; x<bLength; x++) {
+            text += BICtoANSIChar[table[bytes[bx+x]]];
+        }
+        return text;
+    }
+
+    /**************************************/
+    function cannotconfigureDatabase(ev) {
+        alert("Database not created.  Please use B5500indexedDBinit first.");
+        abort();
+    }
+
+    /**************************************/
+    function genericDBError(ev) {
+        /* Formats a generic alert when otherwise-unhandled database errors occur */
+        var disk = ev.currentTarget.result;
+
+        alert("Database \"" + disk.name + "\" error: " + ev.target.result.error);
+    }
+
+    /**************************************/
+    var have_prev = false;
+    var prev_value = 0;
+    var prev_length = 0;
+    var skipping = false;
+
+    function printit( restart, key, value, length ){
+       if( restart ) have_prev = 0;
+       if( !have_prev ) {
+          prev_value = value;
+          prev_length = length;
+          have_prev = true;
+          skipping = false;
+          spout(key + ": " + ANSItoString(value, 0, length));
+       } else {
+          var differ = 0;
+          if ( prev_length != length ) differ = 1;
+          else  {
+              for ( var i = 0; i < length; i++ ) {
+                 if( prev_value[i] != value[i] ) differ = 1;
+              }
+          }
+          if( differ ) {
+             spout(key + ": " + ANSItoString(value, 0, length));
+             prev_value = value;
+             prev_length = length;
+          } else {
+             if ( skipping ) spout("...");
+          }
+          skipping = differ;
+       }
+    }
+
+    /**************************************/
+    function dumpDisk() {
+        spout("===== START OF DISK DUMP =====");
+        dumpDiskEU(0, 2);   //  Can't ask for more than 2 eu-s to be dumped, disk.transaction hangs in dumpDiskEU
+           // after the second success.  Not sure why...
+    }
+
+    /**************************************/
+    function dumpDiskEU(ieu, neus) {
+        if( neus <= 0 ) {
+                spout("===== END OF DISK DUMP =====");
+                return;
+        }
+
+        /* Dumps the disk from zero through sector endKey */
+        var endKey = 20;
+
+        var eustring = euPrefix + ieu;
+        var txn = disk.transaction(eustring,"readonly");
+        var eu = txn.objectStore(eustring);
+        var range = IDBKeyRange.upperBound(endKey);
+        var req = eu.openCursor(range);
+        var lastKey = -1;
+        spout("===== START OF " + eustring + " =====");
+
+        req.onsuccess = function(ev) {
+            var cursor = ev.target.result;
+            var restart;
+
+            if (cursor) {
+                restart = 0;
+                if (cursor.key-lastKey > 1) {
+                    spout("----- " + (cursor.key-lastKey-1) + " unallocated segments -----");
+                    restart = 1;
+                }
+                printit( restart, cursor.key, cursor.value, cursor.value.length);
+                /* spout(cursor.key + ": " + ANSItoString(cursor.value, 0, cursor.value.length)); */
+                lastKey = cursor.key;
+                cursor.continue();
+            } else {
+                if (endKey > lastKey) {
+                    spout("----- " + (endKey-lastKey) + " unallocated segments thru " + endKey + " -----");
+                }
+                spout("===== END OF " + eustring + " =====");
+                dumpDiskEU( ++ieu, --neus );
+            }
+        };
+    }
+
+    /**************************************/
+    function openDatabase(name, version) {
+        /* Attempts to open the disk subsystem database for the specified "name"
+        and "version". Stores the IDB database object in "disk" if successful, or
+        stores null if unsuccessful */
+        var db = null;
+        var req;
+
+        req = window.indexedDB.open(name, version);
+
+        req.onerror = function(ev) {
+            alert("Cannot open disk database: " + ev.target.error);
+        };
+
+        req.onblocked = function(ev) {
+            alert("Database.open is blocked -- cannot continue");
+        };
+
+        req.onupgradeneeded = cannotconfigureDatabase;
+
+        req.onsuccess = function(ev) {
+            disk = ev.target.result;    // save the object reference globally for later use
+            disk.onerror = genericDBError;
+            spout("Disk database opened: " + name + " #" + disk.version);
+
+            dumpDisk();
+
+            disk.transaction("CONFIG").objectStore("CONFIG").get(0).onsuccess = function(ev) {
+                config = ev.target.result;
+            };
+        };
+
+    }
+
+    /**************************************/
+    function checkBrowser() {
+        /* Checks whether this browser can support the necessary stuff */
+        var missing = "";
+
+        if (!window.File) {missing += ", File"}
+        if (!window.FileReader) {missing += ", FileReader"}
+        if (!window.FileList) {missing += ", FileList"}
+        if (!window.Blob) {missing += ", Blob"}
+        if (!window.ArrayBuffer) {missing += ", ArrayBuffer"}
+        if (!window.DataView) {missing += ", DataView"}
+        if (!window.indexedDB) {missing += ", IndexedDB"}
+
+        if (missing.length == 0) {
+            return false;
+        } else {
+            alert("No can do... your browser does not support the following features:\n" +
+                missing.substring(2));
+            return true;
+        }
+    }
+
+    /********** Start of window.onload() **********/
+
+    if (!checkBrowser()) {
+        openDatabase(dbName, dbVersion);
+    }
+}, false);
+</script>
+<style>
+BODY {
+    font-family:        Arial, Helvetica, sans-serif;
+    font-size:          small}
+TABLE {
+    border-collapse:    collapse}
+TH {
+    vertical-align:     bottom}
+DIV#DiskRangeDiv {
+    display:            none}
+TBODY#DiskRangeBody {
+    font-family:        Courier New, Courier, monospace}
+.center {
+    text-align:         center}
+.rj {
+    text-align:         right}
+</style>
+</head>
+
+<body>
+
+<div style="position:relative; width:100%; height:4em">
+    <div style="position:absolute; left:0; top:0; width:auto">
+        <img src="../webUI/retro-B5500-Logo.png" alt="retro-B5500 Logo" style="float:left">
+        &nbsp;Disk SubSystem Dumper
+    </div>
+
+</div>
+
+<div id=DiskRangeDiv>
+    <table id=DiskRangeTable border=1 cellspacing=0 cellpadding=1>
+    <thead>
+    <tbody id=DiskRangeBody>
+    </table>
+    <br><input id=DumpBtn type=button value="Dump" accessKey=L DISABLED>
+</div>
+
+<pre id=TextPanel>
+</pre>
+
+<div id=PageBottom>
+</div>
+
+</body>
+</html>

@@ -86,12 +86,13 @@
 *   Redesign yet again the delay adjustment mechanism with one from the
 *   retro-205  project. Replace window.postMessage yield mechanism with one
 *   from the retro-220 project based on Promise().
+* 2018-07-05  P.Kimpel
+*   Simplify delay and deviation adjustment algorithm.
 ***********************************************************************/
 "use strict";
 
 (function (global) {
     /* Define a closure for the setCallback() mechanism */
-    var alpha = 0.25;                   // decay factor for delay deviation adjustment
     var delayDev = {NUL: 0};            // hash of delay time deviations by category
     var minTimeout = 4;                 // minimum setTimeout() threshold, milliseconds
     var lastTokenNr = 0;                // last setCallback token return value
@@ -151,11 +152,10 @@
         to "fcn". If the delay is less than "minTimeout", a setImmediate-like mechanism
         based on DOM Promise() will be used; otherwise the environment's standard
         setTimeout mechanism will be used */
-        var adj = 0;                    // adjustment to delay and delayDev[]
         var categoryName = (category || "NUL").toString();
         var delay = callbackDelay || 0; // actual delay to be generated
-        var delayBias;                  // current amount of delay deviation
-        var thisCallback;               // call-back object to be used
+        var delayBias = 0;              // current amount of delay deviation
+        var thisCallback = null;        // call-back object to be used
         var token = ++lastTokenNr;      // call-back token number
         var tokenName = token.toString(); // call-back token ID
 
@@ -167,7 +167,14 @@
             pool[poolLength] = null;
         }
 
+        // Fill in the call-back object and tank it in pendingCallbacks.
         thisCallback.startStamp = perf.now();
+        thisCallback.category = categoryName;
+        thisCallback.delay = delay;
+        thisCallback.context = context || this;
+        thisCallback.fcn = fcn;
+        thisCallback.arg = arg;
+        pendingCallbacks[tokenName] = thisCallback;
 
         // Adjust the requested delay based on the current delay deviation
         // for this category.
@@ -177,41 +184,18 @@
         } else {
             if (delayBias > 0) {
                 // We are delaying too much and should try to delay less.
-                if (delay < 0) {
-                    adj = 0;            // don't make delay any more negative
-                } else {
-                    adj = -Math.min(delay, delayBias, minTimeout)*alpha;
+                if (delay > 0) {        // don't make a negative delay any more so
+                    delay -= Math.min(delay, delayBias, minTimeout);
                 }
-            } else { // delayBias < 0
+            } else { // delayBias <= 0
                 // We are delaying too little and should try to delay more.
                 if (delay < 0) {
-                    if (delay - minTimeout < delayBias) {
-                        adj = -delayBias;
-                    } else {
-                        adj = minTimeout - delay;
-                    }
+                    delay -= Math.max(delay, delayBias);
                 } else {
-                    if (delay > minTimeout) {
-                        adj = 0;
-                    } else if (delay - minTimeout < delayBias) {
-                        adj = -delayBias;
-                    } else {
-                        adj = minTimeout - delay;
-                    }
+                    delay += Math.min(-delayBias, minTimeout);
                 }
             }
-
-            delay += adj;
-            delayDev[categoryName] += adj;
         }
-
-        // Fill in the call-back object and tank it in pendingCallbacks.
-        thisCallback.category = categoryName;
-        thisCallback.delay = delay;
-        thisCallback.context = context || this;
-        thisCallback.fcn = fcn;
-        thisCallback.arg = arg;
-        pendingCallbacks[tokenName] = thisCallback;
 
         // Decide whether to do a time wait or just a yield.
         if (delay > minTimeout) {
