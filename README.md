@@ -29,7 +29,7 @@ The contents of this project are licensed under the [MIT License](http://www.ope
 | Emulator hosting site | http://www.phkimpel.us/B5500/ |
 | Burroughs Mark XIII Software Release | http://www.phkimpel.us/B5500/webSite/SoftwareRequest.html |
 | B5500 at retroComputingTasmania | http://www.retrocomputingtasmania.com/home/projects/burroughs-b5500 |
-| Documents at bitsavers.org | http://bitsavers.org/pdf/burroughs/B5000_5500_5700/ |
+| Documents at bitsavers.org | https://bitsavers.org/pdf/burroughs/LargeSystems/B5000_5500_5700/ |
 | Release Downloads | https://drive.google.com/folderview?id=0BxqKm7v4xBswM29qUkxPTkVfYzg&usp=sharing |
 
 

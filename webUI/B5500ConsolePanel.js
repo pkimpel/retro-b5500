@@ -104,8 +104,11 @@ B5500ConsolePanel.prototype.evaluateNotReady = function evaluateNotReady(config)
 B5500ConsolePanel.prototype.focusConsole = function focusConsole() {
     /* Globally-accessible function to focus the console panel window */
 
-    this.window.focus();
-    this.$$("LoadBtn").focus();
+    this.window.blur();
+    setCallback(null, this, 2000, function() { // delay to allow other windows to open
+        this.window.focus();
+        this.$$("LoadBtn").focus();
+    });
 };
 
 /**************************************/

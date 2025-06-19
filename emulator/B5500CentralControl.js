@@ -61,7 +61,7 @@ function B5500CentralControl(global) {
 /**************************************/
 
 /* Global constants */
-B5500CentralControl.version = "1.06";
+B5500CentralControl.version = "1.06a";
 
 B5500CentralControl.memReadCycles = 2;          // assume 2 µs memory read cycle time (the other option was 3 µs)
 B5500CentralControl.memWriteCycles = 4;         // assume 4 µs memory write cycle time (the other option was 6 µs)
